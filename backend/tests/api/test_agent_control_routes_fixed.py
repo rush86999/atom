@@ -19,6 +19,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from api.agent_control_routes import router
+from core.admin_endpoints import get_super_admin
+from core.models import User
 
 
 # ============================================================================
@@ -30,11 +32,26 @@ def agent_control_client() -> TestClient:
     """
     Create TestClient with agent_control_routes router.
 
+    Overrides the get_super_admin dependency to return our test super admin user.
     Isolated app instance avoids SQLAlchemy metadata conflicts.
     """
+    super_admin_user = User(
+        id="test-super-admin",
+        email="superadmin@test.com",
+        role="super_admin", first_name="Test", last_name="User", status="active"
+    )
+
+    def override_get_super_admin():
+        return super_admin_user
+
     app = FastAPI()
     app.include_router(router)
-    return TestClient(app)
+    app.dependency_overrides[get_super_admin] = override_get_super_admin
+
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.clear()
 
 
 # ============================================================================
@@ -50,7 +67,7 @@ class TestAgentStart:
             mock_daemon_manager.is_running.return_value = False
             mock_daemon_manager.start_daemon.return_value = 12345
 
-            response = agent_control_client.post("/api/agent/start")
+            response = agent_control_client.post("/api/agent/start", json={})
 
             assert response.status_code == 200
             data = response.json()
@@ -163,7 +180,7 @@ class TestAgentStart:
             mock_daemon_manager.is_running.return_value = True
             mock_daemon_manager.get_pid.return_value = 9999
 
-            response = agent_control_client.post("/api/agent/start")
+            response = agent_control_client.post("/api/agent/start", json={})
 
             assert response.status_code == 400
             data = response.json()
@@ -256,11 +273,11 @@ class TestAgentStart:
             mock_daemon_manager.is_running.return_value = False
             mock_daemon_manager.start_daemon.side_effect = RuntimeError("Port already in use")
 
-            response = agent_control_client.post("/api/agent/start")
+            response = agent_control_client.post("/api/agent/start", json={})
 
             assert response.status_code == 500
             data = response.json()
-            assert "Port already in use" in data["detail"]
+            assert "Internal error" in data["detail"]
 
     def test_start_io_error(self, agent_control_client: TestClient, mock_daemon_manager: MagicMock):
         """Test start returns 500 on IOError from start_daemon."""
@@ -268,11 +285,11 @@ class TestAgentStart:
             mock_daemon_manager.is_running.return_value = False
             mock_daemon_manager.start_daemon.side_effect = IOError("Cannot write PID file")
 
-            response = agent_control_client.post("/api/agent/start")
+            response = agent_control_client.post("/api/agent/start", json={})
 
             assert response.status_code == 500
             data = response.json()
-            assert "Cannot write PID file" in data["detail"]
+            assert "Internal error" in data["detail"]
 
 
 # ============================================================================
@@ -340,7 +357,7 @@ class TestAgentStop:
 
             assert response.status_code == 500
             data = response.json()
-            assert "Unexpected error" in data["detail"]
+            assert "Internal error" in data["detail"]
 
     def test_stop_when_already_stopped(self, agent_control_client: TestClient, mock_daemon_manager: MagicMock):
         """Test stop handles multiple stop calls gracefully (idempotency)."""
@@ -369,7 +386,7 @@ class TestAgentRestart:
             mock_daemon_manager.is_running.return_value = True
             mock_daemon_manager.start_daemon.return_value = 54321
 
-            response = agent_control_client.post("/api/agent/restart")
+            response = agent_control_client.post("/api/agent/restart", json={})
 
             assert response.status_code == 200
             data = response.json()
@@ -386,7 +403,7 @@ class TestAgentRestart:
             mock_daemon_manager.is_running.return_value = False
             mock_daemon_manager.start_daemon.return_value = 54321
 
-            response = agent_control_client.post("/api/agent/restart")
+            response = agent_control_client.post("/api/agent/restart", json={})
 
             assert response.status_code == 200
             data = response.json()
@@ -416,7 +433,7 @@ class TestAgentRestart:
             mock_daemon_manager.is_running.return_value = True
             mock_daemon_manager.start_daemon.return_value = 54321
 
-            response = agent_control_client.post("/api/agent/restart")
+            response = agent_control_client.post("/api/agent/restart", json={})
 
             assert response.status_code == 200
             data = response.json()
@@ -428,7 +445,7 @@ class TestAgentRestart:
             mock_daemon_manager.is_running.return_value = False
             mock_daemon_manager.start_daemon.return_value = 54321
 
-            response = agent_control_client.post("/api/agent/restart")
+            response = agent_control_client.post("/api/agent/restart", json={})
 
             assert response.status_code == 200
             data = response.json()
@@ -440,7 +457,7 @@ class TestAgentRestart:
             mock_daemon_manager.is_running.return_value = False
             mock_daemon_manager.start_daemon.return_value = 54321
 
-            response = agent_control_client.post("/api/agent/restart")
+            response = agent_control_client.post("/api/agent/restart", json={})
 
             assert response.status_code == 200
             data = response.json()
@@ -451,11 +468,11 @@ class TestAgentRestart:
         with patch('api.agent_control_routes.DaemonManager', mock_daemon_manager):
             mock_daemon_manager.is_running.side_effect = Exception("Daemon error")
 
-            response = agent_control_client.post("/api/agent/restart")
+            response = agent_control_client.post("/api/agent/restart", json={})
 
             assert response.status_code == 500
             data = response.json()
-            assert "Daemon error" in data["detail"]
+            assert "Internal error" in data["detail"]
 
 
 class TestAgentStatus:
@@ -549,7 +566,7 @@ class TestAgentStatus:
 
             assert response.status_code == 500
             data = response.json()
-            assert "Status error" in data["detail"]
+            assert "Internal error" in data["detail"]
 
 
 # ============================================================================
@@ -651,7 +668,7 @@ class TestAgentControlErrorPaths:
             mock_daemon_manager.is_running.return_value = False
             mock_daemon_manager.start_daemon.side_effect = PermissionError("Permission denied")
 
-            response = agent_control_client.post("/api/agent/start")
+            response = agent_control_client.post("/api/agent/start", json={})
 
             assert response.status_code == 500
 
@@ -662,12 +679,12 @@ class TestAgentControlErrorPaths:
             mock_daemon_manager.start_daemon.return_value = 12345
 
             # First request succeeds
-            response1 = agent_control_client.post("/api/agent/start")
+            response1 = agent_control_client.post("/api/agent/start", json={})
             assert response1.status_code == 200
 
             # Second request would see daemon as running (race condition simulation)
             mock_daemon_manager.is_running.return_value = True
-            response2 = agent_control_client.post("/api/agent/start")
+            response2 = agent_control_client.post("/api/agent/start", json={})
             assert response2.status_code == 400
 
     def test_very_long_host_name(self, agent_control_client: TestClient, mock_daemon_manager: MagicMock):
@@ -756,7 +773,7 @@ class TestAgentControlEdgeCases:
 
             # Mock time.sleep to speed up test
             with patch('time.sleep') as mock_sleep:
-                response = agent_control_client.post("/api/agent/restart")
+                response = agent_control_client.post("/api/agent/restart", json={})
 
                 # Verify 2-second sleep was called
                 mock_sleep.assert_called_once_with(2)

@@ -993,7 +993,7 @@ async def canvas_execute_javascript(
 
                     # Verify agent is AUTONOMOUS (double-check for security)
                     from core.models import AgentStatus
-                    if agent.status != AgentStatus.AUTONOMOUS.value:
+                    if (agent.status or "").upper() != AgentStatus.AUTONOMOUS.name:
                         logger.warning(f"JavaScript execution blocked: Agent {agent.name} is {agent.status}, not AUTONOMOUS")
                         return {
                             "success": False,

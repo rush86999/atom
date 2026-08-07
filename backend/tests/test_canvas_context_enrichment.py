@@ -95,6 +95,8 @@ class TestCanvasContextExtraction:
         # Create canvas audit for generic canvas with chart
         audit = CanvasAudit(
             id="audit-generic-001",
+            canvas_id="canvas-generic-001",
+            tenant_id="default",
             session_id=test_session.id,
             user_id=test_session.user_id,
             created_at=datetime.now(),
@@ -121,6 +123,8 @@ class TestCanvasContextExtraction:
         """Test extracting context from documentation canvas"""
         audit = CanvasAudit(
             id="audit-docs-001",
+            canvas_id="canvas-docs-001",
+            tenant_id="default",
             session_id=test_session.id,
             user_id=test_session.user_id,
             created_at=datetime.now(),
@@ -143,6 +147,8 @@ class TestCanvasContextExtraction:
         """Test extracting context from email canvas"""
         audit = CanvasAudit(
             id="audit-email-001",
+            canvas_id="canvas-email-001",
+            tenant_id="default",
             session_id=test_session.id,
             user_id=test_session.user_id,
             created_at=datetime.now(),
@@ -165,6 +171,8 @@ class TestCanvasContextExtraction:
         """Test extracting context from spreadsheet canvas with business data"""
         audit = CanvasAudit(
             id="audit-sheets-001",
+            canvas_id="canvas-sheets-001",
+            tenant_id="default",
             session_id=test_session.id,
             user_id=test_session.user_id,
             created_at=datetime.now(),
@@ -188,6 +196,8 @@ class TestCanvasContextExtraction:
         """Test extracting context from orchestration canvas with workflow data"""
         audit = CanvasAudit(
             id="audit-orchestration-001",
+            canvas_id="canvas-orchestration-001",
+            tenant_id="default",
             session_id=test_session.id,
             user_id=test_session.user_id,
             created_at=datetime.now(),
@@ -216,6 +226,8 @@ class TestCanvasContextExtraction:
         """Test extracting context from terminal canvas"""
         audit = CanvasAudit(
             id="audit-terminal-001",
+            canvas_id="canvas-terminal-001",
+            tenant_id="default",
             session_id=test_session.id,
             user_id=test_session.user_id,
             created_at=datetime.now(),
@@ -238,6 +250,8 @@ class TestCanvasContextExtraction:
         """Test extracting context from coding canvas"""
         audit = CanvasAudit(
             id="audit-coding-001",
+            canvas_id="canvas-coding-001",
+            tenant_id="default",
             session_id=test_session.id,
             user_id=test_session.user_id,
             created_at=datetime.now(),
@@ -274,7 +288,7 @@ class TestEpisodeSegmentCanvasContext:
         message = ChatMessage(
             id="msg-canvas-001",
             conversation_id=test_session.id,
-            workspace_id="default",  # Required field
+            tenant_id="default",  # Required field
             content="Show me the workflow approval",
             role="user",
             created_at=datetime.now()
@@ -284,6 +298,8 @@ class TestEpisodeSegmentCanvasContext:
         # Create canvas audit
         audit = CanvasAudit(
             id="audit-segment-001",
+            canvas_id="canvas-segment-001",
+            tenant_id="default",
             session_id=test_session.id,
             user_id=test_user.id,
             created_at=datetime.now(),
@@ -306,7 +322,7 @@ class TestEpisodeSegmentCanvasContext:
 
         # Verify segment has canvas_context
         segments = segmentation_service.db.query(EpisodeSegment).filter(
-            EpisodeSegment.episode_id == episode.id
+            EpisodeSegment.episode_id == episode["id"]
         ).all()
 
         assert len(segments) > 0
@@ -328,7 +344,7 @@ class TestEpisodeSegmentCanvasContext:
         message = ChatMessage(
             id="msg-no-canvas-001",
             conversation_id=test_session.id,
-            workspace_id="default",  # Required field
+            tenant_id="default",  # Required field
             content="Hello agent",
             role="user",
             created_at=datetime.now()
@@ -348,12 +364,12 @@ class TestEpisodeSegmentCanvasContext:
 
         # Check segments - should not have canvas_context
         segments = segmentation_service.db.query(EpisodeSegment).filter(
-            EpisodeSegment.episode_id == episode.id
+            EpisodeSegment.episode_id == episode["id"]
         ).all()
 
-        # All segments should have null canvas_context since no canvas audits exist
+        # All segments should have no canvas_context since no canvas audits exist
         for segment in segments:
-            assert segment.canvas_context is None
+            assert segment.canvas_context == {}
 
 
 # ============================================================================

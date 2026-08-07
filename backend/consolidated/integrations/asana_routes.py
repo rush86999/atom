@@ -219,8 +219,7 @@ def delete_asana_token(user_id: str) -> bool:
     try:
         token_storage = TokenStorage()
         provider_key = f"asana_{user_id}"
-        # TokenStorage doesn't have delete method, so we'll save empty token
-        token_storage.save_token(provider_key, {})
+        token_storage.delete_token(provider_key)
         logger.info(f"Deleted Asana token for user {user_id}")
         return True
     except Exception as e:

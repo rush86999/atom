@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from core.agent_social_layer import agent_social_layer
 from core.agent_communication import agent_event_bus
-from core.models import SocialPost, User
+from core.models import SocialPost, User, AgentRegistry, Channel, AuthorType
 from core.database import get_db_session
 
 
@@ -34,7 +34,7 @@ def db():
     with get_db_session() as session:
         yield session
         # Cleanup
-        session.query(AgentPost).delete()
+        session.query(SocialPost).delete()
         session.query(Channel).delete()
         session.query(AgentRegistry).delete()
         session.commit()
@@ -50,6 +50,7 @@ def mock_agent(db: Session):
         name="Test Agent",
         status="INTERN",  # INTERN+ can post
         category="engineering",
+        tenant_id="default",
         module_path="test_agent",  # Required field
         class_name="TestAgent",  # Required field
         description="Test agent for unit tests"
@@ -70,6 +71,7 @@ def mock_student_agent(db: Session):
         name="Student Agent",
         status="STUDENT",  # STUDENT read-only
         category="engineering",
+        tenant_id="default",
         module_path="test_student_agent",  # Required field
         class_name="TestStudentAgent",  # Required field
         description="Student agent for unit tests"
@@ -103,15 +105,19 @@ def mock_user(db: Session):
 def mock_post(db: Session, mock_agent: AgentRegistry):
     """Create mock post."""
     import uuid
-    post = AgentPost(
+    post = SocialPost(
         id=str(uuid.uuid4()),
-        sender_type="agent",
-        sender_id=mock_agent.id,
-        sender_name=mock_agent.name,
-        sender_maturity=mock_agent.status,
-        sender_category=mock_agent.category,
+        tenant_id="default",
+        author_type=AuthorType.AGENT,
+        author_id=mock_agent.id,
         post_type="status",
         content="Test post content",
+        post_metadata={
+            "sender_name": mock_agent.name,
+            "sender_maturity": mock_agent.status,
+            "sender_category": mock_agent.category,
+            "is_public": True,
+        },
         created_at=datetime.utcnow()
     )
     db.add(post)
@@ -148,7 +154,7 @@ class TestReplyThreading:
     """Tests for reply threading functionality."""
 
     @pytest.mark.asyncio
-    async def test_add_reply_to_post(self, db: Session, mock_post: AgentPost, mock_user: User):
+    async def test_add_reply_to_post(self, db: Session, mock_post: SocialPost, mock_user: User):
         """User replies to agent post."""
         reply = await agent_social_layer.add_reply(
             post_id=mock_post.id,
@@ -164,27 +170,23 @@ class TestReplyThreading:
         assert reply["content"] == "This is a reply"
         assert reply["post_type"] == "response"
 
-        # Verify reply_count incremented
-        db.refresh(mock_post)
-        assert mock_post.reply_count == 1
-
-        # Verify reply_to_id set
-        reply_obj = db.query(AgentPost).filter(AgentPost.id == reply["id"]).first()
-        assert reply_obj.reply_to_id == mock_post.id
+        # Verify reply_to_id set in post_metadata
+        reply_obj = db.query(SocialPost).filter(SocialPost.id == reply["id"]).first()
+        assert reply_obj.post_metadata["reply_to_id"] == mock_post.id
 
     @pytest.mark.asyncio
-    async def test_agent_responds_to_reply(self, db: Session, mock_post: AgentPost, mock_agent: AgentRegistry):
+    async def test_agent_responds_to_reply(self, db: Session, mock_post: SocialPost, mock_agent: AgentRegistry):
         """Agent responds to user reply."""
         # First create a user reply
         import uuid
-        user_reply = AgentPost(
+        user_reply = SocialPost(
             id=str(uuid.uuid4()),
-            sender_type="human",
-            sender_id=str(uuid.uuid4()),
-            sender_name="Test User",
-            post_type="response",
+            tenant_id="default",
+            author_type=AuthorType.HUMAN,
+            author_id=str(uuid.uuid4()),
+            post_type="status",
             content="User reply",
-            reply_to_id=mock_post.id,
+            post_metadata={"sender_name": "Test User", "reply_to_id": mock_post.id, "is_public": True},
             created_at=datetime.utcnow()
         )
         db.add(user_reply)
@@ -203,15 +205,13 @@ class TestReplyThreading:
         assert agent_reply["sender_type"] == "agent"
         assert agent_reply["post_type"] == "response"
 
-        # Verify reply_count incremented on user_reply
-        db.refresh(user_reply)
-        assert user_reply.reply_count == 1
+        # Verify reply_to_id set in post_metadata
+        reply_obj = db.query(SocialPost).filter(SocialPost.id == agent_reply["id"]).first()
+        assert reply_obj.post_metadata["reply_to_id"] == user_reply.id
 
     @pytest.mark.asyncio
-    async def test_reply_increments_reply_count(self, db: Session, mock_post: AgentPost, mock_user: User):
-        """Parent post reply_count updated."""
-        initial_count = mock_post.reply_count
-
+    async def test_reply_increments_reply_count(self, db: Session, mock_post: SocialPost, mock_user: User):
+        """Multiple replies to same post all tracked."""
         # Add 3 replies
         for i in range(3):
             await agent_social_layer.add_reply(
@@ -223,11 +223,11 @@ class TestReplyThreading:
                 db=db
             )
 
-        db.refresh(mock_post)
-        assert mock_post.reply_count == initial_count + 3
+        replies = await agent_social_layer.get_replies(post_id=mock_post.id, db=db)
+        assert replies["total"] == 3
 
     @pytest.mark.asyncio
-    async def test_get_replies_for_post(self, db: Session, mock_post: AgentPost, mock_user: User):
+    async def test_get_replies_for_post(self, db: Session, mock_post: SocialPost, mock_user: User):
         """Retrieve all replies sorted ASC."""
         # Add 3 replies
         reply_ids = []
@@ -256,7 +256,7 @@ class TestReplyThreading:
         assert result["replies"][2]["id"] == reply_ids[2]
 
     @pytest.mark.asyncio
-    async def test_student_agent_cannot_reply(self, db: Session, mock_post: AgentPost, mock_student_agent: AgentRegistry):
+    async def test_student_agent_cannot_reply(self, db: Session, mock_post: SocialPost, mock_student_agent: AgentRegistry):
         """STUDENT maturity blocked from replying."""
         with pytest.raises(PermissionError) as exc_info:
             await agent_social_layer.add_reply(
@@ -271,7 +271,7 @@ class TestReplyThreading:
         assert "STUDENT agents cannot reply" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_reply_broadcast_via_websocket(self, db: Session, mock_post: AgentPost, mock_user: User):
+    async def test_reply_broadcast_via_websocket(self, db: Session, mock_post: SocialPost, mock_user: User):
         """Reply event broadcast to WebSocket subscribers."""
         with patch.object(agent_event_bus, 'broadcast_post') as mock_broadcast:
             await agent_social_layer.add_reply(
@@ -360,8 +360,8 @@ class TestChannelManagement:
         assert post["channel_name"] == mock_channel.name
 
         # Verify in database
-        db_post = db.query(AgentPost).filter(AgentPost.id == post["id"]).first()
-        assert db_post.channel_id == mock_channel.id
+        db_post = db.query(SocialPost).filter(SocialPost.id == post["id"]).first()
+        assert db_post.post_metadata["channel_id"] == mock_channel.id
 
     @pytest.mark.asyncio
     async def test_channel_posts_filtered_in_feed(self, db: Session, mock_agent: AgentRegistry, mock_channel: Channel):
@@ -669,7 +669,7 @@ class TestIntegration:
     """Integration tests for social feed features."""
 
     @pytest.mark.asyncio
-    async def test_full_reply_thread_with_redaction(self, db: Session, mock_post: AgentPost, mock_user: User):
+    async def test_full_reply_thread_with_redaction(self, db: Session, mock_post: SocialPost, mock_user: User):
         """Reply → PII redaction → broadcast."""
         original_content = "My email is test@example.com"  # Contains PII
 

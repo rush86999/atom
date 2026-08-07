@@ -15,8 +15,12 @@ Pass Rate Target: 95%+
 import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from sqlalchemy.orm import Session
+import os
+import tempfile
+from sqlalchemy import create_engine, exc
+from sqlalchemy.orm import Session, sessionmaker
 
+from core.database import Base
 from core.episode_retrieval_service import (
     EpisodeRetrievalService,
     RetrievalMode,
@@ -39,13 +43,41 @@ from core.models import (
 
 @pytest.fixture
 def db():
-    """Create database session."""
-    from core.database import SessionLocal
-    db = SessionLocal()
+    """Create a fresh temp SQLite database session for each test."""
+    fd, db_path = tempfile.mkstemp(suffix='.db')
+    os.close(fd)
+
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+        echo=False
+    )
+    engine._test_db_path = db_path
+
+    for table in Base.metadata.sorted_tables:
+        try:
+            table.create(engine, checkfirst=True)
+        except exc.NoReferencedTableError:
+            continue
+        except Exception as e:
+            if "already exists" in str(e).lower() or "duplicate" in str(e).lower():
+                continue
+            else:
+                raise
+
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = TestingSessionLocal()
+
     try:
-        yield db
+        yield session
     finally:
-        db.close()
+        session.close()
+        engine.dispose()
+        if hasattr(engine, '_test_db_path'):
+            try:
+                os.unlink(engine._test_db_path)
+            except Exception:
+                pass
 
 
 @pytest.fixture
@@ -100,12 +132,14 @@ def sample_episodes(db, sample_agent):
             agent_id=sample_agent.id,
             session_id=f"session-{i}",
             workspace_id="default",
-            user_id=sample_agent.user_id,
+            tenant_id="default",
+            maturity_at_time="SUPERVISED",
+            outcome="success",
             started_at=now - timedelta(days=i),
-            ended_at=now - timedelta(days=i) + timedelta(minutes=30),
+            completed_at=now - timedelta(days=i) + timedelta(minutes=30),
             status="completed",
-            summary=f"Episode {i} summary",
-            metadata={"index": i}
+            task_description=f"Episode {i} summary",
+            metadata_json={"index": i}
         )
         db.add(episode)
         episodes.append(episode)
@@ -154,7 +188,7 @@ class TestRetrieveTemporal:
         """RED: Test temporal retrieval with 7d range."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()):
+        with patch.object(service, '_log_access', new_callable=AsyncMock):
             result = await service.retrieve_temporal(
                 agent_id=sample_agent.id,
                 time_range="7d",
@@ -171,7 +205,7 @@ class TestRetrieveTemporal:
         """RED: Test temporal retrieval with 1d range."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()):
+        with patch.object(service, '_log_access', new_callable=AsyncMock):
             result = await service.retrieve_temporal(
                 agent_id=sample_agent.id,
                 time_range="1d",
@@ -186,7 +220,7 @@ class TestRetrieveTemporal:
         """RED: Test user_id filtering in temporal retrieval."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()):
+        with patch.object(service, '_log_access', new_callable=AsyncMock):
             result = await service.retrieve_temporal(
                 agent_id=sample_agent.id,
                 time_range="7d",
@@ -201,7 +235,7 @@ class TestRetrieveTemporal:
         """RED: Test that limit parameter is respected."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()):
+        with patch.object(service, '_log_access', new_callable=AsyncMock):
             result = await service.retrieve_temporal(
                 agent_id=sample_agent.id,
                 time_range="7d",
@@ -215,7 +249,7 @@ class TestRetrieveTemporal:
         """RED: Test that results are ordered by started_at DESC."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()):
+        with patch.object(service, '_log_access', new_callable=AsyncMock):
             result = await service.retrieve_temporal(
                 agent_id=sample_agent.id,
                 time_range="90d",
@@ -224,9 +258,9 @@ class TestRetrieveTemporal:
 
             episodes = result["episodes"]
             if len(episodes) > 1:
-                # Check that dates are descending
+                # Check that dates are descending (results are serialized dicts)
                 for i in range(len(episodes) - 1):
-                    assert episodes[i].started_at >= episodes[i+1].started_at
+                    assert episodes[i]["started_at"] >= episodes[i+1]["started_at"]
 
 
 # =============================================================================
@@ -241,7 +275,7 @@ class TestRetrieveSemantic:
         """RED: Test semantic retrieval using vector similarity."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()), \
+        with patch.object(service, '_log_access', new_callable=AsyncMock), \
              patch.object(service.lancedb, 'search') as mock_search:
 
             # Mock vector search results
@@ -264,7 +298,7 @@ class TestRetrieveSemantic:
         """RED: Test that semantic search filters by agent."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()), \
+        with patch.object(service, '_log_access', new_callable=AsyncMock), \
              patch.object(service.lancedb, 'search') as mock_search:
 
             mock_search.return_value = []
@@ -283,7 +317,7 @@ class TestRetrieveSemantic:
         """RED: Test that similarity scores are included."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()), \
+        with patch.object(service, '_log_access', new_callable=AsyncMock), \
              patch.object(service.lancedb, 'search') as mock_search:
 
             mock_search.return_value = [
@@ -313,7 +347,7 @@ class TestRetrieveSequential:
         """RED: Test sequential retrieval with segments."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()):
+        with patch.object(service, '_log_access', new_callable=AsyncMock):
             episode_id = sample_episodes[0].id
 
             result = await service.retrieve_sequential(
@@ -329,7 +363,7 @@ class TestRetrieveSequential:
         """RED: Test that segments are included."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()):
+        with patch.object(service, '_log_access', new_callable=AsyncMock):
             episode_id = sample_episodes[0].id
 
             result = await service.retrieve_sequential(
@@ -345,7 +379,7 @@ class TestRetrieveSequential:
         """RED: Test handling of nonexistent episode."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()):
+        with patch.object(service, '_log_access', new_callable=AsyncMock):
             result = await service.retrieve_sequential(
                 episode_id="nonexistent-episode",
                 agent_id=sample_agent.id
@@ -367,15 +401,10 @@ class TestRetrieveContextual:
         """RED: Test contextual retrieval with hybrid scoring."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()), \
-             patch.object(service, '_calculate_contextual_score') as mock_score:
-
-            mock_score.return_value = 0.85
-
+        with patch.object(service, '_log_access', new_callable=AsyncMock):
             result = await service.retrieve_contextual(
                 agent_id=sample_agent.id,
-                query="current task context",
-                context={"task": "test"},
+                current_task="current task context",
                 limit=10
             )
 
@@ -386,15 +415,10 @@ class TestRetrieveContextual:
         """RED: Test that contextual scores are included."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()), \
-             patch.object(service, '_calculate_contextual_score') as mock_score:
-
-            mock_score.return_value = 0.90
-
+        with patch.object(service, '_log_access', new_callable=AsyncMock):
             result = await service.retrieve_contextual(
                 agent_id=sample_agent.id,
-                query="test query",
-                context={},
+                current_task="test query",
                 limit=5
             )
 
@@ -405,15 +429,10 @@ class TestRetrieveContextual:
         """RED: Test that results are ranked by contextual score."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()), \
-             patch.object(service, '_calculate_contextual_score') as mock_score:
-
-            mock_score.return_value = 0.95
-
+        with patch.object(service, '_log_access', new_callable=AsyncMock):
             result = await service.retrieve_contextual(
                 agent_id=sample_agent.id,
-                query="test query",
-                context={},
+                current_task="test query",
                 limit=10
             )
 
@@ -452,7 +471,7 @@ class TestGovernanceChecks:
 
         # Mock governance check to allow access
         with patch.object(service.governance, 'can_perform_action') as mock_gov, \
-             patch.object(service, '_log_access', new_callable=AsyncMock()):
+             patch.object(service, '_log_access', new_callable=AsyncMock):
 
             mock_gov.return_value = {"allowed": True}
 
@@ -478,7 +497,7 @@ class TestLoggingAndAccess:
         """RED: Test that all retrievals are logged."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()) as mock_log:
+        with patch.object(service, '_log_access', new_callable=AsyncMock) as mock_log:
             await service.retrieve_temporal(
                 agent_id=sample_agent.id,
                 time_range="7d"
@@ -492,7 +511,7 @@ class TestLoggingAndAccess:
         """RED: Test that agent_id is included in log."""
         service = EpisodeRetrievalService(db)
 
-        with patch.object(service, '_log_access', new_callable=AsyncMock()) as mock_log:
+        with patch.object(service, '_log_access', new_callable=AsyncMock) as mock_log:
             await service.retrieve_temporal(
                 agent_id=sample_agent.id,
                 time_range="7d"

@@ -55,7 +55,7 @@ const AtomAgentSettings: React.FC = () => {
     }, [session, status]);
 
     const handleConnectCalendar = () => {
-        window.location.href = '/api/auth/google/initiate';
+        window.open('/api/auth/google/initiate', '_self');
     };
 
     const handleSaveZapierUrl = async () => {

@@ -317,8 +317,13 @@ def db_session(worker_database):
     # persisted rows. Wipe all tables to restore per-test isolation.
     try:
         from core.models_registration import Base as _all_models_base
+        from sqlalchemy import inspect as _sa_inspect
+        # Metadata can grow mid-session (test-time imports register models
+        # after the DB was created), so only delete tables that exist.
+        _existing = set(_sa_inspect(session.bind).get_table_names())
         for table in reversed(_all_models_base.metadata.sorted_tables):
-            session.execute(table.delete())
+            if table.name in _existing:
+                session.execute(table.delete())
         session.commit()
     except Exception:
         session.rollback()

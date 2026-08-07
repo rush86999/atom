@@ -1033,6 +1033,21 @@ def analytics_routes_client(mock_message_analytics, mock_correlation_engine, moc
     app = FastAPI()
     app.include_router(router)
 
+    from core.auth import get_current_user
+
+    def override_get_current_user():
+        from core.models import User
+        return User(
+            id="analytics-test-user",
+            email="analytics@test.com",
+            first_name="Analytics",
+            last_name="Tester",
+            role="super_admin",
+            status="active"
+        )
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
     # Patch engine getters to return mocks
     with patch('api.analytics_dashboard_routes.get_message_analytics_engine', return_value=mock_message_analytics), \
          patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine', return_value=mock_correlation_engine), \
@@ -1040,6 +1055,8 @@ def analytics_routes_client(mock_message_analytics, mock_correlation_engine, moc
 
         client = TestClient(app)
         yield client
+
+        app.dependency_overrides.clear()
 
 
 # ============================================================================

@@ -40,7 +40,7 @@ async def process_scheduled_post(
         Dictionary with platform results
     """
     from core.database import SessionLocal
-    from core.models import SocialPostHistory, OAuthToken
+    from core.models import SocialPostHistory, IntegrationToken
 
     db = SessionLocal()
 
@@ -79,11 +79,13 @@ async def process_scheduled_post(
             logger.info(f"Posting to {platform} for post {post_id}")
 
             try:
-                # Get OAuth token for this platform and user
-                oauth_token = db.query(OAuthToken).filter(
-                    OAuthToken.user_id == user_id,
-                    OAuthToken.provider == platform,
-                    OAuthToken.status == "active"
+                # Get OAuth token for this platform and user. IntegrationToken
+                # is the provider-scoped token store (OAuthToken is the
+                # OAuth-client token store with no provider/status columns).
+                oauth_token = db.query(IntegrationToken).filter(
+                    IntegrationToken.user_id == user_id,
+                    IntegrationToken.provider == platform,
+                    IntegrationToken.status == "active"
                 ).first()
 
                 if not oauth_token:
@@ -106,9 +108,10 @@ async def process_scheduled_post(
                     continue
 
                 # Post to platform
+                from core.privsec.token_encryption import decrypt_token
                 result = await poster_func(
                     text=text,
-                    access_token=oauth_token.access_token,
+                    access_token=decrypt_token(oauth_token.access_token, allow_plaintext=True),
                     media_urls=media_urls,
                     link_url=link_url
                 )
@@ -120,9 +123,6 @@ async def process_scheduled_post(
                     logger.info(f"Successfully posted to {platform}")
                 else:
                     logger.error(f"Failed to post to {platform}: {result.get('error')}")
-
-                # Update last_used timestamp
-                oauth_token.last_used = datetime.now(timezone.utc)
 
             except Exception as e:
                 logger.error(f"Error posting to {platform}: {e}", exc_info=True)

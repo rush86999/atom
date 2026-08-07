@@ -7,7 +7,7 @@ import {
     getGDriveConnectionStatus,
     disconnectGDrive,
     GDriveConnectionStatusInfo
-} from '../../../src/skills/gdriveSkills';
+} from './skills/gdriveSkills';
 
 const GDriveManager: React.FC = () => {
     const { data: session } = useSession();
@@ -43,7 +43,7 @@ const GDriveManager: React.FC = () => {
             setError("User ID is missing.");
             return;
         }
-        window.location.href = `/api/auth/google/initiate?user_id=${userId}&scope=drive`;
+        window.open(`/api/auth/google/initiate?user_id=${userId}&scope=drive`, '_self');
     };
 
     const handleDisconnectGDrive = useCallback(async () => {

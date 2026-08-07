@@ -95,7 +95,7 @@ const ThirdPartyIntegrations = () => {
             <CardContent className="space-y-8">
                 <section className="space-y-4">
                     <h3 className="text-lg font-medium">Asana Integration</h3>
-                    <Button onClick={() => window.location.href = '/api/auth/asana/initiate'}>Connect Asana</Button>
+                    <Button onClick={() => window.open('/api/auth/asana/initiate', '_self')}>Connect Asana</Button>
                 </section>
 
                 <Separator />
@@ -141,10 +141,10 @@ const ThirdPartyIntegrations = () => {
                 <section className="space-y-4">
                     <h3 className="text-lg font-medium">Cloud Storage & Collaboration</h3>
                     <div className="flex flex-wrap gap-4">
-                        <Button variant="outline" onClick={() => window.location.href = '/api/auth/slack/initiate'}>Connect Slack</Button>
-                        <Button variant="outline" onClick={() => window.location.href = '/api/auth/zoom/initiate'}>Connect Zoom</Button>
-                        <Button variant="outline" onClick={() => window.location.href = '/api/auth/box/initiate'}>Connect Box</Button>
-                        <Button variant="outline" onClick={() => window.location.href = '/api/pocket/oauth/start'}>Connect Pocket</Button>
+                        <Button variant="outline" onClick={() => window.open('/api/auth/slack/initiate', '_self')}>Connect Slack</Button>
+                        <Button variant="outline" onClick={() => window.open('/api/auth/zoom/initiate', '_self')}>Connect Zoom</Button>
+                        <Button variant="outline" onClick={() => window.open('/api/auth/box/initiate', '_self')}>Connect Box</Button>
+                        <Button variant="outline" onClick={() => window.open('/api/pocket/oauth/start', '_self')}>Connect Pocket</Button>
                     </div>
                 </section>
 

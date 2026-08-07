@@ -81,10 +81,11 @@ class TestCanvasTypeFiltering:
         episode1 = Episode(
             id="ep-orchestration-001",
             agent_id=test_agent.id,
-            user_id=test_user.id,
+            tenant_id="default",
             workspace_id="default",  # Required field
             maturity_at_time="INTERN",  # Required field
-            title="Workflow Approval",
+            outcome="success",
+            task_description="Workflow Approval",
             started_at=datetime.now() - timedelta(days=1),
             status="active"
         )
@@ -115,10 +116,11 @@ class TestCanvasTypeFiltering:
         episode2 = Episode(
             id="ep-terminal-001",
             agent_id=test_agent.id,
-            user_id=test_user.id,
+            tenant_id="default",
             workspace_id="default",  # Required field
             maturity_at_time="INTERN",  # Required field
-            title="Terminal Command",
+            outcome="success",
+            task_description="Terminal Command",
             started_at=datetime.now() - timedelta(days=1),
             status="active"
         )
@@ -167,10 +169,11 @@ class TestCanvasTypeFiltering:
             episode = Episode(
                 id=f"ep-{canvas_type}-002",
                 agent_id=test_agent.id,
-                user_id=test_user.id,
+                tenant_id="default",
                 workspace_id="default",  # Required field
                 maturity_at_time="INTERN",  # Required field
-                title=f"{canvas_type.title()} Activity",
+                outcome="success",
+                task_description=f"{canvas_type.title()} Activity",
                 started_at=datetime.now() - timedelta(hours=2),
                 status="active"
             )
@@ -220,10 +223,11 @@ class TestProgressiveDetailInRetrieval:
         episode = Episode(
             id="ep-detail-001",
             agent_id=test_agent.id,
-            user_id=test_user.id,
+            tenant_id="default",
             workspace_id="default",  # Required field
             maturity_at_time="INTERN",  # Required field
-            title="Detail Test",
+            outcome="success",
+            task_description="Detail Test",
             started_at=datetime.now() - timedelta(hours=1),
             status="active"
         )
@@ -276,10 +280,11 @@ class TestProgressiveDetailInRetrieval:
         episode = Episode(
             id="ep-detail-002",
             agent_id=test_agent.id,
-            user_id=test_user.id,
+            tenant_id="default",
             workspace_id="default",  # Required field
             maturity_at_time="INTERN",  # Required field
-            title="Standard Detail Test",
+            outcome="success",
+            task_description="Standard Detail Test",
             started_at=datetime.now() - timedelta(hours=1),
             status="active"
         )
@@ -341,10 +346,11 @@ class TestBusinessDataFilters:
         episode1 = Episode(
             id="ep-approved-001",
             agent_id=test_agent.id,
-            user_id=test_user.id,
+            tenant_id="default",
             workspace_id="default",  # Required field
             maturity_at_time="INTERN",  # Required field
-            title="Approved Workflow",
+            outcome="success",
+            task_description="Approved Workflow",
             started_at=datetime.now() - timedelta(days=1),
             status="active"
         )
@@ -373,10 +379,11 @@ class TestBusinessDataFilters:
         episode2 = Episode(
             id="ep-rejected-001",
             agent_id=test_agent.id,
-            user_id=test_user.id,
+            tenant_id="default",
             workspace_id="default",  # Required field
             maturity_at_time="INTERN",  # Required field
-            title="Rejected Workflow",
+            outcome="success",
+            task_description="Rejected Workflow",
             started_at=datetime.now() - timedelta(days=1),
             status="active"
         )

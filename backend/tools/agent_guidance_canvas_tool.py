@@ -113,6 +113,7 @@ class AgentGuidanceSystem:
             # Create operation tracker
             tracker = AgentOperationTracker(
                 id=str(uuid.uuid4()),
+                tenant_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
                 workspace_id=workspace_id,
@@ -220,7 +221,8 @@ class AgentGuidanceSystem:
                 return
 
             # Update tracker
-            tracker.current_step = step
+            if step is not None:
+                tracker.current_step = step
             tracker.current_step_index += 1
 
             if progress is not None:
@@ -233,7 +235,7 @@ class AgentGuidanceSystem:
                     "level": add_log.get("level", "info"),
                     "message": add_log.get("message", "")
                 }
-                tracker.logs.append(log_entry)
+                tracker.logs = list(tracker.logs or []) + [log_entry]
 
             self.db.commit()
 
@@ -443,7 +445,7 @@ class AgentGuidanceSystem:
                 tenant_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
-                canvas_id=None,
+                canvas_id="",
                 session_id=None,
                 action_type=action,
                 details_json={
@@ -458,6 +460,7 @@ class AgentGuidanceSystem:
             self.db.add(audit)
             self.db.commit()
         except Exception as e:
+            self.db.rollback()
             logger.error(f"Failed to create audit: {e}")
 
 

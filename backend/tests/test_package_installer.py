@@ -277,10 +277,11 @@ class TestExecutionWithPackages:
 
     def test_execute_with_missing_image_raises_error(self, installer, mock_docker_client):
         """Verify RuntimeError when skill image not found."""
-        # Mock image not found - use the ImageNotFound from our mocked docker.errors
-        # Import docker.errors.ImageNotFound to match production code
-        from docker import errors as docker_errors
-        mock_docker_client.images.get.side_effect = docker_errors.ImageNotFound("Image not found")
+        # Mock image not found - use the docker module mock production code
+        # captured (a sibling test file re-mocks sys.modules['docker'], so a
+        # bare `from docker import errors` may resolve to the wrong class).
+        from core.package_installer import docker
+        mock_docker_client.images.get.side_effect = docker.errors.ImageNotFound("Image not found")
 
         with pytest.raises(RuntimeError) as exc_info:
             installer.execute_with_packages(
@@ -839,9 +840,10 @@ class TestExecuteWithPackagesResourceLimits:
 
     def test_execute_without_image_returns_error(self, installer, mock_docker_client):
         """Verify execute raises RuntimeError when image doesn't exist."""
-        # Mock image not found - import to match production code
-        from docker import errors as docker_errors
-        mock_docker_client.images.get.side_effect = docker_errors.ImageNotFound("Image not found")
+        # Mock image not found - use the docker module mock production code
+        # captured (see test_execute_with_missing_image_raises_error).
+        from core.package_installer import docker
+        mock_docker_client.images.get.side_effect = docker.errors.ImageNotFound("Image not found")
 
         with pytest.raises(RuntimeError) as exc_info:
             installer.execute_with_packages(

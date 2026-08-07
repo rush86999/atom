@@ -17,13 +17,14 @@ from fastapi import HTTPException
 from core.token_storage import TokenStorage
 
 # Sample token data
-SAMPLE_TOKEN_DATA = {
-    "access_token": "1/12045927654321abcdef123456789",
-    "refresh_token": "1/987654321fedcba54321098765432",
-    "token_type": "Bearer",
-    "expires_in": 3600,
-    "scope": "default"
-}
+def sample_token_data():
+    return {
+        "access_token": "1/12045927654321abcdef123456789",
+        "refresh_token": "1/987654321fedcba54321098765432",
+        "token_type": "Bearer",
+        "expires_in": 3600,
+        "scope": "default"
+    }
 
 
 @pytest.fixture
@@ -36,7 +37,7 @@ def temp_token_file(monkeypatch):
     from consolidated.integrations import asana_routes
     original_storage = asana_routes.TokenStorage
 
-    def mock_storage(cls, storage_file=None):
+    def mock_storage(*args, **kwargs):
         return original_storage(storage_file=temp_file.name)
 
     monkeypatch.setattr(asana_routes, "TokenStorage", mock_storage)
@@ -57,12 +58,12 @@ class TestTokenRetrieval:
     async def test_get_token_success(self, temp_token_file):
         """Test successful token retrieval"""
         # First save a token
-        save_asana_token("user123", SAMPLE_TOKEN_DATA)
+        save_asana_token("user123", sample_token_data())
 
         # Then retrieve it
         token = await get_access_token(user_id="user123")
 
-        assert token == SAMPLE_TOKEN_DATA["access_token"]
+        assert token == sample_token_data()["access_token"]
 
     @pytest.mark.asyncio
     async def test_get_token_not_found(self, temp_token_file):
@@ -77,7 +78,8 @@ class TestTokenRetrieval:
     async def test_get_token_expired(self, temp_token_file):
         """Test token retrieval when token is expired"""
         # Save an expired token
-        expired_token = SAMPLE_TOKEN_DATA.copy()
+        expired_token = sample_token_data()
+        expired_token.pop("refresh_token", None)
         from datetime import datetime, timedelta
         expired_time = (datetime.now() - timedelta(hours=1)).isoformat()
         expired_token["expires_at"] = expired_time
@@ -109,7 +111,7 @@ class TestTokenStorage:
 
     def test_save_token_success(self, temp_token_file):
         """Test successful token storage"""
-        result = save_asana_token("user001", SAMPLE_TOKEN_DATA)
+        result = save_asana_token("user001", sample_token_data())
 
         assert result is True
 
@@ -117,11 +119,11 @@ class TestTokenStorage:
         storage = TokenStorage(storage_file=temp_token_file)
         token = storage.get_token("asana_user001")
         assert token is not None
-        assert token["access_token"] == SAMPLE_TOKEN_DATA["access_token"]
+        assert token["access_token"] == sample_token_data()["access_token"]
 
     def test_save_token_multiple_users(self, temp_token_file):
         """Test saving tokens for multiple users"""
-        save_asana_token("user001", SAMPLE_TOKEN_DATA)
+        save_asana_token("user001", sample_token_data())
         save_asana_token("user002", {
             "access_token": "different_token",
             "refresh_token": "different_refresh",
@@ -133,12 +135,12 @@ class TestTokenStorage:
         token1 = storage.get_token("asana_user001")
         token2 = storage.get_token("asana_user002")
 
-        assert token1["access_token"] == SAMPLE_TOKEN_DATA["access_token"]
+        assert token1["access_token"] == sample_token_data()["access_token"]
         assert token2["access_token"] == "different_token"
 
     def test_save_token_updates_existing(self, temp_token_file):
         """Test that saving a token updates existing token"""
-        save_asana_token("user003", SAMPLE_TOKEN_DATA)
+        save_asana_token("user003", sample_token_data())
 
         # Update with new token
         new_token = {
@@ -159,7 +161,7 @@ class TestTokenDeletion:
     def test_delete_token_success(self, temp_token_file):
         """Test successful token deletion"""
         # Save token first
-        save_asana_token("user004", SAMPLE_TOKEN_DATA)
+        save_asana_token("user004", sample_token_data())
 
         # Verify it exists
         storage = TokenStorage(storage_file=temp_token_file)
@@ -170,6 +172,7 @@ class TestTokenDeletion:
         assert result is True
 
         # Verify it's gone (or empty)
+        storage = TokenStorage(storage_file=temp_token_file)
         token = storage.get_token("asana_user004")
         assert token is None or token == {}
 
@@ -187,7 +190,7 @@ class TestTokenExpiry:
         """Test that token expiry is calculated correctly"""
         from datetime import datetime, timedelta
 
-        save_asana_token("user005", SAMPLE_TOKEN_DATA)
+        save_asana_token("user005", sample_token_data())
 
         storage = TokenStorage(storage_file=temp_token_file)
         token = storage.get_token("asana_user005")
@@ -207,7 +210,7 @@ class TestTokenExpiry:
         """Test expiry with custom expires_in value"""
         from datetime import datetime, timedelta
 
-        custom_token = SAMPLE_TOKEN_DATA.copy()
+        custom_token = sample_token_data()
         custom_token["expires_in"] = 7200  # 2 hours
 
         save_asana_token("user006", custom_token)

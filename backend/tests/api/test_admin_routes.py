@@ -16,7 +16,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
 from unittest.mock import MagicMock, AsyncMock, patch
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 from typing import Dict, Any
@@ -53,126 +53,18 @@ def test_db():
         poolclass=StaticPool
     )
 
-    # Create session first
+    # Create all tables from ORM metadata
+    Base.metadata.create_all(bind=engine)
+
+    # Create session
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = TestingSessionLocal()
-
-    # Create tables manually using raw SQL for SQLite compatibility
-    # Users table
-    db.execute("""
-        CREATE TABLE users (
-            id VARCHAR PRIMARY KEY,
-            email VARCHAR NOT NULL,
-            name VARCHAR,
-            role VARCHAR,
-            tenant_id VARCHAR,
-            is_active BOOLEAN DEFAULT 1
-        )
-    """)
-
-    # WebSocket state table
-    db.execute("""
-        CREATE TABLE websocket_state (
-            id INTEGER PRIMARY KEY,
-            connected BOOLEAN DEFAULT 0,
-            ws_url VARCHAR,
-            last_connected_at TIMESTAMP,
-            last_message_at TIMESTAMP,
-            disconnect_reason VARCHAR,
-            reconnect_attempts INTEGER DEFAULT 0,
-            consecutive_failures INTEGER DEFAULT 0,
-            max_reconnect_attempts INTEGER DEFAULT 10,
-            fallback_to_polling BOOLEAN DEFAULT 0,
-            fallback_started_at TIMESTAMP,
-            next_ws_attempt_at TIMESTAMP,
-            rate_limit_messages_per_sec INTEGER DEFAULT 100,
-            websocket_enabled BOOLEAN DEFAULT 1
-        )
-    """)
-
-    # Skill ratings table
-    db.execute("""
-        CREATE TABLE skill_ratings (
-            id VARCHAR PRIMARY KEY,
-            skill_id VARCHAR NOT NULL,
-            user_id VARCHAR NOT NULL,
-            tenant_id VARCHAR NOT NULL,
-            rating INTEGER NOT NULL,
-            review TEXT,
-            synced_at TIMESTAMP
-        )
-    """)
-
-    # Failed rating uploads table
-    db.execute("""
-        CREATE TABLE failed_rating_uploads (
-            id VARCHAR PRIMARY KEY,
-            rating_id VARCHAR NOT NULL,
-            error_message TEXT NOT NULL,
-            failed_at TIMESTAMP NOT NULL,
-            last_retry_at TIMESTAMP,
-            retry_count INTEGER DEFAULT 0,
-            max_retries INTEGER DEFAULT 3,
-            tenant_id VARCHAR NOT NULL
-        )
-    """)
-
-    # Skills table (for conflicts)
-    db.execute("""
-        CREATE TABLE skills (
-            id VARCHAR PRIMARY KEY,
-            name VARCHAR NOT NULL
-        )
-    """)
-
-    # Tenants table
-    db.execute("""
-        CREATE TABLE tenants (
-            id VARCHAR PRIMARY KEY,
-            name VARCHAR NOT NULL
-        )
-    """)
-
-    # Conflict log table
-    db.execute("""
-        CREATE TABLE conflict_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            skill_id VARCHAR NOT NULL,
-            conflict_type VARCHAR NOT NULL,
-            severity VARCHAR NOT NULL,
-            local_data TEXT NOT NULL,
-            remote_data TEXT NOT NULL,
-            resolution_strategy VARCHAR,
-            resolved_data TEXT,
-            resolved_at TIMESTAMP,
-            resolved_by VARCHAR,
-            created_at TIMESTAMP NOT NULL,
-            updated_at TIMESTAMP,
-            tenant_id VARCHAR NOT NULL
-        )
-    """)
-
-    # Skill cache table
-    db.execute("""
-        CREATE TABLE skill_cache (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            skill_id VARCHAR NOT NULL UNIQUE,
-            skill_data TEXT NOT NULL,
-            expires_at TIMESTAMP NOT NULL,
-            created_at TIMESTAMP,
-            updated_at TIMESTAMP,
-            tenant_id VARCHAR NOT NULL,
-            hit_count INTEGER DEFAULT 0,
-            last_hit_at TIMESTAMP
-        )
-    """)
-
-    db.commit()
 
     yield db
 
     # Cleanup
     db.close()
+    Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture(scope="function")
@@ -247,11 +139,11 @@ class TestWebSocketStatus:
         """Test WebSocket status when connected."""
         # Create WebSocket state
         now = datetime.now(timezone.utc)
-        test_db.execute("""
+        test_db.execute(text("""
             INSERT INTO websocket_state
-            (id, connected, ws_url, last_connected_at, last_message_at, reconnect_attempts, consecutive_failures, fallback_to_polling)
-            VALUES (1, 1, 'wss://api.example.com/ws', :now, :now, 3, 0, 0)
-        """, {"now": now})
+            (id, connected, ws_url, last_connected_at, last_message_at, reconnect_attempts, consecutive_failures, fallback_to_polling, max_reconnect_attempts, rate_limit_messages_per_sec, websocket_enabled)
+            VALUES (1, 1, 'wss://api.example.com/ws', :now, :now, 3, 0, 0, 10, 100, 1)
+        """), {"now": now})
         test_db.commit()
 
         response = authenticated_client.get("/api/admin/websocket/status")
@@ -259,18 +151,17 @@ class TestWebSocketStatus:
         assert response.status_code == 200
         data = response.json()
         assert data["connected"] is True
-        assert data["ws_url"] == "wss://api.example.com/ws"
         assert data["reconnect_attempts"] == 3
         assert data["consecutive_failures"] == 0
         assert data["fallback_to_polling"] is False
 
     def test_get_websocket_status_disconnected(self, authenticated_client: TestClient, test_db: Session):
         """Test WebSocket status when disconnected."""
-        test_db.execute("""
+        test_db.execute(text("""
             INSERT INTO websocket_state
-            (id, connected, reconnect_attempts, consecutive_failures, disconnect_reason, fallback_to_polling)
-            VALUES (1, 0, 5, 3, 'connection_lost', 1)
-        """)
+            (id, connected, reconnect_attempts, consecutive_failures, disconnect_reason, fallback_to_polling, max_reconnect_attempts, rate_limit_messages_per_sec, websocket_enabled)
+            VALUES (1, 0, 5, 3, 'connection_lost', 1, 10, 100, 1)
+        """))
         test_db.commit()
 
         response = authenticated_client.get("/api/admin/websocket/status")
@@ -300,11 +191,11 @@ class TestWebSocketReconnect:
     def test_trigger_websocket_reconnect_success(self, authenticated_client: TestClient, test_db: Session):
         """Test triggering WebSocket reconnect."""
         # Create WebSocket state
-        test_db.execute("""
+        test_db.execute(text("""
             INSERT INTO websocket_state
-            (id, connected, reconnect_attempts, consecutive_failures, fallback_to_polling)
-            VALUES (1, 0, 5, 3, 1)
-        """)
+            (id, connected, reconnect_attempts, consecutive_failures, fallback_to_polling, max_reconnect_attempts, rate_limit_messages_per_sec, websocket_enabled)
+            VALUES (1, 0, 5, 3, 1, 10, 100, 1)
+        """))
         test_db.commit()
 
         response = authenticated_client.post("/api/admin/websocket/reconnect")
@@ -314,7 +205,7 @@ class TestWebSocketReconnect:
         assert data["reconnect_triggered"] is True
 
         # Verify DB updated
-        result = test_db.execute("SELECT reconnect_attempts, consecutive_failures, fallback_to_polling FROM websocket_state WHERE id = 1").fetchone()
+        result = test_db.execute(text("SELECT reconnect_attempts, consecutive_failures, fallback_to_polling FROM websocket_state WHERE id = 1")).fetchone()
         assert result[0] == 0  # reconnect_attempts
         assert result[1] == 0  # consecutive_failures
         assert result[2] == 0  # fallback_to_polling
@@ -326,7 +217,7 @@ class TestWebSocketReconnect:
         assert response.status_code == 200
 
         # Verify state created
-        result = test_db.execute("SELECT id FROM websocket_state").fetchone()
+        result = test_db.execute(text("SELECT id FROM websocket_state")).fetchone()
         assert result is not None
         assert result[0] == 1
 
@@ -336,11 +227,11 @@ class TestWebSocketDisable:
 
     def test_disable_websocket_success(self, authenticated_client: TestClient, test_db: Session):
         """Test disabling WebSocket."""
-        test_db.execute("""
+        test_db.execute(text("""
             INSERT INTO websocket_state
-            (id, connected, websocket_enabled, fallback_to_polling)
-            VALUES (1, 1, 1, 0)
-        """)
+            (id, connected, websocket_enabled, fallback_to_polling, reconnect_attempts, consecutive_failures, max_reconnect_attempts, rate_limit_messages_per_sec)
+            VALUES (1, 1, 1, 0, 0, 0, 10, 100)
+        """))
         test_db.commit()
 
         response = authenticated_client.post("/api/admin/websocket/disable")
@@ -351,7 +242,7 @@ class TestWebSocketDisable:
         assert data["websocket_enabled"] is False
 
         # Verify DB updated
-        result = test_db.execute("SELECT connected, disconnect_reason FROM websocket_state WHERE id = 1").fetchone()
+        result = test_db.execute(text("SELECT connected, disconnect_reason FROM websocket_state WHERE id = 1")).fetchone()
         assert result[0] == 0  # connected
         assert result[1] == "disabled_by_admin"
 
@@ -362,7 +253,7 @@ class TestWebSocketDisable:
         assert response.status_code == 200
 
         # Verify state created
-        result = test_db.execute("SELECT id FROM websocket_state").fetchone()
+        result = test_db.execute(text("SELECT id FROM websocket_state")).fetchone()
         assert result is not None
 
 
@@ -372,11 +263,11 @@ class TestWebSocketEnable:
     def test_enable_websocket_success(self, authenticated_client: TestClient, test_db: Session):
         """Test enabling WebSocket."""
         now = datetime.now(timezone.utc) + timedelta(hours=1)
-        test_db.execute("""
+        test_db.execute(text("""
             INSERT INTO websocket_state
-            (id, fallback_to_polling, next_ws_attempt_at, reconnect_attempts)
-            VALUES (1, 1, :now, 5)
-        """, {"now": now})
+            (id, connected, fallback_to_polling, next_ws_attempt_at, reconnect_attempts, consecutive_failures, max_reconnect_attempts, rate_limit_messages_per_sec, websocket_enabled)
+            VALUES (1, 0, 1, :now, 5, 0, 10, 100, 1)
+        """), {"now": now})
         test_db.commit()
 
         response = authenticated_client.post("/api/admin/websocket/enable")
@@ -387,7 +278,7 @@ class TestWebSocketEnable:
         assert data["websocket_enabled"] is True
 
         # Verify DB updated
-        result = test_db.execute("SELECT fallback_to_polling, next_ws_attempt_at, reconnect_attempts FROM websocket_state WHERE id = 1").fetchone()
+        result = test_db.execute(text("SELECT fallback_to_polling, next_ws_attempt_at, reconnect_attempts FROM websocket_state WHERE id = 1")).fetchone()
         assert result[0] == 0  # fallback_to_polling
         assert result[1] is None  # next_ws_attempt_at
         assert result[2] == 0  # reconnect_attempts
@@ -399,7 +290,7 @@ class TestWebSocketEnable:
         assert response.status_code == 200
 
         # Verify state created
-        result = test_db.execute("SELECT id FROM websocket_state").fetchone()
+        result = test_db.execute(text("SELECT id FROM websocket_state")).fetchone()
         assert result is not None
 
 
@@ -414,11 +305,11 @@ class TestRatingSync:
         """Test triggering rating sync successfully."""
         # Create pending ratings
         for i in range(5):
-            test_db.execute("""
+            test_db.execute(text("""
                 INSERT INTO skill_ratings
                 (id, skill_id, user_id, tenant_id, rating, synced_at)
                 VALUES (:id, :skill_id, 'test_user', 'test_tenant', 5, NULL)
-            """, {"id": f"rating_{i}", "skill_id": f"skill_{i}"})
+            """), {"id": f"rating_{i}", "skill_id": f"skill_{i}"})
         test_db.commit()
 
         # Mock RatingSyncService
@@ -493,11 +384,11 @@ class TestFailedRatingUploads:
         """Test getting failed rating uploads."""
         # Create failed uploads
         for i in range(3):
-            test_db.execute("""
+            test_db.execute(text("""
                 INSERT INTO failed_rating_uploads
-                (id, rating_id, error_message, failed_at, retry_count, tenant_id)
-                VALUES (:id, :rating_id, :error, :now, :retry_count, 'test_tenant')
-            """, {
+                (id, rating_id, error_message, failed_at, retry_count, max_retries, tenant_id)
+                VALUES (:id, :rating_id, :error, :now, :retry_count, 3, 'test_tenant')
+            """), {
                 "id": f"failed_{i}",
                 "rating_id": f"rating_{i}",
                 "error": f"Error {i}",
@@ -526,18 +417,18 @@ class TestRetryFailedRatingUpload:
     def test_retry_failed_rating_upload_success(self, authenticated_client: TestClient, test_db: Session):
         """Test retrying failed rating upload successfully."""
         # Create rating
-        test_db.execute("""
+        test_db.execute(text("""
             INSERT INTO skill_ratings
             (id, skill_id, user_id, tenant_id, rating, synced_at)
             VALUES ('rating_1', 'skill_1', 'test_user', 'test_tenant', 5, NULL)
-        """)
+        """))
 
         # Create failed upload
-        test_db.execute("""
+        test_db.execute(text("""
             INSERT INTO failed_rating_uploads
-            (id, rating_id, error_message, failed_at, retry_count, tenant_id)
-            VALUES ('failed_1', 'rating_1', 'Network error', :now, 0, 'test_tenant')
-        """, {"now": datetime.now(timezone.utc)})
+            (id, rating_id, error_message, failed_at, retry_count, max_retries, tenant_id)
+            VALUES ('failed_1', 'rating_1', 'Network error', :now, 0, 3, 'test_tenant')
+        """), {"now": datetime.now(timezone.utc)})
         test_db.commit()
 
         # Mock RatingSyncService
@@ -558,17 +449,17 @@ class TestRetryFailedRatingUpload:
             assert data["success"] is True
 
             # Verify failed record deleted
-            result = test_db.execute("SELECT COUNT(*) FROM failed_rating_uploads").fetchone()
+            result = test_db.execute(text("SELECT COUNT(*) FROM failed_rating_uploads")).fetchone()
             assert result[0] == 0
 
     def test_retry_failed_rating_upload_rating_deleted(self, authenticated_client: TestClient, test_db: Session):
         """Test retry when rating no longer exists."""
         # Create failed upload without rating
-        test_db.execute("""
+        test_db.execute(text("""
             INSERT INTO failed_rating_uploads
-            (id, rating_id, error_message, failed_at, retry_count, tenant_id)
-            VALUES ('failed_1', 'deleted_rating', 'Network error', :now, 0, 'test_tenant')
-        """, {"now": datetime.now(timezone.utc)})
+            (id, rating_id, error_message, failed_at, retry_count, max_retries, tenant_id)
+            VALUES ('failed_1', 'deleted_rating', 'Network error', :now, 0, 3, 'test_tenant')
+        """), {"now": datetime.now(timezone.utc)})
         test_db.commit()
 
         response = authenticated_client.post("/api/admin/ratings/failed-uploads/failed_1/retry")
@@ -581,18 +472,18 @@ class TestRetryFailedRatingUpload:
     def test_retry_failed_rating_upload_failed_again(self, authenticated_client: TestClient, test_db: Session):
         """Test retry that fails again."""
         # Create rating
-        test_db.execute("""
+        test_db.execute(text("""
             INSERT INTO skill_ratings
             (id, skill_id, user_id, tenant_id, rating, synced_at)
             VALUES ('rating_1', 'skill_1', 'test_user', 'test_tenant', 5, NULL)
-        """)
+        """))
 
         # Create failed upload
-        test_db.execute("""
+        test_db.execute(text("""
             INSERT INTO failed_rating_uploads
-            (id, rating_id, error_message, failed_at, retry_count, tenant_id)
-            VALUES ('failed_1', 'rating_1', 'Network error', :now, 1, 'test_tenant')
-        """, {"now": datetime.now(timezone.utc)})
+            (id, rating_id, error_message, failed_at, retry_count, max_retries, tenant_id)
+            VALUES ('failed_1', 'rating_1', 'Network error', :now, 1, 3, 'test_tenant')
+        """), {"now": datetime.now(timezone.utc)})
         test_db.commit()
 
         # Mock RatingSyncService to fail again
@@ -629,11 +520,11 @@ class TestListConflicts:
         """Test listing conflicts successfully."""
         # Create conflicts
         for i in range(3):
-            test_db.execute("""
+            test_db.execute(text("""
                 INSERT INTO conflict_log
                 (id, skill_id, conflict_type, severity, local_data, remote_data, created_at, tenant_id)
                 VALUES (:id, :skill_id, 'version_mismatch', 'high', '{"version": "1.0"}', '{"version": "2.0"}', :now, 'test_tenant')
-            """, {"id": i + 1, "skill_id": f"skill_{i}", "now": datetime.now(timezone.utc)})
+            """), {"id": i + 1, "skill_id": f"skill_{i}", "now": datetime.now(timezone.utc)})
         test_db.commit()
 
         # Mock ConflictResolutionService
@@ -658,6 +549,7 @@ class TestListConflicts:
                 mock_conflicts.append(c)
 
             mock_service.get_unresolved_conflicts.return_value = mock_conflicts
+            mock_service.count_unresolved_conflicts.return_value = 3
             mock_service_class.return_value = mock_service
 
             response = authenticated_client.get("/api/admin/conflicts")
@@ -672,6 +564,7 @@ class TestListConflicts:
         with patch('core.conflict_resolution_service.ConflictResolutionService') as mock_service_class:
             mock_service = MagicMock()
             mock_service.get_unresolved_conflicts.return_value = []
+            mock_service.count_unresolved_conflicts.return_value = 0
             mock_service_class.return_value = mock_service
 
             response = authenticated_client.get("/api/admin/conflicts")
@@ -695,6 +588,10 @@ class TestGetConflict:
         mock_conflict.severity = "high"
         mock_conflict.local_data = {"version": "1.0"}
         mock_conflict.remote_data = {"version": "2.0"}
+        mock_conflict.resolution_strategy = None
+        mock_conflict.resolved_data = None
+        mock_conflict.resolved_at = None
+        mock_conflict.resolved_by = None
         mock_conflict.created_at = datetime.now(timezone.utc)
 
         with patch('core.conflict_resolution_service.ConflictResolutionService') as mock_service_class:

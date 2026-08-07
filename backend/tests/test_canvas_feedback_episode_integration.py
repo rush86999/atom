@@ -169,21 +169,15 @@ class TestCanvasContextFetching:
         mock_canvases = [
             Mock(
                 id="canvas_1",
-                canvas_type="sheets",
-                component_type="table",
-                component_name="data_table",
-                action="present",
+                action_type="present",
                 created_at=datetime.now(),
-                audit_metadata={"rows": 10}
+                details_json={"canvas_type": "sheets", "component_type": "table", "component_name": "data_table", "rows": 10}
             ),
             Mock(
                 id="canvas_2",
-                canvas_type="charts",
-                component_type="line_chart",
-                component_name="sales_chart",
-                action="present",
+                action_type="present",
                 created_at=datetime.now(),
-                audit_metadata={"points": 50}
+                details_json={"canvas_type": "charts", "component_type": "line_chart", "component_name": "sales_chart", "points": 50}
             )
         ]
 
@@ -294,7 +288,7 @@ class TestEpisodeSerialization:
         # Create mock episode
         episode = Mock()
         episode.id = "ep_123"
-        episode.title = "Test Episode"
+        episode.task_description = "Test Episode"
         episode.description = "Test Description"
         episode.summary = "Test Summary"
         episode.agent_id = "agent_456"

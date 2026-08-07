@@ -8,7 +8,7 @@ import {
     getDropboxConnectionStatus,
     disconnectDropbox,
     DropboxConnectionStatusInfo
-} from '../../../src/skills/dropboxSkills';
+} from './skills/dropboxSkills';
 
 const DropboxManager: React.FC = () => {
     const { data: session } = useSession();
@@ -44,7 +44,7 @@ const DropboxManager: React.FC = () => {
             setError("User ID is missing.");
             return;
         }
-        window.location.href = `/api/auth/dropbox/initiate?user_id=${userId}`;
+        window.open(`/api/auth/dropbox/initiate?user_id=${userId}`, '_self');
     };
 
     const handleDisconnectDropbox = useCallback(async () => {

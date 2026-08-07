@@ -74,7 +74,7 @@ const GitLabManager: React.FC = () => {
 
     const connectGitLab = async () => {
         if (!userId) return;
-        window.location.href = `/api/auth/gitlab/authorize?user_id=${userId}`;
+        window.open(`/api/auth/gitlab/authorize?user_id=${userId}`, '_self');
     };
 
     const disconnectGitLab = async () => {

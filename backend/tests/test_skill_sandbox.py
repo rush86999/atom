@@ -17,7 +17,12 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 import sys
 
-# Mock docker module before importing skill_sandbox
+# Mock docker module before importing skill_sandbox.
+# Save the originals so they can be restored after the import — leaving the
+# MagicMocks in sys.modules permanently would poison later test modules that
+# import the real docker package.
+_DOCKER_ORIGINAL = sys.modules.get('docker')
+_DOCKER_ERRORS_ORIGINAL = sys.modules.get('docker.errors')
 sys.modules['docker'] = MagicMock()
 sys.modules['docker.errors'] = MagicMock()
 
@@ -43,6 +48,17 @@ sys.modules['docker.errors'].APIError = APIError
 sys.modules['docker.errors'].NotFound = NotFound
 
 from core.skill_sandbox import HazardSandbox
+
+# Restore sys.modules now that skill_sandbox is imported (it captured the mock
+# at import time; the tests patch core.skill_sandbox.docker at runtime).
+if _DOCKER_ORIGINAL is not None:
+    sys.modules['docker'] = _DOCKER_ORIGINAL
+else:
+    sys.modules.pop('docker', None)
+if _DOCKER_ERRORS_ORIGINAL is not None:
+    sys.modules['docker.errors'] = _DOCKER_ERRORS_ORIGINAL
+else:
+    sys.modules.pop('docker.errors', None)
 
 
 class TestDockerClientInitialization:

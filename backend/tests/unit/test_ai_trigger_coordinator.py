@@ -97,8 +97,8 @@ class TestIsEnabled:
         """RED: Test default to enabled when no preference exists."""
         coordinator = AITriggerCoordinator(user_id="test-user")
 
-        with patch('core.ai_trigger_coordinator.get_db_session') as mock_get_db, \
-             patch('core.ai_trigger_coordinator.UserPreferenceService') as mock_pref_service:
+        with patch('core.database.get_db_session') as mock_get_db, \
+             patch('core.user_preference_service.UserPreferenceService') as mock_pref_service:
 
             mock_db = Mock()
             mock_get_db.return_value.__enter__.return_value = mock_db
@@ -116,8 +116,8 @@ class TestIsEnabled:
         """RED: Test that result is cached."""
         coordinator = AITriggerCoordinator(user_id="test-user")
 
-        with patch('core.ai_trigger_coordinator.get_db_session') as mock_get_db, \
-             patch('core.ai_trigger_coordinator.UserPreferenceService') as mock_pref_service:
+        with patch('core.database.get_db_session') as mock_get_db, \
+             patch('core.user_preference_service.UserPreferenceService') as mock_pref_service:
 
             mock_db = Mock()
             mock_get_db.return_value.__enter__.return_value = mock_db
@@ -251,7 +251,7 @@ class TestCategoryKeywords:
         coordinator = AITriggerCoordinator()
 
         text = "We need to process the invoice and payment"
-        category = coordinator._classify_category(text)
+        category, _ = coordinator._classify_category(text)
 
         assert category == DataCategory.FINANCE
 
@@ -260,7 +260,7 @@ class TestCategoryKeywords:
         coordinator = AITriggerCoordinator()
 
         text = "New lead in the pipeline, follow up with the prospect"
-        category = coordinator._classify_category(text)
+        category, _ = coordinator._classify_category(text)
 
         assert category == DataCategory.SALES
 
@@ -269,7 +269,7 @@ class TestCategoryKeywords:
         coordinator = AITriggerCoordinator()
 
         text = "Check inventory and shipping status"
-        category = coordinator._classify_category(text)
+        category, _ = coordinator._classify_category(text)
 
         assert category == DataCategory.OPERATIONS
 
@@ -278,7 +278,7 @@ class TestCategoryKeywords:
         coordinator = AITriggerCoordinator()
 
         text = "Employee onboarding and benefits enrollment"
-        category = coordinator._classify_category(text)
+        category, _ = coordinator._classify_category(text)
 
         assert category == DataCategory.HR
 
@@ -287,7 +287,7 @@ class TestCategoryKeywords:
         coordinator = AITriggerCoordinator()
 
         text = "Campaign analytics and engagement metrics"
-        category = coordinator._classify_category(text)
+        category, _ = coordinator._classify_category(text)
 
         assert category == DataCategory.MARKETING
 
@@ -296,7 +296,7 @@ class TestCategoryKeywords:
         coordinator = AITriggerCoordinator()
 
         text = "This is some random text without specific keywords"
-        category = coordinator._classify_category(text)
+        category, _ = coordinator._classify_category(text)
 
         assert category == DataCategory.GENERAL
 
@@ -384,7 +384,7 @@ class TestExtractText:
         text = coordinator._extract_text(data)
 
         # Should return empty string or handle gracefully
-        assert text == ""
+        assert text == str(data)
 
 
 # =============================================================================

@@ -56,7 +56,7 @@ export default function LocalFileIngestion() {
                 command: 'get_watched_folders',
                 params: {},
             });
-            setWatchedFolders(result.folders);
+            setWatchedFolders(Array.isArray(result.folders) ? result.folders : []);
         } catch (error) {
             console.error('Failed to load watched folders:', error);
         }
@@ -222,7 +222,7 @@ export default function LocalFileIngestion() {
                 </button>
             </div>
 
-            {watchedFolders.length > 0 && (
+            {watchedFolders?.length > 0 && (
                 <div className="mb-6">
                     <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Watched Folders ({watchedFolders.length})

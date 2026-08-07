@@ -10,12 +10,20 @@ from datetime import datetime, timedelta
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from fastapi.testclient import TestClient
 
 from core.canvas_recording_service import CanvasRecordingService
 from core.models import AgentRegistry, Base, CanvasRecording, User
 
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+
+@pytest.fixture
+def client():
+    """Create test client for canvas recording API."""
+    from main_api_app import app
+    return TestClient(app)
 
 # Use in-memory database for tests
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"

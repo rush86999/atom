@@ -12,7 +12,7 @@ import {
     getShopifyConnectionStatus,
     disconnectShopify,
     ShopifyConnectionStatusInfo
-} from '../../../src/skills/shopifySkills';
+} from './skills/shopifySkills';
 
 const PYTHON_API_SERVICE_BASE_URL = process.env.NEXT_PUBLIC_PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5000';
 
@@ -59,7 +59,7 @@ const ShopifyManager: React.FC = () => {
             });
             return;
         }
-        window.location.href = `${PYTHON_API_SERVICE_BASE_URL}/api/shopify/auth?user_id=${userId}&shop_name=${shopName}`;
+        window.open(`${PYTHON_API_SERVICE_BASE_URL}/api/shopify/auth?user_id=${userId}&shop_name=${shopName}`, '_self');
     };
 
     const handleDisconnectShopify = useCallback(async () => {

@@ -17,7 +17,7 @@ from sqlalchemy.pool import StaticPool
 import httpx
 
 from core.media.spotify_service import SpotifyService
-from core.models import OAuthToken
+from core.models import IntegrationToken as OAuthToken
 
 
 # Test database setup
@@ -52,18 +52,22 @@ def spotify_service(db_session: Session):
 
 @pytest.fixture
 def sample_oauth_token():
-    """Sample OAuth token for testing."""
+    """Sample OAuth token for testing.
+
+    IntegrationToken is the provider-scoped token store (OAuthToken is the
+    OAuth-client token store and has no provider/access_token/status columns).
+    """
     return OAuthToken(
         id="test-token-id",
+        tenant_id="default",
         user_id="test-user",
         provider="spotify",
         access_token="test-access-token",
         refresh_token="test-refresh-token",
         token_type="Bearer",
-        scopes=["user-read-playback-state", "user-modify-playback-state"],
+        scope="user-read-playback-state user-modify-playback-state",
         expires_at=datetime.utcnow() + timedelta(hours=1),
         status="active",
-        last_used=datetime.utcnow()
     )
 
 
@@ -443,6 +447,7 @@ class TestErrorHandling:
 
         mock_client = AsyncMock()
         mock_client.request.side_effect = [mock_response_401, mock_response_success]
+        mock_client.__aenter__.return_value = mock_client
 
         with patch('httpx.AsyncClient', return_value=mock_client):
             with patch.object(spotify_service, 'refresh_tokens', new=AsyncMock(return_value={"success": True})):

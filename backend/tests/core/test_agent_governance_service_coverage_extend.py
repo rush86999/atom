@@ -30,21 +30,16 @@ Test Categories:
 """
 
 import pytest
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import uuid
 
 from core.agent_governance_service import AgentGovernanceService
 from core.models import (
-    AgentRegistry,
     AgentStatus,
     AgentFeedback,
     FeedbackStatus,
-    User,
     UserRole,
-    HITLAction,
-    HITLActionStatus,
 )
 from tests.factories import (
     StudentAgentFactory,
@@ -103,8 +98,7 @@ class TestAgentGovernanceServiceCoverageExtend:
         agent = StudentAgentFactory(_session=db_session, confidence_score=0.6)
         admin = UserFactory(
             _session=db_session,
-            role=UserRole.WORKSPACE_ADMIN,
-            specialty=None
+            role=UserRole.WORKSPACE_ADMIN
         )
 
         feedback = AgentFeedback(
@@ -122,7 +116,7 @@ class TestAgentGovernanceServiceCoverageExtend:
 
         db_session.refresh(feedback)
         assert feedback.status == FeedbackStatus.ACCEPTED.value
-        assert "Trusted reviewer" in feedback.ai_reasoning
+        assert "Accepted by trusted" in feedback.ai_reasoning
         assert feedback.adjudicated_at is not None
 
     @pytest.mark.asyncio
@@ -135,9 +129,9 @@ class TestAgentGovernanceServiceCoverageExtend:
         )
         user = UserFactory(
             _session=db_session,
-            role=UserRole.MEMBER,
-            specialty="Finance"
+            role=UserRole.MEMBER
         )
+        user.specialty = "Finance"
 
         feedback = AgentFeedback(
             agent_id=agent.id,
@@ -154,7 +148,7 @@ class TestAgentGovernanceServiceCoverageExtend:
 
         db_session.refresh(feedback)
         assert feedback.status == FeedbackStatus.ACCEPTED.value
-        assert "Trusted reviewer" in feedback.ai_reasoning
+        assert "Accepted by trusted" in feedback.ai_reasoning
 
     @pytest.mark.asyncio
     async def test_adjudicate_feedback_no_match_pending(self, db_session):
@@ -166,8 +160,7 @@ class TestAgentGovernanceServiceCoverageExtend:
         )
         user = UserFactory(
             _session=db_session,
-            role=UserRole.MEMBER,
-            specialty=None  # No specialty set
+            role=UserRole.MEMBER
         )
 
         feedback = AgentFeedback(
@@ -185,7 +178,7 @@ class TestAgentGovernanceServiceCoverageExtend:
 
         db_session.refresh(feedback)
         assert feedback.status == FeedbackStatus.PENDING.value
-        assert "queued for specialty review" in feedback.ai_reasoning
+        assert "Pending specialty review" in feedback.ai_reasoning
 
     @pytest.mark.asyncio
     async def test_adjudicate_feedback_case_insensitive_specialty(self, db_session):
@@ -193,13 +186,13 @@ class TestAgentGovernanceServiceCoverageExtend:
         agent = StudentAgentFactory(
             _session=db_session,
             confidence_score=0.6,
-            category="finance"  # lowercase
+            category="finance"
         )
         user = UserFactory(
             _session=db_session,
-            role=UserRole.MEMBER,
-            specialty="FINANCE"  # uppercase
+            role=UserRole.MEMBER
         )
+        user.specialty = "FINANCE"
 
         feedback = AgentFeedback(
             agent_id=agent.id,
@@ -223,8 +216,7 @@ class TestAgentGovernanceServiceCoverageExtend:
         agent = StudentAgentFactory(_session=db_session, confidence_score=0.6)
         super_admin = UserFactory(
             _session=db_session,
-            role=UserRole.SUPER_ADMIN,
-            specialty=None
+            role=UserRole.SUPER_ADMIN
         )
 
         feedback = AgentFeedback(
@@ -500,7 +492,7 @@ class TestAgentGovernanceServiceCoverageExtend:
         assert "not found" in decision["reason"].lower()
 
     def test_can_perform_action_status_confidence_mismatch(self, db_session):
-        """Status not matching confidence_score triggers warning and uses actual maturity."""
+        """Status is authoritative even when confidence_score suggests otherwise."""
         # Create agent with STUDENT status but high confidence
         agent = StudentAgentFactory(_session=db_session, confidence_score=0.85)
         service = AgentGovernanceService(db_session)
@@ -510,9 +502,9 @@ class TestAgentGovernanceServiceCoverageExtend:
             action_type="submit_form"
         )
 
-        # Should use actual maturity (SUPERVISED) based on confidence for governance check
-        # The decision should reflect the actual maturity level
-        assert decision["allowed"] is True  # Confidence 0.85 allows complexity 3
+        # Registry status (STUDENT) gates the action regardless of confidence
+        assert decision["allowed"] is False
+        assert decision["required_status"] == AgentStatus.SUPERVISED.value
 
     # ==================== AGENT CAPABILITIES TESTS ====================
 
@@ -523,9 +515,9 @@ class TestAgentGovernanceServiceCoverageExtend:
 
         capabilities = service.get_agent_capabilities(agent.id)
 
-        assert "maturity_level" in capabilities
-        assert "allowed_actions" in capabilities
         assert capabilities["maturity_level"] == AgentStatus.STUDENT.value
+        assert "confidence_score" in capabilities
+        assert "allowed_actions" not in capabilities
 
     def test_get_agent_capabilities_intern(self, db_session):
         """Get capabilities for INTERN agent."""
@@ -535,8 +527,7 @@ class TestAgentGovernanceServiceCoverageExtend:
         capabilities = service.get_agent_capabilities(agent.id)
 
         assert capabilities["maturity_level"] == AgentStatus.INTERN.value
-        assert "stream_chat" in capabilities["allowed_actions"]
-        assert "delete" not in capabilities["allowed_actions"]
+        assert "confidence_score" in capabilities
 
     def test_get_agent_capabilities_supervised(self, db_session):
         """Get capabilities for SUPERVISED agent."""
@@ -546,8 +537,7 @@ class TestAgentGovernanceServiceCoverageExtend:
         capabilities = service.get_agent_capabilities(agent.id)
 
         assert capabilities["maturity_level"] == AgentStatus.SUPERVISED.value
-        assert "submit_form" in capabilities["allowed_actions"]
-        assert "delete" not in capabilities["allowed_actions"]
+        assert "confidence_score" in capabilities
 
     def test_get_agent_capabilities_autonomous(self, db_session):
         """Get capabilities for AUTONOMOUS agent."""
@@ -557,15 +547,15 @@ class TestAgentGovernanceServiceCoverageExtend:
         capabilities = service.get_agent_capabilities(agent.id)
 
         assert capabilities["maturity_level"] == AgentStatus.AUTONOMOUS.value
-        assert "delete" in capabilities["allowed_actions"]
-        assert "execute" in capabilities["allowed_actions"]
+        assert "confidence_score" in capabilities
 
-    def test_get_agent_capabilities_unknown_agent_raises_error(self, db_session):
-        """Get capabilities for unknown agent raises error."""
+    def test_get_agent_capabilities_unknown_agent_returns_none(self, db_session):
+        """Get capabilities for unknown agent returns None."""
         service = AgentGovernanceService(db_session)
 
-        with pytest.raises(Exception):
-            service.get_agent_capabilities("unknown-agent-id")
+        capabilities = service.get_agent_capabilities("unknown-agent-id")
+
+        assert capabilities is None
 
     # ==================== ACTION ENFORCEMENT TESTS ====================
 
@@ -631,108 +621,130 @@ class TestAgentGovernanceServiceCoverageExtend:
         assert "id" in status
 
     # ==================== DATA ACCESS CONTROL TESTS ====================
+    # can_access_agent_data was removed in the governance parity port; the
+    # trusted-reviewer logic (admin/specialty) now lives in _adjudicate_feedback.
+    # These tests cover the remaining data-access-adjacent surface:
+    # system capabilities and confidence-driven graduation.
 
-    def test_can_access_agent_data_owner(self, db_session):
-        """Agent owner can access agent data (via specialty match)."""
-        agent = InternAgentFactory(_session=db_session, user_id="user-123", category="Finance")
-        user = UserFactory(_session=db_session, id="user-123", specialty="Finance")
+    def test_get_agent_capabilities_system_defaults_to_intern(self, db_session):
+        """System-level capability lookups default to INTERN maturity."""
         service = AgentGovernanceService(db_session)
 
-        can_access = service.can_access_agent_data(
-            user_id="user-123",
-            agent_id=agent.id
-        )
+        capabilities = service.get_agent_capabilities("system")
 
-        assert can_access is True
+        assert capabilities["maturity_level"] == AgentStatus.INTERN.value
+        assert capabilities["confidence_score"] == 0.5
 
-    def test_can_access_agent_data_admin(self, db_session):
-        """Admin can access any agent data."""
-        agent = InternAgentFactory(_session=db_session, user_id="user-456")
-        admin = UserFactory(_session=db_session, role=UserRole.WORKSPACE_ADMIN)
+    def test_get_agent_capabilities_empty_agent_id_defaults_to_intern(self, db_session):
+        """Empty agent-id capability lookups default to INTERN maturity."""
         service = AgentGovernanceService(db_session)
 
-        can_access = service.can_access_agent_data(
-            user_id=admin.id,
-            agent_id=agent.id
-        )
+        capabilities = service.get_agent_capabilities("")
 
-        assert can_access is True
+        assert capabilities["maturity_level"] == AgentStatus.INTERN.value
 
-    def test_can_access_agent_data_denied(self, db_session):
-        """Non-owner non-admin cannot access agent data."""
-        agent = InternAgentFactory(_session=db_session, user_id="user-123")
+    def test_confidence_driven_promotion_to_autonomous(self, db_session):
+        """Confidence reaching 0.9 promotes the agent to AUTONOMOUS."""
+        agent = SupervisedAgentFactory(_session=db_session, confidence_score=0.85)
         service = AgentGovernanceService(db_session)
 
-        can_access = service.can_access_agent_data(
-            user_id="user-999",
-            agent_id=agent.id
+        service._update_confidence_score(
+            agent_id=agent.id,
+            positive=True,
+            impact_level="high"
         )
 
-        assert can_access is False
+        db_session.refresh(agent)
+        assert agent.status == AgentStatus.AUTONOMOUS.value
 
     # ==================== AGENT LIFECYCLE TESTS ====================
+    # suspend/terminate/reactivate were removed in the governance parity port;
+    # suspension maps to PAUSED and termination to STOPPED, set directly on the
+    # registry and blocked by can_perform_action.
 
-    def test_promote_to_autonomous_success(self, db_session):
-        """Promote agent to AUTONOMOUS status."""
-        agent = SupervisedAgentFactory(_session=db_session)
-        admin = UserFactory(_session=db_session, role=UserRole.WORKSPACE_ADMIN)
+    def test_promote_to_autonomous_unlocks_critical_actions(self, db_session):
+        """AUTONOMOUS status unlocks complexity-4 actions."""
+        agent = SupervisedAgentFactory(_session=db_session, confidence_score=0.95)
         service = AgentGovernanceService(db_session)
 
-        promoted = service.promote_to_autonomous(agent.id, admin)
+        agent.status = AgentStatus.AUTONOMOUS.value
+        db_session.commit()
+        db_session.refresh(agent)
+        assert agent.status == AgentStatus.AUTONOMOUS.value
 
-        assert promoted.status == AgentStatus.AUTONOMOUS.value
+        decision = service.can_perform_action(agent.id, "delete")
 
-    def test_promote_to_autonomous_non_admin_denied(self, db_session):
-        """Non-admin cannot promote agent to AUTONOMOUS."""
+        assert decision["allowed"] is True
+        assert decision["agent_status"] == AgentStatus.AUTONOMOUS.value
+
+    def test_supervised_agent_blocked_from_critical_actions(self, db_session):
+        """SUPERVISED agents cannot perform complexity-4 actions."""
         agent = SupervisedAgentFactory(_session=db_session)
-        user = UserFactory(_session=db_session, role=UserRole.MEMBER)
         service = AgentGovernanceService(db_session)
 
-        with pytest.raises(Exception):  # Permission denied
-            service.promote_to_autonomous(agent.id, user)
+        decision = service.can_perform_action(agent.id, "delete")
 
-    def test_suspend_agent_success(self, db_session):
-        """Suspend agent successfully."""
+        assert decision["allowed"] is False
+        assert decision["required_status"] == AgentStatus.AUTONOMOUS.value
+
+    def test_suspend_agent_sets_paused_status(self, db_session):
+        """Suspend agent via the PAUSED status, which blocks actions."""
         agent = InternAgentFactory(_session=db_session)
         service = AgentGovernanceService(db_session)
 
-        result = service.suspend_agent(agent.id, reason="Testing suspension")
+        agent.status = AgentStatus.PAUSED.value
+        db_session.commit()
 
-        assert result is True
-        db_session.refresh(agent)
-        assert agent.status == "SUSPENDED"
+        result = service.can_perform_action(agent.id, "stream_chat")
 
-    def test_terminate_agent_success(self, db_session):
-        """Terminate agent successfully."""
+        assert result["allowed"] is False
+        assert "paused" in result["reason"].lower()
+
+    def test_terminate_agent_sets_stopped_status(self, db_session):
+        """Terminate agent via the STOPPED status, which blocks actions."""
         agent = InternAgentFactory(_session=db_session)
         service = AgentGovernanceService(db_session)
 
-        result = service.terminate_agent(agent.id, reason="Testing termination")
+        agent.status = AgentStatus.STOPPED.value
+        db_session.commit()
 
-        assert result is True
-        db_session.refresh(agent)
-        assert agent.status == "TERMINATED"
+        result = service.can_perform_action(agent.id, "stream_chat")
 
-    def test_reactivate_agent_success(self, db_session):
-        """Reactivate suspended agent restores status based on confidence."""
-        agent = InternAgentFactory(_session=db_session, status="SUSPENDED", confidence_score=0.6)
+        assert result["allowed"] is False
+        assert "stopped" in result["reason"].lower()
+
+    def test_restore_paused_agent_regains_actions(self, db_session):
+        """Restoring a paused agent's original status re-enables actions."""
+        agent = InternAgentFactory(_session=db_session, confidence_score=0.6)
+        original_status = agent.status
         service = AgentGovernanceService(db_session)
 
-        result = service.reactivate_agent(agent.id)
+        agent.status = AgentStatus.PAUSED.value
+        db_session.commit()
 
-        assert result is True
+        agent.status = original_status
+        db_session.commit()
         db_session.refresh(agent)
-        # Should restore to INTERN based on confidence score of 0.6
         assert agent.status == AgentStatus.INTERN.value
 
-    def test_reactivate_terminated_agent_fails(self, db_session):
-        """Cannot reactivate terminated agent."""
-        agent = InternAgentFactory(_session=db_session, status="TERMINATED")
+        result = service.can_perform_action(agent.id, "stream_chat")
+
+        assert result["allowed"] is True
+
+    def test_stopped_agent_requires_explicit_restore(self, db_session):
+        """A stopped agent is not automatically restored."""
+        agent = InternAgentFactory(_session=db_session)
         service = AgentGovernanceService(db_session)
 
-        result = service.reactivate_agent(agent.id)
+        agent.status = AgentStatus.STOPPED.value
+        db_session.commit()
+        db_session.refresh(agent)
+        assert agent.status == AgentStatus.STOPPED.value
 
-        assert result is False
+        result = service.can_perform_action(agent.id, "stream_chat")
+
+        assert result["allowed"] is False
+        assert "stopped" in result["reason"].lower()
 
     # ==================== RECORD OUTCOME TESTS ====================
 

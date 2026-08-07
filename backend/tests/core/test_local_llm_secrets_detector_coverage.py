@@ -8,6 +8,8 @@ Focus: LLM-based secrets detection, pattern fallback, Ollama integration
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 import json
+import sys
+import types
 from datetime import datetime
 
 from core.local_llm_secrets_detector import (
@@ -26,18 +28,26 @@ from core.local_llm_secrets_detector import (
 
 
 @pytest.fixture
-def mock_ollama_client():
+def fake_ollama():
+    """Install a fake ``ollama`` module (the package is not installed)."""
+    fake_module = types.ModuleType("ollama")
+    fake_module.Client = MagicMock()
+    with patch.dict(sys.modules, {"ollama": fake_module}):
+        yield fake_module
+
+
+@pytest.fixture
+def mock_ollama_client(fake_ollama):
     """Mock Ollama client."""
-    with patch("core.local_llm_secrets_detector.ollama.Client") as mock:
-        client = MagicMock()
-        mock.return_value = client
-        yield client
+    client = MagicMock()
+    fake_ollama.Client.return_value = client
+    yield client
 
 
 @pytest.fixture
 def mock_secrets_redactor():
     """Mock SecretsRedactor for pattern-based fallback."""
-    with patch("core.local_llm_secrets_detector.get_secrets_redactor") as mock:
+    with patch("core.secrets_redactor.get_secrets_redactor") as mock:
         redactor = MagicMock()
         mock.return_value = redactor
         yield redactor
@@ -191,7 +201,7 @@ class TestDetectorInitialization:
 
     def test_detector_without_pattern_redactor(self):
         """Test detector when pattern redactor import fails."""
-        with patch("core.local_llm_secrets_detector.get_secrets_redactor") as mock:
+        with patch("core.secrets_redactor.get_secrets_redactor") as mock:
             mock.side_effect = ImportError("No module named 'core.secrets_redactor'")
 
             detector = LocalLLMSecretsDetector()
@@ -254,15 +264,14 @@ class TestOllamaInitialization:
         assert detector.model is None
 
     @pytest.mark.asyncio
-    async def test_initialize_ollama_import_error(self):
+    async def test_initialize_ollama_import_error(self, fake_ollama):
         """Test Ollama initialization when ollama not installed."""
-        with patch("core.local_llm_secrets_detector.ollama.Client") as mock:
-            mock.side_effect = ImportError("No module named 'ollama'")
+        fake_ollama.Client.side_effect = ImportError("No module named 'ollama'")
 
-            detector = LocalLLMSecretsDetector()
-            result = await detector.initialize()
+        detector = LocalLLMSecretsDetector()
+        result = await detector.initialize()
 
-            assert result is False
+        assert result is False
 
     @pytest.mark.asyncio
     async def test_initialize_ollama_connection_error(self, mock_ollama_client):
@@ -432,8 +441,6 @@ class TestLLMBasedDetection:
         """Test LLM detection when exception occurs."""
         detector_with_ollama._client.chat.side_effect = Exception("LLM error")
 
-        result = await detector_with_ollama._llm_detect("Test text")
-
         # Should raise exception (handled by caller)
         with pytest.raises(Exception):
             await detector_with_ollama._llm_detect("Test text")
@@ -545,6 +552,8 @@ class TestTextAnalysis:
         mock_result.redactions = []
         mock_secrets_redactor.redact.return_value = mock_result
 
+        detector_with_ollama.pattern_redactor = mock_secrets_redactor
+
         result = await detector_with_ollama.analyze_text("API key: sk-1234567890")
 
         assert result.has_secrets is True
@@ -641,36 +650,33 @@ class TestGlobalFunctions:
             assert result.has_secrets is False
             mock_detector.analyze_text.assert_called_once_with("Test text")
 
-    def test_is_ollama_available_true(self):
+    def test_is_ollama_available_true(self, fake_ollama):
         """Test is_ollama_available when Ollama is available."""
-        with patch("core.local_llm_secrets_detector.ollama.Client") as mock:
-            mock_client = MagicMock()
-            mock_client.list.return_value = {"models": [{"name": "llama3.2:1b"}]}
-            mock.return_value = mock_client
+        mock_client = MagicMock()
+        mock_client.list.return_value = {"models": [{"name": "llama3.2:1b"}]}
+        fake_ollama.Client.return_value = mock_client
 
-            result = is_ollama_available()
+        result = is_ollama_available()
 
-            assert result is True
+        assert result is True
 
-    def test_is_ollama_available_false_no_models(self):
+    def test_is_ollama_available_false_no_models(self, fake_ollama):
         """Test is_ollama_available when no models."""
-        with patch("core.local_llm_secrets_detector.ollama.Client") as mock:
-            mock_client = MagicMock()
-            mock_client.list.return_value = {"models": []}
-            mock.return_value = mock_client
+        mock_client = MagicMock()
+        mock_client.list.return_value = {"models": []}
+        fake_ollama.Client.return_value = mock_client
 
-            result = is_ollama_available()
+        result = is_ollama_available()
 
-            assert result is False
+        assert result is False
 
-    def test_is_ollama_available_false_import_error(self):
+    def test_is_ollama_available_false_import_error(self, fake_ollama):
         """Test is_ollama_available when ollama not installed."""
-        with patch("core.local_llm_secrets_detector.ollama.Client") as mock:
-            mock.side_effect = ImportError("No module named 'ollama'")
+        fake_ollama.Client.side_effect = ImportError("No module named 'ollama'")
 
-            result = is_ollama_available()
+        result = is_ollama_available()
 
-            assert result is False
+        assert result is False
 
 
 # ========================================================================

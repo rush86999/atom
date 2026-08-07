@@ -296,6 +296,7 @@ class ConflictResolutionService:
         """
         conflict = ConflictLog(
             skill_id=skill_id,
+            tenant_id="default",
             conflict_type=conflict_type,
             severity=severity,
             local_data=local_data,

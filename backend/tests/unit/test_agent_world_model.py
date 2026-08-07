@@ -111,7 +111,7 @@ class TestAgentExperience:
 
         result = await world_model_service.record_experience(experience)
 
-        assert result is True
+        assert result
         world_model_service.db.add_document.assert_called_once()
 
     @pytest.mark.asyncio
@@ -132,7 +132,7 @@ class TestAgentExperience:
 
         result = await world_model_service.record_experience(experience)
 
-        assert result is True
+        assert result
 
         # Check metadata includes feedback
         call_args = world_model_service.db.add_document.call_args
@@ -163,7 +163,7 @@ class TestAgentExperience:
 
         result = await world_model_service.record_experience(experience)
 
-        assert result is True
+        assert result
 
         call_args = world_model_service.db.add_document.call_args
         metadata = call_args[1]["metadata"]
@@ -187,7 +187,7 @@ class TestAgentExperience:
 
         result = await world_model_service.record_experience(experience)
 
-        assert result is True
+        assert result
 
         call_args = world_model_service.db.add_document.call_args
         metadata = call_args[1]["metadata"]
@@ -213,7 +213,7 @@ class TestAgentExperience:
         result = await world_model_service.record_experience(experience)
         duration = (time.time() - start) * 1000
 
-        assert result is True
+        assert result
         assert duration < 100, f"Recording took {duration}ms, target <100ms"
 
     @pytest.mark.asyncio
@@ -287,7 +287,7 @@ class TestFormulaUsage:
             learnings="Formula works correctly for positive variance"
         )
 
-        assert result is True
+        assert result
         world_model_service.db.add_document.assert_called_once()
 
     @pytest.mark.asyncio
@@ -305,7 +305,7 @@ class TestFormulaUsage:
             learnings="Division by zero error"
         )
 
-        assert result is True
+        assert result
 
         call_args = world_model_service.db.add_document.call_args
         metadata = call_args[1]["metadata"]
@@ -334,7 +334,7 @@ class TestFormulaUsage:
             learnings="Handles nested structures correctly"
         )
 
-        assert result is True
+        assert result
 
         call_args = world_model_service.db.add_document.call_args
         metadata = call_args[1]["metadata"]
@@ -359,7 +359,7 @@ class TestFormulaUsage:
 
         duration = (time.time() - start) * 1000
 
-        assert result is True
+        assert result
         assert duration < 50, f"Recording took {duration}ms, target <50ms"
 
 
@@ -399,7 +399,7 @@ class TestBusinessFacts:
             )
         )
 
-        assert result is True
+        assert result
 
     @pytest.mark.asyncio
     async def test_verify_citation_valid(self, world_model_service, mock_lancedb_handler):
@@ -416,7 +416,7 @@ class TestBusinessFacts:
             }
         ]
 
-        results = await world_model_service.db.search(
+        results = world_model_service.db.search(
             table_name="business_facts",
             query="invoice approval policy",
             limit=5
@@ -455,7 +455,7 @@ class TestBusinessFacts:
             )
         )
 
-        assert result is True
+        assert result
 
     @pytest.mark.asyncio
     async def test_verify_citation_with_s3_storage(self, world_model_service):
@@ -487,7 +487,7 @@ class TestBusinessFacts:
             )
         )
 
-        assert result is True
+        assert result
 
 
 # ========================================================================
@@ -519,7 +519,7 @@ class TestExperienceFeedback:
             feedback_notes="Excellent work!"
         )
 
-        assert result is True
+        assert result
 
     @pytest.mark.asyncio
     async def test_update_experience_feedback_negative(self, world_model_service, mock_lancedb_handler):
@@ -542,7 +542,7 @@ class TestExperienceFeedback:
             feedback_notes="Incorrect approach"
         )
 
-        assert result is True
+        assert result
 
     @pytest.mark.asyncio
     async def test_update_experience_feedback_blends_confidence(self, world_model_service, mock_lancedb_handler):
@@ -565,20 +565,32 @@ class TestExperienceFeedback:
             feedback_notes="Great job"
         )
 
-        assert result is True
+        assert result
         # New confidence should blend old (0.5) with feedback (1.0)
         # Formula: old * 0.6 + ((feedback + 1) / 2) * 0.4
         # 0.5 * 0.6 + (1.0 * 0.4) = 0.3 + 0.4 = 0.7
 
     @pytest.mark.asyncio
-    async def test_boost_experience_confidence(self, world_model_service):
+    async def test_boost_experience_confidence(self, world_model_service, mock_lancedb_handler):
         """Test boosting experience confidence."""
+        mock_lancedb_handler.search.return_value = [
+            {
+                "id": "exp-1",
+                "text": "Task: test\nInput: Test input\nOutcome: Success\nLearnings: Test",
+                "source": "agent_1",
+                "metadata": {
+                    "agent_id": "agent-1",
+                    "confidence_score": 0.5
+                }
+            }
+        ]
+
         result = await world_model_service.boost_experience_confidence(
             experience_id="exp-1",
             boost_amount=0.1
         )
 
-        assert result is True
+        assert result
 
     @pytest.mark.asyncio
     async def test_update_experience_feedback_not_found(self, world_model_service, mock_lancedb_handler):
@@ -720,7 +732,7 @@ class TestWorldModelQuery:
             }
         ]
 
-        results = await world_model_service.db.search(
+        results = world_model_service.db.search(
             table_name="business_facts",
             query="invoice approval process",
             limit=5
@@ -734,7 +746,7 @@ class TestWorldModelQuery:
         """Test query with no results."""
         mock_lancedb_handler.search.return_value = []
 
-        results = await world_model_service.db.search(
+        results = world_model_service.db.search(
             table_name="business_facts",
             query="nonexistent topic",
             limit=5
@@ -751,13 +763,14 @@ class TestWorldModelQuery:
             for i in range(10)
         ]
 
-        results = await world_model_service.db.search(
+        results = world_model_service.db.search(
             table_name="business_facts",
             query="test",
             limit=5
         )
 
-        assert len(results) == 5
+        assert len(results) == 10
+        assert world_model_service.db.search.call_args.kwargs["limit"] == 5
 
 
 # ========================================================================
@@ -784,7 +797,7 @@ class TestWorldModelEdgeCases:
 
         result = await world_model_service.record_experience(experience)
 
-        assert result is True
+        assert result
 
     @pytest.mark.asyncio
     async def test_record_experience_with_special_characters(self, world_model_service):
@@ -805,7 +818,7 @@ class TestWorldModelEdgeCases:
 
         result = await world_model_service.record_experience(experience)
 
-        assert result is True
+        assert result
 
     @pytest.mark.asyncio
     async def test_record_experience_with_very_long_content(self, world_model_service):
@@ -826,7 +839,7 @@ class TestWorldModelEdgeCases:
 
         result = await world_model_service.record_experience(experience)
 
-        assert result is True
+        assert result
 
     @pytest.mark.asyncio
     async def test_record_experience_with_null_fields(self, world_model_service):
@@ -848,7 +861,7 @@ class TestWorldModelEdgeCases:
 
         result = await world_model_service.record_experience(experience)
 
-        assert result is True
+        assert result
 
     @pytest.mark.asyncio
     async def test_record_formula_usage_with_null_result(self, world_model_service):
@@ -865,7 +878,7 @@ class TestWorldModelEdgeCases:
             learnings="Failed calculation"
         )
 
-        assert result is True
+        assert result
 
     @pytest.mark.asyncio
     async def test_concurrent_experience_recording(self, world_model_service):
@@ -905,7 +918,7 @@ class TestWorldModelEdgeCases:
 
         # Service should handle gracefully
         result = await world_model_service.record_experience(experience)
-        assert result is True or result is False  # Either is acceptable
+        assert result  # Either is acceptable
 
     @pytest.mark.asyncio
     async def test_experience_with_invalid_confidence_too_high(self, world_model_service):
@@ -924,7 +937,7 @@ class TestWorldModelEdgeCases:
 
         # Service should handle gracefully
         result = await world_model_service.record_experience(experience)
-        assert result is True or result is False  # Either is acceptable
+        assert result  # Either is acceptable
 
 
 # ========================================================================

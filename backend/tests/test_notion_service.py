@@ -21,13 +21,6 @@ from core.productivity.notion_service import (
     update_page,
 )
 
-# Patch OAuthToken to add missing fields that production code expects
-# This works around a production bug where OAuthToken.provider and OAuthToken.status
-# are referenced but don't exist on the actual model
-import core.models
-core.models.OAuthToken.provider = "notion"  # Default provider
-core.models.OAuthToken.status = "active"  # Default status
-
 
 class TestNotionServiceInit:
     """Test NotionService initialization."""

@@ -9,6 +9,13 @@ from fastapi.testclient import TestClient
 from fastapi import HTTPException
 from datetime import datetime
 
+from core.byok_cost_optimizer import (
+    CostOptimizationRecommendation,
+    CompetitiveInsight,
+    UsagePattern,
+)
+from core.byok_endpoints import ProviderUsage
+
 
 # ============================================================================
 # Fixtures
@@ -20,8 +27,8 @@ def mock_byok_manager():
     manager = Mock()
     manager.get_provider_status = Mock()
     manager.usage_stats = {
-        "openai": Mock(cost_accumulated=100.0),
-        "anthropic": Mock(cost_accumulated=50.0)
+        "openai": ProviderUsage(provider_id="openai", cost_accumulated=100.0),
+        "anthropic": ProviderUsage(provider_id="anthropic", cost_accumulated=50.0)
     }
     manager.providers = {
         "openai": Mock(cost_per_token=0.00003),
@@ -37,18 +44,41 @@ def mock_cost_optimizer(mock_byok_manager):
     optimizer = Mock()
     optimizer.byok_manager = mock_byok_manager
     optimizer.get_competitive_analysis_report = Mock()
-    optimizer.analyze_user_usage_pattern = Mock()
+    optimizer.analyze_user_usage_pattern = Mock(
+        side_effect=lambda user_id, days=30: optimizer.usage_patterns.setdefault(
+            user_id,
+            UsagePattern(
+                user_id=user_id,
+                task_distribution={"general": 40, "chat": 30, "code": 20, "analysis": 10},
+                peak_hours=[9, 10, 14, 15, 16],
+                preferred_providers={},
+                monthly_budget=50.0,
+                cost_sensitivity="medium",
+                quality_preference="balanced"
+            )
+        )
+    )
     optimizer.get_cost_optimization_recommendations = Mock()
     optimizer.simulate_cost_savings = Mock()
     optimizer.competitive_insights = {
-        "openai": Mock(
+        "openai": CompetitiveInsight(
+            provider_id="openai",
             market_position="premium",
+            unique_features=["reasoning", "code"],
             best_for_tasks=["reasoning", "code"],
+            cost_efficiency_score=70,
+            quality_score=90,
+            reliability_score=90,
             market_trend="stable"
         ),
-        "deepseek": Mock(
+        "deepseek": CompetitiveInsight(
+            provider_id="deepseek",
             market_position="budget",
+            unique_features=["simple_tasks"],
             best_for_tasks=["simple_tasks"],
+            cost_efficiency_score=95,
+            quality_score=75,
+            reliability_score=80,
             market_trend="rising"
         )
     }
@@ -196,13 +226,17 @@ class TestBYOKPricing:
 
     def test_optimize_costs_success(self, client, mock_cost_optimizer):
         """Test successful cost optimization."""
-        mock_recommendation = Mock(
+        mock_recommendation = CostOptimizationRecommendation(
+            task_type="simple_query",
+            current_provider="openai",
             recommended_provider="deepseek",
+            estimated_savings=0.0,
+            savings_percentage=0.0,
+            reasoning="Cost-effective for this task type",
             confidence=90,
-            reasoning="Cost-effective for this task type"
+            alternative_providers=[]
         )
         mock_cost_optimizer.get_cost_optimization_recommendations.return_value = mock_recommendation
-        mock_cost_optimizer.analyze_user_usage_pattern.return_value = None
 
         response = client.post(
             "/api/v1/byok/optimize-costs",
@@ -220,10 +254,15 @@ class TestBYOKPricing:
 
     def test_optimize_costs_default_user(self, client, mock_cost_optimizer):
         """Test cost optimization with default user."""
-        mock_recommendation = Mock(
+        mock_recommendation = CostOptimizationRecommendation(
+            task_type="general",
+            current_provider="openai",
             recommended_provider="openai",
+            estimated_savings=0.0,
+            savings_percentage=0.0,
+            reasoning="High quality required",
             confidence=85,
-            reasoning="High quality required"
+            alternative_providers=[]
         )
         mock_cost_optimizer.get_cost_optimization_recommendations.return_value = mock_recommendation
 
@@ -238,10 +277,15 @@ class TestBYOKPricing:
 
     def test_optimize_costs_with_context(self, client, mock_cost_optimizer):
         """Test cost optimization with context."""
-        mock_recommendation = Mock(
+        mock_recommendation = CostOptimizationRecommendation(
+            task_type="code_generation",
+            current_provider="openai",
             recommended_provider="anthropic",
+            estimated_savings=0.0,
+            savings_percentage=0.0,
+            reasoning="Balanced cost and quality",
             confidence=88,
-            reasoning="Balanced cost and quality"
+            alternative_providers=[]
         )
         mock_cost_optimizer.get_cost_optimization_recommendations.return_value = mock_recommendation
 
@@ -440,9 +484,14 @@ class TestBYOKComparison:
         }
         mock_byok_manager.get_provider_status.return_value = mock_status
         mock_cost_optimizer.competitive_insights = {
-            "deepseek": Mock(
+            "deepseek": CompetitiveInsight(
+                provider_id="deepseek",
                 market_position="budget",
+                unique_features=["simple_tasks"],
                 best_for_tasks=["simple_tasks", "batch_operations"],
+                cost_efficiency_score=95,
+                quality_score=75,
+                reliability_score=80,
                 market_trend="rising"
             )
         }
@@ -465,9 +514,14 @@ class TestBYOKComparison:
         }
         mock_byok_manager.get_provider_status.return_value = mock_status
         mock_cost_optimizer.competitive_insights = {
-            "anthropic": Mock(
+            "anthropic": CompetitiveInsight(
+                provider_id="anthropic",
                 market_position="premium",
+                unique_features=["reasoning"],
                 best_for_tasks=["reasoning", "code_generation"],
+                cost_efficiency_score=75,
+                quality_score=95,
+                reliability_score=90,
                 market_trend="stable"
             )
         }
@@ -576,10 +630,15 @@ class TestBYOKErrors:
 
     def test_optimize_costs_missing_task_type(self, client, mock_cost_optimizer):
         """Test cost optimization without task type."""
-        mock_recommendation = Mock(
+        mock_recommendation = CostOptimizationRecommendation(
+            task_type="general",
+            current_provider="openai",
             recommended_provider="openai",
+            estimated_savings=0.0,
+            savings_percentage=0.0,
+            reasoning="Default provider",
             confidence=80,
-            reasoning="Default provider"
+            alternative_providers=[]
         )
         mock_cost_optimizer.get_cost_optimization_recommendations.return_value = mock_recommendation
 

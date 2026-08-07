@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from sqlalchemy.orm import Session
 
 from api.social_media_routes import router, PlatformConfig, rate_limit_check
-from core.models import OAuthToken, SocialPostHistory, SocialMediaAudit, User
+from core.models import IntegrationToken as OAuthToken, SocialPostHistory, SocialMediaAudit, User
 
 
 # ============================================================================
@@ -21,6 +21,12 @@ from core.models import OAuthToken, SocialPostHistory, SocialMediaAudit, User
 # ============================================================================
 
 _current_test_user = None
+
+
+@pytest.fixture
+def db(db_session: Session):
+    """Session alias used by this file's fixtures (conftest provides db_session)."""
+    return db_session
 
 
 @pytest.fixture
@@ -70,17 +76,17 @@ def mock_user(db: Session):
 
 @pytest.fixture
 def mock_twitter_token(db: Session, mock_user: User):
-    """Create mock Twitter OAuth token."""
+    """Create mock Twitter OAuth token (IntegrationToken — provider-scoped store)."""
     import uuid
     token = OAuthToken(
         id=str(uuid.uuid4()),
+        tenant_id="default",
         user_id=mock_user.id,
         provider="twitter",
         access_token="twitter_access_token_123",
         refresh_token="twitter_refresh_token_123",
         status="active",
-        scopes=["tweet.read", "tweet.write"],
-        last_used=datetime.utcnow()
+        scope="tweet.read tweet.write",
     )
     db.add(token)
     db.commit()
@@ -90,17 +96,17 @@ def mock_twitter_token(db: Session, mock_user: User):
 
 @pytest.fixture
 def mock_linkedin_token(db: Session, mock_user: User):
-    """Create mock LinkedIn OAuth token."""
+    """Create mock LinkedIn OAuth token (IntegrationToken — provider-scoped store)."""
     import uuid
     token = OAuthToken(
         id=str(uuid.uuid4()),
+        tenant_id="default",
         user_id=mock_user.id,
         provider="linkedin",
         access_token="linkedin_access_token_123",
         refresh_token="linkedin_refresh_token_123",
         status="active",
-        scopes=["w_member_social"],
-        last_used=datetime.utcnow()
+        scope="w_member_social",
     )
     db.add(token)
     db.commit()
@@ -110,17 +116,17 @@ def mock_linkedin_token(db: Session, mock_user: User):
 
 @pytest.fixture
 def mock_facebook_token(db: Session, mock_user: User):
-    """Create mock Facebook OAuth token."""
+    """Create mock Facebook OAuth token (IntegrationToken — provider-scoped store)."""
     import uuid
     token = OAuthToken(
         id=str(uuid.uuid4()),
+        tenant_id="default",
         user_id=mock_user.id,
         provider="facebook",
         access_token="facebook_access_token_123",
         refresh_token="facebook_refresh_token_123",
         status="active",
-        scopes=["pages_manage_posts"],
-        last_used=datetime.utcnow()
+        scope="pages_manage_posts",
     )
     db.add(token)
     db.commit()
@@ -198,6 +204,7 @@ def test_rate_limit_check_exceeded(db: Session, mock_user: User):
     for i in range(10):
         post = SocialPostHistory(
             id=str(i),
+            post_id=f"post-{i}",
             user_id=mock_user.id,
             content=f"Post {i}",
             platforms=["twitter"],
@@ -230,14 +237,13 @@ def test_create_social_post_twitter(
         "platforms": ["twitter"]
     }
 
-    with patch('api.social_media_routes.post_to_twitter') as mock_post:
-        mock_post.return_value = {
-            "success": True,
-            "post_id": "tweet-123",
-            "url": "https://twitter.com/i/status/tweet-123",
-            "platform": "twitter"
-        }
-
+    mock_post = AsyncMock(return_value={
+        "success": True,
+        "post_id": "tweet-123",
+        "url": "https://twitter.com/i/status/tweet-123",
+        "platform": "twitter"
+    })
+    with patch.dict('api.social_media_routes.PLATFORM_POSTERS', {'twitter': mock_post}):
         response = client.post("/api/v1/social/post", json=request_data)
 
         assert response.status_code == 200
@@ -261,23 +267,25 @@ def test_create_social_post_multiple_platforms(
         "platforms": ["twitter", "linkedin"]
     }
 
-    with patch('api.social_media_routes.post_to_twitter') as mock_twitter:
-        mock_twitter.return_value = {
-            "success": True,
-            "post_id": "tweet-123"
-        }
+    mock_twitter = AsyncMock(return_value={
+        "success": True,
+        "post_id": "tweet-123"
+    })
 
-        with patch('api.social_media_routes.post_to_linkedin') as mock_linkedin:
-            mock_linkedin.return_value = {
-                "success": True,
-                "post_id": "linkedin-post-123"
-            }
+    mock_linkedin = AsyncMock(return_value={
+        "success": True,
+        "post_id": "linkedin-post-123"
+    })
 
-            response = client.post("/api/v1/social/post", json=request_data)
+    with patch.dict('api.social_media_routes.PLATFORM_POSTERS', {
+        'twitter': mock_twitter,
+        'linkedin': mock_linkedin,
+    }):
+        response = client.post("/api/v1/social/post", json=request_data)
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["success"] is True
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
 
 
 def test_create_social_post_validation_error(
@@ -331,6 +339,7 @@ def test_create_social_post_rate_limited(
     for i in range(10):
         post = SocialPostHistory(
             id=str(i),
+            post_id=f"post-{i}",
             user_id=mock_user.id,
             content=f"Post {i}",
             platforms=["twitter"],
@@ -366,12 +375,11 @@ def test_create_social_post_with_link(
         "link_url": "https://example.com"
     }
 
-    with patch('api.social_media_routes.post_to_twitter') as mock_post:
-        mock_post.return_value = {
-            "success": True,
-            "post_id": "tweet-123"
-        }
-
+    mock_post = AsyncMock(return_value={
+        "success": True,
+        "post_id": "tweet-123"
+    })
+    with patch.dict('api.social_media_routes.PLATFORM_POSTERS', {'twitter': mock_post}):
         response = client.post("/api/v1/social/post", json=request_data)
 
         assert response.status_code == 200
@@ -464,6 +472,7 @@ def test_get_rate_limit_with_posts(
     for i in range(5):
         post = SocialPostHistory(
             id=str(i),
+            post_id=f"post-{i}",
             user_id=mock_user.id,
             content=f"Post {i}",
             platforms=["twitter"],
@@ -588,13 +597,13 @@ def test_post_with_agent_governance_blocked(
         "agent_id": "student-agent-123"
     }
 
-    with patch('core.agent_context_resolver.AgentContextResolver') as mock_resolver:
+    with patch('api.social_media_routes.AgentContextResolver') as mock_resolver:
         mock_agent = Mock()
         mock_agent.id = "student-agent-123"
         mock_agent.status = "student"
-        mock_resolver.return_value.resolve_agent_for_request.return_value = (mock_agent, {})
+        mock_resolver.return_value.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
 
-        with patch('core.agent_governance_service.AgentGovernanceService') as mock_gov:
+        with patch('api.social_media_routes.AgentGovernanceService') as mock_gov:
             mock_gov_instance = Mock()
             mock_gov_instance.can_perform_action.return_value = {
                 "allowed": False
@@ -622,25 +631,25 @@ def test_post_with_agent_governance_passed(
         "agent_id": "autonomous-agent-123"
     }
 
-    with patch('core.agent_context_resolver.AgentContextResolver') as mock_resolver:
+    with patch('api.social_media_routes.AgentContextResolver') as mock_resolver:
         mock_agent = Mock()
         mock_agent.id = "autonomous-agent-123"
         mock_agent.status = "autonomous"
-        mock_resolver.return_value.resolve_agent_for_request.return_value = (mock_agent, {})
+        mock_resolver.return_value.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
 
-        with patch('core.agent_governance_service.AgentGovernanceService') as mock_gov:
+        with patch('api.social_media_routes.AgentGovernanceService') as mock_gov:
             mock_gov_instance = Mock()
             mock_gov_instance.can_perform_action.return_value = {
                 "allowed": True
             }
             mock_gov.return_value = mock_gov_instance
 
-            with patch('api.social_media_routes.post_to_twitter') as mock_post:
-                mock_post.return_value = {
+            with patch.dict('api.social_media_routes.PLATFORM_POSTERS', {
+                'twitter': AsyncMock(return_value={
                     "success": True,
                     "post_id": "tweet-123"
-                }
-
+                })
+            }):
                 response = client.post("/api/v1/social/post", json=request_data)
 
                 assert response.status_code == 200

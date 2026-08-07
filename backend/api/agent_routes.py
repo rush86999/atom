@@ -41,10 +41,20 @@ class AgentRunRequest(BaseModel):
 
 class AgentUpdateRequest(BaseModel):
     agent_id: Optional[str] = None
-    name: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="Agent name")
     description: Optional[str] = None
     # P2: per-agent zero-trust tool scoping. Empty/['*'] = unrestricted (default).
     capabilities: Optional[List[str]] = None
+
+    @field_validator('name')
+    @classmethod
+    def validate_name_not_whitespace(cls, v: Optional[str]) -> Optional[str]:
+        """Reject whitespace-only names (mirrors the line-841 AgentUpdateRequest)."""
+        if v is not None:
+            if not v or not v.strip():
+                raise ValueError('cannot be empty or whitespace-only')
+            return v.strip()
+        return v
 
 class AgentInfo(BaseModel):
     id: str

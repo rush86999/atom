@@ -23,6 +23,23 @@ from unittest.mock import AsyncMock, Mock, patch
 from fastapi.testclient import TestClient
 
 
+def _override_auth(app):
+    from core.auth import get_current_user
+
+    def override_get_current_user():
+        from core.models import User
+        return User(
+            id="analytics-test-user",
+            email="analytics@test.com",
+            first_name="Analytics",
+            last_name="Tester",
+            role="super_admin",
+            status="active"
+        )
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
+
 # ============================================================================
 # Test Analytics Summary (6 tests)
 # ============================================================================
@@ -92,6 +109,7 @@ class TestAnalyticsSummary:
             
             app = FastAPI()
             app.include_router(router)
+            _override_auth(app)
             client = TestClient(app)
             
             response = client.get("/api/analytics/summary")
@@ -155,6 +173,7 @@ class TestSentimentAnalysis:
             
             app = FastAPI()
             app.include_router(router)
+            _override_auth(app)
             client = TestClient(app)
             
             response = client.get("/api/analytics/sentiment")
@@ -221,6 +240,7 @@ class TestResponseTimeMetrics:
             
             app = FastAPI()
             app.include_router(router)
+            _override_auth(app)
             client = TestClient(app)
             
             response = client.get("/api/analytics/response-times")
@@ -417,6 +437,7 @@ class TestUnifiedTimeline:
 
         app = FastAPI()
         app.include_router(router)
+        _override_auth(app)
 
         with patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine', return_value=mock_engine):
             client = TestClient(app)
@@ -456,6 +477,7 @@ class TestUnifiedTimeline:
             
             app = FastAPI()
             app.include_router(router)
+            _override_auth(app)
             client = TestClient(app)
             
             response = client.get("/api/analytics/correlations/linked-conv-123/timeline")
@@ -533,6 +555,7 @@ class TestPredictResponseTime:
             
             app = FastAPI()
             app.include_router(router)
+            _override_auth(app)
             client = TestClient(app)
             
             response = client.get("/api/analytics/predictions/response-time", params={
@@ -603,6 +626,7 @@ class TestRecommendChannel:
             
             app = FastAPI()
             app.include_router(router)
+            _override_auth(app)
             client = TestClient(app)
             
             response = client.get("/api/analytics/recommendations/channel", params={
@@ -664,6 +688,7 @@ class TestDetectBottlenecks:
             
             app = FastAPI()
             app.include_router(router)
+            _override_auth(app)
             client = TestClient(app)
             
             response = client.get("/api/analytics/bottlenecks")
@@ -702,6 +727,7 @@ class TestUserPatterns:
 
         app = FastAPI()
         app.include_router(router)
+        _override_auth(app)
 
         # Mock the engine to return None for non-existent user
         from unittest.mock import Mock, AsyncMock
@@ -732,6 +758,7 @@ class TestUserPatterns:
             
             app = FastAPI()
             app.include_router(router)
+            _override_auth(app)
             client = TestClient(app)
             
             response = client.get("/api/analytics/patterns/user123")
@@ -781,6 +808,7 @@ class TestAnalyticsOverview:
             
             app = FastAPI()
             app.include_router(router)
+            _override_auth(app)
             client = TestClient(app)
             
             response = client.get("/api/analytics/overview")

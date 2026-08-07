@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 from datetime import datetime
 import json
 import time
+import types
 
 from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
@@ -21,6 +22,13 @@ from core.error_middleware import (
     get_error_statistics,
     reset_error_statistics,
 )
+
+
+@pytest.fixture(autouse=True)
+def reset_stats():
+    """ErrorStatistics is a module-level singleton shared across tests."""
+    ErrorStatistics().reset()
+    yield
 
 
 # ========================================================================
@@ -39,7 +47,7 @@ def mock_request():
     request.client = MagicMock()
     request.client.host = "127.0.0.1"
     request.headers = {"user-agent": "test-agent"}
-    request.state = MagicMock()
+    request.state = types.SimpleNamespace()
     return request
 
 
@@ -863,7 +871,7 @@ class TestEdgeCases:
 
         message = error_middleware._get_error_message(exc, error_info)
 
-        assert len(message) == 10005
+        assert len(message) == len(long_message)
 
     @pytest.mark.asyncio
     async def test_multiple_errors_same_endpoint(

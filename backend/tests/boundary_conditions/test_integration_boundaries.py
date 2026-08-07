@@ -16,7 +16,7 @@ from fastapi import Request
 from fastapi.testclient import TestClient
 import time
 
-from core.models import OAuthToken, User
+from core.models import IntegrationToken, User
 from api.oauth_routes import router as oauth_router
 from api.webhook_routes import router as webhook_router
 
@@ -59,14 +59,16 @@ class TestOAuthBoundaries:
 
         Validated: ✅ Test confirms behavior needs validation
         """
-        # Create expired token
-        expired_token = OAuthToken(
+        # Create expired token (IntegrationToken — provider-scoped store;
+        # OAuthToken is the OAuth-client token store with hash-only columns)
+        expired_token = IntegrationToken(
             id="token-1",
+            tenant_id="default",
             user_id="user-1",
             provider="slack",
             access_token="xoxp-expired",
             refresh_token="xoxr-expired",
-            scopes=["chat:write"],
+            scope="chat:write",
             expires_at=datetime.now(timezone.utc) - timedelta(hours=1),  # Expired
             created_at=datetime.now(timezone.utc) - timedelta(days=1)
         )
@@ -97,14 +99,15 @@ class TestOAuthBoundaries:
 
         Validated: ✅ Test confirms behavior needs validation
         """
-        # Create revoked token
-        revoked_token = OAuthToken(
+        # Create revoked token (IntegrationToken — provider-scoped store)
+        revoked_token = IntegrationToken(
             id="token-2",
+            tenant_id="default",
             user_id="user-1",
             provider="slack",
             access_token="xoxp-revoked",
             refresh_token="xoxr-revoked",
-            scopes=["chat:write"],
+            scope="chat:write",
             status="revoked",  # Revoked
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
             created_at=datetime.now(timezone.utc)

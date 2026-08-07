@@ -54,20 +54,29 @@ class UserAccountFactory(BaseFactory):
 
 
 class OAuthTokenFactory(BaseFactory):
-    """Factory for creating OAuthToken instances."""
+    """Factory for creating OAuthToken instances.
+
+    OAuthToken is the OAuth-server token store (hash-only columns, no
+    provider/access_token/status — provider-scoped tokens live on
+    IntegrationToken).
+    """
 
     class Meta:
         model = OAuthToken
 
     # Required fields
     id = factory.Faker('uuid4')
+    client_id = factory.Faker('uuid4')
     user_id = factory.Faker('uuid4')
-    provider = fuzzy.FuzzyChoice(['google', 'github', 'microsoft', 'slack'])
-    token = factory.Faker('password')  # In tests, use fake token
+    tenant_id = factory.Faker('uuid4')
+    access_token_hash = factory.Faker('sha256')
+    scope = 'openid'
 
     # Optional fields
-    refresh_token = factory.Faker('password')
-    expires_at = factory.Faker('date_time_between', start_date='now', end_date='+30d')
+    refresh_token_hash = factory.Faker('sha256')
+    token_type = 'Bearer'
+    access_token_expires_at = factory.Faker('date_time_between', start_date='now', end_date='+30d')
+    is_active = True
     created_at = factory.Faker('date_time_this_year')
 
 

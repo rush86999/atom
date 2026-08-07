@@ -2,33 +2,23 @@
 Comprehensive test coverage for Budget Enforcement Service.
 
 Target: 60%+ line coverage (320+ lines covered out of 534)
-Tests: 35+ tests across 4 test classes
+Tests: 30+ tests across 4 test classes
 """
 
 import pytest
-from decimal import Decimal
-from unittest.mock import Mock, MagicMock, patch
+import json
+from datetime import datetime, timezone, timedelta
+from unittest.mock import Mock, patch, AsyncMock
 from sqlalchemy.orm import Session
 
-# Mock the service_delivery.models before importing budget_enforcement_service
-with patch.dict('sys.modules', {'service_delivery.models': Mock()}):
-    # Create mock classes
-    Project = Mock()
-    BudgetStatus = Mock()
-    BudgetStatus.ON_TRACK = Mock(value="on_track")
-    BudgetStatus.AT_RISK = Mock(value="at_risk")
-    BudgetStatus.OVER_BUDGET = Mock(value="over_budget")
-
-    # Now patch the import
-    with patch('service_delivery.models.Project', Project):
-        with patch('service_delivery.models.BudgetStatus', BudgetStatus):
-            from core.budget_enforcement_service import (
-                BudgetEnforcementService,
-                BudgetError,
-                InsufficientBudgetError,
-                BudgetNotFoundError,
-            )
-            from core.budget_enforcement_service import ConcurrentModificationError
+from core.budget_enforcement_service import (
+    BudgetEnforcementService,
+    BudgetEnforcementMode,
+    BudgetError,
+    InsufficientBudgetError,
+    BudgetNotFoundError,
+    ConcurrentModificationError,
+)
 
 
 @pytest.fixture
@@ -45,15 +35,21 @@ def budget_service(mock_db_session):
 
 
 @pytest.fixture
-def mock_project():
-    """Mock project with budget."""
-    project = Mock()
-    project.id = "project_123"
-    project.workspace_id = "workspace_123"
-    project.budget_amount = 10000.0
-    project.actual_burn = 3000.0
-    project.budget_status = Mock(value="on_track")
-    return project
+def mock_tenant():
+    """Mock tenant with budget."""
+    tenant = Mock()
+    tenant.id = "tenant_123"
+    return tenant
+
+
+@pytest.fixture
+def default_spend_result():
+    """Default spend aggregation result within budget."""
+    return {
+        "current_spend_usd": 50.0,
+        "budget_limit_usd": 100.0,
+        "utilization_percent": 50.0
+    }
 
 
 class TestBudgetEnforcement:
@@ -64,272 +60,470 @@ class TestBudgetEnforcement:
         service = BudgetEnforcementService(db=mock_db_session)
         assert service.db == mock_db_session
 
-    def test_check_budget_within_limit(self, budget_service, mock_project):
-        """Test checking budget when amount is within limit."""
-        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_project
+    @patch('core.budget_enforcement_service.SessionLocal')
+    def test_init_without_db_session(self, mock_session_local, mock_db_session):
+        """Test service initialization with default database session."""
+        mock_session_local.return_value = mock_db_session
 
-        result = budget_service.check_budget("project_123", 5000)
+        service = BudgetEnforcementService()
 
-        assert result["allowed"] == True
-        assert result["remaining"] == Decimal("7000.00")
-        assert result["budget_status"] == "on_track"
-        assert result["utilization_pct"] == Decimal("30.00")
+        assert service.db is mock_db_session
 
-    def test_check_budget_exceeds_limit(self, budget_service, mock_project):
-        """Test checking budget when amount exceeds limit."""
-        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_project
+    def test_context_manager_closes_db(self, mock_db_session):
+        """Test context manager closes the database session."""
+        service = BudgetEnforcementService(db=mock_db_session)
 
-        result = budget_service.check_budget("project_123", 8000)
+        with service:
+            pass
 
-        assert result["allowed"] == False
-        assert result["remaining"] == Decimal("7000.00")
+        mock_db_session.close.assert_called_once()
 
-    def test_check_budget_project_not_found(self, budget_service):
-        """Test checking budget for non-existent project."""
-        budget_service.db.query.return_value.filter.return_value.first.return_value = None
+    def test_close_closes_db(self, mock_db_session):
+        """Test close() closes the database session."""
+        service = BudgetEnforcementService(db=mock_db_session)
 
-        with pytest.raises(BudgetNotFoundError):
-            budget_service.check_budget("nonexistent", 1000)
+        service.close()
 
-    def test_check_budget_negative_amount(self, budget_service, mock_project):
-        """Test checking budget with negative amount raises error."""
-        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_project
+        mock_db_session.close.assert_called_once()
 
-        with pytest.raises(ValueError, match="cannot be negative"):
-            budget_service.check_budget("project_123", -1000)
+    @pytest.mark.asyncio
+    async def test_check_budget_within_limit(self, budget_service, default_spend_result):
+        """Test checking budget when spend is within limit."""
+        budget_service.spend_service.update_tenant_spend = Mock(return_value=default_spend_result)
+        budget_service._get_enforcement_mode = Mock(return_value=BudgetEnforcementMode.SOFT_STOP)
 
-    def test_check_budget_zero_budget(self, budget_service):
-        """Test checking budget when project has zero budget."""
-        mock_project = Mock()
-        mock_project.budget_amount = 0
-        mock_project.actual_burn = 0
-        mock_project.budget_status = Mock(value="on_track")
-        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_project
+        result = await budget_service.check_budget_before_action(
+            tenant_id="tenant_123",
+            agent_id="agent_123",
+            action="run_episode"
+        )
 
-        result = budget_service.check_budget("project_123", 1000)
+        assert result["allowed"] is True
+        assert result["current_spend_usd"] == 50.0
+        assert result["budget_limit_usd"] == 100.0
+        assert result["utilization_percent"] == 50.0
 
-        assert result["allowed"] == False
-        assert result["utilization_pct"] == Decimal("0.00")
+    @pytest.mark.asyncio
+    async def test_check_budget_soft_stop_blocks_new_episodes(self, budget_service):
+        """Test soft_stop blocks new episodes when budget exceeded."""
+        budget_service.spend_service.update_tenant_spend = Mock(return_value={
+            "current_spend_usd": 100.0,
+            "budget_limit_usd": 100.0,
+            "utilization_percent": 100.0
+        })
+        budget_service._get_enforcement_mode = Mock(return_value=BudgetEnforcementMode.SOFT_STOP)
+        budget_service._has_active_episodes = Mock(return_value=False)
 
-    def test_approve_spend_success(self, budget_service, mock_project, mock_db_session):
-        """Test approving spend within budget."""
-        mock_db_session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = mock_project
-        mock_db_session.commit.return_value = None
+        result = await budget_service.check_budget_before_action(
+            tenant_id="tenant_123",
+            agent_id="agent_123",
+            action="run_episode"
+        )
 
-        result = budget_service.approve_spend("project_123", 2000)
+        assert result["allowed"] is False
+        assert "blocked" in result["reason"].lower()
 
-        assert result["approved"] == True
-        assert result["remaining"] == Decimal("5000.00")  # 10000 - (3000 + 2000)
-        assert mock_project.actual_burn == 5000.0
+    @pytest.mark.asyncio
+    async def test_check_budget_soft_stop_allows_active_episodes(self, budget_service):
+        """Test soft_stop allows active episodes to complete."""
+        budget_service.spend_service.update_tenant_spend = Mock(return_value={
+            "current_spend_usd": 100.0,
+            "budget_limit_usd": 100.0,
+            "utilization_percent": 100.0
+        })
+        budget_service._get_enforcement_mode = Mock(return_value=BudgetEnforcementMode.SOFT_STOP)
+        budget_service._has_active_episodes = Mock(return_value=True)
 
-    def test_approve_spend_insufficient_budget(self, budget_service, mock_project, mock_db_session):
-        """Test approving spend that exceeds budget."""
-        mock_db_session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = mock_project
-        mock_db_session.commit.return_value = None
+        result = await budget_service.check_budget_before_action(
+            tenant_id="tenant_123",
+            agent_id="agent_123",
+            action="run_episode"
+        )
 
-        with pytest.raises(InsufficientBudgetError):
-            budget_service.approve_spend("project_123", 8000)
+        assert result["allowed"] is True
+        assert "active episode" in result["reason"].lower()
 
-    def test_approve_spend_project_not_found(self, budget_service, mock_db_session):
-        """Test approving spend for non-existent project."""
-        mock_db_session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = None
+    @pytest.mark.asyncio
+    async def test_check_budget_hard_stop_blocks_all(self, budget_service):
+        """Test hard_stop blocks all operations when budget exceeded."""
+        budget_service.spend_service.update_tenant_spend = Mock(return_value={
+            "current_spend_usd": 100.0,
+            "budget_limit_usd": 100.0,
+            "utilization_percent": 100.0
+        })
+        budget_service._get_enforcement_mode = Mock(return_value=BudgetEnforcementMode.HARD_STOP)
 
-        with pytest.raises(BudgetNotFoundError):
-            budget_service.approve_spend("nonexistent", 1000)
+        result = await budget_service.check_budget_before_action(
+            tenant_id="tenant_123",
+            agent_id="agent_123",
+            action="run_episode"
+        )
 
-    def test_approve_spend_negative_amount(self, budget_service, mock_project, mock_db_session):
-        """Test approving negative spend raises error."""
-        mock_db_session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = mock_project
+        assert result["allowed"] is False
+        assert "halted" in result["reason"].lower()
 
-        with pytest.raises(ValueError, match="cannot be negative"):
-            budget_service.approve_spend("project_123", -1000)
+    @pytest.mark.asyncio
+    async def test_check_budget_alert_only_allows(self, budget_service):
+        """Test alert_only allows operations even when budget exceeded."""
+        budget_service.spend_service.update_tenant_spend = Mock(return_value={
+            "current_spend_usd": 100.0,
+            "budget_limit_usd": 100.0,
+            "utilization_percent": 100.0
+        })
+        budget_service._get_enforcement_mode = Mock(return_value=BudgetEnforcementMode.ALERT_ONLY)
 
-    def test_approve_spend_updates_budget_status(self, budget_service, mock_project, mock_db_session):
-        """Test that approving spend updates budget status appropriately."""
-        mock_project.actual_burn = 8500.0  # 85% utilized
-        mock_db_session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = mock_project
-        mock_db_session.commit.return_value = None
+        result = await budget_service.check_budget_before_action(
+            tenant_id="tenant_123",
+            agent_id="agent_123",
+            action="run_episode"
+        )
 
-        result = budget_service.approve_spend("project_123", 500)  # Pushes to 90%
+        assert result["allowed"] is True
 
-        assert result["approved"] == True
+    @pytest.mark.asyncio
+    async def test_check_budget_approval_mode_with_override(self, budget_service):
+        """Test approval mode allows operations with a valid override."""
+        budget_service.spend_service.update_tenant_spend = Mock(return_value={
+            "current_spend_usd": 100.0,
+            "budget_limit_usd": 100.0,
+            "utilization_percent": 100.0
+        })
+        budget_service._get_enforcement_mode = Mock(return_value=BudgetEnforcementMode.APPROVAL)
+        budget_service._get_budget_override = Mock(return_value={"user_id": "admin-1"})
+        budget_service._is_override_valid = Mock(return_value=True)
+
+        result = await budget_service.check_budget_before_action(
+            tenant_id="tenant_123",
+            agent_id="agent_123",
+            action="run_episode"
+        )
+
+        assert result["allowed"] is True
+        assert "override" in result["reason"].lower()
+
+    @pytest.mark.asyncio
+    async def test_check_budget_approval_mode_without_override(self, budget_service):
+        """Test approval mode blocks operations without a valid override."""
+        budget_service.spend_service.update_tenant_spend = Mock(return_value={
+            "current_spend_usd": 100.0,
+            "budget_limit_usd": 100.0,
+            "utilization_percent": 100.0
+        })
+        budget_service._get_enforcement_mode = Mock(return_value=BudgetEnforcementMode.APPROVAL)
+        budget_service._get_budget_override = Mock(return_value=None)
+
+        result = await budget_service.check_budget_before_action(
+            tenant_id="tenant_123",
+            agent_id="agent_123",
+            action="run_episode"
+        )
+
+        assert result["allowed"] is False
+        assert "approval" in result["reason"].lower()
+
+    @pytest.mark.asyncio
+    async def test_check_budget_fail_open_on_spend_error(self, budget_service):
+        """Test fail-open when spend cannot be verified."""
+        budget_service.spend_service.update_tenant_spend = Mock(return_value={
+            "error": "Spend aggregation unavailable"
+        })
+
+        result = await budget_service.check_budget_before_action(
+            tenant_id="tenant_123",
+            agent_id="agent_123",
+            action="run_episode"
+        )
+
+        assert result["allowed"] is True
+        assert "unable to verify" in result["reason"].lower()
+
+    @pytest.mark.asyncio
+    async def test_check_budget_fleet_aggregate_limit(self, budget_service, default_spend_result):
+        """Test fleet aggregate budget limit blocks recruitment."""
+        budget_service.spend_service.update_tenant_spend = Mock(return_value=default_spend_result)
+        budget_service._get_enforcement_mode = Mock(return_value=BudgetEnforcementMode.SOFT_STOP)
+        budget_service.spend_service.get_fleet_spend = Mock(return_value=150.0)
+
+        mock_chain = Mock()
+        mock_chain.id = "chain_123"
+        mock_chain.total_spend_usd = 100.0
+        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_chain
+
+        result = await budget_service.check_budget_before_action(
+            tenant_id="tenant_123",
+            agent_id="agent_123",
+            action="recruit",
+            chain_id="chain_123"
+        )
+
+        assert result["allowed"] is False
+        assert "fleet aggregate" in result["reason"].lower()
 
 
 class TestBudgetValidation:
     """Test budget validation and status calculations."""
 
-    def test_utilization_percentage_calculation(self, budget_service, mock_project):
-        """Test correct utilization percentage calculation."""
-        mock_project.budget_amount = 10000.0
-        mock_project.actual_burn = 3500.0
-        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_project
+    @pytest.mark.asyncio
+    async def test_enforce_budget_alert_only(self, budget_service, mock_tenant):
+        """Test alert-only mode takes no enforcement action."""
+        budget_service._get_enforcement_mode = Mock(return_value=BudgetEnforcementMode.ALERT_ONLY)
+        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_tenant
 
-        result = budget_service.check_budget("project_123", 0)
+        result = await budget_service.enforce_budget(
+            tenant_id="tenant_123",
+            current_spend=100.0,
+            budget_limit=100.0,
+            utilization_percent=100.0
+        )
 
-        assert result["utilization_pct"] == Decimal("35.00")
+        assert result["success"] is True
+        assert result["enforcement_mode"] == BudgetEnforcementMode.ALERT_ONLY
 
-    def test_budget_status_on_track(self, budget_service, mock_project):
-        """Test budget status is ON_TRACK when utilization < 80%."""
-        mock_project.budget_amount = 10000.0
-        mock_project.actual_burn = 5000.0  # 50%
-        mock_project.budget_status = Mock(value="on_track")
-        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_project
+    @pytest.mark.asyncio
+    async def test_enforce_budget_soft_stop(self, budget_service, mock_tenant):
+        """Test soft-stop sends a notification without cancelling episodes."""
+        budget_service._get_enforcement_mode = Mock(return_value=BudgetEnforcementMode.SOFT_STOP)
+        budget_service._send_enforcement_notification = AsyncMock(return_value=True)
+        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_tenant
 
-        result = budget_service.check_budget("project_123", 0)
+        result = await budget_service.enforce_budget(
+            tenant_id="tenant_123",
+            current_spend=100.0,
+            budget_limit=100.0,
+            utilization_percent=100.0
+        )
 
-        assert result["budget_status"] == "on_track"
+        assert result["success"] is True
+        assert result["enforcement_mode"] == BudgetEnforcementMode.SOFT_STOP
+        assert "episodes_cancelled" not in result
 
-    def test_remaining_budget_calculation(self, budget_service, mock_project):
-        """Test correct remaining budget calculation."""
-        mock_project.budget_amount = 10000.0
-        mock_project.actual_burn = 2500.0
-        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_project
+    @pytest.mark.asyncio
+    async def test_enforce_budget_hard_stop_cancels_episodes(self, budget_service, mock_tenant):
+        """Test hard-stop cancels active episodes and sends notification."""
+        budget_service._get_enforcement_mode = Mock(return_value=BudgetEnforcementMode.HARD_STOP)
+        budget_service._cancel_active_episodes = Mock(return_value=3)
+        budget_service._send_enforcement_notification = AsyncMock(return_value=True)
+        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_tenant
 
-        result = budget_service.check_budget("project_123", 0)
+        result = await budget_service.enforce_budget(
+            tenant_id="tenant_123",
+            current_spend=100.0,
+            budget_limit=100.0,
+            utilization_percent=100.0
+        )
 
-        assert result["remaining"] == Decimal("7500.00")
+        assert result["success"] is True
+        assert result["episodes_cancelled"] == 3
+        assert result["notification_sent"] is True
 
-    def test_get_budget_status(self, budget_service, mock_project):
-        """Test getting full budget status."""
-        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_project
+    @pytest.mark.asyncio
+    async def test_enforce_budget_approval_requests_approval(self, budget_service, mock_tenant):
+        """Test approval mode requests admin approval."""
+        budget_service._get_enforcement_mode = Mock(return_value=BudgetEnforcementMode.APPROVAL)
+        budget_service._get_budget_override = Mock(return_value=None)
+        budget_service._send_enforcement_notification = AsyncMock(return_value=True)
+        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_tenant
 
-        result = budget_service.get_budget_status("project_123")
+        result = await budget_service.enforce_budget(
+            tenant_id="tenant_123",
+            current_spend=100.0,
+            budget_limit=100.0,
+            utilization_percent=100.0
+        )
 
-        assert result["project_id"] == "project_123"
-        assert result["budget_amount"] == Decimal("10000.00")
-        assert result["actual_burn"] == Decimal("3000.00")
-        assert result["remaining"] == Decimal("7000.00")
-        assert result["utilization_pct"] == Decimal("30.00")
+        assert result["success"] is True
+        assert result["approval_required"] is True
 
-    def test_get_budget_status_not_found(self, budget_service):
-        """Test getting budget status for non-existent project."""
+    @pytest.mark.asyncio
+    async def test_enforce_budget_tenant_not_found(self, budget_service):
+        """Test enforce_budget with nonexistent tenant."""
+        budget_service._get_enforcement_mode = Mock(return_value=BudgetEnforcementMode.SOFT_STOP)
         budget_service.db.query.return_value.filter.return_value.first.return_value = None
 
-        with pytest.raises(BudgetNotFoundError):
-            budget_service.get_budget_status("nonexistent")
+        result = await budget_service.enforce_budget(
+            tenant_id="nonexistent",
+            current_spend=100.0,
+            budget_limit=100.0,
+            utilization_percent=100.0
+        )
+
+        assert result["success"] is False
+        assert "not found" in result["error"]
 
 
 class TestBudgetLimits:
     """Test budget limits and constraints."""
 
-    def test_spend_exactly_at_limit(self, budget_service, mock_project, mock_db_session):
-        """Test approving spend that exactly reaches budget limit."""
-        mock_project.budget_amount = 10000.0
-        mock_project.actual_burn = 9000.0
-        mock_db_session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = mock_project
-        mock_db_session.commit.return_value = None
+    def test_get_enforcement_mode_from_settings(self, budget_service):
+        """Test retrieving enforcement mode from tenant settings."""
+        mock_setting = Mock()
+        mock_setting.setting_value = json.dumps({
+            'enforcement': {'mode': 'hard_stop'}
+        })
+        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_setting
 
-        result = budget_service.approve_spend("project_123", 1000)
+        mode = budget_service._get_enforcement_mode("tenant_123")
 
-        assert result["approved"] == True
-        assert result["remaining"] == Decimal("0.00")
+        assert mode == BudgetEnforcementMode.HARD_STOP
 
-    def test_zero_spend_amount(self, budget_service, mock_project, mock_db_session):
-        """Test approving zero spend amount."""
-        mock_db_session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = mock_project
-        mock_db_session.commit.return_value = None
+    def test_get_enforcement_mode_defaults_to_soft_stop(self, budget_service):
+        """Test default enforcement mode is soft_stop when unset."""
+        budget_service.db.query.return_value.filter.return_value.first.return_value = None
 
-        result = budget_service.approve_spend("project_123", 0)
+        mode = budget_service._get_enforcement_mode("tenant_123")
 
-        assert result["approved"] == True
+        assert mode == BudgetEnforcementMode.SOFT_STOP
 
-    def test_decimal_amount_conversion(self, budget_service, mock_project, mock_db_session):
-        """Test approving spend with Decimal amount."""
-        mock_db_session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = mock_project
-        mock_db_session.commit.return_value = None
+    def test_get_enforcement_mode_invalid_defaults_to_soft_stop(self, budget_service):
+        """Test invalid enforcement mode defaults to soft_stop."""
+        mock_setting = Mock()
+        mock_setting.setting_value = json.dumps({
+            'enforcement': {'mode': 'invalid_mode'}
+        })
+        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_setting
 
-        result = budget_service.approve_spend("project_123", Decimal("1234.56"))
+        mode = budget_service._get_enforcement_mode("tenant_123")
 
-        assert result["approved"] == True
+        assert mode == BudgetEnforcementMode.SOFT_STOP
 
-    def test_string_amount_conversion(self, budget_service, mock_project, mock_db_session):
-        """Test approving spend with string amount."""
-        mock_db_session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = mock_project
-        mock_db_session.commit.return_value = None
+    def test_get_budget_override_from_settings(self, budget_service):
+        """Test retrieving budget override from tenant settings."""
+        override = {
+            'user_id': 'admin-001',
+            'expires_at': (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        }
+        mock_setting = Mock()
+        mock_setting.setting_value = json.dumps({
+            'enforcement': {'override': override}
+        })
+        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_setting
 
-        result = budget_service.approve_spend("project_123", "2500.75")
+        result = budget_service._get_budget_override("tenant_123")
 
-        assert result["approved"] == True
+        assert result is not None
+        assert result['user_id'] == 'admin-001'
 
-    def test_float_amount_conversion(self, budget_service, mock_project, mock_db_session):
-        """Test approving spend with float amount."""
-        mock_db_session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = mock_project
-        mock_db_session.commit.return_value = None
+    def test_get_budget_override_returns_none(self, budget_service):
+        """Test retrieving budget override when none exists."""
+        budget_service.db.query.return_value.filter.return_value.first.return_value = None
 
-        result = budget_service.approve_spend("project_123", 1500.50)
+        result = budget_service._get_budget_override("tenant_123")
 
-        assert result["approved"] == True
+        assert result is None
+
+    def test_is_override_valid_with_future_expiry(self, budget_service):
+        """Test override is valid when not expired."""
+        override = {
+            'user_id': 'admin-001',
+            'expires_at': (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        }
+
+        assert budget_service._is_override_valid(override) is True
+
+    def test_is_override_valid_with_past_expiry(self, budget_service):
+        """Test override is invalid when expired."""
+        override = {
+            'user_id': 'admin-001',
+            'expires_at': (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+        }
+
+        assert budget_service._is_override_valid(override) is False
+
+    def test_is_override_valid_with_missing_expiry(self, budget_service):
+        """Test override is invalid when expiry is missing."""
+        override = {'user_id': 'admin-001'}
+
+        assert budget_service._is_override_valid(override) is False
+
+    def test_set_budget_override_creates_new_setting(self, budget_service, mock_tenant):
+        """Test setting a budget override creates a TenantSetting row."""
+        budget_service.db.query.return_value.filter.return_value.first.side_effect = [mock_tenant, None]
+        budget_service.db.flush.return_value = None
+
+        result = budget_service._set_budget_override("tenant_123", "user-001")
+
+        assert result["success"] is True
+        assert "expires_at" in result
+        budget_service.db.add.assert_called_once()
+
+    def test_set_budget_override_tenant_not_found(self, budget_service):
+        """Test setting a budget override for a nonexistent tenant fails."""
+        budget_service.db.query.return_value.filter.return_value.first.return_value = None
+
+        result = budget_service._set_budget_override("nonexistent", "user-001")
+
+        assert result["success"] is False
+        assert "not found" in result["error"]
 
 
 class TestBudgetErrors:
     """Test budget error handling and edge cases."""
 
-    def test_insufficient_budget_error_attributes(self):
-        """Test InsufficientBudgetError has correct attributes."""
-        error = InsufficientBudgetError(
-            requested=Decimal("5000"),
-            remaining=Decimal("3000"),
-            budget_id="project_123"
-        )
+    def test_error_hierarchy(self):
+        """Test budget error class hierarchy."""
+        assert issubclass(BudgetError, Exception)
+        assert issubclass(InsufficientBudgetError, BudgetError)
+        assert issubclass(BudgetNotFoundError, BudgetError)
+        assert issubclass(ConcurrentModificationError, BudgetError)
 
-        assert error.requested == Decimal("5000")
-        assert error.remaining == Decimal("3000")
-        assert error.budget_id == "project_123"
-        assert "Requested 5000, only 3000 remaining" in str(error)
+    def test_enforcement_mode_constants(self):
+        """Test enforcement mode constants."""
+        assert BudgetEnforcementMode.ALERT_ONLY == "alert_only"
+        assert BudgetEnforcementMode.SOFT_STOP == "soft_stop"
+        assert BudgetEnforcementMode.HARD_STOP == "hard_stop"
+        assert BudgetEnforcementMode.APPROVAL == "approval"
 
-    def test_budget_not_found_error_message(self):
-        """Test BudgetNotFoundError has correct message."""
-        error = BudgetNotFoundError("project_123")
+    def test_has_active_episodes_true(self, budget_service):
+        """Test detecting active episodes for agent."""
+        mock_filter = Mock()
+        mock_filter.scalar.return_value = 5
+        budget_service.db.query.return_value.filter.return_value = mock_filter
 
-        assert "project_123" in str(error)
+        assert budget_service._has_active_episodes("tenant_123", "agent_123") is True
 
-    def test_approve_spend_rollback_on_error(self, budget_service, mock_project, mock_db_session):
-        """Test that approval rolls back on exception."""
-        mock_db_session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = mock_project
-        mock_db_session.commit.side_effect = Exception("Commit failed")
+    def test_has_active_episodes_false(self, budget_service):
+        """Test detecting no active episodes for agent."""
+        mock_filter = Mock()
+        mock_filter.scalar.return_value = 0
+        budget_service.db.query.return_value.filter.return_value = mock_filter
 
-        with pytest.raises(Exception):
-            budget_service.approve_spend("project_123", 1000)
+        assert budget_service._has_active_episodes("tenant_123", "agent_123") is False
 
-        mock_db_session.rollback.assert_called_once()
+    def test_cancel_active_episodes(self, budget_service):
+        """Test cancelling all active episodes for tenant."""
+        mock_episode1 = Mock()
+        mock_episode1.status = "running"
+        mock_episode2 = Mock()
+        mock_episode2.status = "running"
 
-    def test_approve_spend_locked_success(self, budget_service, mock_project, mock_db_session):
-        """Test approving spend with pessimistic locking."""
-        mock_db_session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = mock_project
-        mock_db_session.flush.return_value = None
+        mock_filter = Mock()
+        mock_filter.all.return_value = [mock_episode1, mock_episode2]
+        budget_service.db.query.return_value.filter.return_value = mock_filter
 
-        result = budget_service.approve_spend_locked("project_123", 1000)
+        cancelled_count = budget_service._cancel_active_episodes("tenant_123")
 
-        assert result["status"] == "approved"
-        assert result["amount"] == Decimal("1000.00")
+        assert cancelled_count == 2
+        assert mock_episode1.status == "cancelled"
+        assert mock_episode2.status == "cancelled"
 
-    def test_approve_spend_locked_insufficient_budget(self, budget_service, mock_project, mock_db_session):
-        """Test approving spend with lock when insufficient budget."""
-        mock_db_session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = mock_project
+    def test_clear_enforcement_state_removes_override(self, budget_service):
+        """Test clearing the enforcement override on billing cycle reset."""
+        mock_setting = Mock()
+        mock_setting.setting_value = json.dumps({
+            'enforcement': {
+                'mode': 'hard_stop',
+                'override': {'user_id': 'admin-001'}
+            }
+        })
+        budget_service.db.query.return_value.filter.return_value.first.return_value = mock_setting
 
-        with pytest.raises(InsufficientBudgetError):
-            budget_service.approve_spend_locked("project_123", 8000)
+        budget_service.clear_enforcement_state("tenant_123")
 
-    def test_approve_spend_with_retry_success_first_attempt(self, budget_service, mock_project, mock_db_session):
-        """Test optimistic locking succeeds on first attempt."""
-        mock_db_session.query.return_value.filter.return_value.first.return_value = mock_project
-        mock_db_session.commit.return_value = None
+        updated_dict = json.loads(mock_setting.setting_value)
+        assert 'override' not in updated_dict.get('enforcement', {})
 
-        result = budget_service.approve_spend_with_retry("project_123", 1000)
+    def test_clear_enforcement_state_no_setting(self, budget_service):
+        """Test clearing enforcement state without an existing setting."""
+        budget_service.db.query.return_value.filter.return_value.first.return_value = None
 
-        assert result["status"] == "approved"
-        mock_db_session.commit.assert_called_once()
-
-    def test_approve_spend_with_retry_exhausted(self, budget_service, mock_project, mock_db_session):
-        """Test optimistic locking fails after max retries."""
-        mock_db_session.query.return_value.filter.return_value.first.return_value = mock_project
-
-        # Mock StaleDataError
-        class MockStaleDataError(Exception):
-            pass
-
-        mock_db_session.commit.side_effect = MockStaleDataError()
-        mock_db_session.rollback.return_value = None
-
-        with pytest.raises(Exception):
-            budget_service.approve_spend_with_retry("project_123", 1000, max_retries=3)
+        budget_service.clear_enforcement_state("tenant_123")

@@ -7,7 +7,7 @@ import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from core.models import OAuthState, OAuthToken
+from core.models import OAuthState, IntegrationToken
 from core.database import get_db_session
 
 
@@ -18,7 +18,7 @@ def test_db():
         yield db
 
         # Cleanup after test
-        db.query(OAuthToken).delete()
+        db.query(IntegrationToken).delete()
         db.query(OAuthState).delete()
         db.commit()
 
@@ -33,19 +33,24 @@ class TestOAuthState:
         assert OAuthState.__tablename__ == "oauth_states"
 
     def test_oauth_token_model_exists(self):
-        """Test that OAuthToken model can be imported"""
-        from core.models import OAuthToken
-        assert OAuthToken is not None
-        assert OAuthToken.__tablename__ == "oauth_tokens"
+        """Test that IntegrationToken model can be imported"""
+        from core.models import IntegrationToken
+        assert IntegrationToken is not None
+        assert IntegrationToken.__tablename__ == "integration_tokens"
 
 
 class TestOAuthTokenExpiration:
-    """Test OAuth token expiration logic"""
+    """Test integration token expiration logic.
+
+    IntegrationToken is the provider-scoped token store with is_expired()/
+    is_valid(); the OAuth-server OAuthToken model stores hashes only.
+    """
 
     def test_is_expired_with_past_date(self):
         """Test is_expired() returns True for expired tokens"""
-        token = OAuthToken(
+        token = IntegrationToken(
             id=str(uuid4()),
+            tenant_id="default",
             user_id=str(uuid4()),
             provider="google",
             access_token="test_token",
@@ -57,8 +62,9 @@ class TestOAuthTokenExpiration:
 
     def test_is_expired_with_future_date(self):
         """Test is_expired() returns False for valid tokens"""
-        token = OAuthToken(
+        token = IntegrationToken(
             id=str(uuid4()),
+            tenant_id="default",
             user_id=str(uuid4()),
             provider="google",
             access_token="test_token",
@@ -70,8 +76,9 @@ class TestOAuthTokenExpiration:
 
     def test_is_expired_with_none_expiration(self):
         """Test is_expired() returns False for tokens without expiration (like Notion)"""
-        token = OAuthToken(
+        token = IntegrationToken(
             id=str(uuid4()),
+            tenant_id="default",
             user_id=str(uuid4()),
             provider="notion",
             access_token="test_token",
@@ -89,23 +96,24 @@ class TestOAuthModelRepr:
         """Test OAuthState __repr__ method"""
         state = OAuthState(
             id="test-id",
+            tenant_id="default",
             user_id="user-123",
             provider="google",
             state="state-token",
             expires_at=datetime.now() + timedelta(minutes=10),
-            used=False
         )
 
         repr_str = repr(state)
         assert "OAuthState" in repr_str
         assert "test-id" in repr_str
-        assert "user-123" in repr_str
         assert "google" in repr_str
+        assert "state-to" in repr_str  # state is truncated to 8 chars in repr
 
     def test_oauth_token_repr(self):
-        """Test OAuthToken __repr__ method"""
-        token = OAuthToken(
+        """Test IntegrationToken __repr__ method"""
+        token = IntegrationToken(
             id="token-id",
+            tenant_id="default",
             user_id="user-123",
             provider="slack",
             access_token="xoxb-test",
@@ -113,9 +121,7 @@ class TestOAuthModelRepr:
         )
 
         repr_str = repr(token)
-        assert "OAuthToken" in repr_str
+        assert "IntegrationToken" in repr_str
         assert "token-id" in repr_str
-        assert "user-123" in repr_str
         assert "slack" in repr_str
         assert "active" in repr_str
-

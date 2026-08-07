@@ -633,7 +633,33 @@ class AsanaService(IntegrationService):
                 "error": str(e),
                 "operation": operation,
             }
-    async def create_project(self, project_data: Dict, access_token: Optional[str] = None) -> Dict:
+    async def _call_make_request(
+        self,
+        method: str,
+        endpoint: str,
+        access_token: str,
+        data: Optional[Dict] = None,
+        params: Optional[Dict] = None,
+    ) -> Dict:
+        """Run _make_request off the event loop; awaits coroutine results (mocks)."""
+        result = await asyncio.to_thread(
+            self._make_request, method, endpoint, access_token, data=data, params=params
+        )
+        if asyncio.iscoroutine(result):
+            result = await result
+        return result
+
+    async def create_project(
+        self,
+        access_token: Optional[str] = None,
+        workspace_gid: Optional[str] = None,
+        name: Optional[str] = None,
+        notes: Optional[str] = None,
+        team_gid: Optional[str] = None,
+        color: Optional[str] = None,
+        public: Optional[bool] = None,
+        **kwargs,
+    ) -> Dict:
         """Create a new project in Asana"""
         try:
             active_token = access_token or self.access_token
@@ -642,22 +668,39 @@ class AsanaService(IntegrationService):
 
             asana_data = {
                 "data": {
-                    "name": project_data.get("name"),
-                    "notes": project_data.get("description", ""),
-                    "workspace": project_data.get("workspace") or self.config.get("workspace_gid"),
+                    "name": name,
+                    "notes": notes,
+                    "workspace": workspace_gid,
+                    "team": team_gid,
+                    "color": color,
+                    "public": public,
+                    **kwargs,
                 }
             }
-            
-            result = await asyncio.to_thread(
-                self._make_request, "POST", "/projects", active_token, data=asana_data
-            )
-            project = result.get("data", {})
-            return {
-                "ok": True,
-                "id": project.get("gid"),
-                "name": project.get("name"),
-                "url": project.get("url")
+            asana_data["data"] = {
+                k: v for k, v in asana_data["data"].items() if v is not None
             }
+
+            try:
+                result = await self._call_make_request(
+                    "POST", "/projects", active_token, data=asana_data
+                )
+            except Exception as e:
+                response = getattr(e, "response", None)
+                status_code = getattr(response, "status_code", None)
+                if status_code == 429 or "rate limit" in str(e).lower():
+                    logger.info("Rate limited, retrying Asana project creation")
+                    result = await self._call_make_request(
+                        "POST", "/projects", active_token, data=asana_data
+                    )
+                else:
+                    raise
+
+            project = result.get("data", {})
+            project_data = dict(project)
+            project_data["workspace_gid"] = (project.get("workspace") or {}).get("gid")
+            project_data["team_gid"] = (project.get("team") or {}).get("gid")
+            return {"ok": True, "project": project_data}
         except Exception as e:
             logger.error(f"Failed to create Asana project: {e}")
             return {"ok": False, "error": str(e)}

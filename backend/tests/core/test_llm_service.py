@@ -1,13 +1,14 @@
 """
 Unit Tests for LLM Service
 
-Tests LLM service stub:
-- LLMService class initialization
+Tests LLMService wrapper around BYOKHandler:
+- LLMService class initialization (workspace/tenant defaults, handler injection)
 - generate(prompt, max_tokens, temperature) - Text generation
-- generate_with_history(messages, max_tokens, temperature) - Chat generation
+- generate_completion(messages, max_tokens, temperature) - Chat generation
 - is_available() - Service availability check
+- Provider selection seams (AwaitableResult, handler setter, embedding delegation)
 
-Target Coverage: 90%+ (stub has minimal logic)
+Target Coverage: 90%+ (thin wrapper around BYOKHandler)
 Target Branch Coverage: 60%+
 """
 
@@ -16,98 +17,115 @@ from unittest.mock import Mock, patch, AsyncMock
 from typing import List, Dict
 
 from core.llm_service import LLMService
+from core.llm.byok_handler import AwaitableResult
+
+
+@pytest.fixture
+def mock_handler():
+    """Mock BYOKHandler."""
+    handler = Mock()
+    handler.clients = {"openai": Mock()}
+    handler.generate_response = AsyncMock(return_value="Generated response")
+    handler.generate_structured_response = AsyncMock(return_value=None)
+    handler.generate_embedding = AsyncMock(return_value=[0.1, 0.2, 0.3])
+    handler.generate_embeddings_batch = AsyncMock(return_value=[[0.1, 0.2, 0.3]])
+    handler.get_optimal_provider = Mock(
+        return_value=AwaitableResult(("anthropic", "claude-3-5-sonnet"))
+    )
+    handler._last_used_model = "gpt-4o"
+    handler._last_used_provider = "openai"
+    return handler
+
+
+@pytest.fixture
+def llm_service(mock_handler):
+    """Create LLMService with mocked handler."""
+    with patch("core.llm_service.BYOKHandler", return_value=mock_handler):
+        service = LLMService(workspace_id="test")
+        service.handler = mock_handler
+        return service
 
 
 class TestLLMServiceInitialization:
     """Tests for LLMService initialization."""
 
-    def test_init_default_values(self):
+    def test_init_default_values(self, mock_handler):
         """Test LLMService initializes with defaults."""
-        service = LLMService()
+        with patch("core.llm_service.BYOKHandler", return_value=mock_handler):
+            service = LLMService()
 
-        # Assert: Default values
-        assert service.model == "gpt-4"
-        assert service.api_key is None
-        assert service.enabled is False
+        assert service.workspace_id == "default"
+        assert service.tenant_id == "default"
+        assert service.handler is mock_handler
+        assert service.continuous_learning is None
 
-    def test_init_with_custom_model(self):
-        """Test LLMService with custom model."""
-        service = LLMService(model="gpt-3.5-turbo")
+    def test_init_with_custom_workspace(self, mock_handler):
+        """Test LLMService with custom workspace."""
+        with patch("core.llm_service.BYOKHandler", return_value=mock_handler):
+            service = LLMService(workspace_id="ws-1")
 
-        # Assert: Custom model set
-        assert service.model == "gpt-3.5-turbo"
-        assert service.enabled is False
+        assert service.workspace_id == "ws-1"
+        assert service.handler is mock_handler
 
-    def test_init_with_api_key(self):
-        """Test LLMService with API key."""
-        service = LLMService(api_key="sk-test-key")
+    def test_init_with_tenant(self, mock_handler):
+        """Test LLMService with tenant identifier."""
+        with patch("core.llm_service.BYOKHandler", return_value=mock_handler):
+            service = LLMService(tenant_id="tenant-1")
 
-        # Assert: API key set
-        assert service.api_key == "sk-test-key"
-        assert service.model == "gpt-4"  # Default model
-        assert service.enabled is False
+        assert service.tenant_id == "tenant-1"
+        assert service.handler is mock_handler
 
-    def test_init_with_model_and_api_key(self):
-        """Test LLMService with both model and API key."""
-        service = LLMService(model="claude-3-opus", api_key="sk-ant-key")
+    def test_handler_property_alias(self, llm_service, mock_handler):
+        """Test handler property exposes the injected handler."""
+        assert llm_service.handler is mock_handler
 
-        # Assert: Both values set
-        assert service.model == "claude-3-opus"
-        assert service.api_key == "sk-ant-key"
-        assert service.enabled is False
+    def test_handler_setter_injection(self, mock_handler):
+        """Test handler setter allows injecting a mock handler."""
+        with patch("core.llm_service.BYOKHandler", return_value=mock_handler):
+            service = LLMService()
 
-    def test_init_with_empty_api_key(self):
-        """Test LLMService with empty API key."""
-        service = LLMService(api_key="")
-
-        # Assert: Empty string accepted
-        assert service.api_key == ""
-        assert service.model == "gpt-4"
+        replacement = Mock()
+        service.handler = replacement
+        assert service.handler is replacement
 
 
 class TestGenerate:
     """Tests for text generation."""
 
     @pytest.mark.asyncio
-    async def test_generate_default_params(self):
+    async def test_generate_default_params(self, llm_service, mock_handler):
         """Test generate with default parameters."""
-        service = LLMService()
+        result = await llm_service.generate("Hello, world!")
 
-        # Act: Generate text
-        result = await service.generate("Hello, world!")
-
-        # Assert: Stub response
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result == "Generated response"
+        mock_handler.generate_response.assert_called_once()
+        call_kwargs = mock_handler.generate_response.call_args.kwargs
+        assert call_kwargs["prompt"] == "Hello, world!"
+        assert call_kwargs["system_instruction"] == "You are a helpful assistant."
+        assert call_kwargs["model_type"] == "auto"
+        assert call_kwargs["temperature"] == 0.7
+        assert call_kwargs["turn_index"] == 0
 
     @pytest.mark.asyncio
-    async def test_generate_with_custom_max_tokens(self):
+    async def test_generate_with_custom_max_tokens(self, llm_service, mock_handler):
         """Test generate with custom max_tokens."""
-        service = LLMService()
+        result = await llm_service.generate("Test prompt", max_tokens=500)
 
-        # Act: Generate with custom max_tokens
-        result = await service.generate("Test prompt", max_tokens=500)
-
-        # Assert: Stub response (ignores max_tokens)
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result == "Generated response"
 
     @pytest.mark.asyncio
-    async def test_generate_with_custom_temperature(self):
+    async def test_generate_with_custom_temperature(self, llm_service, mock_handler):
         """Test generate with custom temperature."""
-        service = LLMService()
+        result = await llm_service.generate("Test prompt", temperature=0.5)
 
-        # Act: Generate with custom temperature
-        result = await service.generate("Test prompt", temperature=0.5)
-
-        # Assert: Stub response (ignores temperature)
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result == "Generated response"
+        call_kwargs = mock_handler.generate_response.call_args.kwargs
+        assert call_kwargs["temperature"] == 0.5
 
     @pytest.mark.asyncio
-    async def test_generate_with_all_params(self):
+    async def test_generate_with_all_params(self, llm_service, mock_handler):
         """Test generate with all parameters."""
-        service = LLMService()
-
-        # Act: Generate with all parameters
-        result = await service.generate(
+        result = await llm_service.generate(
             prompt="Test prompt",
             max_tokens=1000,
             temperature=0.7,
@@ -115,365 +133,353 @@ class TestGenerate:
             frequency_penalty=0.5
         )
 
-        # Assert: Stub response
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result == "Generated response"
+        call_kwargs = mock_handler.generate_response.call_args.kwargs
+        assert call_kwargs["top_p"] == 0.9
+        assert call_kwargs["frequency_penalty"] == 0.5
 
     @pytest.mark.asyncio
-    async def test_generate_with_empty_prompt(self):
+    async def test_generate_with_empty_prompt(self, llm_service, mock_handler):
         """Test generate with empty prompt."""
-        service = LLMService()
+        result = await llm_service.generate("")
 
-        # Act: Generate with empty prompt
-        result = await service.generate("")
-
-        # Assert: Stub response
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result == "Generated response"
+        call_kwargs = mock_handler.generate_response.call_args.kwargs
+        assert call_kwargs["prompt"] == ""
 
     @pytest.mark.asyncio
-    async def test_generate_with_long_prompt(self):
+    async def test_generate_with_long_prompt(self, llm_service, mock_handler):
         """Test generate with long prompt."""
-        service = LLMService()
         long_prompt = "Test " * 1000
+        result = await llm_service.generate(long_prompt)
 
-        # Act: Generate with long prompt
-        result = await service.generate(long_prompt)
-
-        # Assert: Stub response
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result == "Generated response"
+        call_kwargs = mock_handler.generate_response.call_args.kwargs
+        assert call_kwargs["prompt"] == long_prompt
 
     @pytest.mark.asyncio
-    async def test_generate_return_type(self):
+    async def test_generate_return_type(self, llm_service, mock_handler):
         """Test generate returns string."""
-        service = LLMService()
+        result = await llm_service.generate("Test")
 
-        # Act: Generate
-        result = await service.generate("Test")
-
-        # Assert: String return type
         assert isinstance(result, str)
 
 
-class TestGenerateWithHistory:
-    """Tests for chat-style generation with history."""
+class TestGenerateCompletion:
+    """Tests for chat-style generation with message history."""
 
     @pytest.mark.asyncio
-    async def test_generate_with_history_default_params(self):
-        """Test generate_with_history with defaults."""
-        service = LLMService()
+    async def test_generate_with_history_default_params(self, llm_service, mock_handler):
+        """Test generate_completion with defaults."""
         messages = [
             {"role": "user", "content": "Hello"}
         ]
 
-        # Act: Generate with history
-        result = await service.generate_with_history(messages)
+        result = await llm_service.generate_completion(messages)
 
-        # Assert: Stub response
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result["success"] is True
+        assert result["content"] == "Generated response"
+        assert result["text"] == "Generated response"
+        assert result["model"] == "gpt-4o"
+        assert result["provider"] == "openai"
+        assert "usage" in result
+        mock_handler.generate_response.assert_called_once()
+        call_kwargs = mock_handler.generate_response.call_args.kwargs
+        assert call_kwargs["prompt"] == "Hello"
+        assert call_kwargs["model_type"] == "auto"
 
     @pytest.mark.asyncio
-    async def test_generate_with_history_conversation(self):
-        """Test generate_with_history with conversation."""
-        service = LLMService()
+    async def test_generate_with_history_conversation(self, llm_service, mock_handler):
+        """Test generate_completion with conversation."""
         messages = [
             {"role": "user", "content": "Hello"},
             {"role": "assistant", "content": "Hi there!"},
             {"role": "user", "content": "How are you?"}
         ]
 
-        # Act: Generate with conversation history
-        result = await service.generate_with_history(messages)
+        result = await llm_service.generate_completion(messages)
 
-        # Assert: Stub response
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result["content"] == "Generated response"
+        call_kwargs = mock_handler.generate_response.call_args.kwargs
+        assert call_kwargs["prompt"] == "How are you?"
 
     @pytest.mark.asyncio
-    async def test_generate_with_history_custom_max_tokens(self):
-        """Test generate_with_history with custom max_tokens."""
-        service = LLMService()
+    async def test_generate_with_history_custom_max_tokens(self, llm_service):
+        """Test generate_completion with custom max_tokens."""
         messages = [{"role": "user", "content": "Test"}]
 
-        # Act: Generate with custom max_tokens
-        result = await service.generate_with_history(messages, max_tokens=100)
+        result = await llm_service.generate_completion(messages, max_tokens=100)
 
-        # Assert: Stub response
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result["success"] is True
+        assert result["content"] == "Generated response"
 
     @pytest.mark.asyncio
-    async def test_generate_with_history_custom_temperature(self):
-        """Test generate_with_history with custom temperature."""
-        service = LLMService()
+    async def test_generate_with_history_custom_temperature(self, llm_service, mock_handler):
+        """Test generate_completion with custom temperature."""
         messages = [{"role": "user", "content": "Test"}]
 
-        # Act: Generate with custom temperature
-        result = await service.generate_with_history(messages, temperature=0.3)
+        result = await llm_service.generate_completion(messages, temperature=0.3)
 
-        # Assert: Stub response
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result["content"] == "Generated response"
+        call_kwargs = mock_handler.generate_response.call_args.kwargs
+        assert call_kwargs["temperature"] == 0.3
 
     @pytest.mark.asyncio
-    async def test_generate_with_history_all_params(self):
-        """Test generate_with_history with all parameters."""
-        service = LLMService()
+    async def test_generate_with_history_all_params(self, llm_service, mock_handler):
+        """Test generate_completion with all parameters."""
         messages = [
             {"role": "system", "content": "You are helpful."},
             {"role": "user", "content": "Hello"}
         ]
 
-        # Act: Generate with all parameters
-        result = await service.generate_with_history(
+        result = await llm_service.generate_completion(
             messages=messages,
             max_tokens=500,
             temperature=0.8,
             top_p=0.95
         )
 
-        # Assert: Stub response
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result["content"] == "Generated response"
+        call_kwargs = mock_handler.generate_response.call_args.kwargs
+        assert call_kwargs["system_instruction"] == "You are helpful."
+        assert call_kwargs["prompt"] == "Hello"
 
     @pytest.mark.asyncio
-    async def test_generate_with_history_empty_messages(self):
-        """Test generate_with_history with empty messages."""
-        service = LLMService()
+    async def test_generate_with_history_empty_messages(self, llm_service, mock_handler):
+        """Test generate_completion with empty messages."""
+        result = await llm_service.generate_completion([])
 
-        # Act: Generate with empty message list
-        result = await service.generate_with_history([])
-
-        # Assert: Stub response
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result["success"] is True
+        call_kwargs = mock_handler.generate_response.call_args.kwargs
+        assert call_kwargs["prompt"] == ""
+        assert call_kwargs["system_instruction"] == "You are a helpful assistant."
 
     @pytest.mark.asyncio
-    async def test_generate_with_history_single_message(self):
-        """Test generate_with_history with single message."""
-        service = LLMService()
+    async def test_generate_with_history_single_message(self, llm_service):
+        """Test generate_completion with single message."""
         messages = [{"role": "user", "content": "Test"}]
 
-        # Act: Generate
-        result = await service.generate_with_history(messages)
+        result = await llm_service.generate_completion(messages)
 
-        # Assert: Stub response
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result["content"] == "Generated response"
 
     @pytest.mark.asyncio
-    async def test_generate_with_history_many_messages(self):
-        """Test generate_with_history with many messages."""
-        service = LLMService()
+    async def test_generate_with_history_many_messages(self, llm_service, mock_handler):
+        """Test generate_completion with many messages."""
         messages = [
             {"role": "user", "content": f"Message {i}"}
             for i in range(100)
         ]
 
-        # Act: Generate with long history
-        result = await service.generate_with_history(messages)
+        result = await llm_service.generate_completion(messages)
 
-        # Assert: Stub response
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result["content"] == "Generated response"
+        call_kwargs = mock_handler.generate_response.call_args.kwargs
+        assert call_kwargs["prompt"] == "Message 99"
 
     @pytest.mark.asyncio
-    async def test_generate_with_history_return_type(self):
-        """Test generate_with_history returns string."""
-        service = LLMService()
+    async def test_generate_with_history_return_type(self, llm_service):
+        """Test generate_completion returns dict."""
         messages = [{"role": "user", "content": "Test"}]
 
-        # Act: Generate
-        result = await service.generate_with_history(messages)
+        result = await llm_service.generate_completion(messages)
 
-        # Assert: String return type
-        assert isinstance(result, str)
+        assert isinstance(result, dict)
+        assert result["success"] is True
+        assert isinstance(result["content"], str)
 
 
 class TestIsAvailable:
     """Tests for service availability check."""
 
-    def test_is_available_returns_false(self):
-        """Test is_available returns False for stub."""
-        service = LLMService()
+    def test_is_available_returns_false(self, mock_handler):
+        """Test is_available returns False when no clients."""
+        with patch("core.llm_service.BYOKHandler", return_value=mock_handler):
+            service = LLMService()
+        service.handler.clients = {}
 
-        # Act: Check availability
         available = service.is_available()
 
-        # Assert: Stub is never available
         assert available is False
 
-    def test_is_available_with_custom_model(self):
-        """Test is_available with custom model."""
-        service = LLMService(model="gpt-3.5-turbo")
+    def test_is_available_with_custom_model(self, llm_service):
+        """Test is_available returns True when handler has clients."""
+        available = llm_service.is_available()
 
-        # Act: Check availability
-        available = service.is_available()
+        assert available is True
 
-        # Assert: Still false for stub
-        assert available is False
+    def test_is_available_with_api_key(self, llm_service, mock_handler):
+        """Test is_available reflects handler client population."""
+        llm_service.handler.clients = {"openai": Mock(), "anthropic": Mock()}
 
-    def test_is_available_with_api_key(self):
-        """Test is_available with API key set."""
-        service = LLMService(api_key="sk-test-key")
+        assert llm_service.is_available() is True
 
-        # Act: Check availability
-        available = service.is_available()
+        llm_service.handler.clients = {}
 
-        # Assert: Still false for stub
-        assert available is False
+        assert llm_service.is_available() is False
 
-    def test_is_available_multiple_calls(self):
+    def test_is_available_multiple_calls(self, llm_service):
         """Test is_available returns same result on multiple calls."""
-        service = LLMService()
+        result1 = llm_service.is_available()
+        result2 = llm_service.is_available()
+        result3 = llm_service.is_available()
 
-        # Act: Check availability multiple times
-        result1 = service.is_available()
-        result2 = service.is_available()
-        result3 = service.is_available()
+        assert result1 is True
+        assert result2 is True
+        assert result3 is True
 
-        # Assert: All return False
-        assert result1 is False
-        assert result2 is False
-        assert result3 is False
-
-    def test_is_available_return_type(self):
+    def test_is_available_return_type(self, llm_service):
         """Test is_available returns boolean."""
-        service = LLMService()
+        available = llm_service.is_available()
 
-        # Act: Check availability
-        available = service.is_available()
-
-        # Assert: Boolean return type
         assert isinstance(available, bool)
-        assert available is False
+        assert available is True
 
 
 class TestLLMServiceIntegration:
     """Integration tests for LLMService."""
 
     @pytest.mark.asyncio
-    async def test_complete_workflow_generate_then_history(self):
-        """Test complete workflow: generate, then generate_with_history."""
-        service = LLMService()
+    async def test_complete_workflow_generate_then_history(self, llm_service, mock_handler):
+        """Test complete workflow: generate, then generate_completion."""
+        result1 = await llm_service.generate("Hello")
+        assert result1 == "Generated response"
 
-        # Act: Generate text
-        result1 = await service.generate("Hello")
-        assert result1 == "[LLM Service Stub: Not Implemented]"
-
-        # Act: Generate with history
         messages = [
             {"role": "user", "content": "Hello"},
             {"role": "assistant", "content": result1}
         ]
-        result2 = await service.generate_with_history(messages)
-        assert result2 == "[LLM Service Stub: Not Implemented]"
+        result2 = await llm_service.generate_completion(messages)
+        assert result2["content"] == "Generated response"
+
+        assert mock_handler.generate_response.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_check_availability_before_generate(self):
+    async def test_check_availability_before_generate(self, llm_service):
         """Test checking availability before generation."""
-        service = LLMService()
+        available = llm_service.is_available()
+        assert available is True
 
-        # Act: Check availability
-        available = service.is_available()
-        assert available is False
-
-        # Act: Still can call generate (stub doesn't enforce)
-        result = await service.generate("Test")
-        assert result == "[LLM Service Stub: Not Implemented]"
+        result = await llm_service.generate("Test")
+        assert result == "Generated response"
 
     @pytest.mark.asyncio
-    async def test_multiple_generations_same_service(self):
+    async def test_multiple_generations_same_service(self, llm_service, mock_handler):
         """Test multiple generations with same service instance."""
-        service = LLMService()
+        result1 = await llm_service.generate("Prompt 1")
+        result2 = await llm_service.generate("Prompt 2")
+        result3 = await llm_service.generate("Prompt 3")
 
-        # Act: Generate multiple times
-        result1 = await service.generate("Prompt 1")
-        result2 = await service.generate("Prompt 2")
-        result3 = await service.generate("Prompt 3")
-
-        # Assert: All return stub response
-        assert result1 == "[LLM Service Stub: Not Implemented]"
-        assert result2 == "[LLM Service Stub: Not Implemented]"
-        assert result3 == "[LLM Service Stub: Not Implemented]"
+        assert result1 == "Generated response"
+        assert result2 == "Generated response"
+        assert result3 == "Generated response"
+        assert mock_handler.generate_response.call_count == 3
 
     @pytest.mark.asyncio
-    async def test_service_state_persistence(self):
+    async def test_service_state_persistence(self, llm_service):
         """Test service state persists across operations."""
-        service = LLMService(model="custom-model", api_key="sk-test")
+        assert llm_service.workspace_id == "test"
 
-        # Assert: State persists
-        assert service.model == "custom-model"
-        assert service.api_key == "sk-test"
-        assert service.enabled is False
+        await llm_service.generate("Test")
+        await llm_service.generate_completion([{"role": "user", "content": "Test"}])
+        llm_service.is_available()
 
-        # Act: Perform operations
-        await service.generate("Test")
-        await service.generate_with_history([{"role": "user", "content": "Test"}])
-        service.is_available()
-
-        # Assert: State unchanged
-        assert service.model == "custom-model"
-        assert service.api_key == "sk-test"
-        assert service.enabled is False
+        assert llm_service.workspace_id == "test"
+        assert llm_service.tenant_id == "default"
 
 
 class TestLLMServiceEdgeCases:
     """Edge case tests for LLMService."""
 
     @pytest.mark.asyncio
-    async def test_generate_with_none_prompt(self):
+    async def test_generate_with_none_prompt(self, llm_service, mock_handler):
         """Test generate with None prompt (edge case)."""
-        service = LLMService()
+        result = await llm_service.generate(None)  # type: ignore
 
-        # Act: Generate with None (stub doesn't validate)
-        result = await service.generate(None)  # type: ignore
-
-        # Assert: Stub accepts None
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result == "Generated response"
 
     @pytest.mark.asyncio
-    async def test_generate_with_special_characters(self):
+    async def test_generate_with_special_characters(self, llm_service):
         """Test generate with special characters in prompt."""
-        service = LLMService()
+        result = await llm_service.generate("Test \n\t\r\x00")
 
-        # Act: Generate with special characters
-        result = await service.generate("Test \n\t\r\x00")
-
-        # Assert: Stub accepts special chars
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result == "Generated response"
 
     @pytest.mark.asyncio
-    async def test_generate_with_unicode(self):
+    async def test_generate_with_unicode(self, llm_service):
         """Test generate with unicode characters."""
-        service = LLMService()
+        result = await llm_service.generate("Hello 世界 🌍")
 
-        # Act: Generate with unicode
-        result = await service.generate("Hello 世界 🌍")
-
-        # Assert: Stub accepts unicode
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result == "Generated response"
 
     @pytest.mark.asyncio
-    async def test_generate_with_zero_max_tokens(self):
+    async def test_generate_with_zero_max_tokens(self, llm_service):
         """Test generate with zero max_tokens."""
-        service = LLMService()
+        result = await llm_service.generate("Test", max_tokens=0)
 
-        # Act: Generate with zero max_tokens
-        result = await service.generate("Test", max_tokens=0)
-
-        # Assert: Stub accepts zero
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result == "Generated response"
 
     @pytest.mark.asyncio
-    async def test_generate_with_negative_temperature(self):
+    async def test_generate_with_negative_temperature(self, llm_service, mock_handler):
         """Test generate with negative temperature."""
-        service = LLMService()
+        result = await llm_service.generate("Test", temperature=-0.5)
 
-        # Act: Generate with negative temperature
-        result = await service.generate("Test", temperature=-0.5)
-
-        # Assert: Stub accepts negative
-        assert result == "[LLM Service Stub: Not Implemented]"
+        assert result == "Generated response"
+        call_kwargs = mock_handler.generate_response.call_args.kwargs
+        assert call_kwargs["temperature"] == -0.5
 
     @pytest.mark.asyncio
-    async def test_generate_with_high_temperature(self):
+    async def test_generate_with_high_temperature(self, llm_service, mock_handler):
         """Test generate with temperature > 1.0."""
-        service = LLMService()
+        result = await llm_service.generate("Test", temperature=2.0)
 
-        # Act: Generate with high temperature
-        result = await service.generate("Test", temperature=2.0)
+        assert result == "Generated response"
+        call_kwargs = mock_handler.generate_response.call_args.kwargs
+        assert call_kwargs["temperature"] == 2.0
 
-        # Assert: Stub accepts high temperature
-        assert result == "[LLM Service Stub: Not Implemented]"
+
+class TestLLMServiceSeams:
+    """Tests for the AwaitableResult / handler setter / embedding seams."""
+
+    def test_get_optimal_provider_returns_awaitable_result(self, llm_service, mock_handler):
+        """Test get_optimal_provider wraps result in AwaitableResult."""
+        result = llm_service.get_optimal_provider(complexity="simple")
+
+        assert isinstance(result, AwaitableResult)
+        provider, model = result
+        assert provider == "anthropic"
+        assert model == "claude-3-5-sonnet"
+
+    @pytest.mark.asyncio
+    async def test_get_optimal_provider_is_awaitable(self, llm_service):
+        """Test get_optimal_provider result can be awaited."""
+        result = llm_service.get_optimal_provider(complexity="moderate")
+
+        provider, model = await result
+
+        assert provider == "anthropic"
+        assert model == "claude-3-5-sonnet"
+
+    @pytest.mark.asyncio
+    async def test_generate_embedding_delegates_to_handler(self, llm_service, mock_handler):
+        """Test generate_embedding delegates to handler.generate_embedding."""
+        embedding = await llm_service.generate_embedding(
+            "text to embed", model="text-embedding-3-small"
+        )
+
+        assert embedding == [0.1, 0.2, 0.3]
+        mock_handler.generate_embedding.assert_awaited_once()
+        call_kwargs = mock_handler.generate_embedding.call_args.kwargs
+        assert call_kwargs["text"] == "text to embed"
+        assert call_kwargs["model"] == "text-embedding-3-small"
+        assert call_kwargs["provider"] == "openai"
+
+    @pytest.mark.asyncio
+    async def test_generate_embedding_cohere_provider(self, llm_service, mock_handler):
+        """Test generate_embedding maps embed-english models to cohere."""
+        await llm_service.generate_embedding(
+            "text", model="embed-english-v3.0"
+        )
+
+        call_kwargs = mock_handler.generate_embedding.call_args.kwargs
+        assert call_kwargs["provider"] == "cohere"

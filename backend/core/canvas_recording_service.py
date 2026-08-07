@@ -145,7 +145,9 @@ class CanvasRecordingService:
                 agent_id=agent_id,
                 user_id=user_id,
                 recording_id=recording_id,
-                action="start_recording"
+                action="start_recording",
+                canvas_id=canvas_id,
+                session_id=session_id
             )
 
             logger.info(
@@ -240,6 +242,8 @@ class CanvasRecordingService:
 
             # Calculate duration
             started_at = recording.started_at
+            if started_at.tzinfo is None:
+                started_at = started_at.replace(tzinfo=timezone.utc)
             duration_seconds = (datetime.now(timezone.utc) - started_at).total_seconds()
 
             # Update recording
@@ -275,7 +279,9 @@ class CanvasRecordingService:
                 agent_id=recording.agent_id,
                 user_id=recording.user_id,
                 recording_id=recording_id,
-                action="stop_recording"
+                action="stop_recording",
+                canvas_id=recording.canvas_id,
+                session_id=recording.session_id
             )
 
             # Trigger auto-review for governance and learning integration
@@ -510,7 +516,9 @@ class CanvasRecordingService:
         agent_id: str,
         user_id: str,
         recording_id: str,
-        action: str
+        action: str,
+        canvas_id: Optional[str] = None,
+        session_id: Optional[str] = None
     ):
         """Create audit entry for recording."""
         try:
@@ -519,8 +527,8 @@ class CanvasRecordingService:
                 tenant_id=self.tenant_id,
                 agent_id=agent_id,
                 user_id=user_id,
-                canvas_id=None,
-                session_id=None,
+                canvas_id=canvas_id,
+                session_id=session_id,
                 action_type=action,
                 canvas_type="recording",
                 details_json={

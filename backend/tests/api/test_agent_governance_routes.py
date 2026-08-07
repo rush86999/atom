@@ -27,6 +27,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from api.agent_governance_routes import router, MOCK_AGENTS
+from core.auth import get_current_user
 from core.models import User, UserRole
 
 
@@ -40,6 +41,14 @@ def client():
     from fastapi import FastAPI
     app = FastAPI()
     app.include_router(router)
+    app.dependency_overrides[get_current_user] = lambda: User(
+        id="test-user",
+        email="test@example.com",
+        role=UserRole.MEMBER.value,
+        first_name="Test",
+        last_name="User",
+        status="active"
+    )
     return TestClient(app)
 
 

@@ -19,7 +19,25 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from datetime import datetime
 import uuid
 
-# Module-level mocking for Docker dependencies (Phase 182 pattern)
+# Module-level mocking for Docker dependencies (Phase 182 pattern).
+# These entries are restored after the imports below so later test modules
+# (e.g. test_skill_sandbox.py) still import the REAL modules — leaving
+# MagicMocks in sys.modules permanently poisons any later import.
+_MOCKED_MODULE_NAMES = (
+    'docker',
+    'docker.errors',
+    'core.skill_sandbox',
+    'core.skill_security_scanner',
+    'langchain',
+    'langchain.tools',
+    'langchain_core',
+    'langchain_core.tools',
+    'langchain_core.tools.utils',
+    'langchain_core.utils',
+    'langchain_core.utils.formatting',
+)
+_ORIGINAL_MODULES = {name: sys.modules.get(name) for name in _MOCKED_MODULE_NAMES}
+
 sys.modules['docker'] = MagicMock()
 sys.modules['docker.errors'] = MagicMock()
 sys.modules['core.skill_sandbox'] = MagicMock()
@@ -39,6 +57,16 @@ from sqlalchemy.orm import Session
 
 from core.skill_registry_service import SkillRegistryService
 from core.models import SkillExecution, EpisodeSegment
+
+# Restore sys.modules now that skill_registry_service is imported (its globals
+# already captured the mocks). Without this, every later import of
+# core.skill_sandbox / core.skill_security_scanner / docker in the same pytest
+# process would silently resolve to these stale MagicMocks.
+for _name, _original in _ORIGINAL_MODULES.items():
+    if _original is not None:
+        sys.modules[_name] = _original
+    else:
+        sys.modules.pop(_name, None)
 
 
 # ============================================================================

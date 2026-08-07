@@ -266,7 +266,7 @@ class TestProjectCreateModel:
         assert project.notes is None
         assert project.team is None
         assert project.color is None
-        assert project.public is None  # Uses default from Pydantic if set
+        assert project.public is True  # Pydantic default
 
     def test_project_create_invalid_missing_name(self):
         """Test project creation fails without name"""
@@ -339,10 +339,13 @@ class TestAsanaProjectEndpoint:
         assert data['project']['gid'] == '1122334455'
 
     @pytest.mark.asyncio
-    async def test_create_project_endpoint_invalid_token(self):
+    async def test_create_project_endpoint_invalid_token(self, monkeypatch):
         """Test project creation endpoint with invalid token"""
         from fastapi.testclient import TestClient
         from fastapi import FastAPI
+
+        # Remove env token so the dependency raises 401
+        monkeypatch.delenv("ASANA_ACCESS_TOKEN", raising=False)
 
         app = FastAPI()
         app.include_router(router)

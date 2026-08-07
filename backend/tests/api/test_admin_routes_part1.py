@@ -106,7 +106,6 @@ def mock_super_admin(test_db: Session) -> User:
         email="superadmin@test.com",
         first_name="Super",
         last_name="Admin",
-        name="Super Admin",
         role="super_admin",
         status="active"
     )
@@ -124,7 +123,6 @@ def mock_team_lead(test_db: Session) -> User:
         email="teamlead@test.com",
         first_name="Team",
         last_name="Lead",
-        name="Team Lead",
         role="team_lead",
         status="active"
     )
@@ -171,7 +169,7 @@ def mock_admin_user(test_db: Session, mock_admin_role: AdminRole) -> AdminUser:
         id=str(uuid.uuid4()),
         email="testadmin@test.com",
         name="Test Admin User",
-        hashed_password=get_password_hash("TestPass123!"),
+        password_hash=get_password_hash("TestPass123!"),
         role_id=mock_admin_role.id,
         status="active",
         last_login=None,
@@ -190,7 +188,7 @@ def mock_inactive_admin_user(test_db: Session, mock_admin_role: AdminRole) -> Ad
         id=str(uuid.uuid4()),
         email="inactiveadmin@test.com",
         name="Inactive Admin",
-        hashed_password=get_password_hash("TestPass123!"),
+        password_hash=get_password_hash("TestPass123!"),
         role_id=mock_admin_role.id,
         status="inactive",
         last_login=None,
@@ -241,7 +239,7 @@ class TestAdminUserListing:
             id=str(uuid.uuid4()),
             email="admin1@test.com",
             name="Admin One",
-            hashed_password=get_password_hash("Pass123!"),
+            password_hash=get_password_hash("Pass123!"),
             role_id=mock_admin_role.id,
             status="active"
         )
@@ -249,7 +247,7 @@ class TestAdminUserListing:
             id=str(uuid.uuid4()),
             email="admin2@test.com",
             name="Admin Two",
-            hashed_password=get_password_hash("Pass456!"),
+            password_hash=get_password_hash("Pass456!"),
             role_id=mock_admin_role.id,
             status="active"
         )
@@ -294,7 +292,7 @@ class TestAdminUserListing:
             id=str(uuid.uuid4()),
             email="roleadmin@test.com",
             name="Role Test Admin",
-            hashed_password=get_password_hash("Pass123!"),
+            password_hash=get_password_hash("Pass123!"),
             role_id=mock_admin_role.id,
             status="active"
         )
@@ -344,6 +342,8 @@ class TestAdminUserRetrieval:
     def test_get_admin_user_unauthorized(self, client: TestClient, test_db: Session, mock_team_lead: User):
         """Test that non-super_admin users cannot access admin endpoints"""
         # Override authenticated_client to use team_lead instead of super_admin
+        from core.auth import get_current_user
+
         def override_get_current_user():
             return mock_team_lead
 
@@ -354,7 +354,7 @@ class TestAdminUserRetrieval:
                 detail="Access denied: super_admin role required"
             )
 
-        client.app.dependency_overrides[client.app.dependencies[0].dependency] = override_get_current_user
+        client.app.dependency_overrides[get_current_user] = override_get_current_user
         from api.admin_routes import require_super_admin
         client.app.dependency_overrides[require_super_admin] = override_require_super_admin
 
@@ -388,7 +388,7 @@ class TestAdminUserCreation:
         # Verify user created in DB
         admin = test_db.query(AdminUser).filter(AdminUser.email == "newadmin@test.com").first()
         assert admin is not None
-        assert admin.hashed_password != "SecurePass123!"  # Password should be hashed
+        assert admin.password_hash != "SecurePass123!"  # Password should be hashed
 
     def test_create_admin_user_invalid_email(self, authenticated_client: TestClient):
         """Test creating admin user with invalid email"""
@@ -462,8 +462,8 @@ class TestAdminUserCreation:
         # Verify password hashed
         admin = test_db.query(AdminUser).filter(AdminUser.email == "hashed@test.com").first()
         assert admin is not None
-        assert admin.hashed_password != "PlainPassword123!"
-        assert admin.hashed_password.startswith("$2b$") or len(admin.hashed_password) > 50  # bcrypt hash
+        assert admin.password_hash != "PlainPassword123!"
+        assert admin.password_hash.startswith("$2b$") or len(admin.password_hash) > 50  # bcrypt hash
 
 
 class TestAdminUserUpdate:

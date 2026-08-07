@@ -75,7 +75,7 @@ class TestJavaScriptExecutionGovernance:
 
         with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
             with patch('core.database.SessionLocal') as mock_session_local:
-                mock_session_local.return_value.__enter__.return_value = mock_db
+                mock_session_local.return_value = mock_db
 
                 with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver:
                     mock_resolver_instance = Mock()
@@ -84,7 +84,7 @@ class TestJavaScriptExecutionGovernance:
                     )
                     mock_resolver.return_value = mock_resolver_instance
 
-                    with patch('tools.canvas_tool.AgentGovernanceService') as mock_governance:
+                    with patch('core.service_factory.ServiceFactory.get_governance_service') as mock_governance:
                         mock_governance_instance = Mock()
                         mock_governance_instance.can_perform_action.return_value = {
                             "allowed": True,
@@ -120,7 +120,7 @@ class TestJavaScriptExecutionGovernance:
 
         with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
             with patch('core.database.SessionLocal') as mock_session_local:
-                mock_session_local.return_value.__enter__.return_value = mock_db
+                mock_session_local.return_value = mock_db
 
                 with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver:
                     mock_resolver_instance = Mock()
@@ -129,7 +129,7 @@ class TestJavaScriptExecutionGovernance:
                     )
                     mock_resolver.return_value = mock_resolver_instance
 
-                    with patch('tools.canvas_tool.AgentGovernanceService') as mock_governance:
+                    with patch('core.service_factory.ServiceFactory.get_governance_service') as mock_governance:
                         # Block SUPERVISED agent
                         mock_governance_instance = Mock()
                         mock_governance_instance.can_perform_action.return_value = {
@@ -171,7 +171,7 @@ class TestJavaScriptExecutionGovernance:
 
         with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
             with patch('core.database.SessionLocal') as mock_session_local:
-                mock_session_local.return_value.__enter__.return_value = mock_db
+                mock_session_local.return_value = mock_db
 
                 with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver:
                     mock_resolver_instance = Mock()
@@ -180,7 +180,7 @@ class TestJavaScriptExecutionGovernance:
                     )
                     mock_resolver.return_value = mock_resolver_instance
 
-                    with patch('tools.canvas_tool.AgentGovernanceService') as mock_governance:
+                    with patch('core.service_factory.ServiceFactory.get_governance_service') as mock_governance:
                         # Governance check passes (simulating cache hit or misconfiguration)
                         mock_governance_instance = Mock()
                         mock_governance_instance.can_perform_action.return_value = {
@@ -207,7 +207,7 @@ class TestJavaScriptExecutionSecurity:
     @pytest.mark.asyncio
     async def test_empty_javascript_blocked(self, autonomous_agent, mock_db, mock_ws_manager):
         """Test that empty JavaScript is blocked."""
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await canvas_execute_javascript(
                     user_id="user-1",
@@ -222,7 +222,7 @@ class TestJavaScriptExecutionSecurity:
     @pytest.mark.asyncio
     async def test_whitespace_only_javascript_blocked(self, autonomous_agent, mock_db, mock_ws_manager):
         """Test that whitespace-only JavaScript is blocked."""
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await canvas_execute_javascript(
                     user_id="user-1",
@@ -237,7 +237,7 @@ class TestJavaScriptExecutionSecurity:
     @pytest.mark.asyncio
     async def test_dangerous_pattern_eval_blocked(self, autonomous_agent, mock_db, mock_ws_manager):
         """Test that eval() is blocked."""
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await canvas_execute_javascript(
                     user_id="user-1",
@@ -253,7 +253,7 @@ class TestJavaScriptExecutionSecurity:
     @pytest.mark.asyncio
     async def test_dangerous_pattern_document_cookie_blocked(self, autonomous_agent, mock_db, mock_ws_manager):
         """Test that document.cookie access is blocked."""
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await canvas_execute_javascript(
                     user_id="user-1",
@@ -269,7 +269,7 @@ class TestJavaScriptExecutionSecurity:
     @pytest.mark.asyncio
     async def test_dangerous_pattern_setTimeout_blocked(self, autonomous_agent, mock_db, mock_ws_manager):
         """Test that setTimeout is blocked."""
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await canvas_execute_javascript(
                     user_id="user-1",
@@ -285,7 +285,7 @@ class TestJavaScriptExecutionSecurity:
     @pytest.mark.asyncio
     async def test_dangerous_pattern_localStorage_blocked(self, autonomous_agent, mock_db, mock_ws_manager):
         """Test that localStorage access is blocked."""
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await canvas_execute_javascript(
                     user_id="user-1",
@@ -307,7 +307,7 @@ class TestJavaScriptExecutionFunctionality:
         """Test basic JavaScript execution."""
         javascript = "document.title = 'Updated';"
 
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await canvas_execute_javascript(
                     user_id="user-1",
@@ -325,7 +325,7 @@ class TestJavaScriptExecutionFunctionality:
         """Test JavaScript execution with session isolation."""
         javascript = "element.style.height = '500px';"
 
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await canvas_execute_javascript(
                     user_id="user-1",
@@ -348,7 +348,7 @@ class TestJavaScriptExecutionFunctionality:
         """Test JavaScript execution with custom timeout."""
         javascript = "element.classList.add('active');"
 
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await canvas_execute_javascript(
                     user_id="user-1",
@@ -369,7 +369,7 @@ class TestJavaScriptExecutionFunctionality:
         """Test JavaScript execution for DOM manipulation."""
         javascript = "document.getElementById('chart').style.height = '500px';"
 
-        with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+        with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=False):
             with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
                 result = await canvas_execute_javascript(
                     user_id="user-1",
@@ -390,7 +390,7 @@ class TestJavaScriptExecutionErrorHandling:
         with patch('tools.canvas_tool.ws_manager') as mock_ws_manager:
             mock_ws_manager.broadcast = AsyncMock(side_effect=Exception("WebSocket error"))
 
-            with patch('tools.canvas_tool.CANVAS_GOVERNANCE_ENABLED', False):
+            with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=False):
                 result = await canvas_execute_javascript(
                     user_id="user-1",
                     canvas_id="canvas-123",
@@ -412,7 +412,7 @@ class TestJavaScriptExecutionAuditTrail:
 
         with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
             with patch('core.database.SessionLocal') as mock_session_local:
-                mock_session_local.return_value.__enter__.return_value = mock_db
+                mock_session_local.return_value = mock_db
 
                 with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver:
                     mock_resolver_instance = Mock()
@@ -421,7 +421,7 @@ class TestJavaScriptExecutionAuditTrail:
                     )
                     mock_resolver.return_value = mock_resolver_instance
 
-                    with patch('tools.canvas_tool.AgentGovernanceService') as mock_governance:
+                    with patch('core.service_factory.ServiceFactory.get_governance_service') as mock_governance:
                         mock_governance_instance = Mock()
                         mock_governance_instance.can_perform_action.return_value = {
                             "allowed": True,
@@ -457,7 +457,7 @@ class TestJavaScriptExecutionAuditTrail:
 
         with patch('tools.canvas_tool.ws_manager', mock_ws_manager):
             with patch('core.database.SessionLocal') as mock_session_local:
-                mock_session_local.return_value.__enter__.return_value = mock_db
+                mock_session_local.return_value = mock_db
 
                 with patch('tools.canvas_tool.AgentContextResolver') as mock_resolver:
                     mock_resolver_instance = Mock()
@@ -466,7 +466,7 @@ class TestJavaScriptExecutionAuditTrail:
                     )
                     mock_resolver.return_value = mock_resolver_instance
 
-                    with patch('tools.canvas_tool.AgentGovernanceService') as mock_governance:
+                    with patch('core.service_factory.ServiceFactory.get_governance_service') as mock_governance:
                         mock_governance_instance = Mock()
                         mock_governance_instance.can_perform_action.return_value = {
                             "allowed": True,

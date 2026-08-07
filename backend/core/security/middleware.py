@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Union, Dict, Any, Optional
+import html
 import json
 import logging
 import os
@@ -53,6 +54,14 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
             r"exec\(",
             r"eval\(",
             r"system\(",
+            # CSS-execution vectors (IE-era non-standard properties and URL
+            # schemes). The canvas CSS security contract
+            # (tests/integration/canvas/test_canvas_css_security.py) requires
+            # these to be rejected, not persisted to the canvas audit trail.
+            r"expression\s*\(",
+            r"vbscript:",
+            r"behavior\s*:",
+            r"binding\s*:",
         ]
 
     async def _read_body_with_limit(self, request: Request) -> bytes:
@@ -120,7 +129,12 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
     def _contains_malicious_content(self, content: str) -> bool:
-        content_lower = content.lower()
+        # Decode HTML character references BEFORE matching: browsers decode
+        # entities during parsing, so `onerror&#x3d;`, `jav&#x61;script:` and
+        # `&lt;script&gt;` are the same payloads as the literal forms. Without
+        # this, entity-encoded XSS bypassed the denylist and was persisted
+        # verbatim to the canvas audit trail (stored-XSS vector).
+        content_lower = html.unescape(content).lower()
         for pattern in self.malicious_patterns:
             if re.search(pattern, content_lower, re.IGNORECASE | re.MULTILINE):
                 return True

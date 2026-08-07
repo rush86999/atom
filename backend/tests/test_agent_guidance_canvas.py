@@ -43,7 +43,8 @@ def test_agent(db_session):
         class_name="TestAgent",
         status="autonomous",  # High maturity to pass governance checks
         confidence_score=0.95,
-        required_role_for_autonomy="team_lead"
+        required_role_for_autonomy="team_lead",
+        workspace_id="default"
     )
     db_session.add(agent)
     db_session.commit()
@@ -326,13 +327,13 @@ async def test_audit_trail_creation(db_session, guidance_system, test_user, test
 
     # Verify audit entry created
     audit = db_session.query(CanvasAudit).filter(
-        CanvasAudit.component_type == "agent_operation_tracker",
-        CanvasAudit.action == "start_operation"
+        CanvasAudit.action_type == "start_operation"
     ).first()
 
     assert audit is not None
     assert audit.user_id == test_user.id
     assert audit.agent_id == test_agent.id
+    assert audit.details_json["component_type"] == "agent_operation_tracker"
 
 
 @pytest.mark.asyncio

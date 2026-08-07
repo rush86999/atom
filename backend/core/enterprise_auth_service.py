@@ -134,7 +134,8 @@ class EnterpriseAuthService:
         # Serialize private key
         private_pem = private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.PKCS8
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
         )
 
         # Serialize public key
@@ -359,20 +360,18 @@ class EnterpriseAuthService:
         if user_role == "admin":
             roles = [
                 UserRole.ADMIN.value,
-                UserRole.SECURITY_ADMIN.value,
-                UserRole.WORKFLOW_ADMIN.value,
-                UserRole.COMPLIANCE_ADMIN.value,
-                UserRole.AUTOMATION_ADMIN.value,
-                UserRole.INTEGRATION_ADMIN.value
+                UserRole.WORKSPACE_ADMIN.value,
+                UserRole.TEAM_LEAD.value,
+                UserRole.MEMBER.value
             ]
         elif user_role == "security_admin":
             roles = [
-                UserRole.SECURITY_ADMIN.value,
-                UserRole.ADMIN.value
+                UserRole.ADMIN.value,
+                UserRole.WORKSPACE_ADMIN.value
             ]
         elif user_role == "workflow_admin":
             roles = [
-                UserRole.WORKFLOW_ADMIN.value,
+                UserRole.WORKSPACE_ADMIN.value,
                 UserRole.ADMIN.value
             ]
 
@@ -807,11 +806,11 @@ class EnterpriseAuthService:
         role_mapping = {
             'admin': UserRole.WORKSPACE_ADMIN.value,
             'superadmin': UserRole.SUPER_ADMIN.value,
-            'security_admin': UserRole.SECURITY_ADMIN.value,
-            'workflow_admin': UserRole.WORKFLOW_ADMIN.value,
-            'automation_admin': UserRole.AUTOMATION_ADMIN.value,
-            'integration_admin': UserRole.INTEGRATION_ADMIN.value,
-            'compliance_admin': UserRole.COMPLIANCE_ADMIN.value,
+            'security_admin': UserRole.ADMIN.value,
+            'workflow_admin': UserRole.WORKSPACE_ADMIN.value,
+            'automation_admin': UserRole.ADMIN.value,
+            'integration_admin': UserRole.ADMIN.value,
+            'compliance_admin': UserRole.ADMIN.value,
             'team_lead': UserRole.TEAM_LEAD.value,
             'member': UserRole.MEMBER.value,
             'guest': UserRole.GUEST.value

@@ -76,8 +76,9 @@ def db():
 @pytest.fixture
 def sample_agent(db):
     """Create sample agent for governance pre-seeding."""
+    import uuid
     agent = AgentRegistry(
-        id="test-agent-123",
+        id=f"test-agent-{uuid.uuid4().hex[:12]}",
         name="Test Agent",
         description="Test agent for cache pre-seeding",
         category="testing",
@@ -92,7 +93,9 @@ def sample_agent(db):
     db.add(agent)
     db.commit()
     db.refresh(agent)
-    return agent
+    yield agent
+    db.delete(agent)
+    db.commit()
 
 
 @pytest.fixture
@@ -315,7 +318,7 @@ class TestPreseedCognitiveModels:
 
             result = await preseed_cognitive_models(verbose=False)
 
-            assert result["models_validated"] == 2
+            assert result["models_validated"] == 10
 
     @pytest.mark.asyncio
     async def test_identifies_missing_models(self):
@@ -343,7 +346,7 @@ class TestPreseedCognitiveModels:
 
             result = await preseed_cognitive_models(verbose=False)
 
-            assert result["models_missing"] == 1
+            assert result["models_missing"] == 5
 
 
 # =============================================================================
@@ -380,7 +383,7 @@ class TestPreseedGovernanceCache:
         with patch('core.byok_cache_preseeding.get_governance_cache') as mock_get_cache:
 
             mock_cache = Mock(spec=GovernanceCache)
-            mock_cache.get_stats.return_value = {"size": 30}
+            mock_cache.get_stats.return_value = {"size": 30, "hit_rate": 95.0}
             mock_get_cache.return_value = mock_cache
 
             result = await preseed_governance_cache(
@@ -477,7 +480,7 @@ class TestPreseedCacheAwareRouter:
                 verbose=False
             )
 
-            assert result["cache_history_size"] == 1
+            assert result["cache_history_size"] == 11
 
 
 # =============================================================================
@@ -538,10 +541,31 @@ class TestPrintPreseedResults:
     def test_prints_success_results(self, capsys):
         """RED: Test that success results are printed."""
         results = {
-            "pricing": {"success": True, "models_loaded": 1523, "duration_seconds": 3.0},
-            "cognitive": {"success": True, "tiers_loaded": 5, "duration_seconds": 0.1},
-            "governance": {"success": True, "actions_cached": 60, "duration_seconds": 0.1},
-            "cache_aware": {"success": True, "prompts_seeded": 10, "duration_seconds": 0.0},
+            "pricing": {
+                "success": True,
+                "models_loaded": 1523,
+                "providers": ["openai", "anthropic"],
+                "duration_seconds": 3.0,
+            },
+            "cognitive": {
+                "success": True,
+                "tiers_loaded": 5,
+                "models_validated": 22,
+                "duration_seconds": 0.1,
+            },
+            "governance": {
+                "success": True,
+                "actions_cached": 60,
+                "directories_cached": 3,
+                "cache_size": 63,
+                "duration_seconds": 0.1,
+            },
+            "cache_aware": {
+                "success": True,
+                "prompts_seeded": 10,
+                "baseline_probability": 0.5,
+                "duration_seconds": 0.0,
+            },
             "duration_seconds": 3.2,
         }
 

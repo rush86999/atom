@@ -301,7 +301,9 @@ class TestAtomCliWrapperExecution:
             ["atom-os", "status"],
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
+            cwd=None,
+            env=None
         )
 
         # Verify return format
@@ -356,7 +358,9 @@ class TestAtomCliWrapperExecution:
             ["atom-os", "daemon", "--port", "3000", "--dev"],
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
+            cwd=None,
+            env=None
         )
 
         assert result["success"] is True
@@ -659,7 +663,8 @@ class TestAtomCliSkillImport:
         mock_service.check_permission.return_value = True
         monkeypatch.setattr('core.agent_governance_service.AgentGovernanceService', lambda: mock_service)
 
-    def test_import_all_cli_skills_via_api(self, skill_registry_service, db_session, mock_governance_service):
+    @pytest.mark.asyncio
+    async def test_import_all_cli_skills_via_api(self, skill_registry_service, db_session, mock_governance_service):
         """Import all 6 skills, verify skill_id returned."""
         from pathlib import Path
 
@@ -674,14 +679,14 @@ class TestAtomCliSkillImport:
                 content = f.read()
 
             # Import skill
-            result = skill_registry_service.import_skill(
+            result = await skill_registry_service.import_skill(
                 source="file_upload",
                 content=content,
                 metadata={"source": "cli-skills"}
             )
 
-            # Verify import succeeded
-            assert result["success"], f"Failed to import {skill_file.name}: {result['error']}"
+            # Verify import succeeded (raises on failure)
+            assert result["skill_id"], f"Failed to import {skill_file.name}"
 
             # Verify skill_id returned
             assert "skill_id" in result
@@ -696,7 +701,8 @@ class TestAtomCliSkillImport:
         # Verify unique skill IDs
         assert len(set(imported_skills)) == 6, "Duplicate skill IDs found"
 
-    def test_imported_skills_have_correct_status(self, skill_registry_service, db_session, mock_governance_service):
+    @pytest.mark.asyncio
+    async def test_imported_skills_have_correct_status(self, skill_registry_service, db_session, mock_governance_service):
         """Verify Untrusted/Active based on scan."""
         from pathlib import Path
 
@@ -706,24 +712,21 @@ class TestAtomCliSkillImport:
         with open(skill_file, 'r') as f:
             content = f.read()
 
-        # Import skill
-        result = skill_registry_service.import_skill(
+        # Import skill (raises on failure)
+        result = await skill_registry_service.import_skill(
             source="file_upload",
             content=content,
             metadata={"source": "cli-skills"}
         )
 
-        # Verify import succeeded
-        assert result["success"]
-
         # Verify status (could be "Untrusted" or "Active" based on security scan)
         assert "status" in result
         assert result["status"] in ["Untrusted", "Active", "Active after review", "Banned"]
 
-    def test_execute_imported_skill(self, skill_registry_service, db_session, mock_governance_service):
+    @pytest.mark.asyncio
+    async def test_execute_imported_skill(self, skill_registry_service, db_session, mock_governance_service):
         """Full integration test (import -> execute -> verify result)."""
         from pathlib import Path
-        from tools.atom_cli_skill_wrapper import execute_atom_cli_command
         from unittest.mock import patch
 
         # Import a skill first
@@ -733,13 +736,13 @@ class TestAtomCliSkillImport:
         with open(skill_file, 'r') as f:
             content = f.read()
 
-        result = skill_registry_service.import_skill(
+        result = await skill_registry_service.import_skill(
             source="file_upload",
             content=content,
             metadata={"source": "cli-skills"}
         )
 
-        assert result["success"]
+        assert result["skill_id"]
 
         # Mock the CLI command execution
         with patch('tools.atom_cli_skill_wrapper.execute_atom_cli_command') as mock_execute:
@@ -752,6 +755,7 @@ class TestAtomCliSkillImport:
 
             # Test skill execution (would need actual CommunitySkillTool integration)
             # For now, test the CLI wrapper directly
+            from tools.atom_cli_skill_wrapper import execute_atom_cli_command
             cli_result = execute_atom_cli_command("status")
 
             # Verify execution result

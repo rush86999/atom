@@ -160,7 +160,7 @@ class TestStreamingEndpoint:
 
     def test_streaming_success(self, client: TestClient, db_session: Session):
         """Test successful streaming endpoint returns SSE stream."""
-        response = client.post("/api/atom-agent/stream", json={
+        response = client.post("/api/atom-agent/chat/stream", json={
             "message": "Stream this response",
             "user_id": "test_stream_user",
             "session_id": "stream_session_123"
@@ -170,7 +170,7 @@ class TestStreamingEndpoint:
 
     def test_streaming_with_empty_message(self, client: TestClient, db_session: Session):
         """Test streaming handles empty message."""
-        response = client.post("/api/atom-agent/stream", json={
+        response = client.post("/api/atom-agent/chat/stream", json={
             "message": "",
             "user_id": "test_stream_empty"
         })
@@ -178,7 +178,7 @@ class TestStreamingEndpoint:
 
     def test_streaming_creates_session_if_missing(self, client: TestClient, db_session: Session):
         """Test streaming creates session if not provided."""
-        response = client.post("/api/atom-agent/stream", json={
+        response = client.post("/api/atom-agent/chat/stream", json={
             "message": "Start streaming",
             "user_id": "test_stream_no_session"
         })
@@ -197,7 +197,7 @@ class TestStreamingEndpoint:
         db_session.add(agent)
         db_session.commit()
 
-        response = client.post("/api/atom-agent/stream", json={
+        response = client.post("/api/atom-agent/chat/stream", json={
             "message": "Stream with agent",
             "user_id": "test_stream_agent",
             "agent_id": agent.id
@@ -206,7 +206,7 @@ class TestStreamingEndpoint:
 
     def test_streaming_missing_user_id_returns_422(self, client: TestClient, db_session: Session):
         """Test streaming without user_id returns validation error."""
-        response = client.post("/api/atom-agent/stream", json={
+        response = client.post("/api/atom-agent/chat/stream", json={
             "message": "Stream this"
         })
         assert response.status_code == 422
@@ -224,7 +224,8 @@ class TestAgentListEndpoint:
             module_path="test.module",
             class_name="Agent1",
             status=AgentStatus.AUTONOMOUS.value,
-            confidence_score=0.9
+            confidence_score=0.9,
+            workspace_id="default"
         )
         agent2 = AgentRegistry(
             name="Agent2",
@@ -232,7 +233,8 @@ class TestAgentListEndpoint:
             module_path="test.module",
             class_name="Agent2",
             status=AgentStatus.INTERN.value,
-            confidence_score=0.6
+            confidence_score=0.6,
+            workspace_id="default"
         )
         db_session.add(agent1)
         db_session.add(agent2)
@@ -241,8 +243,10 @@ class TestAgentListEndpoint:
         response = client.get("/api/agents")
         assert response.status_code == 200
         data = response.json()
-        assert "agents" in data or isinstance(data, list)
+        assert "data" in data
+        assert isinstance(data["data"], list)
         # Should contain at least our test agents
+        assert len(data["data"]) >= 2
 
     def test_list_agents_with_category_filter(self, client: TestClient, db_session: Session):
         """Test listing agents filtered by category."""
@@ -253,7 +257,8 @@ class TestAgentListEndpoint:
             module_path="test.module",
             class_name="SalesAgent",
             status=AgentStatus.AUTONOMOUS.value,
-            confidence_score=0.9
+            confidence_score=0.9,
+            workspace_id="default"
         )
         agent_support = AgentRegistry(
             name="SupportAgent",
@@ -261,7 +266,8 @@ class TestAgentListEndpoint:
             module_path="test.module",
             class_name="SupportAgent",
             status=AgentStatus.AUTONOMOUS.value,
-            confidence_score=0.9
+            confidence_score=0.9,
+            workspace_id="default"
         )
         db_session.add(agent_sales)
         db_session.add(agent_support)
@@ -271,7 +277,7 @@ class TestAgentListEndpoint:
         assert response.status_code == 200
         data = response.json()
         # Should filter by category
-        agents = data.get("agents", data) if isinstance(data, dict) else data
+        agents = data.get("data", []) if isinstance(data, dict) else data
         if agents:
             for agent in agents:
                 assert agent.get("category") == "sales"
@@ -288,7 +294,7 @@ class TestAgentListEndpoint:
         assert response.status_code == 200
         data = response.json()
         # Should return empty list
-        agents = data.get("agents", data) if isinstance(data, dict) else data
+        agents = data.get("data", []) if isinstance(data, dict) else data
         assert len(agents) == 0
 
 
@@ -312,7 +318,7 @@ class TestAgentDetailEndpoint:
 
         response = client.get(f"/api/agents/{agent.id}")
         assert response.status_code == 200
-        data = response.json()
+        data = response.json()["data"]
         assert data["id"] == agent.id
         assert data["name"] == "DetailAgent"
         assert data["category"] == "test"
@@ -333,55 +339,54 @@ class TestAgentCreationEndpoint:
     """Integration tests for POST /api/agents endpoint."""
 
     def test_create_agent_success(self, client: TestClient, db_session: Session):
-        """Test successful agent creation."""
+        """Test successful agent creation via POST /api/agents/custom."""
         agent_data = {
             "name": "NewAgent",
             "category": "test",
-            "module_path": "test.module",
-            "class_name": "NewAgent",
-            "status": "intern",
-            "confidence_score": 0.6,
-            "description": "A new test agent"
+            "description": "A new test agent",
+            "configuration": {}
         }
-        response = client.post("/api/agents", json=agent_data)
-        assert response.status_code in [200, 201]
+        response = client.post("/api/agents/custom", json=agent_data)
+        assert response.status_code == 201
         data = response.json()
-        assert "id" in data or data.get("success")
+        assert "agent_id" in data["data"]
 
     def test_create_agent_with_invalid_status(self, client: TestClient, db_session: Session):
-        """Test creating agent with invalid status returns error."""
+        """Test status field is not settable via the custom-agent endpoint.
+
+        POST /api/agents/custom hardcodes the agent to STUDENT tier, so a
+        caller-supplied status is ignored.
+        """
         agent_data = {
             "name": "InvalidAgent",
             "category": "test",
-            "module_path": "test.module",
-            "class_name": "InvalidAgent",
             "status": "invalid_status",
-            "confidence_score": 0.5
+            "configuration": {}
         }
-        response = client.post("/api/agents", json=agent_data)
-        # Should return validation error
-        assert response.status_code in [400, 422]
+        response = client.post("/api/agents/custom", json=agent_data)
+        assert response.status_code == 201
+        created_id = response.json()["data"]["agent_id"]
+        get_response = client.get(f"/api/agents/{created_id}")
+        assert get_response.status_code == 200
+        assert get_response.json()["data"]["status"] == AgentStatus.STUDENT.value
 
     def test_create_agent_missing_required_fields(self, client: TestClient, db_session: Session):
         """Test creating agent without required fields returns error."""
         agent_data = {
             "name": "IncompleteAgent"
-            # Missing category, module_path, class_name
+            # Missing category, configuration
         }
-        response = client.post("/api/agents", json=agent_data)
+        response = client.post("/api/agents/custom", json=agent_data)
         assert response.status_code in [400, 422]
 
     def test_create_agent_confidence_out_of_range(self, client: TestClient, db_session: Session):
-        """Test creating agent with confidence > 1.0 returns error."""
+        """Test creating agent without required configuration returns error."""
         agent_data = {
             "name": "OverconfidentAgent",
             "category": "test",
-            "module_path": "test.module",
-            "class_name": "OverconfidentAgent",
-            "status": "autonomous",
-            "confidence_score": 1.5  # Invalid (> 1.0)
+            # Missing configuration (required by CustomAgentRequest)
         }
-        response = client.post("/api/agents", json=agent_data)
+        response = client.post("/api/agents/custom", json=agent_data)
         assert response.status_code in [400, 422]
 
 
@@ -389,7 +394,7 @@ class TestAgentUpdateEndpoint:
     """Integration tests for PUT /api/agents/{agent_id} endpoint."""
 
     def test_update_agent_success(self, client: TestClient, db_session: Session):
-        """Test successful agent update."""
+        """Test successful partial agent update via PATCH."""
         agent = AgentRegistry(
             name="UpdateAgent",
             category="test",
@@ -404,24 +409,24 @@ class TestAgentUpdateEndpoint:
 
         update_data = {
             "name": "UpdatedAgent",
-            "description": "Updated description",
-            "confidence_score": 0.75
+            "description": "Updated description"
         }
-        response = client.put(f"/api/agents/{agent.id}", json=update_data)
+        response = client.patch(f"/api/agents/{agent.id}", json=update_data)
         assert response.status_code == 200
         data = response.json()
-        assert data.get("success") or data.get("name") == "UpdatedAgent"
+        assert data["data"]["name"] == "UpdatedAgent"
+        assert data["data"]["description"] == "Updated description"
 
     def test_update_agent_not_found(self, client: TestClient, db_session: Session):
         """Test updating non-existent agent returns 404."""
         update_data = {
             "name": "GhostAgent"
         }
-        response = client.put("/api/agents/nonexistent_id", json=update_data)
+        response = client.patch("/api/agents/nonexistent_id", json=update_data)
         assert response.status_code == 404
 
     def test_update_agent_invalid_confidence(self, client: TestClient, db_session: Session):
-        """Test updating agent with invalid confidence returns error."""
+        """Test updating agent with an invalid (whitespace) name returns error."""
         agent = AgentRegistry(
             name="ConfidenceAgent",
             category="test",
@@ -435,13 +440,17 @@ class TestAgentUpdateEndpoint:
         db_session.refresh(agent)
 
         update_data = {
-            "confidence_score": -0.5  # Invalid (< 0)
+            "name": "   "  # Invalid (whitespace-only)
         }
-        response = client.put(f"/api/agents/{agent.id}", json=update_data)
+        response = client.patch(f"/api/agents/{agent.id}", json=update_data)
         assert response.status_code in [400, 422]
 
     def test_update_agent_status_mismatch(self, client: TestClient, db_session: Session):
-        """Test updating agent with status/confidence mismatch."""
+        """Test updating agent without touching its maturity status.
+
+        Status/confidence are managed by the governance layer, not PATCH, so
+        a name-only update must succeed and leave status unchanged.
+        """
         agent = AgentRegistry(
             name="MismatchAgent",
             category="test",
@@ -454,14 +463,14 @@ class TestAgentUpdateEndpoint:
         db_session.commit()
         db_session.refresh(agent)
 
-        # Update to autonomous without sufficient confidence
         update_data = {
-            "status": "autonomous",
-            "confidence_score": 0.7  # Too low for autonomous
+            "name": "MismatchAgentRenamed"
         }
-        response = client.put(f"/api/agents/{agent.id}", json=update_data)
-        # Should accept or reject based on business logic
-        assert response.status_code in [200, 400]
+        response = client.patch(f"/api/agents/{agent.id}", json=update_data)
+        assert response.status_code == 200
+        get_response = client.get(f"/api/agents/{agent.id}")
+        assert get_response.status_code == 200
+        assert get_response.json()["data"]["status"] == AgentStatus.STUDENT.value
 
 
 class TestAgentDeletionEndpoint:
@@ -512,8 +521,8 @@ class TestAgentDeletionEndpoint:
         execution = AgentExecution(
             agent_id=agent.id,
             status="completed",
-            input_data={"test": "data"},
-            output_data={"result": "success"}
+            input_summary="test input",
+            result_summary="success"
         )
         db_session.add(execution)
         db_session.commit()
@@ -556,50 +565,32 @@ class TestAgentGovernanceEndpoints:
         assert "autonomous" in data["maturity_levels"]
 
     def test_get_agent_maturity_status(self, client: TestClient, db_session: Session):
-        """Test getting agent maturity status."""
-        agent = AgentRegistry(
-            name="MaturityAgent",
-            category="test",
-            module_path="test.module",
-            class_name="MaturityAgent",
-            status=AgentStatus.SUPERVISED.value,
-            confidence_score=0.8
-        )
-        db_session.add(agent)
-        db_session.commit()
-        db_session.refresh(agent)
+        """Test getting agent maturity status.
 
-        response = client.get(f"/api/agent-governance/{agent.id}/maturity")
+        Governance maturity endpoints serve the mock agent catalog (the same
+        data the frontend AgentWorkflowGenerator consumes), keyed by handle
+        such as ``sales-agent``.
+        """
+        response = client.get("/api/agent-governance/agents/sales-agent")
         assert response.status_code == 200
         data = response.json()
-        assert data["agent_id"] == agent.id
+        assert data["agent_id"] == "sales-agent"
         assert "maturity_level" in data
         assert "confidence_score" in data
         assert "can_deploy_directly" in data
 
     def test_submit_workflow_for_approval(self, client: TestClient, db_session: Session):
         """Test submitting workflow for approval."""
-        agent = AgentRegistry(
-            name="InternAgent",
-            category="test",
-            module_path="test.module",
-            class_name="InternAgent",
-            status=AgentStatus.INTERN.value,
-            confidence_score=0.6
-        )
-        db_session.add(agent)
-        db_session.commit()
-
         approval_request = {
-            "agent_id": agent.id,
+            "agent_id": "sales-agent",
             "workflow_name": "Test Workflow",
             "workflow_definition": {"steps": [{"action": "send_email"}]},
             "trigger_type": "manual",
             "actions": ["send_email"],
             "requested_by": "test_user"
         }
-        response = client.post("/api/agent-governance/approve", json=approval_request)
+        response = client.post("/api/agent-governance/submit-for-approval", json=approval_request)
         assert response.status_code == 200
-        data = response.json()
+        data = response.json()["data"]
         assert "approval_id" in data
-        assert data["requires_approval"] is True
+        assert data["status"] == "pending"

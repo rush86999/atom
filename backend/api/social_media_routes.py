@@ -492,8 +492,9 @@ async def create_social_post(
         # Check rate limits
         if not rate_limit_check(current_user.id, db):
             raise router.error_response(
-                status_code=429,
-                message="Rate limit exceeded: Maximum 10 posts per hour"
+                "RATE_LIMIT_EXCEEDED",
+                message="Rate limit exceeded: Maximum 10 posts per hour",
+                status_code=429
             )
 
         # Handle scheduled posts

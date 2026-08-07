@@ -212,7 +212,7 @@ def test_start_agent_runtime_error(mock_start, mock_is_running, client):
     response = client.post("/api/agent/start", json={"port": 8000})
 
     assert response.status_code == 500
-    assert "Port already in use" in response.json()["detail"]
+    assert "Internal error" in response.json()["detail"]
 
 
 @patch('api.agent_control_routes.DaemonManager.is_running')
@@ -225,7 +225,7 @@ def test_start_agent_io_error(mock_start, mock_is_running, client):
     response = client.post("/api/agent/start", json={"port": 8000})
 
     assert response.status_code == 500
-    assert "PID file write failed" in response.json()["detail"]
+    assert "Internal error" in response.json()["detail"]
 
 
 @patch('api.agent_control_routes.DaemonManager.is_running')
@@ -416,7 +416,7 @@ def test_stop_agent_exception(mock_stop, mock_is_running, client):
     response = client.post("/api/agent/stop")
 
     assert response.status_code == 500
-    assert "Stop failed" in response.json()["detail"]
+    assert "Internal error" in response.json()["detail"]
 
 
 @patch('api.agent_control_routes.DaemonManager.is_running')
@@ -457,7 +457,7 @@ def test_stop_agent_with_runtime_error(mock_stop, mock_is_running, client):
     response = client.post("/api/agent/stop")
 
     assert response.status_code == 500
-    assert "Process not found" in response.json()["detail"]
+    assert "Internal error" in response.json()["detail"]
 
 
 @patch('api.agent_control_routes.DaemonManager.is_running')
@@ -470,7 +470,7 @@ def test_stop_agent_with_io_error(mock_stop, mock_is_running, client):
     response = client.post("/api/agent/stop")
 
     assert response.status_code == 500
-    assert "PID file error" in response.json()["detail"]
+    assert "Internal error" in response.json()["detail"]
 
 
 @patch('api.agent_control_routes.DaemonManager.is_running')
@@ -545,7 +545,7 @@ def test_restart_agent_exception(mock_stop, mock_start, mock_is_running, mock_sl
     response = client.post("/api/agent/restart", json={"port": 8000})
 
     assert response.status_code == 500
-    assert "Restart failed" in response.json()["detail"]
+    assert "Internal error" in response.json()["detail"]
 
 
 @patch('time.sleep')
@@ -643,7 +643,7 @@ def test_restart_agent_with_start_error(mock_stop, mock_start, mock_is_running, 
     response = client.post("/api/agent/restart", json={"port": 8000})
 
     assert response.status_code == 500
-    assert "Port in use" in response.json()["detail"]
+    assert "Internal error" in response.json()["detail"]
 
 
 @patch('time.sleep')
@@ -738,7 +738,7 @@ def test_get_status_exception(mock_get_status, client):
     response = client.get("/api/agent/status")
 
     assert response.status_code == 500
-    assert "Status check failed" in response.json()["detail"]
+    assert "Internal error" in response.json()["detail"]
 
 
 @patch('api.agent_control_routes.DaemonManager.get_status')
@@ -788,7 +788,7 @@ def test_get_status_with_runtime_error(mock_get_status, client):
     response = client.get("/api/agent/status")
 
     assert response.status_code == 500
-    assert "Daemon not responding" in response.json()["detail"]
+    assert "Internal error" in response.json()["detail"]
 
 
 @patch('api.agent_control_routes.DaemonManager.get_status')
@@ -799,7 +799,7 @@ def test_get_status_with_io_error(mock_get_status, client):
     response = client.get("/api/agent/status")
 
     assert response.status_code == 500
-    assert "PID file not found" in response.json()["detail"]
+    assert "Internal error" in response.json()["detail"]
 
 
 @patch('api.agent_control_routes.DaemonManager.get_status')
