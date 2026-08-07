@@ -240,6 +240,20 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | 2026-08-07 | `tests/conftest.py` | FIXED | db_session nested-transaction rollback could not undo explicit commit()s → cross-test DB pollution; per-test table wipe added |
 | 2026-08-07 | `tests/test_autonomous_supervisor_service.py` | FIXED | fixture used read-only properties proposed_action/reasoning as kwargs; stale output_summary kwarg; 30-min hangs → 15s |
 
+### Resolved 2026-08-07 (R82 wave — pushed `aad17c93c`)
+| Date | File(s) | Status | Result |
+|---|---|---|---|
+| 2026-08-07 | `core/security/middleware.py` | FIXED (SECURITY) | **2 real XSS bypasses closed**: entity-encoded `onerror&#x3d;` + `jav&#x61;script:` payloads bypassed the denylist and were persisted raw → `html.unescape()` before regex; added `expression(/vbscript:/behavior:/binding:` CSS-execution vectors. RED→GREEN (9 new RED tests) |
+| 2026-08-07 | `tests/integration/canvas/test_canvas_{html,css}_security.py` | FIXED | rewritten against live `PUT /api/canvas/{id}` write path (old POST /components removed): 61F → 66 passed |
+| 2026-08-07 | `api/agent_routes.py` | FIXED | duplicate AgentUpdateRequest: PATCH copy lacked whitespace-name validator → 500 instead of 422 |
+| 2026-08-07 | `tests/integration/api/test_agent_endpoints.py`, `test_skill_registry_service.py`, `test_skill_sandbox.py`, `test_phase27_scheduler.py` | FIXED | 112 passed; sys.modules pollution save/restore; patch targets → core.scheduler.AgentScheduler; stream route moved /chat/stream; envelope shapes |
+| 2026-08-07 | `tests/test_package_installer*.py` | FIXED | 69 passed (docker-error import alignment; suites mock docker, never need a daemon) |
+| 2026-08-07 | `workers/social_media_worker.py` | FIXED | OAuthToken stale columns → IntegrationToken (provider/status/access_token); `api/oauth_routes.py` verified CLEAN (OAuthToken is live, hash-only) |
+| 2026-08-07 | `api/social_media_routes.py` | FIXED | 429 path missing required `error_code` → every 429 became 500 |
+| 2026-08-07 | 8 OAuth-touched suites | FIXED | 152 passed; core_factory OAuthTokenFactory realigned; conftest wipe table-existence-guarded |
+| 2026-08-07 | `frontend-nextjs/components/Settings/**` (16 files) | TESTED/FIXED | 17 suites / 293 tests, 0% → 84–100% per file; **3 missing-import build errors** (GDrive/Dropbox/ShopifyManager imported nonexistent src/skills/*) → modules recreated; LocalFileIngestion crash guard |
+| 2026-08-07 | Combined verification | GREEN | 247 (security+agent/skill) + 82 (OAuth) + 293 (FE) = **622 tests** |
+
 ## Known remaining work (verified at last run — updated 2026-08-07)
 - `core/models.py` `OAuthToken` — server-side model; verify `api/oauth` routes don't use stale columns (Notion/Spotify moved to IntegrationToken; sweep remaining writers)
 - `tests/test_cognitive_tier_e2e.py` — 11 collection ERRORS remain after the survey-sweep alignment (23 pass / 11 error; the stale `CognitiveTierPreference` kwargs were fixed but 11 tests still fail at setup — next target)
