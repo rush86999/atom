@@ -242,10 +242,24 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 
 ## Known remaining work (verified at last run — updated 2026-08-07)
 - `core/models.py` `OAuthToken` — server-side model; verify `api/oauth` routes don't use stale columns (Notion/Spotify moved to IntegrationToken; sweep remaining writers)
-- `test_cognitive_tier_e2e.py` (~15F, stale `CognitiveTierPreference` kwargs) + other `decl_base.py:2179 TypeError` sites — same bug class as survey sweep
-- `tests/test_llm_service.py` — 12 mock-await fixture bugs (test-side)
-- ReDoS: `advanced_workflow_system.ParameterValidator` regex without cap (dead code, not wired — 1 intentional red test)
+- `tests/test_cognitive_tier_e2e.py` — 11 collection ERRORS remain after the survey-sweep alignment (23 pass / 11 error; the stale `CognitiveTierPreference` kwargs were fixed but 11 tests still fail at setup — next target)
 - Full-suite run: still memory-bound with concurrent sessions — chunked `-n 3 --timeout=300 --cov-append`
+
+### Resolved 2026-08-07 (late R81 wave — pushed `5ed9746a9`)
+| Item | Result | Evidence |
+|---|---|---|
+| `tests/test_llm_service.py` (12 mock-await bugs) | FIXED → 86/86 | AwaitableResult dual-mode shape asserted; embedding seam retargeted to handler; ranked-provider asserts on wrapper |
+| `tests/test_auth_routes_coverage.py` (17F, no tenants table) | FIXED → 60/60 | fixture create_all [User, Tenant, Workspace]; autouse rate-limit bypass; refresh body `embed=True` contract |
+| `tests/test_auth_2fa_routes_coverage.py` | VERIFIED-OK | already green (35/35) — two_factor_* columns still exist; tracker item was stale |
+| `conflict_log/failed_rating_uploads/SkillCache tenant_id` NOT NULL | FIXED → 38/38 + 72/72 | + real admin_routes bugs: dead GovernanceCache import path ×2, nonexistent `router.api_error`, `validation_error` missing `field` arg, `websocket_enabled` not persisted |
+| `canvas_audit.canvas_id/tenant_id` NOT NULL | FIXED → 42/42 | real bug: `error_guidance_engine._create_audit` wrote canvas_id=None + track_resolution omitted tenant_id → poisoned session |
+| `chat_messages.tenant_id` | VERIFIED-OK | already green (23/23, prior round) |
+| `SupervisionSession(supervision_feedback=)` | VERIFIED-OK | already green (13/13, real field is supervisor_feedback) |
+| `ChatMessage(workspace_id=)` concurrency | FIXED → 8/8 | workspace_id→tenant_id (8 sites), dict-shaped service contracts |
+| `chat_orchestrator.py` logger NameError / `api.agent_routes` imports | VERIFIED-OK | in HEAD; real collection failure was `test_chat_attachment_flow.py` sys.modules mock (fixed) |
+| `User.name` setter | FIXED (test-side) | 3 Mock-fixture files → first_name/last_name |
+| `advanced_workflow_system.ParameterValidator` ReDoS | FIXED | MAX_REGEX_LENGTH=256 cap before re.match (still dead code, not wired — kept as guard) |
+| Combined verification | **222 passed / 0 failed** | llm_service + auth_routes + 2fa + episode_concurrency + error_guidance + graduation_integration |
 
 ### Chat-orchestrator collection sweep (known-remaining-work #2/#3 verification)
 | Date | File | Status | Evidence |
