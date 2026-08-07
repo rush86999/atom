@@ -928,17 +928,59 @@ class BYOKHandler:
         except Exception as e:
             logger.debug(f"Could not load local providers (non-fatal): {e}")
 
-    def _track_rate_usage(self, provider_id: str, input_tokens: int = 0, output_tokens: int = 0) -> None:
+    def _track_rate_usage(self, provider_id: str, input_tokens: int = 0,
+                          output_tokens: int = 0, model_id: Optional[str] = None) -> None:
         """Feed token usage into the custom rate tracker (best-effort, no-op).
 
         Only providers with custom RPM/TPM limits registered in
         ``core.llm.provider_rate_limits`` (e.g. opencode-go) are tracked; the
         tracker is otherwise a clean no-op so routing behavior is unchanged.
+
+        ``model_id`` enables per-model accounting: weighted provider-level
+        TPM consumption + independent per-model RPM/TPM limits + persisted
+        monthly usage for subscription-quota routing.
         """
         try:
-            self.rate_tracker.record_usage(provider_id, input_tokens, output_tokens)
+            self.rate_tracker.record_usage(provider_id, input_tokens, output_tokens,
+                                           model_id=model_id)
         except Exception:
             logger.debug("Rate usage tracking failed (non-fatal)", exc_info=True)
+
+    def _monthly_tpm_limit(self) -> Optional[int]:
+        """Opt-in monthly subscription allowance (``OPENCODE_MONTHLY_TPM``).
+
+        When set, the BPC ranker hard-skips providers whose persisted usage
+        for the current calendar month meets/exceeds the allowance — the
+        in-window RPM/TPM guards burst rates, this guards the flat-rate
+        subscription's monthly budget.
+        """
+        try:
+            raw = os.getenv("OPENCODE_MONTHLY_TPM", "").strip()
+            if not raw:
+                return None
+            limit = int(raw)
+            return limit if limit > 0 else None
+        except (TypeError, ValueError):
+            logger.warning("OPENCODE_MONTHLY_TPM is not a valid integer — ignoring")
+            return None
+
+    def _monthly_budget_exhausted(self, provider_id: str, monthly_tpm_limit: int) -> bool:
+        """True when a provider's monthly quota (weighted) is exhausted.
+
+        Uses the persisted monthly totals from the rate tracker (best-effort);
+        providers without a persistence layer never report exhausted, so
+        routing keeps working if the DB is unavailable (fail-open, matches the
+        rest of rate tracking).
+        """
+        try:
+            monthly = self.rate_tracker.get_monthly_usage(provider_id)
+            if not monthly:
+                return False
+            total = int(monthly.get("total_tokens") or 0)
+            return total >= monthly_tpm_limit
+        except Exception:
+            logger.debug("Monthly quota check failed (non-fatal)", exc_info=True)
+            return False
 
     def get_context_window(self, model_name: str) -> int:
         """
@@ -1352,9 +1394,45 @@ class BYOKHandler:
             # opencode-go) are penalized by their remaining headroom, and
             # hard-skipped once their budget is exhausted this window. Without
             # limits configured headroom is always 1.0 (no behavior change).
+            #
+            # Per-model extension (OpenCode Go quota accounting): each model
+            # also carries a quota weight + optional per-model RPM/TPM limits.
+            # A model with its own limits is hard-skipped INDEPENDENTLY (one
+            # quota-hungry model can't take the whole provider down), and the
+            # model's quota weight penalizes its value score so cheap models
+            # win when quality parity holds.
             _rate_headroom_cache: Dict[str, float] = {}
+            _monthly_exhausted: Dict[str, bool] = {}
+            monthly_tpm_limit = self._monthly_tpm_limit()
             for c in candidates:
                 provider_id = c["provider"]
+                model_id = c["model"]
+
+                # Monthly subscription allowance hard-skip (opt-in via
+                # OPENCODE_MONTHLY_TPM). Weighted against each model's quota
+                # weight, so heavy models drain the allowance faster.
+                if monthly_tpm_limit:
+                    if provider_id not in _monthly_exhausted:
+                        _monthly_exhausted[provider_id] = self._monthly_budget_exhausted(
+                            provider_id, monthly_tpm_limit
+                        )
+                    if _monthly_exhausted[provider_id]:
+                        logger.info(
+                            f"BPC skipped {provider_id} — monthly subscription "
+                            f"quota exhausted (limit={monthly_tpm_limit})"
+                        )
+                        continue
+
+                # Per-model headroom when the model has its own limits; falls
+                # back to the provider headroom otherwise.
+                model_headroom = self.rate_tracker.get_model_headroom(provider_id, model_id)
+                if model_headroom <= 0.0:
+                    logger.info(
+                        f"BPC skipped {provider_id}/{model_id} — per-model rate "
+                        f"budget exhausted (headroom={model_headroom:.2f})"
+                    )
+                    continue
+
                 if provider_id not in _rate_headroom_cache:
                     _rate_headroom_cache[provider_id] = self.rate_tracker.get_headroom(provider_id)
                 headroom = _rate_headroom_cache[provider_id]
@@ -1365,6 +1443,8 @@ class BYOKHandler:
                     )
                     continue
                 c["headroom"] = headroom
+                c["model_headroom"] = model_headroom
+                c["quota_weight"] = self.rate_tracker.get_model_weight(provider_id, model_id)
 
             # Drop exhausted providers entirely so they can't leak into the
             # ranked output or break the value-score sort below.
@@ -1378,7 +1458,21 @@ class BYOKHandler:
                 # are approaching their custom rate ceiling without an abrupt
                 # cliff — the router still prefers them at 95% quality parity
                 # but a healthy provider wins as limits tighten.
-                c["value_score"] = ((c["quality"] ** 2) / (normalized_cost * 1e6)) * max(0.25, c["headroom"])
+                # The quota factor (0.25–1.0) penalizes quota-hungry OpenCode Go
+                # models: weight 1.0 (flash-equivalent) scores 1.0, a ~12x
+                # heavier model ~0.61, a ~43x heavier model ~0.47 — a mild
+                # routing preference that only matters at quality parity (the
+                # model's per-token price is already in ``cost``, so this only
+                # nudges, never overrides, quality).
+                quota_factor = 1.0
+                weight = c.get("quota_weight") or 1.0
+                if weight > 1.0:
+                    quota_factor = max(0.25, min(1.0, (1.0 / weight) ** 0.2))
+                c["value_score"] = (
+                    ((c["quality"] ** 2) / (normalized_cost * 1e6))
+                    * max(0.25, c["headroom"])
+                    * quota_factor
+                )
 
             
             # Sort by Value Score (Descending)
@@ -1834,6 +1928,7 @@ class BYOKHandler:
                         provider_id,
                         input_tokens=getattr(usage, 'prompt_tokens', 0) if usage else 0,
                         output_tokens=getattr(usage, 'completion_tokens', 0) if usage else 0,
+                        model_id=model,
                     )
 
                     # Learning-router outcome observation (flag-gated, best-effort).
@@ -1906,7 +2001,7 @@ class BYOKHandler:
                                         self.health_monitor.record_call(provider_id, success=True, latency_ms=latency_ms)
                                     except Exception:
                                         pass
-                                    self._track_rate_usage(provider_id)
+                                    self._track_rate_usage(provider_id, model_id=model)
                                     await self._record_outcome_feedback(
                                         model=model, provider_id=provider_id, task_type=task_type,
                                         content=result, finish_reason=finish_reason,
@@ -2717,7 +2812,8 @@ class BYOKHandler:
                         if usage:
                             input_tokens = usage.prompt_tokens
                             output_tokens = usage.completion_tokens
-                            self._track_rate_usage(provider_id, input_tokens, output_tokens)
+                            self._track_rate_usage(provider_id, input_tokens, output_tokens,
+                                                   model_id=model)
 
                             fetcher = get_pricing_fetcher()
                             cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
@@ -3288,7 +3384,8 @@ class BYOKHandler:
                 # Phase 226.4-04: Record successful streaming API call for health monitoring
                 latency_ms = (time.time() - request_start) * 1000
                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
-                self._track_rate_usage(attempt_provider_id, output_tokens=token_count)
+                self._track_rate_usage(attempt_provider_id, output_tokens=token_count,
+                                       model_id=model)
 
                 # Learning-router outcome observation (streaming success).
                 # Pass the accumulated content + real finish_reason so quality
@@ -3374,7 +3471,8 @@ class BYOKHandler:
                                     self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
                                 except Exception:
                                     pass
-                                self._track_rate_usage(attempt_provider_id, output_tokens=token_count)
+                                self._track_rate_usage(attempt_provider_id, output_tokens=token_count,
+                                                       model_id=model)
                                 await self._record_outcome_feedback(
                                     model=model, provider_id=attempt_provider_id, task_type=task_type,
                                     content="".join(_stream_content_parts),
@@ -3604,6 +3702,7 @@ class BYOKHandler:
                     attempt_provider_id,
                     input_tokens=prompt_tokens or 0,
                     output_tokens=completion_tokens or 0,
+                    model_id=model,
                 )
                 await self._record_outcome_feedback(
                     model=model, provider_id=attempt_provider_id, task_type=task_type,
@@ -3671,7 +3770,8 @@ class BYOKHandler:
                                 except Exception:
                                     heal_cost = None
                                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=0.0)
-                                self._track_rate_usage(attempt_provider_id, input_tokens=hp, output_tokens=hc)
+                                self._track_rate_usage(attempt_provider_id, input_tokens=hp, output_tokens=hc,
+                                                       model_id=model)
                                 await self._record_outcome_feedback(
                                     model=model, provider_id=attempt_provider_id, task_type=task_type,
                                     content=healed_content, finish_reason=healed_finish,

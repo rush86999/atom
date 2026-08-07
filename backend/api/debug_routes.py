@@ -892,3 +892,58 @@ def _parse_time_range(time_range: str):
         return now - timedelta(days=30)
     else:
         return now - timedelta(hours=1)
+
+
+@router.get("/opencode-usage")
+async def get_opencode_usage(
+    model: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+):
+    """Per-model usage levels for the OpenCode Go provider.
+
+    Mirrors the live state of the rate tracker: per-model window usage,
+    quota weights, per-model RPM/TPM limits, headroom, and monthly
+    subscription totals (when persistence is available).
+
+    Query param ``model`` filters the per-model breakdown to one model.
+    """
+    try:
+        from core.llm.provider_rate_limits import get_provider_rate_tracker
+        from core.llm.opencode_model_limits import get_opencode_model_limits
+
+        tracker = get_provider_rate_tracker()
+        summary = tracker.usage_summary("opencode-go")
+        registry = get_opencode_model_limits().summary("opencode-go")
+
+        # Fill in registry weights/limits for models not observed in the
+        # window so operators see the FULL per-model usage-level table.
+        models = dict(summary.get("models") or {})
+        for model_id, weight in (registry.get("weights") or {}).items():
+            entry = models.setdefault(model_id, {})
+            entry.setdefault("weight", weight)
+            entry.setdefault("limits", (registry.get("model_limits") or {}).get(model_id, {}))
+            if "headroom" not in entry:
+                entry["headroom"] = tracker.get_model_headroom("opencode-go", model_id)
+            if "requests_in_window" not in entry:
+                entry["requests_in_window"] = 0
+                entry["tokens_in_window"] = 0.0
+
+        data = {
+            "provider": summary["provider"],
+            "window_seconds": tracker.window_seconds,
+            "provider_headroom": summary["headroom"],
+            "requests_in_window": summary["requests_in_window"],
+            "tokens_in_window": summary["tokens_in_window"],
+            "limits": summary["limits"],
+            "monthly": summary.get("monthly"),
+            "models": {m: v for m, v in sorted(models.items()) if not model or m == model},
+        }
+        return router.success_response(data=data, message="OpenCode Go usage retrieved")
+    except Exception as e:
+        logger.warning(f"OpenCode usage debug endpoint failed: {e}")
+        raise router.error_response(
+            status_code=500,
+            error_code="OPCODE_USAGE_UNAVAILABLE",
+            message="Could not retrieve OpenCode Go usage",
+            details={},
+        )

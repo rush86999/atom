@@ -6,13 +6,15 @@ Covers:
 - Vector table creation and management
 - Document insertion (single and batch)
 - Semantic search with filters
-- Embedding generation (OpenAI, SentenceTransformers, MockEmbedder)
+- Embedding generation (LLMService, MockEmbedder)
 - Knowledge graph operations
-- Dual vector storage (ST + FastEmbed)
 - Chat history management
 - Error handling and graceful degradation
-"""
 
+NOTE: Updated for the current handler API — embeddings are produced by the
+unified LLMService (``embedding_service``); the legacy per-handler
+embedder/SentenceTransformer attributes were removed (lazy, deprecated).
+"""
 import pytest
 import json
 import os
@@ -35,6 +37,9 @@ from core.lancedb_handler import (
     SENTENCE_TRANSFORMERS_AVAILABLE,
     OPENAI_AVAILABLE
 )
+
+# OpenAI embedding dimension for the default 'vector' column
+EMBED_DIM = 1536
 
 
 # ============================================================================
@@ -71,6 +76,17 @@ def mock_table():
 
 
 @pytest.fixture
+def mock_embedding_service():
+    """LLMService stand-in whose generate_embedding returns a fixed vector."""
+    service = Mock()
+    service.generate_embedding = AsyncMock(return_value=[0.1] * EMBED_DIM)
+    service.generate_embeddings_batch = AsyncMock(
+        return_value=[[0.1] * EMBED_DIM, [0.2] * EMBED_DIM]
+    )
+    return service
+
+
+@pytest.fixture
 def sample_documents():
     """Sample documents for testing"""
     return [
@@ -96,6 +112,16 @@ def sample_documents():
             "user_id": "user2"
         }
     ]
+
+
+def _patch_embedding_service(handler, vector=None):
+    """Wire a deterministic embedding service onto a handler (no network)."""
+    service = Mock()
+    service.generate_embedding = AsyncMock(
+        return_value=[0.1] * EMBED_DIM if vector is None else vector
+    )
+    handler.embedding_service = service
+    return service
 
 
 # ============================================================================
@@ -166,38 +192,41 @@ class TestLanceDBInitialization:
 # ============================================================================
 
 class TestEmbedderInitialization:
-    """Test embedding provider initialization"""
+    """Test embedding provider initialization (unified LLMService)"""
 
-    @patch('core.lancedb_handler.SENTENCE_TRANSFORMERS_AVAILABLE', True)
-    @patch('core.lancedb_handler.SentenceTransformer')
-    def test_initialize_sentence_transformers(self, mock_transformer_class, temp_db_path):
-        """Initialize SentenceTransformer embedder"""
-        mock_model = Mock()
-        mock_transformer_class.return_value = mock_model
+    @patch('core.lancedb_handler.LLMService')
+    def test_initialize_embedding_service(self, mock_llm_service_class, temp_db_path):
+        """Handler wires the unified LLMService for embeddings"""
+        mock_service = Mock()
+        mock_llm_service_class.return_value = mock_service
 
         handler = LanceDBHandler(db_path=temp_db_path, embedding_provider="local")
 
-        assert handler.embedder is not None
+        assert handler.embedding_service is mock_service
+        # Legacy per-handler embedder is lazy/deprecated — not pre-initialized
+        assert handler.embedder is None
 
-    @patch('core.lancedb_handler.OPENAI_AVAILABLE', True)
     @patch('core.lancedb_handler.LLMService')
     def test_initialize_openai_embedder(self, mock_llm_service_class, temp_db_path, monkeypatch):
         """Initialize OpenAI embedder via LLMService"""
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        monkeypatch.delenv("EMBEDDING_PROVIDER", raising=False)
         mock_service = Mock()
         mock_llm_service_class.return_value = mock_service
 
         handler = LanceDBHandler(db_path=temp_db_path, embedding_provider="openai")
 
-        assert handler.llm_service is not None
-        assert handler.openai_client is None  # Deprecated, should be None
+        assert handler.embedding_service is not None
+        assert handler.embedding_provider == "openai"
 
-    def test_fallback_to_mock_embedder(self, temp_db_path):
-        """Fallback to MockEmbedder when SentenceTransformers unavailable"""
-        with patch('core.lancedb_handler.SENTENCE_TRANSFORMERS_AVAILABLE', False):
-            handler = LanceDBHandler(db_path=temp_db_path, embedding_provider="local")
+    @patch('core.lancedb_handler.LLMService', None)
+    def test_fallback_when_llm_service_unavailable(self, temp_db_path):
+        """Handler degrades gracefully when LLMService is unavailable"""
+        handler = LanceDBHandler(db_path=temp_db_path, embedding_provider="local")
 
-            assert isinstance(handler.embedder, MockEmbedder)
+        assert handler.embedding_service is None
+        # No crash: embedding requests fail closed with None
+        assert handler.embed_text("anything") is None
 
     def test_mock_embedder_generates_consistent_vectors(self):
         """MockEmbedder generates consistent vectors for same text"""
@@ -217,15 +246,27 @@ class TestEmbedderInitialization:
 
         assert vec1 != vec2, "Different text should produce different vectors"
 
-    @patch('core.lancedb_handler.OPENAI_AVAILABLE', False)
-    def test_openai_fallback_to_local_on_missing_key(self, temp_db_path, monkeypatch):
-        """OpenAI provider falls back to local when API key missing"""
+    @patch('core.lancedb_handler.LLMService')
+    def test_openai_provider_without_key_degrades_gracefully(
+        self, mock_llm_service_class, temp_db_path, monkeypatch
+    ):
+        """OpenAI provider without a working client fails closed, not crashes"""
         # Remove API key
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("EMBEDDING_PROVIDER", raising=False)
+
+        mock_service = Mock()
+        mock_service.generate_embedding = AsyncMock(
+            side_effect=ValueError("No client found for provider")
+        )
+        mock_llm_service_class.return_value = mock_service
 
         handler = LanceDBHandler(db_path=temp_db_path, embedding_provider="openai")
 
-        assert handler.embedding_provider == "local", "Should fall back to local"
+        # Provider flag is preserved (no silent local fallback at init)
+        assert handler.embedding_provider == "openai"
+        # Embedding fails closed with None
+        assert handler.embed_text("Test") is None
 
 
 # ============================================================================
@@ -236,18 +277,21 @@ class TestVectorOperations:
     """Test vector storage and retrieval operations"""
 
     def test_embed_text_with_mock_embedder(self, temp_db_path):
-        """Embed text using MockEmbedder"""
+        """Embed text via the unified embedding service"""
         handler = LanceDBHandler(db_path=temp_db_path)
+        _patch_embedding_service(handler)
 
         vector = handler.embed_text("Test document about machine learning")
 
         assert vector is not None
-        assert len(vector) == 384  # MockEmbedder default dimension
+        assert len(vector) == EMBED_DIM  # OpenAI default dimension
 
     def test_embed_text_returns_none_on_failure(self, temp_db_path):
         """Embed text returns None on embedding failure"""
         handler = LanceDBHandler(db_path=temp_db_path)
-        handler.embedder = None
+        service = Mock()
+        service.generate_embedding = AsyncMock(side_effect=Exception("Embed failed"))
+        handler.embedding_service = service
 
         vector = handler.embed_text("Test")
 
@@ -257,11 +301,12 @@ class TestVectorOperations:
     def test_embed_text_with_numpy_conversion(self, temp_db_path):
         """Embed text returns numpy array when numpy available"""
         handler = LanceDBHandler(db_path=temp_db_path)
+        _patch_embedding_service(handler)
 
         vector = handler.embed_text("Test")
 
         assert vector is not None
-        # Should be numpy array or list depending on implementation
+        assert hasattr(vector, "tolist"), "Should be numpy-convertible"
 
     def test_create_table_with_default_schema(self, temp_db_path, mock_lancedb_connection):
         """Create table with default schema"""
@@ -361,14 +406,16 @@ class TestDocumentOperations:
         handler.db = mock_lancedb_connection
         handler.db.create_table = Mock(return_value=mock_table)
         handler.get_table = Mock(return_value=mock_table)
+        _patch_embedding_service(handler)
 
-        with patch('core.lancedb_handler.secrets_redactor') as mock_redactor:
+        with patch('core.secrets_redactor.get_secrets_redactor') as mock_get_redactor:
+            mock_redactor = Mock()
             mock_redact_result = Mock()
             mock_redact_result.has_secrets = False
-            mock_redactor_result = Mock()
-            mock_redactor_result.redacted_text = "Safe text"
+            mock_redact_result.redacted_text = "Safe text"
             mock_redact_result.redactions = []
-            mock_redactor.redact.return_value = mock_redactor_result
+            mock_redactor.redact.return_value = mock_redact_result
+            mock_get_redactor.return_value = mock_redactor
 
             success = handler.add_document(
                 table_name="test_table",
@@ -386,8 +433,9 @@ class TestDocumentOperations:
         handler.db = mock_lancedb_connection
         handler.db.create_table = Mock(return_value=mock_table)
         handler.get_table = Mock(return_value=mock_table)
+        _patch_embedding_service(handler)
 
-        with patch('core.lancedb_handler.get_secrets_redactor') as mock_get_redactor:
+        with patch('core.secrets_redactor.get_secrets_redactor') as mock_get_redactor:
             mock_redactor = Mock()
             mock_redact_result = Mock()
             mock_redact_result.has_secrets = True
@@ -411,8 +459,17 @@ class TestDocumentOperations:
         handler.db = mock_lancedb_connection
         handler.db.create_table = Mock(return_value=mock_table)
         handler.get_table = Mock(return_value=mock_table)
+        _patch_embedding_service(handler)
 
-        with patch('core.lancedb_handler.secrets_redactor'):
+        with patch('core.secrets_redactor.get_secrets_redactor') as mock_get_redactor:
+            mock_redactor = Mock()
+            mock_redact_result = Mock()
+            mock_redact_result.has_secrets = False
+            mock_redact_result.redacted_text = "Test"
+            mock_redact_result.redactions = []
+            mock_redactor.redact.return_value = mock_redact_result
+            mock_get_redactor.return_value = mock_redactor
+
             custom_id = "custom_doc_id"
             success = handler.add_document(
                 table_name="test_table",
@@ -425,17 +482,28 @@ class TestDocumentOperations:
             # Verify custom ID was used
             call_args = mock_table.add.call_args
             assert call_args is not None
+            record = call_args[0][0][0]
+            assert record.get("id") == custom_id
 
     def test_add_document_creates_table_if_needed(self, temp_db_path, mock_lancedb_connection):
         """Add document creates table if it doesn't exist"""
         handler = LanceDBHandler(db_path=temp_db_path)
         handler.db = mock_lancedb_connection
         handler.get_table = Mock(return_value=None)
+        _patch_embedding_service(handler)
 
         mock_table = Mock()
         handler.db.create_table = Mock(return_value=mock_table)
 
-        with patch('core.lancedb_handler.secrets_redactor'):
+        with patch('core.secrets_redactor.get_secrets_redactor') as mock_get_redactor:
+            mock_redactor = Mock()
+            mock_redact_result = Mock()
+            mock_redact_result.has_secrets = False
+            mock_redact_result.redacted_text = "Test"
+            mock_redact_result.redactions = []
+            mock_redactor.redact.return_value = mock_redact_result
+            mock_get_redactor.return_value = mock_redactor
+
             success = handler.add_document(
                 table_name="new_table",
                 text="Test",
@@ -450,6 +518,7 @@ class TestDocumentOperations:
         handler = LanceDBHandler(db_path=temp_db_path)
         handler.db = mock_lancedb_connection
         handler.get_table = Mock(return_value=mock_table)
+        _patch_embedding_service(handler)
 
         count = handler.add_documents_batch("test_table", sample_documents)
 
@@ -464,7 +533,7 @@ class TestDocumentOperations:
 
         # Mock embed_text to return None for one document
         def mock_embed_func(text):
-            return None if "fail" in text.lower() else [0.1] * 384
+            return None if "fail" in text.lower() else [0.1] * EMBED_DIM
 
         handler.embed_text = mock_embed_func
 
@@ -483,6 +552,7 @@ class TestDocumentOperations:
         handler = LanceDBHandler(db_path=temp_db_path)
         handler.db = mock_lancedb_connection
         handler.get_table = Mock(return_value=None)
+        _patch_embedding_service(handler)
 
         mock_table = Mock()
         handler.db.create_table = Mock(return_value=mock_table)
@@ -504,6 +574,7 @@ class TestSemanticSearch:
         """Basic vector search by query text"""
         handler = LanceDBHandler(db_path=temp_db_path)
         handler.db = mock_lancedb_connection
+        _patch_embedding_service(handler)
 
         # Mock table and search results
         mock_table = Mock()
@@ -522,6 +593,7 @@ class TestSemanticSearch:
         """Search with custom result limit"""
         handler = LanceDBHandler(db_path=temp_db_path)
         handler.db = mock_lancedb_connection
+        _patch_embedding_service(handler)
 
         mock_table = Mock()
         mock_df = Mock()
@@ -539,6 +611,7 @@ class TestSemanticSearch:
         """Search with user ID filter"""
         handler = LanceDBHandler(db_path=temp_db_path)
         handler.db = mock_lancedb_connection
+        _patch_embedding_service(handler)
 
         mock_table = Mock()
         mock_df = Mock()
@@ -556,6 +629,7 @@ class TestSemanticSearch:
         """Search with custom filter expression"""
         handler = LanceDBHandler(db_path=temp_db_path)
         handler.db = mock_lancedb_connection
+        _patch_embedding_service(handler)
 
         mock_table = Mock()
         mock_df = Mock()
@@ -577,6 +651,7 @@ class TestSemanticSearch:
         """Search converts distance to similarity score"""
         handler = LanceDBHandler(db_path=temp_db_path)
         handler.db = mock_lancedb_connection
+        _patch_embedding_service(handler)
 
         # Mock search result with distance
         mock_table = Mock()
@@ -591,7 +666,8 @@ class TestSemanticSearch:
         }
         mock_df.iterrows = Mock(return_value=[(0, mock_row)])
         mock_df.empty = False
-        mock_table.search.return_value.limit.return_value.to_pandas.return_value = mock_df
+        # Search always applies the workspace-isolation where() filter
+        mock_table.search.return_value.limit.return_value.where.return_value.to_pandas.return_value = mock_df
         handler.get_table = Mock(return_value=mock_table)
 
         results = handler.search("test_table", "query")
@@ -700,7 +776,7 @@ class TestKnowledgeGraphOperations:
 # ============================================================================
 
 class TestDualVectorStorage:
-    """Test dual vector storage (ST + FastEmbed)"""
+    """Test vector-column storage API (single 'vector' column, 1536-dim)"""
 
     @pytest.mark.asyncio
     async def test_add_embedding_to_vector_column(self, temp_db_path, mock_lancedb_connection, mock_table):
@@ -710,7 +786,7 @@ class TestDualVectorStorage:
         handler.get_table = Mock(return_value=None)
         handler.create_table = Mock(return_value=mock_table)
 
-        vector = [0.1] * 1024  # ST dimension
+        vector = [0.1] * EMBED_DIM  # OpenAI dimension
         success = await handler.add_embedding(
             table_name="episodes",
             episode_id="ep1",
@@ -722,22 +798,25 @@ class TestDualVectorStorage:
         mock_table.add.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_add_embedding_to_fastembed_column(self, temp_db_path, mock_lancedb_connection, mock_table):
-        """Add embedding to FastEmbed vector column"""
+    async def test_add_embedding_creates_table_with_dual_vector_flag(
+        self, temp_db_path, mock_lancedb_connection, mock_table
+    ):
+        """Add embedding creates the table with dual_vector=True when missing"""
         handler = LanceDBHandler(db_path=temp_db_path)
         handler.db = mock_lancedb_connection
         handler.get_table = Mock(return_value=None)
         handler.create_table = Mock(return_value=mock_table)
 
-        vector = [0.1] * 384  # FastEmbed dimension
+        vector = [0.1] * EMBED_DIM
         success = await handler.add_embedding(
             table_name="episodes",
             episode_id="ep1",
             vector=vector,
-            vector_column="vector_fastembed"
+            vector_column="vector"
         )
 
         assert success is True
+        handler.create_table.assert_called_once_with("episodes", dual_vector=True)
 
     @pytest.mark.asyncio
     async def test_add_embedding_dimension_mismatch_raises_error(self, temp_db_path, mock_lancedb_connection):
@@ -745,7 +824,7 @@ class TestDualVectorStorage:
         handler = LanceDBHandler(db_path=temp_db_path)
         handler.db = mock_lancedb_connection
 
-        # Wrong dimension for FastEmbed (384)
+        # Wrong dimension for 'vector' (1536)
         vector = [0.1] * 500  # 500-dim vector
 
         with pytest.raises(ValueError, match="Dimension mismatch"):
@@ -753,7 +832,7 @@ class TestDualVectorStorage:
                 table_name="episodes",
                 episode_id="ep1",
                 vector=vector,
-                vector_column="vector_fastembed"
+                vector_column="vector"
             )
 
     @pytest.mark.asyncio
@@ -762,7 +841,7 @@ class TestDualVectorStorage:
         handler = LanceDBHandler(db_path=temp_db_path)
         handler.db = mock_lancedb_connection
 
-        vector = [0.1] * 384
+        vector = [0.1] * EMBED_DIM
 
         with pytest.raises(ValueError, match="Unknown vector column"):
             await handler.add_embedding(
@@ -770,6 +849,15 @@ class TestDualVectorStorage:
                 episode_id="ep1",
                 vector=vector,
                 vector_column="invalid_column"
+            )
+
+        # The legacy fastembed column was removed from the registry — rejected too
+        with pytest.raises(ValueError, match="Unknown vector column"):
+            await handler.add_embedding(
+                table_name="episodes",
+                episode_id="ep1",
+                vector=[0.1] * 384,
+                vector_column="vector_fastembed"
             )
 
     @pytest.mark.asyncio
@@ -785,11 +873,11 @@ class TestDualVectorStorage:
         mock_table.search.return_value.limit.return_value.to_pandas.return_value = mock_df
         handler.get_table = Mock(return_value=mock_table)
 
-        vector = [0.1] * 384
+        vector = [0.1] * EMBED_DIM
         results = await handler.similarity_search(
             table_name="episodes",
             vector=vector,
-            vector_column="vector_fastembed",
+            vector_column="vector",
             top_k=5
         )
 
@@ -808,7 +896,7 @@ class TestDualVectorStorage:
             await handler.similarity_search(
                 table_name="episodes",
                 vector=vector,
-                vector_column="vector_fastembed"
+                vector_column="vector"
             )
 
 
@@ -825,6 +913,7 @@ class TestChatHistoryManager:
         handler.db = mock_lancedb_connection
         handler.create_table = Mock(return_value=mock_table)
         handler.get_table = Mock(return_value=mock_table)
+        _patch_embedding_service(handler)
 
         manager = ChatHistoryManager(handler)
 
@@ -939,12 +1028,21 @@ class TestErrorHandling:
         """Document add failure returns False"""
         handler = LanceDBHandler(db_path=temp_db_path)
         handler.db = mock_lancedb_connection
+        _patch_embedding_service(handler)
 
         mock_table = Mock()
         mock_table.add = Mock(side_effect=Exception("Add failed"))
         handler.get_table = Mock(return_value=mock_table)
 
-        with patch('core.lancedb_handler.secrets_redactor'):
+        with patch('core.secrets_redactor.get_secrets_redactor') as mock_get_redactor:
+            mock_redactor = Mock()
+            mock_redact_result = Mock()
+            mock_redact_result.has_secrets = False
+            mock_redact_result.redacted_text = "Test"
+            mock_redact_result.redactions = []
+            mock_redactor.redact.return_value = mock_redact_result
+            mock_get_redactor.return_value = mock_redactor
+
             success = handler.add_document(
                 table_name="test_table",
                 text="Test",
@@ -956,8 +1054,9 @@ class TestErrorHandling:
     def test_embed_text_failure_returns_none(self, temp_db_path):
         """Embed text failure returns None"""
         handler = LanceDBHandler(db_path=temp_db_path)
-        handler.embedder = Mock()
-        handler.embedder.encode = Mock(side_effect=Exception("Embed failed"))
+        service = Mock()
+        service.generate_embedding = AsyncMock(side_effect=Exception("Embed failed"))
+        handler.embedding_service = service
 
         vector = handler.embed_text("Test")
 
@@ -984,7 +1083,7 @@ class TestErrorHandling:
         call_count = [0]
         def mock_embed(text):
             call_count[0] += 1
-            return None if call_count[0] == 2 else [0.1] * 384
+            return None if call_count[0] == 2 else [0.1] * EMBED_DIM
 
         handler.embed_text = mock_embed
 
@@ -1034,12 +1133,19 @@ class TestUtilityFunctions:
 
     def test_embed_documents_batch_with_sentence_transformers(self):
         """Batch embedding using SentenceTransformers"""
-        with patch('core.lancedb_handler.SENTENCE_TRANSFORMERS_AVAILABLE', True):
-            with patch('core.lancedb_handler.SentenceTransformer') as mock_st:
-                mock_model = Mock()
-                mock_model.encode = Mock(return_value=[[0.1] * 384, [0.2] * 384])
-                mock_st.return_value = mock_model
+        # Inject a fake sentence_transformers module: importing the real one
+        # pulls in torch (heavy / broken in some envs), and this test only
+        # exercises the function's wiring, not the actual model.
+        import sys
+        import types
 
+        fake_st = types.ModuleType("sentence_transformers")
+        mock_model = Mock()
+        mock_model.encode = Mock(return_value=[[0.1] * 384, [0.2] * 384])
+        fake_st.SentenceTransformer = Mock(return_value=mock_model)
+
+        with patch.dict(sys.modules, {"sentence_transformers": fake_st}):
+            with patch('core.lancedb_handler.SENTENCE_TRANSFORMERS_AVAILABLE', True):
                 from core.lancedb_handler import embed_documents_batch
                 embeddings = embed_documents_batch(["text1", "text2"])
 
@@ -1053,44 +1159,47 @@ class TestUtilityFunctions:
 class TestLanceDBLLMServiceIntegration:
     """Test LanceDB handler with LLMService embedding integration"""
 
-    def test_openai_embedding_via_llm_service(self, temp_db_path, monkeypatch):
+    @patch('core.lancedb_handler.LLMService')
+    def test_openai_embedding_via_llm_service(self, mock_llm_service_class, temp_db_path, monkeypatch):
         """OpenAI embeddings use LLMService.generate_embedding"""
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key")
+        monkeypatch.delenv("EMBEDDING_PROVIDER", raising=False)
 
-        with patch('core.lancedb_handler.LLMService') as mock_llm_service_class:
-            # Mock LLMService class
-            mock_service = Mock()
-            mock_service.generate_embedding = AsyncMock(
-                return_value=[0.1] * 1536  # OpenAI dimensions
-            )
-            mock_llm_service_class.return_value = mock_service
+        # Mock LLMService class
+        mock_service = Mock()
+        mock_service.generate_embedding = AsyncMock(
+            return_value=[0.1] * EMBED_DIM  # OpenAI dimensions
+        )
+        mock_llm_service_class.return_value = mock_service
 
-            handler = LanceDBHandler(
-                db_path=temp_db_path,
-                embedding_provider="openai"
-            )
+        handler = LanceDBHandler(
+            db_path=temp_db_path,
+            embedding_provider="openai"
+        )
 
-            # Verify LLMService was initialized
-            assert handler.llm_service is not None
-            assert handler.llm_service == mock_service
+        # Verify LLMService was initialized
+        assert handler.embedding_service is not None
+        assert handler.embedding_service == mock_service
 
-            # Call embed_text (which should use LLMService)
-            # Note: embed_text uses asyncio.run() internally, which works in sync context
-            vector = handler.embed_text("Test text")
+        # Call embed_text (which should use LLMService)
+        # Note: embed_text uses asyncio.run() internally, which works in sync context
+        vector = handler.embed_text("Test text")
 
-            # Verify embedding generated
-            assert vector is not None
-            assert len(vector) == 1536  # OpenAI text-embedding-3-small dimensions
+        # Verify embedding generated
+        assert vector is not None
+        assert len(vector) == EMBED_DIM  # OpenAI text-embedding-3-small dimensions
 
-            # Verify LLMService.generate_embedding was called
-            mock_service.generate_embedding.assert_called_once_with(
-                text="Test text",
-                model="text-embedding-3-small"
-            )
+        # Verify LLMService.generate_embedding was called
+        mock_service.generate_embedding.assert_awaited_once_with("Test text")
 
-    def test_embedding_dimensions_match_provider(self, temp_db_path):
+    @patch('core.lancedb_handler.LLMService')
+    def test_embedding_dimensions_match_provider(self, mock_llm_service_class, temp_db_path):
         """Embedding dimensions match provider (1536 for OpenAI, 384 for local)"""
-        # Test with local embedder (MockEmbedder defaults to 384 dimensions)
+        mock_service = Mock()
+        mock_service.generate_embedding = AsyncMock(return_value=[0.1] * 384)
+        mock_llm_service_class.return_value = mock_service
+
+        # Test with local embedder provider (embedding via unified LLMService)
         handler = LanceDBHandler(
             db_path=temp_db_path,
             embedding_provider="local"
@@ -1099,7 +1208,7 @@ class TestLanceDBLLMServiceIntegration:
         vector = handler.embed_text("Test text")
 
         assert vector is not None
-        assert len(vector) == 384  # Local embedder (MockEmbedder) dimensions
+        assert len(vector) == 384  # LLMService embedding dimensions
 
 
 # Total: 69 tests (67 existing + 2 new)

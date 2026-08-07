@@ -10,6 +10,7 @@ This test suite covers:
 """
 
 import asyncio
+import copy
 import json
 import os
 import tempfile
@@ -28,6 +29,18 @@ from core.workflow_versioning_system import (
     WorkflowVersioningSystem,
     WorkflowVersionManager,
 )
+
+
+def vary_data(workflow_data, marker):
+    """Return a deep copy of workflow data with distinct content.
+
+    create_version rejects an exact re-submission of the current tip (same
+    checksum), so successive versions must differ. Marking the metadata is
+    sufficient — it produces a different checksum and a METADATA change type.
+    """
+    data = copy.deepcopy(workflow_data)
+    data.setdefault("metadata", {})["_test_marker"] = marker
+    return data
 
 
 @pytest.fixture
@@ -166,10 +179,10 @@ class TestWorkflowVersioning:
             commit_message="Initial version",
         )
 
-        # Create minor version
+        # Create minor version (content must differ from the tip)
         minor_version = await versioning_system.create_version(
             workflow_id="workflow_1",
-            workflow_data=sample_workflow_data,
+            workflow_data=vary_data(sample_workflow_data, "minor"),
             version_type=VersionType.MINOR,
             created_by="test_user",
             commit_message="Add new feature",
@@ -190,10 +203,10 @@ class TestWorkflowVersioning:
             commit_message="Initial version",
         )
 
-        # Create patch version
+        # Create patch version (content must differ from the tip)
         patch_version = await versioning_system.create_version(
             workflow_id="workflow_1",
-            workflow_data=sample_workflow_data,
+            workflow_data=vary_data(sample_workflow_data, "patch"),
             version_type=VersionType.PATCH,
             created_by="test_user",
             commit_message="Bug fix",
@@ -214,7 +227,9 @@ class TestWorkflowVersioning:
         )
 
         assert version.branch_name == "feature/new-ui"
-        assert version.version == "1.1.0"
+        # A fresh branch starts from the 0.0.0 baseline, so the first MINOR
+        # bump produces 0.1.0 (not 1.1.0).
+        assert version.version == "0.1.0"
 
     async def test_get_version(self, versioning_system, sample_workflow_data):
         """Test retrieving specific version"""
@@ -242,7 +257,7 @@ class TestWorkflowVersioning:
 
     async def test_get_version_history(self, versioning_system, sample_workflow_data):
         """Test retrieving version history"""
-        # Create multiple versions
+        # Create multiple versions (each must differ from the previous tip)
         await versioning_system.create_version(
             workflow_id="workflow_1",
             workflow_data=sample_workflow_data,
@@ -253,7 +268,7 @@ class TestWorkflowVersioning:
 
         await versioning_system.create_version(
             workflow_id="workflow_1",
-            workflow_data=sample_workflow_data,
+            workflow_data=vary_data(sample_workflow_data, "feature-1"),
             version_type=VersionType.MINOR,
             created_by="test_user",
             commit_message="Feature 1",
@@ -261,7 +276,7 @@ class TestWorkflowVersioning:
 
         await versioning_system.create_version(
             workflow_id="workflow_1",
-            workflow_data=sample_workflow_data,
+            workflow_data=vary_data(sample_workflow_data, "feature-2"),
             version_type=VersionType.MINOR,
             created_by="test_user",
             commit_message="Feature 2",
@@ -277,11 +292,11 @@ class TestWorkflowVersioning:
 
     async def test_get_version_history_with_limit(self, versioning_system, sample_workflow_data):
         """Test retrieving version history with limit"""
-        # Create 5 versions
+        # Create 5 versions (each must differ from the previous tip)
         for i in range(5):
             await versioning_system.create_version(
                 workflow_id="workflow_1",
-                workflow_data=sample_workflow_data,
+                workflow_data=vary_data(sample_workflow_data, f"feature-{i}"),
                 version_type=VersionType.MINOR,
                 created_by="test_user",
                 commit_message=f"Feature {i}",
@@ -303,10 +318,10 @@ class TestWorkflowVersioning:
             commit_message="Initial version",
         )
 
-        # Create new version
+        # Create new version (content must differ from the tip)
         await versioning_system.create_version(
             workflow_id="workflow_1",
-            workflow_data=sample_workflow_data,
+            workflow_data=vary_data(sample_workflow_data, "new-feature"),
             version_type=VersionType.MINOR,
             created_by="test_user",
             commit_message="New feature",
@@ -320,7 +335,7 @@ class TestWorkflowVersioning:
             rollback_reason="Feature caused issues",
         )
 
-        assert rollback_version.version == "1.0.1"  # Hotfix version
+        assert rollback_version.version == "1.1.1"  # Hotfix bumped from the tip (1.1.0)
         assert rollback_version.version_type == VersionType.HOTFIX
         assert "rollback" in rollback_version.tags
         assert rollback_version.commit_message == "Rollback to version 1.0.0: Feature caused issues"
@@ -387,10 +402,10 @@ class TestWorkflowVersioning:
 
         assert "beta" in beta_version.version
 
-        # Create another beta version
+        # Create another beta version (content must differ from the tip)
         beta_version_2 = await versioning_system.create_version(
             workflow_id="workflow_1",
-            workflow_data=sample_workflow_data,
+            workflow_data=vary_data(sample_workflow_data, "beta-2"),
             version_type=VersionType.BETA,
             created_by="test_user",
             commit_message="Beta 2",
@@ -497,16 +512,16 @@ class TestVersionValidation:
         # Create 1.1.0 (compatible)
         v1_1_0 = await versioning_system.create_version(
             workflow_id="workflow_1",
-            workflow_data=sample_workflow_data,
+            workflow_data=vary_data(sample_workflow_data, "feature"),
             version_type=VersionType.MINOR,
             created_by="test_user",
             commit_message="Feature",
         )
 
-        # Create 1.0.1 (compatible)
+        # Create 1.1.1 (compatible)
         v1_0_1 = await versioning_system.create_version(
             workflow_id="workflow_1",
-            workflow_data=sample_workflow_data,
+            workflow_data=vary_data(sample_workflow_data, "fix"),
             version_type=VersionType.PATCH,
             created_by="test_user",
             commit_message="Fix",
@@ -515,7 +530,9 @@ class TestVersionValidation:
         assert v1_1_0.version.startswith("1.")
         assert v1_0_1.version.startswith("1.")
 
-    async def test_version_incompatibility_major_change(self, versioning_system, sample_workflow_data):
+    async def test_version_incompatibility_major_change(
+        self, versioning_system, sample_workflow_data, structural_workflow_data
+    ):
         """Test version incompatibility across major versions"""
         # Create 1.0.0
         await versioning_system.create_version(
@@ -539,10 +556,9 @@ class TestVersionValidation:
 
     async def test_invalid_version_bump_handling(self, versioning_system):
         """Test handling of invalid version strings"""
-        # Test with invalid current version fallback
+        # Invalid versions are normalized to the 1.0.0 baseline and bumped
         result = versioning_system._bump_version("invalid", VersionType.PATCH)
-        # Should fallback to appending .1
-        assert "invalid.1" in result or result == "invalid.1"
+        assert result == "1.0.1"
 
     async def test_dependency_change_detection(self, versioning_system, sample_workflow_data):
         """Test detection of dependency changes"""
@@ -692,10 +708,10 @@ class TestVersionConflict:
             created_by="dev_user",
         )
 
-        # Create version in feature branch
+        # Create version in feature branch (content must differ from the tip)
         await versioning_system.create_version(
             workflow_id="workflow_1",
-            workflow_data=sample_workflow_data,
+            workflow_data=vary_data(sample_workflow_data, "feature-work"),
             version_type=VersionType.MINOR,
             created_by="dev_user",
             commit_message="Feature work",
@@ -783,10 +799,10 @@ class TestVersionLifecycle:
             commit_message="Initial",
         )
 
-        # Create new version (old one not in use)
+        # Create new version (old one not in use; content must differ)
         await versioning_system.create_version(
             workflow_id="workflow_1",
-            workflow_data=sample_workflow_data,
+            workflow_data=vary_data(sample_workflow_data, "new-version"),
             version_type=VersionType.MINOR,
             created_by="test_user",
             commit_message="New version",
@@ -818,14 +834,21 @@ class TestVersionLifecycle:
             commit_message="Initial",
         )
 
-        # Try to delete (it's in use by main branch)
-        with pytest.raises(ValueError, match="Cannot delete version that is currently in use"):
-            await versioning_system.delete_version(
-                workflow_id="workflow_1",
-                version="1.0.0",
-                deleted_by="admin",
-                delete_reason="Test",
-            )
+        # Try to delete (it's in use by main branch) — the current contract is
+        # a False result, not an exception
+        result = await versioning_system.delete_version(
+            workflow_id="workflow_1",
+            version="1.0.0",
+            deleted_by="admin",
+            delete_reason="Test",
+        )
+
+        assert result is False
+
+        # Verify it is still active
+        version = await versioning_system.get_version("workflow_1", "1.0.0")
+        assert version is not None
+        assert version.is_active is True
 
     async def test_version_metrics_initial(self, versioning_system, sample_workflow_data):
         """Test initial version metrics are None"""
@@ -934,7 +957,7 @@ class TestVersionLifecycle:
 
     async def test_version_deprecation_workflow(self, versioning_system, sample_workflow_data):
         """Test version deprecation workflow"""
-        # Create versions
+        # Create versions (each must differ from the previous tip)
         await versioning_system.create_version(
             workflow_id="workflow_1",
             workflow_data=sample_workflow_data,
@@ -945,7 +968,7 @@ class TestVersionLifecycle:
 
         v1_1_0 = await versioning_system.create_version(
             workflow_id="workflow_1",
-            workflow_data=sample_workflow_data,
+            workflow_data=vary_data(sample_workflow_data, "v1-1-0"),
             version_type=VersionType.MINOR,
             created_by="test_user",
             commit_message="1.1.0",
@@ -953,7 +976,7 @@ class TestVersionLifecycle:
 
         v1_2_0 = await versioning_system.create_version(
             workflow_id="workflow_1",
-            workflow_data=sample_workflow_data,
+            workflow_data=vary_data(sample_workflow_data, "v1-2-0"),
             version_type=VersionType.MINOR,
             created_by="test_user",
             commit_message="1.2.0",
@@ -1161,10 +1184,21 @@ class TestVersionComparison:
             commit_message="Initial",
         )
 
-        # Create version with major structural changes
+        # Create a version with heavy structural changes: 2 added steps,
+        # 2 modified steps, and a dependency change (impact score >= 10)
+        critical_data = copy.deepcopy(structural_workflow_data)
+        critical_data["steps"].append({
+            "id": "step5",
+            "type": "notification",
+            "parameters": {"channel": "slack"},
+        })
+        critical_data["steps"][0]["parameters"]["query"] = "SELECT * FROM users WHERE active = true"
+        critical_data["steps"][1]["parameters"]["field"] = "active,created_at"
+        critical_data["dependencies"] = ["postgresql", "warehouse", "redis"]
+
         await versioning_system.create_version(
             workflow_id="workflow_1",
-            workflow_data=structural_workflow_data,
+            workflow_data=critical_data,
             version_type=VersionType.MAJOR,
             created_by="test_user",
             commit_message="Major structural changes",
@@ -1191,7 +1225,7 @@ class TestVersionComparison:
             commit_message="Initial",
         )
 
-        modified_data = sample_workflow_data.copy()
+        modified_data = vary_data(sample_workflow_data, "change")
         await versioning_system.create_version(
             workflow_id="workflow_1",
             workflow_data=modified_data,
@@ -1255,6 +1289,15 @@ class TestWorkflowVersionManager:
             version_type="major",
         )
 
+        # Create a newer version so the rollback target is not the tip
+        await manager.create_workflow_version(
+            workflow_id="workflow_1",
+            workflow_data=vary_data(sample_workflow_data, "change"),
+            user_id="test_user",
+            change_description="Change",
+            version_type="minor",
+        )
+
         # Rollback
         result = await manager.rollback_workflow(
             workflow_id="workflow_1",
@@ -1282,7 +1325,7 @@ class TestWorkflowVersionManager:
             version_type="major",
         )
 
-        modified_data = sample_workflow_data.copy()
+        modified_data = vary_data(sample_workflow_data, "change")
         await manager.create_workflow_version(
             workflow_id="workflow_1",
             workflow_data=modified_data,

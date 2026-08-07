@@ -127,7 +127,7 @@ class MockEmbedder:
         try:
             import numpy as np
 
-            np.random.seed(42)
+            np.random.seed(hash_val % (2**32))
             vec = np.random.rand(self.dim).astype(np.float32)
             # Normalize vector to unit length
             norm = np.linalg.norm(vec)

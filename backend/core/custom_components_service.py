@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from core.models import (
     AgentExecution,
     AgentRegistry,
+    AgentStatus,
     CanvasAudit,
     ComponentUsage,
     ComponentVersion,
@@ -68,19 +69,43 @@ class CustomComponentsService:
 
     # Dangerous JavaScript patterns to block
     BLOCKED_JS_PATTERNS = [
-        r'eval\s*\(',
+        # Dynamic code execution
+        r'\beval\b',
         r'Function\s*\(',
-        r'document\.write',
+        r'window\.Function',
+        r'globalThis\.Function',
+        r'Function\s*\[',
+        r'Function\.constructor',
+        r'new\s+Function',
+        r'\.constructor\s*\(',
+        r'\brequire\s*\(',
+        r'\bimport\s*\(',
+        r'\bprocess\b',
+        # DOM injection / XSS sinks
+        r'document\.write\s*\(',
+        r'document\.writeln\s*\(',
+        r'insertAdjacentHTML\s*\(',
         r'\.innerHTML\s*=',
         r'outerHTML\s*=',
-        r'window\.location\s*=',
+        r'document\s*\.\s*createElement\s*\(\s*["\']script',
+        r'<script',
+        # Data exfiltration / storage access
+        r'\bfetch\s*\(',
+        r'\bXMLHttpRequest\b',
+        r'\bsendBeacon\b',
+        r'document\s*\.\s*cookie',
+        r'document\s*\[\s*["\']cookie["\']\s*\]',
+        r'\blocalStorage\b',
+        r'\bsessionStorage\b',
+        r'\bpostMessage\b',
+        # Navigation / redirect
+        r'window\.location',
         r'\.src\s*=\s*["\']javascript:',
         r'setTimeout\s*\(\s*["\']',
         r'setInterval\s*\(\s*["\']',
-        r'new\s+Function',
+        # Prototype pollution
         r'__proto__',
         r'constructor\s*\[',
-        r'<script',
     ]
 
     # Allowed external dependencies (whitelist)
@@ -750,7 +775,7 @@ class CustomComponentsService:
         if not agent:
             raise ComponentSecurityError(f"Agent '{agent_id}' not found")
 
-        if agent.status != "AUTONOMOUS":
+        if agent.status != AgentStatus.AUTONOMOUS.value:
             raise ComponentSecurityError(
                 f"JavaScript components require AUTONOMOUS maturity level. "
                 f"Agent '{agent.name}' is at {agent.status} level."

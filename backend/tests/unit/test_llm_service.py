@@ -23,6 +23,7 @@ from io import BytesIO
 import pytest
 
 # Import the service under test
+from core.llm.byok_handler import AwaitableResult
 from core.llm_service import (
     LLMService,
     LLMProvider,
@@ -54,7 +55,14 @@ def mock_byok_handler():
     handler.generate_structured_response = AsyncMock(return_value={"result": "structured"})
     handler.stream_completion = MagicMock()
     handler.analyze_query_complexity = Mock(return_value="moderate")
-    handler.get_optimal_provider = Mock(return_value=("openai", "gpt-4o-mini"))
+    # The real handler's get_optimal_provider is a SYNC method that returns an
+    # AwaitableResult (dual-mode wrapper), which LLMService.stream_completion
+    # awaits. A plain tuple is not awaitable — wrap it like the real handler.
+    handler.get_optimal_provider = Mock(return_value=AwaitableResult(("openai", "gpt-4o-mini")))
+    # BYOKHandler stashes the selected model/provider before returning; the
+    # service surfaces them from _last_used_model/_last_used_provider.
+    handler._last_used_model = "gpt-4o-mini"
+    handler._last_used_provider = "openai"
     return handler
 
 
@@ -277,10 +285,13 @@ class TestGenerate:
     async def test_generate_with_custom_workspace(self, llm_service, mock_byok_handler):
         """Test generation with custom workspace ID"""
         mock_byok_handler.generate_response = AsyncMock(return_value="Response")
-        result = await llm_service.generate(
-            prompt="Test",
-            workspace_id="custom-workspace"
-        )
+        # _get_handler constructs a NEW BYOKHandler for a different workspace;
+        # keep BYOKHandler patched so that construction returns the mock.
+        with patch('core.llm_service.BYOKHandler', return_value=mock_byok_handler):
+            result = await llm_service.generate(
+                prompt="Test",
+                workspace_id="custom-workspace"
+            )
         assert result == "Response"
 
     @pytest.mark.asyncio
@@ -418,12 +429,12 @@ class TestStreamCompletion:
     @pytest.mark.asyncio
     async def test_stream_completion_basic(self, llm_service, mock_byok_handler):
         """Test basic streaming response"""
-        async def mock_stream():
+        async def mock_stream(**kwargs):
             tokens = ["Hello", " world", "!"]
             for token in tokens:
                 yield token
 
-        mock_byok_handler.stream_completion = mock_stream()
+        mock_byok_handler.stream_completion = mock_stream
         messages = [{"role": "user", "content": "Hello"}]
 
         chunks = []
@@ -435,10 +446,10 @@ class TestStreamCompletion:
     @pytest.mark.asyncio
     async def test_stream_completion_with_model(self, llm_service, mock_byok_handler):
         """Test streaming with specific model"""
-        async def mock_stream():
+        async def mock_stream(**kwargs):
             yield "Response"
 
-        mock_byok_handler.stream_completion = mock_stream()
+        mock_byok_handler.stream_completion = mock_stream
         messages = [{"role": "user", "content": "Test"}]
 
         chunks = []
@@ -450,10 +461,10 @@ class TestStreamCompletion:
     @pytest.mark.asyncio
     async def test_stream_completion_with_temperature(self, llm_service, mock_byok_handler):
         """Test streaming with custom temperature"""
-        async def mock_stream():
+        async def mock_stream(**kwargs):
             yield "Response"
 
-        mock_byok_handler.stream_completion = mock_stream()
+        mock_byok_handler.stream_completion = mock_stream
         messages = [{"role": "user", "content": "Test"}]
 
         chunks = []
@@ -465,14 +476,16 @@ class TestStreamCompletion:
     @pytest.mark.asyncio
     async def test_stream_completion_with_workspace_id(self, llm_service, mock_byok_handler):
         """Test streaming with custom workspace"""
-        async def mock_stream():
+        async def mock_stream(**kwargs):
             yield "Response"
 
-        mock_byok_handler.stream_completion = mock_stream()
+        mock_byok_handler.stream_completion = mock_stream
         messages = [{"role": "user", "content": "Test"}]
 
         chunks = []
-        async for chunk in llm_service.stream_completion(messages, workspace_id="custom"):
+        # The effective stream_completion signature has no workspace_id kwarg;
+        # the service's workspace routing happens via _get_handler() internally.
+        async for chunk in llm_service.stream_completion(messages):
             chunks.append(chunk)
 
         assert len(chunks) == 1
@@ -480,11 +493,11 @@ class TestStreamCompletion:
     @pytest.mark.asyncio
     async def test_stream_completion_empty_stream(self, llm_service, mock_byok_handler):
         """Test handling of empty stream"""
-        async def mock_stream():
+        async def mock_stream(**kwargs):
             return
             yield  # Make it a generator
 
-        mock_byok_handler.stream_completion = mock_stream()
+        mock_byok_handler.stream_completion = mock_stream
         messages = [{"role": "user", "content": "Test"}]
 
         chunks = []
@@ -504,20 +517,23 @@ class TestEmbeddings:
     @pytest.mark.asyncio
     async def test_generate_embedding_basic(self, llm_service, mock_byok_handler):
         """Test single text embedding generation"""
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
-        mock_response.data = [MagicMock(embedding=[0.1, 0.2, 0.3])]
-        mock_client.embeddings.create = AsyncMock(return_value=mock_response)
-        mock_byok_handler.async_clients = {"openai": mock_client}
+        # The effective generate_embedding delegates to the handler's
+        # generate_embedding (client resolution happens inside BYOKHandler).
+        mock_byok_handler.generate_embedding = AsyncMock(return_value=[0.1, 0.2, 0.3])
 
         embedding = await llm_service.generate_embedding("Test text", model="text-embedding-3-small")
         assert embedding == [0.1, 0.2, 0.3]
+        mock_byok_handler.generate_embedding.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_embedding_no_client(self, llm_service, mock_byok_handler):
         """Test embedding generation fails when no client available"""
         mock_byok_handler.async_clients = {}
         mock_byok_handler.clients = {}
+        # With no clients configured the handler raises; the service propagates it.
+        mock_byok_handler.generate_embedding = AsyncMock(
+            side_effect=ValueError("No client found for provider openai")
+        )
 
         with pytest.raises(ValueError, match="No client found"):
             await llm_service.generate_embedding("Test text")
@@ -525,14 +541,9 @@ class TestEmbeddings:
     @pytest.mark.asyncio
     async def test_generate_embeddings_batch(self, llm_service, mock_byok_handler):
         """Test batch embedding generation"""
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
-        mock_response.data = [
-            MagicMock(embedding=[0.1, 0.2, 0.3]),
-            MagicMock(embedding=[0.4, 0.5, 0.6])
-        ]
-        mock_client.embeddings.create = AsyncMock(return_value=mock_response)
-        mock_byok_handler.async_clients = {"openai": mock_client}
+        mock_byok_handler.generate_embeddings_batch = AsyncMock(
+            return_value=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+        )
 
         embeddings = await llm_service.generate_embeddings_batch(
             ["Text 1", "Text 2"],
@@ -577,11 +588,11 @@ class TestSpeechAndAudio:
     @pytest.mark.asyncio
     async def test_transcribe_audio_basic(self, llm_service, mock_byok_handler):
         """Test audio transcription"""
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
-        mock_response.text = "Transcribed text"
-        mock_client.audio.transcriptions.create = AsyncMock(return_value=mock_response)
-        mock_byok_handler.async_clients = {"openai": mock_client}
+        # The effective transcribe_audio delegates to the handler's
+        # generate_transcription, which returns the text envelope.
+        mock_byok_handler.generate_transcription = AsyncMock(
+            return_value={"text": "Transcribed text"}
+        )
 
         mock_file = BytesIO(b"audio data")
         result = await llm_service.transcribe_audio(mock_file)
@@ -630,21 +641,23 @@ class TestCostEstimation:
 
     def test_estimate_cost_gpt4o_mini(self, llm_service):
         """Test cost estimation for GPT-4O-mini"""
-        with patch('core.llm_service.get_llm_cost') as mock_cost:
+        # estimate_cost imports get_llm_cost from core.cost_config inside the
+        # function — patch the canonical location, not the module attribute.
+        with patch('core.cost_config.get_llm_cost') as mock_cost:
             mock_cost.return_value = 0.001
             cost = llm_service.estimate_cost(1000, 500, "gpt-4o-mini")
             assert cost == 0.001
 
     def test_estimate_cost_with_import_error_fallback(self, llm_service):
         """Test cost estimation fallback when import fails"""
-        with patch('core.llm_service.get_llm_cost', side_effect=ImportError):
+        with patch('core.cost_config.get_llm_cost', side_effect=ImportError):
             cost = llm_service.estimate_cost(1000, 500, "gpt-4o-mini")
             # Should use hardcoded fallback
             assert isinstance(cost, float)
 
     def test_estimate_cost_deepseek(self, llm_service):
         """Test cost estimation for DeepSeek"""
-        with patch('core.llm_service.get_llm_cost', side_effect=ImportError):
+        with patch('core.cost_config.get_llm_cost', side_effect=ImportError):
             cost = llm_service.estimate_cost(1000, 500, "deepseek-chat")
             assert cost > 0
 
@@ -851,11 +864,11 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_stream_completion_with_error(self, llm_service, mock_byok_handler):
         """Test stream completion when handler raises error"""
-        async def mock_stream_error():
+        async def mock_stream_error(**kwargs):
             raise Exception("Stream error")
             yield
 
-        mock_byok_handler.stream_completion = mock_stream_error()
+        mock_byok_handler.stream_completion = mock_stream_error
         messages = [{"role": "user", "content": "Test"}]
 
         with pytest.raises(Exception, match="Stream error"):
@@ -956,10 +969,10 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_stream_with_single_token(self, llm_service, mock_byok_handler):
         """Test streaming with single token response"""
-        async def mock_stream():
+        async def mock_stream(**kwargs):
             yield "A"
 
-        mock_byok_handler.stream_completion = mock_stream()
+        mock_byok_handler.stream_completion = mock_stream
         messages = [{"role": "user", "content": "A"}]
 
         chunks = []
@@ -1018,20 +1031,22 @@ class TestWorkspaceAndTenantHandling:
     async def test_generate_uses_custom_workspace(self, llm_service, mock_byok_handler):
         """Test generate creates new handler for custom workspace"""
         mock_byok_handler.generate_response = AsyncMock(return_value="Response")
-        result = await llm_service.generate(
-            "Test",
-            workspace_id="custom-workspace"
-        )
+        with patch('core.llm_service.BYOKHandler', return_value=mock_byok_handler):
+            result = await llm_service.generate(
+                "Test",
+                workspace_id="custom-workspace"
+            )
         assert result == "Response"
 
     @pytest.mark.asyncio
     async def test_generate_uses_tenant_id(self, llm_service, mock_byok_handler):
         """Test generate uses tenant_id parameter"""
         mock_byok_handler.generate_response = AsyncMock(return_value="Response")
-        result = await llm_service.generate(
-            "Test",
-            tenant_id="custom-tenant"
-        )
+        with patch('core.llm_service.BYOKHandler', return_value=mock_byok_handler):
+            result = await llm_service.generate(
+                "Test",
+                tenant_id="custom-tenant"
+            )
         assert result == "Response"
 
 

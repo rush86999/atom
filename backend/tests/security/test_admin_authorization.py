@@ -25,6 +25,7 @@ class TestWebSocketManagementAuthorization:
         standard_user = UserFactory(
             email="standard@test.com",
             role="member",
+            status="active", # SECURITY: UserFactory randomizes status; a non-ACTIVE user gets 401 from get_current_user (R43) before the admin role gate is reached
             _session=db_session
         )
 
@@ -36,17 +37,19 @@ class TestWebSocketManagementAuthorization:
 
         # Should be denied with 403
         assert response.status_code == 403
-        # Check that response contains permission/super_admin related error
+        # Check that response contains permission/super_admin related error.
+        # The 403 body is the structured BaseAPIRouter error envelope
+        # ({success, error: {code, message, details}}), not a `detail` key.
         error_detail = response.json()
-        if isinstance(error_detail, dict):
-            detail = error_detail.get("detail", "")
-            assert "super_admin" in str(detail).lower() or "permission" in str(detail).lower()
+        body_text = str(error_detail).lower()
+        assert "super_admin" in body_text or "permission" in body_text
 
     def test_websocket_disable_requires_super_admin(self, client: TestClient, db_session: Session):
         """Test that websocket disable endpoint requires super_admin role."""
         standard_user = UserFactory(
             email="standard@test.com",
             role="member",
+            status="active", # SECURITY: UserFactory randomizes status; a non-ACTIVE user gets 401 from get_current_user (R43) before the admin role gate is reached
             _session=db_session
         )
 
@@ -63,6 +66,7 @@ class TestWebSocketManagementAuthorization:
         standard_user = UserFactory(
             email="standard@test.com",
             role="member",
+            status="active", # SECURITY: UserFactory randomizes status; a non-ACTIVE user gets 401 from get_current_user (R43) before the admin role gate is reached
             _session=db_session
         )
 
@@ -79,6 +83,7 @@ class TestWebSocketManagementAuthorization:
         standard_user = UserFactory(
             email="standard@test.com",
             role="member",
+            status="active", # SECURITY: UserFactory randomizes status; a non-ACTIVE user gets 401 from get_current_user (R43) before the admin role gate is reached
             _session=db_session
         )
 
@@ -99,6 +104,7 @@ class TestRatingSyncAuthorization:
         standard_user = UserFactory(
             email="standard@test.com",
             role="member",
+            status="active", # SECURITY: UserFactory randomizes status; a non-ACTIVE user gets 401 from get_current_user (R43) before the admin role gate is reached
             _session=db_session
         )
 
@@ -116,6 +122,7 @@ class TestRatingSyncAuthorization:
         standard_user = UserFactory(
             email="standard@test.com",
             role="member",
+            status="active", # SECURITY: UserFactory randomizes status; a non-ACTIVE user gets 401 from get_current_user (R43) before the admin role gate is reached
             _session=db_session
         )
 
@@ -132,6 +139,7 @@ class TestRatingSyncAuthorization:
         standard_user = UserFactory(
             email="standard@test.com",
             role="member",
+            status="active", # SECURITY: UserFactory randomizes status; a non-ACTIVE user gets 401 from get_current_user (R43) before the admin role gate is reached
             _session=db_session
         )
 
@@ -152,6 +160,7 @@ class TestConflictManagementAuthorization:
         standard_user = UserFactory(
             email="standard@test.com",
             role="member",
+            status="active", # SECURITY: UserFactory randomizes status; a non-ACTIVE user gets 401 from get_current_user (R43) before the admin role gate is reached
             _session=db_session
         )
 
@@ -168,6 +177,7 @@ class TestConflictManagementAuthorization:
         standard_user = UserFactory(
             email="standard@test.com",
             role="member",
+            status="active", # SECURITY: UserFactory randomizes status; a non-ACTIVE user gets 401 from get_current_user (R43) before the admin role gate is reached
             _session=db_session
         )
 
@@ -184,6 +194,7 @@ class TestConflictManagementAuthorization:
         standard_user = UserFactory(
             email="standard@test.com",
             role="member",
+            status="active", # SECURITY: UserFactory randomizes status; a non-ACTIVE user gets 401 from get_current_user (R43) before the admin role gate is reached
             _session=db_session
         )
 
@@ -204,6 +215,7 @@ class TestConflictManagementAuthorization:
         standard_user = UserFactory(
             email="standard@test.com",
             role="member",
+            status="active", # SECURITY: UserFactory randomizes status; a non-ACTIVE user gets 401 from get_current_user (R43) before the admin role gate is reached
             _session=db_session
         )
 
@@ -231,6 +243,7 @@ class TestAdminAuthorizationBypassAttempts:
         user = UserFactory(
             email=f"{role}@test.com",
             role=role,
+            status="active", # SECURITY: UserFactory randomizes status; a non-ACTIVE user gets 401 from get_current_user (R43) before the admin role gate is reached
             _session=db_session
         )
 
@@ -248,6 +261,7 @@ class TestAdminAuthorizationBypassAttempts:
         user = UserFactory(
             email=f"{role}@test.com",
             role=role,
+            status="active", # SECURITY: UserFactory randomizes status; a non-ACTIVE user gets 401 from get_current_user (R43) before the admin role gate is reached
             _session=db_session
         )
 

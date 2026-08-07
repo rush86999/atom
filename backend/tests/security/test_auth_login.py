@@ -16,7 +16,7 @@ os.environ["TESTING"] = "1"
 
 import pytest
 from sqlalchemy.orm import Session
-from core.models import User
+from core.models import User, UserRole
 from core.auth import get_password_hash, verify_password, SECRET_KEY
 from jose import jwt
 
@@ -32,7 +32,8 @@ class TestLoginWithValidCredentials:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Login",
             last_name="Test",
-            status="active"
+            status="active",
+            role=UserRole.MEMBER.value
         )
         db_session.add(user)
         db_session.commit()
@@ -68,7 +69,8 @@ class TestLoginWithValidCredentials:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Time",
             last_name="Stamp",
-            status="active"
+            status="active",
+            role=UserRole.MEMBER.value
         )
         db_session.add(user)
         db_session.commit()
@@ -119,7 +121,8 @@ class TestLoginWithInvalidCredentials:
             hashed_password=get_password_hash("CorrectPass123!"),
             first_name="Wrong",
             last_name="Pass",
-            status="active"
+            status="active",
+            role=UserRole.MEMBER.value
         )
         db_session.add(user)
         db_session.commit()
@@ -142,7 +145,8 @@ class TestLoginWithInvalidCredentials:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Empty",
             last_name="Pass",
-            status="active"
+            status="active",
+            role=UserRole.MEMBER.value
         )
         db_session.add(user)
         db_session.commit()
@@ -181,8 +185,10 @@ class TestLoginSQLInjectionProtection:
             }
         )
 
-        # Should return auth error
-        assert response.status_code == 401
+        # Should return auth error — either the endpoint's 401 or the
+        # InputValidationMiddleware's 400 (SQLi-shaped bodies are rejected
+        # at the boundary BEFORE reaching the endpoint, fail-closed).
+        assert response.status_code in [400, 401]
 
         # Verify users table still exists
         users_count = db_session.query(User).count()
@@ -195,7 +201,8 @@ class TestLoginSQLInjectionProtection:
             hashed_password=get_password_hash("RealPassword123!"),
             first_name="Safe",
             last_name="Pass",
-            status="active"
+            status="active",
+            role=UserRole.MEMBER.value
         )
         db_session.add(user)
         db_session.commit()
@@ -221,8 +228,9 @@ class TestLoginSQLInjectionProtection:
             }
         )
 
-        # Should return auth error, not database error
-        assert response.status_code == 401
+        # Should return auth error, not database error — the 400 comes from
+        # InputValidationMiddleware rejecting the UNION payload at the boundary.
+        assert response.status_code in [400, 401]
 
 
 class TestLoginXSSProtection:
@@ -240,8 +248,9 @@ class TestLoginXSSProtection:
             }
         )
 
-        # Should fail authentication
-        assert response.status_code == 401
+        # Should fail authentication — 401 from the endpoint, or 400 from
+        # InputValidationMiddleware rejecting the <script> body at the boundary
+        assert response.status_code in [400, 401]
 
         # Error message should be JSON-encoded, not executable
         data = response.text
@@ -259,7 +268,8 @@ class TestLoginAccountStatus:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="In",
             last_name="Active",
-            status="inactive"
+            status="inactive",
+            role=UserRole.MEMBER.value
         )
         db_session.add(user)
         db_session.commit()
@@ -282,7 +292,8 @@ class TestLoginAccountStatus:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Active",
             last_name="User",
-            status="active"
+            status="active",
+            role=UserRole.MEMBER.value
         )
         db_session.add(user)
         db_session.commit()
@@ -309,7 +320,8 @@ class TestLoginPasswordSecurity:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="No",
             last_name="Pass",
-            status="active"
+            status="active",
+            role=UserRole.MEMBER.value
         )
         db_session.add(user)
         db_session.commit()
@@ -340,7 +352,8 @@ class TestLoginPasswordSecurity:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Timing",
             last_name="Test",
-            status="active"
+            status="active",
+            role=UserRole.MEMBER.value
         )
         db_session.add(user)
         db_session.commit()
@@ -386,7 +399,8 @@ class TestLoginTokenGeneration:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Token",
             last_name="ID",
-            status="active"
+            status="active",
+            role=UserRole.MEMBER.value
         )
         db_session.add(user)
         db_session.commit()
@@ -415,7 +429,8 @@ class TestLoginTokenGeneration:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Expire",
             last_name="Login",
-            status="active"
+            status="active",
+            role=UserRole.MEMBER.value
         )
         db_session.add(user)
         db_session.commit()
@@ -446,7 +461,8 @@ class TestLoginCaseSensitivity:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Case",
             last_name="Test",
-            status="active"
+            status="active",
+            role=UserRole.MEMBER.value
         )
         db_session.add(user)
         db_session.commit()

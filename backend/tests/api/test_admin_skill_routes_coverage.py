@@ -2,7 +2,7 @@
 Coverage-driven tests for admin/skill_routes.py (0% -> 70%+ target)
 
 API Endpoints Tested:
-- POST /api/admin/skills/api/admin/skills - Create new standardized skill package
+- POST /api/admin/skills/ - Create new standardized skill package
 
 Coverage Target Areas:
 - Lines 1-30: Route initialization and dependencies
@@ -93,7 +93,7 @@ class TestSkillCreationSuccess:
                 }
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             assert response.status_code == 200
             result = response.json()
@@ -115,7 +115,7 @@ class TestSkillCreationSuccess:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             assert response.status_code == 200
 
@@ -134,7 +134,7 @@ class TestSkillCreationSuccess:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             assert response.status_code == 200
 
@@ -157,7 +157,7 @@ class TestSkillCreationSuccess:
                 }
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             assert response.status_code == 200
             mock_skill_builder.create_skill_package.assert_called_once()
@@ -197,7 +197,7 @@ class TestSkillCreationSuccess:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = test_client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = test_client.post("/api/admin/skills/", json=request_data)
 
             assert response.status_code == 200
             # Verify skill_builder was called with "default" tenant_id
@@ -220,7 +220,7 @@ class TestSkillCreationSuccess:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             assert response.status_code == 200
 
@@ -248,7 +248,7 @@ class TestSkillCreationSuccess:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             assert response.status_code == 200
 
@@ -266,7 +266,7 @@ class TestSkillCreationSuccess:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             assert response.status_code == 200
 
@@ -300,12 +300,11 @@ class TestSecurityScanning:
                 "scripts": {"main.py": "eval(input())"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
-            # The production code has a bug where HTTPException is caught
-            # by the outer exception handler and turned into 500
-            # So we test what actually happens (500) not what should happen (403)
-            assert response.status_code == 500  # Bug: should be 403
+            # CRITICAL/HIGH findings block creation with 403 (HTTPException
+            # from permission_denied_error is propagated, not swallowed)
+            assert response.status_code == 403
             # Verify it was a permission denied error
             assert "PERMISSION_DENIED" in response.text or "permission" in response.text.lower()
 
@@ -329,12 +328,10 @@ class TestSecurityScanning:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
-            # Same bug - should be 403 but returns 500
-            assert response.status_code == 500  # Bug: should be 403
-
-    def test_security_scan_allows_low_findings(self, client, mock_skill_builder):
+            # HIGH findings block creation with 403
+            assert response.status_code == 403
         """Cover that LOW/MEDIUM severity findings don't block skill creation."""
         from atom_security.core.models import Finding, Severity
 
@@ -354,7 +351,7 @@ class TestSecurityScanning:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             # Should succeed (only HIGH/CRITICAL are blocked)
             assert response.status_code == 200
@@ -382,10 +379,10 @@ class TestSecurityScanning:
                 "scripts": {"main.py": "import os; eval(input())"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
-            # Same bug - should be 403 but returns 500
-            assert response.status_code == 500  # Bug: should be 403
+            # Multiple HIGH/CRITICAL findings block creation with 403
+            assert response.status_code == 403
             # Verify it was a permission denied error
             assert "PERMISSION_DENIED" in response.text or "permission" in response.text.lower()
 
@@ -409,7 +406,7 @@ class TestSecurityScanning:
                     "scripts": {"main.py": "print('safe')"}
                 }
 
-                response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+                response = client.post("/api/admin/skills/", json=request_data)
 
                 assert response.status_code == 200
 
@@ -428,7 +425,7 @@ class TestSecurityScanning:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             assert response.status_code == 200
 
@@ -444,7 +441,7 @@ class TestSecurityScanning:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             # Should still succeed (scan failure doesn't block)
             assert response.status_code == 200
@@ -469,7 +466,7 @@ class TestSecurityScanning:
                     "scripts": {"main.py": "pass"}
                 }
 
-                response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+                response = client.post("/api/admin/skills/", json=request_data)
 
                 # Should still succeed (LLM scan failure doesn't block)
                 assert response.status_code == 200
@@ -491,7 +488,7 @@ class TestSecurityScanning:
                 }
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             assert response.status_code == 200
             # Verify scan_content was called with combined instructions + scripts
@@ -517,7 +514,7 @@ class TestRequestValidation:
             "scripts": {}
         }
 
-        response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+        response = client.post("/api/admin/skills/", json=request_data)
 
         assert response.status_code == 422  # Validation error
 
@@ -529,7 +526,7 @@ class TestRequestValidation:
             "instructions": "Test"
         }
 
-        response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+        response = client.post("/api/admin/skills/", json=request_data)
 
         assert response.status_code == 422
 
@@ -541,7 +538,7 @@ class TestRequestValidation:
             "scripts": {}
         }
 
-        response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+        response = client.post("/api/admin/skills/", json=request_data)
 
         assert response.status_code == 422
 
@@ -553,7 +550,7 @@ class TestRequestValidation:
             "scripts": {}
         }
 
-        response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+        response = client.post("/api/admin/skills/", json=request_data)
 
         assert response.status_code == 422
 
@@ -577,7 +574,7 @@ class TestRequestValidation:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             if should_pass:
                 assert response.status_code == 200
@@ -593,7 +590,7 @@ class TestRequestValidation:
             "scripts": {"main.py": "pass"}
         }
 
-        response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+        response = client.post("/api/admin/skills/", json=request_data)
 
         # Pydantic validates this before our code runs
         # Empty string might pass str validation but should fail business logic
@@ -625,7 +622,7 @@ class TestSkillBuilderIntegration:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             assert response.status_code == 200
 
@@ -664,13 +661,10 @@ class TestSkillBuilderIntegration:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
-            # The production code has a bug: router.validation_error(result["message"])
-            # But validation_error() signature expects (self, details, message=None)
-            # So this will fail with 500 instead of 400
-            # Let's test what actually happens
-            assert response.status_code == 500  # Internal server error due to bug
+            # router.validation_error("skill_creation", message) returns 422
+            assert response.status_code == 422
 
     def test_skill_builder_called_with_scripts_dict(self, client, mock_skill_builder):
         """Cover that skill builder receives scripts dictionary."""
@@ -691,7 +685,7 @@ class TestSkillBuilderIntegration:
                 "scripts": scripts
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             assert response.status_code == 200
 
@@ -716,7 +710,7 @@ class TestSkillBuilderIntegration:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             assert response.status_code == 500  # Internal server error
 
@@ -743,28 +737,39 @@ class TestAuthorization:
             "scripts": {"main.py": "pass"}
         }
 
-        response = test_client.post("/api/admin/skills/api/admin/skills", json=request_data)
+        response = test_client.post("/api/admin/skills/", json=request_data)
 
         assert response.status_code == 401  # Unauthorized
 
     def test_admin_without_proper_role_blocked(self):
-        """Cover that users without SUPER_ADMIN role are blocked."""
+        """Cover that users without SUPER_ADMIN role are blocked (403)."""
+        import asyncio
+        from fastapi import HTTPException
+        from core.admin_endpoints import get_super_admin
         from core.models import User, UserRole
 
-        app = FastAPI()
-        app.include_router(router)
-
-        # Override with non-super-admin user (use MEMBER value)
+        # The real gate rejects non-super-admin roles with 403
         regular_user = Mock(spec=User)
         regular_user.role = UserRole.MEMBER.value  # Use the string value, not enum
         regular_user.id = "user-1"
         regular_user.email = "user@example.com"
         regular_user.tenant_id = "tenant-123"
 
-        def override_get_user():
-            return regular_user
+        with pytest.raises(HTTPException) as exc_info:
+            asyncio.run(get_super_admin(regular_user))
+        assert exc_info.value.status_code == 403
 
-        app.dependency_overrides[get_super_admin] = override_get_user
+        # And the route returns 403 when the dependency rejects the caller
+        app = FastAPI()
+        app.include_router(router)
+
+        async def reject_non_super_admin():
+            raise HTTPException(
+                status_code=403,
+                detail="Super Admin access required for this operation"
+            )
+
+        app.dependency_overrides[get_super_admin] = reject_non_super_admin
 
         test_client = TestClient(app)
 
@@ -775,12 +780,9 @@ class TestAuthorization:
             "scripts": {"main.py": "pass"}
         }
 
-        response = test_client.post("/api/admin/skills/api/admin/skills", json=request_data)
+        response = test_client.post("/api/admin/skills/", json=request_data)
 
-        # The production code has a bug where HTTPException from get_super_admin
-        # is caught by the outer exception handler and turned into 500
-        # Should be 403 but actually returns 500
-        assert response.status_code == 500  # Bug: should be 403
+        assert response.status_code == 403
 
         app.dependency_overrides.clear()
 
@@ -795,7 +797,7 @@ class TestErrorHandling:
     def test_malformed_json_request(self, client):
         """Cover malformed JSON handling."""
         response = client.post(
-            "/api/admin/skills/api/admin/skills",
+            "/api/admin/skills/",
             content="invalid json",
             headers={"Content-Type": "application/json"}
         )
@@ -819,7 +821,7 @@ class TestErrorHandling:
                 "scripts": {"main.py": "pass"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
             # The exception is caught in the security scan try/except (lines 69-73)
             # So it should still succeed
@@ -845,11 +847,9 @@ class TestErrorHandling:
                 "scripts": {"main.py": "eval(input())"}
             }
 
-            response = client.post("/api/admin/skills/api/admin/skills", json=request_data)
+            response = client.post("/api/admin/skills/", json=request_data)
 
-            # The production code has a bug - HTTPException is caught
-            # by outer exception handler and turned into 500
-            # Should be 403 but actually returns 500
-            assert response.status_code == 500  # Bug: should be 403
+            # HTTPException from the security scan is propagated as 403
+            assert response.status_code == 403
             # Verify it was a permission denied error
             assert "PERMISSION_DENIED" in response.text or "permission" in response.text.lower()

@@ -294,3 +294,286 @@ class TestOpenCodePricing:
         with patch("httpx.AsyncClient.get", side_effect=Exception("offline")):
             pricing = asyncio.run(fetcher.fetch_opencode_pricing())
         assert pricing["deepseek-v4-flash"]["source"] == "opencode-zen"
+
+
+# ============================================================================
+# Per-model usage levels (OpenCode Go quota accounting)
+# ============================================================================
+
+class TestOpencodeModelLimits:
+    def test_default_weights_price_derived(self):
+        from core.llm.opencode_model_limits import (
+            OPCODE_DEFAULT_MODEL_WEIGHTS,
+            weight_from_prices,
+        )
+        assert OPCODE_DEFAULT_MODEL_WEIGHTS["deepseek-v4-flash"] == 1.0
+        assert OPCODE_DEFAULT_MODEL_WEIGHTS["kimi-k3"] > OPCODE_DEFAULT_MODEL_WEIGHTS["deepseek-v4-pro"] > 1.0
+        assert weight_from_prices(0.14 / 1e6, 0.28 / 1e6) == pytest.approx(1.0, abs=0.01)
+        assert weight_from_prices(0.0, 0.0) == 1.0
+
+    def test_env_override_json(self, monkeypatch):
+        import json
+        from core.llm.opencode_model_limits import OpencodeModelLimits
+        monkeypatch.setenv("OPENCODE_MODEL_LIMITS", json.dumps({
+            "deepseek-v4-pro": {"weight": 3.0, "rpm": 20, "tpm": 500000},
+            "kimi-k3": {"tpm": 200000},
+        }))
+        registry = OpencodeModelLimits()
+        assert registry.get_weight("opencode-go", "deepseek-v4-pro") == 3.0
+        assert registry.get_weight("opencode-go", "kimi-k3") == 42.9  # default kept
+        assert registry.get_model_rate_limits("opencode-go", "deepseek-v4-pro") == {"rpm": 20, "tpm": 500000}
+        assert registry.get_model_rate_limits("opencode-go", "kimi-k3") == {"tpm": 200000}
+        assert registry.get_model_rate_limits("opencode-go", "deepseek-v4-flash") == {}
+
+    def test_env_override_invalid_json_ignored(self, monkeypatch):
+        from core.llm.opencode_model_limits import OpencodeModelLimits
+        monkeypatch.setenv("OPENCODE_MODEL_LIMITS", "{not-json")
+        registry = OpencodeModelLimits()
+        assert registry.get_weight("opencode-go", "deepseek-v4-flash") == 1.0
+        assert registry.get_model_rate_limits("opencode-go", "deepseek-v4-flash") == {}
+
+    def test_unknown_model_defaults_to_weight_one(self):
+        from core.llm.opencode_model_limits import OpencodeModelLimits
+        registry = OpencodeModelLimits()
+        assert registry.get_weight("opencode-go", "totally-unknown-model") == 1.0
+        assert registry.get_weight("opencode-go", None) == 1.0
+
+    def test_apply_pricing_weight_unknown_model(self):
+        from core.llm.opencode_model_limits import OpencodeModelLimits
+        registry = OpencodeModelLimits()
+        weight = registry.apply_pricing_weight("opencode-go", "brand-new-model",
+                                               2.0 / 1e6, 8.0 / 1e6)
+        assert weight == pytest.approx((2.0 + 8.0) / 0.42, abs=0.5)
+        assert registry.get_weight("opencode-go", "brand-new-model") == pytest.approx(weight)
+
+
+class TestPerModelRateTracking:
+    def test_provider_headroom_is_weighted_by_model(self):
+        tracker = ProviderRateTracker()
+        tracker.set_rate_limits("opencode-go", rpm=1000, tpm=100000, max_context=200000)
+        for _ in range(5):
+            tracker.record_usage("opencode-go", 100, 100, model_id="deepseek-v4-flash")
+        # 5 * 200 * 1.0 = 1000 → tpm headroom 0.99, rpm 0.995
+        assert tracker.get_headroom("opencode-go") == pytest.approx(0.99, abs=0.01)
+        tracker.record_usage("opencode-go", 100, 100, model_id="kimi-k3")
+        # +200 * 42.9 = 8580 → 9580/100000 → 0.9042
+        assert tracker.get_headroom("opencode-go") == pytest.approx(0.904, abs=0.01)
+
+    def test_record_without_model_id_is_weight_one(self):
+        tracker = ProviderRateTracker()
+        tracker.set_rate_limits("opencode-go", rpm=10, tpm=100000, max_context=200000)
+        for _ in range(5):
+            tracker.record_usage("opencode-go", 100, 100)
+        assert tracker.get_headroom("opencode-go") == pytest.approx(0.5, abs=0.01)
+
+    def test_per_model_headroom_independent(self):
+        tracker = ProviderRateTracker()
+        tracker.set_rate_limits("opencode-go", rpm=60, tpm=2_000_000, max_context=200000)
+        tracker.set_model_limits("opencode-go", "deepseek-v4-flash", rpm=2)
+        for _ in range(3):
+            tracker.record_usage("opencode-go", 100, 100, model_id="deepseek-v4-flash")
+        assert tracker.get_model_headroom("opencode-go", "deepseek-v4-flash") == 0.0
+        # Model without its own limits falls back to the provider headroom.
+        assert tracker.get_model_headroom("opencode-go", "kimi-k2.7-code") > 0.0
+
+    def test_usage_summary_includes_per_model_breakdown(self):
+        tracker = ProviderRateTracker()
+        tracker.set_rate_limits("opencode-go", rpm=60, tpm=2_000_000, max_context=200000)
+        tracker.record_usage("opencode-go", 250, 50, model_id="deepseek-v4-flash")
+        summary = tracker.usage_summary("opencode-go")
+        assert summary["requests_in_window"] == 1
+        assert "models" in summary
+        assert summary["models"]["deepseek-v4-flash"]["requests_in_window"] == 1
+        assert summary["models"]["deepseek-v4-flash"]["weight"] == 1.0
+        assert summary["models"]["deepseek-v4-flash"]["tokens_in_window"] == pytest.approx(300.0, abs=0.1)
+
+    def test_legacy_three_tuple_entries_still_count(self):
+        tracker = ProviderRateTracker()
+        tracker.set_rate_limits("opencode-go", rpm=10, tpm=100000, max_context=200000)
+        from datetime import datetime, timezone
+        import collections
+        legacy = collections.deque((datetime.now(timezone.utc), 10, 10) for _ in range(5))
+        with tracker._lock:
+            tracker._usage["opencode-go"] = legacy
+        assert tracker.get_headroom("opencode-go") == pytest.approx(0.5, abs=0.01)
+
+
+class TestQuotaAwareRouting:
+    def _fetcher(self):
+        fetcher = DynamicPricingFetcher()
+        base = {
+            "litellm_provider": "opencode-go",
+            "input_cost_per_token": 0.14 / 1e6,
+            "output_cost_per_token": 0.28 / 1e6,
+            "max_input_tokens": 200000,
+            "supports_tools": True,
+            "supports_vision": False,
+            "supports_reasoning": False,
+        }
+        fetcher.pricing_cache = {
+            "deepseek-v4-flash": dict(base),
+            "deepseek-v4-pro": dict(base, name="deepseek-v4-pro"),
+        }
+        return fetcher
+
+    def _handler(self, byok_handler):
+        byok_handler.clients = {"opencode-go": Mock()}
+        tracker = ProviderRateTracker()
+        tracker.set_rate_limits("opencode-go", rpm=60, tpm=2_000_000, max_context=200000)
+        byok_handler.rate_tracker = tracker
+        return byok_handler
+
+    def test_quota_penalty_prefers_light_model_at_quality_parity(self, byok_handler):
+        handler = self._handler(byok_handler)
+        fetcher = self._fetcher()
+        # Equal cost AND equal quality: the quota weight breaks the tie.
+        with patch("core.llm.byok_handler.get_quality_score", return_value=90), \
+             patch("core.llm.byok_handler.get_pricing_fetcher_initialized_sync", return_value=fetcher):
+            ranked = handler.get_ranked_providers(QueryComplexity.SIMPLE, is_managed_service=False)
+        assert ranked[0] == ("opencode-go", "deepseek-v4-flash")
+        assert ("opencode-go", "deepseek-v4-pro") in ranked
+
+    def test_quota_penalty_can_override_small_quality_gap(self, byok_handler):
+        handler = self._handler(byok_handler)
+        fetcher = self._fetcher()
+        # pro is slightly better (92 vs 90) but ~12x heavier — the quota
+        # factor (0.607) outweighs 8464/8100, so flash still wins.
+        scores = {"deepseek-v4-flash": 90, "deepseek-v4-pro": 92}
+        with patch("core.llm.byok_handler.get_quality_score", side_effect=lambda m: scores[m]), \
+             patch("core.llm.byok_handler.get_pricing_fetcher_initialized_sync", return_value=fetcher):
+            ranked = handler.get_ranked_providers(QueryComplexity.SIMPLE, is_managed_service=False)
+        assert ranked[0] == ("opencode-go", "deepseek-v4-flash")
+
+    def test_per_model_exhaust_drops_model_but_keeps_provider(self, byok_handler):
+        handler = self._handler(byok_handler)
+        fetcher = self._fetcher()
+        handler.rate_tracker.set_model_limits("opencode-go", "deepseek-v4-flash", rpm=2)
+        for _ in range(3):
+            handler.rate_tracker.record_usage("opencode-go", 100, 100, model_id="deepseek-v4-flash")
+        with patch("core.llm.byok_handler.get_pricing_fetcher_initialized_sync", return_value=fetcher):
+            ranked = handler.get_ranked_providers(QueryComplexity.SIMPLE, is_managed_service=False)
+        assert ("opencode-go", "deepseek-v4-flash") not in ranked
+        # Provider itself survives — the other model still routes.
+        assert ("opencode-go", "deepseek-v4-pro") in ranked
+
+
+class TestMonthlyQuotaPersistence:
+    def test_monthly_usage_round_trip(self, tmp_path):
+        import sqlalchemy
+        from core.llm.rate_usage_persistence import RateUsagePersistence
+        engine = sqlalchemy.create_engine(f"sqlite:///{tmp_path}/usage.db")
+        try:
+            pers = RateUsagePersistence(engine=engine)
+            pers.record("opencode-go", "deepseek-v4-flash", 100, 200)
+            pers.record("opencode-go", "deepseek-v4-flash", 50, 50)
+            pers.record("opencode-go", "kimi-k3", 1000, 1000)
+            monthly = pers.monthly_usage("opencode-go")
+            assert monthly is not None
+            assert monthly["requests"] == 3
+            assert monthly["total_tokens"] == 100 + 200 + 50 + 50 + 2000
+            flash = pers.monthly_usage("opencode-go", model_id="deepseek-v4-flash")
+            assert flash["requests"] == 2
+            assert flash["total_tokens"] == 400
+        finally:
+            engine.dispose()
+
+    def test_monthly_hard_skip_in_bpc(self, byok_handler, monkeypatch):
+        tracker = ProviderRateTracker()
+        tracker.set_rate_limits("opencode-go", rpm=60, tpm=2_000_000, max_context=200000)
+        tracker.set_persistence(Mock(monthly_usage=Mock(
+            side_effect=lambda provider_id, model_id=None: (
+                {"total_tokens": 500000, "requests": 10} if provider_id == "opencode-go" else None
+            )
+        )))
+        byok_handler.rate_tracker = tracker
+        byok_handler.clients = {"opencode-go": Mock(), "deepseek": Mock()}
+        fetcher = DynamicPricingFetcher()
+        base = {
+            "litellm_provider": "opencode-go",
+            "input_cost_per_token": 0.14 / 1e6,
+            "output_cost_per_token": 0.28 / 1e6,
+            "max_input_tokens": 200000,
+            "supports_tools": True,
+        }
+        fetcher.pricing_cache = {
+            "deepseek-v4-flash": dict(base),
+            "deepseek-chat": {
+                "litellm_provider": "deepseek",
+                "input_cost_per_token": 0.27 / 1e6,
+                "output_cost_per_token": 1.10 / 1e6,
+                "max_input_tokens": 65536,
+                "supports_tools": True,
+            },
+        }
+        monkeypatch.setenv("OPENCODE_MONTHLY_TPM", "100000")
+        with patch("core.llm.byok_handler.get_pricing_fetcher_initialized_sync", return_value=fetcher):
+            ranked = byok_handler.get_ranked_providers(QueryComplexity.SIMPLE, is_managed_service=False)
+        assert all(p != "opencode-go" for p, _ in ranked)
+        assert ranked[0][0] == "deepseek"
+
+    def test_no_persistence_means_no_monthly_skip(self, byok_handler, monkeypatch):
+        tracker = ProviderRateTracker()
+        tracker.set_rate_limits("opencode-go", rpm=60, tpm=2_000_000, max_context=200000)
+        byok_handler.rate_tracker = tracker
+        byok_handler.clients = {"opencode-go": Mock()}
+        fetcher = DynamicPricingFetcher()
+        fetcher.pricing_cache = {
+            "deepseek-v4-flash": {
+                "litellm_provider": "opencode-go",
+                "input_cost_per_token": 0.14 / 1e6,
+                "output_cost_per_token": 0.28 / 1e6,
+                "max_input_tokens": 200000,
+                "supports_tools": True,
+            },
+        }
+        monkeypatch.setenv("OPENCODE_MONTHLY_TPM", "100000")
+        with patch("core.llm.byok_handler.get_pricing_fetcher_initialized_sync", return_value=fetcher):
+            ranked = byok_handler.get_ranked_providers(QueryComplexity.SIMPLE, is_managed_service=False)
+        assert ranked == [("opencode-go", "deepseek-v4-flash")]
+
+
+class TestOpenCodeUsageDebugEndpoint:
+    def _client(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from api import debug_routes
+        from core.security_dependencies import get_current_user
+        from core.models import User
+
+        app = FastAPI()
+        app.include_router(debug_routes.router)
+        app.dependency_overrides[get_current_user] = lambda: Mock(spec=User)
+        return TestClient(app)
+
+    def test_endpoint_returns_usage_summary(self):
+        from core.llm.opencode_model_limits import OpencodeModelLimits
+        from core.llm.provider_rate_limits import ProviderRateTracker
+        tracker = ProviderRateTracker()
+        tracker.set_rate_limits("opencode-go", rpm=60, tpm=2_000_000, max_context=200000)
+        tracker.record_usage("opencode-go", 100, 100, model_id="deepseek-v4-flash")
+        with patch("core.llm.provider_rate_limits.get_provider_rate_tracker", return_value=tracker), \
+             patch("core.llm.opencode_model_limits.get_opencode_model_limits",
+                   return_value=OpencodeModelLimits()):
+            response = self._client().get("/api/debug/opencode-usage")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["success"] is True
+        data = body["data"]
+        assert data["provider"] == "opencode-go"
+        assert data["requests_in_window"] == 1
+        assert "deepseek-v4-flash" in data["models"]
+        assert data["models"]["deepseek-v4-flash"]["weight"] == 1.0
+        assert data["models"]["kimi-k3"]["weight"] == pytest.approx(42.9)
+
+    def test_endpoint_model_filter(self):
+        from core.llm.opencode_model_limits import OpencodeModelLimits
+        from core.llm.provider_rate_limits import ProviderRateTracker
+        tracker = ProviderRateTracker()
+        tracker.set_rate_limits("opencode-go", rpm=60, tpm=2_000_000, max_context=200000)
+        with patch("core.llm.provider_rate_limits.get_provider_rate_tracker", return_value=tracker), \
+             patch("core.llm.opencode_model_limits.get_opencode_model_limits",
+                   return_value=OpencodeModelLimits()):
+            response = self._client().get("/api/debug/opencode-usage?model=kimi-k3")
+        assert response.status_code == 200
+        models = response.json()["data"]["models"]
+        assert list(models.keys()) == ["kimi-k3"]

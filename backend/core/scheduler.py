@@ -60,16 +60,7 @@ class AgentScheduler:
         # Here we assume caller passes a dict of cron args for simplicity in this MVP.
         
         job_id = str(uuid.uuid4())
-        
-        # Wrapped function to log to DB
-        def managed_execution(*args, **kwargs):
-            self._execute_and_log(agent_id, func, *args, **kwargs)
 
-        # Assuming cron_expression is a dict for add_job keywords (e.g., {'minute': '*/5'})
-        # or we accept a CronTrigger.
-        # For safety/simplicity in this file generation, let's just use add_job directly
-        # But we need to handle the trigger parsing.
-        
         # Fallback: if input is a dict, unpack it. If string, try to parse
         trigger_args = {}
         if isinstance(cron_expression, dict):
@@ -97,11 +88,14 @@ class AgentScheduler:
             )
             return None
 
+        # Note: the callable and its args must be serializable — the SQLAlchemy
+        # jobstore persists jobs by textual reference + pickled args, so closures
+        # cannot be used here (they raise ValueError on add_job).
         self.scheduler.add_job(
-            managed_execution,
+            _managed_execution,
             'cron',
             id=job_id,
-            args=args,
+            args=[agent_id, func] + (list(args) if args else []),
             **trigger_args
         )
         logger.info(f"Scheduled job {job_id} for agent {agent_id} with trigger {trigger_args}")
@@ -150,31 +144,15 @@ class AgentScheduler:
         """
         Schedule a generic agent based on its config.
         """
-        # 1. Define the execution wrapper
-        async def run_agent_wrapper():
-            from core.database import get_db_session
-            from core.generic_agent import GenericAgent
-            from core.models import AgentRegistry
-            
-            with get_db_session() as db:
-                try:
-                    agent_model = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
-                    if agent_model:
-                        runner = GenericAgent(agent_model)
-                        # For scheduled tasks, we might need a default prompt or check config
-                        task_input = agent_model.configuration.get("scheduled_task", "Perform scheduled check.")
-                        await runner.execute(task_input, context={"trigger": "schedule"})
-                finally:
-                    db.close()
-
-        # 2. Extract Cron details
+        # 1. Extract Cron details
         cron_expr = schedule_config.get("cron_expression")
         if not cron_expr:
             logger.warning(f"No cron expression for agent {agent_id}")
             return
-            
-        # 3. Schedule it
-        return self.schedule_job(agent_id, cron_expr, run_agent_wrapper)
+
+        # 2. Schedule it (module-level callable so the job survives the
+        #    SQLAlchemy jobstore serialization)
+        return self.schedule_job(agent_id, cron_expr, _run_scheduled_agent)
 
     def load_scheduled_agents(self):
         """
@@ -205,35 +183,21 @@ class AgentScheduler:
         """
         job_id = "rating-sync-atom-saas"
 
-        async def sync_wrapper():
-            """Async wrapper for rating sync."""
-            try:
-                result = await sync_service.sync_ratings()
-                logger.info(
-                    f"Rating sync completed: {result.get('uploaded')} uploaded, "
-                    f"{result.get('failed')} failed"
-                )
-            except Exception as e:
-                logger.error(f"Rating sync failed: {e}")
-
-        def sync_job():
-            """Sync job wrapper for ThreadPool scheduler."""
-            import asyncio
-            asyncio.run(sync_wrapper())
-
         # Remove existing job if it exists
         if self.scheduler.get_job(job_id):
             self.scheduler.remove_job(job_id)
             logger.info(f"Removed existing rating sync job {job_id}")
 
-        # Add new interval job
+        # Add new interval job (module-level callable — SQLAlchemy jobstore
+        # requires serializable callables; the service is picklable)
         self.scheduler.add_job(
-            sync_job,
+            _rating_sync_job,
             'interval',
             id=job_id,
             minutes=interval_minutes,
             name='Rating Sync with Atom SaaS',
-            replace_existing=True
+            replace_existing=True,
+            args=[sync_service]
         )
 
         logger.info(f"Scheduled rating sync job {job_id} every {interval_minutes} minutes")
@@ -252,36 +216,21 @@ class AgentScheduler:
         """
         job_id = "skill-sync-atom-saas"
 
-        async def sync_wrapper():
-            """Async wrapper for skill sync."""
-            try:
-                result = await sync_service.sync_all(enable_websocket=True)
-                logger.info(
-                    f"Skill sync completed: {result.get('skills_synced')} skills, "
-                    f"{result.get('categories_synced')} categories in "
-                    f"{result.get('duration_seconds'):.2f}s"
-                )
-            except Exception as e:
-                logger.error(f"Skill sync failed: {e}")
-
-        def sync_job():
-            """Sync job wrapper for ThreadPool scheduler."""
-            import asyncio
-            asyncio.run(sync_wrapper())
-
         # Remove existing job if it exists
         if self.scheduler.get_job(job_id):
             self.scheduler.remove_job(job_id)
             logger.info(f"Removed existing skill sync job {job_id}")
 
-        # Add new interval job
+        # Add new interval job (module-level callable — SQLAlchemy jobstore
+        # requires serializable callables; the service is picklable)
         self.scheduler.add_job(
-            sync_job,
+            _skill_sync_job,
             'interval',
             id=job_id,
             minutes=interval_minutes,
             name='Skill Sync with Atom SaaS',
-            replace_existing=True
+            replace_existing=True,
+            args=[sync_service]
         )
 
         logger.info(f"Scheduled skill sync job {job_id} every {interval_minutes} minutes")
@@ -338,3 +287,84 @@ class AgentScheduler:
             logger.info(f"Initialized rating sync with {interval} minute interval")
         finally:
             db.close()
+
+
+# ========================================================================
+# Module-level job callables
+#
+# The scheduler uses SQLAlchemyJobStore, which persists jobs by textual
+# callable reference + pickled args. Closures cannot be stored — they raise
+# ValueError at add_job time ("reference to its callable could not be
+# determined"). Every scheduled callable below is therefore module-level,
+# and any runtime dependencies (agent_id, func, sync_service) travel as
+# job args so they can be serialized.
+# ========================================================================
+
+def _managed_execution(agent_id: str, func, *args):
+    """
+    Execution wrapper for scheduled jobs.
+
+    Runs the job function through _execute_and_log (AgentJob lifecycle
+    tracking) on the singleton scheduler instance.
+    """
+    AgentScheduler.get_instance()._execute_and_log(agent_id, func, *args)
+
+
+async def _run_scheduled_agent(agent_id: str):
+    """
+    Run an agent by id at fire time.
+
+    The agent row is looked up when the job fires (not at schedule time),
+    so scheduling proceeds even if the agent does not exist yet.
+    """
+    from core.database import get_db_session
+    from core.generic_agent import GenericAgent
+    from core.models import AgentRegistry
+
+    with get_db_session() as db:
+        try:
+            agent_model = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+            if agent_model:
+                runner = GenericAgent(agent_model)
+                # For scheduled tasks, we might need a default prompt or check config
+                task_input = agent_model.configuration.get("scheduled_task", "Perform scheduled check.")
+                await runner.execute(task_input, context={"trigger": "schedule"})
+        finally:
+            db.close()
+
+
+async def _run_rating_sync(sync_service):
+    """Async wrapper for rating sync."""
+    try:
+        result = await sync_service.sync_ratings()
+        logger.info(
+            f"Rating sync completed: {result.get('uploaded')} uploaded, "
+            f"{result.get('failed')} failed"
+        )
+    except Exception as e:
+        logger.error(f"Rating sync failed: {e}")
+
+
+def _rating_sync_job(sync_service):
+    """Sync job wrapper for ThreadPool scheduler."""
+    import asyncio
+    asyncio.run(_run_rating_sync(sync_service))
+
+
+async def _run_skill_sync(sync_service):
+    """Async wrapper for skill sync."""
+    try:
+        result = await sync_service.sync_all(enable_websocket=True)
+        logger.info(
+            f"Skill sync completed: {result.get('skills_synced')} skills, "
+            f"{result.get('categories_synced')} categories in "
+            f"{result.get('duration_seconds'):.2f}s"
+        )
+    except Exception as e:
+        logger.error(f"Skill sync failed: {e}")
+
+
+def _skill_sync_job(sync_service):
+    """Sync job wrapper for ThreadPool scheduler."""
+    import asyncio
+    asyncio.run(_run_skill_sync(sync_service))
