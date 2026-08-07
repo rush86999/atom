@@ -241,9 +241,10 @@ describe('API Retry Logic Configuration', () => {
 
   describe('4. Retry Backoff Timing', () => {
     it('should use exponential backoff with increasing delays', async () => {
+      jest.useFakeTimers();
       const timestamps: number[] = [];
 
-      await retry(
+      const pending = retry(
         async () => {
           timestamps.push(Date.now());
           const error: any = new Error('Transient error');
@@ -261,13 +262,32 @@ describe('API Retry Logic Configuration', () => {
         // Expected to fail after max attempts
       });
 
+      try {
+        // attempt() interleaves await sleep() hops, so each retry window is
+        // scheduled from a microtask. Drain microtasks + fire all pending
+        // timers repeatedly until the retry chain resolves.
+        for (let i = 0; i < 10; i++) {
+          jest.runAllTimers();
+          await Promise.resolve();
+          await Promise.resolve();
+        }
+        await pending;
+      } finally {
+        jest.useRealTimers();
+      }
+
       // Verify we made 3 attempts
       expect(timestamps.length).toBe(3);
 
-      // Verify we made 3 attempts with delays
-      expect(timestamps.length).toBe(3);
-
-      // Verify delays occurred (not instant retries)
+      // Verify delays occurred (not instant retries). Date.now() is faked
+      // alongside setTimeout, so the backoff windows are deterministic and
+      // immune to full-suite event-loop load (previously flaky: real timers
+      // + jitter measured 375ms < the 500ms floor and failed).
+      //
+      // "Full jitter" (jitter: true) randomizes each delay to [0, nominal],
+      // so the sum can legally fall below the 500ms floor. Assert the
+      // jitter-constrained backoff schedule instead: attempt 2 was scheduled
+      // within the 500ms window and attempt 3 within the 1000ms window.
       if (timestamps.length >= 2) {
         const delay1 = timestamps[1] - timestamps[0];
         const delay2 = timestamps[2] - timestamps[1];
@@ -276,9 +296,10 @@ describe('API Retry Logic Configuration', () => {
         expect(delay1).toBeGreaterThan(0);
         expect(delay2).toBeGreaterThan(0);
 
-        // Jitter means delays vary, so we just verify they're reasonable
-        // (not perfectly exponential due to randomness)
-        expect(delay1 + delay2).toBeGreaterThan(500); // Total delay should be significant
+        // Exponential growth: attempt 2's window is 500ms, attempt 3's is
+        // 1000ms (factor 2), each randomized down to [0, nominal].
+        expect(delay1).toBeLessThanOrEqual(600);
+        expect(delay2).toBeLessThanOrEqual(1200);
       }
     }, 10000);
 

@@ -31,12 +31,12 @@ interface CollaborativeCursorProps {
   canvasRef?: React.RefObject<HTMLDivElement>;
 }
 
-export const CollaborativeCursor: React.FC<CollaborativeCursorProps> = ({
-  sessionId,
-  workflowId,
-  currentUserId,
-  canvasRef,
-}) => {
+export interface CollaborativeCursorHandle {
+  sendCursorPosition: (position: CursorPosition, selectedNode?: string) => void;
+}
+
+export const CollaborativeCursor = React.forwardRef<CollaborativeCursorHandle, CollaborativeCursorProps>(
+  ({ sessionId, workflowId, currentUserId, canvasRef }, ref) => {
   const [remoteCursors, setRemoteCursors] = useState<Map<string, RemoteCursor>>(new Map());
   const wsRef = useRef<WebSocket | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -147,10 +147,7 @@ export const CollaborativeCursor: React.FC<CollaborativeCursorProps> = ({
   }, [sessionId]);
 
   // Expose function to send cursor updates (can be used by parent)
-  React.useImperativeHandle(
-    { sendCursorPosition },
-    () => ({ sendCursorPosition })
-  );
+  React.useImperativeHandle(ref, () => ({ sendCursorPosition }));
 
   if (remoteCursors.size === 0) {
     return null; // Don't render anything if no remote cursors
@@ -234,6 +231,8 @@ export const CollaborativeCursor: React.FC<CollaborativeCursorProps> = ({
       ))}
     </div>
   );
-};
+});
+
+CollaborativeCursor.displayName = 'CollaborativeCursor';
 
 export default CollaborativeCursor;

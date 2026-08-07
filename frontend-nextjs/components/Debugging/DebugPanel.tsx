@@ -25,7 +25,6 @@ import {
   Plus,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface DebugSession {
   session_id: string;
@@ -201,18 +200,23 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
           </div>
         )}
 
-        {/* Settings Collapsible */}
-        <Collapsible open={showSettings} onOpenChange={setShowSettings}>
-          <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:underline">
-            <Settings className="h-4 w-4" />
-            Debug Settings
-            {showSettings ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-4 pt-4">
+        {/* Settings (inline collapsible — Radix collapsible package not installed) */}
+        <button
+          type="button"
+          onClick={() => setShowSettings((open) => !open)}
+          className="flex items-center gap-2 text-sm font-medium hover:underline"
+        >
+          <Settings className="h-4 w-4" />
+          Debug Settings
+          {showSettings ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+        </button>
+
+        {showSettings && (
+          <div className="space-y-4 pt-4">
             <div className="flex items-center justify-between">
               <Label htmlFor="stop-on-entry">Stop on Entry</Label>
               <Switch
@@ -240,8 +244,8 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
                 disabled={!!session}
               />
             </div>
-          </CollapsibleContent>
-        </Collapsible>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

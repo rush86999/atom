@@ -216,7 +216,15 @@ const FlowVersioning: React.FC<FlowVersioningProps> = ({
                         {versions.map((version, idx) => (
                             <button
                                 key={version.id}
-                                onClick={() => setSelectedVersion(version)}
+                                onClick={() => {
+                                    // During compare mode, clicking another version
+                                    // completes the comparison instead of just selecting
+                                    if (compareMode) {
+                                        handleCompare(version);
+                                    } else {
+                                        setSelectedVersion(version);
+                                    }
+                                }}
                                 className={cn(
                                     "w-full text-left p-3 rounded-lg mb-1 transition-colors relative",
                                     selectedVersion?.id === version.id
