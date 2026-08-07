@@ -47,7 +47,6 @@ def industry_test_client():
 def mock_workflow_engine():
     """Create mock industry workflow engine."""
     engine = MagicMock(spec=IndustryWorkflowEngine)
-
     # Mock get_all_industries
     engine.get_all_industries.return_value = [
         Industry.HEALTHCARE,
@@ -128,7 +127,8 @@ def mock_workflow_engine():
         "annual_savings": 12000.0
     }
 
-    return engine
+    with patch("core.industry_workflow_templates._industry_workflow_engine", engine):
+        yield engine
 
 
 # ============================================================================
@@ -138,7 +138,7 @@ def mock_workflow_engine():
 class TestIndustryWorkflowEndpoints:
     """Tests for industry workflow endpoints."""
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_get_supported_industries(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -153,7 +153,7 @@ class TestIndustryWorkflowEndpoints:
         assert "industries" in data
         assert data["total_industries"] == 4
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_get_industry_templates_healthcare(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -168,7 +168,7 @@ class TestIndustryWorkflowEndpoints:
         assert data["industry"] == "healthcare"
         assert len(data["templates"]) > 0
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_get_industry_templates_with_complexity_filter(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -184,7 +184,7 @@ class TestIndustryWorkflowEndpoints:
         data = response.json()
         assert data["success"] is True
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_get_industry_templates_invalid_industry(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -195,7 +195,7 @@ class TestIndustryWorkflowEndpoints:
 
         assert response.status_code == 404
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_get_industry_template_details(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -209,7 +209,7 @@ class TestIndustryWorkflowEndpoints:
         assert data["success"] is True
         assert data["template"]["id"] == "hc-patient-reminder"
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_get_template_details_not_found(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -221,7 +221,7 @@ class TestIndustryWorkflowEndpoints:
 
         assert response.status_code == 404
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_search_industry_templates_no_filters(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -238,7 +238,7 @@ class TestIndustryWorkflowEndpoints:
         data = response.json()
         assert data["success"] is True
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_search_industry_templates_with_industry_filter(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -255,7 +255,7 @@ class TestIndustryWorkflowEndpoints:
         data = response.json()
         assert data["search_criteria"]["industry"] == "healthcare"
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_search_industry_templates_with_keywords(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -272,7 +272,7 @@ class TestIndustryWorkflowEndpoints:
         data = response.json()
         assert data["search_criteria"]["keywords"] == ["appointment", "reminder"]
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_calculate_template_roi(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -297,7 +297,7 @@ class TestIndustryWorkflowEndpoints:
 class TestIndustryTemplates:
     """Tests for industry-specific templates."""
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_healthcare_template_benefits(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -312,7 +312,7 @@ class TestIndustryTemplates:
         assert "benefits" in template
         assert len(template["benefits"]) > 0
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_healthcare_template_compliance(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -326,7 +326,7 @@ class TestIndustryTemplates:
         template = data["template"]
         assert template["compliance_notes"] == "HIPAA compliant"
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_finance_template_complexity(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -357,7 +357,7 @@ class TestIndustryTemplates:
         data = response.json()
         assert data["template"]["complexity"] == "Intermediate"
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_finance_template_integrations(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -382,7 +382,7 @@ class TestIndustryTemplates:
         assert "quickbooks" in data["template"]["required_integrations"]
         assert "gmail" in data["template"]["required_integrations"]
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_retail_template_time_savings(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -404,7 +404,7 @@ class TestIndustryTemplates:
         data = response.json()
         assert "10+ hours/week" in data["template"]["estimated_time_savings"]
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_manufacturing_template_use_cases(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -426,7 +426,7 @@ class TestIndustryTemplates:
         data = response.json()
         assert len(data["template"]["use_cases"]) == 3
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_template_sub_category(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -439,7 +439,7 @@ class TestIndustryTemplates:
         data = response.json()
         assert data["template"]["sub_category"] == "Patient Management"
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_beginner_complexity_template(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -452,7 +452,7 @@ class TestIndustryTemplates:
         data = response.json()
         assert data["template"]["complexity"] == "Beginner"
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_intermediate_complexity_template(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -473,7 +473,7 @@ class TestIndustryTemplates:
         data = response.json()
         assert data["template"]["complexity"] == "Intermediate"
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_advanced_complexity_template(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -494,7 +494,7 @@ class TestIndustryTemplates:
         data = response.json()
         assert data["template"]["complexity"] == "Advanced"
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_required_integrations_validation(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -515,7 +515,7 @@ class TestIndustryTemplates:
 class TestIndustryWorkflows:
     """Tests for industry-specific workflow execution."""
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_get_template_recommendations_small_business(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -533,7 +533,7 @@ class TestIndustryWorkflows:
         assert data["success"] is True
         assert "recommendations" in data
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_get_template_recommendations_with_integrations(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -551,7 +551,7 @@ class TestIndustryWorkflows:
         assert "criteria" in data
         assert "gmail" in data["criteria"]["current_integrations"]
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_get_industry_analytics(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -566,7 +566,7 @@ class TestIndustryWorkflows:
         assert data["success"] is True
         assert "analytics" in data
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_industry_analytics_complexity_distribution(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -582,7 +582,7 @@ class TestIndustryWorkflows:
         assert "complexity_distribution" in analytics
         assert "Beginner" in analytics["complexity_distribution"]
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_get_implementation_guide(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -596,7 +596,7 @@ class TestIndustryWorkflows:
         assert data["success"] is True
         assert "implementation_guide" in data
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_implementation_guide_prerequisites(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -611,7 +611,7 @@ class TestIndustryWorkflows:
         assert "prerequisites" in guide
         assert "required_integrations" in guide["prerequisites"]
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_implementation_guide_setup_steps(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -625,7 +625,7 @@ class TestIndustryWorkflows:
         guide = data["implementation_guide"]
         assert "step_by_step_setup" in guide
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_implementation_guide_compliance_requirements(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -648,7 +648,7 @@ class TestIndustryWorkflows:
 class TestIndustryErrors:
     """Tests for industry workflow error handling."""
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_search_templates_invalid_industry(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -663,7 +663,7 @@ class TestIndustryErrors:
 
         assert response.status_code == 400
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_calculate_roi_template_not_found(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -679,7 +679,7 @@ class TestIndustryErrors:
 
         assert response.status_code == 400
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_get_implementation_guide_template_not_found(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
@@ -691,25 +691,26 @@ class TestIndustryErrors:
 
         assert response.status_code == 404
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_get_industry_analytics_exception(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
         """Test industry analytics exception handling."""
         mock_get_engine.return_value = mock_workflow_engine
-        mock_get_engine.side_effect = Exception("Analytics engine error")
+        mock_workflow_engine.get_all_industries.side_effect = Exception("Analytics engine error")
 
         response = industry_test_client.get("/api/v1/templates/industry-analytics")
 
         assert response.status_code == 500
 
-    @patch("core.industry_workflow_endpoints.get_industry_workflow_engine")
+    @patch("core.industry_workflow_templates.get_industry_workflow_engine")
     def test_get_recommendations_exception(
         self, mock_get_engine, industry_test_client, mock_workflow_engine
     ):
         """Test recommendations endpoint exception handling."""
         mock_get_engine.return_value = mock_workflow_engine
-        mock_get_engine.side_effect = Exception("Recommendation engine error")
+        mock_workflow_engine.templates = MagicMock()
+        mock_workflow_engine.templates.values.side_effect = Exception("Recommendation engine error")
 
         response = industry_test_client.get("/api/v1/templates/recommendations")
 

@@ -67,7 +67,7 @@ def intern_agent(db):
         category="Sales",
         module_path="agents.intern_agent",
         class_name="InternAgent",
-        status="INTERN",
+        status="intern",
         confidence_score=0.6
     )
     db.add(agent)
@@ -90,7 +90,7 @@ def supervised_agent(db):
         category="Finance",
         module_path="agents.supervised_agent",
         class_name="SupervisedAgent",
-        status="SUPERVISED",
+        status="supervised",
         confidence_score=0.8
     )
     db.add(agent)
@@ -113,7 +113,7 @@ def autonomous_agent(db):
         category="Operations",
         module_path="agents.autonomous_agent",
         class_name="AutonomousAgent",
-        status="AUTONOMOUS",
+        status="autonomous",
         confidence_score=0.95
     )
     db.add(agent)
@@ -359,7 +359,7 @@ class TestAgentPromotionService:
         )
 
         assert evaluation["agent_id"] == intern_agent.id
-        assert evaluation["current_status"] == "INTERN"
+        assert evaluation["current_status"] == "intern"
         assert evaluation["target_status"] == "SUPERVISED"
         # Should be ready with 80% positive ratio
         assert "readiness_score" in evaluation
@@ -406,7 +406,7 @@ class TestAgentPromotionService:
         path = service.get_promotion_path(intern_agent.id)
 
         assert path["agent_id"] == intern_agent.id
-        assert path["current_status"] == "INTERN"
+        assert path["current_status"] == "intern"
         assert "promotion_path" in path
         assert len(path["promotion_path"]) >= 1
 
@@ -781,12 +781,12 @@ class TestFeedbackPhase2Integration:
             target_status="SUPERVISED"
         )
 
-        assert evaluation["current_status"] == "INTERN"
+        assert evaluation["current_status"] == "intern"
         assert evaluation["target_status"] == "SUPERVISED"
 
         # Step 3: Get promotion path
         path = promotion_service.get_promotion_path(intern_agent.id)
-        assert path["current_status"] == "INTERN"
+        assert path["current_status"] == "intern"
         assert len(path["promotion_path"]) > 0
 
         # Step 4: Export feedback data

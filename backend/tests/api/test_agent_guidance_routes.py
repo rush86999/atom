@@ -31,9 +31,32 @@ from core.models import (
 # ============================================================================
 
 @pytest.fixture
-def client():
+def client(db_session: Session):
     """Create TestClient for agent guidance routes."""
-    return TestClient(router)
+    from fastapi import FastAPI
+    app = FastAPI()
+    app.include_router(router)
+
+    from core.database import get_db
+    from core.security_dependencies import get_current_user
+    import api.agent_guidance_routes as guidance_module
+
+    def override_get_db():
+        yield db_session
+
+    def override_get_current_user():
+        from fastapi import HTTPException
+        user = getattr(guidance_module.get_current_user, "return_value", None)
+        if user is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        return user
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
+    test_client = TestClient(app, raise_server_exceptions=False)
+    yield test_client
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
@@ -60,6 +83,7 @@ def mock_operation(db_session: Session, mock_user: User):
     operation_id = str(uuid.uuid4())
     operation = AgentOperationTracker(
         operation_id=operation_id,
+        tenant_id="default",
         user_id=mock_user.id,
         agent_id="test_agent",
         operation_type="test_operation",
@@ -72,7 +96,7 @@ def mock_operation(db_session: Session, mock_user: User):
         why_explanation="Testing guidance system",
         next_steps="Complete all steps",
         logs=[],
-        metadata={}
+        operation_metadata={}
     )
     db_session.add(operation)
     db_session.commit()
@@ -86,11 +110,11 @@ def mock_request(db_session: Session, mock_user: User):
     request_id = str(uuid.uuid4())
     request = AgentRequestLog(
         request_id=request_id,
+        tenant_id="default",
         user_id=mock_user.id,
         agent_id="test_agent",
         request_type="permission",
-        request_data={"permission": "test_action"},
-        status="pending"
+        request_data={"permission": "test_action"}
     )
     db_session.add(request)
     db_session.commit()
@@ -512,7 +536,7 @@ def test_get_operation_success(
         assert operation["current_step"] == mock_operation.current_step
         assert operation["total_steps"] == mock_operation.total_steps
         assert operation["progress"] == mock_operation.progress
-        assert operation["metadata"] == mock_operation.metadata
+        assert operation["metadata"] == mock_operation.operation_metadata
         assert "context" in operation
         assert "logs" in operation
         assert "started_at" in operation
@@ -1441,6 +1465,7 @@ def test_respond_to_request_success(
 ):
     """Test responding to request successfully."""
     response_data = {
+        "request_id": mock_request.request_id,
         "response": {
             "approved": True,
             "comments": "Permission granted"
@@ -1480,6 +1505,7 @@ def test_respond_to_request_deny(
 ):
     """Test denying request."""
     response_data = {
+        "request_id": mock_request.request_id,
         "response": {
             "approved": False,
             "reason": "Not authorized"
@@ -1517,6 +1543,7 @@ def test_respond_to_request_with_custom_response(
 ):
     """Test complex response object with multiple fields."""
     response_data = {
+        "request_id": mock_request.request_id,
         "response": {
             "approved": True,
             "selected_option": 2,
@@ -1595,7 +1622,7 @@ def test_get_request_not_found(
 
         assert response.status_code == 404
         data = response.json()
-        assert "error" in data or "message" in data
+        assert "error" in data or "detail" in data
 
 
 def test_get_request_with_response(
@@ -1610,11 +1637,11 @@ def test_get_request_with_response(
     from datetime import datetime
     test_request = AgentRequestLog(
         request_id=request_id,
+        tenant_id="default",
         user_id=mock_user.id,
         agent_id="test_agent",
         request_type="permission",
         request_data={"permission": "read"},
-        status="approved",
         user_response={"approved": True},
         created_at=datetime.utcnow(),
         responded_at=datetime.utcnow()

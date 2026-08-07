@@ -30,7 +30,9 @@ def dashboard_client():
     """Create TestClient for analytics dashboard endpoints."""
     from fastapi import FastAPI
     from api.analytics_dashboard_endpoints import router
+    from core.auth import get_current_user
     app = FastAPI()
+    app.dependency_overrides[get_current_user] = lambda: MagicMock()
     app.include_router(router)
     return TestClient(app)
 

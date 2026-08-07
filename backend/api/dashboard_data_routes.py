@@ -20,6 +20,7 @@ from core.models import (
     ChatProcess,
     AuditLog,
     AgentJob,
+    AgentJobStatus,
     User,
     Team,
     AgentRegistry
@@ -168,35 +169,32 @@ def get_user_tasks(db: Session, user_id: Optional[str], limit: int = 20) -> List
         # Get agent jobs as tasks
         job_query = db.query(AgentJob)
 
-        if user_id:
-            job_query = job_query.filter(AgentJob.user_id == user_id)
-
-        agent_jobs = job_query.order_by(AgentJob.created_at.desc()).limit(limit // 2).all()
+        agent_jobs = job_query.order_by(AgentJob.start_time.desc()).limit(limit // 2).all()
 
         for job in agent_jobs:
             # Determine status
             status = "todo"
-            if job.completed_at:
+            if job.status == AgentJobStatus.SUCCESS.value:
                 status = "completed"
-            elif job.started_at:
+            elif job.status == AgentJobStatus.RUNNING.value:
                 status = "in-progress"
 
             # Calculate priority
             priority = "medium"
-            if job.status == "failed":
+            if job.status == AgentJobStatus.FAILED.value:
                 priority = "high"
             elif status == "completed":
                 priority = "low"
 
             tasks.append({
-                "id": job.job_id,
-                "title": f"Agent Job: {job.agent_name}",
-                "description": job.input_data[:200] if job.input_data else None,
-                "due_date": job.created_at.isoformat(),
+                "id": job.id,
+                "title": f"Agent Job: {job.agent_id}",
+                "description": job.result_summary[:200] if job.result_summary else None,
+                "due_date": job.end_time.isoformat() if job.end_time else None,
                 "priority": priority,
                 "status": status,
-                "created_at": job.created_at.isoformat(),
-                "updated_at": job.updated_at.isoformat() if job.updated_at else job.created_at.isoformat()
+                "created_at": job.start_time.isoformat(),
+                "updated_at": (job.end_time or job.start_time).isoformat()
             })
 
         # Sort by created_at and limit

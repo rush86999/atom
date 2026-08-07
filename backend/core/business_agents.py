@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db_session
 from core.models import AgentJob, AgentJobStatus, Workspace
-from integrations.ai_enhanced_service import AITaskType, ai_enhanced_service
 from integrations.mcp_service import mcp_service
 
 logger = logging.getLogger(__name__)
@@ -667,7 +666,7 @@ AGENT_SUITE = {
     "planning": BusinessPlanningAgent
 }
 
-def get_specialized_agent(name: str) -> Optional[BusinessAgent]:
+def get_specialized_agent(name: str, workspace_id: Optional[str] = None) -> Optional[BusinessAgent]:
     """Factory to retrieve a specialized agent by name."""
     agent_class = AGENT_SUITE.get(name.lower())
     return agent_class() if agent_class else None

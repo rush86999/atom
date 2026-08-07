@@ -183,8 +183,10 @@ def _create_browser_audit(
             agent_execution_id=agent_execution_id,
             user_id=user_id,
             session_id=session_id,
+            action=action_type,
             action_type=action_type,
             action_target=action_target,
+            endpoint=f"/api/browser/{action_type}",
             action_params=action_params,
             success=success,
             result_summary=result_summary,
@@ -240,7 +242,7 @@ async def create_browser_session(
             agent_id=request.agent_id,
             user_id=current_user.id,
             browser_type=request.browser_type,
-            headless=result.get("headless", True),
+            headless=request.headless if request.headless is not None else result.get("headless", True),
             status="active",
             metadata_json={"created_via": "api"}
         )

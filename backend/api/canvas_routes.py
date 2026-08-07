@@ -496,7 +496,7 @@ async def submit_canvas(
         )
 
         if not check.get("allowed", True):
-            return router.error_response(
+            raise router.error_response(
                 error_code="GOVERNANCE_DENIED",
                 message=check.get("reason", "Permission denied"),
                 status_code=403

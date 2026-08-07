@@ -45,6 +45,32 @@ from core.models import (
 
 
 # =============================================================================
+# Helpers
+# =============================================================================
+
+def _empty_query_mock():
+    """Query chain that returns no rows."""
+    q = Mock()
+    q.filter = Mock(return_value=q)
+    q.order_by = Mock(return_value=q)
+    q.limit = Mock(return_value=q)
+    q.all = Mock(return_value=[])
+    return q
+
+
+def _passing_mastery():
+    """Skill mastery assessment that meets graduation requirements."""
+    mastery = Mock()
+    mastery.mastery_score = 0.9
+    mastery.skill_diversity = 0.8
+    mastery.skills_used = ["skill1", "skill2", "skill3"]
+    mastery.skill_execution_count = 30
+    mastery.required_skills_for_level = 2
+    mastery.skill_success_rate = 0.9
+    return mastery
+
+
+# =============================================================================
 # Fixtures
 # =============================================================================
 
@@ -117,6 +143,7 @@ class TestGraduationExam:
         readiness.success_rate = 0.90
         readiness.episodes_analyzed = 30
         mock_episode_service.get_graduation_readiness.return_value = readiness
+        mock_episode_service.assess_skill_mastery.return_value = _passing_mastery()
 
         # Mock edge case simulator
         with patch('core.graduation_exam.EdgeCaseSimulator') as mock_sim_class:
@@ -137,12 +164,15 @@ class TestGraduationExam:
                 mock_query_edge.order_by = Mock(return_value=mock_query_edge)
                 mock_query_edge.limit = Mock(return_value=mock_query_edge)
                 mock_query_edge.all = Mock(return_value=[])
+                mock_query_ep = _empty_query_mock()
 
                 # Patch db.query to return different mocks
                 original_query = db_session.query
                 def query_side_effect(model):
                     if model == EdgeCaseLibrary:
                         return mock_query_edge
+                    if model == AgentEpisode:
+                        return mock_query_ep
                     return original_query.return_value
                 db_session.query = Mock(side_effect=query_side_effect)
 
@@ -180,6 +210,7 @@ class TestGraduationExam:
         readiness.success_rate = 0.70
         readiness.episodes_analyzed = 25
         mock_episode_service.get_graduation_readiness.return_value = readiness
+        mock_episode_service.assess_skill_mastery.return_value = _passing_mastery()
 
         # Mock edge case simulator
         with patch('core.graduation_exam.EdgeCaseSimulator') as mock_sim_class:
@@ -196,12 +227,15 @@ class TestGraduationExam:
                 mock_query_edge.order_by = Mock(return_value=mock_query_edge)
                 mock_query_edge.limit = Mock(return_value=mock_query_edge)
                 mock_query_edge.all = Mock(return_value=[])
+                mock_query_ep = _empty_query_mock()
 
                 # Patch db.query to return different mocks
                 original_query = db_session.query
                 def query_side_effect(model):
                     if model == EdgeCaseLibrary:
                         return mock_query_edge
+                    if model == AgentEpisode:
+                        return mock_query_ep
                     return original_query.return_value
                 db_session.query = Mock(side_effect=query_side_effect)
 
@@ -276,6 +310,7 @@ class TestGraduationExam:
         readiness.success_rate = 0.92
         readiness.episodes_analyzed = 50  # Custom count
         mock_episode_service.get_graduation_readiness.return_value = readiness
+        mock_episode_service.assess_skill_mastery.return_value = _passing_mastery()
 
         # Mock edge case simulator
         with patch('core.graduation_exam.EdgeCaseSimulator') as mock_sim_class:
@@ -292,12 +327,15 @@ class TestGraduationExam:
                 mock_query_edge.order_by = Mock(return_value=mock_query_edge)
                 mock_query_edge.limit = Mock(return_value=mock_query_edge)
                 mock_query_edge.all = Mock(return_value=[])
+                mock_query_ep = _empty_query_mock()
 
                 # Patch db.query
                 original_query = db_session.query
                 def query_side_effect(model):
                     if model == EdgeCaseLibrary:
                         return mock_query_edge
+                    if model == AgentEpisode:
+                        return mock_query_ep
                     return original_query.return_value
                 db_session.query = Mock(side_effect=query_side_effect)
 
@@ -333,6 +371,7 @@ class TestGraduationExam:
         readiness.success_rate = 0.92
         readiness.episodes_analyzed = 30
         mock_episode_service.get_graduation_readiness.return_value = readiness
+        mock_episode_service.assess_skill_mastery.return_value = _passing_mastery()
 
         # Mock edge case simulator
         with patch('core.graduation_exam.EdgeCaseSimulator') as mock_sim_class:
@@ -349,12 +388,15 @@ class TestGraduationExam:
                 mock_query_edge.order_by = Mock(return_value=mock_query_edge)
                 mock_query_edge.limit = Mock(return_value=mock_query_edge)
                 mock_query_edge.all = Mock(return_value=[])
+                mock_query_ep = _empty_query_mock()
 
                 # Patch db.query
                 original_query = db_session.query
                 def query_side_effect(model):
                     if model == EdgeCaseLibrary:
                         return mock_query_edge
+                    if model == AgentEpisode:
+                        return mock_query_ep
                     return original_query.return_value
                 db_session.query = Mock(side_effect=query_side_effect)
 
@@ -368,6 +410,22 @@ class TestGraduationExam:
                 # Verify exam was created and agent promoted
                 assert result.passed is True
                 assert result.promoted is True
+
+    def test_edge_case_simulation_missing_module_no_crash(self, graduation_service, db_session):
+        """Exam stage 3 must not crash when the edge case simulator is missing."""
+        mock_query_edge = Mock()
+        mock_query_edge.filter = Mock(return_value=mock_query_edge)
+        mock_query_edge.order_by = Mock(return_value=mock_query_edge)
+        mock_query_edge.limit = Mock(return_value=mock_query_edge)
+        mock_query_edge.all = Mock(return_value=[])
+        db_session.query.return_value = mock_query_edge
+
+        result = graduation_service._run_edge_case_simulations(
+            agent_id="test-agent-1",
+            tenant_id="tenant-1"
+        )
+
+        assert result["all_passed"] is True
 
     def test_exam_result_to_dict(self):
         """Test ExamResult to_dict conversion."""
@@ -470,6 +528,7 @@ class TestExamValidation:
         readiness.success_rate = 0.90
         readiness.episodes_analyzed = 30
         mock_episode_service.get_graduation_readiness.return_value = readiness
+        mock_episode_service.assess_skill_mastery.return_value = _passing_mastery()
 
         # Mock edge case simulator
         with patch('core.graduation_exam.EdgeCaseSimulator') as mock_sim_class:
@@ -486,12 +545,15 @@ class TestExamValidation:
                 mock_query_edge.order_by = Mock(return_value=mock_query_edge)
                 mock_query_edge.limit = Mock(return_value=mock_query_edge)
                 mock_query_edge.all = Mock(return_value=[])
+                mock_query_ep = _empty_query_mock()
 
                 # Patch db.query
                 original_query = db_session.query
                 def query_side_effect(model):
                     if model == EdgeCaseLibrary:
                         return mock_query_edge
+                    if model == AgentEpisode:
+                        return mock_query_ep
                     return original_query.return_value
                 db_session.query = Mock(side_effect=query_side_effect)
 
@@ -524,6 +586,7 @@ class TestExamValidation:
         readiness.success_rate = 0.70
         readiness.episodes_analyzed = 25
         mock_episode_service.get_graduation_readiness.return_value = readiness
+        mock_episode_service.assess_skill_mastery.return_value = _passing_mastery()
 
         # Mock edge case simulator
         with patch('core.graduation_exam.EdgeCaseSimulator') as mock_sim_class:
@@ -540,12 +603,15 @@ class TestExamValidation:
                 mock_query_edge.order_by = Mock(return_value=mock_query_edge)
                 mock_query_edge.limit = Mock(return_value=mock_query_edge)
                 mock_query_edge.all = Mock(return_value=[])
+                mock_query_ep = _empty_query_mock()
 
                 # Patch db.query
                 original_query = db_session.query
                 def query_side_effect(model):
                     if model == EdgeCaseLibrary:
                         return mock_query_edge
+                    if model == AgentEpisode:
+                        return mock_query_ep
                     return original_query.return_value
                 db_session.query = Mock(side_effect=query_side_effect)
 
@@ -587,6 +653,7 @@ class TestExamScoring:
         readiness.success_rate = 0.95
         readiness.episodes_analyzed = 30
         mock_episode_service.get_graduation_readiness.return_value = readiness
+        mock_episode_service.assess_skill_mastery.return_value = _passing_mastery()
 
         # Mock edge case simulator
         with patch('core.graduation_exam.EdgeCaseSimulator') as mock_sim_class:
@@ -603,12 +670,15 @@ class TestExamScoring:
                 mock_query_edge.order_by = Mock(return_value=mock_query_edge)
                 mock_query_edge.limit = Mock(return_value=mock_query_edge)
                 mock_query_edge.all = Mock(return_value=[])
+                mock_query_ep = _empty_query_mock()
 
                 # Patch db.query
                 original_query = db_session.query
                 def query_side_effect(model):
                     if model == EdgeCaseLibrary:
                         return mock_query_edge
+                    if model == AgentEpisode:
+                        return mock_query_ep
                     return original_query.return_value
                 db_session.query = Mock(side_effect=query_side_effect)
 
@@ -642,6 +712,7 @@ class TestExamScoring:
         readiness.success_rate = 0.95
         readiness.episodes_analyzed = 30
         mock_episode_service.get_graduation_readiness.return_value = readiness
+        mock_episode_service.assess_skill_mastery.return_value = _passing_mastery()
 
         # Mock edge case simulator (FAIL)
         with patch('core.graduation_exam.EdgeCaseSimulator') as mock_sim_class:
@@ -665,12 +736,15 @@ class TestExamScoring:
                 mock_query_edge.order_by = Mock(return_value=mock_query_edge)
                 mock_query_edge.limit = Mock(return_value=mock_query_edge)
                 mock_query_edge.all = Mock(return_value=[edge_case])
+                mock_query_ep = _empty_query_mock()
 
                 # Patch db.query
                 original_query = db_session.query
                 def query_side_effect(model):
                     if model == EdgeCaseLibrary:
                         return mock_query_edge
+                    if model == AgentEpisode:
+                        return mock_query_ep
                     return original_query.return_value
                 db_session.query = Mock(side_effect=query_side_effect)
 
@@ -704,6 +778,7 @@ class TestExamScoring:
         readiness.success_rate = 0.95
         readiness.episodes_analyzed = 30
         mock_episode_service.get_graduation_readiness.return_value = readiness
+        mock_episode_service.assess_skill_mastery.return_value = _passing_mastery()
 
         # Mock edge case simulator
         with patch('core.graduation_exam.EdgeCaseSimulator') as mock_sim_class:
@@ -720,12 +795,15 @@ class TestExamScoring:
                 mock_query_edge.order_by = Mock(return_value=mock_query_edge)
                 mock_query_edge.limit = Mock(return_value=mock_query_edge)
                 mock_query_edge.all = Mock(return_value=[])
+                mock_query_ep = _empty_query_mock()
 
                 # Patch db.query
                 original_query = db_session.query
                 def query_side_effect(model):
                     if model == EdgeCaseLibrary:
                         return mock_query_edge
+                    if model == AgentEpisode:
+                        return mock_query_ep
                     return original_query.return_value
                 db_session.query = Mock(side_effect=query_side_effect)
 
@@ -807,12 +885,15 @@ class TestExamScoring:
                 mock_query_edge.order_by = Mock(return_value=mock_query_edge)
                 mock_query_edge.limit = Mock(return_value=mock_query_edge)
                 mock_query_edge.all = Mock(return_value=[])
+                mock_query_ep = _empty_query_mock()
 
                 # Patch db.query
                 original_query = db_session.query
                 def query_side_effect(model):
                     if model == EdgeCaseLibrary:
                         return mock_query_edge
+                    if model == AgentEpisode:
+                        return mock_query_ep
                     return original_query.return_value
                 db_session.query = Mock(side_effect=query_side_effect)
 

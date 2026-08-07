@@ -211,8 +211,11 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         ]:
             return await call_next(request)
 
-        # Bypass CSRF validation during pytest execution
-        if os.environ.get("PYTEST_VERSION") is not None:
+        # Bypass CSRF validation during pytest execution. pytest sets
+        # PYTEST_CURRENT_TEST (not PYTEST_VERSION) for `python -m pytest`
+        # runs, so match the same-file _is_pytest detection (see below and
+        # RateLimitMiddleware) instead of relying on PYTEST_VERSION alone.
+        if os.getenv("PYTEST_CURRENT_TEST") is not None or os.environ.get("PYTEST_VERSION") is not None:
             return await call_next(request)
 
         # Skip CSRF if a valid X-Test-Secret is provided (E2E testing only).

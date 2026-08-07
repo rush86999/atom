@@ -75,8 +75,9 @@ class NotionTool:
         agent_id: Optional[str] = None,
         maturity_level: Optional[str] = None,
         user_id: Optional[str] = None,
+        db: Optional[Any] = None,
         **kwargs
-    ) -> str:
+    ) -> Dict[str, Any]:
         """
         Execute Notion operation with governance enforcement.
 
@@ -90,7 +91,6 @@ class NotionTool:
             Dict with operation results
 
         Raises:
-            PermissionError: If maturity level too low
             RuntimeError: If Notion not connected or local-only mode enabled
         """
         # Governance check - maturity requirements by action type
@@ -126,7 +126,8 @@ class NotionTool:
             agent_id=agent_id,
             user_id=user_id or "default",
             action=action,
-            required_maturity=required_maturity
+            required_maturity=required_maturity,
+            db=db
         )
 
         if not allowed:
@@ -136,7 +137,11 @@ class NotionTool:
                 agent_id=agent_id,
                 reason=reason
             )
-            raise PermissionError(reason)
+            return {
+                "success": False,
+                "error": reason or f"Notion {action} not permitted",
+                "action": action
+            }
 
         # Execute action
         try:
@@ -154,9 +159,8 @@ class NotionTool:
 
             return result
 
-        except PermissionError:
-            # Re-raise permission errors
-            raise
+        except PermissionError as e:
+            return {"success": False, "error": str(e), "action": action}
         except Exception as e:
             logger.error(
                 "Notion action failed",
@@ -175,7 +179,8 @@ class NotionTool:
         agent_id: Optional[str],
         user_id: str,
         action: str,
-        required_maturity: str
+        required_maturity: str,
+        db: Optional[Any] = None
     ) -> Tuple[bool, Optional[str]]:
         """
         Check if agent has permission for Notion operation.
@@ -185,6 +190,7 @@ class NotionTool:
             user_id: User ID
             action: Action being performed
             required_maturity: Required maturity level (INTERN or SUPERVISED)
+            db: Optional database session (defaults to app session)
 
         Returns:
             (allowed, reason) tuple
@@ -201,52 +207,57 @@ class NotionTool:
 
         # Check agent maturity level from database
         try:
-            with get_db_session() as db:
+            if db is not None:
                 agent = db.query(AgentRegistry).filter(
                     AgentRegistry.id == agent_id
                 ).first()
+            else:
+                with get_db_session() as session:
+                    agent = session.query(AgentRegistry).filter(
+                        AgentRegistry.id == agent_id
+                    ).first()
 
-                if not agent:
-                    return False, f"Agent '{agent_id}' not found"
+            if not agent:
+                return False, f"Agent '{agent_id}' not found"
 
-                # Check maturity level
-                maturity = agent.maturity_level
-                maturity_order = ["STUDENT", "INTERN", "SUPERVISED", "AUTONOMOUS"]
+            # Check maturity level
+            maturity = agent.maturity_level
+            maturity_order = ["STUDENT", "INTERN", "SUPERVISED", "AUTONOMOUS"]
 
+            try:
+                current_level = maturity_order.index(maturity)
+                required_level = maturity_order.index(required_maturity)
+            except ValueError:
+                return False, f"Invalid maturity level: {maturity}"
+
+            allowed = current_level >= required_level
+            reason = None
+
+            if not allowed:
+                reason = (
+                    f"Notion {action} requires {required_maturity}+ maturity "
+                    f"(agent is {maturity})"
+                )
+
+            # Cache decision
+            _governance_cache.set(agent_id, cache_key, {
+                "allowed": allowed,
+                "reason": reason,
+                "maturity": maturity
+            })
+
+            # Check local-only mode (Notion requires cloud API)
+            if allowed:
                 try:
-                    current_level = maturity_order.index(maturity)
-                    required_level = maturity_order.index(required_maturity)
-                except ValueError:
-                    return False, f"Invalid maturity level: {maturity}"
-
-                allowed = current_level >= required_level
-                reason = None
-
-                if not allowed:
-                    reason = (
-                        f"Notion {action} requires {required_maturity}+ maturity "
-                        f"(agent is {maturity})"
+                    guard = LocalOnlyGuard()
+                    guard.allow_external_request(
+                        service="notion",
+                        reason=f"Notion API requires cloud access"
                     )
+                except Exception as e:
+                    return False, str(e)
 
-                # Cache decision
-                _governance_cache.set(agent_id, cache_key, {
-                    "allowed": allowed,
-                    "reason": reason,
-                    "maturity": maturity
-                })
-
-                # Check local-only mode (Notion requires cloud API)
-                if allowed:
-                    try:
-                        guard = LocalOnlyGuard()
-                        guard.allow_external_request(
-                            service="notion",
-                            reason=f"Notion API requires cloud access"
-                        )
-                    except Exception as e:
-                        return False, str(e)
-
-                return allowed, reason
+            return allowed, reason
 
         except Exception as e:
             logger.error("Permission check failed", error=str(e))

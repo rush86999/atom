@@ -27,6 +27,8 @@ class TestCreateTest:
         app = FastAPI()
         app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
+        from core.auth import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: None
         return TestClient(app)
 
     def test_create_test_success(self, client):
@@ -258,6 +260,8 @@ class TestStartTest:
         app = FastAPI()
         app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
+        from core.auth import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: None
         return TestClient(app)
 
     def test_start_test_success(self, client):
@@ -361,6 +365,8 @@ class TestCompleteTest:
         app = FastAPI()
         app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
+        from core.auth import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: None
         return TestClient(app)
 
     def test_complete_test_success(self, client):
@@ -504,6 +510,8 @@ class TestAssignVariant:
         app = FastAPI()
         app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
+        from core.auth import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: None
         return TestClient(app)
 
     def test_assign_variant_success(self, client):
@@ -675,6 +683,8 @@ class TestRecordMetric:
         app = FastAPI()
         app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
+        from core.auth import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: None
         return TestClient(app)
 
     def test_record_metric_with_success(self, client):
@@ -814,6 +824,8 @@ class TestGetTestResults:
         app = FastAPI()
         app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
+        from core.auth import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: None
         return TestClient(app)
 
     def test_get_test_results_success(self, client):
@@ -943,6 +955,8 @@ class TestListTests:
         app = FastAPI()
         app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
+        from core.auth import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: None
         return TestClient(app)
 
     def test_list_tests_success(self, client):
@@ -1084,6 +1098,8 @@ class TestRequestModels:
         app = FastAPI()
         app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
+        from core.auth import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: None
         return TestClient(app)
 
     def test_create_test_request_required_fields(self, client):
@@ -1167,6 +1183,8 @@ class TestErrorResponses:
         app = FastAPI()
         app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
+        from core.auth import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: None
         return TestClient(app)
 
     def test_error_response_format(self, client):
@@ -1242,6 +1260,8 @@ class TestTestTypes:
         app = FastAPI()
         app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
+        from core.auth import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: None
         return TestClient(app)
 
     def test_create_test_agent_config_type(self, client):

@@ -218,11 +218,11 @@ class TestAgentChatEndpoints:
             # Success response structure
             assert "success" in data or "response" in data or "error" in data
 
-    @patch('core.atom_agent_endpoints.ai_service')
-    def test_chat_llm_timeout(self, mock_ai, api_test_client: TestClient):
+    @patch('core.atom_agent_endpoints.LLMService')
+    def test_chat_llm_timeout(self, mock_llm_class, api_test_client: TestClient):
         """Test LLM timeout returns 503 with retry_after header."""
         # Mock timeout
-        mock_ai.call_openai_api = AsyncMock(side_effect=TimeoutError("LLM timeout"))
+        mock_llm_class.return_value.generate = AsyncMock(side_effect=TimeoutError("LLM timeout"))
 
         response = api_test_client.post(
             "/api/atom-agent/chat",
@@ -238,11 +238,11 @@ class TestAgentChatEndpoints:
         if response.status_code == 503:
             assert "retry-after" in response.headers or "Retry-After" in response.headers
 
-    @patch('core.atom_agent_endpoints.ai_service')
-    def test_chat_llm_rate_limit(self, mock_ai, api_test_client: TestClient):
+    @patch('core.atom_agent_endpoints.LLMService')
+    def test_chat_llm_rate_limit(self, mock_llm_class, api_test_client: TestClient):
         """Test LLM rate limit returns 429 with retry info."""
         # Mock rate limit
-        mock_ai.call_openai_api = AsyncMock(
+        mock_llm_class.return_value.generate = AsyncMock(
             side_effect=Exception("Rate limit exceeded")
         )
 
@@ -271,9 +271,7 @@ class TestAgentChatEndpoints:
         # Should handle errors
         assert response.status_code in [200, 404, 500]
 
-    @patch('core.atom_agent_endpoints.AgentContextResolver')
-    @patch('core.atom_agent_endpoints.AgentGovernanceService')
-    def test_chat_governance_student_agent(self, mock_gov_class, mock_resolver_class, api_test_client: TestClient, db_session: Session):
+    def test_chat_governance_student_agent(self, api_test_client: TestClient, db_session: Session):
         """Test student agent receives governance-appropriate responses."""
         # Create student agent
         student = AgentRegistry(
@@ -287,23 +285,6 @@ class TestAgentChatEndpoints:
         db_session.add(student)
         db_session.commit()
 
-        # Mock resolver to return student
-        mock_resolver = Mock()
-        mock_resolver.resolve_agent_for_request = AsyncMock(
-            return_value=(student, {"resolution_method": "explicit"})
-        )
-        mock_resolver_class.return_value = mock_resolver
-
-        # Mock governance to block actions
-        mock_gov = Mock()
-        mock_gov.can_perform_action = Mock(
-            return_value={
-                "allowed": False,
-                "reason": "Student agent not permitted for streaming"
-            }
-        )
-        mock_gov_class.return_value = mock_gov
-
         response = api_test_client.post(
             "/api/atom-agent/chat",
             json={
@@ -316,9 +297,7 @@ class TestAgentChatEndpoints:
         # Should handle governance
         assert response.status_code in [200, 403, 500]
 
-    @patch('core.atom_agent_endpoints.AgentContextResolver')
-    @patch('core.atom_agent_endpoints.AgentGovernanceService')
-    def test_chat_governance_autonomous_agent(self, mock_gov_class, mock_resolver_class, api_test_client: TestClient, db_session: Session):
+    def test_chat_governance_autonomous_agent(self, api_test_client: TestClient, db_session: Session):
         """Test autonomous agent executes without restrictions."""
         # Create autonomous agent
         autonomous = AgentRegistry(
@@ -331,23 +310,6 @@ class TestAgentChatEndpoints:
         )
         db_session.add(autonomous)
         db_session.commit()
-
-        # Mock resolver to return autonomous
-        mock_resolver = Mock()
-        mock_resolver.resolve_agent_for_request = AsyncMock(
-            return_value=(autonomous, {"resolution_method": "explicit"})
-        )
-        mock_resolver_class.return_value = mock_resolver
-
-        # Mock governance to allow
-        mock_gov = Mock()
-        mock_gov.can_perform_action = Mock(
-            return_value={
-                "allowed": True,
-                "reason": "Autonomous agent permitted"
-            }
-        )
-        mock_gov_class.return_value = mock_gov
 
         response = api_test_client.post(
             "/api/atom-agent/chat",
@@ -369,9 +331,9 @@ class TestAgentChatEndpoints:
 class TestAgentChatStreaming:
     """Tests for POST /api/atom-agent/chat/stream endpoint."""
 
-    @patch('core.atom_agent_endpoints.LLMService')
-    @patch('core.atom_agent_endpoints.AgentContextResolver')
-    @patch('core.atom_agent_endpoints.AgentGovernanceService')
+    @patch('core.llm_service.LLMService')
+    @patch('core.agent_context_resolver.AgentContextResolver')
+    @patch('core.agent_governance_service.AgentGovernanceService')
     def test_streaming_success(self, mock_gov_class, mock_resolver_class, mock_llm_class, api_test_client: TestClient, db_session: Session):
         """Test streaming endpoint yields Server-Sent Events."""
         # Create autonomous agent
@@ -412,7 +374,7 @@ class TestAgentChatStreaming:
         mock_llm_class.return_value = mock_llm
 
         # Mock WebSocket manager
-        with patch('core.atom_agent_endpoints.ws_manager') as mock_ws:
+        with patch('core.websockets.manager') as mock_ws:
             mock_ws.broadcast = AsyncMock()
             mock_ws.STREAMING_UPDATE = "streaming:update"
             mock_ws.STREAMING_COMPLETE = "streaming:complete"
@@ -434,9 +396,9 @@ class TestAgentChatStreaming:
                 data = response.json()
                 assert "message_id" in data or "error" in data
 
-    @patch('core.atom_agent_endpoints.LLMService')
-    @patch('core.atom_agent_endpoints.AgentContextResolver')
-    @patch('core.atom_agent_endpoints.AgentGovernanceService')
+    @patch('core.llm_service.LLMService')
+    @patch('core.agent_context_resolver.AgentContextResolver')
+    @patch('core.agent_governance_service.AgentGovernanceService')
     def test_streaming_governance_blocked(self, mock_gov_class, mock_resolver_class, mock_llm_class, api_test_client: TestClient, db_session: Session):
         """Test streaming blocked by governance for student agents."""
         # Create student agent
@@ -606,13 +568,13 @@ class TestAgentSessions:
                 mock_get_mgr.return_value = mock_chat_session_manager
                 mock_get_history.return_value = mock_chat_history_manager
 
-                # Create session and add messages
-                session_id = mock_chat_session_manager.create_session("user-1")
+                # Create session for the authenticated test user
+                session_id = mock_chat_session_manager.create_session(api_test_client.test_user.id)
                 mock_chat_history_manager.save_message(
-                    session_id, "user-1", "user", "Hello"
+                    session_id, api_test_client.test_user.id, "user", "Hello"
                 )
                 mock_chat_history_manager.save_message(
-                    session_id, "user-1", "assistant", "Hi there!"
+                    session_id, api_test_client.test_user.id, "assistant", "Hi there!"
                 )
 
                 response = api_test_client.get(
@@ -803,9 +765,7 @@ class TestAgentExecution:
         # May fail if workflow doesn't exist
         assert response.status_code in [200, 404, 500]
 
-    @patch('core.atom_agent_endpoints.AgentContextResolver')
-    @patch('core.atom_agent_endpoints.AgentGovernanceService')
-    def test_execute_governance_student_blocked(self, mock_gov_class, mock_resolver_class, api_test_client: TestClient, db_session: Session):
+    def test_execute_governance_student_blocked(self, api_test_client: TestClient, db_session: Session):
         """Test student agent blocked from destructive actions."""
         # Create student agent
         student = AgentRegistry(
@@ -818,16 +778,6 @@ class TestAgentExecution:
         )
         db_session.add(student)
         db_session.commit()
-
-        # Mock governance to block
-        mock_gov = Mock()
-        mock_gov.can_perform_action = Mock(
-            return_value={
-                "allowed": False,
-                "reason": "Student agent not permitted for execution"
-            }
-        )
-        mock_gov_class.return_value = mock_gov
 
         response = api_test_client.post(
             "/api/atom-agent/execute-generated",
@@ -986,7 +936,7 @@ class TestHybridRetrievalEndpoints:
 
         response = api_test_client.post(
             "/api/atom-agent/agents/test-agent/retrieve-hybrid",
-            json={
+            params={
                 "query": "test query",
                 "coarse_top_k": 100,
                 "rerank_top_k": 50,
@@ -1019,7 +969,7 @@ class TestHybridRetrievalEndpoints:
 
         response = api_test_client.post(
             "/api/atom-agent/agents/test-agent/retrieve-baseline",
-            json={
+            params={
                 "query": "test query",
                 "top_k": 50
             }

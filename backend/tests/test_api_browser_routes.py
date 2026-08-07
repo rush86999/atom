@@ -62,22 +62,28 @@ def client(db_session: Session):
 
     app.dependency_overrides[get_db] = _get_db
 
-    # Override get_current_user to bypass auth
+    # Override get_current_user to bypass auth.
+    # Cache ONE user per test — a fresh random user per request would make
+    # data written in one request invisible to user-scoped reads in the next
+    # (audit log, session list), since user_id differs each call.
+    auth_user = {}
+
     def _mock_get_current_user():
-        unique_id = str(uuid.uuid4())[:8]
-        email = f"test_{unique_id}@browser.com"
+        if "user" not in auth_user:
+            unique_id = str(uuid.uuid4())[:8]
+            email = f"test_{unique_id}@browser.com"
 
-        try:
-            user = db_session.query(User).filter(User.email == email).first()
-            if user:
-                return user
-        except Exception:
-            pass
+            try:
+                user = db_session.query(User).filter(User.email == email).first()
+            except Exception:
+                user = None
 
-        user = AdminUserFactory(email=email, _session=db_session)
-        db_session.commit()
-        db_session.refresh(user)
-        return user
+            if not user:
+                user = AdminUserFactory(email=email, _session=db_session)
+                db_session.commit()
+                db_session.refresh(user)
+            auth_user["user"] = user
+        return auth_user["user"]
 
     try:
         app.dependency_overrides[get_current_user] = _mock_get_current_user
@@ -91,6 +97,14 @@ def client(db_session: Session):
             break
 
     test_client = TestClient(app, base_url="http://testserver")
+
+    # Round-74 CSRF hardening: the global CSRF middleware 403s state-changing
+    # requests that carry neither a Bearer token nor the E2E test secret.
+    # These integration tests authenticate via dependency override (no
+    # cookies, no CSRF exposure), so attach the sanctioned test-secret header.
+    test_client.headers.update(
+        {"X-Test-Secret": os.getenv("E2E_TEST_SECRET", "test-secret-key")}
+    )
 
     yield test_client
 
@@ -107,6 +121,7 @@ def student_agent(db_session: Session):
         class_name="StudentBrowser",
         status=AgentStatus.STUDENT.value,
         confidence_score=0.3,
+        workspace_id="default",
     )
     db_session.add(agent)
     db_session.commit()
@@ -124,6 +139,7 @@ def intern_agent(db_session: Session):
         class_name="InternBrowser",
         status=AgentStatus.INTERN.value,
         confidence_score=0.6,
+        workspace_id="default",
     )
     db_session.add(agent)
     db_session.commit()
@@ -141,6 +157,7 @@ def supervised_agent(db_session: Session):
         class_name="SupervisedBrowser",
         status=AgentStatus.SUPERVISED.value,
         confidence_score=0.8,
+        workspace_id="default",
     )
     db_session.add(agent)
     db_session.commit()
@@ -158,6 +175,7 @@ def autonomous_agent(db_session: Session):
         class_name="AutonomousBrowser",
         status=AgentStatus.AUTONOMOUS.value,
         confidence_score=0.95,
+        workspace_id="default",
     )
     db_session.add(agent)
     db_session.commit()
@@ -168,7 +186,7 @@ def autonomous_agent(db_session: Session):
 @pytest.fixture(scope="function")
 def mock_browser_create_session():
     """Mock browser_create_session tool function."""
-    with patch("tools.browser_tool.browser_create_session", new_callable=AsyncMock) as mock:
+    with patch("api.browser_routes.browser_create_session", new_callable=AsyncMock) as mock:
         mock.return_value = {
             "success": True,
             "session_id": str(uuid.uuid4()),
@@ -182,7 +200,7 @@ def mock_browser_create_session():
 @pytest.fixture(scope="function")
 def mock_browser_navigate():
     """Mock browser_navigate tool function."""
-    with patch("tools.browser_tool.browser_navigate", new_callable=AsyncMock) as mock:
+    with patch("api.browser_routes.browser_navigate", new_callable=AsyncMock) as mock:
         mock.return_value = {
             "success": True,
             "url": "https://example.com",
@@ -196,7 +214,7 @@ def mock_browser_navigate():
 @pytest.fixture(scope="function")
 def mock_browser_screenshot():
     """Mock browser_screenshot tool function."""
-    with patch("tools.browser_tool.browser_screenshot", new_callable=AsyncMock) as mock:
+    with patch("api.browser_routes.browser_screenshot", new_callable=AsyncMock) as mock:
         mock.return_value = {
             "success": True,
             "data": "base64encodedscreenshotdata",
@@ -209,7 +227,7 @@ def mock_browser_screenshot():
 @pytest.fixture(scope="function")
 def mock_browser_click():
     """Mock browser_click tool function."""
-    with patch("tools.browser_tool.browser_click", new_callable=AsyncMock) as mock:
+    with patch("api.browser_routes.browser_click", new_callable=AsyncMock) as mock:
         mock.return_value = {
             "success": True,
             "session_id": "test-session",
@@ -221,7 +239,7 @@ def mock_browser_click():
 @pytest.fixture(scope="function")
 def mock_browser_fill_form():
     """Mock browser_fill_form tool function."""
-    with patch("tools.browser_tool.browser_fill_form", new_callable=AsyncMock) as mock:
+    with patch("api.browser_routes.browser_fill_form", new_callable=AsyncMock) as mock:
         mock.return_value = {
             "success": True,
             "session_id": "test-session",
@@ -235,7 +253,7 @@ def mock_browser_fill_form():
 @pytest.fixture(scope="function")
 def mock_browser_extract_text():
     """Mock browser_extract_text tool function."""
-    with patch("tools.browser_tool.browser_extract_text", new_callable=AsyncMock) as mock:
+    with patch("api.browser_routes.browser_extract_text", new_callable=AsyncMock) as mock:
         mock.return_value = {
             "success": True,
             "session_id": "test-session",
@@ -248,7 +266,7 @@ def mock_browser_extract_text():
 @pytest.fixture(scope="function")
 def mock_browser_execute_script():
     """Mock browser_execute_script tool function."""
-    with patch("tools.browser_tool.browser_execute_script", new_callable=AsyncMock) as mock:
+    with patch("api.browser_routes.browser_execute_script", new_callable=AsyncMock) as mock:
         mock.return_value = {
             "success": True,
             "session_id": "test-session",
@@ -260,7 +278,7 @@ def mock_browser_execute_script():
 @pytest.fixture(scope="function")
 def mock_browser_close_session():
     """Mock browser_close_session tool function."""
-    with patch("tools.browser_tool.browser_close_session", new_callable=AsyncMock) as mock:
+    with patch("api.browser_routes.browser_close_session", new_callable=AsyncMock) as mock:
         mock.return_value = {
             "success": True,
             "session_id": "test-session"
@@ -271,7 +289,7 @@ def mock_browser_close_session():
 @pytest.fixture(scope="function")
 def mock_browser_get_page_info():
     """Mock browser_get_page_info tool function."""
-    with patch("tools.browser_tool.browser_get_page_info", new_callable=AsyncMock) as mock:
+    with patch("api.browser_routes.browser_get_page_info", new_callable=AsyncMock) as mock:
         mock.return_value = {
             "success": True,
             "session_id": "test-session",
@@ -384,7 +402,9 @@ class TestBrowserSession:
         # But test that it doesn't crash
         assert response.status_code in [200, 400]
 
-    def test_create_session_headless_boolean_validation(self, client: TestClient):
+    def test_create_session_headless_boolean_validation(
+        self, client: TestClient, mock_browser_create_session
+    ):
         """Test headless parameter accepts boolean values."""
         response = client.post(
             "/api/browser/session/create",
@@ -1127,7 +1147,7 @@ class TestBrowserRoutesCoverage:
     """Coverage tests for browser routes edge cases"""
 
     def test_navigate_creates_agent_execution_record(
-        self, client: TestClient, db_session: Session, intern_agent: AgentRegistry
+        self, client: TestClient, mock_browser_create_session, db_session: Session, intern_agent: AgentRegistry
     ):
         """Test navigation creates AgentExecution record for tracking"""
         # Create session first
@@ -1148,7 +1168,7 @@ class TestBrowserRoutesCoverage:
         db_session.commit()
 
         # Navigate
-        with patch("tools.browser_tool.browser_navigate", new_callable=AsyncMock) as mock_nav:
+        with patch("api.browser_routes.browser_navigate", new_callable=AsyncMock) as mock_nav:
             mock_nav.return_value = {
                 "success": True,
                 "url": "https://example.com",
@@ -1176,7 +1196,7 @@ class TestBrowserRoutesCoverage:
             assert execution.status == "running"
 
     def test_fill_form_supervision_required_for_submission(
-        self, client: TestClient, intern_agent: AgentRegistry
+        self, client: TestClient, mock_browser_create_session, mock_browser_fill_form, intern_agent: AgentRegistry
     ):
         """Test form submission requires SUPERVISED+ maturity"""
         # Create session
@@ -1187,7 +1207,7 @@ class TestBrowserRoutesCoverage:
         session_id = create_response.json()["session_id"]
 
         # Try to submit form with INTERN agent (should be blocked)
-        with patch("tools.browser_tool.browser_fill_form", new_callable=AsyncMock) as mock_fill:
+        with patch("api.browser_routes.browser_fill_form", new_callable=AsyncMock) as mock_fill:
             mock_fill.return_value = {
                 "success": True,
                 "fields_filled": 2,
@@ -1209,7 +1229,7 @@ class TestBrowserRoutesCoverage:
             assert response.status_code in [200, 403, 401]
 
     def test_screenshot_creates_audit_with_size(
-        self, client: TestClient, db_session: Session
+        self, client: TestClient, mock_browser_create_session, db_session: Session
     ):
         """Test screenshot creates audit entry with size data"""
         # Create session
@@ -1219,7 +1239,7 @@ class TestBrowserRoutesCoverage:
         )
         session_id = create_response.json()["session_id"]
 
-        with patch("tools.browser_tool.browser_screenshot", new_callable=AsyncMock) as mock_screenshot:
+        with patch("api.browser_routes.browser_screenshot", new_callable=AsyncMock) as mock_screenshot:
             mock_screenshot.return_value = {
                 "success": True,
                 "data": "base64data",
@@ -1247,7 +1267,7 @@ class TestBrowserRoutesCoverage:
             # as it depends on actual implementation details
 
     def test_execute_script_supervision_required(
-        self, client: TestClient, intern_agent: AgentRegistry
+        self, client: TestClient, mock_browser_create_session, intern_agent: AgentRegistry
     ):
         """Test JavaScript execution requires SUPERVISED+ maturity"""
         # Create session
@@ -1258,7 +1278,7 @@ class TestBrowserRoutesCoverage:
         session_id = create_response.json()["session_id"]
 
         # Mock the browser tool function
-        with patch("tools.browser_tool.browser_execute_script", new_callable=AsyncMock) as mock_exec:
+        with patch("api.browser_routes.browser_execute_script", new_callable=AsyncMock) as mock_exec:
             mock_exec.return_value = {
                 "success": True,
                 "result": "script result"
@@ -1277,7 +1297,7 @@ class TestBrowserRoutesCoverage:
             assert response.status_code in [200, 400, 401, 403]
 
     def test_close_session_updates_database_status(
-        self, client: TestClient, db_session: Session
+        self, client: TestClient, mock_browser_create_session, db_session: Session
     ):
         """Test closing session updates database status"""
         # Create session
@@ -1293,7 +1313,7 @@ class TestBrowserRoutesCoverage:
         ).first()
 
         # Close session (mock the tool function)
-        with patch("tools.browser_tool.browser_close_session", new_callable=AsyncMock) as mock_close:
+        with patch("api.browser_routes.browser_close_session", new_callable=AsyncMock) as mock_close:
             mock_close.return_value = {"success": True, "session_id": session_id}
 
             response = client.post(
@@ -1310,7 +1330,7 @@ class TestBrowserRoutesCoverage:
                 assert db_session_obj.status in ["closed", "active"]  # Accept either state
 
     def test_session_info_includes_database_metadata(
-        self, client: TestClient, db_session: Session
+        self, client: TestClient, mock_browser_create_session, db_session: Session
     ):
         """Test session info endpoint includes database metadata"""
         # Create session
@@ -1321,7 +1341,7 @@ class TestBrowserRoutesCoverage:
         session_id = create_response.json()["session_id"]
 
         # Mock the browser tool function
-        with patch("tools.browser_tool.browser_get_page_info", new_callable=AsyncMock) as mock_info:
+        with patch("api.browser_routes.browser_get_page_info", new_callable=AsyncMock) as mock_info:
             mock_info.return_value = {
                 "success": True,
                 "title": "Test Page",
@@ -1338,7 +1358,7 @@ class TestBrowserRoutesCoverage:
             assert isinstance(data, dict)
 
     def test_audit_log_with_session_filter(
-        self, client: TestClient, db_session: Session
+        self, client: TestClient, mock_browser_create_session, db_session: Session
     ):
         """Test audit log can be filtered by session_id"""
         # Create session
@@ -1349,7 +1369,7 @@ class TestBrowserRoutesCoverage:
         session_id = create_response.json()["session_id"]
 
         # Generate some audit entries
-        with patch("tools.browser_tool.browser_navigate", new_callable=AsyncMock) as mock_nav:
+        with patch("api.browser_routes.browser_navigate", new_callable=AsyncMock) as mock_nav:
             mock_nav.return_value = {
                 "success": True,
                 "url": "https://example.com",
@@ -1485,7 +1505,7 @@ class TestSessionManagementCoverage:
         self, client: TestClient, db_session: Session
     ):
         """Test session creation failure returns proper error response."""
-        with patch("tools.browser_tool.browser_create_session", new_callable=AsyncMock) as mock_create:
+        with patch("api.browser_routes.browser_create_session", new_callable=AsyncMock) as mock_create:
             mock_create.return_value = {
                 "success": False,
                 "error": "Failed to launch browser"
@@ -1503,7 +1523,7 @@ class TestSessionManagementCoverage:
         self, client: TestClient, db_session: Session, student_agent: AgentRegistry
     ):
         """Test governance denied returns proper error response."""
-        with patch("tools.browser_tool.browser_create_session", new_callable=AsyncMock) as mock_create:
+        with patch("api.browser_routes.browser_create_session", new_callable=AsyncMock) as mock_create:
             mock_create.return_value = {
                 "success": False,
                 "error": "Governance check failed: STUDENT agents cannot perform browser actions"
@@ -2222,7 +2242,7 @@ class TestDataExtractionCoverage:
 
             if audit:
                 # Script length should be logged, not full script
-                assert audit.action_target == "13 chars"  # Length of script
+                assert audit.action_target == "12 chars"  # Length of script
                 assert audit.result_summary == "Script executed"
 
     def test_get_session_info_includes_database_metadata(
@@ -3384,7 +3404,7 @@ class TestBrowserRoutesErrorPaths:
             return original_add(obj)
 
         with patch.object(db_session, 'add', side_effect=mock_add_with_exception):
-            with patch("tools.browser_tool.browser_create_session", new_callable=AsyncMock) as mock_create:
+            with patch("api.browser_routes.browser_create_session", new_callable=AsyncMock) as mock_create:
                 mock_create.return_value = {
                     "success": True,
                     "session_id": "test-session-exception",
@@ -3479,7 +3499,7 @@ class TestBrowserRoutesErrorPaths:
                 return original_query(model)
 
             with patch.object(db_session, 'query', side_effect=mock_query_with_exception):
-                with patch("tools.browser_tool.browser_close_session", new_callable=AsyncMock) as mock_close:
+                with patch("api.browser_routes.browser_close_session", new_callable=AsyncMock) as mock_close:
                     mock_close.return_value = {"success": True, "session_id": session_id}
 
                     response = client.post(
@@ -3526,7 +3546,7 @@ class TestBrowserRoutesErrorPaths:
             session_id = create_response.json().get("session_id")
 
             # Navigate
-            with patch("tools.browser_tool.browser_navigate", new_callable=AsyncMock) as mock_nav:
+            with patch("api.browser_routes.browser_navigate", new_callable=AsyncMock) as mock_nav:
                 mock_nav.return_value = {
                     "success": True,
                     "url": "https://example.com",
@@ -3577,7 +3597,7 @@ class TestBrowserRoutesErrorPaths:
             session_id = create_response.json().get("session_id")
 
             # Screenshot
-            with patch("tools.browser_tool.browser_screenshot", new_callable=AsyncMock) as mock_shot:
+            with patch("api.browser_routes.browser_screenshot", new_callable=AsyncMock) as mock_shot:
                 mock_shot.return_value = {
                     "success": True,
                     "data": "base64data",

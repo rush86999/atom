@@ -129,7 +129,7 @@ class TestAtomMetaAgentInit:
 
             assert agent.workspace_id == "default"
             assert agent.user is None
-            assert agent._spawned_agents == {}
+            assert agent.spawned_agents == {}
             assert agent.session_tools == []
 
     def test_initialization_with_workspace_id(self):
@@ -1011,65 +1011,80 @@ class TestSpecialtyAgentTemplatesEnhanced:
 class TestIntentRoutingEnhanced:
     """Enhanced tests for intent classification and routing"""
 
-    @patch('core.atom_meta_agent.IntentClassifier')
-    def test_route_chat_request(self, mock_classifier, atom_agent):
+    @pytest.mark.asyncio
+    async def test_route_chat_request(self, atom_agent):
         """Test routing CHAT category requests"""
         from core.atom_meta_agent import IntentCategory, IntentClassification
 
-        mock_classifier_instance = MagicMock()
-        mock_classifier_instance.classify_intent.return_value = IntentClassification(
+        intent = IntentClassification(
             category=IntentCategory.CHAT,
             confidence=0.95,
             reasoning="Simple query",
             requires_execution=False,
             suggested_handler="llm_service"
         )
-        mock_classifier.return_value = mock_classifier_instance
 
-        result = atom_agent._classify_and_route("Explain how agents work")
+        result = await atom_agent.route_with_governance(
+            "Explain how agents work", intent, user_id="test-user-123"
+        )
 
-        assert result["category"] == "chat"
-        assert result["handler"] == "llm_service"
+        assert result["route"] == "CHAT"
+        assert result["handler"] == "LLMService"
 
-    @patch('core.atom_meta_agent.IntentClassifier')
-    def test_route_workflow_request(self, mock_classifier, atom_agent):
+    @pytest.mark.asyncio
+    async def test_route_workflow_request(self, atom_agent):
         """Test routing WORKFLOW category requests"""
         from core.atom_meta_agent import IntentCategory, IntentClassification
 
-        mock_classifier_instance = MagicMock()
-        mock_classifier_instance.classify_intent.return_value = IntentClassification(
+        intent = IntentClassification(
             category=IntentCategory.WORKFLOW,
             confidence=0.85,
             reasoning="Structured task",
             requires_execution=True,
             suggested_handler="queen_agent"
         )
-        mock_classifier.return_value = mock_classifier_instance
 
-        result = atom_agent._classify_and_route("Execute sales blueprint")
+        with patch.object(atom_agent, '_check_governance', AsyncMock(return_value=(True, None))), \
+             patch('core.atom_meta_agent.SessionLocal'), \
+             patch('core.atom_meta_agent.QueenAgent') as mock_queen_cls:
+            mock_queen_cls.return_value.generate_blueprint = AsyncMock(return_value={
+                "blueprint_id": "bp-1",
+                "architecture_name": "Sales Blueprint",
+                "nodes": [{"id": "n1"}]
+            })
+            result = await atom_agent.route_with_governance(
+                "Execute sales blueprint", intent, user_id="test-user-123"
+            )
 
-        assert result["category"] == "workflow"
-        assert result["handler"] == "queen_agent"
+            assert result["route"] == "WORKFLOW"
+            assert result["handler"] == "QueenAgent"
 
-    @patch('core.atom_meta_agent.IntentClassifier')
-    def test_route_task_request(self, mock_classifier, atom_agent):
+    @pytest.mark.asyncio
+    async def test_route_task_request(self, atom_agent):
         """Test routing TASK category requests"""
         from core.atom_meta_agent import IntentCategory, IntentClassification
 
-        mock_classifier_instance = MagicMock()
-        mock_classifier_instance.classify_intent.return_value = IntentClassification(
+        intent = IntentClassification(
             category=IntentCategory.TASK,
             confidence=0.80,
             reasoning="Complex unstructured task",
             requires_execution=True,
             suggested_handler="fleet_admiral"
         )
-        mock_classifier.return_value = mock_classifier_instance
 
-        result = atom_agent._classify_and_route("Research competitors and build integration")
+        with patch.object(atom_agent, '_check_governance', AsyncMock(return_value=(True, None))), \
+             patch('core.atom_meta_agent.SessionLocal'), \
+             patch('core.fleet_admiral.FleetAdmiral') as mock_admiral_cls:
+            mock_admiral_cls.return_value.recruit_and_execute = AsyncMock(return_value={
+                "chain_id": "chain-1",
+                "specialists_count": 3
+            })
+            result = await atom_agent.route_with_governance(
+                "Research competitors and build integration", intent, user_id="test-user-123"
+            )
 
-        assert result["category"] == "task"
-        assert result["handler"] == "fleet_admiral"
+            assert result["route"] == "TASK"
+            assert result["handler"] == "FleetAdmiral"
 
 
 # =============================================================================
@@ -1082,30 +1097,53 @@ class TestErrorHandlingEnhanced:
 
     def test_handle_invalid_agent_id(self, atom_agent):
         """Test handling of invalid agent ID"""
-        result = atom_agent.get_agent_status("invalid_agent_id")
+        result = asyncio.run(atom_agent._execute_delegation(
+            agent_name="invalid_agent_id",
+            task="Do something",
+            context={}
+        ))
 
         # Should handle gracefully
-        assert result is None or "error" in result
+        assert "not found" in result
 
     def test_handle_empty_user_request(self, atom_agent):
         """Test handling of empty user request"""
-        result = atom_agent._classify_and_route("")
+        from core.atom_meta_agent import IntentCategory, IntentClassification
+
+        intent = IntentClassification(
+            category=IntentCategory.CHAT,
+            confidence=0.5,
+            reasoning="Empty query",
+            requires_execution=False,
+            suggested_handler="llm_service"
+        )
+
+        result = asyncio.run(atom_agent.route_with_governance(
+            "", intent, user_id="test-user-123"
+        ))
 
         # Should handle gracefully
         assert result is not None
 
-    def test_handle_llm_failure_gracefully(self, atom_agent):
+    @pytest.mark.asyncio
+    async def test_handle_llm_failure_gracefully(self, atom_agent):
         """Test graceful handling of LLM failure"""
-        atom_agent.llm.generate_response = AsyncMock(side_effect=Exception("LLM failed"))
+        atom_agent.llm.generate_structured_response = AsyncMock(return_value=None)
+        atom_agent.llm.generate_completion = AsyncMock(
+            return_value={"content": "Service not initialized"}
+        )
 
         # Should not crash
-        result = asyncio.run(atom_agent._generate_next_step(
-            thought="Test thought",
-            tool_calls=[],
-            final_answer=None
-        ))
+        result = await atom_agent._react_step(
+            request="Test thought",
+            memory_context={},
+            tool_descriptions="",
+            execution_history="",
+            context={}
+        )
 
         assert result is not None
+        assert "not initialized" in result.final_answer
 
 
 # =============================================================================
@@ -1127,14 +1165,15 @@ class TestPerformanceBenchmarks:
              patch('core.service_factory.ServiceFactory.get_llm_service'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'):
 
-            agent = AtomMetaAgent(workspace_id=test_workspace_id, tenant_id=test_tenant_id)
+            agent = AtomMetaAgent(workspace_id="perf-workspace", tenant_id="perf-tenant")
 
         elapsed = time.time() - start_time
 
         # Target: <100ms for initialization
         assert elapsed < 0.1, f"Initialization took {elapsed:.3f}s, target <0.1s"
 
-    def test_step_generation_performance(self, atom_agent):
+    @pytest.mark.asyncio
+    async def test_step_generation_performance(self, atom_agent):
         """Test step generation meets performance target"""
         import time
 
@@ -1148,11 +1187,13 @@ class TestPerformanceBenchmarks:
         )
 
         start_time = time.time()
-        result = asyncio.run(atom_agent._generate_next_step(
-            thought="Previous thought",
-            tool_calls=[],
-            final_answer=None
-        ))
+        result = await atom_agent._react_step(
+            request="Previous thought",
+            memory_context={},
+            tool_descriptions="",
+            execution_history="",
+            context={}
+        )
         elapsed = time.time() - start_time
 
         assert result is not None

@@ -14,6 +14,8 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 from services.agent_service import agent_service
 
+logger = logging.getLogger(__name__)
+
 # LLM Service Integration
 try:
     from core.llm_service import LLMService
@@ -60,8 +62,6 @@ except Exception:
     logger.warning("get_automation_settings not importable — finance/CRM chat handlers degraded")
 
 from core.database import SessionLocal
-
-logger = logging.getLogger(__name__)
 
 REGULATORY_DISCLAIMER = "\n\n---\n*Disclaimer: ATOM's financial features are powered by AI and intended for strategic guidance. This system is not a licensed CPA or tax advisor. All automated records should be reviewed by a qualified professional before filing.*"
 

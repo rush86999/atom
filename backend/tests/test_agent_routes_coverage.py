@@ -49,6 +49,7 @@ def admin_user(db: Session):
         first_name="Admin",
         last_name="User",
         role=UserRole.ADMIN.value,
+        status="active",
         created_at=datetime.utcnow()
     )
     db.add(user)
@@ -90,6 +91,7 @@ def test_agent_factory(db: Session):
             class_name=class_name,
             configuration=configuration or {},
             enabled=enabled,
+            workspace_id="default",
             created_at=datetime.utcnow()
         )
         db.add(agent)
@@ -126,9 +128,9 @@ def mock_world_model_service():
 @pytest.fixture
 def mock_generic_agent():
     """Mock GenericAgent."""
-    with patch("api.agent_routes.GenericAgent") as mock:
+    with patch("core.generic_agent.GenericAgent") as mock:
         agent = MagicMock()
-        agent.execute = AsyncMock(return_value=Mock(final_output="Test result"))
+        agent.execute = AsyncMock(return_value={"final_output": "Test result"})
         mock.return_value = agent
         yield mock
 
@@ -156,6 +158,23 @@ def mock_agent_task_registry():
         mock.get_active_tasks = AsyncMock(return_value=[])
         mock.cancel_agent_tasks = AsyncMock(return_value=0)
         yield mock
+
+
+@pytest.fixture
+def mock_background_db(db: Session):
+    """Route the background task's own DB session to the test database.
+
+    execute_agent_task opens its own session via get_db_session(); without
+    this seam the task looks up agents in the dev database and misses them.
+    """
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _session():
+        yield db
+
+    with patch("api.agent_routes.get_db_session", side_effect=_session):
+        yield
 
 
 @pytest.fixture
@@ -285,7 +304,7 @@ class TestAgentListOperations:
         response = client.get("/api/agents/")
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
+        assert isinstance(data["data"], list)
 
     def test_list_agents_with_agents(self, client: TestClient, test_agent_factory):
         """Test list agents returns agents."""
@@ -295,8 +314,8 @@ class TestAgentListOperations:
         response = client.get("/api/agents/")
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert len(data) >= 2
+        assert isinstance(data["data"], list)
+        assert len(data["data"]) >= 2
 
     def test_list_agents_by_category(self, client: TestClient, test_agent_factory):
         """Test list agents filtered by category."""
@@ -306,7 +325,7 @@ class TestAgentListOperations:
         response = client.get("/api/agents/?category=finance")
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
+        assert isinstance(data["data"], list)
 
     def test_list_agents_structure(self, client: TestClient, test_agent_factory):
         """Test list agents returns correct structure."""
@@ -314,7 +333,7 @@ class TestAgentListOperations:
 
         response = client.get("/api/agents/")
         assert response.status_code == 200
-        data = response.json()
+        data = response.json()["data"]
         assert isinstance(data, list)
 
         # Find our agent in the list
@@ -356,7 +375,7 @@ class TestAgentGetOperations:
         assert response.status_code == 404
 
         data = response.json()
-        assert data["success"] is False
+        assert data["detail"]["success"] is False
 
     def test_get_agent_includes_metadata(self, client: TestClient, test_agent_factory):
         """Test get agent includes metadata fields."""
@@ -480,7 +499,7 @@ class TestAgentDeleteOperations:
         agent = test_agent_factory(name="Running Agent")
 
         # Mock running tasks
-        mock_agent_task_registry.get_active_tasks = AsyncMock(return_value=[
+        mock_agent_task_registry.get_agent_tasks = Mock(return_value=[
             Mock(task_id="task-1"),
             Mock(task_id="task-2")
         ])
@@ -489,8 +508,8 @@ class TestAgentDeleteOperations:
         assert response.status_code == 400
 
         data = response.json()
-        assert data["success"] is False
-        assert "running task" in data["message"].lower()
+        assert data["detail"]["success"] is False
+        assert "running task" in data["detail"]["error"]["message"].lower()
 
 
 class TestAgentRunOperations:
@@ -564,7 +583,7 @@ class TestAgentRunOperations:
         assert response.status_code == 409
 
         data = response.json()
-        assert "already running" in data["message"].lower()
+        assert "already running" in data["detail"]["error"]["message"].lower()
 
 
 # =============================================================================
@@ -604,7 +623,7 @@ class TestAgentStatusEndpoint:
         agent = test_agent_factory(name="Active Agent")
 
         # Mock active tasks
-        mock_agent_task_registry.get_active_tasks = AsyncMock(return_value=[
+        mock_agent_task_registry.get_agent_tasks = Mock(return_value=[
             Mock(task_id="task-1"),
             Mock(task_id="task-2"),
             Mock(task_id="task-3")
@@ -807,7 +826,7 @@ class TestCustomAgentEndpoints:
                 }
             }
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
 
         data = response.json()
         assert data["success"] is True
@@ -835,7 +854,7 @@ class TestCustomAgentEndpoints:
                 }
             }
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
 
     def test_update_agent_put_success(self, client: TestClient, test_agent_factory):
         """Test updating agent via PUT endpoint."""
@@ -915,10 +934,7 @@ class TestAtomMetaAgentEndpoints:
 
     def test_execute_atom_success(self, client: TestClient):
         """Test executing Atom meta-agent."""
-        with patch("core.atom_meta_agent.handle_manual_trigger") as mock_handle:
-            mock_handle = AsyncMock()
-            mock_handle.return_value = {"result": "success"}
-
+        with patch("core.atom_meta_agent.handle_manual_trigger", new_callable=AsyncMock, return_value={"result": "success"}) as mock_handle:
             response = client.post(
                 "/api/agents/atom/execute",
                 json={
@@ -932,9 +948,7 @@ class TestAtomMetaAgentEndpoints:
 
     def test_execute_atom_minimal_request(self, client: TestClient):
         """Test executing Atom with minimal request."""
-        with patch("api.agent_routes.handle_manual_trigger") as mock_handle:
-            mock_handle.return_value = {}
-
+        with patch("core.atom_meta_agent.handle_manual_trigger", new_callable=AsyncMock, return_value={}) as mock_handle:
             response = client.post(
                 "/api/agents/atom/execute",
                 json={"request": "Test request"}
@@ -943,7 +957,7 @@ class TestAtomMetaAgentEndpoints:
 
     def test_spawn_agent_success(self, client: TestClient):
         """Test spawning a new agent."""
-        with patch("api.agent_routes.get_atom_agent") as mock_get:
+        with patch("core.atom_meta_agent.get_atom_agent") as mock_get:
             mock_atom = MagicMock()
             mock_agent = Mock()
             mock_agent.id = "spawned-123"
@@ -969,7 +983,7 @@ class TestAtomMetaAgentEndpoints:
 
     def test_spawn_agent_minimal(self, client: TestClient):
         """Test spawning agent with minimal params."""
-        with patch("api.agent_routes.get_atom_agent") as mock_get:
+        with patch("core.atom_meta_agent.get_atom_agent") as mock_get:
             mock_atom = MagicMock()
             mock_agent = Mock()
             mock_agent.id = "spawned-minimal"
@@ -986,9 +1000,7 @@ class TestAtomMetaAgentEndpoints:
 
     def test_trigger_atom_with_data(self, client: TestClient):
         """Test triggering Atom with data event."""
-        with patch("api.agent_routes.handle_data_event_trigger") as mock_handle:
-            mock_handle.return_value = {"triggered": True}
-
+        with patch("core.atom_meta_agent.handle_data_event_trigger", new_callable=AsyncMock, return_value={"triggered": True}) as mock_handle:
             response = client.post(
                 "/api/agents/atom/trigger",
                 json={
@@ -1289,9 +1301,9 @@ class TestErrorResponseFormats:
         assert response.status_code == 404
 
         data = response.json()
-        assert "success" in data
-        assert data["success"] is False
-        assert "message" in data
+        assert "success" in data["detail"]
+        assert data["detail"]["success"] is False
+        assert "message" in data["detail"]["error"]
 
     def test_400_response_format(self, client: TestClient, test_agent_factory):
         """Test 400 response has correct format."""
@@ -1304,7 +1316,7 @@ class TestErrorResponseFormats:
         assert response.status_code == 400
 
         data = response.json()
-        assert data["success"] is False
+        assert data["detail"]["success"] is False
 
     def test_409_response_format(self, client: TestClient, test_agent_factory):
         """Test 409 conflict response has correct format."""
@@ -1317,8 +1329,8 @@ class TestErrorResponseFormats:
         assert response.status_code == 409
 
         data = response.json()
-        assert data["success"] is False
-        assert "message" in data
+        assert data["detail"]["success"] is False
+        assert "message" in data["detail"]["error"]
 
     def test_422_validation_error_format(self, client: TestClient):
         """Test 422 validation error has correct format."""
@@ -1343,7 +1355,7 @@ class TestErrorResponseFormats:
 class TestAgentIntegrationPoints:
     """Test integration with other services."""
 
-    def test_agent_run_with_world_model(self, client: TestClient, test_agent_factory, mock_world_model_service):
+    def test_agent_run_with_world_model(self, client: TestClient, test_agent_factory, mock_world_model_service, mock_generic_agent, mock_ws_manager, mock_background_db):
         """Test agent run calls world model service."""
         agent = test_agent_factory(name="WM Agent", status="active")
 
@@ -1364,7 +1376,7 @@ class TestAgentIntegrationPoints:
         # Verify world model was called
         mock_world_model_service.recall_experiences.assert_called_once()
 
-    def test_agent_run_broadcasts_to_websocket(self, client: TestClient, test_agent_factory, mock_ws_manager):
+    def test_agent_run_broadcasts_to_websocket(self, client: TestClient, test_agent_factory, mock_ws_manager, mock_generic_agent, mock_world_model_service, mock_background_db):
         """Test agent run broadcasts to WebSocket."""
         agent = test_agent_factory(name="WS Agent", status="active")
 
@@ -1376,7 +1388,7 @@ class TestAgentIntegrationPoints:
         # WebSocket broadcast should be called
         assert mock_ws_manager.broadcast.called
 
-    def test_agent_failure_sends_notification(self, client: TestClient, test_agent_factory, mock_generic_agent, mock_notification_manager):
+    def test_agent_failure_sends_notification(self, client: TestClient, test_agent_factory, mock_generic_agent, mock_notification_manager, mock_world_model_service, mock_background_db):
         """Test agent failure sends urgent notification."""
         agent = test_agent_factory(name="Failing Agent", status="active")
 

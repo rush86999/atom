@@ -354,7 +354,10 @@ class AgentGovernanceService:
         ).first()
         
         is_admin = user.role in [UserRole.WORKSPACE_ADMIN, UserRole.SUPER_ADMIN]
-        is_specialty_match = user.specialty and agent.category and user.specialty.lower() == agent.category.lower()
+        # User.specialty was commented out of the model pending migration;
+        # guard with getattr so adjudication never crashes on the missing column.
+        specialty = getattr(user, "specialty", None)
+        is_specialty_match = specialty and agent.category and specialty.lower() == agent.category.lower()
         is_trusted = is_admin or is_specialty_match
 
         if is_trusted:
@@ -371,6 +374,7 @@ class AgentGovernanceService:
             feedback.ai_reasoning = "Pending specialty review."
             self._update_confidence_score(agent.id, positive=False, impact_level="low")
 
+        feedback.adjudicated_at = datetime.now(timezone.utc)
         self.db.commit()
 
     def _update_confidence_score(self, agent_id: str, positive: bool, impact_level: str = "high") -> None:

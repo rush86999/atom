@@ -581,15 +581,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to initialize AI Workflow Service: {e}")
 
-    # Start Distributed Debug System Aggregator (event-driven, scale-to-zero compatible)
-    try:
-        from core.debug_log_aggregator import start_aggregator
-
-        await start_aggregator()
-        logger.info("✅ Debug System Aggregator running (event-driven mode)")
-    except Exception as e:
-        logger.error(f"Failed to start Debug System Aggregator: {e}")
-
     # QStash Auto-Cleanup (Prevent DLQ buildup from orphaned schedules)
     # Only run if qstash_init_skip is False to avoid redundant LIST calls
     try:
@@ -711,15 +702,6 @@ async def lifespan(app: FastAPI):
         logger.info("✓ Workflow Scheduler stopped")
     except Exception as e:
         logger.debug(f"Workflow scheduler shutdown: {e}")
-
-    # Stop Distributed Debug System Aggregator
-    try:
-        from core.debug_log_aggregator import stop_aggregator
-
-        await stop_aggregator()
-        logger.info("✅ Debug System Aggregator stopped")
-    except Exception as e:
-        logger.debug(f"Debug aggregator shutdown: {e}")
 
     # Stop Availability Background Worker (NEW - Supervision System)
     try:
@@ -1102,6 +1084,59 @@ app.openapi = custom_openapi
 # Track which integrations have been loaded
 # (_loaded_integrations is now defined at the top of the file)
 
+# Core modules whose routers already declare their own root prefixes
+# (e.g. /api/atom-agent, /api/auth). They must be mounted at the root —
+# NOT under the third-party /api/v1/integrations/{name} prefix. Used by both
+# the eager loader and the on-demand auto-load middleware so the two stay
+# consistent (fixes /api/atom-agent/* returning 404 after 7cc5582e3
+# un-blacklisted atom_agent from the on-demand loader).
+CORE_API_MODULES = {
+    "auth",
+    "oauth",
+    "atom_agent",
+    "workflow_ui",
+    "missing_endpoints",
+    "service_registry",
+    "byok",
+    "byok_competitive",
+    "system_status",
+    "service_health",
+    "workflow",
+    "analytics",
+    "enterprise",
+    "workflow_marketplace",
+    "enterprise_user_mgmt",
+    "integration_enhancement",
+    "industry_workflow",
+    "ai_workflow_optimization",
+    "enterprise_security",
+    "auto_healing",
+    "workflow_versioning",
+    "unified_task",
+    "unified_project",
+    "unified_calendar",
+    "unified_search",
+    "activity",
+    "social_layer",
+    "social_websocket",
+    "package",
+    "sdlc",
+    "coding_agent",
+    "testing_agent",
+    "spend",
+    "budget_alert",
+    "industrial",
+    "system_admin",
+    "agent_feed",
+    "tenant",
+    "workspace",
+    "risk",
+    "integration_canvas",
+    "team_messaging",
+    "voice",
+    "integration_health",
+}
+
 # Load essential integrations immediately to ensure they are available in the route table
 # before the server starts receiving requests.
 # SKIP during test mode to prevent hangs and speed up test initialization
@@ -1123,52 +1158,7 @@ if API_ROUTER_REGISTRY and not is_test_mode:
                 # Skip for core auth/oauth which might have legacy root paths
                 prefix = ""
                 # Skip core system modules that have their own root paths or specialized prefixes
-                is_core_module = name in [
-                    "auth",
-                    "oauth",
-                    "atom_agent",
-                    "workflow_ui",
-                    "missing_endpoints",
-                    "service_registry",
-                    "byok",
-                    "byok_competitive",
-                    "system_status",
-                    "service_health",
-                    "workflow",
-                    "analytics",
-                    "enterprise",
-                    "workflow_marketplace",
-                    "enterprise_user_mgmt",
-                    "integration_enhancement",
-                    "industry_workflow",
-                    "ai_workflow_optimization",
-                    "enterprise_security",
-                    "auto_healing",
-                    "workflow_versioning",
-                    "unified_task",
-                    "unified_project",
-                    "unified_calendar",
-                    "unified_search",
-                    "activity",
-                    "social_layer",
-                    "social_websocket",
-                    "package",
-                    "sdlc",
-                    "coding_agent",
-                    "testing_agent",
-                    "spend",
-                    "budget_alert",
-                    "industrial",
-                    "system_admin",
-                    "agent_feed",
-                    "tenant",
-                    "workspace",
-                    "risk",
-                    "integration_canvas",
-                    "team_messaging",
-                    "voice",
-                    "integration_health",
-                ]
+                is_core_module = name in CORE_API_MODULES
 
                 if not is_core_module:
                     # Apply unified integration prefix
@@ -1783,8 +1773,13 @@ async def auto_load_integration_middleware(request, call_next):
                         logger.info(f"🔄 Auto-loading integration on-demand: {integration_name}")
                         router = load_integration(integration_name, registry="api_routers")
                         if router:
-                            # Apply standard prefix based on integration name
-                            prefix = f"/api/v1/integrations/{integration_name.replace('_', '-')}"
+                            # Core modules (e.g. atom_agent) declare their own root
+                            # prefix (/api/atom-agent); only third-party integrations
+                            # get the /api/v1/integrations/{name} prefix. Mirror the
+                            # eager loader's CORE_API_MODULES handling here.
+                            prefix = "" if integration_name in CORE_API_MODULES else (
+                                f"/api/v1/integrations/{integration_name.replace('_', '-')}"
+                            )
                             app.include_router(router, prefix=prefix, tags=[integration_name])
                             _loaded_integrations.add(integration_name)
                             logger.info(f"✓ Auto-loaded: {integration_name}")
@@ -2704,6 +2699,14 @@ try:
         logger.info("✓ Canvas Terminal Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas terminal routes not found: {e}")
+
+    try:
+        from api.browser_routes import router as browser_router
+
+        app.include_router(browser_router)
+        logger.info("✓ Browser Automation Routes Loaded")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Browser automation routes not found: {e}")
 
     try:
 

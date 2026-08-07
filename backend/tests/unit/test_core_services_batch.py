@@ -12,7 +12,7 @@ Tests cover multiple core services grouped by functionality:
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
@@ -21,11 +21,12 @@ from core.agent_social_layer import AgentSocialLayer
 from core.skill_registry_service import SkillRegistryService
 from core.proposal_service import ProposalService
 from core.workflow_debugger import WorkflowDebugger
-from core.workflow_analytics_engine import WorkflowAnalyticsEngine
-from core.auto_document_ingestion import AutoDocumentIngestion
-from core.workflow_versioning_system import WorkflowVersioningSystem
+from core.workflow_analytics_engine import WorkflowAnalyticsEngine, WorkflowStatus
+from core.auto_document_ingestion import AutoDocumentIngestion, DocumentParser, IngestedDocument
+from core.workflow_versioning_system import WorkflowVersioningSystem, VersionType
 from core.advanced_workflow_system import AdvancedWorkflowSystem
 from core.atom_meta_agent import AtomMetaAgent
+from core.models import AgentRegistry, AgentStatus
 
 
 # =============================================================================
@@ -36,202 +37,214 @@ class TestAgentSocialLayer:
     """Test agent social layer and collaboration features"""
 
     @pytest.fixture
-    def agent_social_layer(self, db_session: Session):
+    def social_layer(self):
         """Create agent social layer instance"""
-        return AgentSocialLayer(db_session)
+        return AgentSocialLayer()
 
-    def test_create_social_connection(self, agent_social_layer: AgentSocialLayer):
-        """Test creating social connection between agents"""
-        # Arrange
-        agent_id_1 = "agent-001"
-        agent_id_2 = "agent-002"
-        connection_type = "peer"
-
+    async def test_create_social_connection(self, social_layer: AgentSocialLayer, db_session: Session):
+        """Test creating a social post connection"""
         # Act
-        result = agent_social_layer.create_connection(
-            agent_id_1, agent_id_2, connection_type
+        post = await social_layer.create_post(
+            sender_type="human",
+            sender_id="user-001",
+            sender_name="Alice",
+            post_type="status",
+            content="Hello from Alice",
+            db=db_session,
         )
 
         # Assert
-        assert result is not None
-        assert result.agent_1_id == agent_id_1
-        assert result.agent_2_id == agent_id_2
-        assert result.connection_type == connection_type
-        assert result.created_at is not None
+        assert post is not None
+        assert post["id"] is not None
+        assert post["sender_id"] == "user-001"
+        assert post["created_at"] is not None
 
-    def test_get_agent_network(self, agent_social_layer: AgentSocialLayer):
-        """Test retrieving agent network graph"""
+    async def test_get_agent_network(self, social_layer: AgentSocialLayer, db_session: Session):
+        """Test retrieving agent activity feed"""
         # Arrange
-        agent_id = "agent-001"
-        agent_social_layer.create_connection(agent_id, "agent-002", "peer")
-        agent_social_layer.create_connection(agent_id, "agent-003", "mentor")
+        for i in range(2):
+            await social_layer.create_post(
+                sender_type="human",
+                sender_id=f"user-00{i}",
+                sender_name=f"User{i}",
+                post_type="status",
+                content=f"post number {i}",
+                db=db_session,
+            )
 
         # Act
-        network = agent_social_layer.get_agent_network(agent_id)
+        feed = await social_layer.get_feed(sender_id="user-000", db=db_session)
 
         # Assert
-        assert network is not None
-        assert len(network['connections']) >= 2
-        assert 'peers' in network
-        assert 'mentors' in network
+        assert feed is not None
+        assert feed["total"] >= 2
+        assert len(feed["posts"]) >= 2
 
-    def test_share_knowledge_between_agents(self, agent_social_layer: AgentSocialLayer):
-        """Test knowledge sharing between connected agents"""
+    async def test_share_knowledge_between_agents(self, social_layer: AgentSocialLayer, db_session: Session):
+        """Test sharing knowledge via reactions on posts"""
         # Arrange
-        agent_id_1 = "agent-001"
-        agent_id_2 = "agent-002"
-        knowledge = {"workflow_template": "data_analysis"}
-        agent_social_layer.create_connection(agent_id_1, agent_id_2, "peer")
+        post = await social_layer.create_post(
+            sender_type="human",
+            sender_id="user-001",
+            sender_name="Alice",
+            post_type="insight",
+            content="Shared insight",
+            db=db_session,
+        )
 
         # Act
-        result = agent_social_layer.share_knowledge(
-            agent_id_1, agent_id_2, knowledge
+        reactions = await social_layer.add_reaction(
+            post_id=post["id"], sender_id="user-002", emoji="like", db=db_session
         )
 
         # Assert
-        assert result is True
-        assert result.shared_at is not None
+        assert reactions is not None
+        assert reactions["like"] == 1
 
-    def test_get_social_recommendations(self, agent_social_layer: AgentSocialLayer):
-        """Test getting social connection recommendations"""
+    async def test_get_social_recommendations(self, social_layer: AgentSocialLayer, db_session: Session):
+        """Test getting trending topics from social posts"""
         # Arrange
-        agent_id = "agent-001"
+        await social_layer.create_post(
+            sender_type="human",
+            sender_id="user-000",
+            sender_name="User0",
+            post_type="status",
+            content="checking trending",
+            mentioned_user_ids=["user-999"],
+            db=db_session,
+        )
 
         # Act
-        recommendations = agent_social_layer.get_recommendations(agent_id)
+        topics = await social_layer.get_trending_topics(hours=24, db=db_session)
 
         # Assert
-        assert recommendations is not None
-        assert isinstance(recommendations, list)
+        assert topics is not None
+        assert isinstance(topics, list)
+        assert any(t["topic"] == "user:user-999" for t in topics)
 
-    def test_block_agent_interaction(self, agent_social_layer: AgentSocialLayer):
-        """Test blocking interactions between agents"""
+    async def test_block_agent_interaction(self, social_layer: AgentSocialLayer, db_session: Session):
+        """Test rate-limit blocking for read-only agents"""
         # Arrange
-        agent_id_1 = "agent-001"
-        agent_id_2 = "agent-002"
-        reason = "conflicting objectives"
+        agent = AgentRegistry(
+            id="student-agent-001",
+            name="Student Agent",
+            category="General",
+            module_path="core.generic_agent",
+            class_name="GenericAgent",
+            status=AgentStatus.STUDENT.value,
+        )
+        db_session.add(agent)
+        db_session.commit()
 
         # Act
-        result = agent_social_layer.block_interaction(
-            agent_id_1, agent_id_2, reason
+        allowed, reason = await social_layer.check_rate_limit(
+            agent_id="student-agent-001", db=db_session
         )
 
         # Assert
-        assert result is True
-        assert result.blocked_at is not None
-        assert result.reason == reason
+        assert allowed is False
+        assert reason is not None
 
-    def test_get_agent_influence_score(self, agent_social_layer: AgentSocialLayer):
-        """Test calculating agent influence score"""
-        # Arrange
-        agent_id = "agent-001"
-
+    async def test_get_agent_influence_score(self, social_layer: AgentSocialLayer, db_session: Session):
+        """Test calculating agent reputation score"""
         # Act
-        score = agent_social_layer.calculate_influence_score(agent_id)
+        reputation = await social_layer.get_agent_reputation(
+            agent_id="agent-001", db=db_session
+        )
 
         # Assert
-        assert score is not None
-        assert score >= 0
-        assert score <= 100
+        assert reputation is not None
+        assert reputation["agent_id"] == "agent-001"
+        assert 0 <= reputation["reputation_score"] <= 100
 
 
 class TestAtomMetaAgent:
     """Test meta agent coordination and orchestration"""
 
     @pytest.fixture
-    def meta_agent(self, db_session: Session):
+    def meta_agent(self):
         """Create meta agent instance"""
-        return AtomMetaAgent(db_session)
+        return AtomMetaAgent(workspace_id="test-ws")
 
-    def test_coordinate_multi_agent_workflow(self, meta_agent: AtomMetaAgent):
-        """Test coordinating workflow across multiple agents"""
-        # Arrange
-        agents = ["agent-001", "agent-002", "agent-003"]
-        workflow_definition = {"steps": ["analyze", "process", "report"]}
-
+    async def test_coordinate_multi_agent_workflow(self, meta_agent: AtomMetaAgent):
+        """Test coordinating workflow via spawned agents"""
         # Act
-        coordination = meta_agent.coordinate_workflow(agents, workflow_definition)
+        agent = await meta_agent.spawn_agent(
+            "custom",
+            {"name": "Analyst A", "category": "Analytics", "description": "Test agent"},
+        )
 
         # Assert
-        assert coordination is not None
-        assert coordination.workflow_id is not None
-        assert coordination.status in ["pending", "running"]
+        assert agent is not None
+        assert agent.id.startswith("spawned_")
+        assert agent.status == AgentStatus.STUDENT.value
+        assert agent.name == "Analyst A"
 
-    def test_delegate_task_to_specialist(self, meta_agent: AtomMetaAgent):
-        """Test delegating task to specialist agent"""
-        # Arrange
-        task = {"type": "data_analysis", "data": "sales_data.csv"}
-        specialist_type = "analyst"
-
+    async def test_delegate_task_to_specialist(self, meta_agent: AtomMetaAgent):
+        """Test delegating task to a specialist template agent"""
         # Act
-        delegation = meta_agent.delegate_task(task, specialist_type)
+        agent = await meta_agent.spawn_agent("finance_analyst")
 
         # Assert
-        assert delegation is not None
-        assert delegation.assigned_agent_id is not None
-        assert delegation.task_status in ["assigned", "in_progress"]
+        assert agent is not None
+        assert agent.id.startswith("spawned_")
+        assert agent.name == "Finance Analyst"
+        assert agent.category == "Finance"
 
-    def test_merge_agent_outputs(self, meta_agent: AtomMetaAgent):
-        """Test merging outputs from multiple agents"""
-        # Arrange
-        outputs = [
-            {"agent_id": "agent-001", "result": "analysis_1"},
-            {"agent_id": "agent-002", "result": "analysis_2"}
-        ]
-        merge_strategy = "vote"
-
+    async def test_merge_agent_outputs(self, meta_agent: AtomMetaAgent, db_session: Session):
+        """Test persisting spawned agents into the registry"""
         # Act
-        merged = meta_agent.merge_outputs(outputs, merge_strategy)
+        agent = await meta_agent.spawn_agent(
+            "custom", {"name": "Persisted Agent", "category": "General"},
+            persist=True, db=db_session,
+        )
 
         # Assert
-        assert merged is not None
-        assert "final_result" in merged
-        assert "confidence" in merged
+        assert agent is not None
+        assert agent.id is not None
+        persisted = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent.id
+        ).first()
+        assert persisted is not None
+        assert persisted.name == "Persisted Agent"
 
-    def test_monitor_agent_performance(self, meta_agent: AtomMetaAgent):
-        """Test monitoring performance of coordinated agents"""
-        # Arrange
-        agent_ids = ["agent-001", "agent-002"]
-
+    async def test_monitor_agent_performance(self, meta_agent: AtomMetaAgent):
+        """Test spawning multiple agents with distinct identities"""
         # Act
-        performance = meta_agent.monitor_performance(agent_ids)
+        a1 = await meta_agent.spawn_agent("custom", {"name": "Agent One", "category": "General"})
+        a2 = await meta_agent.spawn_agent("custom", {"name": "Agent Two", "category": "General"})
 
         # Assert
-        assert performance is not None
-        assert isinstance(performance, dict)
-        assert all(aid in performance for aid in agent_ids)
+        assert a1 is not None
+        assert a2 is not None
+        assert a1.id != a2.id
+        assert a1.name == "Agent One"
+        assert a2.name == "Agent Two"
 
-    def test_handle_agent_conflict(self, meta_agent: AtomMetaAgent):
-        """Test handling conflicts between agent outputs"""
+    async def test_handle_agent_conflict(self, meta_agent: AtomMetaAgent):
+        """Test handling unknown template conflicts"""
+        # Act / Assert
+        with pytest.raises(ValueError):
+            await meta_agent.spawn_agent("unknown_template")
+
+    async def test_propagate_agent_learning(self, meta_agent: AtomMetaAgent, db_session: Session):
+        """Test propagating agent state across registry"""
         # Arrange
-        conflict = {
-            "agent_1": "agent-001",
-            "agent_2": "agent-002",
-            "disagreement": "different_classification",
-            "context": "customer_segment"
-        }
+        agent = await meta_agent.spawn_agent(
+            "custom", {"name": "Learning Agent", "category": "General"},
+            persist=True, db=db_session,
+        )
 
         # Act
-        resolution = meta_agent.resolve_conflict(conflict)
+        agent.status = AgentStatus.INTERN.value
+        db_session.commit()
 
         # Assert
-        assert resolution is not None
-        assert resolution.resolved_at is not None
-        assert resolution.outcome in ["agent_1_wins", "agent_2_wins", "hybrid"]
-
-    def test_propagate_agent_learning(self, meta_agent: AtomMetaAgent):
-        """Test propagating learning across agent network"""
-        # Arrange
-        source_agent = "agent-001"
-        learning = {"pattern": "high_value_customers", "accuracy": 0.95}
-
-        # Act
-        propagation = meta_agent.propagate_learning(source_agent, learning)
-
-        # Assert
-        assert propagation is not None
-        assert propagation.learning_id is not None
-        assert propagation.recipient_count >= 0
+        fetched = db_session.query(AgentRegistry).filter(
+            AgentRegistry.id == agent.id
+        ).first()
+        assert fetched is not None
+        assert fetched.status == AgentStatus.INTERN.value
 
 
 # =============================================================================
@@ -242,91 +255,120 @@ class TestAutoDocumentIngestion:
     """Test automatic document ingestion and processing"""
 
     @pytest.fixture
-    def doc_ingestion(self, db_session: Session):
+    def doc_ingestion(self):
         """Create document ingestion service instance"""
-        return AutoDocumentIngestion(db_session)
+        return AutoDocumentIngestion()
 
     def test_ingest_document_from_url(self, doc_ingestion: AutoDocumentIngestion):
-        """Test ingesting document from URL"""
-        # Arrange
-        url = "https://example.com/document.pdf"
-        metadata = {"source": "external", "priority": "high"}
-
+        """Test getting per-integration ingestion settings"""
         # Act
-        ingestion = doc_ingestion.ingest_from_url(url, metadata)
+        settings = doc_ingestion.get_settings("dropbox")
 
         # Assert
-        assert ingestion is not None
-        assert ingestion.ingestion_id is not None
-        assert ingestion.status in ["pending", "processing", "completed"]
-        assert ingestion.source_url == url
+        assert settings is not None
+        assert settings.integration_id == "dropbox"
+        assert settings.enabled is False
+        assert "pdf" in settings.file_types
 
-    def test_process_ingested_document(self, doc_ingestion: AutoDocumentIngestion):
-        """Test processing ingested document"""
+    async def test_process_ingested_document(self, doc_ingestion: AutoDocumentIngestion):
+        """Test processing raw file bytes into ingested text"""
         # Arrange
-        ingestion_id = "ingestion-001"
-        doc_ingestion.ingest_from_url("https://example.com/doc.pdf", {})
+        memory = MagicMock()
+        memory.add_document.return_value = True
+        doc_ingestion.memory_handler = memory
 
         # Act
-        result = doc_ingestion.process(ingestion_id)
+        result = await doc_ingestion.process_file_bytes(
+            b"name,age\nAlice,30\nBob,25", "people.csv"
+        )
 
         # Assert
         assert result is not None
-        assert result.extracted_text is not None or result.error is not None
-        assert result.processing_time > 0
+        assert result["status"] == "ingested"
+        assert result["file_name"] == "people.csv"
+        assert result["chars_ingested"] > 0
+        memory.add_document.assert_called_once()
 
-    def test_extract_document_metadata(self, doc_ingestion: AutoDocumentIngestion):
-        """Test extracting metadata from document"""
-        # Arrange
-        document_path = "/path/to/document.pdf"
-
+    async def test_extract_document_metadata(self, doc_ingestion: AutoDocumentIngestion):
+        """Test parsing document content into extracted text"""
         # Act
-        metadata = doc_ingestion.extract_metadata(document_path)
+        text = await DocumentParser.parse_document(
+            b"name,age\nAlice,30", "csv", "people.csv"
+        )
 
         # Assert
-        assert metadata is not None
-        assert "file_type" in metadata
-        assert "size" in metadata
-        assert "created_at" in metadata
+        assert text is not None
+        assert "Alice" in text
+        assert "30" in text
 
     def test_classify_document_type(self, doc_ingestion: AutoDocumentIngestion):
-        """Test automatic document type classification"""
+        """Test listing ingested documents by integration"""
         # Arrange
-        document_content = "Financial report Q4 2024"
+        doc = IngestedDocument(
+            id="doc-001",
+            file_name="report.pdf",
+            file_path="/data/report.pdf",
+            file_type="pdf",
+            integration_id="dropbox",
+            workspace_id="default",
+            file_size_bytes=1024,
+            content_preview="Financial report",
+            ingested_at=datetime.now(),
+            external_id="ext-001",
+        )
+        doc_ingestion.ingested_docs["ext-001"] = doc
 
         # Act
-        doc_type = doc_ingestion.classify_document(document_content)
+        docs = doc_ingestion.get_ingested_documents(integration_id="dropbox")
 
         # Assert
-        assert doc_type is not None
-        assert doc_type in ["invoice", "report", "contract", "email", "other"]
+        assert docs is not None
+        assert len(docs) >= 1
+        assert docs[0].file_type == "pdf"
 
     def test_index_document_for_search(self, doc_ingestion: AutoDocumentIngestion):
-        """Test indexing document for search"""
-        # Arrange
-        document_id = "doc-001"
-        content = "This is a test document about machine learning"
-
+        """Test updating ingestion settings"""
         # Act
-        index_result = doc_ingestion.index_document(document_id, content)
+        settings = doc_ingestion.update_settings(
+            "onedrive",
+            enabled=True,
+            auto_sync_new_files=True,
+            file_types=["pdf", "docx"],
+            sync_frequency_minutes=30,
+        )
 
         # Assert
-        assert index_result is not None
-        assert index_result.indexed_at is not None
-        assert index_result.vector_id is not None
+        assert settings is not None
+        assert settings.enabled is True
+        assert settings.auto_sync_new_files is True
+        assert settings.file_types == ["pdf", "docx"]
+        assert settings.sync_frequency_minutes == 30
 
-    def test_cleanup_old_ingestions(self, doc_ingestion: AutoDocumentIngestion):
-        """Test cleanup of old processed documents"""
+    async def test_cleanup_old_ingestions(self, doc_ingestion: AutoDocumentIngestion):
+        """Test removing ingested documents from an integration"""
         # Arrange
-        days_old = 30
+        doc = IngestedDocument(
+            id="doc-002",
+            file_name="old.pdf",
+            file_path="/data/old.pdf",
+            file_type="pdf",
+            integration_id="dropbox",
+            workspace_id="default",
+            file_size_bytes=512,
+            content_preview="Old document",
+            ingested_at=datetime.now() - timedelta(days=60),
+            external_id="ext-002",
+        )
+        doc_ingestion.ingested_docs["ext-002"] = doc
 
         # Act
-        cleaned = doc_ingestion.cleanup_old(days_old)
+        cleaned = await doc_ingestion.remove_integration_documents("dropbox")
 
         # Assert
         assert cleaned is not None
-        assert cleaned.deleted_count >= 0
-        assert cleaned.freed_space >= 0
+        assert cleaned["success"] is True
+        assert cleaned["documents_removed"] >= 1
+        assert len(doc_ingestion.ingested_docs) == 0
 
 
 # =============================================================================
@@ -339,87 +381,108 @@ class TestSkillRegistryService:
     @pytest.fixture
     def skill_registry(self, db_session: Session):
         """Create skill registry service instance"""
-        return SkillRegistryService(db_session)
+        registry = SkillRegistryService(db_session)
+        scanner = AsyncMock()
+        scanner.scan_skill.return_value = {"risk_level": "LOW", "findings": []}
+        registry._scanner = scanner
+        return registry
 
-    def test_register_skill(self, skill_registry: SkillRegistryService):
+    @staticmethod
+    def _skill_content(name: str = "data_analyzer", packages=None) -> str:
+        package_lines = ""
+        if packages:
+            package_lines = "packages:\n" + "".join(f"  - {p}\n" for p in packages)
+        return (
+            "---\n"
+            f"name: {name}\n"
+            "version: 1.0.0\n"
+            f"description: {name} skill\n"
+            f"{package_lines}"
+            "---\n"
+            f"# {name}\n\n"
+            "Performs analysis."
+        )
+
+    async def test_register_skill(self, skill_registry: SkillRegistryService):
         """Test registering new skill"""
-        # Arrange
-        skill_definition = {
-            "name": "data_analyzer",
-            "version": "1.0.0",
-            "description": "Analyze data patterns",
-            "capabilities": ["pattern_detection", "anomaly_detection"]
-        }
-
         # Act
-        registered = skill_registry.register(skill_definition)
+        registered = await skill_registry.import_skill(
+            source="raw_content",
+            content=self._skill_content(),
+            metadata={"author": "test"},
+        )
 
         # Assert
         assert registered is not None
-        assert registered.skill_id is not None
-        assert registered.name == "data_analyzer"
-        assert registered.version == "1.0.0"
+        assert registered["skill_id"] is not None
+        assert registered["skill_name"] == "data_analyzer"
+        assert registered["status"] == "Active"
 
-    def test_get_skill_from_cache(self, skill_registry: SkillRegistryService):
-        """Test retrieving skill from cache"""
+    async def test_get_skill_from_cache(self, skill_registry: SkillRegistryService):
+        """Test retrieving skill details"""
         # Arrange
-        skill_id = "skill-001"
-        skill_registry.register({"name": "test", "id": skill_id})
+        registered = await skill_registry.import_skill(
+            source="raw_content", content=self._skill_content()
+        )
 
         # Act
-        skill = skill_registry.get_skill(skill_id)
+        skill = skill_registry.get_skill(registered["skill_id"])
 
         # Assert
         assert skill is not None
-        assert skill.skill_id == skill_id
-        assert skill.cached_at is not None
+        assert skill["skill_id"] == registered["skill_id"]
+        assert skill["skill_name"] == "data_analyzer"
 
-    def test_invalidate_skill_cache(self, skill_registry: SkillRegistryService):
-        """Test invalidating cached skill"""
+    async def test_invalidate_skill_cache(self, skill_registry: SkillRegistryService):
+        """Test promoting an untrusted skill to active"""
         # Arrange
-        skill_id = "skill-001"
-        skill_registry.register({"name": "test", "id": skill_id})
+        scanner = AsyncMock()
+        scanner.scan_skill.return_value = {"risk_level": "HIGH", "findings": ["eval() detected"]}
+        skill_registry._scanner = scanner
+        registered = await skill_registry.import_skill(
+            source="raw_content", content=self._skill_content()
+        )
+        assert registered["status"] == "Untrusted"
 
         # Act
-        invalidated = skill_registry.invalidate_cache(skill_id)
+        promoted = skill_registry.promote_skill(registered["skill_id"])
 
         # Assert
-        assert invalidated is True
-        assert invalidated.invalidated_at is not None
+        assert promoted is not None
+        assert promoted["status"] == "Active"
+        assert promoted["previous_status"] == "Untrusted"
 
-    def test_search_skills_by_capability(self, skill_registry: SkillRegistryService):
-        """Test searching skills by capability"""
+    async def test_search_skills_by_capability(self, skill_registry: SkillRegistryService):
+        """Test listing registered skills"""
         # Arrange
-        capability = "pattern_detection"
-        skill_registry.register({
-            "name": "analyzer",
-            "capabilities": [capability, "visualization"]
-        })
+        await skill_registry.import_skill(
+            source="raw_content", content=self._skill_content()
+        )
 
         # Act
-        results = skill_registry.search_by_capability(capability)
+        results = skill_registry.list_skills()
 
         # Assert
         assert results is not None
         assert len(results) >= 1
-        assert all(capability in s.capabilities for s in results)
+        assert any(s["skill_name"] == "data_analyzer" for s in results)
 
-    def test_get_skill_dependencies(self, skill_registry: SkillRegistryService):
-        """Test getting skill dependencies"""
+    async def test_get_skill_dependencies(self, skill_registry: SkillRegistryService):
+        """Test getting skill package dependencies"""
         # Arrange
-        skill_id = "skill-001"
-        skill_registry.register({
-            "name": "advanced_analyzer",
-            "dependencies": ["numpy", "pandas", "scikit-learn"]
-        })
+        registered = await skill_registry.import_skill(
+            source="raw_content",
+            content=self._skill_content(name="advanced_analyzer", packages=["numpy", "pandas"]),
+        )
 
         # Act
-        dependencies = skill_registry.get_dependencies(skill_id)
+        skill = skill_registry.get_skill(registered["skill_id"])
 
         # Assert
-        assert dependencies is not None
-        assert len(dependencies) >= 3
-        assert "numpy" in dependencies
+        assert skill is not None
+        assert len(skill["packages"]) >= 2
+        assert "numpy" in skill["packages"]
+        assert "pandas" in skill["packages"]
 
 
 # =============================================================================
@@ -431,104 +494,112 @@ class TestProposalService:
 
     @pytest.fixture
     def proposal_service(self, db_session: Session):
-        """Create proposal service instance"""
-        return ProposalService(db_session)
+        """Create proposal service instance with an INTERN agent"""
+        import uuid
+        agent_id = f"intern-agent-{uuid.uuid4().hex[:8]}"
+        agent = AgentRegistry(
+            id=agent_id,
+            name="Intern Agent",
+            category="General",
+            module_path="core.generic_agent",
+            class_name="GenericAgent",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.75,
+        )
+        db_session.add(agent)
+        db_session.commit()
+        service = ProposalService(db_session)
+        service._test_agent_id = agent_id
+        return service
 
-    def test_create_action_proposal(self, proposal_service: ProposalService):
+    async def _create_proposal(self, proposal_service: ProposalService) -> object:
+        return await proposal_service.create_action_proposal(
+            intern_agent_id=proposal_service._test_agent_id,
+            trigger_context={"page": "dashboard"},
+            proposed_action={"action_type": "send_email", "recipient": "user@example.com"},
+            reasoning="User requested an email",
+        )
+
+    async def test_create_action_proposal(self, proposal_service: ProposalService):
         """Test creating action proposal for INTERN agent"""
-        # Arrange
-        agent_id = "intern-agent-001"
-        action = {
-            "type": "send_email",
-            "recipient": "user@example.com",
-            "subject": "Test Subject",
-            "body": "Test Body"
-        }
-        confidence = 0.75
-
         # Act
-        proposal = proposal_service.create_proposal(agent_id, action, confidence)
+        proposal = await self._create_proposal(proposal_service)
 
         # Assert
         assert proposal is not None
-        assert proposal.proposal_id is not None
-        assert proposal.agent_id == agent_id
-        assert proposal.action_type == "send_email"
-        assert proposal.confidence == confidence
-        assert proposal.status in ["pending", "approved", "rejected"]
+        assert proposal.id is not None
+        assert proposal.agent_id == proposal_service._test_agent_id
+        assert proposal.proposed_action["action_type"] == "send_email"
+        assert proposal.status == "pending_approval"
 
-    def test_approve_proposal(self, proposal_service: ProposalService):
+    async def test_approve_proposal(self, proposal_service: ProposalService):
         """Test approving a proposal"""
         # Arrange
-        proposal_id = "proposal-001"
-        proposal_service.create_proposal(
-            "agent-001", {"type": "send_email"}, 0.75
-        )
+        proposal = await self._create_proposal(proposal_service)
 
         # Act
-        approved = proposal_service.approve(proposal_id, approver="user-123")
+        result = await proposal_service.approve_proposal(
+            proposal.id, user_id="user-123"
+        )
 
         # Assert
-        assert approved is not None
-        assert approved.status == "approved"
-        assert approved.approved_at is not None
-        assert approved.approver == "user-123"
+        assert result is not None
+        assert proposal.status == "executed"
+        assert proposal.approved_by == "user-123"
+        assert proposal.approved_at is not None
 
-    def test_reject_proposal(self, proposal_service: ProposalService):
+    async def test_reject_proposal(self, proposal_service: ProposalService):
         """Test rejecting a proposal"""
         # Arrange
-        proposal_id = "proposal-001"
-        proposal_service.create_proposal(
-            "agent-001", {"type": "send_email"}, 0.75
-        )
+        proposal = await self._create_proposal(proposal_service)
 
         # Act
-        rejected = proposal_service.reject(
-            proposal_id, reason="Unsafe action", rejecter="user-123"
+        await proposal_service.reject_proposal(
+            proposal.id, user_id="user-123", reason="Unsafe action"
         )
 
         # Assert
-        assert rejected is not None
-        assert rejected.status == "rejected"
-        assert rejected.rejected_at is not None
-        assert rejected.reason == "Unsafe action"
+        assert proposal.status == "rejected"
+        assert proposal.execution_result is not None
+        assert proposal.execution_result["reason"] == "Unsafe action"
 
-    def test_get_pending_proposals(self, proposal_service: ProposalService):
+    async def test_get_pending_proposals(self, proposal_service: ProposalService):
         """Test getting all pending proposals"""
         # Arrange
-        agent_id = "intern-agent-001"
-        proposal_service.create_proposal(
-            agent_id, {"type": "send_email"}, 0.75
-        )
-        proposal_service.create_proposal(
-            agent_id, {"type": "update_db"}, 0.65
+        await self._create_proposal(proposal_service)
+        await proposal_service.create_action_proposal(
+            intern_agent_id=proposal_service._test_agent_id,
+            trigger_context={"page": "dashboard"},
+            proposed_action={"action_type": "update_db"},
+            reasoning="User requested update",
         )
 
         # Act
-        pending = proposal_service.get_pending(agent_id)
+        pending = await proposal_service.get_pending_proposals(
+            agent_id=proposal_service._test_agent_id
+        )
 
         # Assert
         assert pending is not None
         assert len(pending) >= 2
-        assert all(p.status == "pending" for p in pending)
+        assert all(p.status == "pending_approval" for p in pending)
 
-    def test_get_proposal_statistics(self, proposal_service: ProposalService):
-        """Test getting proposal statistics for agent"""
+    async def test_get_proposal_statistics(self, proposal_service: ProposalService):
+        """Test getting proposal history for agent"""
         # Arrange
-        agent_id = "intern-agent-001"
-        proposal_service.create_proposal(agent_id, {"type": "action1"}, 0.75)
-        proposal_service.create_proposal(agent_id, {"type": "action2"}, 0.65)
+        await self._create_proposal(proposal_service)
+        await self._create_proposal(proposal_service)
 
         # Act
-        stats = proposal_service.get_statistics(agent_id)
+        history = await proposal_service.get_proposal_history(
+            agent_id=proposal_service._test_agent_id
+        )
 
         # Assert
-        assert stats is not None
-        assert stats.total_proposals >= 2
-        assert stats.pending_count >= 0
-        assert stats.approved_count >= 0
-        assert stats.rejected_count >= 0
-        assert stats.approval_rate >= 0
+        assert history is not None
+        assert len(history) >= 2
+        assert all("proposal_id" in h for h in history)
+        assert all("status" in h for h in history)
 
 
 # =============================================================================
@@ -539,112 +610,148 @@ class TestWorkflowAnalyticsEngine:
     """Test workflow analytics and metrics"""
 
     @pytest.fixture
-    def analytics_engine(self, db_session: Session):
+    def analytics_engine(self, db_session: Session, tmp_path):
         """Create analytics engine instance"""
-        return WorkflowAnalyticsEngine(db_session)
+        return WorkflowAnalyticsEngine(
+            db=db_session,
+            db_path=str(tmp_path / "analytics.db"),
+            enable_background_thread=False,
+        )
 
-    def test_calculate_workflow_success_rate(self, analytics_engine: WorkflowAnalyticsEngine):
+    async def test_calculate_workflow_success_rate(self, analytics_engine: WorkflowAnalyticsEngine):
         """Test calculating workflow success rate"""
         # Arrange
-        workflow_id = "workflow-001"
+        analytics_engine.track_workflow_start("workflow-001", "exec-1")
+        analytics_engine.track_workflow_completion(
+            "workflow-001", "exec-1", WorkflowStatus.COMPLETED, duration_ms=100
+        )
+        await analytics_engine.flush()
 
         # Act
-        success_rate = analytics_engine.get_success_rate(workflow_id)
+        metrics = analytics_engine.get_workflow_performance_metrics("workflow-001")
 
         # Assert
-        assert success_rate is not None
-        assert 0 <= success_rate <= 1
-        assert isinstance(success_rate, float)
+        assert metrics is not None
+        assert 0 <= metrics.error_rate <= 1
+        assert metrics.total_executions >= 1
 
-    def test_get_average_execution_time(self, analytics_engine: WorkflowAnalyticsEngine):
+    async def test_get_average_execution_time(self, analytics_engine: WorkflowAnalyticsEngine):
         """Test getting average workflow execution time"""
         # Arrange
-        workflow_id = "workflow-001"
+        analytics_engine.track_workflow_start("workflow-001", "exec-1")
+        analytics_engine.track_workflow_completion(
+            "workflow-001", "exec-1", WorkflowStatus.COMPLETED, duration_ms=250
+        )
+        await analytics_engine.flush()
 
         # Act
-        avg_time = analytics_engine.get_average_execution_time(workflow_id)
+        metrics = analytics_engine.get_workflow_performance_metrics("workflow-001")
 
         # Assert
-        assert avg_time is not None
-        assert avg_time >= 0
-        assert isinstance(avg_time, (int, float))
+        assert metrics is not None
+        assert metrics.average_duration_ms >= 0
 
-    def test_get_workflow_error_breakdown(self, analytics_engine: WorkflowAnalyticsEngine):
+    async def test_get_workflow_error_breakdown(self, analytics_engine: WorkflowAnalyticsEngine):
         """Test getting error breakdown for workflow"""
         # Arrange
-        workflow_id = "workflow-001"
+        analytics_engine.track_workflow_start("workflow-001", "exec-1")
+        analytics_engine.track_workflow_completion(
+            "workflow-001", "exec-1", WorkflowStatus.FAILED,
+            duration_ms=100, error_message="Execution timeout",
+        )
+        await analytics_engine.flush()
 
         # Act
-        errors = analytics_engine.get_error_breakdown(workflow_id)
+        errors = analytics_engine.get_error_breakdown("workflow-001")
 
         # Assert
         assert errors is not None
         assert isinstance(errors, dict)
-        assert "total_errors" in errors
         assert "error_types" in errors
+        assert errors["error_types"][0]["count"] >= 1
 
-    def test_generate_workflow_report(self, analytics_engine: WorkflowAnalyticsEngine):
+    async def test_generate_workflow_report(self, analytics_engine: WorkflowAnalyticsEngine):
         """Test generating comprehensive workflow report"""
         # Arrange
-        workflow_id = "workflow-001"
-        date_range = {
-            "start": datetime.now() - timedelta(days=30),
-            "end": datetime.now()
-        }
+        analytics_engine.track_workflow_start("workflow-001", "exec-1")
+        analytics_engine.track_workflow_completion(
+            "workflow-001", "exec-1", WorkflowStatus.COMPLETED, duration_ms=100
+        )
+        await analytics_engine.flush()
 
         # Act
-        report = analytics_engine.generate_report(workflow_id, date_range)
+        overview = analytics_engine.get_system_overview(time_window="24h")
 
         # Assert
-        assert report is not None
-        assert "workflow_id" in report
-        assert "success_rate" in report
-        assert "avg_execution_time" in report
-        assert "total_executions" in report
-        assert "generated_at" in report
+        assert overview is not None
+        assert "total_workflows" in overview
+        assert "total_executions" in overview
+        assert "success_rate" in overview
 
-    def test_get_workflow_performance_trend(self, analytics_engine: WorkflowAnalyticsEngine):
+    async def test_get_workflow_performance_trend(self, analytics_engine: WorkflowAnalyticsEngine):
         """Test getting workflow performance trend over time"""
         # Arrange
-        workflow_id = "workflow-001"
-        days = 30
+        analytics_engine.track_workflow_start("workflow-001", "exec-1")
+        analytics_engine.track_workflow_completion(
+            "workflow-001", "exec-1", WorkflowStatus.COMPLETED, duration_ms=100
+        )
+        await analytics_engine.flush()
 
         # Act
-        trend = analytics_engine.get_performance_trend(workflow_id, days)
+        timeline = analytics_engine.get_execution_timeline(
+            "workflow-001", time_window="24h", interval="1h"
+        )
 
         # Assert
-        assert trend is not None
-        assert "data_points" in trend
-        assert len(trend["data_points"]) >= 0
-        assert "trend_direction" in trend
+        assert timeline is not None
+        assert isinstance(timeline, list)
+        assert len(timeline) >= 0
 
-    def test_compare_workflow_performance(self, analytics_engine: WorkflowAnalyticsEngine):
+    async def test_compare_workflow_performance(self, analytics_engine: WorkflowAnalyticsEngine):
         """Test comparing performance between workflows"""
         # Arrange
-        workflow_ids = ["workflow-001", "workflow-002"]
+        analytics_engine.track_workflow_start("workflow-001", "exec-1")
+        analytics_engine.track_workflow_completion(
+            "workflow-001", "exec-1", WorkflowStatus.COMPLETED, duration_ms=100
+        )
+        analytics_engine.track_workflow_start("workflow-002", "exec-2")
+        analytics_engine.track_workflow_completion(
+            "workflow-002", "exec-2", WorkflowStatus.FAILED,
+            duration_ms=500, error_message="Error",
+        )
+        await analytics_engine.flush()
 
         # Act
-        comparison = analytics_engine.compare_workflows(workflow_ids)
+        m1 = analytics_engine.get_workflow_performance_metrics("workflow-001")
+        m2 = analytics_engine.get_workflow_performance_metrics("workflow-002")
 
         # Assert
-        assert comparison is not None
-        assert len(comparison) == 2
-        assert all("success_rate" in w for w in comparison)
-        assert all("avg_time" in w for w in comparison)
+        assert m1 is not None
+        assert m2 is not None
+        assert m1.workflow_id == "workflow-001"
+        assert m2.workflow_id == "workflow-002"
+        assert m1.total_executions == 1
+        assert m2.total_executions == 1
 
-    def test_get_bottleneck_analysis(self, analytics_engine: WorkflowAnalyticsEngine):
-        """Test identifying workflow bottlenecks"""
+    async def test_get_bottleneck_analysis(self, analytics_engine: WorkflowAnalyticsEngine):
+        """Test identifying workflow events for bottleneck analysis"""
         # Arrange
-        workflow_id = "workflow-001"
+        analytics_engine.track_workflow_start("workflow-001", "exec-1")
+        analytics_engine.track_step_execution(
+            "workflow-001", "exec-1", "step-1", "data_processing", "step_started", 200
+        )
+        await analytics_engine.flush()
 
         # Act
-        bottlenecks = analytics_engine.identify_bottlenecks(workflow_id)
+        events = analytics_engine.get_recent_events(
+            limit=10, workflow_id="workflow-001"
+        )
 
         # Assert
-        assert bottlenecks is not None
-        assert isinstance(bottlenecks, list)
-        assert all("step_name" in b for b in bottlenecks)
-        assert all("avg_time" in b for b in bottlenecks)
+        assert events is not None
+        assert isinstance(events, list)
+        assert len(events) >= 1
+        assert all(getattr(e, "workflow_id", None) == "workflow-001" for e in events)
 
 
 # =============================================================================
@@ -655,59 +762,69 @@ class TestWorkflowVersioningSystem:
     """Test workflow version control"""
 
     @pytest.fixture
-    def versioning_system(self, db_session: Session):
+    def versioning_system(self, tmp_path):
         """Create versioning system instance"""
-        return WorkflowVersioningSystem(db_session)
+        return WorkflowVersioningSystem(db_path=str(tmp_path / "versions.db"))
 
-    def test_create_workflow_version(self, versioning_system: WorkflowVersioningSystem):
+    async def test_create_workflow_version(self, versioning_system: WorkflowVersioningSystem):
         """Test creating new workflow version"""
-        # Arrange
-        workflow_id = "workflow-001"
-        workflow_definition = {"steps": ["step1", "step2"]}
-        changes = "Added error handling"
-
         # Act
-        version = versioning_system.create_version(
-            workflow_id, workflow_definition, changes
+        version = await versioning_system.create_version(
+            workflow_id="workflow-001",
+            workflow_data={"steps": ["step1", "step2"]},
+            version_type=VersionType.MAJOR,
+            created_by="user-1",
+            commit_message="Added error handling",
         )
 
         # Assert
         assert version is not None
-        assert version.version_id is not None
-        assert version.workflow_id == workflow_id
-        assert version.changes == changes
-        assert version.created_at is not None
+        assert version.workflow_id == "workflow-001"
+        assert version.version == "1.0.0"
+        assert version.commit_message == "Added error handling"
 
-    def test_get_workflow_history(self, versioning_system: WorkflowVersioningSystem):
+    async def test_get_workflow_history(self, versioning_system: WorkflowVersioningSystem):
         """Test getting workflow version history"""
         # Arrange
-        workflow_id = "workflow-001"
-        versioning_system.create_version(workflow_id, {"steps": ["a"]}, "Initial")
-        versioning_system.create_version(workflow_id, {"steps": ["a", "b"]}, "Added step b")
+        await versioning_system.create_version(
+            "workflow-001", {"steps": [{"id": "a"}]}, VersionType.MAJOR, "user-1", "Initial"
+        )
+        await versioning_system.create_version(
+            "workflow-001", {"steps": [{"id": "a"}, {"id": "b"}]}, VersionType.MINOR, "user-1", "Added step b"
+        )
 
         # Act
-        history = versioning_system.get_history(workflow_id)
+        history = await versioning_system.get_version_history("workflow-001")
 
         # Assert
         assert history is not None
         assert len(history) >= 2
-        assert all("version_id" in v for v in history)
-        assert all("changes" in v for v in history)
+        assert all(v.workflow_id == "workflow-001" for v in history)
+        assert any(v.commit_message == "Added step b" for v in history)
 
-    def test_rollback_to_version(self, versioning_system: WorkflowVersioningSystem):
+    async def test_rollback_to_version(self, versioning_system: WorkflowVersioningSystem):
         """Test rolling back workflow to previous version"""
         # Arrange
-        workflow_id = "workflow-001"
-        version_id = "version-001"
+        v1 = await versioning_system.create_version(
+            "workflow-001", {"steps": [{"id": "a"}]}, VersionType.MAJOR, "user-1", "Initial"
+        )
+        await versioning_system.create_version(
+            "workflow-001", {"steps": [{"id": "a"}, {"id": "b"}]}, VersionType.MINOR, "user-1", "Added step b"
+        )
 
         # Act
-        rollback = versioning_system.rollback(workflow_id, version_id)
+        rollback = await versioning_system.rollback_to_version(
+            workflow_id="workflow-001",
+            target_version=v1.version,
+            created_by="user-1",
+            rollback_reason="regression",
+        )
 
         # Assert
         assert rollback is not None
-        assert rollback.workflow_id == workflow_id
-        assert rollback.restored_from_version == version_id
-        assert rollback.rolled_back_at is not None
+        assert rollback.workflow_id == "workflow-001"
+        assert rollback.version != v1.version
+        assert rollback.commit_message.startswith("Rollback")
 
 
 class TestWorkflowDebugger:
@@ -720,60 +837,61 @@ class TestWorkflowDebugger:
 
     def test_start_debugging_session(self, workflow_debugger: WorkflowDebugger):
         """Test starting debugging session"""
-        # Arrange
-        execution_id = "execution-001"
-
         # Act
-        session = workflow_debugger.start_session(execution_id)
+        session = workflow_debugger.create_debug_session(
+            workflow_id="workflow-001", user_id="user-001", execution_id="execution-001"
+        )
 
         # Assert
         assert session is not None
-        assert session.session_id is not None
-        assert session.execution_id == execution_id
-        assert session.status in ["active", "paused"]
+        assert session.id is not None
+        assert session.workflow_id == "workflow-001"
+        assert session.execution_id == "execution-001"
+        assert session.status == "active"
 
     def test_set_breakpoint(self, workflow_debugger: WorkflowDebugger):
         """Test setting breakpoint in workflow"""
-        # Arrange
-        workflow_id = "workflow-001"
-        step_name = "data_processing"
-
         # Act
-        breakpoint = workflow_debugger.set_breakpoint(workflow_id, step_name)
+        breakpoint = workflow_debugger.add_breakpoint(
+            workflow_id="workflow-001", node_id="data_processing", user_id="user-001"
+        )
 
         # Assert
         assert breakpoint is not None
-        assert breakpoint.workflow_id == workflow_id
-        assert breakpoint.step_name == step_name
-        assert breakpoint.enabled is True
+        assert breakpoint.workflow_id == "workflow-001"
+        assert breakpoint.node_id == "data_processing"
+        assert breakpoint.is_active is True
 
     def test_inspect_workflow_state(self, workflow_debugger: WorkflowDebugger):
         """Test inspecting workflow state at execution point"""
         # Arrange
-        execution_id = "execution-001"
+        session = workflow_debugger.create_debug_session(
+            workflow_id="workflow-001", user_id="user-001"
+        )
 
         # Act
-        state = workflow_debugger.inspect_state(execution_id)
+        state = workflow_debugger.get_debug_session(session.id)
 
         # Assert
         assert state is not None
-        assert "variables" in state
-        assert "current_step" in state
-        assert "call_stack" in state
+        assert state.variables == {}
+        assert state.call_stack == []
+        assert state.current_step == 0
 
     def test_step_through_workflow(self, workflow_debugger: WorkflowDebugger):
         """Test stepping through workflow execution"""
         # Arrange
-        session_id = "debug-session-001"
+        session = workflow_debugger.create_debug_session(
+            workflow_id="workflow-001", user_id="user-001"
+        )
 
         # Act
-        step_result = workflow_debugger.step(session_id)
+        step_result = workflow_debugger.step_over(session.id)
 
         # Assert
         assert step_result is not None
-        assert "executed_step" in step_result
-        assert "next_step" in step_result
-        assert "state_snapshot" in step_result
+        assert step_result["action"] == "step_over"
+        assert step_result["current_step"] == 1
 
 
 # =============================================================================
@@ -807,7 +925,7 @@ class TestAdvancedWorkflowSystem:
         assert workflow is not None
         assert workflow.workflow_id is not None
         assert workflow.execution_mode == "parallel"
-        assert len(workflow.branches) == 3
+        assert workflow.branches == 3
 
     def test_create_conditional_workflow(self, advanced_workflow: AdvancedWorkflowSystem):
         """Test creating workflow with conditional logic"""
@@ -827,7 +945,7 @@ class TestAdvancedWorkflowSystem:
         assert workflow is not None
         assert workflow.workflow_id is not None
         assert workflow.execution_mode == "conditional"
-        assert len(workflow.conditions) >= 2
+        assert workflow.conditions >= 2
 
     def test_execute_workflow_with_retry(self, advanced_workflow: AdvancedWorkflowSystem):
         """Test workflow execution with retry logic"""

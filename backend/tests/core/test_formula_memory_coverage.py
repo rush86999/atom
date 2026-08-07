@@ -9,27 +9,19 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch, AsyncMock
 from datetime import datetime
 import sys
+from contextlib import contextmanager
 
-# Mock the database and LanceDB dependencies
-mock_formula = Mock()
-mock_formula.id = "formula_123"
-mock_formula.name = "Test Formula"
-mock_formula.expression = "a + b * c"
-mock_formula.domain = "math"
-mock_formula.parameters = [{"name": "a", "type": "number"}]
-mock_formula.dependencies = []
-mock_formula.creator_id = "user_123"
+from core.formula_memory import (
+    FormulaMemoryManager,
+    get_formula_manager,
+    FORMULA_CARDS_TABLE,
+)
 
-with patch.dict('sys.modules', {
-    'saas.models': Mock(Formula=Mock),
-    'core.database': Mock(get_db_session=Mock()),
-    'core.lancedb_handler': Mock(get_lancedb_handler=Mock())
-}):
-    from core.formula_memory import (
-        FormulaMemoryManager,
-        get_formula_manager,
-        FORMULA_CARDS_TABLE,
-    )
+
+@contextmanager
+def _db_session_context(session):
+    """Adapt a mock session to the get_db_session() context manager."""
+    yield session
 
 
 @pytest.fixture
@@ -105,7 +97,7 @@ class TestFormulaMemory:
 
     def test_add_formula_success(self, formula_manager, mock_db_session):
         """Test successfully adding a formula."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_db_session.query.return_value.filter.return_value.all.return_value = []
             formula_manager._lancedb.add_document.return_value = None
 
@@ -127,7 +119,7 @@ class TestFormulaMemory:
 
     def test_add_formula_with_dependencies(self, formula_manager, mock_db_session):
         """Test adding formula with dependencies."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             # Mock dependency query
             dep_formula = Mock()
             dep_formula.name = "Dependency Formula"
@@ -144,7 +136,7 @@ class TestFormulaMemory:
 
     def test_add_formula_database_failure(self, formula_manager, mock_db_session):
         """Test handling database failure when adding formula."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_db_session.commit.side_effect = Exception("Database error")
 
             result = formula_manager.add_formula(
@@ -157,7 +149,7 @@ class TestFormulaMemory:
 
     def test_get_formula_success(self, formula_manager, mock_db_session):
         """Test successfully retrieving a formula."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_formula = Mock()
             mock_formula.id = "formula_123"
             mock_formula.name = "Test Formula"
@@ -176,7 +168,7 @@ class TestFormulaMemory:
 
     def test_get_formula_not_found(self, formula_manager, mock_db_session):
         """Test retrieving non-existent formula."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_db_session.query.return_value.filter.return_value.first.return_value = None
 
             result = formula_manager.get_formula("nonexistent")
@@ -185,7 +177,7 @@ class TestFormulaMemory:
 
     def test_delete_formula_success(self, formula_manager, mock_db_session):
         """Test successfully deleting a formula."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_row = Mock()
             mock_db_session.query.return_value.filter.return_value.first.return_value = mock_row
             formula_manager._lancedb.get_table.return_value = Mock()
@@ -198,7 +190,7 @@ class TestFormulaMemory:
 
     def test_delete_formula_not_found(self, formula_manager, mock_db_session):
         """Test deleting non-existent formula."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_db_session.query.return_value.filter.return_value.first.return_value = None
 
             result = formula_manager.delete_formula("nonexistent")
@@ -260,7 +252,7 @@ class TestFormulaValidation:
 
     def test_add_formula_with_empty_parameters(self, formula_manager, mock_db_session):
         """Test adding formula with empty parameters."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_db_session.query.return_value.filter.return_value.all.return_value = []
             formula_manager._lancedb.add_document.return_value = None
 
@@ -275,7 +267,7 @@ class TestFormulaValidation:
 
     def test_add_formula_with_empty_dependencies(self, formula_manager, mock_db_session):
         """Test adding formula with empty dependencies."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_db_session.query.return_value.filter.return_value.all.return_value = []
             formula_manager._lancedb.add_document.return_value = None
 
@@ -294,7 +286,7 @@ class TestFormulaExecution:
 
     def test_apply_formula_success(self, formula_manager, mock_db_session):
         """Test successfully applying a formula."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_formula = Mock()
             mock_formula.name = "Addition"
             mock_formula.expression = "a + b"
@@ -314,7 +306,7 @@ class TestFormulaExecution:
 
     def test_apply_formula_not_found(self, formula_manager, mock_db_session):
         """Test applying non-existent formula."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_db_session.query.return_value.filter.return_value.first.return_value = None
 
             result = formula_manager.apply_formula(
@@ -327,10 +319,10 @@ class TestFormulaExecution:
 
     def test_apply_formula_syntax_error(self, formula_manager, mock_db_session):
         """Test applying formula with syntax error."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_formula = Mock()
             mock_formula.name = "Broken Formula"
-            mock_formula.expression = "a + + b"  # Invalid syntax
+            mock_formula.expression = "a + * b"  # Invalid syntax
             mock_formula.domain = "math"
             mock_formula.parameters = []
             mock_formula.dependencies = []
@@ -345,7 +337,7 @@ class TestFormulaExecution:
 
     def test_apply_formula_with_math_functions(self, formula_manager, mock_db_session):
         """Test applying formula using math functions."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_formula = Mock()
             mock_formula.name = "Square Root"
             mock_formula.expression = "sqrt(x)"
@@ -364,7 +356,7 @@ class TestFormulaExecution:
 
     def test_apply_formula_with_complex_expression(self, formula_manager, mock_db_session):
         """Test applying formula with complex expression."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_formula = Mock()
             mock_formula.name = "Complex"
             mock_formula.expression = "(a + b) * c - d"
@@ -387,7 +379,7 @@ class TestFormulaErrors:
 
     def test_add_formula_lancedb_failure_fallback(self, formula_manager, mock_db_session):
         """Test that SQL save succeeds even if LanceDB fails."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_db_session.query.return_value.filter.return_value.all.return_value = []
             formula_manager._lancedb.add_document.side_effect = Exception("LanceDB error")
 
@@ -404,7 +396,7 @@ class TestFormulaErrors:
         """Test initialization when LanceDB is unavailable."""
         manager = FormulaMemoryManager()
 
-        with patch('core.formula_memory.get_lancedb_handler', side_effect=Exception("LanceDB not available")):
+        with patch('core.lancedb_handler.get_lancedb_handler', side_effect=Exception("LanceDB not available")):
             manager._ensure_initialized()
 
             assert manager._lancedb is None
@@ -412,7 +404,7 @@ class TestFormulaErrors:
 
     def test_delete_formula_lancedb_error_best_effort(self, formula_manager, mock_db_session):
         """Test that SQL delete succeeds even if LanceDB delete fails."""
-        with patch('core.formula_memory.get_db_session', return_value=mock_db_session):
+        with patch('core.database.get_db_session', return_value=_db_session_context(mock_db_session)):
             mock_row = Mock()
             mock_db_session.query.return_value.filter.return_value.first.return_value = mock_row
             mock_table = Mock()

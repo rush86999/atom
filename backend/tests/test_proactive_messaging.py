@@ -9,12 +9,20 @@ Tests proactive messaging with governance based on agent maturity levels:
 """
 
 import pytest
+from unittest.mock import AsyncMock
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from core.database import Base, get_db_session
-from core.models import AgentRegistry, AgentStatus, User, UserRole, ProactiveMessageStatus
+from core.models import (
+    AgentRegistry,
+    AgentStatus,
+    User,
+    UserRole,
+    UserStatus,
+    ProactiveMessageStatus,
+)
 from core.proactive_messaging_service import ProactiveMessagingService
 
 
@@ -44,6 +52,7 @@ def test_user(db):
         first_name="Test",
         last_name="User",
         role=UserRole.MEMBER.value,
+        status=UserStatus.ACTIVE.value,
     )
     db.add(user)
     db.commit()
@@ -195,6 +204,7 @@ class TestProactiveMessageApproval:
     def test_approve_pending_message(self, db, intern_agent, test_user):
         """Test approving a pending message."""
         service = ProactiveMessagingService(db)
+        service._send_message = AsyncMock()  # Isolate background send task
 
         # Create pending message
         message = service.create_proactive_message(
@@ -394,12 +404,15 @@ class TestScheduledMessages:
             scheduled_for=scheduled_time,
         )
 
-        assert message.scheduled_for == scheduled_time
+        assert message.scheduled_for is not None
+        # SQLite strips tzinfo on round-trip; re-attach UTC for comparison
+        assert message.scheduled_for.replace(tzinfo=timezone.utc) == scheduled_time
         assert message.status == ProactiveMessageStatus.APPROVED.value
 
     def test_send_now_with_approved_agent(self, db, autonomous_agent):
         """Test send_now=True with AUTONOMOUS agent."""
         service = ProactiveMessagingService(db)
+        service._send_message = AsyncMock()  # Isolate background send task
 
         message = service.create_proactive_message(
             agent_id=autonomous_agent.id,

@@ -22,7 +22,7 @@ from fastapi import FastAPI
 from sqlalchemy.orm import Session
 
 from api.dashboard_data_routes import router
-from core.models import WorkflowExecution, ChatProcess, AuditLog, AgentJob, User
+from core.models import WorkflowExecution, ChatProcess, AuditLog, AgentJob, User, Base
 
 
 # ============================================================================
@@ -36,7 +36,7 @@ def db():
 
 
 @pytest.fixture
-def app_with_db(db):
+def app_with_db(db, mock_user):
     """Create FastAPI app with database dependency."""
     app = FastAPI()
     app.include_router(router)
@@ -47,6 +47,8 @@ def app_with_db(db):
         yield db
 
     app.dependency_overrides[get_db] = override_get_db
+    from core.auth import get_current_user
+    app.dependency_overrides[get_current_user] = lambda: mock_user
     yield app
 
     app.dependency_overrides.clear()
@@ -589,6 +591,26 @@ def test_get_user_tasks_empty():
 
         tasks = get_user_tasks(mock_db, None, 20)
         assert isinstance(tasks, list)
+
+
+def test_get_user_tasks_includes_agent_jobs():
+    """Test agent job tasks use valid AgentJob model columns."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine)()
+    try:
+        job = AgentJob(id="job-1", agent_id="agent-1", status="running")
+        db.add(job)
+        db.commit()
+
+        from api.dashboard_data_routes import get_user_tasks
+        tasks = get_user_tasks(db, None, 20)
+        assert any(t["id"] == "job-1" for t in tasks)
+    finally:
+        db.close()
 
 
 def test_get_user_messages_empty():

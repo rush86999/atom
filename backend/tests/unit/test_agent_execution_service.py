@@ -25,15 +25,22 @@ from core.models import AgentRegistry, AgentExecution, AgentStatus, User, UserRo
 # Test Fixtures
 # =============================================================================
 
-@pytest.fixture
-def db():
-    """Create database session."""
-    from core.database import SessionLocal
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+@pytest.fixture(autouse=True)
+def service_db(db):
+    """Route the service's internal DB and side-effect calls to the test DB."""
+    with patch('core.agent_execution_service.SessionLocal', return_value=db), \
+         patch('core.agent_execution_service.get_chat_history_manager'), \
+         patch('core.agent_execution_service.get_chat_session_manager'), \
+         patch('core.agent_execution_service.trigger_episode_creation'):
+        yield
+
+
+def _async_stream_tokens(tokens):
+    """Helper to create async generator for streaming tokens."""
+    async def generator():
+        for token in tokens:
+            yield token
+    return generator()
 
 
 @pytest.fixture
@@ -94,8 +101,7 @@ class TestExecuteAgentChatGovernance:
         result = await execute_agent_chat(
             agent_id=sample_agent.id,
             message="Hello",
-            user_id="test-user-123",
-            db_session=db
+            user_id="test-user-123"
         )
 
         # Should block student agents
@@ -109,15 +115,14 @@ class TestExecuteAgentChatGovernance:
         db.commit()
 
         with patch('core.agent_execution_service.LLMService') as mock_llm:
-            mock_llm.return_value.stream_completion = AsyncMock(return_value=iter(["Hello", " world"]))
+            mock_llm.return_value.stream_completion.return_value = _async_stream_tokens(["Hello", " world"])
             mock_llm.return_value.analyze_query_complexity = Mock(return_value="low")
             mock_llm.return_value.get_optimal_provider = Mock(return_value=("openai", "gpt-4"))
 
             result = await execute_agent_chat(
                 agent_id=sample_agent.id,
                 message="Hello",
-                user_id="test-user-123",
-                db_session=db
+                user_id="test-user-123"
             )
 
             # Should allow supervised agents
@@ -132,15 +137,14 @@ class TestExecuteAgentChatGovernance:
 
         with patch('core.agent_execution_service.LLMService') as mock_llm, \
              patch.dict('os.environ', {'EMERGENCY_GOVERNANCE_BYPASS': 'true'}):
-            mock_llm.return_value.stream_completion = AsyncMock(return_value=iter(["Hello"]))
+            mock_llm.return_value.stream_completion.return_value = _async_stream_tokens(["Hello"])
             mock_llm.return_value.analyze_query_complexity = Mock(return_value="low")
             mock_llm.return_value.get_optimal_provider = Mock(return_value=("openai", "gpt-4"))
 
             result = await execute_agent_chat(
                 agent_id=sample_agent.id,
                 message="Hello",
-                user_id="test-user-123",
-                db_session=db
+                user_id="test-user-123"
             )
 
             # Emergency bypass should allow execution
@@ -162,7 +166,7 @@ class TestExecuteAgentChatExecutionRecord:
         ).count()
 
         with patch('core.agent_execution_service.LLMService') as mock_llm:
-            mock_llm.return_value.stream_completion = AsyncMock(return_value=iter(["Response"]))
+            mock_llm.return_value.stream_completion.return_value = _async_stream_tokens(["Response"])
             mock_llm.return_value.analyze_query_complexity = Mock(return_value="low")
             mock_llm.return_value.get_optimal_provider = Mock(return_value=("openai", "gpt-4"))
 
@@ -170,7 +174,6 @@ class TestExecuteAgentChatExecutionRecord:
                 agent_id=sample_agent.id,
                 message="Test message",
                 user_id="test-user-123",
-                db_session=db
             )
 
             final_count = db.query(AgentExecution).filter(
@@ -183,7 +186,7 @@ class TestExecuteAgentChatExecutionRecord:
     async def test_execution_record_has_correct_metadata(self, db, sample_agent):
         """RED: Test that AgentExecution record has correct metadata."""
         with patch('core.agent_execution_service.LLMService') as mock_llm:
-            mock_llm.return_value.stream_completion = AsyncMock(return_value=iter(["Response"]))
+            mock_llm.return_value.stream_completion.return_value = _async_stream_tokens(["Response"])
             mock_llm.return_value.analyze_query_complexity = Mock(return_value="low")
             mock_llm.return_value.get_optimal_provider = Mock(return_value=("openai", "gpt-4"))
 
@@ -192,24 +195,23 @@ class TestExecuteAgentChatExecutionRecord:
                 message="Test message",
                 user_id="test-user-123",
                 session_id="test-session-123",
-                db_session=db
             )
 
             execution = db.query(AgentExecution).filter(
                 AgentExecution.agent_id == sample_agent.id
-            ).order_by(AgentExecution.created_at.desc()).first()
+            ).order_by(AgentExecution.started_at.desc()).first()
 
             assert execution is not None
-            assert execution.user_id == "test-user-123"
-            assert execution.session_id == "test-session-123"
-            assert execution.action_type == "chat"
+            assert execution.metadata_json["user_id"] == "test-user-123"
+            assert execution.metadata_json["session_id"] == "test-session-123"
+            assert execution.metadata_json["action_type"] == "chat"
             assert execution.status in ["running", "completed", "failed"]
 
     @pytest.mark.asyncio
     async def test_execution_record_includes_input_data(self, db, sample_agent):
         """RED: Test that execution record includes input message."""
         with patch('core.agent_execution_service.LLMService') as mock_llm:
-            mock_llm.return_value.stream_completion = AsyncMock(return_value=iter(["Response"]))
+            mock_llm.return_value.stream_completion.return_value = _async_stream_tokens(["Response"])
             mock_llm.return_value.analyze_query_complexity = Mock(return_value="low")
             mock_llm.return_value.get_optimal_provider = Mock(return_value=("openai", "gpt-4"))
 
@@ -218,16 +220,14 @@ class TestExecuteAgentChatExecutionRecord:
                 agent_id=sample_agent.id,
                 message=test_message,
                 user_id="test-user-123",
-                db_session=db
             )
 
             execution = db.query(AgentExecution).filter(
                 AgentExecution.agent_id == sample_agent.id
-            ).order_by(AgentExecution.created_at.desc()).first()
+            ).order_by(AgentExecution.started_at.desc()).first()
 
             assert execution is not None
-            assert execution.input_data is not None
-            assert execution.input_data.get("message") == test_message
+            assert execution.input_summary == test_message
 
 
 # =============================================================================
@@ -241,7 +241,7 @@ class TestExecuteAgentChatLLM:
     async def test_initializes_llm_service(self, db, sample_agent):
         """RED: Test that LLM service is initialized."""
         with patch('core.agent_execution_service.LLMService') as mock_llm:
-            mock_llm.return_value.stream_completion = AsyncMock(return_value=iter(["Response"]))
+            mock_llm.return_value.stream_completion.return_value = _async_stream_tokens(["Response"])
             mock_llm.return_value.analyze_query_complexity = Mock(return_value="low")
             mock_llm.return_value.get_optimal_provider = Mock(return_value=("openai", "gpt-4"))
 
@@ -249,19 +249,18 @@ class TestExecuteAgentChatLLM:
                 agent_id=sample_agent.id,
                 message="Test",
                 user_id="test-user-123",
-                db_session=db
             )
 
             # Verify LLM service was called
             mock_llm.assert_called_once()
-            mock_llm.assert_called_with(tenant_id="default", db=db)
+            mock_llm.assert_called_with(tenant_id="default", db=None)
 
     @pytest.mark.asyncio
     async def test_analyzes_query_complexity(self, db, sample_agent):
         """RED: Test that query complexity is analyzed."""
         with patch('core.agent_execution_service.LLMService') as mock_llm:
             mock_llm_instance = mock_llm.return_value
-            mock_llm_instance.stream_completion = AsyncMock(return_value=iter(["Response"]))
+            mock_llm_instance.stream_completion.return_value = _async_stream_tokens(["Response"])
             mock_llm_instance.analyze_query_complexity = Mock(return_value="medium")
             mock_llm_instance.get_optimal_provider = Mock(return_value=("openai", "gpt-4"))
 
@@ -269,7 +268,6 @@ class TestExecuteAgentChatLLM:
                 agent_id=sample_agent.id,
                 message="Complex query requiring analysis",
                 user_id="test-user-123",
-                db_session=db
             )
 
             # Verify complexity analysis was called
@@ -282,7 +280,7 @@ class TestExecuteAgentChatLLM:
         """RED: Test that optimal provider is selected."""
         with patch('core.agent_execution_service.LLMService') as mock_llm:
             mock_llm_instance = mock_llm.return_value
-            mock_llm_instance.stream_completion = AsyncMock(return_value=iter(["Response"]))
+            mock_llm_instance.stream_completion.return_value = _async_stream_tokens(["Response"])
             mock_llm_instance.analyze_query_complexity = Mock(return_value="low")
             mock_llm_instance.get_optimal_provider = Mock(return_value=("anthropic", "claude-3-sonnet"))
 
@@ -290,7 +288,6 @@ class TestExecuteAgentChatLLM:
                 agent_id=sample_agent.id,
                 message="Test message",
                 user_id="test-user-123",
-                db_session=db
             )
 
             # Verify optimal provider selection
@@ -310,7 +307,7 @@ class TestExecuteAgentChatResponse:
     async def test_returns_execution_id(self, db, sample_agent):
         """RED: Test that execution ID is returned."""
         with patch('core.agent_execution_service.LLMService') as mock_llm:
-            mock_llm.return_value.stream_completion = AsyncMock(return_value=iter(["Response"]))
+            mock_llm.return_value.stream_completion.return_value = _async_stream_tokens(["Response"])
             mock_llm.return_value.analyze_query_complexity = Mock(return_value="low")
             mock_llm.return_value.get_optimal_provider = Mock(return_value=("openai", "gpt-4"))
 
@@ -318,7 +315,6 @@ class TestExecuteAgentChatResponse:
                 agent_id=sample_agent.id,
                 message="Test",
                 user_id="test-user-123",
-                db_session=db
             )
 
             assert "execution_id" in result
@@ -329,7 +325,7 @@ class TestExecuteAgentChatResponse:
     async def test_returns_agent_info(self, db, sample_agent):
         """RED: Test that agent information is returned."""
         with patch('core.agent_execution_service.LLMService') as mock_llm:
-            mock_llm.return_value.stream_completion = AsyncMock(return_value=iter(["Response"]))
+            mock_llm.return_value.stream_completion.return_value = _async_stream_tokens(["Response"])
             mock_llm.return_value.analyze_query_complexity = Mock(return_value="low")
             mock_llm.return_value.get_optimal_provider = Mock(return_value=("openai", "gpt-4"))
 
@@ -337,7 +333,6 @@ class TestExecuteAgentChatResponse:
                 agent_id=sample_agent.id,
                 message="Test",
                 user_id="test-user-123",
-                db_session=db
             )
 
             assert result["agent_id"] == sample_agent.id
@@ -348,9 +343,7 @@ class TestExecuteAgentChatResponse:
         """RED: Test that streamed response is accumulated."""
         with patch('core.agent_execution_service.LLMService') as mock_llm:
             mock_llm_instance = mock_llm.return_value
-            mock_llm_instance.stream_completion = AsyncMock(
-                return_value=iter(["Hello", " ", "world", "!"])
-            )
+            mock_llm_instance.stream_completion.return_value = _async_stream_tokens(["Hello", " ", "world", "!"])
             mock_llm_instance.analyze_query_complexity = Mock(return_value="low")
             mock_llm_instance.get_optimal_provider = Mock(return_value=("openai", "gpt-4"))
 
@@ -358,7 +351,6 @@ class TestExecuteAgentChatResponse:
                 agent_id=sample_agent.id,
                 message="Test",
                 user_id="test-user-123",
-                db_session=db
             )
 
             assert result["success"] is True
@@ -377,7 +369,7 @@ class TestExecuteAgentChatErrors:
         """RED: Test execution when agent doesn't exist."""
         with patch('core.agent_execution_service.LLMService') as mock_llm, \
              patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
-            mock_llm.return_value.stream_completion = AsyncMock(return_value=iter(["Response"]))
+            mock_llm.return_value.stream_completion.return_value = _async_stream_tokens(["Response"])
             mock_llm.return_value.analyze_query_complexity = Mock(return_value="low")
             mock_llm.return_value.get_optimal_provider = Mock(return_value=("openai", "gpt-4"))
 
@@ -389,7 +381,6 @@ class TestExecuteAgentChatErrors:
                 agent_id="nonexistent-agent",
                 message="Test",
                 user_id="test-user-123",
-                db_session=db
             )
 
             # Should succeed with defaults
@@ -409,7 +400,6 @@ class TestExecuteAgentChatErrors:
                 agent_id=sample_agent.id,
                 message="Test",
                 user_id="test-user-123",
-                db_session=db
             )
 
             # Should handle error gracefully
@@ -421,7 +411,7 @@ class TestExecuteAgentChatErrors:
         """RED: Test that budget check failure doesn't block execution."""
         with patch('core.agent_execution_service.LLMService') as mock_llm, \
              patch('core.agent_execution_service.personal_budget_service') as mock_budget:
-            mock_llm.return_value.stream_completion = AsyncMock(return_value=iter(["Response"]))
+            mock_llm.return_value.stream_completion.return_value = _async_stream_tokens(["Response"])
             mock_llm.return_value.analyze_query_complexity = Mock(return_value="low")
             mock_llm.return_value.get_optimal_provider = Mock(return_value=("openai", "gpt-4"))
 
@@ -432,7 +422,6 @@ class TestExecuteAgentChatErrors:
                 agent_id=sample_agent.id,
                 message="Test",
                 user_id="test-user-123",
-                db_session=db
             )
 
             # Should continue despite budget check failure

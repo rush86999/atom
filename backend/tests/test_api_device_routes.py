@@ -19,6 +19,7 @@ Maturity Requirements:
 """
 
 import json
+import os
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch, MagicMock
 from typing import Dict, Any
@@ -46,6 +47,20 @@ from tests.test_api_integration_fixtures import (
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
+@pytest.fixture(autouse=True)
+def _csrf_test_secret(api_test_client: TestClient):
+    """
+    Round-74 CSRF hardening: the global CSRF middleware 403s state-changing
+    requests that carry neither a Bearer token nor the E2E test secret.
+    These integration tests authenticate via dependency override (no cookies,
+    no CSRF exposure), so attach the sanctioned X-Test-Secret header.
+    """
+    api_test_client.headers.update(
+        {"X-Test-Secret": os.getenv("E2E_TEST_SECRET", "test-secret-key")}
+    )
+    yield
+
 
 def check_device_router_available(client: TestClient) -> bool:
     """
@@ -1317,6 +1332,8 @@ class TestDeviceAudit:
             id=str(uuid.uuid4()),
             user_id=api_test_client.test_user.id,
             device_node_id=device.device_id,
+            action="camera_snap",
+            endpoint="/api/devices/camera/snap",
             action_type="camera_snap",
             action_params={"resolution": "1920x1080"},
             success=True,
@@ -1328,6 +1345,8 @@ class TestDeviceAudit:
             id=str(uuid.uuid4()),
             user_id=api_test_client.test_user.id,
             device_node_id=device.device_id,
+            action="get_location",
+            endpoint="/api/devices/location",
             action_type="get_location",
             action_params={"accuracy": "high"},
             success=True,
@@ -1371,6 +1390,8 @@ class TestDeviceAudit:
             id=str(uuid.uuid4()),
             user_id=api_test_client.test_user.id,
             device_node_id=device.device_id,
+            action="execute_command",
+            endpoint="/api/devices/execute",
             action_type="execute_command",
             action_params={"command": "ls"},
             success=True,
@@ -1434,7 +1455,7 @@ class TestDeviceSessions:
             session_type="screen_record",
             status="active",
             configuration={"duration_seconds": 60},
-            created_at=datetime.now()
+            started_at=datetime.now()
         )
 
         db_session.add(session)

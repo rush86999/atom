@@ -858,10 +858,12 @@ class TestSessionCreationEndpoint:
         assert "success" in data or "session_id" in data
 
     def test_create_session_missing_user_id(self, client: TestClient, db_session: Session):
-        """Verify session creation requires user_id."""
+        """Verify session creation works without a body user_id (identity comes from auth token)."""
         response = client.post("/api/atom-agent/sessions", json={})
 
-        assert response.status_code == 422
+        assert response.status_code == 200
+        data = response.json()
+        assert "session_id" in data
 
 
 class TestSessionHistoryEndpoint:
@@ -1358,10 +1360,15 @@ class TestFeedbackEndpointsExpanded:
     def test_update_feedback(self, client: TestClient, db_session: Session):
         """Verify updating feedback."""
         execution = AgentExecutionFactory(_session=db_session)
+        agent = AgentFactory(_session=db_session)
+        user = UserFactory(_session=db_session)
         feedback = AgentFeedback(
-            execution_id=execution.id,
-            rating=4,
-            feedback="Good"
+            agent_id=agent.id,
+            agent_execution_id=execution.id,
+            user_id=user.id,
+            original_output="test output",
+            user_correction="Good",
+            rating=4
         )
         db_session.add(feedback)
         db_session.commit()
@@ -1377,10 +1384,15 @@ class TestFeedbackEndpointsExpanded:
     def test_delete_feedback(self, client: TestClient, db_session: Session):
         """Verify deleting feedback."""
         execution = AgentExecutionFactory(_session=db_session)
+        agent = AgentFactory(_session=db_session)
+        user = UserFactory(_session=db_session)
         feedback = AgentFeedback(
-            execution_id=execution.id,
-            rating=4,
-            feedback="Good"
+            agent_id=agent.id,
+            agent_execution_id=execution.id,
+            user_id=user.id,
+            original_output="test output",
+            user_correction="Good",
+            rating=4
         )
         db_session.add(feedback)
         db_session.commit()
@@ -1899,52 +1911,56 @@ class TestRetrievalEndpoints:
         agent = AgentFactory(_session=db_session)
         db_session.commit()
 
-        response = client.post(f"/api/atom-agent/agents/{agent.id}/retrieve-hybrid", json={
-            "query": "test query",
-            "limit": 10
-        })
+        response = client.post(
+            f"/api/atom-agent/agents/{agent.id}/retrieve-hybrid",
+            params={"query": "test query"}
+        )
 
         # Should perform hybrid retrieval
-        assert response.status_code in [200, 404]
+        assert response.status_code == 200
+        assert response.json().get("success") is True
 
     def test_retrieve_baseline_endpoint(self, client: TestClient, db_session: Session):
         """Verify baseline retrieval endpoint."""
         agent = AgentFactory(_session=db_session)
         db_session.commit()
 
-        response = client.post(f"/api/atom-agent/agents/{agent.id}/retrieve-baseline", json={
-            "query": "test query",
-            "limit": 10
-        })
+        response = client.post(
+            f"/api/atom-agent/agents/{agent.id}/retrieve-baseline",
+            params={"query": "test query"}
+        )
 
         # Should perform baseline retrieval
-        assert response.status_code in [200, 404]
+        assert response.status_code == 200
+        assert response.json().get("success") is True
 
     def test_retrieve_with_empty_query(self, client: TestClient, db_session: Session):
         """Verify retrieval handles empty query."""
         agent = AgentFactory(_session=db_session)
         db_session.commit()
 
-        response = client.post(f"/api/atom-agent/agents/{agent.id}/retrieve-hybrid", json={
-            "query": "",
-            "limit": 10
-        })
+        response = client.post(
+            f"/api/atom-agent/agents/{agent.id}/retrieve-hybrid",
+            params={"query": ""}
+        )
 
         # Should handle empty query gracefully
-        assert response.status_code in [200, 400, 404]
+        assert response.status_code == 200
 
     def test_retrieve_with_custom_limit(self, client: TestClient, db_session: Session):
         """Verify retrieval respects custom limit."""
         agent = AgentFactory(_session=db_session)
         db_session.commit()
 
-        response = client.post(f"/api/atom-agent/agents/{agent.id}/retrieve-hybrid", json={
-            "query": "test query",
-            "limit": 50
-        })
+        response = client.post(
+            f"/api/atom-agent/agents/{agent.id}/retrieve-hybrid",
+            params={"query": "test query", "coarse_top_k": 50, "rerank_top_k": 25}
+        )
 
         # Should respect custom limit
-        assert response.status_code in [200, 404]
+        assert response.status_code == 200
+        assert response.json().get("coarse_top_k") == 50
+        assert response.json().get("rerank_top_k") == 25
 
 
 class TestExecuteGeneratedWorkflow:
@@ -2131,7 +2147,10 @@ class TestResponseFormats:
         if "success" in data:
             assert isinstance(data["success"], bool)
         if "response" in data:
-            assert isinstance(data["response"], str)
+            # Real API shape: {"message": str, "actions": [...]}
+            assert isinstance(data["response"], (str, dict))
+            if isinstance(data["response"], dict):
+                assert "message" in data["response"]
 
     def test_sessions_response_structure_consistency(self, client: TestClient, db_session: Session):
         """Verify sessions response has consistent structure."""
@@ -2193,6 +2212,17 @@ class TestConcurrentAccess:
     def test_multiple_simultaneous_chats(self, client: TestClient, db_session: Session):
         """Verify multiple simultaneous chat requests work."""
         import threading
+
+        # The conftest auth override creates a fresh admin user per request on
+        # the shared test session, which races under real concurrency
+        # ("Session is already flushing"). Pre-create one user and pin the
+        # dependency override to it so requests only exercise the endpoint.
+        from core.auth import get_current_user
+        from main_api_app import app
+
+        user = UserFactory(_session=db_session)
+        db_session.commit()
+        app.dependency_overrides[get_current_user] = lambda: user
 
         results = []
 

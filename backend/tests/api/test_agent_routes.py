@@ -40,6 +40,9 @@ def client(db_session: Session):
         yield db_session
 
     def override_get_current_user():
+        if _current_test_user is None:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=401, detail="Not authenticated")
         return _current_test_user
 
     app.dependency_overrides[get_db] = override_get_db
@@ -102,7 +105,8 @@ def mock_agent(db_session: Session):
         status="idle",
         confidence_score=0.75,
         module_path="test.module",
-        class_name="TestClass"
+        class_name="TestClass",
+        workspace_id="default"
     )
     db_session.add(agent)
     db_session.commit()
@@ -145,8 +149,8 @@ def test_list_agents_success(
 
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
-    assert len(data) >= 1
+    assert isinstance(data["data"], list)
+    assert len(data["data"]) >= 1
 
 
 def test_list_agents_with_category_filter(
@@ -163,7 +167,7 @@ def test_list_agents_with_category_filter(
 
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
+    assert isinstance(data["data"], list)
 
 
 # ============================================================================
@@ -181,6 +185,7 @@ def test_run_agent_success(
     _current_test_user = mock_member_user
 
     request_data = {
+        "agent_id": mock_agent.id,
         "parameters": {
             "test_param": "test_value"
         }
@@ -203,14 +208,14 @@ def test_run_agent_sync_mode(
     _current_test_user = mock_member_user
 
     request_data = {
+        "agent_id": mock_agent.id,
         "parameters": {
             "sync": True,
             "test_input": "test"
         }
     }
 
-    with patch('api.agent_routes.execute_agent_task') as mock_exec:
-        mock_exec.return_value = {"result": "test output"}
+    with patch('api.agent_routes.execute_agent_task', new=AsyncMock(return_value={"result": "test output"})):
 
         response = client.post(f"/api/agents/{mock_agent.id}/run", json=request_data)
 
@@ -228,6 +233,7 @@ def test_run_agent_not_found(
     _current_test_user = mock_member_user
 
     request_data = {
+        "agent_id": "nonexistent-agent",
         "parameters": {}
     }
 
@@ -284,14 +290,11 @@ def test_promote_agent_to_autonomous(
     global _current_test_user
     _current_test_user = mock_admin_user
 
-    with patch('core.agent_governance_service.AgentGovernanceService.promote_to_autonomous') as mock_promote:
-        mock_promote.return_value = mock_agent
+    response = client.post(f"/api/agents/{mock_agent.id}/promote")
 
-        response = client.post(f"/api/agents/{mock_agent.id}/promote")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert "agent_status" in data or "success" in data
+    assert response.status_code == 200
+    data = response.json()
+    assert "agent_status" in data or "success" in data
 
 
 # ============================================================================
@@ -335,18 +338,20 @@ def test_approve_hitl_action(
         "feedback": "Looks good"
     }
 
-    # Create mock HITL action
-    mock_action = Mock()
-    mock_action.id = action_id
-    mock_action.status = HITLActionStatus.PENDING.value
+    action = HITLAction(
+        id=action_id,
+        action_type="send_message",
+        platform="test",
+        params={},
+        status=HITLActionStatus.PENDING.value
+    )
+    db_session.add(action)
+    db_session.commit()
 
-    with patch('core.models.HITLAction') as mock_hitl:
-        mock_hitl.query.return_value.filter.return_value.first.return_value = mock_action
+    with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
+        response = client.post(f"/api/agents/approvals/{action_id}", json=approval_data)
 
-        with patch('core.websockets.manager.broadcast') as mock_ws:
-            response = client.post(f"/api/agents/approvals/{action_id}", json=approval_data)
-
-            assert response.status_code == 200
+        assert response.status_code == 200
 
 
 def test_reject_hitl_action(
@@ -366,17 +371,20 @@ def test_reject_hitl_action(
         "feedback": "Needs correction"
     }
 
-    mock_action = Mock()
-    mock_action.id = action_id
-    mock_action.status = HITLActionStatus.PENDING.value
+    action = HITLAction(
+        id=action_id,
+        action_type="send_message",
+        platform="test",
+        params={},
+        status=HITLActionStatus.PENDING.value
+    )
+    db_session.add(action)
+    db_session.commit()
 
-    with patch('core.models.HITLAction') as mock_hitl:
-        mock_hitl.query.return_value.filter.return_value.first.return_value = mock_action
+    with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
+        response = client.post(f"/api/agents/approvals/{action_id}", json=approval_data)
 
-        with patch('core.websockets.manager.broadcast') as mock_ws:
-            response = client.post(f"/api/agents/approvals/{action_id}", json=approval_data)
-
-            assert response.status_code == 200
+        assert response.status_code == 200
 
 
 # ============================================================================
@@ -433,7 +441,7 @@ def test_spawn_custom_agent(
 
     with patch('core.atom_meta_agent.get_atom_agent') as mock_atom:
         mock_atom_instance = Mock()
-        mock_atom_instance.spawn_agent.return_value = mock_agent
+        mock_atom_instance.spawn_agent = AsyncMock(return_value=mock_agent)
         mock_atom.return_value = mock_atom_instance
 
         response = client.post("/api/agents/spawn", json=request_data)
@@ -497,7 +505,7 @@ def test_create_custom_agent(
 
     response = client.post("/api/agents/custom", json=request_data)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert "agent_id" in data or "success" in data
 
@@ -570,7 +578,7 @@ def test_stop_running_agent(
     _current_test_user = mock_member_user
 
     with patch('core.agent_task_registry.agent_task_registry') as mock_registry:
-        mock_registry.cancel_agent_agent_tasks.return_value = 2
+        mock_registry.cancel_agent_tasks = AsyncMock(return_value=2)
 
         response = client.post(f"/api/agents/{mock_agent.id}/stop")
 
@@ -590,7 +598,7 @@ def test_stop_agent_no_tasks(
     _current_test_user = mock_member_user
 
     with patch('core.agent_task_registry.agent_task_registry') as mock_registry:
-        mock_registry.cancel_agent_tasks.return_value = 0
+        mock_registry.cancel_agent_tasks = AsyncMock(return_value=0)
 
         response = client.post(f"/api/agents/{mock_agent.id}/stop")
 
@@ -760,6 +768,7 @@ def test_patch_agent_name(
     _current_test_user = mock_admin_user
 
     request_data = {
+        "agent_id": mock_agent.id,
         "name": "Updated Name"
     }
 
@@ -781,6 +790,7 @@ def test_patch_agent_description(
     _current_test_user = mock_admin_user
 
     request_data = {
+        "agent_id": mock_agent.id,
         "description": "Updated description"
     }
 
@@ -801,6 +811,7 @@ def test_patch_agent_not_found(
     _current_test_user = mock_admin_user
 
     request_data = {
+        "agent_id": "nonexistent-agent",
         "name": "Updated Name"
     }
 
@@ -898,7 +909,7 @@ def test_create_custom_agent_with_schedule(
 
         response = client.post("/api/agents/custom", json=request_data)
 
-        assert response.status_code == 200
+        assert response.status_code == 201
 
 
 # ============================================================================
@@ -1007,7 +1018,7 @@ def test_run_agent_deprecated_state(
     mock_agent.status = "deprecated"
     db_session.commit()
 
-    request_data = {"parameters": {}}
+    request_data = {"agent_id": mock_agent.id, "parameters": {}}
 
     response = client.post(f"/api/agents/{mock_agent.id}/run", json=request_data)
 
@@ -1028,7 +1039,7 @@ def test_run_agent_paused_state(
     mock_agent.status = "paused"
     db_session.commit()
 
-    request_data = {"parameters": {}}
+    request_data = {"agent_id": mock_agent.id, "parameters": {}}
 
     response = client.post(f"/api/agents/{mock_agent.id}/run", json=request_data)
 
@@ -1049,7 +1060,7 @@ def test_run_agent_already_running(
     mock_agent.status = "running"
     db_session.commit()
 
-    request_data = {"parameters": {}}
+    request_data = {"agent_id": mock_agent.id, "parameters": {}}
 
     response = client.post(f"/api/agents/{mock_agent.id}/run", json=request_data)
 
@@ -1128,17 +1139,20 @@ def test_reject_action_with_feedback(
         "feedback": "Needs work"
     }
 
-    mock_action = Mock()
-    mock_action.id = action_id
-    mock_action.status = HITLActionStatus.PENDING.value
+    action = HITLAction(
+        id=action_id,
+        action_type="send_message",
+        platform="test",
+        params={},
+        status=HITLActionStatus.PENDING.value
+    )
+    db_session.add(action)
+    db_session.commit()
 
-    with patch('core.models.HITLAction') as mock_hitl:
-        mock_hitl.query.return_value.filter.return_value.first.return_value = mock_action
+    with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
+        response = client.post(f"/api/agents/approvals/{action_id}", json=approval_data)
 
-        with patch('core.websockets.manager.broadcast') as mock_ws:
-            response = client.post(f"/api/agents/approvals/{action_id}", json=approval_data)
-
-            assert response.status_code == 200
+        assert response.status_code == 200
 
 
 # ============================================================================
@@ -1223,7 +1237,7 @@ def test_spawn_agent_persist_true(
 
     with patch('core.atom_meta_agent.get_atom_agent') as mock_atom:
         mock_atom_instance = Mock()
-        mock_atom_instance.spawn_agent.return_value = mock_agent
+        mock_atom_instance.spawn_agent = AsyncMock(return_value=mock_agent)
         mock_atom.return_value = mock_atom_instance
 
         response = client.post("/api/agents/spawn", json=request_data)
@@ -1333,7 +1347,7 @@ def test_stop_agent_not_found(
     _current_test_user = mock_member_user
 
     with patch('core.agent_task_registry.agent_task_registry') as mock_registry:
-        mock_registry.cancel_agent_tasks.return_value = 0
+        mock_registry.cancel_agent_tasks = AsyncMock(return_value=0)
 
         response = client.post("/api/agents/nonexistent-agent/stop")
 
@@ -1351,7 +1365,7 @@ def test_stop_agent_multiple_tasks(
     _current_test_user = mock_member_user
 
     with patch('core.agent_task_registry.agent_task_registry') as mock_registry:
-        mock_registry.cancel_agent_tasks.return_value = 5
+        mock_registry.cancel_agent_tasks = AsyncMock(return_value=5)
 
         response = client.post(f"/api/agents/{mock_agent.id}/stop")
 
@@ -1451,7 +1465,7 @@ def test_agent_crud_end_to_end(
         "configuration": {}
     }
     create_response = client.post("/api/agents/custom", json=create_data)
-    assert create_response.status_code == 200
+    assert create_response.status_code == 201
     agent_id = create_response.json()["data"]["agent_id"]
 
     # Read
@@ -1460,6 +1474,7 @@ def test_agent_crud_end_to_end(
 
     # Update
     update_data = {
+        "agent_id": agent_id,
         "name": "Updated E2E Agent",
         "description": "Updated"
     }
@@ -1486,14 +1501,17 @@ def test_list_agents_with_pagination(
 
     # Create multiple agents
     from tests.fixtures.agent_fixtures import create_agent_batch
-    agents = create_agent_batch(db, count=3)
+    agents = create_agent_batch(db_session, count=3)
+    for agent in agents:
+        agent.workspace_id = "default"
+    db_session.commit()
 
     response = client.get("/api/agents/")
 
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
-    assert len(data) >= 3
+    assert isinstance(data["data"], list)
+    assert len(data["data"]) >= 3
 
 
 def test_run_agent_with_large_parameters(
@@ -1513,7 +1531,7 @@ def test_run_agent_with_large_parameters(
         }
     }
 
-    request_data = {"parameters": large_params}
+    request_data = {"agent_id": mock_agent.id, "parameters": large_params}
 
     with patch('api.agent_routes.execute_agent_task') as mock_exec:
         mock_exec.return_value = {"result": "processed large params"}
@@ -1589,7 +1607,7 @@ def test_agent_with_unicode_name(
 
     response = client.post("/api/agents/custom", json=request_data)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
 
 
 def test_agent_with_special_characters(
@@ -1610,7 +1628,7 @@ def test_agent_with_special_characters(
 
     response = client.post("/api/agents/custom", json=request_data)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
 
 
 def test_agent_with_very_long_description(
@@ -1631,7 +1649,7 @@ def test_agent_with_very_long_description(
 
     response = client.post("/api/agents/custom", json=request_data)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
 
 # ============================================================================
 # GET /{agent_id} - Get Agent Tests
@@ -1796,6 +1814,7 @@ def test_patch_agent_name(
     _current_test_user = mock_admin_user
 
     request_data = {
+        "agent_id": mock_agent.id,
         "name": "Updated Name"
     }
 
@@ -1817,6 +1836,7 @@ def test_patch_agent_description(
     _current_test_user = mock_admin_user
 
     request_data = {
+        "agent_id": mock_agent.id,
         "description": "Updated description"
     }
 
@@ -1837,6 +1857,7 @@ def test_patch_agent_not_found(
     _current_test_user = mock_admin_user
 
     request_data = {
+        "agent_id": "nonexistent-agent",
         "name": "Updated Name"
     }
 
@@ -1934,7 +1955,7 @@ def test_create_custom_agent_with_schedule(
 
         response = client.post("/api/agents/custom", json=request_data)
 
-        assert response.status_code == 200
+        assert response.status_code == 201
 
 
 # ============================================================================
@@ -2043,7 +2064,7 @@ def test_run_agent_deprecated_state(
     mock_agent.status = "deprecated"
     db_session.commit()
 
-    request_data = {"parameters": {}}
+    request_data = {"agent_id": mock_agent.id, "parameters": {}}
 
     response = client.post(f"/api/agents/{mock_agent.id}/run", json=request_data)
 
@@ -2064,7 +2085,7 @@ def test_run_agent_paused_state(
     mock_agent.status = "paused"
     db_session.commit()
 
-    request_data = {"parameters": {}}
+    request_data = {"agent_id": mock_agent.id, "parameters": {}}
 
     response = client.post(f"/api/agents/{mock_agent.id}/run", json=request_data)
 
@@ -2085,7 +2106,7 @@ def test_run_agent_already_running(
     mock_agent.status = "running"
     db_session.commit()
 
-    request_data = {"parameters": {}}
+    request_data = {"agent_id": mock_agent.id, "parameters": {}}
 
     response = client.post(f"/api/agents/{mock_agent.id}/run", json=request_data)
 
@@ -2164,17 +2185,20 @@ def test_reject_action_with_feedback(
         "feedback": "Needs work"
     }
 
-    mock_action = Mock()
-    mock_action.id = action_id
-    mock_action.status = HITLActionStatus.PENDING.value
+    action = HITLAction(
+        id=action_id,
+        action_type="send_message",
+        platform="test",
+        params={},
+        status=HITLActionStatus.PENDING.value
+    )
+    db_session.add(action)
+    db_session.commit()
 
-    with patch('core.models.HITLAction') as mock_hitl:
-        mock_hitl.query.return_value.filter.return_value.first.return_value = mock_action
+    with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
+        response = client.post(f"/api/agents/approvals/{action_id}", json=approval_data)
 
-        with patch('core.websockets.manager.broadcast') as mock_ws:
-            response = client.post(f"/api/agents/approvals/{action_id}", json=approval_data)
-
-            assert response.status_code == 200
+        assert response.status_code == 200
 
 
 # ============================================================================
@@ -2259,7 +2283,7 @@ def test_spawn_agent_persist_true(
 
     with patch('core.atom_meta_agent.get_atom_agent') as mock_atom:
         mock_atom_instance = Mock()
-        mock_atom_instance.spawn_agent.return_value = mock_agent
+        mock_atom_instance.spawn_agent = AsyncMock(return_value=mock_agent)
         mock_atom.return_value = mock_atom_instance
 
         response = client.post("/api/agents/spawn", json=request_data)
@@ -2369,7 +2393,7 @@ def test_stop_agent_not_found(
     _current_test_user = mock_member_user
 
     with patch('core.agent_task_registry.agent_task_registry') as mock_registry:
-        mock_registry.cancel_agent_tasks.return_value = 0
+        mock_registry.cancel_agent_tasks = AsyncMock(return_value=0)
 
         response = client.post("/api/agents/nonexistent-agent/stop")
 
@@ -2387,7 +2411,7 @@ def test_stop_agent_multiple_tasks(
     _current_test_user = mock_member_user
 
     with patch('core.agent_task_registry.agent_task_registry') as mock_registry:
-        mock_registry.cancel_agent_tasks.return_value = 5
+        mock_registry.cancel_agent_tasks = AsyncMock(return_value=5)
 
         response = client.post(f"/api/agents/{mock_agent.id}/stop")
 
@@ -2487,7 +2511,7 @@ def test_agent_crud_end_to_end(
         "configuration": {}
     }
     create_response = client.post("/api/agents/custom", json=create_data)
-    assert create_response.status_code == 200
+    assert create_response.status_code == 201
     agent_id = create_response.json()["data"]["agent_id"]
 
     # Read
@@ -2496,6 +2520,7 @@ def test_agent_crud_end_to_end(
 
     # Update
     update_data = {
+        "agent_id": agent_id,
         "name": "Updated E2E Agent",
         "description": "Updated"
     }
@@ -2522,14 +2547,17 @@ def test_list_agents_with_pagination(
 
     # Create multiple agents
     from tests.fixtures.agent_fixtures import create_agent_batch
-    agents = create_agent_batch(db, count=3)
+    agents = create_agent_batch(db_session, count=3)
+    for agent in agents:
+        agent.workspace_id = "default"
+    db_session.commit()
 
     response = client.get("/api/agents/")
 
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
-    assert len(data) >= 3
+    assert isinstance(data["data"], list)
+    assert len(data["data"]) >= 3
 
 
 def test_run_agent_with_large_parameters(
@@ -2549,7 +2577,7 @@ def test_run_agent_with_large_parameters(
         }
     }
 
-    request_data = {"parameters": large_params}
+    request_data = {"agent_id": mock_agent.id, "parameters": large_params}
 
     with patch('api.agent_routes.execute_agent_task') as mock_exec:
         mock_exec.return_value = {"result": "processed large params"}
@@ -2625,7 +2653,7 @@ def test_agent_with_unicode_name(
 
     response = client.post("/api/agents/custom", json=request_data)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
 
 
 def test_agent_with_special_characters(
@@ -2646,7 +2674,7 @@ def test_agent_with_special_characters(
 
     response = client.post("/api/agents/custom", json=request_data)
 
-    assert response.status_code == 200
+    assert response.status_code == 201
 
 
 def test_agent_with_very_long_description(
@@ -2667,4 +2695,4 @@ def test_agent_with_very_long_description(
 
     response = client.post("/api/agents/custom", json=request_data)
 
-    assert response.status_code == 200
+    assert response.status_code == 201

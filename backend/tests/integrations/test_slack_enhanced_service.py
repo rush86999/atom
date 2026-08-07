@@ -119,7 +119,7 @@ def mock_message():
 @pytest.fixture
 def slack_service(mock_config):
     """Create SlackEnhancedService instance for testing"""
-    service = SlackEnhancedService(mock_config)
+    service = SlackEnhancedService(config=mock_config)
     yield service
     # Cleanup
     asyncio.run(service.close())
@@ -172,7 +172,7 @@ class TestSlackAuthentication:
     def test_token_encryption_without_cipher(self, mock_config):
         """Test token handling when encryption is not configured"""
         mock_config['encryption_key'] = None
-        service = SlackEnhancedService(mock_config)
+        service = SlackEnhancedService(config=mock_config)
 
         # Should return token as-is when no cipher
         token = 'xoxb-test-token'
@@ -783,7 +783,7 @@ class TestSlackWebhooks:
     async def test_verify_webhook_signature_no_secret(self, mock_config):
         """Test signature verification fails without signing secret"""
         mock_config['signing_secret'] = None
-        service = SlackEnhancedService(mock_config)
+        service = SlackEnhancedService(config=mock_config)
 
         result = await service.verify_webhook_signature(b'body', 'timestamp', 'signature')
 

@@ -122,8 +122,12 @@ class TestScalingOperations:
         with patch.object(service, 'proposal_service') as mock_proposal_svc:
             mock_proposal_svc.get_proposal = AsyncMock(return_value=mock_proposal)
             mock_proposal_svc._update_proposal_status = AsyncMock()
-            with patch.object(service, '_execute_expansion') as mock_expand:
-                mock_expand.return_value = {"recruited_agents": ["agent-001", "agent-002", "agent-003"]}
+
+            async def _fake_expand(proposal, operation):
+                operation.agents_added.extend(["agent-001", "agent-002", "agent-003"])
+                return {"recruited_agents": ["agent-001", "agent-002", "agent-003"]}
+
+            with patch.object(service, '_execute_expansion', new=AsyncMock(side_effect=_fake_expand)):
                 with patch.object(service, '_persist_operation', new_callable=AsyncMock):
 
                     # Act
@@ -159,8 +163,12 @@ class TestScalingOperations:
         with patch.object(service, 'proposal_service') as mock_proposal_svc:
             mock_proposal_svc.get_proposal = AsyncMock(return_value=mock_proposal)
             mock_proposal_svc._update_proposal_status = AsyncMock()
-            with patch.object(service, '_execute_contraction') as mock_contract:
-                mock_contract.return_value = {"removed_agents": ["agent-008", "agent-009", "agent-010"]}
+
+            async def _fake_contract(proposal, operation):
+                operation.agents_removed.extend(["agent-008", "agent-009", "agent-010"])
+                return {"removed_agents": ["agent-008", "agent-009", "agent-010"]}
+
+            with patch.object(service, '_execute_contraction', new=AsyncMock(side_effect=_fake_contract)):
                 with patch.object(service, '_persist_operation', new_callable=AsyncMock):
 
                     # Act
@@ -288,7 +296,7 @@ class TestResourceManagement:
         mock_db.add = Mock()
         mock_db.commit = Mock()
 
-        with patch('core.fleet_orchestration.fleet_scaler_service.get_distributed_blackboard') as mock_bb:
+        with patch('core.fleet_orchestration.get_distributed_blackboard') as mock_bb:
             mock_bb.return_value.notify_state_update = AsyncMock()
 
             # Act
@@ -346,7 +354,7 @@ class TestResourceManagement:
         mock_db.query.return_value.filter.return_value = mock_query
         mock_db.commit = Mock()
 
-        with patch('core.fleet_orchestration.fleet_scaler_service.get_distributed_blackboard') as mock_bb:
+        with patch('core.fleet_orchestration.get_distributed_blackboard') as mock_bb:
             mock_bb.return_value.notify_state_update = AsyncMock()
 
             # Act
@@ -437,15 +445,15 @@ class TestCapacityPlanning:
 
         with patch.object(service, 'overage_service') as mock_overage:
             mock_overage.get_effective_limit.return_value = 100
+            mock_overage.check_overage_expiry = AsyncMock(return_value=False)
             with patch.object(service, '_get_current_fleet_size', new_callable=AsyncMock, return_value=40):
-                with patch.object(service, 'overage_service.check_overage_expiry', new_callable=AsyncMock, return_value=False):
 
-                    # Act
-                    result = await service.check_scaling_constraints(mock_chain_id, mock_proposed_size)
+                # Act
+                result = await service.check_scaling_constraints(mock_chain_id, mock_proposed_size)
 
-                    # Assert
-                    assert result["allowed"] is True
-                    assert result["constraints"]["fleet_size_limit"]["within_limit"] is True
+                # Assert
+                assert result["allowed"] is True
+                assert result["constraints"]["fleet_size_limit"]["within_limit"] is True
 
     @pytest.mark.asyncio
     async def test_check_scaling_constraints_exceeds_limit(self):
@@ -459,6 +467,7 @@ class TestCapacityPlanning:
 
         with patch.object(service, 'overage_service') as mock_overage:
             mock_overage.get_effective_limit.return_value = 100
+            mock_overage.check_overage_expiry = AsyncMock(return_value=False)
             with patch.object(service, '_get_current_fleet_size', new_callable=AsyncMock, return_value=95):
 
                 # Act
@@ -479,6 +488,7 @@ class TestCapacityPlanning:
 
         mock_query = Mock()
         mock_query.scalar.return_value = 7
+        mock_query.all.return_value = []
         mock_db.query.return_value.filter.return_value = mock_query
 
         with patch.object(service, 'proposal_service') as mock_proposal_svc:
@@ -494,11 +504,6 @@ class TestCapacityPlanning:
                 expires_at=m.expires_at
             )
             with patch.object(service, '_get_recent_operations', new_callable=AsyncMock, return_value=[]):
-
-                # Mock pending proposals query
-                mock_proposal_query = Mock()
-                mock_proposal_query.all.return_value = []
-                mock_db.query.return_value.filter.return_value.filter.return_value = mock_proposal_query
 
                 # Act
                 result = await service.get_scaling_status(mock_chain_id)
@@ -597,7 +602,7 @@ class TestFleetIntegration:
         mock_db.add = Mock()
         mock_db.commit = Mock()
 
-        with patch('core.fleet_orchestration.fleet_scaler_service.get_distributed_blackboard') as mock_bb:
+        with patch('core.fleet_orchestration.get_distributed_blackboard') as mock_bb:
             mock_blackboard = AsyncMock()
             mock_blackboard.notify_state_update = AsyncMock()
             mock_bb.return_value = mock_blackboard
@@ -653,7 +658,7 @@ class TestFleetIntegration:
         mock_db.query.return_value.filter.return_value = mock_query
         mock_db.commit = Mock()
 
-        with patch('core.fleet_orchestration.fleet_scaler_service.get_distributed_blackboard') as mock_bb:
+        with patch('core.fleet_orchestration.get_distributed_blackboard') as mock_bb:
             mock_blackboard = AsyncMock()
             mock_blackboard.notify_state_update = AsyncMock()
             mock_bb.return_value = mock_blackboard
@@ -682,8 +687,11 @@ class TestFleetIntegration:
         mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
         mock_db.query.return_value = mock_query
 
-        # Act
-        result = await service._get_recent_operations(mock_chain_id, limit=5)
+        # The ScalingOperation ORM model is not registered in core.models;
+        # mock it so the persistence-layer query path is exercised.
+        with patch('core.models.ScalingOperation', create=True):
+            # Act
+            result = await service._get_recent_operations(mock_chain_id, limit=5)
 
         # Assert
         assert isinstance(result, list)

@@ -459,7 +459,7 @@ class NotionService:
         return {
             "id": response["id"],
             "title": title,
-            "description": response.get("description", [{}])[0].get("plain_text", ""),
+            "description": (response.get("description") or [{}])[0].get("plain_text", ""),
             "properties": properties,
             "url": response.get("url", "")
         }

@@ -28,9 +28,56 @@ from core.skill_marketplace_service import SkillMarketplaceService
 
 
 @pytest.fixture
+def db_session():
+    """Per-test isolated in-memory database.
+
+    Shadows the shared conftest db_session: the marketplace service (and the
+    sample fixture) call session.commit(), which releases the conftest
+    fixture's nested transaction and leaves rows behind on the shared
+    StaticPool in-memory DB, polluting every later test in the session.
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+    from core.models_registration import Base
+
+    engine = create_engine(
+        'sqlite:///:memory:',
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    yield session
+    session.close()
+    engine.dispose()
+
+
+@pytest.fixture
 def marketplace_service(db_session: Session):
-    """Create marketplace service fixture."""
-    return SkillMarketplaceService(db_session)
+    """Create marketplace service fixture.
+
+    The Atom Agent OS SaaS client is mocked to raise on every call so the
+    service deterministically exercises its local fallback paths (no network,
+    no ATOM_SAAS_API_TOKEN required). fetch_skills_sync in the real client
+    swallows HTTP errors and returns an empty result dict, which would
+    otherwise short-circuit the local fallback and yield total=0.
+    """
+    from unittest.mock import MagicMock
+
+    saas_client = MagicMock()
+    for method in (
+        "fetch_skills_sync",
+        "get_skill_by_id_sync",
+        "get_categories_sync",
+        "rate_skill_sync",
+        "install_skill_sync",
+        "uninstall_skill_sync",
+    ):
+        getattr(saas_client, method).side_effect = Exception("SaaS unavailable (mocked in tests)")
+
+    return SkillMarketplaceService(db_session, saas_client=saas_client)
 
 
 @pytest.fixture
@@ -193,7 +240,7 @@ class TestMarketplaceRatings:
             skill_id=skill_id,
             user_id="test-user",
             rating=5,
-            review="Great skill!"
+            comment="Great skill!"
         )
 
         assert result["success"] is True
@@ -208,7 +255,7 @@ class TestMarketplaceRatings:
             skill_id=skill_id,
             user_id="test-user-2",
             rating=4,
-            review="Good skill, works well"
+            comment="Good skill, works well"
         )
 
         assert result["success"] is True
@@ -227,7 +274,7 @@ class TestMarketplaceRatings:
             skill_id=skill_id,
             user_id=user_id,
             rating=5,
-            review="Updated to 5 stars"
+            comment="Updated to 5 stars"
         )
 
         assert result["action"] == "updated"
@@ -399,6 +446,7 @@ class TestSearchEdgeCases:
         skill = SkillExecution(
             agent_id="system",
             workspace_id="default",
+            tenant_id="default",
             skill_id="community_special_chars_test",
             status="Active",
             input_params={
@@ -434,6 +482,7 @@ class TestSearchEdgeCases:
         skill = SkillExecution(
             agent_id="system",
             workspace_id="default",
+            tenant_id="default",
             skill_id="community_unicode_test",
             status="Active",
             input_params={
@@ -613,6 +662,7 @@ class TestSortingEdgeCases:
         skill1 = SkillExecution(
             agent_id="system",
             workspace_id="default",
+            tenant_id="default",
             skill_id="community_tie_test_1",
             status="Active",
             created_at=now,
@@ -634,6 +684,7 @@ class TestSortingEdgeCases:
         skill2 = SkillExecution(
             agent_id="system",
             workspace_id="default",
+            tenant_id="default",
             skill_id="community_tie_test_2",
             status="Active",
             created_at=now,
@@ -734,12 +785,12 @@ class TestRatingEdgeCases:
         user_id = "repeat_user"
 
         # First rating
-        result1 = marketplace_service.rate_skill(skill_id, user_id, 3, review="Okay")
+        result1 = marketplace_service.rate_skill(skill_id, user_id, 3, comment="Okay")
         assert result1["action"] == "created"
         assert result1["average_rating"] == 3.0
 
         # Update rating
-        result2 = marketplace_service.rate_skill(skill_id, user_id, 5, review="Excellent!")
+        result2 = marketplace_service.rate_skill(skill_id, user_id, 5, comment="Excellent!")
         assert result2["action"] == "updated"
         assert result2["average_rating"] == 5.0  # Updated to latest
 
@@ -755,7 +806,7 @@ class TestRatingEdgeCases:
             skill_id,
             user_id="user_no_comment",
             rating=4,
-            review=None
+            comment=None
         )
 
         assert result["success"] is True
@@ -772,7 +823,7 @@ class TestRatingEdgeCases:
             skill_id,
             user_id="user_long_comment",
             rating=5,
-            review=long_comment
+            comment=long_comment
         )
 
         # Should accept long comment
@@ -824,7 +875,7 @@ class TestRatingRetrieval:
                 skill_id,
                 f"user_{i}",
                 5,
-                review=f"Comment {i}"
+                comment=f"Comment {i}"
             )
 
         # Get default limit (10)
@@ -840,11 +891,11 @@ class TestRatingRetrieval:
         skill_id = sample_marketplace_skills[0].id
 
         # Add ratings with delays
-        marketplace_service.rate_skill(skill_id, "user_early", 3, review="First")
+        marketplace_service.rate_skill(skill_id, "user_early", 3, comment="First")
         time.sleep(0.01)  # Small delay
-        marketplace_service.rate_skill(skill_id, "user_late", 5, review="Second")
+        marketplace_service.rate_skill(skill_id, "user_late", 5, comment="Second")
         time.sleep(0.01)
-        marketplace_service.rate_skill(skill_id, "user_latest", 4, review="Third")
+        marketplace_service.rate_skill(skill_id, "user_latest", 4, comment="Third")
 
         # Get ratings
         skill = marketplace_service.get_skill_by_id(skill_id)
@@ -871,7 +922,7 @@ class TestRatingRetrieval:
             skill_id,
             "test_user_fields",
             5,
-            review="Great skill!"
+            comment="Great skill!"
         )
 
         skill = marketplace_service.get_skill_by_id(skill_id)
@@ -960,6 +1011,7 @@ class TestCategoryEdgeCases:
         skill = SkillExecution(
             agent_id="system",
             workspace_id="default",
+            tenant_id="default",
             skill_id="community_space_cat_test",
             status="Active",
             input_params={
@@ -995,6 +1047,7 @@ class TestCategoryEdgeCases:
         skill = SkillExecution(
             agent_id="system",
             workspace_id="default",
+            tenant_id="default",
             skill_id="community_special_cat_test",
             status="Active",
             input_params={
@@ -1030,6 +1083,7 @@ class TestCategoryEdgeCases:
         skill = SkillExecution(
             agent_id="system",
             workspace_id="default",
+            tenant_id="default",
             skill_id="community_display_test",
             status="Active",
             input_params={
@@ -1069,7 +1123,7 @@ class TestCategoryEdgeCases:
             actual_count = marketplace_service.db.query(SkillExecution).filter(
                 SkillExecution.skill_source == "community",
                 SkillExecution.status == "Active",
-                SkillExecution.input_params["skill_metadata"]["category"].astext == cat["name"]
+                SkillExecution.input_params["skill_metadata"]["category"].as_string() == cat["name"]
             ).count()
 
             assert cat["skill_count"] == actual_count
@@ -1156,6 +1210,7 @@ class TestSkillRetrievalEdgeCases:
         skill = SkillExecution(
             agent_id="system",
             workspace_id="default",
+            tenant_id="default",
             skill_id="community_minimal_test",
             status="Active",
             input_params={
@@ -1189,6 +1244,7 @@ class TestSkillRetrievalEdgeCases:
         skill = SkillExecution(
             agent_id="system",
             workspace_id="default",
+            tenant_id="default",
             skill_id="community_empty_desc_test",
             status="Active",
             input_params={
@@ -1222,6 +1278,7 @@ class TestSkillRetrievalEdgeCases:
         skill = SkillExecution(
             agent_id="system",
             workspace_id="default",
+            tenant_id="default",
             skill_id="community_no_tags_test",
             status="Active",
             input_params={
@@ -1278,6 +1335,7 @@ class TestDataEnrichment:
         skill = SkillExecution(
             agent_id="system",
             workspace_id="default",
+            tenant_id="default",
             skill_id="community_none_test",
             status="Active",
             input_params=None,  # None input_params
@@ -1304,6 +1362,7 @@ class TestDataEnrichment:
         skill = SkillExecution(
             agent_id="system",
             workspace_id="default",
+            tenant_id="default",
             skill_id="community_empty_params_test",
             status="Active",
             input_params={},  # Empty dict

@@ -37,7 +37,21 @@ def app():
 @pytest.fixture
 def client(app):
     """Create test client."""
-    return TestClient(app)
+    from core.auth import get_current_user
+    from core.models import User
+
+    test_user = User(
+        id="core-test-user",
+        email="core-test@example.com",
+        hashed_password="hashed_password",
+        first_name="Core",
+        last_name="Tester",
+        role="member",
+        status="active",
+    )
+    app.dependency_overrides[get_current_user] = lambda: test_user
+    yield TestClient(app)
+    app.dependency_overrides.clear()
 
 
 class TestFallbackIntentClassification:
@@ -253,7 +267,7 @@ class TestIntentHandlers:
 
             assert result["success"] is True
             assert "Found 2 workflows" in result["response"]["message"]
-            assert len(result["response"]["actions"]) == 3  # Max 3 actions
+            assert len(result["response"]["actions"]) == 2  # One action per workflow
 
     @pytest.mark.asyncio
     async def test_handle_run_workflow_success(self):
@@ -468,7 +482,7 @@ class TestChatEndpoints:
                 mock_session_mgr = Mock()
                 mock_session_mgr.get_session.return_value = {
                     "session_id": "sess-1",
-                    "user_id": "test-user",
+                    "user_id": "core-test-user",
                     "created_at": "2026-03-20T10:00:00Z"
                 }
                 mock_sess_mgr.return_value = mock_session_mgr
@@ -497,49 +511,34 @@ class TestClassifyIntentWithLLM:
     @pytest.mark.asyncio
     async def test_classify_with_openai_provider(self):
         """Test classification using OpenAI provider."""
-        with patch('core.atom_agent_endpoints.get_byok_manager') as mock_byok:
-            mock_manager = Mock()
-            mock_manager.get_optimal_provider.return_value = "openai"
-            mock_manager.get_api_key.return_value = "sk-test-key"
-            mock_byok.return_value = mock_manager
+        with patch('core.atom_agent_endpoints.LLMService') as mock_llm_class:
+            mock_llm_class.return_value.generate = AsyncMock(
+                return_value='{"intent": "CREATE_WORKFLOW", "entities": {}}'
+            )
 
-            # Mock AI service
-            with patch('core.atom_agent_endpoints.ai_service') as mock_ai:
-                mock_ai.call_openai_api = AsyncMock(return_value={
-                    "success": True,
-                    "response": '{"intent": "CREATE_WORKFLOW", "entities": {}}'
-                })
+            result = await classify_intent_with_llm("create workflow", [])
 
-                result = await classify_intent_with_llm("create workflow", [])
-
-                assert result["intent"] == "CREATE_WORKFLOW"
+            assert result["intent"] == "CREATE_WORKFLOW"
 
     @pytest.mark.asyncio
     async def test_classify_with_anthropic_provider(self):
         """Test classification using Anthropic provider."""
-        with patch('core.atom_agent_endpoints.get_byok_manager') as mock_byok:
-            mock_manager = Mock()
-            mock_manager.get_optimal_provider.return_value = "anthropic"
-            mock_manager.get_api_key.return_value = "sk-ant-test"
-            mock_byok.return_value = mock_manager
+        with patch('core.atom_agent_endpoints.LLMService') as mock_llm_class:
+            mock_llm_class.return_value.generate = AsyncMock(
+                return_value='{"intent": "LIST_TASKS", "entities": {}}'
+            )
 
-            with patch('core.atom_agent_endpoints.ai_service') as mock_ai:
-                mock_ai.call_anthropic_api = AsyncMock(return_value={
-                    "success": True,
-                    "response": '{"intent": "LIST_TASKS", "entities": {}}'
-                })
+            result = await classify_intent_with_llm("list tasks", [])
 
-                result = await classify_intent_with_llm("list tasks", [])
-
-                assert result["intent"] == "LIST_TASKS"
+            assert result["intent"] == "LIST_TASKS"
 
     @pytest.mark.asyncio
     async def test_classify_fallback_on_error(self):
         """Test fallback classification on LLM error."""
-        with patch('core.atom_agent_endpoints.get_byok_manager') as mock_byok:
-            mock_manager = Mock()
-            mock_manager.get_optimal_provider.side_effect = ValueError("API error")
-            mock_byok.return_value = mock_manager
+        with patch('core.atom_agent_endpoints.LLMService') as mock_llm_class:
+            mock_llm_class.return_value.generate = AsyncMock(
+                side_effect=ValueError("API error")
+            )
 
             result = await classify_intent_with_llm("list workflows", [])
 
@@ -549,11 +548,10 @@ class TestClassifyIntentWithLLM:
     @pytest.mark.asyncio
     async def test_classify_fallback_on_no_api_key(self):
         """Test fallback when no API key available."""
-        with patch('core.atom_agent_endpoints.get_byok_manager') as mock_byok:
-            mock_manager = Mock()
-            mock_manager.get_optimal_provider.return_value = "openai"
-            mock_manager.get_api_key.return_value = None
-            mock_byok.return_value = mock_manager
+        with patch('core.atom_agent_endpoints.LLMService') as mock_llm_class:
+            mock_llm_class.return_value.generate = AsyncMock(
+                side_effect=Exception("No API key")
+            )
 
             result = await classify_intent_with_llm("create task", [])
 
@@ -568,7 +566,7 @@ class TestChatEndpoint:
         """Test basic chat endpoint."""
         with patch('core.atom_agent_endpoints.get_chat_history_manager') as mock_hist:
             with patch('core.atom_agent_endpoints.get_chat_session_manager') as mock_sess:
-                with patch('core.atom_agent_endpoints.ai_service') as mock_ai:
+                with patch('core.atom_agent_endpoints.LLMService') as mock_llm_class:
                     mock_hist_mgr = Mock()
                     mock_hist_mgr.get_session_history.return_value = []
                     mock_hist.return_value = mock_hist_mgr
@@ -578,7 +576,9 @@ class TestChatEndpoint:
                     mock_sess_mgr.get_session.return_value = None
                     mock_sess.return_value = mock_sess_mgr
 
-                    mock_ai.initialize_sessions = AsyncMock()
+                    mock_llm_class.return_value.generate = AsyncMock(
+                        return_value='{"intent": "HELP", "entities": {}}'
+                    )
 
                     response = client.post(
                         "/api/atom-agent/chat",
@@ -595,7 +595,7 @@ class TestChatEndpoint:
         """Test chat endpoint with existing session."""
         with patch('core.atom_agent_endpoints.get_chat_history_manager') as mock_hist:
             with patch('core.atom_agent_endpoints.get_chat_session_manager') as mock_sess:
-                with patch('core.atom_agent_endpoints.ai_service') as mock_ai:
+                with patch('core.atom_agent_endpoints.LLMService') as mock_llm_class:
                     mock_hist_mgr = Mock()
                     mock_hist_mgr.get_session_history.return_value = []
                     mock_hist.return_value = mock_hist_mgr
@@ -603,11 +603,13 @@ class TestChatEndpoint:
                     mock_sess_mgr = Mock()
                     mock_sess_mgr.get_session.return_value = {
                         "session_id": "existing-sess",
-                        "user_id": "test-user"
+                        "user_id": "core-test-user"
                     }
                     mock_sess.return_value = mock_sess_mgr
 
-                    mock_ai.initialize_sessions = AsyncMock()
+                    mock_llm_class.return_value.generate = AsyncMock(
+                        return_value='{"intent": "LIST_WORKFLOWS", "entities": {}}'
+                    )
 
                     response = client.post(
                         "/api/atom-agent/chat",
@@ -629,9 +631,9 @@ class TestSpecializedHandlers:
         """Test automation insights handler."""
         from core.atom_agent_endpoints import handle_automation_insights
 
-        with patch('core.atom_agent_endpoints.get_insight_manager') as mock_insight:
-            with patch('core.atom_agent_endpoints.get_behavior_analyzer') as mock_behavior:
-                mock_insight_mgr = AsyncMock()
+        with patch('core.automation_insight_manager.get_insight_manager') as mock_insight:
+            with patch('core.behavior_analyzer.get_behavior_analyzer') as mock_behavior:
+                mock_insight_mgr = Mock()
                 mock_insight_mgr.generate_all_insights.return_value = []
                 mock_insight.return_value = mock_insight_mgr
 

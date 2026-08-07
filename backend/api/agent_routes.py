@@ -36,13 +36,15 @@ router = BaseAPIRouter(prefix="/api/agents", tags=["Agents"])
 
 # --- Data Models ---
 class AgentRunRequest(BaseModel):
-    agent_id: str
+    agent_id: Optional[str] = None
     parameters: Dict[str, Any] = Field(default_factory=dict)
 
 class AgentUpdateRequest(BaseModel):
-    agent_id: str
+    agent_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
+    # P2: per-agent zero-trust tool scoping. Empty/['*'] = unrestricted (default).
+    capabilities: Optional[List[str]] = None
 
 class AgentInfo(BaseModel):
     id: str

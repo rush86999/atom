@@ -872,9 +872,11 @@ def fallback_intent_classification(message: str) -> Dict[str, Any]:
     elif "invoice" in msg:
         return {"intent": "INVOICE_STATUS", "entities": {}}
         
-    # CRM & Sales Intents
-    elif any(word in msg for word in ["sale", "lead", "deal", "pipeline", "prospect", "forecast"]):
-        return {"intent": "CRM_QUERY", "entities": {}}
+    # Goal Intents
+    elif ("set" in msg or "create" in msg) and "goal" in msg:
+        return {"intent": "SET_GOAL", "entities": {"goal_text": message}}
+    elif "goal" in msg and ("status" in msg or "progress" in msg):
+        return {"intent": "GOAL_STATUS", "entities": {}}
         
     # System Intents
     elif "system" in msg and ("status" in msg or "health" in msg or "performance" in msg):
@@ -882,11 +884,9 @@ def fallback_intent_classification(message: str) -> Dict[str, Any]:
     elif "wellness" in msg or "burnout" in msg or "stress" in msg:
         return {"intent": "WELLNESS_CHECK", "entities": {}}
         
-    # Goal Intents
-    elif ("set" in msg or "create" in msg) and "goal" in msg:
-        return {"intent": "SET_GOAL", "entities": {"goal_text": message}}
-    elif "goal" in msg and ("status" in msg or "progress" in msg):
-        return {"intent": "GOAL_STATUS", "entities": {}}
+    # CRM & Sales Intents
+    elif any(word in msg for word in ["sale", "lead", "deal", "pipeline", "prospect", "forecast"]):
+        return {"intent": "CRM_QUERY", "entities": {}}
         
     # Search Intents
     elif "search" in msg or "find" in msg:
@@ -956,18 +956,22 @@ async def handle_create_workflow(request: ChatRequest, entities: Dict[str, Any])
 
 async def handle_list_workflows(request: ChatRequest) -> Dict[str, Any]:
     """List all available workflows"""
-    workflows = load_workflows()
-    if not workflows:
-        return {"success": True, "response": {"message": "No workflows found.", "actions": []}}
-    
-    workflow_list = "\n".join([f"• **{wf['name']}**" for wf in workflows])
-    return {
-        "success": True,
-        "response": {
-            "message": f"Found {len(workflows)} workflows:\n\n{workflow_list}",
-            "actions": [{"type": "run", "label": f"Run {wf['name']}", "workflowId": wf['workflow_id']} for wf in workflows[:3]]
+    try:
+        workflows = load_workflows()
+        if not workflows:
+            return {"success": True, "response": {"message": "No workflows found.", "actions": []}}
+        
+        workflow_list = "\n".join([f"• **{wf['name']}**" for wf in workflows])
+        return {
+            "success": True,
+            "response": {
+                "message": f"Found {len(workflows)} workflows:\n\n{workflow_list}",
+                "actions": [{"type": "run", "label": f"Run {wf['name']}", "workflowId": wf['workflow_id']} for wf in workflows[:3]]
+            }
         }
-    }
+    except Exception as e:
+        logger.error(f"Failed to list workflows: {e}")
+        return {"success": False, "response": {"message": "Failed to load workflows.", "actions": []}}
 
 async def _gate_workflow_permission(user: Optional[User], workflow: Dict[str, Any], action: str) -> Optional[Dict[str, Any]]:
     """Gate a workflow for terminal/browser/messaging steps (R68).

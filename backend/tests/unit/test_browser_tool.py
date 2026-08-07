@@ -97,6 +97,13 @@ def sample_session_id():
     return "session_123"
 
 
+@pytest.fixture(autouse=True)
+def use_legacy_browser_api():
+    """Pin the pre-locator code path — these tests mock the legacy Playwright API."""
+    with patch('tools.browser_tool.BROWSER_LOCATOR_API_ENABLED', False):
+        yield
+
+
 # ============================================================================
 # Test: BrowserSession Initialization
 # ============================================================================
@@ -1006,22 +1013,21 @@ class TestBrowserScreenshots:
         session.page = MagicMock()
         session.page.screenshot = AsyncMock(return_value=screenshot_bytes)
 
-        # Create temp file path
-        screenshot_path = str(tmp_path / "screenshot.png")
-
-        result = await browser_screenshot(
-            session_id=session.session_id,
-            path=screenshot_path,
-            user_id=sample_user_id
-        )
+        # Screenshot writes are confined to SCREENSHOT_DIR (relative paths only)
+        import os
+        with patch.dict(os.environ, {"SCREENSHOT_DIR": str(tmp_path)}):
+            result = await browser_screenshot(
+                session_id=session.session_id,
+                path="screenshot.png",
+                user_id=sample_user_id
+            )
 
         assert result["success"] is True
         assert "path" in result
-        assert result["path"] == screenshot_path
+        assert result["path"] == str(tmp_path / "screenshot.png")
 
         # Verify file was created
-        import os
-        assert os.path.exists(screenshot_path)
+        assert os.path.exists(result["path"])
 
         # Cleanup
         await manager.close_session(session.session_id)
@@ -2775,14 +2781,15 @@ class TestBrowserCreateSessionGovernance:
         with patch('tools.browser_tool.FeatureFlags') as mock_flags:
             mock_flags.should_enforce_governance.return_value = True
 
-            result = await browser_create_session(
-                user_id=sample_user_id,
-                agent_id=None,
-                db=None
-            )
+            with patch.object(BrowserSession, 'start', new=AsyncMock(return_value=True)):
+                result = await browser_create_session(
+                    user_id=sample_user_id,
+                    agent_id=None,
+                    db=None
+                )
 
-            assert result["success"] is True
-            assert "session_id" in result
+                assert result["success"] is True
+                assert "session_id" in result
 
     @pytest.mark.asyncio
     async def test_create_session_intern_agent_allowed(self, sample_user_id):
@@ -2818,19 +2825,20 @@ class TestBrowserCreateSessionGovernance:
                     mock_resolver_instance.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
                     mock_resolver.return_value = mock_resolver_instance
 
-                    result = await browser_create_session(
-                        user_id=sample_user_id,
-                        agent_id="intern-agent-123",
-                        db=mock_db
-                    )
+                    with patch.object(BrowserSession, 'start', new=AsyncMock(return_value=True)):
+                        result = await browser_create_session(
+                            user_id=sample_user_id,
+                            agent_id="intern-agent-123",
+                            db=mock_db
+                        )
 
-                    assert result["success"] is True
-                    assert "session_id" in result
-                    assert result["agent_id"] == "intern-agent-123"
-                    # Verify governance check was called
-                    mock_gov.can_perform_action.assert_called_once()
-                    # Verify outcome was recorded
-                    mock_gov.record_outcome.assert_called_once_with(mock_agent.id, success=True)
+                        assert result["success"] is True
+                        assert "session_id" in result
+                        assert result["agent_id"] == "intern-agent-123"
+                        # Verify governance check was called
+                        mock_gov.can_perform_action.assert_called_once()
+                        # Verify outcome was recorded
+                        mock_gov.record_outcome.assert_called_once_with(mock_agent.id, success=True)
 
     @pytest.mark.asyncio
     async def test_create_session_student_agent_blocked(self, sample_user_id):
@@ -2914,16 +2922,17 @@ class TestBrowserCreateSessionGovernance:
                     mock_resolver_instance.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
                     mock_resolver.return_value = mock_resolver_instance
 
-                    result = await browser_create_session(
-                        user_id=sample_user_id,
-                        agent_id="supervised-agent-123",
-                        db=mock_db
-                    )
+                    with patch.object(BrowserSession, 'start', new=AsyncMock(return_value=True)):
+                        result = await browser_create_session(
+                            user_id=sample_user_id,
+                            agent_id="supervised-agent-123",
+                            db=mock_db
+                        )
 
-                    assert result["success"] is True
-                    assert result["agent_id"] == "supervised-agent-123"
-                    mock_gov.can_perform_action.assert_called_once()
-                    mock_gov.record_outcome.assert_called_once_with(mock_agent.id, success=True)
+                        assert result["success"] is True
+                        assert result["agent_id"] == "supervised-agent-123"
+                        mock_gov.can_perform_action.assert_called_once()
+                        mock_gov.record_outcome.assert_called_once_with(mock_agent.id, success=True)
 
     @pytest.mark.asyncio
     async def test_create_session_autonomous_agent_allowed(self, sample_user_id):
@@ -2959,16 +2968,17 @@ class TestBrowserCreateSessionGovernance:
                     mock_resolver_instance.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
                     mock_resolver.return_value = mock_resolver_instance
 
-                    result = await browser_create_session(
-                        user_id=sample_user_id,
-                        agent_id="autonomous-agent-123",
-                        db=mock_db
-                    )
+                    with patch.object(BrowserSession, 'start', new=AsyncMock(return_value=True)):
+                        result = await browser_create_session(
+                            user_id=sample_user_id,
+                            agent_id="autonomous-agent-123",
+                            db=mock_db
+                        )
 
-                    assert result["success"] is True
-                    assert result["agent_id"] == "autonomous-agent-123"
-                    mock_gov.can_perform_action.assert_called_once()
-                    mock_gov.record_outcome.assert_called_once_with(mock_agent.id, success=True)
+                        assert result["success"] is True
+                        assert result["agent_id"] == "autonomous-agent-123"
+                        mock_gov.can_perform_action.assert_called_once()
+                        mock_gov.record_outcome.assert_called_once_with(mock_agent.id, success=True)
 
     @pytest.mark.asyncio
     async def test_create_session_records_execution_on_success(self, sample_user_id):
@@ -3000,16 +3010,17 @@ class TestBrowserCreateSessionGovernance:
                     mock_resolver_instance.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
                     mock_resolver.return_value = mock_resolver_instance
 
-                    result = await browser_create_session(
-                        user_id=sample_user_id,
-                        agent_id="agent-123",
-                        db=mock_db
-                    )
+                    with patch.object(BrowserSession, 'start', new=AsyncMock(return_value=True)):
+                        result = await browser_create_session(
+                            user_id=sample_user_id,
+                            agent_id="agent-123",
+                            db=mock_db
+                        )
 
-                    assert result["success"] is True
-                    # Verify AgentExecution was created and committed
-                    mock_db.add.assert_called()
-                    assert any(call[0][0].__class__.__name__ == "AgentExecution" for call in mock_db.add.call_args_list)
+                        assert result["success"] is True
+                        # Verify AgentExecution was created and committed
+                        mock_db.add.assert_called()
+                        assert any(call[0][0].__class__.__name__ == "AgentExecution" for call in mock_db.add.call_args_list)
 
     @pytest.mark.asyncio
     async def test_create_session_records_outcome_on_failure(self, sample_user_id):

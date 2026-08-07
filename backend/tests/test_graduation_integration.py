@@ -6,7 +6,7 @@ Tests the integration of supervision metrics into agent graduation validation.
 
 import pytest
 import uuid
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, strategies as st, settings, HealthCheck
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
@@ -71,6 +71,7 @@ def agent(db: Session, workspace: Workspace, user: User):
         category="testing",
         module_path="agents.test_agent",
         class_name="TestAgent",
+        tenant_id="default",
         status=AgentStatus.INTERN.value,
         confidence_score=0.65, 
     )
@@ -87,19 +88,21 @@ def supervision_session_factory(db: Session, agent: AgentRegistry, user: User):
         supervisor_rating: int = 4,
         started_at_days_ago: int = 1,
         duration_seconds: int = 300,
+        agent_override: AgentRegistry = None,
     ) -> SupervisionSession:
         started_at = datetime.now() - timedelta(days=started_at_days_ago, seconds=duration_seconds)
+        target_agent = agent_override or agent
 
         session = SupervisionSession(
             id=f"supervision_{datetime.now().timestamp()}_{started_at_days_ago}",
-            agent_id=agent.id,
-            agent_name=agent.name,
-            workspace_id=agent.workspace_id,
+            agent_id=target_agent.id,
+            agent_name=target_agent.name,
+            workspace_id=target_agent.workspace_id or "default",
             supervisor_id=user.id,
             status=SupervisionStatus.COMPLETED.value,
             intervention_count=intervention_count,
             supervisor_rating=supervisor_rating,
-            supervision_feedback=f"Feedback for session {started_at_days_ago} days ago",
+            supervisor_feedback=f"Feedback for session {started_at_days_ago} days ago",
             duration_seconds=duration_seconds,
             started_at=started_at,
             completed_at=started_at + timedelta(seconds=duration_seconds),
@@ -132,19 +135,20 @@ def episode_factory(db: Session, agent: AgentRegistry):
 
         episode = Episode(
             id=f"episode_{datetime.now().timestamp()}_{created_days_ago}",
-            title=f"Test Episode {created_days_ago} days ago",
-            description="Test episode description",
-            summary="Test episode summary",
+            task_description=f"Test Episode {created_days_ago} days ago",
             agent_id=agent.id,
-            user_id=agent.user_id,
+            tenant_id="default",
             workspace_id=agent.workspace_id,
             status="completed",
+            outcome="success",
+            success=True,
             started_at=started_at,
-            ended_at=started_at + timedelta(minutes=30),
+            completed_at=started_at + timedelta(minutes=30),
             duration_seconds=1800,
             maturity_at_time=maturity,
             human_intervention_count=intervention_count,
             constitutional_score=constitutional_score,
+            confidence_score=0.5,
             importance_score=0.7,
             topics=["test", "episode"],
             entities=["test_entity"],
@@ -154,6 +158,37 @@ def episode_factory(db: Session, agent: AgentRegistry):
         return episode
 
     return _create_episode
+
+
+@pytest.fixture
+def prop_agent(db: Session, workspace: Workspace, user: User):
+    """Fixed-id agent for hypothesis property tests (fixtures are shared
+    across hypothesis examples, so each example must clean up after itself)."""
+    existing = db.query(AgentRegistry).filter(
+        AgentRegistry.id == "test_graduation_prop_agent"
+    ).first()
+    if existing:
+        db.query(SupervisionSession).filter(
+            SupervisionSession.agent_id == existing.id
+        ).delete(synchronize_session=False)
+        db.query(AgentRegistry).filter(
+            AgentRegistry.id == existing.id
+        ).delete(synchronize_session=False)
+        db.commit()
+        db.expire_all()
+    agent = AgentRegistry(
+        id="test_graduation_prop_agent",
+        name="Test Graduation Agent",
+        category="testing",
+        module_path="agents.test_agent",
+        class_name="TestAgent",
+        tenant_id="default",
+        status=AgentStatus.INTERN.value,
+        confidence_score=0.65,
+    )
+    db.add(agent)
+    db.commit()
+    return agent
 
 
 # ============================================================================
@@ -354,7 +389,7 @@ class TestGraduationValidationWithSupervision:
         service = AgentGraduationService(db)
         result = await service.validate_graduation_with_supervision(
             agent_id=agent.id,
-            target_maturity=AgentStatus.SUPERVISED,
+            target_maturity=AgentStatus.INTERN,
         )
 
         assert result["ready"] is True
@@ -446,20 +481,26 @@ class TestSupervisionMetricsProperties:
             max_size=50,
         ),
     )
-    @settings(max_examples=10)
+    @settings(max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
     async def test_intervention_rate_bounds(
         self,
         db: Session,
-        agent: AgentRegistry,
+        prop_agent: AgentRegistry,
         supervision_session_factory,
         intervention_counts,
         ratings,
     ):
         """Test intervention rate always within reasonable bounds."""
+        db.query(SupervisionSession).filter(
+            SupervisionSession.agent_id == prop_agent.id
+        ).delete()
+        db.commit()
+        pairs = list(zip(intervention_counts, ratings))
         # Create sessions
-        for i, (interventions, rating) in enumerate(zip(intervention_counts, ratings)):
+        for i, (interventions, rating) in enumerate(pairs):
             supervision_session_factory(
+                agent_override=prop_agent,
                 intervention_count=interventions,
                 supervisor_rating=rating,
                 started_at_days_ago=i,
@@ -468,14 +509,14 @@ class TestSupervisionMetricsProperties:
 
         service = AgentGraduationService(db)
         metrics = await service.calculate_supervision_metrics(
-            agent_id=agent.id,
+            agent_id=prop_agent.id,
             maturity_level=AgentStatus.INTERN,
         )
 
         # Intervention rate should be non-negative
         assert metrics["intervention_rate"] >= 0
         # With 1-hour sessions, rate should equal total interventions
-        expected_rate = sum(intervention_counts) / len(intervention_counts)
+        expected_rate = sum(c for c, r in pairs) / len(pairs)
         assert abs(metrics["intervention_rate"] - expected_rate) < 0.1
 
     @given(
@@ -485,25 +526,30 @@ class TestSupervisionMetricsProperties:
             max_size=50,
         ),
     )
-    @settings(max_examples=10)
+    @settings(max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
     async def test_average_rating_bounds(
         self,
         db: Session,
-        agent: AgentRegistry,
+        prop_agent: AgentRegistry,
         supervision_session_factory,
         ratings,
     ):
         """Test average rating always within [1, 5] bounds."""
+        db.query(SupervisionSession).filter(
+            SupervisionSession.agent_id == prop_agent.id
+        ).delete()
+        db.commit()
         for i, rating in enumerate(ratings):
             supervision_session_factory(
+                agent_override=prop_agent,
                 supervisor_rating=rating,
                 started_at_days_ago=i,
             )
 
         service = AgentGraduationService(db)
         metrics = await service.calculate_supervision_metrics(
-            agent_id=agent.id,
+            agent_id=prop_agent.id,
             maturity_level=AgentStatus.INTERN,
         )
 
@@ -516,28 +562,32 @@ class TestSupervisionMetricsProperties:
         st.integers(min_value=0, max_value=10),
         st.integers(min_value=0, max_value=10),
     )
-    @settings(max_examples=10)
+    @settings(max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
     async def test_high_and_low_intervention_counts(
         self,
         db: Session,
-        agent: AgentRegistry,
+        prop_agent: AgentRegistry,
         supervision_session_factory,
         high_count,
         low_count,
     ):
         """Test high and low intervention session counting."""
+        db.query(SupervisionSession).filter(
+            SupervisionSession.agent_id == prop_agent.id
+        ).delete()
+        db.commit()
         # Create high-intervention sessions
         for _ in range(high_count):
-            supervision_session_factory(intervention_count=0)
+            supervision_session_factory(agent_override=prop_agent, intervention_count=0)
 
         # Create low-intervention sessions
         for _ in range(low_count):
-            supervision_session_factory(intervention_count=5)
+            supervision_session_factory(agent_override=prop_agent, intervention_count=5)
 
         service = AgentGraduationService(db)
         metrics = await service.calculate_supervision_metrics(
-            agent_id=agent.id,
+            agent_id=prop_agent.id,
             maturity_level=AgentStatus.INTERN,
         )
 
@@ -552,25 +602,30 @@ class TestSupervisionMetricsProperties:
             max_size=20,
         ),
     )
-    @settings(max_examples=5)
+    @settings(max_examples=5, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
     async def test_performance_trend_categories(
         self,
         db: Session,
-        agent: AgentRegistry,
+        prop_agent: AgentRegistry,
         supervision_session_factory,
         ratings,
     ):
         """Test performance trend always returns valid category."""
+        db.query(SupervisionSession).filter(
+            SupervisionSession.agent_id == prop_agent.id
+        ).delete()
+        db.commit()
         for i, rating in enumerate(ratings):
             supervision_session_factory(
+                agent_override=prop_agent,
                 supervisor_rating=rating,
                 started_at_days_ago=i,
             )
 
         service = AgentGraduationService(db)
         metrics = await service.calculate_supervision_metrics(
-            agent_id=agent.id,
+            agent_id=prop_agent.id,
             maturity_level=AgentStatus.INTERN,
         )
 

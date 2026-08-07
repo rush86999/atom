@@ -27,20 +27,20 @@ from core.llm.byok_handler import BYOKHandler
 
 
 @pytest.fixture(scope="function")
-def db_session():
+def _shared_test_engine():
     """
-    Create a fresh in-memory database for each test.
+    Create a fresh file-based temp SQLite engine for each test.
 
-    Simplified version that avoids sorted_tables to prevent NoReferencedTableError
-    when running multiple tests in sequence.
+    All test DB fixtures (db_session, episode_db_session) bind to this
+    shared engine so that service sessions and fixture-inserted rows are
+    visible to each other within a single test.
 
-    Uses singleton connection with thread-safe locking for SQLite.
+    Uses pooled connections with check_same_thread=False for SQLite.
     """
     # Use file-based temp SQLite for tests
     fd, db_path = tempfile.mkstemp(suffix='.db')
     os.close(fd)
 
-    # Use pooled connections with check_same_thread=False for SQLite
     engine = create_engine(
         f"sqlite:///{db_path}",
         connect_args={"check_same_thread": False},
@@ -52,11 +52,43 @@ def db_session():
     # Store path for cleanup
     engine._test_db_path = db_path
 
+    yield engine
+
+    engine.dispose()
+    # Delete temp database file
+    if hasattr(engine, '_test_db_path'):
+        try:
+            os.unlink(engine._test_db_path)
+        except Exception:
+            pass
+
+
+def _create_tables(engine, table_names):
+    """Create the given tables on the engine if present in metadata."""
+    from core.database import Base
+    for table_name in table_names:
+        if table_name in Base.metadata.tables:
+            try:
+                Base.metadata.tables[table_name].create(engine, checkfirst=True)
+            except Exception as e:
+                print(f"Warning: Could not create table {table_name}: {e}")
+
+
+@pytest.fixture(scope="function")
+def db_session(_shared_test_engine):
+    """
+    Create a fresh in-memory database for each test.
+
+    Simplified version that avoids sorted_tables to prevent NoReferencedTableError
+    when running multiple tests in sequence.
+
+    Uses singleton connection with thread-safe locking for SQLite.
+    """
+    engine = _shared_test_engine
+
     # Create ONLY the tables we need for governance testing
     # This avoids SQLAlchemy mapper configuration issues with unrelated models
-    from core.database import Base
-
-    tables_to_create = [
+    _create_tables(engine, [
         'users',
         'agent_registry',
         'agent_feedback',
@@ -74,14 +106,8 @@ def db_session():
         'supervision_sessions',
         'training_sessions',
         'supervised_execution_queue',  # Added for trigger interceptor tests
-    ]
-
-    for table_name in tables_to_create:
-        if table_name in Base.metadata.tables:
-            try:
-                Base.metadata.tables[table_name].create(engine, checkfirst=True)
-            except Exception as e:
-                print(f"Warning: Could not create table {table_name}: {e}")
+        'token_usage',  # governance guardrail cost-gate lookups
+    ])
 
     # Create session with expire_on_commit=False to prevent detached instance issues
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)
@@ -91,13 +117,6 @@ def db_session():
 
     # Cleanup
     session.close()
-    engine.dispose()
-    # Delete temp database file
-    if hasattr(engine, '_test_db_path'):
-        try:
-            os.unlink(engine._test_db_path)
-        except Exception:
-            pass
 
 
 @pytest.fixture(scope="function")
@@ -151,7 +170,6 @@ def sample_complex_prompt():
 
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
-from core.database import SessionLocal
 from core.episode_segmentation_service import EpisodeSegmentationService
 from core.episode_retrieval_service import EpisodeRetrievalService
 from core.episode_lifecycle_service import EpisodeLifecycleService
@@ -171,13 +189,40 @@ Episode = AgentEpisode
 
 
 @pytest.fixture(scope="function")
-def episode_db_session():
+def episode_db_session(_shared_test_engine):
     """
     Create fresh database session for episode tests.
 
-    Uses SessionLocal with automatic rollback to ensure test isolation.
+    Uses the shared test engine (same database as db_session) so that
+    fixture-inserted rows are visible to the episode services under test.
+    Schema is created eagerly since the temp database starts empty.
     """
-    db = SessionLocal()
+    engine = _shared_test_engine
+
+    _create_tables(engine, [
+        'users',
+        'agent_registry',
+        'agent_feedback',
+        'hitl_actions',
+        'chat_sessions',
+        'chat_messages',
+        'agent_executions',
+        'canvas_audit',
+        'agent_episodes',
+        'episode_segments',
+        'episode_access_logs',
+        'blocked_triggers',
+        'user_activities',
+        'agent_proposals',
+        'supervision_sessions',
+        'training_sessions',
+        'supervised_execution_queue',
+        'system_settings',
+        'workspaces',
+    ])
+
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)
+    db = TestingSessionLocal()
     try:
         yield db
     finally:
@@ -333,6 +378,7 @@ def test_messages(episode_db_session):
     messages.append(ChatMessage(
         id=f"msg_{uuid4().hex[:8]}",
         conversation_id=session_id,
+        tenant_id="default",  # NOT NULL column
         role="user",
         content="Let's discuss Python programming",
         created_at=base_time
@@ -341,6 +387,7 @@ def test_messages(episode_db_session):
     messages.append(ChatMessage(
         id=f"msg_{uuid4().hex[:8]}",
         conversation_id=session_id,
+        tenant_id="default",  # NOT NULL column
         role="assistant",
         content="Python is great for web development",
         created_at=base_time + timedelta(minutes=10)
@@ -350,6 +397,7 @@ def test_messages(episode_db_session):
     messages.append(ChatMessage(
         id=f"msg_{uuid4().hex[:8]}",
         conversation_id=session_id,
+        tenant_id="default",  # NOT NULL column
         role="user",
         content="Now let's talk about cooking recipes",
         created_at=base_time + timedelta(minutes=45)  # 35-min gap
@@ -358,6 +406,7 @@ def test_messages(episode_db_session):
     messages.append(ChatMessage(
         id=f"msg_{uuid4().hex[:8]}",
         conversation_id=session_id,
+        tenant_id="default",  # NOT NULL column
         role="assistant",
         content="I love Italian pasta dishes",
         created_at=base_time + timedelta(minutes=50)
@@ -367,6 +416,7 @@ def test_messages(episode_db_session):
     messages.append(ChatMessage(
         id=f"msg_{uuid4().hex[:8]}",
         conversation_id=session_id,
+        tenant_id="default",  # NOT NULL column
         role="system",
         content="Session summary generated",
         created_at=base_time + timedelta(minutes=90)  # 40-min gap
@@ -406,7 +456,8 @@ def episode_test_agent(episode_db_session):
         module_path="test.module",
         class_name="TestAgent",
         description="Test agent for episode service tests",
-        confidence_score=0.9
+        confidence_score=0.9,
+        workspace_id="default"  # Required for AgentGovernanceService resolution
     )
     episode_db_session.add(agent)
     episode_db_session.commit()
@@ -504,6 +555,8 @@ def governance_test_agent(db_session: Session):
             status=status.value if isinstance(status, AgentStatus) else status,
             confidence_score=confidence_score,
             enabled=enabled,
+            workspace_id="default",  # Required for AgentGovernanceService resolution
+            tenant_id="default",
             created_at=datetime.now(timezone.utc)
         )
         db_session.add(agent)

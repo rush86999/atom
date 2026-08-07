@@ -12,7 +12,7 @@ from datetime import datetime
 import logging
 from typing import Any, Dict, Optional
 import uuid
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -250,13 +250,15 @@ async def get_operation(
                         "next": operation.next_steps
                     },
                     "logs": operation.logs,
-                    "metadata": operation.metadata,
+                    "metadata": operation.operation_metadata,
                     "started_at": operation.started_at.isoformat() if operation.started_at else None,
                     "completed_at": operation.completed_at.isoformat() if operation.completed_at else None
                 }
             }
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get operation: {e}")
         raise router.internal_error("Internal error")
@@ -306,6 +308,8 @@ async def switch_view(
 
         return router.success_response(message=f"Switched to {request.view_type} view")
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to switch view: {e}")
         raise router.internal_error("Internal error")
@@ -532,6 +536,8 @@ async def get_request(
             }
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get request: {e}")
         raise router.internal_error("Internal error")

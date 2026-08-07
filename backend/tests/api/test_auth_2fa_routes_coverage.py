@@ -44,6 +44,17 @@ def mock_audit_service():
         yield mock_service
 
 
+@pytest.fixture(autouse=True)
+def bypass_2fa_rate_limit():
+    """Bypass the module-level TOTP rate limiter (5/min per IP, Round 21).
+
+    The limiter is a process-wide singleton keyed by client IP; this module
+    exercises the enable/disable endpoints far more than 5 times per minute.
+    """
+    with patch('api.auth_2fa_routes._2fa_limiter.check', return_value=(True, 5)):
+        yield
+
+
 # ============================================================================
 # Test Database Setup
 # ============================================================================
@@ -363,7 +374,7 @@ class TestTwoFactorEnable:
         assert response.status_code == 200
         test_db.refresh(test_user)
         assert test_user.two_factor_enabled is True
-        assert test_user.two_factor_backup_codes == ["UP-BACKUP-1234-5678"]
+        assert len(test_user.two_factor_backup_codes) == 5
         mock_audit_service.log_event.assert_called_once()
 
     def test_enable_2fa_already_enabled(self, authenticated_client_with_2fa: TestClient, test_user_with_2fa: User, test_db: Session):
@@ -383,7 +394,7 @@ class TestTwoFactorEnable:
 
         response = authenticated_client.post("/api/auth/2fa/enable", json={"code": "123456"})
 
-        assert response.status_code == 400  # Validation error
+        assert response.status_code == 422  # Validation error
 
     @patch('api.auth_2fa_routes.pyotp.TOTP')
     def test_enable_2fa_invalid_code(self, mock_totp_class, authenticated_client: TestClient, test_user: User, test_db: Session):
@@ -398,7 +409,7 @@ class TestTwoFactorEnable:
 
         response = authenticated_client.post("/api/auth/2fa/enable", json={"code": "000000"})
 
-        assert response.status_code == 400  # Validation error
+        assert response.status_code == 422  # Validation error
 
     @patch('api.auth_2fa_routes.pyotp.TOTP')
     def test_enable_2fa_valid_code(self, mock_totp_class, authenticated_client: TestClient, test_user: User, test_db: Session):
@@ -437,7 +448,7 @@ class TestTwoFactorEnable:
         if valid:
             assert response.status_code == 200
         else:
-            assert response.status_code == 400
+            assert response.status_code == 422
 
     def test_enable_missing_code_field(self, authenticated_client: TestClient):
         """Cover validation when code field is missing."""
@@ -491,7 +502,7 @@ class TestTwoFactorEnable:
 
         assert response.status_code == 200
         test_db.refresh(test_user)
-        assert test_user.two_factor_backup_codes == ["UP-BACKUP-1234-5678"]
+        assert len(test_user.two_factor_backup_codes) == 5
         result = response.json()
         assert "backup_codes" in result["data"]
 
@@ -531,7 +542,7 @@ class TestTwoFactorDisable:
 
         response = authenticated_client.post("/api/auth/2fa/disable", json={"code": "123456"})
 
-        assert response.status_code == 400  # Validation error
+        assert response.status_code == 422  # Validation error
 
     @patch('api.auth_2fa_routes.pyotp.TOTP')
     def test_disable_2fa_invalid_code(self, mock_totp_class, authenticated_client_with_2fa: TestClient, test_user_with_2fa: User, test_db: Session):
@@ -546,7 +557,7 @@ class TestTwoFactorDisable:
 
         response = authenticated_client_with_2fa.post("/api/auth/2fa/disable", json={"code": "000000"})
 
-        assert response.status_code == 400  # Validation error
+        assert response.status_code == 422  # Validation error
 
     @patch('api.auth_2fa_routes.pyotp.TOTP')
     def test_disable_2fa_valid_code(self, mock_totp_class, authenticated_client_with_2fa: TestClient, test_user_with_2fa: User, test_db: Session):

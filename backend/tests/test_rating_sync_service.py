@@ -75,9 +75,10 @@ def sample_ratings(test_db):
     for i in range(5):
         rating = SkillRating(
             skill_id=f"skill-{i}",
+            tenant_id="test-tenant",
             user_id="user-123",
             rating=5,
-            comment="Great skill",
+            review="Great skill",
             created_at=datetime.now(timezone.utc) - timedelta(hours=i)
         )
         test_db.add(rating)
@@ -97,6 +98,7 @@ class TestRatingSyncModelExtensions:
         """Test SkillRating has synced_at field"""
         rating = SkillRating(
             skill_id="skill-123",
+            tenant_id="test-tenant",
             user_id="user-123",
             rating=5
         )
@@ -118,6 +120,7 @@ class TestRatingSyncModelExtensions:
         """Test SkillRating has synced_to_saas boolean field"""
         rating = SkillRating(
             skill_id="skill-123",
+            tenant_id="test-tenant",
             user_id="user-123",
             rating=5
         )
@@ -139,6 +142,7 @@ class TestRatingSyncModelExtensions:
         """Test SkillRating has remote_rating_id field"""
         rating = SkillRating(
             skill_id="skill-123",
+            tenant_id="test-tenant",
             user_id="user-123",
             rating=5
         )
@@ -162,6 +166,8 @@ class TestRatingSyncModelExtensions:
         for i in range(100):
             rating = SkillRating(
                 skill_id=f"skill-{i}",
+
+                tenant_id="test-tenant",
                 user_id="user-123",
                 rating=5
             )
@@ -245,6 +251,7 @@ class TestRatingSyncServiceBatchUpload:
         for i in range(20):
             rating = SkillRating(
                 skill_id=f"skill-{i}",
+                tenant_id="test-tenant",
                 user_id="user-123",
                 rating=5
             )
@@ -288,6 +295,7 @@ class TestRatingSyncServicePending:
         for i in range(10):
             rating = SkillRating(
                 skill_id=f"skill-{i}",
+                tenant_id="test-tenant",
                 user_id="user-123",
                 rating=5
             )
@@ -309,6 +317,7 @@ class TestRatingSyncServicePending:
         for i in range(100):
             rating = SkillRating(
                 skill_id=f"skill-{i}",
+                tenant_id="test-tenant",
                 user_id="user-123",
                 rating=5,
                 synced_to_saas=False
@@ -330,6 +339,8 @@ class TestRatingSyncServicePending:
         for i in range(5):
             rating = SkillRating(
                 skill_id=f"skill-{i}",
+
+                tenant_id="test-tenant",
                 user_id="user-123",
                 rating=5,
                 created_at=base_time - timedelta(hours=5-i)
@@ -357,6 +368,7 @@ class TestRatingConflictResolution:
         local_time = datetime.now(timezone.utc) - timedelta(hours=2)
         local_rating = SkillRating(
             skill_id="skill-123",
+            tenant_id="test-tenant",
             user_id="user-123",
             rating=4,
             created_at=local_time
@@ -380,7 +392,7 @@ class TestRatingConflictResolution:
         # Verify local was updated
         test_db.refresh(local_rating)
         assert local_rating.rating == 5
-        assert local_rating.comment == "Updated comment"
+        assert local_rating.review == "Updated comment"
 
     @pytest.mark.asyncio
     async def test_local_newer_should_update_remote(self, rating_sync_service, test_db):
@@ -389,6 +401,7 @@ class TestRatingConflictResolution:
         local_time = datetime.now(timezone.utc) - timedelta(hours=1)
         local_rating = SkillRating(
             skill_id="skill-123",
+            tenant_id="test-tenant",
             user_id="user-123",
             rating=5,
             created_at=local_time
@@ -415,6 +428,7 @@ class TestRatingConflictResolution:
         now = datetime.now(timezone.utc)
         local_rating = SkillRating(
             skill_id="skill-123",
+            tenant_id="test-tenant",
             user_id="user-123",
             rating=5,
             created_at=now
@@ -438,6 +452,7 @@ class TestRatingConflictResolution:
         """Test missing remote timestamp results in skip"""
         local_rating = SkillRating(
             skill_id="skill-123",
+            tenant_id="test-tenant",
             user_id="user-123",
             rating=5
         )
@@ -469,6 +484,7 @@ class TestDeadLetterQueue:
 
         rating = SkillRating(
             skill_id="skill-123",
+            tenant_id="test-tenant",
             user_id="user-123",
             rating=5
         )
@@ -495,6 +511,7 @@ class TestDeadLetterQueue:
 
         rating = SkillRating(
             skill_id="skill-123",
+            tenant_id="test-tenant",
             user_id="user-123",
             rating=5
         )
@@ -521,6 +538,8 @@ class TestDeadLetterQueue:
         for i in range(3):
             rating = SkillRating(
                 skill_id=f"skill-{i}",
+
+                tenant_id="test-tenant",
                 user_id="user-123",
                 rating=5
             )
@@ -538,6 +557,7 @@ class TestDeadLetterQueue:
 
         rating = SkillRating(
             skill_id="skill-123",
+            tenant_id="test-tenant",
             user_id="user-123",
             rating=5
         )
@@ -575,6 +595,7 @@ class TestRatingSyncOrchestration:
         for i in range(10):
             rating = SkillRating(
                 skill_id=f"skill-{i}",
+                tenant_id="test-tenant",
                 user_id="user-123",
                 rating=5,
                 synced_to_saas=False
@@ -593,6 +614,8 @@ class TestRatingSyncOrchestration:
         """Test successful uploads mark ratings as synced"""
         rating = SkillRating(
             skill_id="skill-123",
+
+            tenant_id="test-tenant",
             user_id="user-123",
             rating=5,
             synced_to_saas=False
@@ -635,10 +658,11 @@ class TestRatingSyncOrchestration:
         for i in range(5):
             rating = SkillRating(
                 skill_id=f"skill-{i}",
+                tenant_id="test-tenant",
                 user_id="user-123",
-                rating=5,
-                synced_to_saas=(i < 3)
+                rating=5
             )
+            rating.synced_to_saas = (i < 3)
             test_db.add(rating)
         test_db.commit()
 
@@ -664,6 +688,8 @@ class TestRatingSyncMetrics:
         for i in range(5):
             rating = SkillRating(
                 skill_id=f"skill-{i}",
+
+                tenant_id="test-tenant",
                 user_id="user-123",
                 rating=5,
                 synced_to_saas=(i < 3)
@@ -683,6 +709,8 @@ class TestRatingSyncMetrics:
         # Create failed upload
         rating = SkillRating(
             skill_id="skill-123",
+
+            tenant_id="test-tenant",
             user_id="user-123",
             rating=5
         )

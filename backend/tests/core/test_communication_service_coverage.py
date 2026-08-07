@@ -23,7 +23,7 @@ from core.models import User, UserIdentity, AgentExecution
 def mock_user(db_session):
     """Create a mock user for testing."""
     user = User(
-        id="test-user-123",
+        id=f"test-user-{uuid.uuid4()}",
         email=f"test-{uuid.uuid4()}@example.com",
         first_name="Test",
         last_name="User", role="member", status="active"
@@ -38,10 +38,10 @@ def mock_user(db_session):
 def mock_user_identity(db_session, mock_user):
     """Create a mock user identity for testing."""
     identity = UserIdentity(
-        id="test-identity-123",
+        id=f"test-identity-{uuid.uuid4()}",
         user_id=mock_user.id,
         provider="slack",
-        provider_user_id="U123456",
+        provider_user_id=f"U{uuid.uuid4()}",
         metadata_json={"team": "T12345"}
     )
     db_session.add(identity)
@@ -359,7 +359,7 @@ class TestVoiceProcessing:
             "media_type": "audio"
         }
 
-        with patch('core.communication_service.get_voice_service') as mock_get_voice:
+        with patch('core.voice_service.get_voice_service') as mock_get_voice:
             mock_voice_svc = AsyncMock()
             mock_transcription = MagicMock()
             mock_transcription.text = "Transcribed text"
@@ -529,7 +529,7 @@ class TestCommunicationErrors:
 
         with patch('core.communication_service.get_db_session') as mock_get_db:
             mock_db = MagicMock()
-            mock_identity = mock_user_identity
+            mock_identity = MagicMock()
             # Mock user with workspaces
             mock_user = MagicMock()
             mock_user.workspaces = [MagicMock(id="workspace-123")]

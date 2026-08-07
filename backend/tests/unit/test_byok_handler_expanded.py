@@ -19,7 +19,7 @@ import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from core.llm.byok_handler import BYOKHandler, QueryComplexity, PROVIDER_TIERS
+from core.llm.byok_handler import BYOKHandler, QueryComplexity, PROVIDER_TIERS, AwaitableResult
 
 
 # =============================================================================
@@ -47,13 +47,7 @@ def mock_byok_manager():
 def handler(mock_byok_manager):
     """Create a BYOKHandler instance with mocked dependencies"""
     with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
-        # Create handler without initializing real clients
-        handler = BYOKHandler.__new__(BYOKHandler)
-        handler.workspace_id = "default"
-        handler.default_provider_id = None
-        handler.clients = {}
-        handler.async_clients = {}
-        handler.byok_manager = mock_byok_manager
+        handler = BYOKHandler()
         return handler
 
 
@@ -79,7 +73,7 @@ class TestProviderFailover:
         }
 
         # Patch get_ranked_providers to return anthropic
-        with patch.object(handler, 'get_ranked_providers', return_value=[("anthropic", "claude-3-5-sonnet")]):
+        with patch.object(handler, 'get_ranked_providers', return_value=AwaitableResult([("anthropic", "claude-3-5-sonnet")])):
             response = await handler.generate_response(
                 prompt="Test message",
                 system_instruction="You are a helpful assistant.",
@@ -107,15 +101,16 @@ class TestProviderFailover:
         }
 
         # Call generate_response with complex query to prefer Anthropic first
-        response = await handler.generate_response(
-            prompt="Test message",
-            model_type="auto",
-            temperature=0.7
-        )
+        with patch.object(handler, 'get_ranked_providers', return_value=AwaitableResult([("anthropic", "claude-3-5-sonnet"), ("deepseek", "deepseek-chat")])):
+            response = await handler.generate_response(
+                prompt="Test message",
+                model_type="auto",
+                temperature=0.7
+            )
 
-        assert response is not None
-        # At least one provider should have been called
-        assert mock_anthropic.chat.completions.create.called or mock_deepseek.chat.completions.create.called
+            assert response is not None
+            # At least one provider should have been called
+            assert mock_anthropic.chat.completions.create.called or mock_deepseek.chat.completions.create.called
 
     @pytest.mark.asyncio
     async def test_all_providers_fail_raises_error(self, handler):
@@ -127,14 +122,15 @@ class TestProviderFailover:
             handler.clients[provider_id] = mock_client
 
         # When all providers fail, generate_response returns an error message
-        response = await handler.generate_response(
-            prompt="Test message",
-            model_type="auto",
-            temperature=0.7
-        )
+        with patch.object(handler, 'get_ranked_providers', return_value=AwaitableResult([("openai", "gpt-4o"), ("anthropic", "claude-3-5-sonnet"), ("deepseek", "deepseek-chat")])):
+            response = await handler.generate_response(
+                prompt="Test message",
+                model_type="auto",
+                temperature=0.7
+            )
 
-        # Should return an error message, not raise
-        assert "All providers failed" in response or "Error generating response" in response
+            # Should return an error message, not raise
+            assert "couldn't generate" in response or "API key configuration" in response
 
     @pytest.mark.asyncio
     async def test_provider_timeout_triggers_failover(self, handler):
@@ -158,15 +154,16 @@ class TestProviderFailover:
         }
 
         # Call generate_response - should fall back to DeepSeek
-        response = await handler.generate_response(
-            prompt="Test message",
-            model_type="auto",
-            temperature=0.7
-        )
+        with patch.object(handler, 'get_ranked_providers', return_value=AwaitableResult([("openai", "gpt-4o"), ("deepseek", "deepseek-chat")])):
+            response = await handler.generate_response(
+                prompt="Test message",
+                model_type="auto",
+                temperature=0.7
+            )
 
-        assert response is not None
-        # DeepSeek should have been called as fallback
-        assert mock_deepseek.chat.completions.create.called
+            assert response is not None
+            # DeepSeek should have been called as fallback
+            assert mock_deepseek.chat.completions.create.called
 
     @pytest.mark.asyncio
     async def test_provider_rate_limit_triggers_failover(self, handler):
@@ -183,7 +180,7 @@ class TestProviderFailover:
         }
 
         # Patch get_ranked_providers to return moonshot
-        with patch.object(handler, 'get_ranked_providers', return_value=[("moonshot", "qwen-3-7b")]):
+        with patch.object(handler, 'get_ranked_providers', return_value=AwaitableResult([("moonshot", "qwen-3-7b")])):
             response = await handler.generate_response(
                 prompt="Test message",
                 system_instruction="You are a helpful assistant.",

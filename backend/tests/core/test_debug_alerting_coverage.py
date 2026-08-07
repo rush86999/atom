@@ -14,6 +14,8 @@ from unittest.mock import Mock, MagicMock, AsyncMock, patch
 from sqlalchemy.orm import Session
 import sys
 
+from core.debug_alerting import DebugAlertingEngine
+
 
 class TestDebugAlerting:
     """Test core alerting functionality."""
@@ -33,24 +35,14 @@ class TestDebugAlerting:
     @pytest.fixture
     def alerting_engine(self, mock_db_session, mock_logger):
         """Create alerting engine with mocked dependencies."""
-        # Mock the entire module with missing dependencies
-        mock_models = Mock()
-        mock_models.DebugEvent = Mock
-        mock_models.DebugInsight = Mock
-        mock_models.DebugEventType = Mock
-        mock_models.DebugInsightSeverity = Mock
-
-        with patch.dict('sys.modules', {'core.models': mock_models}):
-            from core.debug_alerting import DebugAlertingEngine
-
-            engine = DebugAlertingEngine(
-                db_session=mock_db_session,
-                error_rate_threshold=0.5,
-                latency_threshold_ms=5000,
-                alert_cooldown_minutes=15,
-            )
-            engine.logger = mock_logger
-            return engine
+        engine = DebugAlertingEngine(
+            db_session=mock_db_session,
+            error_rate_threshold=0.5,
+            latency_threshold_ms=5000,
+            alert_cooldown_minutes=15,
+        )
+        engine.logger = mock_logger
+        return engine
 
     def test_engine_initialization(self, alerting_engine):
         """Test engine initialization with default values."""
@@ -60,19 +52,15 @@ class TestDebugAlerting:
 
     def test_custom_initialization_values(self, mock_db_session, mock_logger):
         """Test engine initialization with custom values."""
-        mock_models = Mock()
-        with patch.dict('sys.modules', {'core.models': mock_models}):
-            from core.debug_alerting import DebugAlertingEngine
-
-            engine = DebugAlertingEngine(
-                db_session=mock_db_session,
-                error_rate_threshold=0.3,
-                latency_threshold_ms=3000,
-                alert_cooldown_minutes=10,
-            )
-            assert engine.error_rate_threshold == 0.3
-            assert engine.latency_threshold_ms == 3000
-            assert engine.alert_cooldown_minutes == 10
+        engine = DebugAlertingEngine(
+            db_session=mock_db_session,
+            error_rate_threshold=0.3,
+            latency_threshold_ms=3000,
+            alert_cooldown_minutes=10,
+        )
+        assert engine.error_rate_threshold == 0.3
+        assert engine.latency_threshold_ms == 3000
+        assert engine.alert_cooldown_minutes == 10
 
     @pytest.mark.asyncio
     async def test_check_system_health_success(self, alerting_engine):
@@ -130,10 +118,7 @@ class TestAlertRouting:
     @pytest.fixture
     def mock_engine(self):
         """Create mock engine for testing."""
-        mock_models = Mock()
-        with patch.dict('sys.modules', {'core.models': mock_models}):
-            from core.debug_alerting import DebugAlertingEngine
-            return DebugAlertingEngine(db_session=Mock())
+        return DebugAlertingEngine(db_session=Mock())
 
     @pytest.mark.asyncio
     async def test_group_similar_alerts(self, mock_engine):
@@ -211,10 +196,7 @@ class TestAlertNotification:
     @pytest.fixture
     def mock_engine(self):
         """Create mock engine for testing."""
-        mock_models = Mock()
-        with patch.dict('sys.modules', {'core.models': mock_models}):
-            from core.debug_alerting import DebugAlertingEngine
-            return DebugAlertingEngine(db_session=Mock())
+        return DebugAlertingEngine(db_session=Mock())
 
     @pytest.mark.asyncio
     async def test_check_error_rates_below_threshold(self, mock_engine):
@@ -260,18 +242,16 @@ class TestAlertErrors:
     """Test alert error handling and edge cases."""
 
     @pytest.fixture
-    def mock_engine(self):
+    def mock_logger(self):
+        """Mock structured logger."""
+        return Mock()
+
+    @pytest.fixture
+    def mock_engine(self, mock_logger):
         """Create mock engine for testing."""
-        mock_logger = Mock()
-        mock_models = Mock()
-        with patch.dict('sys.modules', {
-            'core.models': mock_models,
-            'core.structured_logger': Mock(StructuredLogger=Mock(return_value=mock_logger))
-        }):
-            from core.debug_alerting import DebugAlertingEngine
-            engine = DebugAlertingEngine(db_session=Mock())
-            engine.logger = mock_logger
-            return engine
+        engine = DebugAlertingEngine(db_session=Mock())
+        engine.logger = mock_logger
+        return engine
 
     @pytest.mark.asyncio
     async def test_check_component_health_exception(self, mock_engine, mock_logger):

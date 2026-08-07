@@ -105,7 +105,8 @@ class RealtimeExecutionEvent(BaseModel):
 @router.get("/api/analytics/dashboard/kpis", response_model=DashboardKPIs)
 async def get_dashboard_kpis(
     time_window: str = Query(default="24h", description="Time window: 1h, 24h, 7d, 30d"),
-    user_id: Optional[str] = Query(default=None, description="Filter by user ID")
+    user_id: Optional[str] = Query(default=None, description="Filter by user ID"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get key performance indicators for the dashboard
@@ -167,7 +168,8 @@ async def get_dashboard_kpis(
 async def get_top_workflows(
     limit: int = Query(default=10, ge=1, le=100),
     time_window: str = Query(default="24h", description="Time window: 1h, 24h, 7d, 30d"),
-    sort_by: str = Query(default="success_rate", description="Sort by: success_rate, executions, duration")
+    sort_by: str = Query(default="success_rate", description="Sort by: success_rate, executions, duration"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get top-performing workflows ranked by performance metrics
@@ -244,7 +246,8 @@ async def get_top_workflows(
 async def get_execution_timeline(
     time_window: str = Query(default="24h", description="Time window: 1h, 24h, 7d, 30d"),
     interval: str = Query(default="1h", description="Interval: 5m, 15m, 1h, 1d"),
-    workflow_id: Optional[str] = Query(default=None, description="Filter by workflow ID")
+    workflow_id: Optional[str] = Query(default=None, description="Filter by workflow ID"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get execution timeline data for charts
@@ -292,7 +295,8 @@ async def get_execution_timeline(
 @router.get("/api/analytics/dashboard/errors/breakdown")
 async def get_error_breakdown(
     time_window: str = Query(default="24h", description="Time window: 1h, 24h, 7d, 30d"),
-    workflow_id: Optional[str] = Query(default=None, description="Filter by workflow ID")
+    workflow_id: Optional[str] = Query(default=None, description="Filter by workflow ID"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get error breakdown by type and workflow
@@ -320,7 +324,8 @@ async def get_error_breakdown(
 @router.get("/api/analytics/alerts", response_model=List[AlertConfiguration])
 async def get_alerts(
     workflow_id: Optional[str] = Query(default=None, description="Filter by workflow ID"),
-    enabled_only: bool = Query(default=False, description="Only return enabled alerts")
+    enabled_only: bool = Query(default=False, description="Only return enabled alerts"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get all configured alerts
@@ -360,7 +365,7 @@ async def get_alerts(
 
 
 @router.post("/api/analytics/alerts")
-async def create_alert(alert: AlertConfiguration):
+async def create_alert(alert: AlertConfiguration, current_user: User = Depends(get_current_user)):
     """
     Create a new analytics alert
 
@@ -402,7 +407,8 @@ async def create_alert(alert: AlertConfiguration):
 async def update_alert(
     alert_id: str,
     enabled: Optional[bool] = None,
-    threshold_value: Optional[float] = None
+    threshold_value: Optional[float] = None,
+    current_user: User = Depends(get_current_user)
 ):
     """
     Update an existing alert
@@ -428,7 +434,7 @@ async def update_alert(
 
 
 @router.delete("/api/analytics/alerts/{alert_id}")
-async def delete_alert(alert_id: str):
+async def delete_alert(alert_id: str, current_user: User = Depends(get_current_user)):
     """Delete an alert configuration"""
     try:
         analytics = get_analytics_engine()
@@ -443,7 +449,8 @@ async def delete_alert(alert_id: str):
 @router.get("/api/analytics/dashboard/realtime-feed", response_model=List[RealtimeExecutionEvent])
 async def get_realtime_execution_feed(
     limit: int = Query(default=50, ge=1),
-    workflow_id: Optional[str] = Query(default=None, description="Filter by workflow ID")
+    workflow_id: Optional[str] = Query(default=None, description="Filter by workflow ID"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get real-time execution feed
@@ -486,7 +493,8 @@ async def get_realtime_execution_feed(
 
 @router.get("/api/analytics/dashboard/metrics/summary")
 async def get_metrics_summary(
-    time_window: str = Query(default="24h", description="Time window: 1h, 24h, 7d, 30d")
+    time_window: str = Query(default="24h", description="Time window: 1h, 24h, 7d, 30d"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get comprehensive metrics summary for dashboard
@@ -539,7 +547,8 @@ async def get_metrics_summary(
 @router.get("/api/analytics/dashboard/workflow/{workflow_id}/performance")
 async def get_workflow_performance_detail(
     workflow_id: str,
-    time_window: str = Query(default="24h", description="Time window: 1h, 24h, 7d, 30d")
+    time_window: str = Query(default="24h", description="Time window: 1h, 24h, 7d, 30d"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get detailed performance metrics for a specific workflow

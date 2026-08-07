@@ -9,6 +9,11 @@ Tests boundary conditions and edge cases for API routes:
 Uses VALIDATED_BUG pattern for documenting discovered issues.
 """
 
+import os
+
+# Set TESTING before any app imports (same pattern as tests/security/conftest.py)
+os.environ["TESTING"] = "1"
+
 import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, MagicMock, patch
@@ -28,22 +33,70 @@ except ImportError:
 # Fixtures
 # =============================================================================
 
-@pytest.fixture
-def client():
-    """Test client for API requests."""
-    return TestClient(app)
+@pytest.fixture(scope="function")
+def db_session():
+    """In-memory database seeded with an admin user for API boundary tests."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+    from core.models_registration import Base
+    from core.models import User, UserRole, UserStatus
+    from core.auth import get_password_hash
+
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+    session = session_factory()
+    admin = User(
+        email="boundary-admin@example.com",
+        hashed_password=get_password_hash("TestPassword123!"),
+        first_name="Boundary",
+        last_name="Admin",
+        role=UserRole.SUPER_ADMIN.value,
+        status=UserStatus.ACTIVE.value,
+    )
+    session.add(admin)
+    session.commit()
+    session.refresh(admin)
+    yield session
+    session.close()
+    engine.dispose()
 
 
-@pytest.fixture
-def mock_auth_token():
-    """Mock authentication token for protected endpoints."""
-    return "Bearer mock-test-token"
+@pytest.fixture(scope="function")
+def client(db_session, admin_token):
+    """Test client with the DB dependency overridden to the in-memory session
+    and admin auth attached as default headers for every request."""
+    from core.database import get_db
+
+    def _get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = _get_db
+    with TestClient(app, headers={"Authorization": f"Bearer {admin_token}"}) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
 
 
-@pytest.fixture
-def auth_headers(mock_auth_token):
-    """Headers with mock authentication."""
-    return {"Authorization": mock_auth_token}
+@pytest.fixture(scope="function")
+def admin_token(db_session):
+    """JWT for the in-memory admin user."""
+    from core.models import User
+    from core.auth import create_access_token
+    return create_access_token(data={"sub": str(db_session.query(User).first().id)})
+
+
+@pytest.fixture(scope="function")
+def auth_headers(admin_token):
+    """Headers with admin authentication."""
+    return {"Authorization": f"Bearer {admin_token}"}
 
 
 # =============================================================================
@@ -75,9 +128,10 @@ class TestPaginationBoundaries:
 
         Validated: [Test result]
         """
-        response = client.get("/api/v1/agents?page=0")
-        # Should either return 400 or handle gracefully (default to page 1)
-        assert response.status_code in [200, 400]
+        response = client.get("/api/agents/?page=0")
+        # Real behavior: page/page_size are not part of list_agents' signature,
+        # unknown query params are ignored — handled gracefully with 200.
+        assert response.status_code == 200
 
     def test_pagination_with_negative_page_number(self, client):
         """
@@ -101,9 +155,9 @@ class TestPaginationBoundaries:
 
         Validated: [Test result]
         """
-        response = client.get("/api/v1/agents?page=-1")
+        response = client.get("/api/agents/?page=-1")
         # Should either return 400 or handle gracefully
-        assert response.status_code in [200, 400]
+        assert response.status_code == 200
 
     def test_pagination_with_zero_page_size(self, client):
         """
@@ -127,7 +181,7 @@ class TestPaginationBoundaries:
 
         Validated: [Test result]
         """
-        response = client.get("/api/v1/agents?page_size=0")
+        response = client.get("/api/agents/?page_size=0")
         assert response.status_code in [200, 400]
 
     def test_pagination_with_negative_page_size(self, client):
@@ -152,7 +206,7 @@ class TestPaginationBoundaries:
 
         Validated: [Test result]
         """
-        response = client.get("/api/v1/agents?page_size=-10")
+        response = client.get("/api/agents/?page_size=-10")
         assert response.status_code in [200, 400]
 
     def test_pagination_with_excessive_page_size(self, client):
@@ -177,7 +231,7 @@ class TestPaginationBoundaries:
 
         Validated: [Test result]
         """
-        response = client.get("/api/v1/agents?page_size=999999")
+        response = client.get("/api/agents/?page_size=999999")
         # Should either cap the value or return 400
         assert response.status_code in [200, 400]
 
@@ -202,7 +256,7 @@ class TestPaginationBoundaries:
 
         Validated: [Test result]
         """
-        response = client.get("/api/v1/agents?page_size=2147483647")
+        response = client.get("/api/agents/?page_size=2147483647")
         assert response.status_code in [200, 400, 500]
 
     def test_pagination_beyond_available_data(self, client):
@@ -227,7 +281,7 @@ class TestPaginationBoundaries:
 
         Validated: [Test result]
         """
-        response = client.get("/api/v1/agents?page=999999")
+        response = client.get("/api/agents/?page=999999")
         # Should return 200 with empty array, not 404
         assert response.status_code in [200, 404]
 
@@ -254,7 +308,7 @@ class TestPaginationBoundaries:
         Validated: [Test result]
         """
         # Filter for non-existent agents
-        response = client.get("/api/v1/agents?search=nonexistent-agent-xyz-123")
+        response = client.get("/api/agents/?search=nonexistent-agent-xyz-123")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list) or "data" in data or "items" in data
@@ -282,7 +336,7 @@ class TestPaginationBoundaries:
         Validated: [Test result]
         """
         # Calculate offset for page 999999 with page_size 100
-        response = client.get("/api/v1/agents?page=999999&page_size=100")
+        response = client.get("/api/agents/?page=999999&page_size=100")
         assert response.status_code in [200, 400, 500]
 
     def test_pagination_with_none_values(self, client):
@@ -309,7 +363,7 @@ class TestPaginationBoundaries:
         """
         # Query parameters as None (difficult to test via URL params)
         # This would typically come from API calls with missing params
-        response = client.get("/api/v1/agents")  # Missing page/page_size
+        response = client.get("/api/agents/")  # Missing page/page_size
         assert response.status_code == 200
 
     def test_cursor_pagination_with_empty_cursor(self, client):
@@ -362,7 +416,7 @@ class TestPaginationBoundaries:
         """
         # This is a general concern with offset-based pagination
         # Hard to test without setup/teardown of data
-        response = client.get("/api/v1/agents?page=1&page_size=10")
+        response = client.get("/api/agents/?page=1&page_size=10")
         assert response.status_code in [200, 404]
 
     def test_pagination_concurrent_requests(self, client):
@@ -393,7 +447,7 @@ class TestPaginationBoundaries:
         results = []
 
         def make_request():
-            resp = client.get("/api/v1/agents?page=1&page_size=10")
+            resp = client.get("/api/agents/?page=1&page_size=10")
             results.append(resp.status_code)
 
         threads = [threading.Thread(target=make_request) for _ in range(5)]
@@ -437,7 +491,7 @@ class TestRateLimitBoundaries:
         """
         # Rate limiting implementation varies by endpoint
         # This test checks if rate limiting is implemented correctly
-        response = client.get("/api/v1/agents")
+        response = client.get("/api/agents/")
         # Most endpoints don't have strict rate limiting in development
         assert response.status_code in [200, 429]
 
@@ -462,7 +516,7 @@ class TestRateLimitBoundaries:
 
         Validated: [Test result]
         """
-        response = client.get("/api/v1/agents")
+        response = client.get("/api/agents/")
         assert response.status_code in [200, 429]
 
     def test_rate_limit_one_above_threshold(self, client):
@@ -490,7 +544,7 @@ class TestRateLimitBoundaries:
         # Need to make multiple rapid requests to test this
         responses = []
         for i in range(10):
-            resp = client.get("/api/v1/agents")
+            resp = client.get("/api/agents/")
             responses.append(resp.status_code)
 
         # At least some requests should succeed (200)
@@ -521,7 +575,7 @@ class TestRateLimitBoundaries:
         """
         # Hard to test without knowing exact rate limit window
         # Would need to wait for window to expire
-        response = client.get("/api/v1/agents")
+        response = client.get("/api/agents/")
         assert response.status_code in [200, 429]
 
     def test_rate_limit_concurrent_at_boundary(self, client):
@@ -554,7 +608,7 @@ class TestRateLimitBoundaries:
 
         def make_request():
             try:
-                resp = client.get("/api/v1/agents")
+                resp = client.get("/api/agents/")
                 results.append(resp.status_code)
             except Exception as e:
                 errors.append(e)
@@ -593,8 +647,8 @@ class TestRateLimitBoundaries:
         """
         # Rate limiting is typically per-IP or per-API-key
         # This test verifies that different clients have independent limits
-        response1 = client.get("/api/v1/agents", headers={"X-Forwarded-For": "1.2.3.4"})
-        response2 = client.get("/api/v1/agents", headers={"X-Forwarded-For": "5.6.7.8"})
+        response1 = client.get("/api/agents/", headers={"X-Forwarded-For": "1.2.3.4"})
+        response2 = client.get("/api/agents/", headers={"X-Forwarded-For": "5.6.7.8"})
         assert response1.status_code in [200, 429]
         assert response2.status_code in [200, 429]
 
@@ -621,7 +675,7 @@ class TestRateLimitBoundaries:
         Validated: [Test result]
         """
         # Hard to test without precise timing control
-        response = client.get("/api/v1/agents")
+        response = client.get("/api/agents/")
         assert response.status_code in [200, 429]
 
     def test_rate_limit_with_burst_traffic(self, client):
@@ -649,7 +703,7 @@ class TestRateLimitBoundaries:
         # Send rapid burst of requests
         responses = []
         for i in range(20):
-            resp = client.get("/api/v1/agents")
+            resp = client.get("/api/agents/")
             responses.append(resp.status_code)
 
         # Should handle burst gracefully
@@ -678,7 +732,7 @@ class TestRateLimitBoundaries:
         Validated: [Test result]
         """
         # Test with auth headers (may or may not be admin)
-        response = client.get("/api/v1/agents", headers=auth_headers)
+        response = client.get("/api/agents/", headers=auth_headers)
         assert response.status_code in [200, 401, 403, 429]
 
     def test_rate_limit_response_headers(self, client):
@@ -706,7 +760,7 @@ class TestRateLimitBoundaries:
 
         Validated: [Test result]
         """
-        response = client.get("/api/v1/agents")
+        response = client.get("/api/agents/")
         # Check for rate limit headers
         headers = response.headers
         # Rate limit headers are optional in Atom API
@@ -743,7 +797,7 @@ class TestValidationBoundaries:
         Validated: [Test result]
         """
         # Test with empty search query
-        response = client.get("/api/v1/agents?search=")
+        response = client.get("/api/agents/?search=")
         assert response.status_code in [200, 400]
 
     def test_string_length_one_char(self, client):
@@ -768,7 +822,7 @@ class TestValidationBoundaries:
 
         Validated: [Test result]
         """
-        response = client.get("/api/v1/agents?search=a")
+        response = client.get("/api/agents/?search=a")
         assert response.status_code in [200, 400]
 
     def test_string_length_max(self, client):
@@ -795,7 +849,7 @@ class TestValidationBoundaries:
         """
         # Create a string of typical max length (255 chars)
         long_string = "a" * 255
-        response = client.get(f"/api/v1/agents?search={long_string}")
+        response = client.get(f"/api/agents/?search={long_string}")
         assert response.status_code in [200, 400, 414]
 
     def test_string_length_exceeds_max(self, client):
@@ -822,7 +876,7 @@ class TestValidationBoundaries:
         """
         # Create a string exceeding typical max length (256 chars)
         too_long_string = "a" * 256
-        response = client.get(f"/api/v1/agents?search={too_long_string}")
+        response = client.get(f"/api/agents/?search={too_long_string}")
         assert response.status_code in [200, 400, 414]
 
     def test_string_length_very_long(self, client):
@@ -849,7 +903,7 @@ class TestValidationBoundaries:
         """
         # Create a very long string (10000 chars)
         very_long_string = "a" * 10000
-        response = client.get(f"/api/v1/agents?search={very_long_string}")
+        response = client.get(f"/api/agents/?search={very_long_string}")
         assert response.status_code in [200, 400, 414]
 
     def test_numeric_zero(self, client):
@@ -875,7 +929,7 @@ class TestValidationBoundaries:
         Validated: [Test result]
         """
         # Test with zero page size (should be rejected)
-        response = client.get("/api/v1/agents?page_size=0")
+        response = client.get("/api/agents/?page_size=0")
         assert response.status_code in [200, 400]
 
     def test_numeric_negative(self, client):
@@ -901,7 +955,7 @@ class TestValidationBoundaries:
         Validated: [Test result]
         """
         # Test with negative page size
-        response = client.get("/api/v1/agents?page_size=-10")
+        response = client.get("/api/agents/?page_size=-10")
         assert response.status_code in [200, 400]
 
     def test_numeric_max_int(self, client):
@@ -928,7 +982,7 @@ class TestValidationBoundaries:
         """
         import sys
         max_int = sys.maxsize
-        response = client.get(f"/api/v1/agents?page_size={max_int}")
+        response = client.get(f"/api/agents/?page_size={max_int}")
         assert response.status_code in [200, 400]
 
     def test_numeric_float_inf(self, client):
@@ -1082,7 +1136,7 @@ class TestValidationBoundaries:
         Validated: [Test result]
         """
         # Test with valid maturity level
-        response = client.get("/api/v1/agents?maturity_level=INTERN")
+        response = client.get("/api/agents/?maturity_level=INTERN")
         assert response.status_code in [200, 400]
 
     def test_enum_invalid_value(self, client):
@@ -1108,7 +1162,7 @@ class TestValidationBoundaries:
         Validated: [Test result]
         """
         # Test with invalid maturity level
-        response = client.get("/api/v1/agents?maturity_level=INVALID_LEVEL")
+        response = client.get("/api/agents/?maturity_level=INVALID_LEVEL")
         assert response.status_code in [200, 400]
 
     def test_enum_case_variation(self, client):
@@ -1134,7 +1188,7 @@ class TestValidationBoundaries:
         Validated: [Test result]
         """
         # Test with lowercase maturity level
-        response = client.get("/api/v1/agents?maturity_level=intern")
+        response = client.get("/api/agents/?maturity_level=intern")
         assert response.status_code in [200, 400]
 
     def test_uuid_valid_format(self, client):
@@ -1161,7 +1215,7 @@ class TestValidationBoundaries:
         """
         # Test with valid UUID format
         valid_uuid = "00000000-0000-0000-0000-000000000000"
-        response = client.get(f"/api/v1/agents/{valid_uuid}")
+        response = client.get(f"/api/agents/{valid_uuid}")
         # UUID may not exist (404) but format is valid
         assert response.status_code in [200, 404]
 
@@ -1189,7 +1243,7 @@ class TestValidationBoundaries:
         """
         # Test with invalid UUID format
         invalid_uuid = "not-a-valid-uuid"
-        response = client.get(f"/api/v1/agents/{invalid_uuid}")
+        response = client.get(f"/api/agents/{invalid_uuid}")
         # Should return 400 for invalid UUID format, not 404
         assert response.status_code in [200, 400, 404]
 
@@ -1216,7 +1270,7 @@ class TestValidationBoundaries:
         Validated: [Test result]
         """
         # Test with empty UUID (typically 404 or validation error)
-        response = client.get("/api/v1/agents/")
+        response = client.get("/api/agents/")
         # Empty UUID in path typically returns 404 or method not allowed
         assert response.status_code in [200, 400, 404, 405]
 
@@ -1345,7 +1399,7 @@ class TestValidationBoundaries:
         Validated: [Test result]
         """
         # Single item arrays in query params
-        response = client.get("/api/v1/agents?tags=test")
+        response = client.get("/api/agents/?tags=test")
         assert response.status_code in [200, 400]
 
     def test_array_max_items(self, client):
@@ -1373,7 +1427,7 @@ class TestValidationBoundaries:
         # Array limits depend on specific field
         # Tags or similar array fields
         many_tags = ",".join([f"tag{i}" for i in range(100)])
-        response = client.get(f"/api/v1/agents?tags={many_tags}")
+        response = client.get(f"/api/agents/?tags={many_tags}")
         assert response.status_code in [200, 400]
 
     def test_array_exceeds_max_items(self, client):
@@ -1400,7 +1454,7 @@ class TestValidationBoundaries:
         """
         # Very large array
         many_tags = ",".join([f"tag{i}" for i in range(1000)])
-        response = client.get(f"/api/v1/agents?tags={many_tags}")
+        response = client.get(f"/api/agents/?tags={many_tags}")
         assert response.status_code in [200, 400]
 
     def test_object_nesting_depth(self, client):
@@ -1452,7 +1506,7 @@ class TestValidationBoundaries:
         Validated: [Test result]
         """
         # Test with special characters
-        response = client.get("/api/v1/agents?search=test-agent_123")
+        response = client.get("/api/agents/?search=test-agent_123")
         assert response.status_code in [200, 400]
 
     def test_unicode_characters(self, client):
@@ -1478,7 +1532,7 @@ class TestValidationBoundaries:
         Validated: [Test result]
         """
         # Test with Unicode characters
-        response = client.get("/api/v1/agents?search=测试")
+        response = client.get("/api/agents/?search=测试")
         assert response.status_code in [200, 400]
 
     def test_sql_injection_pattern(self, client):
@@ -1505,7 +1559,7 @@ class TestValidationBoundaries:
         Validated: [Test result]
         """
         # Test with SQL injection pattern
-        response = client.get("/api/v1/agents?search=' OR '1'='1")
+        response = client.get("/api/agents/?search=' OR '1'='1")
         # ORM should prevent SQL injection
         assert response.status_code in [200, 400]
 
@@ -1533,7 +1587,7 @@ class TestValidationBoundaries:
         Validated: [Test result]
         """
         # Test with XSS pattern
-        response = client.get("/api/v1/agents?search=<script>alert('xss')</script>")
+        response = client.get("/api/agents/?search=<script>alert('xss')</script>")
         # Should sanitize or reject
         assert response.status_code in [200, 400]
 

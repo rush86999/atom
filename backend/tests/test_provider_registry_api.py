@@ -1,170 +1,186 @@
-import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
-from main_api_app import app
+"""
+Tests for the provider registry REST API.
 
-client = TestClient(app)
+The original file tested `/api/ai/providers/registry/*` routes that were
+deleted as dead code (no frontend consumer, no backend importer). The real,
+mounted BYOK surface is `api/byok_routes` (`/api/ai/providers*`,
+`/api/ai/pricing*`, `/api/ai/health`), which is what these tests now exercise
+using a standalone app with auth/db/byok-manager overrides (same pattern as
+tests/unit/api/test_byok_routes.py).
+"""
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from unittest.mock import MagicMock, patch
+
+from core.auth import get_current_user
+from core.auth import get_current_tenant
+from core.database import get_db
+from api.byok_routes import get_byok_manager
+
+
+@pytest.fixture
+def mock_manager():
+    """Mock BYOK manager."""
+    manager = MagicMock()
+    manager.providers = ["openai"]
+    manager.get_tenant_provider_status.return_value = {
+        "provider_id": "openai",
+        "name": "OpenAI",
+        "has_api_keys": True,
+    }
+    manager.store_tenant_api_key.return_value = "openai_default_production"
+    return manager
+
+
+@pytest.fixture
+def app(mock_manager):
+    """Create test FastAPI app with BYOK routes and bound identity."""
+    from types import SimpleNamespace
+
+    from api.byok_routes import router
+
+    app = FastAPI()
+    app.include_router(router)
+
+    def _override_user():
+        return SimpleNamespace(id="test-user", tenant_id="t-1")
+
+    def _override_tenant():
+        return SimpleNamespace(id="t-1", name="Test Tenant", ai_mode="auto")
+
+    def _override_db():
+        return MagicMock()
+
+    app.dependency_overrides[get_current_user] = _override_user
+    app.dependency_overrides[get_current_tenant] = _override_tenant
+    app.dependency_overrides[get_db] = _override_db
+    app.dependency_overrides[get_byok_manager] = lambda: mock_manager
+    return app
+
+
+@pytest.fixture
+def client(app):
+    """Create test client."""
+    return TestClient(app)
 
 
 class TestProviderRegistryAPI:
     """Test provider registry REST API endpoints"""
 
-    @patch('core.provider_registry.get_provider_registry')
-    def test_list_providers_success(self, mock_registry):
+    def test_list_providers_success(self, client, mock_manager):
         """Test listing providers returns success response"""
-        mock_registry.return_value.list_providers.return_value = [
-            {
-                "provider_id": "openai",
-                "name": "OpenAI",
-                "model_count": 45,
-                "quality_score": 95,
-                "supports_vision": True
-            }
-        ]
-
-        response = client.get("/api/ai/providers/registry")
+        response = client.get("/api/ai/providers")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True
-        assert "providers" in data
-        assert len(data["providers"]) == 1
+        assert "providers" in data["data"]
+        assert len(data["data"]["providers"]) == 1
 
-    @patch('core.provider_registry.get_provider_registry')
-    def test_get_provider_with_models(self, mock_registry):
-        """Test getting single provider with models"""
-        mock_provider = MagicMock()
-        mock_provider.provider_id = "openai"
-        mock_provider.name = "OpenAI"
-        mock_provider.description = "OpenAI GPT models"
-        mock_provider.quality_score = 95
-        mock_provider.supports_vision = True
-        mock_provider.supports_tools = True
-        mock_provider.supports_cache = True
-        mock_provider.is_active = True
-        mock_provider.discovered_at.isoformat.return_value = "2026-03-22T00:00:00"
-        mock_provider.last_updated.isoformat.return_value = "2026-03-22T00:00:00"
-
-        mock_registry.return_value.get_provider.return_value = mock_provider
-        mock_registry.return_value.get_models_by_provider.return_value = [
-            MagicMock(model_id="gpt-4o", name="GPT-4o")
-        ]
-
-        response = client.get("/api/ai/providers/registry/openai")
+    def test_get_provider_with_models(self, client, mock_manager):
+        """Test getting single provider with status"""
+        response = client.get("/api/ai/providers/openai")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True
-        assert data["provider"]["provider_id"] == "openai"
-        assert "models" in data
+        assert data["data"]["provider_id"] == "openai"
 
-    @patch('core.provider_registry.get_provider_registry')
-    def test_get_provider_not_found(self, mock_registry):
+    def test_get_provider_not_found(self, client, mock_manager):
         """Test getting non-existent provider returns 404"""
-        mock_registry.return_value.get_provider.return_value = None
+        mock_manager.get_tenant_provider_status.side_effect = ValueError("unknown")
 
-        response = client.get("/api/ai/providers/registry/nonexistent")
+        response = client.get("/api/ai/providers/nonexistent")
         assert response.status_code == 404
 
-    @patch('core.provider_auto_discovery.get_auto_discovery')
-    def test_sync_providers_starts_background_task(self, mock_discovery):
-        """Test sync endpoint returns success response"""
-        response = client.post("/api/ai/providers/registry/sync")
+    @patch('core.dynamic_pricing_fetcher.refresh_pricing_cache')
+    def test_refresh_provider_pricing(self, mock_refresh, client):
+        """Test pricing refresh endpoint returns success response"""
+        mock_refresh.return_value = []
+
+        response = client.post("/api/ai/pricing/refresh")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True
-        assert "sync_id" in data
-        assert "message" in data
+        assert "models_fetched" in data["data"]
 
-    def test_add_api_key_via_post_body(self):
-        """Test API key submission via POST body"""
-        # Mock the BYOK manager
-        with patch('core.byok_endpoints.get_byok_manager') as mock_byok:
-            mock_byok_instance = MagicMock()
-            mock_byok.return_value = mock_byok_instance
-            mock_byok_instance.encrypt_api_key.return_value = "encrypted_key"
-            mock_byok_instance.store_api_key.return_value = "openai_default_production"
+    def test_add_api_key_via_post_body(self, client, mock_manager):
+        """Test API key submission via POST"""
+        response = client.post(
+            "/api/ai/providers/openai/keys",
+            params={"api_key": "sk-test-key-1234567890", "key_name": "test"}
+        )
 
-            response = client.post(
-                "/api/ai/providers/openai/keys",
-                json={
-                    "api_key": "sk-test-key-1234567890",
-                    "key_name": "test"
-                }
-            )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] == True
+        assert data["data"]["key_id"] == "openai_default_production"
 
-            # Should return 200 or 500 depending on encryption logic
-            # The important part is it accepts POST body, not query params
-            assert response.status_code in [200, 500]
-
-    def test_add_api_key_rejects_short_key(self):
+    def test_add_api_key_rejects_short_key(self, client, mock_manager):
         """Test API key validation rejects short keys"""
         response = client.post(
             "/api/ai/providers/openai/keys",
-            json={
-                "api_key": "short",  # Too short
-                "key_name": "test"
-            }
+            params={"api_key": "short", "key_name": "test"}
         )
         assert response.status_code == 422  # Validation error
+        mock_manager.store_tenant_api_key.assert_not_called()
 
-    @patch('core.provider_registry.get_provider_registry')
-    def test_search_models_by_capability(self, mock_registry):
+    @patch('core.dynamic_pricing_fetcher.get_pricing_fetcher')
+    def test_search_models_by_capability(self, mock_get_fetcher, client):
         """Test filtering models by capability"""
-        mock_registry.return_value.get_provider.return_value = MagicMock()
-        mock_registry.return_value.search_models.return_value = [
-            MagicMock(model_id="gpt-4o", provider_id="openai", supports_vision=True)
+        fetcher = MagicMock()
+        fetcher.get_provider_models.return_value = [
+            {"model_id": "gpt-4o", "supports_vision": True}
         ]
+        mock_get_fetcher.return_value = fetcher
 
-        response = client.get("/api/ai/providers/registry/openai/models?supports_vision=true")
+        response = client.get("/api/ai/pricing/provider/openai")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True
-        assert "models" in data
+        assert "models" in data["data"]
 
-    @patch('core.provider_registry.get_provider_registry')
-    def test_list_providers_with_active_filter(self, mock_registry):
-        """Test active_only filter works"""
-        mock_registry.return_value.list_providers.return_value = []
-
-        response = client.get("/api/ai/providers/registry?active_only=true")
+    def test_list_providers_with_active_filter(self, client, mock_manager):
+        """Test listing providers returns active status"""
+        response = client.get("/api/ai/providers")
         assert response.status_code == 200
-        # Verify filter was applied
-        mock_registry.return_value.list_providers.assert_called_once()
+        data = response.json()
+        assert "active_providers" in data["data"]
 
-    @patch('core.provider_registry.get_provider_registry')
-    def test_get_sync_status(self, mock_registry):
-        """Test sync status endpoint returns basic status"""
-        response = client.get("/api/ai/providers/registry/sync/status")
+    def test_get_sync_status(self, client, mock_manager):
+        """Test health endpoint returns provider status"""
+        mock_manager.get_provider_status.return_value = {
+            "provider_id": "openai",
+            "status": "active",
+            "has_api_keys": True,
+        }
+
+        response = client.get("/api/ai/health")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True
-        assert "syncing" in data
+        assert "providers" in data["data"]
 
-    def test_add_api_key_invalid_provider(self):
+    def test_add_api_key_invalid_provider(self, client, mock_manager):
         """Test API key submission with invalid provider"""
-        with patch('core.byok_endpoints.get_byok_manager') as mock_byok:
-            mock_byok_instance = MagicMock()
-            mock_byok.return_value = mock_byok_instance
+        mock_manager.store_tenant_api_key.side_effect = ValueError("unknown")
 
-            response = client.post(
-                "/api/ai/providers/invalid_provider/keys",
-                json={
-                    "api_key": "sk-test-key-1234567890",
-                    "key_name": "test"
-                }
-            )
+        response = client.post(
+            "/api/ai/providers/invalid_provider/keys",
+            params={"api_key": "sk-test-key-1234567890", "key_name": "test"}
+        )
 
-            # Should return 400 for invalid provider
-            assert response.status_code == 400
+        assert response.status_code == 404  # Manager rejects unknown providers
 
-    @patch('core.provider_registry.get_provider_registry')
-    def test_list_provider_models_with_filters(self, mock_registry):
-        """Test listing provider models with multiple filters"""
-        mock_registry.return_value.get_provider.return_value = MagicMock()
-        mock_registry.return_value.search_models.return_value = []
+    @patch('core.dynamic_pricing_fetcher.get_pricing_fetcher')
+    def test_list_provider_models_with_filters(self, mock_get_fetcher, client):
+        """Test listing provider models"""
+        fetcher = MagicMock()
+        fetcher.get_provider_models.return_value = [{"model_id": "gpt-4o"}]
+        mock_get_fetcher.return_value = fetcher
 
-        response = client.get("/api/ai/providers/registry/openai/models?supports_vision=true&min_quality=80&max_cost=0.0001")
+        response = client.get("/api/ai/pricing/provider/openai")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True
-        # Verify search_models was called with filters
-        mock_registry.return_value.search_models.assert_called_once()
+        assert "models" in data["data"]

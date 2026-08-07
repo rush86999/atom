@@ -37,17 +37,6 @@ from core.models import (
 # =============================================================================
 
 @pytest.fixture
-def db():
-    """Create database session."""
-    from core.database import SessionLocal
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-@pytest.fixture
 def sample_agents(db):
     """Create sample agents for coordination."""
     agent1 = AgentRegistry(
@@ -92,11 +81,11 @@ def sample_canvas(db):
     """Create sample canvas."""
     canvas = Canvas(
         id="test-canvas-123",
-        title="Test Coordination Canvas",
+        name="Test Coordination Canvas",
         tenant_id="default",
-        user_id="test-user-123",
+        created_by="test-user-123",
         canvas_type="collaboration",
-        state={"active": True}
+        content={"active": True}
     )
     db.add(canvas)
     db.commit()
@@ -177,7 +166,7 @@ class TestInitiateHandoff:
 
         context = {"task": "Continue this work"}
 
-        with patch('core.agent_coordination.get_connection_manager') as mock_mgr:
+        with patch('core.websockets.get_connection_manager') as mock_mgr:
             mock_instance = Mock()
             mock_instance.broadcast_event = AsyncMock()
             mock_instance.AGENT_HANDOFF = "agent_handoff"
@@ -275,7 +264,7 @@ class TestAcceptHandoff:
 
         handoff_id = init_result["handoff_id"]
 
-        with patch('core.agent_coordination.get_connection_manager') as mock_mgr:
+        with patch('core.websockets.get_connection_manager') as mock_mgr:
             mock_instance = Mock()
             mock_instance.broadcast_event = AsyncMock()
             mock_instance.AGENT_COORDINATION_RESPONSE = "coord_response"
@@ -351,7 +340,7 @@ class TestRejectHandoff:
 
         handoff_id = init_result["handoff_id"]
 
-        with patch('core.agent_coordination.get_connection_manager') as mock_mgr:
+        with patch('core.websockets.get_connection_manager') as mock_mgr:
             mock_instance = Mock()
             mock_instance.broadcast_event = AsyncMock()
             mock_instance.AGENT_COORDINATION_RESPONSE = "coord_response"
@@ -421,7 +410,7 @@ class TestCompleteHandoff:
 
         result_data = {"output": "Task completed successfully"}
 
-        with patch('core.agent_coordination.get_connection_manager') as mock_mgr:
+        with patch('core.websockets.get_connection_manager') as mock_mgr:
             mock_instance = Mock()
             mock_instance.broadcast_event = AsyncMock()
             mock_instance.AGENT_ACTION_COMPLETE = "action_complete"

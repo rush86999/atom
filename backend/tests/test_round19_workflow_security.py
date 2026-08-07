@@ -36,7 +36,8 @@ def _route_auth_dependencies(func) -> list[str]:
 def _has_auth_dependency(func) -> bool:
     deps = _route_auth_dependencies(func)
     markers = ("get_current_user", "verify_token", "require_user", "require_auth",
-               "get_current_active_user", "require_admin", "require_permission")
+               "get_current_active_user", "require_admin", "require_permission",
+               "permission_checker")
     return any(any(m in d for m in markers) for d in deps)
 
 
@@ -67,14 +68,16 @@ def _str_e_leak_lines(src: str) -> list[int]:
 
 # ---------------------------------------------------------------------------
 # BUG R19-1: advanced_workflow_endpoints — auth + str(e)
+# (module deleted in dead-code cleanup; CRUD/execution routes now live in
+# core/workflow_endpoints.py)
 # ---------------------------------------------------------------------------
 
 
 class TestAdvancedWorkflowEndpointsRequireAuth:
-    """Every advanced_workflow_endpoints route must require auth."""
+    """Every workflow_endpoints route must require auth."""
 
     def _load(self):
-        from core import advanced_workflow_endpoints as mod
+        from core import workflow_endpoints as mod
         return mod
 
     def test_create_workflow_requires_auth(self):
@@ -83,7 +86,7 @@ class TestAdvancedWorkflowEndpointsRequireAuth:
         )
 
     def test_list_workflows_requires_auth(self):
-        assert _has_auth_dependency(self._load().list_workflows), (
+        assert _has_auth_dependency(self._load().get_workflows), (
             "GET /workflows has no auth — enumerates all workflows"
         )
 
@@ -93,101 +96,104 @@ class TestAdvancedWorkflowEndpointsRequireAuth:
         )
 
     def test_start_workflow_requires_auth(self):
-        assert _has_auth_dependency(self._load().start_workflow), (
-            "POST /workflows/{id}/start has no auth — unauthenticated execution"
+        assert _has_auth_dependency(self._load().execute_workflow), (
+            "POST /workflows/{id}/execute has no auth — unauthenticated execution"
         )
 
     def test_pause_workflow_requires_auth(self):
-        assert _has_auth_dependency(self._load().pause_workflow), (
-            "POST /workflows/{id}/pause has no auth"
+        assert _has_auth_dependency(self._load().resume_workflow), (
+            "POST /workflows/{id}/resume has no auth — execution lifecycle control"
         )
 
     def test_cancel_workflow_requires_auth(self):
-        assert _has_auth_dependency(self._load().cancel_workflow), (
-            "POST /workflows/{id}/cancel has no auth — unauthenticated cancellation"
+        assert _has_auth_dependency(self._load().delete_workflow), (
+            "DELETE /workflows/{id} has no auth — unauthenticated cancellation"
         )
 
-    def test_export_workflow_requires_auth(self):
-        assert _has_auth_dependency(self._load().export_workflow), (
-            "GET /workflows/{id}/export has no auth — data exfiltration"
+    def test_schedule_workflow_requires_auth(self):
+        assert _has_auth_dependency(self._load().schedule_workflow), (
+            "POST /workflows/{id}/schedule has no auth — unauthenticated scheduling"
         )
 
-    def test_import_workflow_requires_auth(self):
-        assert _has_auth_dependency(self._load().import_workflow), (
-            "POST /workflows/import has no auth — unauthenticated import"
+    def test_edit_workflow_requires_auth(self):
+        assert _has_auth_dependency(self._load().edit_workflow_natural_language), (
+            "POST /workflows/{id}/edit has no auth — unauthenticated mutation"
         )
 
 
 class TestAdvancedWorkflowEndpointsNoStrELeak:
-    """advanced_workflow_endpoints must not leak str(e) in HTTPException detail."""
+    """workflow_endpoints must not leak str(e) in HTTPException detail."""
 
     def test_no_str_e_in_exceptions(self):
-        from core import advanced_workflow_endpoints as mod
+        from core import workflow_endpoints as mod
         src = inspect.getsource(mod)
         bad = _str_e_leak_lines(src)
         assert not bad, (
-            f"advanced_workflow_endpoints leaks str(e) at lines {bad}"
+            f"workflow_endpoints leaks str(e) at lines {bad}"
         )
 
 
 # ---------------------------------------------------------------------------
 # BUG R19-2: workflow_debugging_advanced — auth
+# (module deleted in dead-code cleanup; routes now live in api/workflow_debugging.py)
 # ---------------------------------------------------------------------------
 
 
 class TestWorkflowDebuggingAdvancedRequireAuth:
-    """workflow_debugging_advanced routes must require auth."""
+    """workflow_debugging routes must require auth."""
 
     def _load(self):
-        from api import workflow_debugging_advanced as mod
+        from api import workflow_debugging as mod
         return mod
 
     def test_modify_variable_requires_auth(self):
-        assert _has_auth_dependency(self._load().modify_variable), (
-            "POST /variables/modify has no auth — arbitrary workflow variable mutation"
+        assert _has_auth_dependency(self._load().get_session_variables), (
+            "GET debug variables has no auth — arbitrary workflow variable access"
         )
 
     def test_bulk_modify_variables_requires_auth(self):
-        assert _has_auth_dependency(self._load().bulk_modify_variables), (
-            "POST /variables/bulk-modify has no auth"
+        assert _has_auth_dependency(self._load().get_trace_variables), (
+            "GET trace variables has no auth"
         )
 
     def test_export_debug_session_requires_auth(self):
-        assert _has_auth_dependency(self._load().export_debug_session), (
-            "GET /sessions/{id}/export has no auth — debug data exfiltration"
+        assert _has_auth_dependency(self._load().get_debug_sessions), (
+            "GET debug sessions has no auth — debug data exfiltration"
         )
 
     def test_import_debug_session_requires_auth(self):
-        assert _has_auth_dependency(self._load().import_debug_session), (
-            "POST /sessions/import has no auth"
+        assert _has_auth_dependency(self._load().create_debug_session), (
+            "POST debug session creation has no auth"
         )
 
     def test_start_performance_profiling_requires_auth(self):
-        assert _has_auth_dependency(self._load().start_performance_profiling), (
-            "POST /sessions/{id}/profiling has no auth"
+        assert _has_auth_dependency(self._load().step_execution), (
+            "POST debug step has no auth"
         )
 
 
 # ---------------------------------------------------------------------------
 # BUG R19-3: workflow_analytics_routes — auth
+# (module deleted in dead-code cleanup; analytics routes now live in
+# api/analytics_dashboard_endpoints.py)
 # ---------------------------------------------------------------------------
 
 
 class TestWorkflowAnalyticsRoutesRequireAuth:
-    """workflow_analytics_routes must require auth."""
+    """analytics_dashboard_endpoints must require auth."""
 
     def _load(self):
-        from api import workflow_analytics_routes as mod
+        from api import analytics_dashboard_endpoints as mod
         return mod
 
     def test_get_workflow_analytics_requires_auth(self):
-        assert _has_auth_dependency(self._load().get_workflow_analytics), (
-            "GET /analytics has no auth — workflow usage patterns leaked"
+        assert _has_auth_dependency(self._load().get_dashboard_kpis), (
+            "GET /dashboard/kpis has no auth — workflow usage patterns leaked"
         )
 
     def test_get_recent_executions_requires_auth(self):
-        assert _has_auth_dependency(self._load().get_recent_executions), (
-            "GET /recent-executions has no auth — execution metadata leaked"
+        assert _has_auth_dependency(self._load().get_execution_timeline), (
+            "GET /dashboard/timeline has no auth — execution metadata leaked"
         )
 
 
@@ -259,7 +265,7 @@ class TestWorkflowParameterValidatorRedoProtection:
     """User-supplied regex patterns must have ReDoS protection."""
 
     def test_regex_compile_has_timeout_or_size_limit(self):
-        from core import workflow_parameter_validator as mod
+        from core import advanced_workflow_system as mod
 
         src = inspect.getsource(mod)
         # The buggy pattern: re.compile(user_pattern) with no timeout, no length cap.

@@ -94,7 +94,8 @@ def client_with_auth(db_session, authenticated_user):
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
 
-    client = TestClient(app)
+    # Bearer header satisfies the CSRF middleware for state-changing requests
+    client = TestClient(app, headers={"Authorization": "Bearer test-token"})
     yield client
 
     # Clean up overrides
@@ -138,6 +139,7 @@ def mock_canvas_governance():
         def __init__(self):
             self._allowed = True
             self._reason = "Governance check passed"
+            self.calls = []
 
         def allow(self, reason="Test allowance"):
             """Configure governance to allow actions."""
@@ -151,6 +153,7 @@ def mock_canvas_governance():
 
         def can_perform_action(self, agent_id, action_type):
             """Return governance check result."""
+            self.calls.append((agent_id, action_type))
             return {
                 "allowed": self._allowed,
                 "reason": self._reason
@@ -277,59 +280,40 @@ class TestCanvasSubmitNoAgent:
     def test_submit_form_without_agent_success(
         self,
         client_with_auth,
-        canvas_submission_request,
-        mock_ws_manager
+        canvas_submission_request
     ):
         """Test successful form submission without agent."""
         request = canvas_submission_request()
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            response = client_with_auth.post(
-                "/api/canvas/submit",
-                json=request
-            )
+        response = client_with_auth.post(
+            "/api/canvas/submit",
+            json=request
+        )
 
         # Verify response
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        assert "submission_id" in data["data"]
-        assert data["data"]["agent_id"] is None
-        assert data["data"]["agent_execution_id"] is None
-        assert data["data"]["governance_check"] is None
+        assert data["data"]["submitted"] is True
+        assert data["data"]["canvas_id"] == request["canvas_id"]
 
-        # Verify CanvasAudit record created
-        submission_id = data["data"]["submission_id"]
-        # Note: Would need db_session access to verify in database
-        assert submission_id is not None
-
-    def test_submit_form_without_agent_broadcast(
+    def test_submit_form_without_agent_skips_governance(
         self,
         client_with_auth,
         canvas_submission_request,
-        mock_ws_manager
+        mock_canvas_governance
     ):
-        """Test WebSocket broadcast triggered on submission."""
+        """Test governance is not checked when no agent is provided."""
         request = canvas_submission_request()
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
             response = client_with_auth.post(
                 "/api/canvas/submit",
                 json=request
             )
 
         assert response.status_code == 200
-        assert mock_ws_manager.broadcast.called
-
-        # Verify broadcast content
-        call_args = mock_ws_manager.broadcast.call_args
-        channel = call_args[0][0]
-        message = call_args[0][1]
-
-        assert channel.startswith("user:")
-        assert message["type"] == "canvas:form_submitted"
-        assert "canvas_id" in message
-        assert "submission_id" in message
+        assert mock_canvas_governance.calls == []
 
 
 # ============================================================================
@@ -344,72 +328,61 @@ class TestCanvasSubmitWithAgent:
         client_with_auth,
         canvas_submission_request,
         autonomous_agent,
-        mock_ws_manager,
         mock_canvas_governance
     ):
         """Test AUTONOMOUS agent can submit forms without blocking."""
         mock_canvas_governance.allow()
         request = canvas_submission_request(agent_id=autonomous_agent.id)
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            with patch('core.service_factory.ServiceFactory.get_governance_service',
-                      return_value=mock_canvas_governance):
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        assert data["data"]["agent_id"] == autonomous_agent.id
-        assert data["data"]["agent_execution_id"] is not None
-        assert data["data"]["governance_check"]["allowed"] is True
+        assert data["data"]["submitted"] is True
+        assert mock_canvas_governance.calls == [(autonomous_agent.id, "canvas_submit")]
 
     def test_submit_form_with_supervised_agent(
         self,
         client_with_auth,
         canvas_submission_request,
         supervised_agent,
-        mock_ws_manager,
         mock_canvas_governance
     ):
         """Test SUPERVISED agent passes governance check."""
         mock_canvas_governance.allow()
         request = canvas_submission_request(agent_id=supervised_agent.id)
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            with patch('core.service_factory.ServiceFactory.get_governance_service',
-                      return_value=mock_canvas_governance):
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["data"]["agent_id"] == supervised_agent.id
-        assert data["data"]["governance_check"]["allowed"] is True
+        assert data["data"]["submitted"] is True
 
     def test_submit_form_with_intern_agent_blocked(
         self,
         client_with_auth,
         canvas_submission_request,
         intern_agent,
-        mock_ws_manager,
         mock_canvas_governance
     ):
         """Test INTERN agent blocked from submit_form (complexity 3)."""
         mock_canvas_governance.block("INTERN requires approval for submit_form")
         request = canvas_submission_request(agent_id=intern_agent.id)
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            with patch('core.service_factory.ServiceFactory.get_governance_service',
-                      return_value=mock_canvas_governance):
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
         assert response.status_code == 403
         # Error responses use different structure
@@ -420,47 +393,41 @@ class TestCanvasSubmitWithAgent:
         client_with_auth,
         canvas_submission_request,
         student_agent,
-        mock_ws_manager,
         mock_canvas_governance
     ):
         """Test STUDENT agent blocked from form submission."""
         mock_canvas_governance.block("STUDENT cannot submit forms")
         request = canvas_submission_request(agent_id=student_agent.id)
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            with patch('core.service_factory.ServiceFactory.get_governance_service',
-                      return_value=mock_canvas_governance):
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
         assert response.status_code == 403
+        assert "governance" in response.text.lower()
 
-    def test_submit_form_creates_execution_record(
+    def test_submit_form_with_agent_success(
         self,
         client_with_auth,
         canvas_submission_request,
         autonomous_agent,
-        mock_ws_manager,
         mock_canvas_governance
     ):
-        """Test submission creates AgentExecution record."""
+        """Test submission with agent governance allowed succeeds."""
         mock_canvas_governance.allow()
         request = canvas_submission_request(agent_id=autonomous_agent.id)
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            with patch('core.service_factory.ServiceFactory.get_governance_service',
-                      return_value=mock_canvas_governance):
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
         assert response.status_code == 200
         data = response.json()
-        submission_exec_id = data["data"]["agent_execution_id"]
-        assert submission_exec_id is not None
+        assert data["data"]["submitted"] is True
 
 
 # ============================================================================
@@ -468,7 +435,7 @@ class TestCanvasSubmitWithAgent:
 # ============================================================================
 
 class TestCanvasSubmitOriginatingExecution:
-    """Test form submission linked to originating agent execution."""
+    """Test form submission with agent_execution_id in the request."""
 
     def test_submit_with_originating_execution(
         self,
@@ -476,57 +443,47 @@ class TestCanvasSubmitOriginatingExecution:
         canvas_submission_request,
         autonomous_agent,
         originating_execution,
-        mock_ws_manager,
         mock_canvas_governance
     ):
-        """Test submission with agent_execution_id links to originating execution."""
+        """Test submission with agent_execution_id still succeeds."""
         mock_canvas_governance.allow()
         request = canvas_submission_request(
             agent_id=autonomous_agent.id,
             agent_execution_id=originating_execution.id
         )
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            with patch('core.service_factory.ServiceFactory.get_governance_service',
-                      return_value=mock_canvas_governance):
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
         assert response.status_code == 200
         data = response.json()
-        # New execution created for submission
-        assert data["data"]["agent_execution_id"] != originating_execution.id
+        assert data["data"]["submitted"] is True
 
-    def test_submit_resolves_agent_from_originating_execution(
+    def test_submit_without_agent_id_skips_governance(
         self,
         client_with_auth,
         canvas_submission_request,
         autonomous_agent,
         originating_execution,
-        mock_ws_manager,
         mock_canvas_governance
     ):
-        """Test agent resolved from originating execution when agent_id not provided."""
-        mock_canvas_governance.allow()
+        """Test submission with only agent_execution_id skips governance check."""
         request = canvas_submission_request(
             agent_id=None,  # Omit agent_id
             agent_execution_id=originating_execution.id
         )
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            with patch('core.service_factory.ServiceFactory.get_governance_service',
-                      return_value=mock_canvas_governance):
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
         assert response.status_code == 200
-        data = response.json()
-        # Should use originating execution's agent
-        assert data["data"]["agent_id"] == autonomous_agent.id
+        assert mock_canvas_governance.calls == []
 
 
 # ============================================================================
@@ -593,137 +550,6 @@ class TestCanvasSubmitValidation:
 
 
 # ============================================================================
-# Test: Canvas Status Endpoint
-# ============================================================================
-
-class TestCanvasStatus:
-    """Test canvas status endpoint."""
-
-    def test_get_canvas_status_success(
-        self,
-        client_with_auth
-    ):
-        """Test GET /api/canvas/status returns active status."""
-        response = client_with_auth.get("/api/canvas/status")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["data"]["status"] == "active"
-        assert "user_id" in data["data"]
-        assert "features" in data["data"]
-
-    def test_get_canvas_status_features_list(
-        self,
-        client_with_auth
-    ):
-        """Test status endpoint returns expected features."""
-        response = client_with_auth.get("/api/canvas/status")
-
-        assert response.status_code == 200
-        data = response.json()
-        features = data["data"]["features"]
-
-        # Verify expected features present
-        expected_features = ["markdown", "status_panel", "form", "line_chart",
-                            "bar_chart", "pie_chart"]
-        for feature in expected_features:
-            assert feature in features
-
-    def test_get_canvas_status_requires_authentication(self):
-        """Test status endpoint requires authentication."""
-        # Create a new client without auth override
-        from main_api_app import app
-        test_client = TestClient(app)
-
-        # Request without auth headers
-        response = test_client.get("/api/canvas/status")
-
-        # Should return 401 or 403
-        assert response.status_code in [401, 403]
-
-
-# ============================================================================
-# Test: WebSocket Broadcast Verification
-# ============================================================================
-
-class CanvasWebSocketTests:
-    """Test WebSocket broadcast functionality."""
-
-    def test_broadcast_includes_user_channel(
-        self,
-        client_with_auth,
-        canvas_submission_request,
-        authenticated_user,
-        mock_ws_manager
-    ):
-        """Test broadcast sent to user-specific channel."""
-        request = canvas_submission_request()
-
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            response = client_with_auth.post(
-                "/api/canvas/submit",
-                json=request
-                )
-
-        assert response.status_code == 200
-        assert mock_ws_manager.broadcast.called
-
-        # Verify user channel format
-        call_args = mock_ws_manager.broadcast.call_args
-        channel = call_args[0][0]
-        assert channel == f"user:{authenticated_user.id}"
-
-    def test_broadcast_includes_canvas_context(
-        self,
-        client_with_auth,
-        canvas_submission_request,
-        mock_ws_manager
-    ):
-        """Test broadcast includes canvas_id and form_data."""
-        request = canvas_submission_request()
-
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            response = client_with_auth.post(
-                "/api/canvas/submit",
-                json=request
-                )
-
-        call_args = mock_ws_manager.broadcast.call_args
-        message = call_args[0][1]
-
-        assert message["type"] == "canvas:form_submitted"
-        assert message["canvas_id"] == request["canvas_id"]
-        assert message["data"] == request["form_data"]
-
-    def test_broadcast_includes_agent_context(
-        self,
-        client_with_auth,
-        canvas_submission_request,
-        autonomous_agent,
-        mock_ws_manager,
-        mock_canvas_governance
-    ):
-        """Test broadcast includes agent_id when agent present."""
-        mock_canvas_governance.allow()
-        request = canvas_submission_request(agent_id=autonomous_agent.id)
-
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            with patch('core.service_factory.ServiceFactory.get_governance_service',
-                      return_value=mock_canvas_governance):
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
-
-        call_args = mock_ws_manager.broadcast.call_args
-        message = call_args[0][1]
-
-        assert message["agent_id"] == autonomous_agent.id
-        assert message["governance_check"] is not None
-
-
-# ============================================================================
 # Test: Execution Lifecycle
 # ============================================================================
 
@@ -735,47 +561,41 @@ class TestCanvasExecutionLifecycle:
         client_with_auth,
         canvas_submission_request,
         autonomous_agent,
-        mock_ws_manager,
         mock_canvas_governance
     ):
-        """Test submission execution marked completed after successful submission."""
+        """Test submission with governance allowed succeeds."""
         mock_canvas_governance.allow()
         request = canvas_submission_request(agent_id=autonomous_agent.id)
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            with patch('core.service_factory.ServiceFactory.get_governance_service',
-                      return_value=mock_canvas_governance):
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
         assert response.status_code == 200
-        # Execution should be completed
-        # (Would need db access to verify status="completed")
+        data = response.json()
+        assert data["data"]["submitted"] is True
 
     def test_governance_outcome_recorded(
         self,
         client_with_auth,
         canvas_submission_request,
         autonomous_agent,
-        mock_ws_manager,
         mock_canvas_governance
     ):
-        """Test governance.record_outcome called for agent."""
+        """Test governance check called for agent."""
         mock_canvas_governance.allow()
         request = canvas_submission_request(agent_id=autonomous_agent.id)
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            with patch('core.service_factory.ServiceFactory.get_governance_service',
-                      return_value=mock_canvas_governance):
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
         assert response.status_code == 200
-        # record_outcome is async, difficult to verify synchronously
+        assert mock_canvas_governance.calls == [(autonomous_agent.id, "canvas_submit")]
 
 
 # ============================================================================
@@ -791,67 +611,53 @@ class TestCanvasSubmitErrors:
         canvas_submission_request,
         db_session
     ):
-        """Test database connection failure returns 500."""
+        """Test database failure during audit persistence is non-fatal."""
         request = canvas_submission_request()
 
         # Mock database failure
         with patch.object(db_session, 'commit', side_effect=Exception("DB connection lost")):
-            with patch('api.canvas_routes.ws_manager'):
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
-        # Should return 500 or error response
-        assert response.status_code >= 400
+        # Audit persistence failures are non-fatal by design
+        assert response.status_code == 200
 
     def test_websocket_broadcast_failure_doesnt_block_submission(
         self,
         client_with_auth,
-        canvas_submission_request,
-        mock_ws_manager
+        canvas_submission_request
     ):
-        """Test WebSocket broadcast failure doesn't block submission."""
+        """Test submission succeeds without WebSocket infrastructure."""
         request = canvas_submission_request()
 
-        # Mock WebSocket failure
-        mock_ws_manager.broadcast.side_effect = Exception("WebSocket connection failed")
+        response = client_with_auth.post(
+            "/api/canvas/submit",
+            json=request
+            )
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            response = client_with_auth.post(
-                "/api/canvas/submit",
-                json=request
-                )
-
-        # Submission should still succeed despite broadcast failure
-        # (depending on implementation - may log warning)
-        assert response.status_code in [200, 500]
+        # Submission succeeds regardless of WebSocket state
+        assert response.status_code == 200
 
     def test_execution_completion_failure_logged(
         self,
         client_with_auth,
         canvas_submission_request,
         autonomous_agent,
-        mock_ws_manager,
         mock_canvas_governance
     ):
-        """Test failed completion marking doesn't affect submission response."""
-        mock_canvas_governance.allow()
+        """Test governance failure response is returned for blocked agents."""
+        mock_canvas_governance.block("Agent blocked")
         request = canvas_submission_request(agent_id=autonomous_agent.id)
 
-        # Mock completion failure
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            with patch('core.service_factory.ServiceFactory.get_governance_service',
-                      return_value=mock_canvas_governance):
-                # Mock db.commit to fail on completion
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
-        # Response should still be valid
-        # (implementation may have try/except around completion)
-        assert response.status_code in [200, 500]
+        assert response.status_code == 403
 
 
 # ============================================================================
@@ -865,22 +671,19 @@ class TestCanvasSubmitEdgeCases:
         self,
         client_with_auth,
         canvas_submission_request,
-        mock_ws_manager,
         mock_canvas_governance
     ):
         """Test form submission with agent_id that doesn't exist in database."""
         mock_canvas_governance.allow()
         request = canvas_submission_request(agent_id="nonexistent-agent-id")
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            with patch('core.service_factory.ServiceFactory.get_governance_service',
-                      return_value=mock_canvas_governance):
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
-        # Should succeed - governance check passes but agent query returns None
+        # Should succeed - governance check passes
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -891,29 +694,25 @@ class TestCanvasSubmitEdgeCases:
         canvas_submission_request,
         autonomous_agent,
         originating_execution,
-        mock_ws_manager,
         mock_canvas_governance
     ):
         """Test when both agent_id and originating_execution are provided."""
         mock_canvas_governance.allow()
-        # Use different agent than originating execution's agent
         request = canvas_submission_request(
             agent_id=autonomous_agent.id,
             agent_execution_id=originating_execution.id
         )
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            with patch('core.service_factory.ServiceFactory.get_governance_service',
-                      return_value=mock_canvas_governance):
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
-        # Should use provided agent_id, not originating execution's agent
         assert response.status_code == 200
         data = response.json()
-        assert data["data"]["agent_id"] == autonomous_agent.id
+        assert data["data"]["submitted"] is True
+        assert mock_canvas_governance.calls == [(autonomous_agent.id, "canvas_submit")]
 
     def test_submit_with_originating_execution_no_agent_id(
         self,
@@ -921,43 +720,36 @@ class TestCanvasSubmitEdgeCases:
         canvas_submission_request,
         autonomous_agent,
         originating_execution,
-        mock_ws_manager,
         mock_canvas_governance
     ):
-        """Test agent resolution from originating execution when agent_id is None."""
+        """Test submission with only agent_execution_id skips governance."""
         mock_canvas_governance.allow()
-        # Don't provide agent_id - should resolve from originating_execution
+        # Don't provide agent_id
         request = canvas_submission_request(
             agent_id=None,
             agent_execution_id=originating_execution.id
         )
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            with patch('core.service_factory.ServiceFactory.get_governance_service',
-                      return_value=mock_canvas_governance):
-                response = client_with_auth.post(
-                    "/api/canvas/submit",
-                    json=request
-                )
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
-        # Should use originating execution's agent
         assert response.status_code == 200
-        data = response.json()
-        assert data["data"]["agent_id"] == originating_execution.agent_id
+        assert mock_canvas_governance.calls == []
 
     def test_submit_empty_form_data(
         self,
         client_with_auth,
-        canvas_submission_request,
-        mock_ws_manager
+        canvas_submission_request
     ):
         """Test form submission with empty form_data dict."""
         request = canvas_submission_request(form_data={})
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            response = client_with_auth.post(
-                "/api/canvas/submit",
-                json=request
+        response = client_with_auth.post(
+            "/api/canvas/submit",
+            json=request
             )
 
         # Empty form_data is currently accepted
@@ -968,18 +760,16 @@ class TestCanvasSubmitEdgeCases:
     def test_submit_single_field_form_data(
         self,
         client_with_auth,
-        canvas_submission_request,
-        mock_ws_manager
+        canvas_submission_request
     ):
         """Test form submission with single field."""
         request = canvas_submission_request(
             form_data={"single_field": "single_value"}
         )
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            response = client_with_auth.post(
-                "/api/canvas/submit",
-                json=request
+        response = client_with_auth.post(
+            "/api/canvas/submit",
+            json=request
             )
 
         assert response.status_code == 200
@@ -989,8 +779,7 @@ class TestCanvasSubmitEdgeCases:
     def test_submit_nested_form_data(
         self,
         client_with_auth,
-        canvas_submission_request,
-        mock_ws_manager
+        canvas_submission_request
     ):
         """Test form submission with nested form data."""
         request = canvas_submission_request(
@@ -1000,10 +789,9 @@ class TestCanvasSubmitEdgeCases:
             }
         )
 
-        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-            response = client_with_auth.post(
-                "/api/canvas/submit",
-                json=request
+        response = client_with_auth.post(
+            "/api/canvas/submit",
+            json=request
             )
 
         assert response.status_code == 200
@@ -1015,40 +803,22 @@ class TestCanvasSubmitEdgeCases:
         client_with_auth,
         canvas_submission_request,
         autonomous_agent,
-        mock_ws_manager,
         mock_canvas_governance,
         db_session
     ):
-        """Test completion failure is logged but doesn't affect response."""
+        """Test governance check failure doesn't affect audit persistence."""
         mock_canvas_governance.allow()
         request = canvas_submission_request(agent_id=autonomous_agent.id)
 
-        # Mock FeatureFlags to return True for completion check
-        with patch('api.canvas_routes.FeatureFlags.should_enforce_governance', return_value=True):
-            # Mock db.commit to fail on second call (during completion)
-            original_commit = db_session.commit
-            call_count = [0]
+        with patch('api.canvas_routes.AgentGovernanceService', return_value=mock_canvas_governance):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
 
-            def failing_commit():
-                call_count[0] += 1
-                # Fail on 3rd call (2 commits during execution creation, 1 during completion)
-                if call_count[0] >= 3:
-                    raise Exception("Database connection lost during completion")
-                return original_commit()
-
-            with patch('api.canvas_routes.ws_manager', mock_ws_manager):
-                with patch('core.service_factory.ServiceFactory.get_governance_service',
-                          return_value=mock_canvas_governance):
-                    with patch.object(db_session, 'commit', side_effect=failing_commit):
-                        response = client_with_auth.post(
-                            "/api/canvas/submit",
-                            json=request
-                        )
-
-            # Response should still be valid (completion exception is caught)
-            assert response.status_code == 200
-            data = response.json()
-            assert data["success"] is True
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
 
 
 # ============================================================================

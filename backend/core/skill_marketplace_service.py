@@ -118,6 +118,9 @@ class SkillMarketplaceService:
 
         Fallback implementation when Atom Agent OS is unavailable.
         """
+        # Trim leading/trailing whitespace so padded queries still match
+        query = (query or "").strip()
+
         # Build query for local community skills
         q = self.db.query(SkillExecution).filter(
             SkillExecution.skill_source == "community",
@@ -157,6 +160,16 @@ class SkillMarketplaceService:
         # Pagination
         total = q.count()
         start = (page - 1) * page_size
+        if page_size <= 0:
+            # Invalid page size yields no results (and avoids a zero division below)
+            return {
+                "skills": [],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": 0,
+                "source": "local"
+            }
         results = q.offset(start).limit(page_size).all()
 
         # Enrich results with ratings
@@ -283,6 +296,17 @@ class SkillMarketplaceService:
         except Exception as e:
             logger.warning(f"Failed to submit rating to marketplace: {e}")
 
+        # Validate the skill exists locally before storing the rating
+        skill = self.db.query(SkillExecution).filter(
+            SkillExecution.id == skill_id,
+            SkillExecution.skill_source == "community"
+        ).first()
+        if not skill:
+            return {
+                "success": False,
+                "error": "Skill not found"
+            }
+
         # Also store locally
         existing_rating = self.db.query(SkillRating).filter(
             SkillRating.skill_id == skill_id,
@@ -293,7 +317,7 @@ class SkillMarketplaceService:
         if existing_rating:
             # Update existing rating
             existing_rating.rating = rating
-            existing_rating.comment = comment
+            existing_rating.review = comment
             existing_rating.created_at = datetime.now(timezone.utc)
             action = "updated"
         else:
@@ -302,7 +326,8 @@ class SkillMarketplaceService:
                 skill_id=skill_id,
                 user_id=user_id,
                 rating=rating,
-                comment=comment,
+                review=comment,
+                tenant_id=skill.tenant_id,
                 created_at=datetime.now(timezone.utc)
             )
             self.db.add(new_rating)
@@ -432,7 +457,7 @@ class SkillMarketplaceService:
             {
                 "user_id": r.user_id,
                 "rating": r.rating,
-                "comment": r.comment,
+                "comment": r.review,
                 "created_at": r.created_at.isoformat() if r.created_at else None
             }
             for r in ratings

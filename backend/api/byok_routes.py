@@ -923,6 +923,11 @@ async def store_api_key(
     db: Session = Depends(get_db)
 ):
     """Store an API key for a provider (tenant-specific)"""
+    if not api_key or len(api_key) < 10:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid API key: must be at least 10 characters"
+        )
     try:
         key_id = byok_manager.store_tenant_api_key(tenant.id, provider_id, api_key, key_name, environment, db=db)
         return ApiResponse(success=True, data={

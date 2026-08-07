@@ -186,8 +186,7 @@ class LocalOnlyGuard:
     def __init__(self):
         """Initialize guard (only runs once due to singleton)."""
         if self._enabled is None:
-            # Read from environment on first access
-            self._enabled = os.getenv("ATOM_LOCAL_ONLY", "false").lower() == "true"
+            type(self)._enabled = os.getenv("ATOM_LOCAL_ONLY", "false").lower() == "true"
 
             logger.info(
                 "LocalOnlyGuard initialized",

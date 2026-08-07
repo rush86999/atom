@@ -485,12 +485,15 @@ class TestAdvancedWorkflowSystem:
         """Setup test workflow system."""
         self.system = AdvancedWorkflowSystem()
 
-    def test_create_workflow_definition(self):
+    @pytest.mark.asyncio
+    async def test_create_workflow_definition(self):
         """Test creating a new workflow definition."""
-        workflow = self.system.create_workflow(
-            workflow_id="test-workflow",
-            name="Test Workflow",
-            description="A test workflow"
+        workflow = await self.system.execution_engine.create_workflow(
+            {
+                "workflow_id": "test-workflow",
+                "name": "Test Workflow",
+                "description": "A test workflow"
+            }
         )
         assert workflow.workflow_id == "test-workflow"
         assert workflow.state == WorkflowState.DRAFT
@@ -510,8 +513,8 @@ class TestAdvancedWorkflowSystem:
                 )
             ]
         )
-        validation = self.system.validate_workflow(workflow)
-        assert validation["is_valid"] is True
+        is_valid, error = self.system.execution_engine._validate_workflow(workflow)
+        assert is_valid is True
 
     def test_validate_workflow_with_invalid_dependencies(self):
         """Test validating workflow with invalid dependencies."""
@@ -529,11 +532,12 @@ class TestAdvancedWorkflowSystem:
                 )
             ]
         )
-        validation = self.system.validate_workflow(workflow)
-        assert validation["is_valid"] is False
-        assert "invalid_dependencies" in validation
+        is_valid, error = self.system.execution_engine._validate_workflow(workflow)
+        assert is_valid is False
+        assert "non-existent step" in error
 
-    def test_execute_workflow_step(self):
+    @pytest.mark.asyncio
+    async def test_execute_workflow_step(self):
         """Test executing a single workflow step."""
         step = WorkflowStep(
             step_id="step1",
@@ -541,11 +545,17 @@ class TestAdvancedWorkflowSystem:
             description="Test step",
             step_type="task"
         )
+        workflow = AdvancedWorkflowDefinition(
+            workflow_id="test-workflow",
+            name="Test Workflow",
+            description="A test workflow",
+            steps=[step]
+        )
 
-        with patch.object(self.system, '_execute_step_impl') as mock_exec:
-            mock_exec.return_value = {"status": "success", "output": {"result": "done"}}
-            result = self.system.execute_step(step, {})
-            assert result["status"] == "success"
+        engine = self.system.execution_engine
+        with patch.object(engine, '_execute_custom_step', new=AsyncMock(return_value={"result": "done"})):
+            result = await engine._execute_step(workflow, step)
+        assert result["status"] == "success"
 
     def test_create_execution_plan(self):
         """Test creating workflow execution plan."""
@@ -570,7 +580,7 @@ class TestAdvancedWorkflowSystem:
             ]
         )
 
-        plan = self.system.create_execution_plan(workflow)
+        plan = self.system.execution_engine._create_execution_plan(workflow)
         assert isinstance(plan, WorkflowExecutionPlan)
         assert len(plan.planned_steps) == 2
         assert plan.planned_steps[0] == "step1"
@@ -615,7 +625,7 @@ class TestAdvancedWorkflowSystem:
             ]
         )
 
-        plan = self.system.create_execution_plan(workflow)
+        plan = self.system.execution_engine._create_execution_plan(workflow)
         assert len(plan.parallel_groups) > 0
         # step2a and step2b should be in a parallel group
         parallel_group = plan.parallel_groups[0]
@@ -630,7 +640,8 @@ class TestWorkflowExecution:
         """Setup test workflow system."""
         self.system = AdvancedWorkflowSystem()
 
-    def test_execute_linear_workflow(self):
+    @pytest.mark.asyncio
+    async def test_execute_linear_workflow(self):
         """Test executing linear workflow (one step after another)."""
         workflow = AdvancedWorkflowDefinition(
             workflow_id="test-workflow",
@@ -653,12 +664,15 @@ class TestWorkflowExecution:
             ]
         )
 
-        with patch.object(self.system, '_execute_step_impl') as mock_exec:
-            mock_exec.return_value = {"status": "success", "output": {"result": "done"}}
-            result = self.system.execute_workflow(workflow)
-            assert result["status"] in ["running", "completed"]
+        engine = self.system.execution_engine
+        plan = engine._create_execution_plan(workflow)
+        with patch.object(engine, '_execute_step', new=AsyncMock(return_value={"status": "success", "output": {"result": "done"}})):
+            await engine._execute_workflow(workflow, plan)
+        assert workflow.state == WorkflowState.COMPLETED
+        assert len(workflow.step_results) == 2
 
-    def test_execute_workflow_with_failure(self):
+    @pytest.mark.asyncio
+    async def test_execute_workflow_with_failure(self):
         """Test executing workflow that fails at a step."""
         workflow = AdvancedWorkflowDefinition(
             workflow_id="test-workflow",
@@ -674,17 +688,20 @@ class TestWorkflowExecution:
             ]
         )
 
-        with patch.object(self.system, '_execute_step_impl') as mock_exec:
-            mock_exec.return_value = {"status": "error", "error": "Step failed"}
-            result = self.system.execute_workflow(workflow)
-            assert result["status"] == "failed"
+        engine = self.system.execution_engine
+        plan = engine._create_execution_plan(workflow)
+        with patch.object(engine, '_execute_step', new=AsyncMock(return_value={"status": "error", "error": "Step failed"})):
+            await engine._execute_workflow(workflow, plan)
+        assert workflow.state == WorkflowState.FAILED
 
-    def test_pause_workflow(self):
+    @pytest.mark.asyncio
+    async def test_pause_workflow(self):
         """Test pausing workflow execution."""
         workflow = AdvancedWorkflowDefinition(
             workflow_id="test-workflow",
             name="Test Workflow",
             description="Pausable workflow",
+            state=WorkflowState.RUNNING,
             steps=[
                 WorkflowStep(
                     step_id="step1",
@@ -696,23 +713,17 @@ class TestWorkflowExecution:
             ]
         )
 
-        with patch.object(self.system, '_execute_step_impl') as mock_exec:
-            # Simulate long-running step
-            import asyncio
-            async def long_running(*args, **kwargs):
-                await asyncio.sleep(0.1)
-                return {"status": "success"}
+        engine = self.system.execution_engine
+        engine.state_manager.save_state(workflow.workflow_id, workflow.dict())
 
-            mock_exec.side_effect = long_running
+        paused = engine.pause_workflow(workflow.workflow_id)
+        assert paused is True
 
-            # Start execution
-            result = self.system.execute_workflow(workflow)
+        state = engine.state_manager.load_state(workflow.workflow_id)
+        assert state["state"] == WorkflowState.PAUSED
 
-            # Pause workflow
-            paused = self.system.pause_workflow(workflow.workflow_id)
-            # Note: Actual pause behavior depends on implementation
-
-    def test_resume_workflow(self):
+    @pytest.mark.asyncio
+    async def test_resume_workflow(self):
         """Test resuming paused workflow."""
         workflow = AdvancedWorkflowDefinition(
             workflow_id="test-workflow",
@@ -722,12 +733,16 @@ class TestWorkflowExecution:
             current_step="step2"
         )
 
-        with patch.object(self.system, '_execute_step_impl') as mock_exec:
-            mock_exec.return_value = {"status": "success", "output": {}}
-            result = self.system.resume_workflow(workflow)
-            # Workflow should transition to running
+        engine = self.system.execution_engine
+        engine.state_manager.save_state(workflow.workflow_id, workflow.dict())
 
-    def test_cancel_workflow(self):
+        result = engine.resume_workflow(workflow.workflow_id)
+        assert result["status"] == "resumed"
+
+        engine.running_workflows[workflow.workflow_id].cancel()
+
+    @pytest.mark.asyncio
+    async def test_cancel_workflow(self):
         """Test canceling workflow execution."""
         workflow = AdvancedWorkflowDefinition(
             workflow_id="test-workflow",
@@ -736,9 +751,14 @@ class TestWorkflowExecution:
             state=WorkflowState.RUNNING
         )
 
-        result = self.system.cancel_workflow(workflow.workflow_id)
-        assert result["cancelled"] is True
-        assert workflow.state == WorkflowState.CANCELLED
+        engine = self.system.execution_engine
+        engine.state_manager.save_state(workflow.workflow_id, workflow.dict())
+
+        cancelled = engine.cancel_workflow(workflow.workflow_id)
+        assert cancelled is True
+
+        state = engine.state_manager.load_state(workflow.workflow_id)
+        assert state["state"] == WorkflowState.CANCELLED
 
 
 class TestWorkflowPersistence:
@@ -762,7 +782,7 @@ class TestWorkflowPersistence:
             description="Persistent workflow"
         )
 
-        saved = self.system.save_workflow(workflow)
+        saved = self.system.state_manager.save_state(workflow.workflow_id, workflow.dict())
         assert saved is True
 
     def test_load_workflow(self):
@@ -774,13 +794,13 @@ class TestWorkflowPersistence:
         )
 
         # Save workflow
-        self.system.save_workflow(workflow)
+        self.system.state_manager.save_state(workflow.workflow_id, workflow.dict())
 
         # Load workflow
-        loaded = self.system.load_workflow("test-workflow")
+        loaded = self.system.state_manager.load_state("test-workflow")
         assert loaded is not None
-        assert loaded.workflow_id == "test-workflow"
-        assert loaded.name == "Test Workflow"
+        assert loaded["workflow_id"] == "test-workflow"
+        assert loaded["name"] == "Test Workflow"
 
     def test_delete_workflow(self):
         """Test deleting workflow definition."""
@@ -791,12 +811,12 @@ class TestWorkflowPersistence:
         )
 
         # Save workflow
-        self.system.save_workflow(workflow)
+        self.system.state_manager.save_state(workflow.workflow_id, workflow.dict())
 
         # Delete workflow
-        deleted = self.system.delete_workflow("test-workflow")
+        deleted = self.system.state_manager.delete_state("test-workflow")
         assert deleted is True
 
         # Verify workflow is deleted
-        loaded = self.system.load_workflow("test-workflow")
+        loaded = self.system.state_manager.load_state("test-workflow")
         assert loaded is None

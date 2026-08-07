@@ -292,19 +292,22 @@ class TestUpdateFactVerification:
 
         # Mock LanceDB
         mock_lancedb = AsyncMock()
-        mock_lancedb.search.return_value = [
+        mock_lancedb.db = Mock()
+        mock_lancedb.db.table_names = Mock(return_value=[])
+        mock_lancedb.workspace_id = "default"
+        mock_lancedb.search = Mock(return_value=[
             {
                 "id": "fact-1",
                 "text": "Fact: Test\nStatus: unverified",
                 "metadata": {"id": "fact-1", "verification_status": "unverified"},
                 "source": "fact_agent_1"
             }
-        ]
-        mock_lancedb.add_document.return_value = True
-        mock_lancedb_handler.return_value = mock_lancedb
+        ])
+        mock_lancedb.add_document = Mock(return_value=True)
 
-        service = WorldModelService()
-        result = await service.update_fact_verification("fact-1", "verified")
+        with patch('core.agent_world_model.get_lancedb_handler', return_value=mock_lancedb):
+            service = WorldModelService()
+            result = await service.update_fact_verification("fact-1", "verified")
 
         assert result is True
 
@@ -338,11 +341,11 @@ class TestRecallExperiences:
         # Mock other dependencies to return empty
         with patch('core.graphrag_engine.graphrag_engine') as mock_graphrag, \
              patch('core.formula_memory.get_formula_manager') as mock_formula_mgr, \
-             patch('core.agent_world_model.get_db_session') as mock_get_db, \
+             patch('core.agent_world_model.SessionLocal') as mock_get_db, \
              patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_svc:
 
             # GraphRAG returns empty string
-            mock_graphrag.get_context_for_ai.return_value = ""
+            mock_graphrag.get_context_for_ai = AsyncMock(return_value="")
 
             # Formula manager returns empty list
             mock_formula_mgr.return_value.search_formulas.return_value = []
@@ -350,7 +353,7 @@ class TestRecallExperiences:
             # Database query returns empty conversation list
             mock_db = AsyncMock()
             mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
-            mock_get_db.return_value.__enter__.return_value = mock_db
+            mock_get_db.return_value = mock_db
 
             # Episode service returns empty list
             mock_episode_svc.return_value.retrieve_contextual.return_value = {"episodes": []}
@@ -408,6 +411,7 @@ class TestRecallExperiences:
                         "id": "exp_1",
                         "text": "Task: reconciliation\nInput: Reconcile SKU-123\nOutcome: Success\nLearnings: Process worked",
                         "created_at": datetime.now().isoformat(),
+                        "score": 0.6,  # Semantic similarity used for ranking
                         "metadata": {
                             "agent_id": "agent_finance_123",  # Creator match
                             "task_type": "reconciliation",
@@ -420,6 +424,7 @@ class TestRecallExperiences:
                         "id": "exp_2",
                         "text": "Task: approval\nInput: Approve invoice\nOutcome: Success\nLearnings: Policy followed",
                         "created_at": datetime.now().isoformat(),
+                        "score": 0.95,  # Semantic similarity used for ranking
                         "metadata": {
                             "agent_id": "other_agent",
                             "task_type": "approval",
@@ -448,14 +453,14 @@ class TestRecallExperiences:
         # Mock other dependencies
         with patch('core.graphrag_engine.graphrag_engine') as mock_graphrag, \
              patch('core.formula_memory.get_formula_manager') as mock_formula_mgr, \
-             patch('core.agent_world_model.get_db_session') as mock_get_db, \
+             patch('core.agent_world_model.SessionLocal') as mock_get_db, \
              patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_svc:
 
-            mock_graphrag.get_context_for_ai.return_value = ""
+            mock_graphrag.get_context_for_ai = AsyncMock(return_value="")
             mock_formula_mgr.return_value.search_formulas.return_value = []
             mock_db = AsyncMock()
             mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
-            mock_get_db.return_value.__enter__.return_value = mock_db
+            mock_get_db.return_value = mock_db
             mock_episode_svc.return_value.retrieve_contextual.return_value = {"episodes": []}
 
             # Call the method
@@ -543,14 +548,14 @@ class TestRecallExperiences:
         # Mock other dependencies
         with patch('core.graphrag_engine.graphrag_engine') as mock_graphrag, \
              patch('core.formula_memory.get_formula_manager') as mock_formula_mgr, \
-             patch('core.agent_world_model.get_db_session') as mock_get_db, \
+             patch('core.agent_world_model.SessionLocal') as mock_get_db, \
              patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_svc:
 
-            mock_graphrag.get_context_for_ai.return_value = ""
+            mock_graphrag.get_context_for_ai = AsyncMock(return_value="")
             mock_formula_mgr.return_value.search_formulas.return_value = []
             mock_db = AsyncMock()
             mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
-            mock_get_db.return_value.__enter__.return_value = mock_db
+            mock_get_db.return_value = mock_db
             mock_episode_svc.return_value.retrieve_contextual.return_value = {"episodes": []}
 
             # Call the method
@@ -640,11 +645,11 @@ class TestRecallExperiences:
         # Mock other dependencies
         with patch('core.graphrag_engine.graphrag_engine') as mock_graphrag, \
              patch('core.formula_memory.get_formula_manager') as mock_formula_mgr, \
-             patch('core.agent_world_model.get_db_session') as mock_get_db, \
+             patch('core.agent_world_model.SessionLocal') as mock_get_db, \
              patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_svc:
 
             # GraphRAG returns context
-            mock_graphrag.get_context_for_ai.return_value = "GraphRAG context: data analysis patterns"
+            mock_graphrag.get_context_for_ai = AsyncMock(return_value="GraphRAG context: data analysis patterns")
 
             # Formula manager returns formulas
             mock_formula_mgr.return_value.search_formulas.return_value = [
@@ -673,7 +678,7 @@ class TestRecallExperiences:
 
             mock_db = Mock()
             mock_db.query.return_value = mock_query
-            mock_get_db.return_value.__enter__.return_value = mock_db
+            mock_get_db.return_value = mock_db
 
             # Episode service returns episodes
             mock_episode_svc.return_value.retrieve_contextual = AsyncMock(return_value={
@@ -739,16 +744,16 @@ class TestRecallExperiences:
         # Mock dependencies
         with patch('core.graphrag_engine.graphrag_engine') as mock_graphrag, \
              patch('core.formula_memory.get_formula_manager') as mock_formula_mgr, \
-             patch('core.agent_world_model.get_db_session') as mock_get_db, \
+             patch('core.agent_world_model.SessionLocal') as mock_get_db, \
              patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_svc:
 
-            mock_graphrag.get_context_for_ai.return_value = ""
+            mock_graphrag.get_context_for_ai = AsyncMock(return_value="")
             mock_formula_mgr.return_value.search_formulas.return_value = []
 
             # Empty conversations
             mock_db = AsyncMock()
             mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
-            mock_get_db.return_value.__enter__.return_value = mock_db
+            mock_get_db.return_value = mock_db
 
             # Mock episode service with canvas context
             mock_episode_instance = AsyncMock()
@@ -806,7 +811,7 @@ class TestRecallExperiences:
         # Mock dependencies to raise exceptions
         with patch('core.graphrag_engine.graphrag_engine') as mock_graphrag, \
              patch('core.formula_memory.get_formula_manager') as mock_formula_mgr, \
-             patch('core.agent_world_model.get_db_session') as mock_get_db, \
+             patch('core.agent_world_model.SessionLocal') as mock_get_db, \
              patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_svc:
 
             # All optional dependencies raise exceptions
@@ -816,7 +821,7 @@ class TestRecallExperiences:
             # Database also raises exception
             mock_db = AsyncMock()
             mock_db.query.side_effect = Exception("Database unavailable")
-            mock_get_db.return_value.__enter__.side_effect = Exception("DB session failed")
+            mock_get_db.side_effect = Exception("DB session failed")
 
             # Episode service raises exception
             mock_episode_svc.side_effect = Exception("Episode service unavailable")
@@ -1324,9 +1329,8 @@ class TestArchiveSessionToColdStorage:
         mock_order.all.return_value = []
 
         # Patch get_db_session
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__.return_value = mock_db_session
-            mock_get_db.return_value.__exit__ = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = mock_db_session
 
             # Call archive_session_to_cold_storage
             result = await world_model_service.archive_session_to_cold_storage(
@@ -1349,7 +1353,7 @@ class TestArchiveSessionToColdStorage:
         THEN return False and log error
         """
         # Mock get_db_session to raise Exception
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
             mock_get_db.side_effect = Exception("Database connection failed")
 
             # Call archive_session_to_cold_storage
@@ -2842,17 +2846,17 @@ class TestFactVerificationErrors:
             }
         ])
 
-        # Call get_fact_by_id (uses limit=1000 internally)
+        # Call get_fact_by_id (uses limit=200 internally)
         result = await world_model_service.get_fact_by_id("fact_1000")
 
         # Verify fact found
         assert result is not None
         assert result.id == "fact_1000"
 
-        # Verify search called with limit=1000
+        # Verify search called with limit=200
         mock_lancedb_handler.search.assert_called_once()
         call_args = mock_lancedb_handler.search.call_args
-        assert call_args[1]["limit"] == 1000
+        assert call_args[1]["limit"] == 200
 
     @pytest.mark.asyncio
     async def test_list_all_facts_with_filters(
@@ -2966,11 +2970,8 @@ class TestRecallExperiencesErrorHandling:
         mock_lancedb_handler.search = Mock(return_value=[])
 
         # Mock GraphRAG import to raise ImportError
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Patch EpisodeRetrievalService where it's imported in the method
             with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
@@ -3019,11 +3020,8 @@ class TestRecallExperiencesErrorHandling:
         # Mock LanceDB search to return empty
         mock_lancedb_handler.search = Mock(return_value=[])
 
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Patch EpisodeRetrievalService where it's imported in the method
             with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
@@ -3073,7 +3071,7 @@ class TestRecallExperiencesErrorHandling:
         mock_lancedb_handler.search = Mock(return_value=[])
 
         # Mock get_db_session to raise exception
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
             mock_get_db.side_effect = Exception("Database connection failed")
 
             # Patch EpisodeRetrievalService where it's imported in the method
@@ -3113,11 +3111,8 @@ class TestRecallExperiencesErrorHandling:
         # Mock LanceDB search to return empty
         mock_lancedb_handler.search = Mock(return_value=[])
 
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Mock EpisodeRetrievalService to raise exception
             # Patch EpisodeRetrievalService where it's imported in the method
@@ -3156,7 +3151,7 @@ class TestRecallExperiencesErrorHandling:
         mock_lancedb_handler.search = Mock(return_value=[])
 
         # Mock get_db_session to raise exception for conversations
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
             mock_get_db.side_effect = Exception("Database failed")
 
             # Mock EpisodeRetrievalService to raise exception
@@ -3237,11 +3232,8 @@ class TestRecallExperiencesErrorHandling:
             }
         ])
 
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Patch EpisodeRetrievalService where it's imported in the method
             with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
@@ -3308,11 +3300,8 @@ class TestRecallExperiencesErrorHandling:
             }
         ])
 
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Patch EpisodeRetrievalService where it's imported in the method
             with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
@@ -3389,11 +3378,8 @@ class TestRecallExperiencesErrorHandling:
             }
         ])
 
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Patch EpisodeRetrievalService where it's imported in the method
             with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
@@ -3438,6 +3424,7 @@ class TestRecallExperiencesErrorHandling:
                 "id": "exp-1",
                 "text": "Task: Test task\nInput: Input 1\nLearnings: Learning 1",
                 "created_at": datetime.now().isoformat(),
+                "score": 0.3,  # Semantic similarity used for ranking
                 "metadata": {
                     "agent_id": "agent-123",
                     "agent_role": "Finance",
@@ -3450,6 +3437,7 @@ class TestRecallExperiencesErrorHandling:
                 "id": "exp-2",
                 "text": "Task: Test task\nInput: Input 2\nLearnings: Learning 2",
                 "created_at": datetime.now().isoformat(),
+                "score": 0.9,  # Semantic similarity used for ranking
                 "metadata": {
                     "agent_id": "agent-123",
                     "agent_role": "Finance",
@@ -3462,6 +3450,7 @@ class TestRecallExperiencesErrorHandling:
                 "id": "exp-3",
                 "text": "Task: Test task\nInput: Input 3\nLearnings: Learning 3",
                 "created_at": datetime.now().isoformat(),
+                "score": 0.8,  # Semantic similarity used for ranking
                 "metadata": {
                     "agent_id": "agent-123",
                     "agent_role": "Finance",
@@ -3472,11 +3461,8 @@ class TestRecallExperiencesErrorHandling:
             }
         ])
 
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Patch EpisodeRetrievalService where it's imported in the method
             with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
@@ -3861,11 +3847,8 @@ class TestRecallExperiencesEpisodeEnrichment:
             }
         ]
 
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Patch EpisodeRetrievalService where it's imported in the method
             with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
@@ -3927,11 +3910,8 @@ class TestRecallExperiencesEpisodeEnrichment:
             }
         ]
 
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Patch EpisodeRetrievalService where it's imported in the method
             with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
@@ -3984,11 +3964,8 @@ class TestRecallExperiencesEpisodeEnrichment:
         # Mock LanceDB search to return empty
         mock_lancedb_handler.search = Mock(return_value=[])
 
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Patch EpisodeRetrievalService where it's imported in the method
             with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
@@ -4044,11 +4021,8 @@ class TestRecallExperiencesEpisodeEnrichment:
         # Mock LanceDB search to return empty
         mock_lancedb_handler.search = Mock(return_value=[])
 
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Patch EpisodeRetrievalService where it's imported in the method
             with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
@@ -4104,11 +4078,8 @@ class TestRecallExperiencesEpisodeEnrichment:
         # Mock LanceDB search to return empty
         mock_lancedb_handler.search = Mock(return_value=[])
 
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Patch EpisodeRetrievalService where it's imported in the method
             with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
@@ -4160,11 +4131,8 @@ class TestRecallExperiencesEpisodeEnrichment:
         # Mock LanceDB search to return empty
         mock_lancedb_handler.search = Mock(return_value=[])
 
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Patch EpisodeRetrievalService where it's imported in the method
             with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
@@ -4216,11 +4184,8 @@ class TestRecallExperiencesEpisodeEnrichment:
         # Mock LanceDB search to return empty
         mock_lancedb_handler.search = Mock(return_value=[])
 
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Patch EpisodeRetrievalService where it's imported in the method
             with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
@@ -4286,11 +4251,8 @@ class TestRecallExperiencesEpisodeEnrichment:
             }
         ]
 
-        with patch('core.agent_world_model.get_db_session') as mock_get_db:
-            mock_get_db.return_value.__enter__ = Mock()
-            mock_get_db.return_value.__exit__ = Mock()
-            mock_get_db.return_value.query = Mock()
-            mock_get_db.return_value.close = Mock()
+        with patch('core.agent_world_model.SessionLocal') as mock_get_db:
+            mock_get_db.return_value = Mock()
 
             # Patch EpisodeRetrievalService where it's imported in the method
             with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:

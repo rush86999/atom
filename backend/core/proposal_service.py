@@ -161,7 +161,7 @@ Please review and approve or reject this proposal.
 
         # Proposal is already in PENDING_APPROVAL status, just log
         logger.info(
-            f"Proposal {proposal.id} submitted for approval by {proposal.proposed_by}"
+            f"Proposal {proposal.id} submitted for approval by {proposal.user_id}"
         )
 
         # In production, this would send notification to supervisors
@@ -222,9 +222,14 @@ Please review and approve or reject this proposal.
         # Bug 12 fix: only now (after successful execution) apply mutations
         # to the persisted proposal row. Previously mutations were applied
         # BEFORE execution, so a failure left the row in an inconsistent state.
+        # Reassign proposal_data (the JSON column) with a NEW dict — in-place
+        # mutation of the JSON value is not tracked by SQLAlchemy, so it would
+        # silently fail to persist the modified action.
         if modifications:
             if proposal.proposed_action:
-                proposal.proposed_action.update(modifications)
+                merged_action = dict(proposal.proposed_action)
+                merged_action.update(modifications)
+                proposal.proposal_data = merged_action
             proposal.modifications = modifications
 
         proposal.execution_result = execution_result
@@ -370,7 +375,7 @@ Please review and approve or reject this proposal.
                 "created_at": proposal.created_at.isoformat(),
                 "approved_at": proposal.approved_at.isoformat() if proposal.approved_at else None,
                 "approved_by": proposal.approved_by,
-                "execution_result": proposal.execution_result
+                "execution_result": getattr(proposal, "execution_result", None)
             })
 
         return history
@@ -910,7 +915,7 @@ Please review and approve or reject this proposal.
                 description=f"INTERN agent proposal {outcome} by human reviewer",
                 summary=proposal_content[:200] + "..." if len(proposal_content) > 200 else proposal_content,
                 agent_id=proposal.agent_id,
-                user_id=proposal.approved_by or proposal.proposed_by,
+                user_id=proposal.approved_by or proposal.user_id,
                 workspace_id="default",
 
                 # Link to proposal (NEW)
