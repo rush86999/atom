@@ -263,6 +263,24 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | 2026-08-07 | FE full suite + coverage | GREEN | **6,628 passed / 0 failed; 43.2% lines** (was 37.0%) |
 | 2026-08-07 | Backend chunked coverage (unit/api/core/database/security) | MEASURED | **30.0%** for that scope (was 22.6% — suite fixes +7.4pts); full picture pending root chunk |
 
+### Resolved 2026-08-07 (R84 wave — pushed `aad31a12a` + `ee0a0a50f`)
+| Date | Area | Status | Result |
+|---|---|---|---|
+| 2026-08-07 | `/api/components/*` router (main_api_app.py) | FIXED (SECURITY) | unmounted since Feb 2026 — the whole SECU-04 layer (HTML/CSS/JS sanitizers, whitelist, governance) was 404; restored |
+| 2026-08-07 | canvas JS validator | FIXED (SECURITY) | BLOCKED_JS_PATTERNS missing fetch(/XMLHttpRequest/sendBeacon/document.cookie/localStorage/sessionStorage/postMessage/window.location/createElement('script')/eval variants/Function constructor/require(/import(/process/.constructor( → exfiltration payloads persisted verbatim |
+| 2026-08-07 | governance case bug | FIXED (SECURITY) | `agent.status != 'AUTONOMOUS'` vs enum value `autonomous` → blocked ALL JS component creation |
+| 2026-08-07 | `core/workflow_engine.py` | FIXED | graph path called nonexistent analytics.track_step_execution; linear path dropped continue_on_error; `_run_execution` 4 DB blocks' try/except INSIDE `with` → exit commit raised outside guard → runs marked FAILED before any step |
+| 2026-08-07 | `core/scheduler.py` | FIXED | scheduled callables were closures → SQLAlchemyJobStore ValueError at add_job; moved to module level |
+| 2026-08-07 | `tests/property_tests/conftest.py` | FIXED | db_engine fixture permanently rebound GLOBAL core.database.SessionLocal → every get_db_session() hit a disposed engine after first suite (cross-suite pollution root cause) |
+| 2026-08-07 | `tests/unit/test_lancedb_handler.py` | FIXED | 28F → 62p (stale API + MockEmbedder constant seed → identical vectors for different texts) |
+| 2026-08-07 | `tests/security/test_canvas_security.py` | FIXED | 23F+12E → 47p (dead /api/components surface, auth fixture) |
+| 2026-08-07 | `tests/security/test_canvas_javascript_security_extended.py` | FIXED | 15F → 56p (edge middleware 400s now asserted) |
+| 2026-08-07 | workflow engine suites (3 files) | FIXED | 120p + 209 pinned (stale step API, versioning semantics, FakeStateManager) |
+| 2026-08-07 | scheduler/admin suites (3 files) | FIXED | 80p |
+| 2026-08-07 | auth security suites + unit/test_llm_service | FIXED | 113p, security verdict PASS (no failing-open gates) |
+| 2026-08-07 | 5-file cross-suite batch | GREEN | **232 passed / 0 failed** (pollution repro fixed) |
+| 2026-08-07 | Backend chunked coverage (unit+api+core so far) | MEASURED | **32.8%** (was 30.0% same scope; suite fixes compounding; full number pending clean single-owner run) |
+
 ## Known remaining work (verified at last run — updated 2026-08-07)
 - `core/models.py` `OAuthToken` — server-side model; verify `api/oauth` routes don't use stale columns (Notion/Spotify moved to IntegrationToken; sweep remaining writers)
 - `tests/test_cognitive_tier_e2e.py` — 11 collection ERRORS remain after the survey-sweep alignment (23 pass / 11 error; the stale `CognitiveTierPreference` kwargs were fixed but 11 tests still fail at setup — next target)
