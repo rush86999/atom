@@ -824,13 +824,12 @@ class TestReadBridge:
             tenant_id="t1", provider="notion", access_token="tok", token_type="Bearer",
         ))
         db_session.commit()
-        from core import external_integration_service as eis
+        import core.mini_app_integration_dispatch as dispatch_mod
 
-        class FakeEIS:
-            async def execute_integration_action(self, **kw):
-                return SimpleNamespace(data={"pages": 1})
+        async def fake_dispatch(service, action, params, tenant_id=None, db=None):
+            return {"ok": True, "data": {"pages": 1}, "service": service, "action": action}
 
-        monkeypatch.setattr(eis, "ExternalIntegrationService", FakeEIS)
+        monkeypatch.setattr(dispatch_mod, "dispatch", fake_dispatch)
         out = await _inject_integration_sources(
             {"integrations": [{"service": "notion", "action": "search", "params": {"q": 1}}]},
             "t1", "w1", "a1", db=db_session,
@@ -905,35 +904,33 @@ class TestCallbackHandler:
     @pytest.mark.asyncio
     async def test_allowed_ok_and_too_large(self, db_session, monkeypatch):
         from core.mini_app_service import _DEFAULT_DATA_SOURCE_CAP, _make_callback_handler
-        from core import external_integration_service as eis
+        import core.mini_app_integration_dispatch as dispatch_mod
 
-        class FakeEIS:
-            async def execute_integration_action(self, **kw):
-                return SimpleNamespace(data={"ok": 1})
+        async def fake_dispatch(service, action, params, tenant_id=None, db=None):
+            return {"ok": True, "data": {"ok": 1}, "service": service, "action": action}
 
-        monkeypatch.setattr(eis, "ExternalIntegrationService", FakeEIS)
+        monkeypatch.setattr(dispatch_mod, "dispatch", fake_dispatch)
         h = _make_callback_handler(db_session, "t1", ("*",), "w1", "a1")
         res = await h({"kind": "fetch_integration", "service": "notion", "action": "search", "params": {}})
-        assert res == {"ok": True, "data": {"ok": 1}}
+        assert res.get("ok") is True
+        assert res.get("data") == {"ok": 1}
 
-        class BigEIS:
-            async def execute_integration_action(self, **kw):
-                return SimpleNamespace(data={"pad": "x" * (_DEFAULT_DATA_SOURCE_CAP + 1)})
+        async def big_dispatch(service, action, params, tenant_id=None, db=None):
+            return {"ok": True, "data": {"pad": "x" * (_DEFAULT_DATA_SOURCE_CAP + 1)}, "service": service, "action": action}
 
-        monkeypatch.setattr(eis, "ExternalIntegrationService", BigEIS)
+        monkeypatch.setattr(dispatch_mod, "dispatch", big_dispatch)
         res = await h({"kind": "fetch_integration", "service": "notion", "action": "search"})
         assert res == {"ok": False, "error": "result_too_large"}
 
     @pytest.mark.asyncio
     async def test_failed(self, db_session, monkeypatch):
         from core.mini_app_service import _make_callback_handler
-        from core import external_integration_service as eis
+        import core.mini_app_integration_dispatch as dispatch_mod
 
-        class BoomEIS:
-            async def execute_integration_action(self, **kw):
-                raise RuntimeError("down")
+        async def boom_dispatch(service, action, params, tenant_id=None, db=None):
+            raise RuntimeError("down")
 
-        monkeypatch.setattr(eis, "ExternalIntegrationService", BoomEIS)
+        monkeypatch.setattr(dispatch_mod, "dispatch", boom_dispatch)
         h = _make_callback_handler(db_session, "t1", ("*",), "w1", "a1")
         res = await h({"kind": "fetch_integration", "service": "notion", "action": "search"})
         assert res == {"ok": False, "error": "failed"}

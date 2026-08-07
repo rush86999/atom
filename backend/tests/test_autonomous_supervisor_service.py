@@ -84,7 +84,7 @@ def agent_proposal():
 @pytest.fixture
 def service(mock_db):
     """AutonomousSupervisorService instance."""
-    return AutonomousSupervisorService(mock_db)
+    return AutonomousSupervisorService(mock_db, poll_interval=0.01, max_duration_seconds=2)
 
 
 # ============================================================================

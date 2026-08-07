@@ -47,7 +47,7 @@ class UUID(TypeDecorator):
             return value
         if dialect.name == 'postgresql':
             return value
-        return uuid.UUID(value) if isinstance(value, str) else value
+        return str(value)
 
 
 class JSONColumn(TypeDecorator):

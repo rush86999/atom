@@ -70,8 +70,15 @@ class AutonomousSupervisorService:
     - Must be AUTONOMOUS maturity (>0.9 confidence)
     """
 
-    def __init__(self, db: Session):
+    def __init__(
+        self,
+        db: Session,
+        poll_interval: float = 2.0,
+        max_duration_seconds: int = 30 * 60,
+    ):
         self.db = db
+        self.poll_interval = poll_interval
+        self.max_duration_seconds = max_duration_seconds
 
     async def find_autonomous_supervisor(
         self,
@@ -236,9 +243,9 @@ class AutonomousSupervisorService:
         # Poll execution status
         import asyncio
 
-        max_duration_seconds = 30 * 60  # 30 minutes max
+        max_duration_seconds = self.max_duration_seconds
         start_time = datetime.now()
-        poll_interval = 2  # Poll every 2 seconds
+        poll_interval = self.poll_interval
 
         try:
             while (datetime.now() - start_time).total_seconds() < max_duration_seconds:
