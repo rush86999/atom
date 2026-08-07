@@ -32,7 +32,7 @@ AI capabilities, knowledge management, and cognitive systems.
 
 ### Agent Learning
 - **[Agent Graduation Guide](../agents/graduation.md)** — Agent promotion system
-- **Student Agent Training** — Training workflow ([archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](../archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md))
+- **Student Agent Training** — Training workflow ([guides/AGENT_MATURITY_GOVERNANCE.md](../guides/AGENT_MATURITY_GOVERNANCE.md))
 - **🆕 Enhanced Governance Integration** — Three-layer governance with intelligence systems
 
 ### Enhanced Governance (2026) ✨

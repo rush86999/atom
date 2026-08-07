@@ -1,480 +1,232 @@
 # Atom User Guide
 
+> **Last Updated:** August 2026  
+> **Platform:** Atom Open Source — AI Agent Workforce
+
+---
+
 ## Welcome to Atom
 
-Atom is your intelligent personal assistant that helps you manage your entire life in one place. From calendar management and task organization to financial tracking and AI-powered automation, Atom brings all your productivity tools together with advanced AI capabilities.
+Atom is a **self-hosted AI agent workforce** — a team of governed, sandboxed agents your employees can delegate work to with confidence. Instead of one assistant, Atom runs a team of specialty agents (sales, support, finance, engineering) that your people delegate to in plain language. Agents plan, verify, and execute complex workflows across your entire tech stack.
+
+**Key Principles:**
+- **Trusted by design**: Every agent action is governed by a 4-tier maturity model, executed inside a default-on sandbox, and recorded in a complete audit trail — with human-in-the-loop approval wherever you want it
+- **Your data stays yours**: Workflow data, agent state, and memory live on your infrastructure. LLM inference uses your own API keys (BYOK) — or local models (Ollama) for fully private deployments
+- **No lock-in**: 16+ LLM providers with automatic cost-aware routing, fallback, and self-healing
+
+---
 
 ## Getting Started
 
 ### First Time Setup
 
-1. **Account Creation**
-   - Visit `/auth/signup` to create an account
-   - Sign up with email and password (minimum 8 characters)
-   - Or use social login: Google or GitHub
-   - Complete the onboarding wizard to configure your preferences
-   - Connect your essential services (calendar, email, etc.)
-
-2. **Sign In Options**
-   - Email and password
-   - Google OAuth
-   - GitHub OAuth
-   - Forgot password? Use the password reset flow
-
-3. **Dashboard Overview**
-   - Access the main dashboard for an overview of your day
-   - View upcoming events, pending tasks, and recent messages
-   - Monitor connected services and system status
-
-3. **Basic Navigation**
-   - Use the main tabs: Overview, Workflow Automation, Service Integrations, Service Management
-   - Access specialized pages: Calendar, Tasks, Communication, Finance, Agents, Automations, Voice
-
-## Core Features
-
-### 📅 Calendar Management
-
-**Smart Scheduling**
-- Create and manage events with natural language input
-- Automatic conflict detection and resolution
-- Find optimal meeting times across multiple calendars
-- Set recurring events with custom patterns
-
-**Event Templates**
-- Train events to create reusable templates
-- Apply consistent settings (duration, color, reminders) automatically
-- Use semantic search to find similar events
-
-**Multi-Calendar Support**
-- Connect Google Calendar, Outlook Calendar, and other providers
-- View all calendars in a unified interface
-- Manage availability across different accounts
-
-### ✅ Task Management
-
-**Task Creation & Organization**
-- Create tasks with priorities, due dates, and categories
-- Organize tasks using Kanban boards or lists
-- Set dependencies between related tasks
-- Add detailed descriptions and attachments
-
-**Project Management**
-- Group tasks into projects with shared goals
-- Track progress with visual indicators
-- Assign tasks to team members (in team plans)
-- Monitor project timelines and milestones
-
-**Smart Prioritization**
-- Automatic priority assignment based on due dates and importance
-- Focus mode for high-priority tasks
-- Daily task recommendations
-
-### 🌐 Universal Communication Hub
-**Atom Anywhere**
-- **11+ Supported Platforms**: Connect with Atom via Slack, WhatsApp, Discord, Microsoft Teams, Telegram, Google Chat, Twilio (SMS), Matrix, Facebook Messenger, Line, and Signal.
-- **Standardized Messaging**: All platforms share a unified interface (`UnifiedIncomingMessage`), ensuring consistent agent behavior regardless of where you message from.
-
-**Platform Native Commands**
-- `/run [workflow_name]`: Directly trigger a specific workflow.
-- `/workflow [query]`: Search for and list available workflows.
-- `/agents`: Discover specialized agents currently active in your workforce.
-- `/help`: Get a list of supported commands and capabilities.
-
-**Async Feedback Loop**
-- Receive real-time updates and status reports directly in your chat thread.
-- Human-in-the-loop approvals can be processed directly via chat buttons or response keywords.
-
-### 💰 Financial Dashboard
-
-**Transaction Management**
-- View all financial transactions in one dashboard
-- Automatic categorization of expenses and income
-- Set custom categories and rules
-- Import transactions from multiple sources
-
-**Budget Planning**
-- Create and track monthly budgets
-- Set spending limits by category
-- Receive alerts for unusual spending
-- View budget vs. actual comparisons
-
-**Financial Insights**
-- Visual charts and reports
-- Spending patterns and trends
-- Savings goals tracking
-- Investment portfolio overview
-### 🚀 Sales & CRM Intelligence
-
-**Lead Qualification & Intake**
-- Automatically ingest leads from Zoho CRM, HubSpot, and Salesforce
-- AI-powered lead scoring based on firmographics and behavior
-- Intelligent spam and competitor filtering
-- Natural language queries like "Show me my top leads this week"
-
-**Deal Health & Pipeline Analytics**
-- Real-time health scoring for every deal in your pipeline
-- Automated risk detection for stalled or inactive deals
-- Weighted forecasting based on deal value and health scores
-- "High-Risk Deal" alerts to focus your attention where it matters most
-
-**Call & Meeting Automation**
-- "Talk-to-Task" conversion: Summaries and action items extracted from transcripts
-- Automatic creation of follow-up tasks linked to deals
-- Objection tracking: Summaries of red flags and concerns raised in meetings
-- Semantic search across all historical sales calls and transcripts
-
-## Advanced Features
-
-### 🤖 Multi-Agent System (Enhanced 2026)
-
-**Agent Management**
-- Create specialized AI agents for different tasks
-- Assign roles: Personal Assistant, Research Agent, Coding Agent, Data Analyst, etc.
-- Configure agent capabilities and permissions
-- Monitor agent performance and activity
-
-**Agent Maturity Levels (4-Tier Governance)** ✨ NEW
-- **STUDENT**: Read-only access (charts, markdown presentations)
-- **INTERN**: Streaming and form presentations (requires approval for state changes)
-- **SUPERVISED**: Full access with real-time supervision monitoring
-- **AUTONOMOUS**: Complete independence, no oversight required
-
-**Agent Graduation** ✨ ENHANCED
-- Experience-driven promotion based on quality, not just episode count
-- 20% improvement in graduation accuracy with POMDP memory framework
-- Canvas feedback contributes to graduation criteria
-- Intervention rate trajectory analysis for fair assessment
-
-**Example**:
-```
-You: "Atom, create a research agent for competitive analysis."
-Atom: "Creating new agent 'CompetitiveAnalyst' with STUDENT maturity.
-The agent can present charts and summaries but cannot modify data.
-As it learns from your feedback, it will graduate to higher maturity levels."
-```
-
-**Enhanced Coordination (2026)** ✨ NEW
-- **Conductor Agent**: Orchestrates complex workflows with 5 execution strategies
-  - SEQUENTIAL: Step-by-step execution
-  - PARALLEL: Concurrent task execution
-  - HYBRID: Mixed sequential and parallel
-  - ADAPTIVE: Adjusts based on feedback
-  - ROLLBACK_SAFE: Automatic recovery on errors
-- **Event Bus**: Real-time event-driven workflow triggering
-- **Workflow Templates**: 8 composition primitives for common patterns
-
-### 🧠 Episodic Memory (Enhanced 2026) ✨ NEW
-
-**Memory Framework**
-- **POMDP (Partially Observable Markov Decision Process)**: Formal memory-as-learning framework
-- **Write-Manage-Read Loop**: Structured memory creation, management, and retrieval
-- **Quality-Weighted Episodes**: High-quality experiences weighted more heavily
-- **Memory Consolidation**: Overnight processing (inspired by human sleep)
-
-**Memory Retrieval Modes**
-- **Temporal**: Recent episodes first
-- **Semantic**: Vector similarity search
-- **Sequential**: Episode chains with context
-- **Contextual**: Situation-aware retrieval
-
-**Canvas-Enhanced Memory** ✨ ENHANCED
-- Canvases automatically linked to episodes
-- User feedback on presentations improves future retrieval
-- Canvas engagement patterns influence learning
-
-**Example**:
-```
-You: "Atom, what did I decide about the Q4 budget?"
-Atom: "Based on Episode #45 (Budget Meeting, Oct 15): You approved $50K for
-marketing with the condition to review results in 30 days. [Canvas shows
-the original budget chart you presented and approved]"
-```
-
-### 🔍 Knowledge Graph & GraphRAG (Enhanced 2026) ✨ NEW
-
-**Multi-Hop Query Expansion**
-- Trace relationships across multiple entities
-- Cue-driven activation for relevant information
-- Configurable hop depth limits
-
-**Dynamic Graph Construction**
-- Incremental updates (no full rebuild required)
-- Temporal graph evolution tracking
-- Graph versioning for rollback capability
-
-**Community Detection**
-- Leiden algorithm for entity clustering
-- Community-based summarization
-- Optimized query performance using clusters
-
-**Example**:
-```
-You: "Show me how the Q4 budget connects to marketing results."
-Atom: "Tracing relationships: Budget → (hop 1) → Marketing Campaign →
-(hop 2) → Customer Acquisition → (hop 3) → Revenue Impact. [Canvas shows
-connected knowledge graph with 7 related entities]"
-```
-
-### 🔌 Deep Integrations (35+)
-
-**Communication**
-- Email: Gmail, Outlook
-- Chat: Slack, Microsoft Teams, Discord
-- Social: Twitter, LinkedIn
-
-**Productivity**
-- Task Management: Notion, Trello, Asana, Jira
-- File Storage: Google Drive, Dropbox, OneDrive, Box
-- Calendar: Google Calendar, Outlook Calendar
-
-**Finance**
-- Banking: Plaid integration
-- Accounting: QuickBooks, Xero
-- Payments: Stripe, PayPal
-
-**CRM & Business**
-- CRM: Salesforce, HubSpot
-- E-commerce: Shopify
-- Development: GitHub
-
-### ⚙️ Automation Workflows
-
-**Visual Workflow Editor**
-- Create automation workflows with drag-and-drop interface
-- Connect triggers, actions, and conditions
-- Build complex multi-step automations
-- Test workflows before activation
-
-**Trigger Configuration**
-- Set up triggers from various sources:
-  - Calendar events
-  - Email messages
-  - Task completions
-  - Time-based schedules
-  - Webhook events
-  - Voice commands
-
-**Workflow Monitoring**
-- Real-time execution tracking
-- Error handling and retry logic
-- Performance analytics
-- Execution history and logs
-
-### 🎤 Voice & AI Features
-
-**Voice Commands**
-- Use natural language to control Atom
-- Common commands:
-  - "Open calendar" - Navigate to calendar view
-  - "Create task" - Add new task
-  - "Check messages" - View recent communications
-  - "Show finances" - Open financial dashboard
-  - "Start workflow" - Trigger automation
-
-**Wake Word Detection**
-- Hands-free activation with wake word "Atom"
-- Continuous listening in web version
-- Event-based activation in desktop version
-- Privacy-focused audio processing
-
-**AI Chat Interface**
-- Natural conversation with AI assistant
-- Context-aware responses
-- Multi-session chat management
-- File attachments and processing
-- Model selection and configuration
-
-## Service Integrations
-
-### Available Integrations
-
-**Communication**
-- Email: Gmail, Outlook
-- Chat: Slack, Microsoft Teams, Discord
-- Social: Twitter, LinkedIn
-
-**Productivity**
-- Task Management: Notion, Trello, Asana, Jira
-- File Storage: Google Drive, Dropbox, OneDrive, Box
-- Calendar: Google Calendar, Outlook Calendar
-
-**Finance**
-- Banking: Plaid integration
-- Accounting: QuickBooks, Xero
-- Payments: Stripe, PayPal
-
-**CRM & Business**
-- CRM: Salesforce, HubSpot
-- E-commerce: Shopify
-- Development: GitHub
-
-### Integration Setup
-
-1. **Access Settings**
-   - Navigate to Service Management
-   - Select the service you want to connect
-   - Follow the OAuth authorization flow
-
-2. **Configuration**
-   - Set sync preferences and frequency
-   - Configure data access permissions
-   - Test connection and verify data flow
-
-3. **Management**
-   - Monitor sync status and errors
-   - Revoke access when needed
-   - Update configuration settings
-
-## Settings & Preferences
-
-### Personalization
-
-**Appearance**
-- Light/Dark theme selection
-- Custom color schemes
-- Layout preferences
-- Font size and accessibility options
-
-**Notifications**
-- Email notifications for important events
-- Browser push notifications
-- Mobile app alerts
-- Quiet hours and do-not-disturb
-
-**Privacy & Security**
-- Data retention settings
-- Export personal data
-- Account security options
-- Connected app permissions
-
-### Performance Optimization
-
-**Data Management**
-- Cache settings for faster loading
-- Data sync frequency
-- Storage usage monitoring
-- Cleanup and optimization tools
-
-**Network Settings**
-- API rate limit configuration
-- Offline mode preferences
-- Bandwidth usage optimization
-
-## Tips & Best Practices
-
-### Daily Workflow
-
-**Morning Routine**
-1. Check dashboard for daily overview
-2. Review and prioritize tasks
-3. Schedule focus time blocks
-4. Set daily intentions with AI assistant
-
-**Throughout the Day**
-- Use voice commands for quick actions
-- Let automations handle routine tasks
-- Monitor agent performance
-- Stay on top of communications
-
-**Evening Wrap-up**
-- Review completed tasks
-- Plan for tomorrow
-- Check financial updates
-- Archive completed conversations
-
-### Productivity Tips
-
-**Task Management**
-- Break large projects into smaller tasks
-- Use due dates and priorities effectively
-- Leverage templates for recurring tasks
-- Review and adjust priorities regularly
-
-**Calendar Optimization**
-- Use time blocking for focused work
-- Schedule buffer time between meetings
-- Set realistic time estimates
-- Use event templates for consistency
-
-**Communication Efficiency**
-- Use quick replies for common responses
-- Schedule messages for optimal timing
-- Leverage AI for message drafting
-- Archive completed conversations
+1. **Deploy Atom**
+   - **Quick local**: `git clone && make setup && make backend` (see [Quick Start](getting_started/quick-start.md))
+   - **Docker**: `docker compose -f docker-compose-personal.yml up -d --build`
+   - **DigitalOcean 1-click**: [Deploy →](https://cloud.digitalocean.com/apps/new?repo=https://github.com/rush86999/atom/tree/main&config=deploy/digitalocean/app.yaml)
+
+2. **Configure LLM Provider** (at least one required)
+   ```bash
+   # backend/.env — set at least one
+   OPENAI_API_KEY=sk-...
+   # ANTHROPIC_API_KEY=sk-ant-...
+   # DEEPSEEK_API_KEY=...
+   # GOOGLE_API_KEY=...
+   # OPENCODE_API_KEY=oc_...  # Low-cost subscription (~90% savings)
+   # ATOM_LOCAL_ONLY=true + OLLAMA_BASE_URL=http://localhost:11434/v1  # Fully local
+   ```
+
+3. **Access the UI**
+   - Frontend: http://localhost:3001
+   - Backend API: http://localhost:8001
+   - API Docs (Swagger): http://localhost:8001/docs
+   - Admin user: `admin@example.com` (password in `backend/logs/bootstrap_admin_password.txt`)
+
+---
+
+## Core Capabilities
+
+### 🤖 Multi-Agent Workforce
+
+| Agent Type | Purpose | Governance |
+|------------|---------|------------|
+| **Queen Agent** | Structured workflow automation (scheduled, repeatable) | Workflow-level |
+| **Fleet Admiral** | Open-ended task resolution (dynamic specialist recruitment) | Task-level |
+| **Specialist Agents** | Domain-specific: research, coding, data analysis, sales, support | Maturity-gated |
+
+**Maturity Tiers (4-Level Governance):**
+- **STUDENT** (<0.5 confidence): Read-only — charts, markdown, presentations
+- **INTERN** (0.5–0.7): Streaming, forms, browser automation — requires approval for state changes
+- **SUPERVISED** (0.7–0.9): Full access with real-time supervision monitoring
+- **AUTONOMOUS** (>0.9): Complete independence, no oversight required
+
+Agents **graduate** automatically based on clean execution history (10/25/50 episodes for Bronze/Silver/Gold).
+
+### 🎯 AI-Generated Workflow Automation
+
+**Describe the outcome. Atom builds and runs the workflow.**
+
+| What you say | What Atom delivers |
+|--------------|-------------------|
+| *"When a lead comes in HubSpot, research the company, score it, create an Asana task for the rep, and ping Slack"* | A governed, replayable workflow with Human-in-the-Loop approval gates |
+| *"Extract invoice data from Gmail PDFs, match against QuickBooks, flag discrepancies"* | End-to-end pipeline: Gmail → PDF OCR → QuickBooks reconciliation → Slack alert |
+| *"Monitor Zendesk tickets for sentiment, auto-escalate urgent ones, draft replies"* | Real-time triage agent with approval before send |
+| *"Generate a weekly sales report from Salesforce, format in Excel, email the team"* | Scheduled workflow: SOQL query → formula-evaluated Excel → Office 365 send |
+
+**Why it's different from Zapier/Make/n8n:**
+- **Agents, not just steps** — Agents *reason*: they research, decide, retry, and self-correct
+- **Governance built-in** — Maturity gates, HITL approval, audit trail, sandbox isolation
+- **Self-hosted & private** — Your data, your keys, your infrastructure
+- **Office-native** — Real Excel/Word/PPTX with formula evaluation, live Canvas co-editing
+- **Agent-authored** — You can *chat with an agent* to build/modify workflows (no drag-and-drop required)
+
+### 💼 Office Automation & Canvas Co-Editing
+
+- **Real-time Excel/Word/PowerPoint editing** — no Microsoft Office required
+- **Formula-evaluating workbook runtime** — LibreOffice → `formulas` lib → openpyxl fallback
+- **Interactive Canvas co-editing** with real-time sync (WebSocket `canvas:update`)
+- **Bi-directional sync** — Agent edits on Canvas appear in Office file and vice versa
+- **CLI and REST API** integration tools for programmatic access
+
+### 🧩 Mini-Apps (Aug 2026)
+
+**Stateful, resumable canvas apps you build by chatting with an agent:**
+- Agent-driven authoring: scaffold → write logic → acceptance tests → publish → install
+- State persists between runs (versioned, latest-wins) with live WebSocket updates
+- Each logic run executes in a **Firecracker microVM** (read-only rootfs, no host FS, no network)
+- An app's declared scopes are always capped by the viewer's tier — **no privilege escalation**
+- Versioned copy-on-install: publishing snapshots a credential-stripped blueprint; installs are fresh instances
+- **Per-instance user↔agent chat** — talk to the agent about *this specific app instance*
+
+[Mini-Apps User Guide →](guides/MINI_APPS_GUIDE.md)
+
+### 🔌 46+ Business Integrations
+
+| Category | Services |
+|----------|----------|
+| **CRM** | Salesforce, HubSpot, Pipedrive, Zoho CRM |
+| **Communication** | Slack, Microsoft Teams, Discord, Gmail, Outlook, Google Chat, Zoom |
+| **Project Management** | Jira, Linear, Asana, Trello, Notion, Monday, ClickUp, GitHub, GitLab, GitLab |
+| **Finance** | Stripe, QuickBooks, Xero, Plaid, PayPal |
+| **Support** | Zendesk, Freshdesk, Intercom |
+| **Storage** | Google Drive, OneDrive, Dropbox, Box |
+| **Marketing** | Mailchimp, Meta Ads, Google Ads, LinkedIn Ads |
+| **E-Commerce** | Shopify |
+| **Development** | GitHub, GitLab, Figma, Bitbucket |
+| **HR** | BambooHR, Greenhouse, Workday |
+
+Each integration supports OAuth 2.0 with encrypted token storage (Fernet), auto-refresh, and webhook verification.
+
+[Third-Party Integrations Guide →](integrations/THIRD_PARTY_INTEGRATIONS.md)
+
+### 🧠 Memory & Intelligence
+
+| System | Purpose |
+|--------|---------|
+| **Per-Turn Fact Extraction** | Durable facts (5 categories) extracted every turn; sub-ms SQL recall + LanceDB semantic |
+| **Episodic Memory** | Hybrid PG+LanceDB; 4 retrieval modes (temporal, semantic, outcome-filtered, graduation-gated) |
+| **GraphRAG** | 6 entity types, multi-hop expansion, Leiden community detection, JIT fact verification |
+| **Learning LLM Router** | Per-model satisfaction predictors re-rank candidates from observed outcomes + user feedback |
+| **Self-Evolution** | Reflection Pool → Memento-Skills → AlphaEvolver optimization → human approval → install |
+
+### 🛡️ Production-Ready Security (Default-On)
+
+| Layer | What You Get |
+|-------|--------------|
+| **Execution Sandbox** | FS scope, tool whitelist, tripwires, caps, KillRun, Firecracker microVM — enforced on *every* dispatch path |
+| **Encrypted Credentials** | OAuth tokens encrypted at rest (Fernet); production fails closed without key |
+| **Per-Agent Capability Bindings** | Zero-trust tool scoping — agent can never exceed its tier floor |
+| **Outbound Gatekeeper** | Rate limiting, response masking, HITL mutation approval on integration calls |
+| **Data-Taint Tracking** | Restricted data observed in a run blocks external outbound actions |
+| **External MCP Client** | Connect to arbitrary external MCP servers (Cloudflare portals) |
+
+[Security Architecture →](docs/architecture/CLOUDFLARE_OS_SECURITY.md)
+
+---
+
+## Daily Workflows by Role
+
+### For End Users (Employees)
+
+1. **Chat with agents** — "Research this lead and draft an outreach email"
+2. **View Canvas presentations** — Charts, forms, markdown rendered by agents
+3. **Co-edit Office files** — Live sync between Canvas and Excel/Word/PPTX
+4. **Approve proposals** — HITL approvals for agent actions requiring supervision
+5. **Run Mini-Apps** — Use agent-authored apps; chat with the co-pilot agent
+
+### For Workflow Creators
+
+1. **Describe outcomes** — "When X happens, do Y with approval from Z"
+2. **Use Queen Agent** — Structured, scheduled workflows with visual builder
+3. **Use Fleet Admiral** — Open-ended tasks requiring dynamic specialist recruitment
+4. **Monitor via Canvas** — Real-time execution tracking, progress, errors
+
+### For Developers
+
+1. **Extend via MCP** — Add custom tools exposed to agents
+2. **Build integrations** — OAuth + service class pattern
+3. **Custom agents** — Define capabilities, maturity, prompts
+4. **API access** — REST (`/api/*`), MCP (`/mcp`), RPC (`/api/rpc/*`)
+
+### For Administrators
+
+1. **Configure governance** — Maturity thresholds, capability bindings, sandbox policies
+2. **Manage integrations** — OAuth credentials, webhook secrets, sync schedules
+3. **Monitor health** — `/health/live`, `/health/ready`, `/health/metrics` (Prometheus)
+4. **Audit trails** — Agent executions, canvas audits, sandbox violations, governance decisions
+
+---
+
+## Platform Access
+
+| Platform | Status | Access |
+|----------|--------|--------|
+| **Web (Next.js)** | ✅ Full | http://localhost:3001 |
+| **Mobile (React Native/Expo)** | ✅ Full | iOS/Android via Expo |
+| **Desktop (Tauri Menubar)** | ✅ Full | macOS menubar companion |
+| **CLI** | ✅ Full | `atom-os` daemon, skills, status |
+
+---
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Connection Problems**
-- Check internet connection
-- Verify service credentials
-- Review API rate limits
-- Check firewall settings
+| Issue | Resolution |
+|-------|------------|
+| **"No providers configured"** | Set at least one LLM key in `backend/.env` |
+| **"Could not validate credentials"** | `SECRET_KEY` not set — tokens reset on restart |
+| **Admin password lost** | Read `backend/logs/bootstrap_admin_password.txt` |
+| **Port in use** | Use different `--port`; update `NEXT_PUBLIC_API_URL` |
+| **ModuleNotFoundError (backend.api)** | Run uvicorn from repo root with `PYTHONPATH=$PWD:$PWD/backend` |
 
-**Sync Issues**
-- Force manual sync from settings
-- Check service status pages
-- Review error logs
-- Clear cache and retry
-
-**Performance Issues**
-- Close unused browser tabs
-- Clear application cache
-- Check system resources
-- Update to latest version
+[Full Troubleshooting →](getting_started/TROUBLESHOOTING.md)
 
 ### Getting Help
 
-**Support Resources**
-- In-app help and documentation
-- Community forums
-- Email support
-- Feature requests
-
-**Feedback**
-- Use the feedback button in the app
-- Report bugs with detailed descriptions
-- Suggest new features and improvements
-- Share success stories and use cases
-
-## Advanced Usage
-
-### Custom Automations
-
-**Building Workflows**
-1. Identify repetitive tasks
-2. Design workflow logic
-3. Test with sample data
-4. Deploy and monitor
-
-**Common Automation Patterns**
-- Email to task creation
-- Calendar event reminders
-- Financial transaction categorization
-- Communication follow-ups
-
-### API Integration
-
-**Developer Access**
-- REST API documentation
-- Webhook configuration
-- Custom integration development
-- Third-party app connections
-
-**Advanced Features**
-- Custom agent development
-- Workflow extensions
-- Data export and analysis
-- System monitoring
+1. **Documentation** — [Docs Index](INDEX.md) | [Architecture](architecture/README.md)
+2. **GitHub Issues** — [Report bugs](https://github.com/rush86999/atom/issues)
+3. **Discussions** — [GitHub Discussions](https://github.com/rush86999/atom/discussions)
+4. **Marketplace** — [atomagentos.com](https://atomagentos.com)
 
 ---
 
-## Need More Help?
+## Quick Links
 
-- **Documentation**: Complete technical documentation available
-- **Tutorials**: Step-by-step guides for all features
-- **Community**: Join our user community for tips and support
-- **Updates**: Check for new features and improvements regularly
+| Topic | Link |
+|-------|------|
+| **Quick Start** | [getting_started/quick-start.md](getting_started/quick-start.md) |
+| **Installation Options** | [getting_started/INSTALLATION.md](getting_started/INSTALLATION.md) |
+| **LLM Providers** | [guides/LLM_PROVIDERS.md](guides/LLM_PROVIDERS.md) |
+| **Agent Governance** | [guides/AGENT_MATURITY_GOVERNANCE.md](guides/AGENT_MATURITY_GOVERNANCE.md) |
+| **Memory Systems** | [guides/MEMORY_SYSTEMS.md](guides/MEMORY_SYSTEMS.md) |
+| **Execution Sandbox** | [guides/EXECUTION_SANDBOX.md](guides/EXECUTION_SANDBOX.md) |
+| **Mini-Apps** | [guides/MINI_APPS_GUIDE.md](guides/MINI_APPS_GUIDE.md) |
+| **Office Automation** | [guides/ATOM_OFFICE_AUTOMATION_GUIDE.md](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) |
+| **Third-Party Integrations** | [integrations/THIRD_PARTY_INTEGRATIONS.md](integrations/THIRD_PARTY_INTEGRATIONS.md) |
+| **API Reference** | [api/OVERVIEW.md](api/OVERVIEW.md) |
+| **Environment Variables** | [reference/ENVIRONMENT_VARIABLES.md](reference/ENVIRONMENT_VARIABLES.md) |
 
-Atom is constantly evolving to better serve your productivity needs. We welcome your feedback and suggestions for making Atom even more helpful in managing your life and work.
+---
+
+**Atom is constantly evolving.** We welcome your feedback and contributions — see [CONTRIBUTING.md](../CONTRIBUTING.md).

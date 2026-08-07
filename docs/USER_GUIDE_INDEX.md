@@ -1,6 +1,6 @@
 # Atom User Guide Index
 
-**Last Updated:** August 6, 2026
+**Last Updated:** August 2026
 
 Welcome to the Atom User Guide! This comprehensive guide helps you get started with Atom and master its features.
 
@@ -10,7 +10,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### New to Atom? Start Here
 
-1. **[Quick Start Guide](guides/QUICKSTART.md)** - Get Atom running in 15 minutes
+1. **[Quick Start Guide](getting_started/quick-start.md)** - Get Atom running in 15 minutes
    - One-time setup
    - Database configuration
    - Environment setup
@@ -71,7 +71,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Mini-Apps ✨ NEW (Aug 2026)
 
-- **[Mini-Apps Architecture](architecture/MINI_APPS.md)** — **Stateful, resumable canvas apps you build by chatting with an agent**
+- **[Mini-Apps User Guide](guides/MINI_APPS_GUIDE.md)** — **Stateful, resumable canvas apps you build by chatting with an agent**
   - Agent-driven authoring: scaffold → write logic → acceptance tests → publish → install
   - State persists between runs (versioned, latest-wins) with live WebSocket updates
   - Each logic run executes in a Firecracker microVM (read-only rootfs, no host FS, no network)
@@ -103,10 +103,6 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
   - Browse and install 5,000+ skills
   - Privacy-first analytics
 
-- **Marketplace Connection Guide** - Connect to public marketplace
-  - Detailed connection configuration
-  - Troubleshooting and support
-
 - **[Agent Marketplace Guide](agents/marketplace.md)** - Publish and share agents
   - Agent publishing workflow
   - Template creation
@@ -131,7 +127,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### End Users
 
-- **[Quick Start](guides/QUICKSTART.md)** - Get started fast
+- **[Quick Start](getting_started/quick-start.md)** - Get started fast
 - **[User Guide](guides/USER_GUIDE.md)** - Complete feature guide
 - **[End User Workflow](guides/END_USER_WORKFLOW.md)** - Daily workflows
 - **[User Training Guide](guides/USER_TRAINING_GUIDE.md)** - Learn Atom features
@@ -158,7 +154,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### Administrators
 
 - **Deployment Guide** - Production deployment
-- **[Monitoring Guide](deployment/MONITORING_SETUP.md)** - Health checks and metrics
+- **[Monitoring Guide](operations/monitoring.md)** - Health checks and metrics
 - **[Performance Tuning](operations/performance.md)** - Optimization strategies
 - **[Production Readiness](operations/production-readiness.md)** - Deployment checklist
 
@@ -170,9 +166,10 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Enterprise
 
-- **[Enterprise Features](guides/ENTERPRISE/)** - Enterprise-specific capabilities
-- **[Security & Compliance](ENTERPRISE/)** - Security guidelines
-- **[Team Management](guides/ENTERPRISE/)** - Team workflows
+- **[Enterprise Setup](guides/ENTERPRISE/ENTERPRISE_SETUP.md)** - Enterprise deployment
+- **[Security & Compliance](guides/ENTERPRISE/COMPLIANCE.md)** - Security guidelines
+- **[Custom Integrations](guides/ENTERPRISE/CUSTOM_INTEGRATIONS.md)** - Team workflows
+- **[Scalability](guides/ENTERPRISE/SCALABILITY.md)** - Enterprise scaling
 
 ---
 
@@ -181,8 +178,8 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### Agent System
 
 - **[Agent Governance](agents/governance.md)** - Maturity levels and permissions
-- **Agent Graduation Guide** - Learning and promotion
-- **[Student Agent Training](archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)** - Training workflow
+- **[Agent Graduation](agents/graduation.md)** - Learning and promotion
+- **[Student Agent Training](guides/AGENT_MATURITY_GOVERNANCE.md)** - Training workflow ✨ NEW
 - **[Queen Agent User Guide](guides/QUEEN_AGENT_USER_GUIDE.md)** - **Structured workflow automation** ✨ NEW
 - **[Queen vs Fleet Admiral Comparison](guides/QUEEN_VS_FLEET_ADMIRAL.md)** - **Which orchestrator to use?** ✨ NEW
 - **[Unstructured Complex Tasks](agents/unstructured-tasks.md)** - Multi-agent orchestration
@@ -191,14 +188,14 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### Intelligence & Memory
 
 - **[Episodic Memory](intelligence/episodic-memory.md)** - Agent learning system
-- **[World Model & Business Facts](intelligence/world-model-guide.md)** - Knowledge management
+- **[World Model & Business Facts](intelligence/jit-facts.md)** - Knowledge management
 - **[GraphRAG & Entity Types](intelligence/graphrag.md)** - Graph-based intelligence
 
 ### Canvas & Presentations
 
-- **Canvas AI Accessibility** - AI-readable canvas state
-- **LLM Canvas Summaries** - Enhanced memory integration
-- **Canvas Quick Reference** - Quick reference guide
+- **[Canvas AI Accessibility](canvas/ai-accessibility.md)** - AI-readable canvas state
+- **[LLM Canvas Summaries](canvas/llm-summaries.md)** - Enhanced memory integration
+- **[Canvas Quick Reference](canvas/reference.md)** - Quick reference guide
 
 ---
 
@@ -206,14 +203,13 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Desktop
 
-- **[MenuBar App Guide](archive/menubar/MENUBAR_GUIDE.md)** - macOS menu bar application
-- **[Native Setup](archive/legacy/NATIVE_SETUP.md)** - Native desktop builds
+- **[MenuBar App Guide](guides/ATOM_CLI_SKILLS_GUIDE.md)** - CLI skills and daemon management
+- **Native builds** - See [Deployment Guide](deployment/DEPLOYMENT_GUIDE.md)
 
 ### Mobile
 
-- **[Mobile Quick Start](archive/mobile/MOBILE_QUICK_START.md)** - React Native app setup
-- **[Mobile User Guide](archive/mobile/MOBILE_USER_GUIDE.md)** - Mobile-specific features
-- **[Mobile Testing Guide](testing/mobile-archive.md)** - Mobile testing
+- **[Mobile Quick Start](guides/QUICKSTART.md)** - React Native app setup
+- **Mobile features** - See [User Guide](guides/USER_GUIDE.md)
 
 ---
 
@@ -238,7 +234,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Feature Documentation
 
-- **[Features List](features/atom-vs-openclaw.md)** - Complete feature list
+- **[Features List](guides/FEATURES.md)** - Complete feature list
 - **[Feature Matrix](reference/FEATURE_MATRIX.md)** - Capability comparison
 - **[Use Cases](guides/USE_CASES.md)** - Real-world examples
 - **[User Personas](guides/USER_PERSONAS_AND_JOURNEYS.md)** - Target users
@@ -256,7 +252,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### For New Users
 
-1. Read [Quick Start Guide](guides/QUICKSTART.md)
+1. Read [Quick Start Guide](getting_started/quick-start.md)
 2. Complete [User Training Guide](guides/USER_TRAINING_GUIDE.md)
 3. Explore [Use Cases](guides/USE_CASES.md)
 4. Set up [Integrations](guides/USER_GUIDE.md#integration-setup)
@@ -289,14 +285,14 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### Core Documentation
 
 - **[Main README](../README.md)** - Project overview
-- **[Documentation Index](README.md)** - Complete docs index
+- **[Documentation Index](INDEX.md)** - Complete docs index
 - **[Development Guide](development/overview.md)** - For contributors
 - **API Documentation** - REST API reference
 
 ### Community & Support
 
-- **GitHub Repository** - [https://github.com/rush86999/atom](https://github.com/rush86999/atom)
-- **GitHub Issues** - [https://github.com/rush86999/atom/issues](https://github.com/rush86999/atom/issues)
+- **GitHub Repository** - [https://github.com/rushiparikh/projects/atom](https://github.com/rushiparikh/projects/atom)
+- **GitHub Issues** - [https://github.com/rushiparikh/projects/atom/issues](https://github.com/rushiparikh/projects/atom/issues)
 - **Marketplace** - [https://atomagentos.com](https://atomagentos.com)
 - **Documentation** - [https://docs.atomagentos.com](https://docs.atomagentos.com)
 
@@ -306,12 +302,12 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 This index is maintained and updated regularly. If you find outdated information or missing topics, please:
 
-1. Open an issue on [GitHub](https://github.com/rush86999/atom/issues)
+1. Open an issue on [GitHub](https://github.com/rushiparikh/projects/atom/issues)
 2. Submit a pull request with improvements
 3. Contact the documentation team
 
 ---
 
-**Last Updated:** August 6, 2026
+**Last Updated:** August 2026
 **Version:** 1.0
 **Platform:** Atom Open Source

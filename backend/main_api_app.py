@@ -2708,6 +2708,17 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Browser automation routes not found: {e}")
 
+    # Device Capabilities Routes (Hardware Access) — camera, screen,
+    # location, notifications, command execution. Restored after 8e9b2d934
+    # removed the mount while the browser router mount was later re-added.
+    try:
+        from api.device_capabilities import router as device_router
+
+        app.include_router(device_router)
+        logger.info("✓ Device Capabilities Routes Loaded")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Device capabilities routes not found: {e}")
+
     try:
 
         logger.info("✓ Canvas Browser Routes Loaded")

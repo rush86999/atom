@@ -156,24 +156,24 @@ class TestAgentEndpointValidation:
         assert response.status_code in [200, 422]
 
     def test_session_creation_missing_user_id(self, api_test_client: TestClient):
-        """Session creation requires user_id in request body."""
+        """Session creation takes no body user_id — identity comes from the auth token."""
         response = api_test_client.post(
             "/api/atom-agent/sessions",
             json={}
         )
 
-        assert response.status_code == 422
-        detail = response.json()["detail"]
-        assert any("user_id" in str(err.get("loc", [])) for err in detail)
+        assert response.status_code == 200
+        assert "session_id" in response.json()
 
     def test_session_creation_user_id_must_be_string(self, api_test_client: TestClient):
-        """user_id field must be a string, not number or other type."""
+        """user_id in the body is ignored — the endpoint authenticates via token."""
         response = api_test_client.post(
             "/api/atom-agent/sessions",
             json={"user_id": 12345}
         )
 
-        assert response.status_code == 422
+        assert response.status_code == 200
+        assert "session_id" in response.json()
 
     def test_agent_execute_missing_agent_id(self, api_test_client: TestClient):
         """Agent execution requires agent_id field."""
@@ -399,8 +399,9 @@ class TestBrowserEndpointValidation:
             json={"browser_type": "invalid-browser"}
         )
 
-        # Should return 422 with allowed values
-        assert response.status_code in [200, 422]
+        # Not Pydantic-enforced; runtime validation returns 400 for invalid
+        # browser types (or 403 when governance blocks session creation)
+        assert response.status_code in [200, 400, 403, 422]
 
     def test_create_session_headless_must_be_boolean(self, api_test_client: TestClient):
         """headless parameter must be boolean or null."""
@@ -665,8 +666,9 @@ class TestDeviceEndpointValidation:
                 json={"device_node_id": "test-device", "resolution": resolution}
             )
 
-            # Should validate resolution format - may get 500 if device not connected
-            assert response.status_code in [200, 422, 400, 500]
+            # Should validate resolution format - may get 403 if governance
+            # blocks (unresolved agent) or 500 if device not connected
+            assert response.status_code in [200, 403, 422, 400, 500]
 
     def test_camera_snap_save_path_optional_string(self, api_test_client: TestClient):
         """save_path must be string or null."""
@@ -797,8 +799,8 @@ class TestDeviceEndpointValidation:
             }
         )
 
-        # May get 400 or 500 if validation occurs after Pydantic
-        assert response.status_code in [200, 400, 422, 500]
+        # May get 400 or 403 (governance) or 500 if validation occurs after Pydantic
+        assert response.status_code in [200, 400, 403, 422, 500]
 
     def test_send_notification_body_max_length(self, api_test_client: TestClient):
         """body should have max length (e.g., 500 chars)."""
@@ -811,8 +813,8 @@ class TestDeviceEndpointValidation:
             }
         )
 
-        # May get 400 or 500 if validation occurs after Pydantic
-        assert response.status_code in [200, 400, 422, 500]
+        # May get 400 or 403 (governance) or 500 if validation occurs after Pydantic
+        assert response.status_code in [200, 400, 403, 422, 500]
 
     def test_send_notification_icon_optional_string(self, api_test_client: TestClient):
         """icon must be string or null."""
@@ -870,8 +872,9 @@ class TestDeviceEndpointValidation:
 
         for payload in test_cases:
             response = api_test_client.post("/api/devices/execute", json=payload)
-            # May get 500 if custom validation raises exception
-            assert response.status_code in [400, 422, 500]
+            # May get 403 (governance: cmd exec needs AUTONOMOUS agent)
+            # or 500 if custom validation raises exception
+            assert response.status_code in [400, 403, 422, 500]
 
     def test_execute_command_max_length(self, api_test_client: TestClient):
         """Command should have max length (e.g., 10000 chars)."""
@@ -880,8 +883,8 @@ class TestDeviceEndpointValidation:
             json={"device_node_id": "test", "command": "x" * 100000}
         )
 
-        # May get 500 if custom validation raises exception
-        assert response.status_code in [200, 400, 422, 500]
+        # May get 403 (governance) or 500 if custom validation raises exception
+        assert response.status_code in [200, 400, 403, 422, 500]
 
     def test_execute_command_timeout_must_be_positive(self, api_test_client: TestClient):
         """timeout_seconds must be positive (max 300)."""
@@ -893,8 +896,8 @@ class TestDeviceEndpointValidation:
 
         for payload in test_cases:
             response = api_test_client.post("/api/devices/execute", json=payload)
-            # May get 500 if custom validation raises exception
-            assert response.status_code in [200, 400, 422, 500]
+            # May get 403 (governance) or 500 if custom validation raises exception
+            assert response.status_code in [200, 400, 403, 422, 500]
 
     def test_execute_command_working_dir_optional_string(self, api_test_client: TestClient):
         """working_dir must be string or null."""

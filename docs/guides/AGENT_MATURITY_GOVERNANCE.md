@@ -176,7 +176,7 @@ ATOM_SANDBOX_EGRESS_ENABLED=false   # Opt-in network isolation
 - [Agent Overview](../agents/overview.md) — System + intent types
 - [Agent Governance](../agents/governance.md) — API reference
 - [Governance Quick Reference](../governance/GOVERNANCE_QUICK_REFERENCE.md) — Permissions matrix
-- [Student Training](../archive/legacy/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) — Implementation details
+- [Student Training](../guides/AGENT_MATURITY_GOVERNANCE.md) — Training workflow (this guide)
 - [Agent Graduation](../agents/graduation.md) — Promotion criteria
 - [Sandbox Layer](../architecture/SANDBOX_LAYER.md) — Real security boundary
 - [Trust vs Sandbox](../security/TRUST_VS_SANDBOX.md) — Conceptual foundation
