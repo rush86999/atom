@@ -1988,6 +1988,43 @@ class ScalingProposal(Base):
     approver = relationship("User", backref="approved_scaling_proposals")
 
 
+class ScalingOperation(Base):
+    """
+    Tracks executed fleet scaling operations (expand/contract).
+
+    Backs FleetScalerService._persist_operation / _get_recent_operations —
+    previously the model did not exist, so scaling operations were never
+    persisted (silent no-op) and there was no audit trail.
+    """
+    __tablename__ = "scaling_operations"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    chain_id = Column(String, ForeignKey("delegation_chains.id", ondelete="CASCADE"), nullable=False, index=True)
+    proposal_id = Column(String, nullable=True, index=True)
+
+    # Operation details
+    operation_type = Column(String(50), nullable=False)  # expand, contract
+    from_size = Column(Integer, nullable=False)
+    to_size = Column(Integer, nullable=False)
+    agents_added = Column(JSONColumn, default=list)  # List[str] recruited agent IDs
+    agents_removed = Column(JSONColumn, default=list)  # List[str] removed agent IDs
+
+    # Execution tracking
+    status = Column(String(50), default="pending", index=True)  # pending, in_progress, completed, failed, rolled_back
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    # Metadata
+    metadata_json = Column(JSONColumn, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_scaling_operations_chain_started", "chain_id", "started_at"),
+    )
+
+
 class FleetHealingEvent(Base):
     """
     Tracks automated self-healing operations for fleet resilience.
