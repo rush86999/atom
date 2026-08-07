@@ -193,6 +193,15 @@
 
 ---
 
+## ⚖️ Comparisons
+
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [Atom vs Hermes](architecture/HERMES_COMPARISON.md) | Honest capability matrix: memory, routing, sandbox, governance, self-evolution | AI Engineers, Architects |
+| [Atom vs OpenClaw](features/atom-vs-openclaw.md) | Feature-by-feature: governance, memory, integrations, testing, security | Evaluators, Decision-makers |
+
+---
+
 ## 🗂️ Archive (Legacy / Historical)
 
 > These documents are retained for historical reference. Prefer the active docs above.

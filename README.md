@@ -81,6 +81,19 @@ Atom is an open-source, self-hosted **AI agent workforce** for your employees. I
 
 ---
 
+## 📊 Comparisons
+
+| Alternative | Focus | Key Difference | Deep Dive |
+|---|---|---|---|
+| **Hermes Agent** (Nous Research) | Personal coding/productivity assistant | Single-agent, no governance, no integrations, no sandbox | [Atom vs Hermes →](docs/architecture/HERMES_COMPARISON.md) |
+| **OpenClaw** | Personal productivity, messaging-first | Single-agent, Markdown memory, smart home focus | [Atom vs OpenClaw →](docs/features/atom-vs-openclaw.md) |
+| **LangGraph / CrewAI / AutoGen** | Developer frameworks | Code-first, build-your-own governance & integrations | [Why Atom?](#-why-atom) |
+| **Zapier / Make / n8n** | Workflow automation | Step-based (not agents), no reasoning, no governance | [AI-Generated Workflow Automation](#-ai-generated-workflow-automation) |
+
+**TL;DR**: If you're evaluating personal agents → Hermes/OpenClaw. If you need governed multi-agent business automation → Atom.
+
+---
+
 ## ⚡ Key Capabilities
 
 | Category | Features |
