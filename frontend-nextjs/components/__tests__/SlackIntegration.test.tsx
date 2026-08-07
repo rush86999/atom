@@ -457,42 +457,71 @@ describe('SlackIntegration Component', () => {
   });
 
   describe('Webhook Handling', () => {
-    it('displays webhook configuration', () => {
-      renderWithProviders(<SlackIntegration connected={true} />);
+    it('does not expose client-side webhook management (webhooks are server-side)', async () => {
+      server.use(healthOkHandler, workspaceOkHandler);
 
-      const webhookSection = screen.queryByTestId(/webhook/i);
-      // Note: Actual implementation may vary
+      renderWithProviders(<SlackIntegration />);
+
+      // The component manages webhooks server-side only: the connected UI
+      // must not surface any webhook configuration/creation controls
+      await waitFor(() => {
+        expect(screen.getByText('Connected')).toBeInTheDocument();
+      });
+      expect(screen.queryByRole('button', { name: /create webhook/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /webhooks/i })).not.toBeInTheDocument();
     });
+  });
 
-    it('creates new webhook', async () => {
+  describe('Channel Creation', () => {
+    it('creates a channel through the create-channel dialog', async () => {
       const user = userEvent.setup();
+      const fetchSpy = jest.spyOn(global, 'fetch');
 
       server.use(
-        rest.post('*/api/integrations/slack/webhooks', (req, res, ctx) => {
+        healthOkHandler,
+        workspaceOkHandler,
+        channelsHandler,
+        rest.post('*/api/integrations/slack/channels/create', (req, res, ctx) => {
           return res(
             ctx.status(200),
             ctx.json({
               success: true,
-              webhook: {
-                id: 'WH123456',
-                url: 'https://hooks.slack.com/services/T123/B123/XXX',
-                channel: 'general',
+              channel: {
+                id: 'C0000000001',
+                name: 'new-team',
               },
             })
           );
         })
       );
 
-      renderWithProviders(<SlackIntegration connected={true} />);
+      renderWithProviders(<SlackIntegration />);
 
-      const createButton = screen.queryByRole('button', { name: /create webhook/i });
-      if (createButton) {
-        await user.click(createButton);
+      // Open the create-channel dialog from the Channels tab
+      await screen.findAllByText('Test Workspace');
+      const createChannelButton = await screen.findByRole('button', {
+        name: /create channel/i,
+      });
+      await user.click(createChannelButton);
 
-        await waitFor(() => {
-          expect(screen.getByText(/webhook created/i)).toBeInTheDocument();
-        });
-      }
+      const dialogContent = document.getElementById('dialog-content') as HTMLElement;
+      const nameInput = within(dialogContent).getByPlaceholderText('channel-name');
+      await user.type(nameInput, 'new-team');
+      const purposeInput = within(dialogContent).getByPlaceholderText(/what's this channel about/i);
+      await user.type(purposeInput, 'Team discussions');
+
+      await user.click(within(dialogContent).getByRole('button', { name: /create channel/i }));
+
+      // The creator posts the new channel to the backend
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          expect.stringContaining('/api/integrations/slack/channels/create'),
+          expect.objectContaining({
+            method: 'POST',
+            body: expect.stringContaining('new-team'),
+          })
+        );
+      });
     });
   });
 
@@ -500,9 +529,17 @@ describe('SlackIntegration Component', () => {
     it('handles workspace load failure gracefully', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      // Health succeeds but workspace fetch fails (no handler) — the app must
-      // not crash; it logs the failure and stays in the connected UI
-      server.use(healthOkHandler);
+      // Health succeeds but the workspace fetch fails at the network level —
+      // the app must not crash; it logs the failure and stays in the
+      // connected UI
+      server.use(
+        healthOkHandler,
+        rest.post('*/api/integrations/slack/workspace', (req, res) => {
+          return new Promise((resolve, reject) => {
+            setTimeout(() => reject(new Error('network error')), 10);
+          });
+        })
+      );
 
       renderWithProviders(<SlackIntegration />);
 

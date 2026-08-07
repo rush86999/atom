@@ -33,7 +33,7 @@ interface ReasoningChainViewerProps {
 
 const ReasoningChainViewer: React.FC<ReasoningChainViewerProps> = ({ chainId, chainData, onStepFeedback }) => {
     const [chain, setChain] = useState<ReasoningChain | null>(chainData || null);
-    const [loading, setLoading] = useState(!chainData);
+    const [loading, setLoading] = useState(!!chainId && !chainData);
     const [error, setError] = useState<string | null>(null);
     const [expandedStep, setExpandedStep] = useState<string | null>(null);
     const [activeFeedbackStep, setActiveFeedbackStep] = useState<string | null>(null);

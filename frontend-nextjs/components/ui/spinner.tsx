@@ -1,3 +1,4 @@
+import React from 'react';
 import { cn } from "./button"
 
 export interface SpinnerProps extends React.HTMLAttributes<HTMLDivElement> {

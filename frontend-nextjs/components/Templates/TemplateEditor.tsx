@@ -37,7 +37,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { TemplateMetadataForm } from './TemplateMetadataForm';
-import { TemplatePreviewModal } from './TemplatePreviewModal';
 
 // Types
 export interface TemplateParameter {
@@ -136,7 +135,6 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
 
   const [activeTab, setActiveTab] = useState<'metadata' | 'inputs' | 'steps' | 'preview'>('metadata');
   const [saving, setSaving] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const [selectedStep, setSelectedStep] = useState<string | null>(null);
 
   // Handlers
@@ -196,22 +194,6 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
     });
   }, []);
 
-  const handleAddTag = useCallback((tag: string) => {
-    if (tag && !template.tags.includes(tag)) {
-      setTemplate(prev => ({
-        ...prev,
-        tags: [...prev.tags, tag],
-      }));
-    }
-  }, [template.tags]);
-
-  const handleRemoveTag = useCallback((tag: string) => {
-    setTemplate(prev => ({
-      ...prev,
-      tags: prev.tags.filter(t => t !== tag),
-    }));
-  }, []);
-
   const handleSave = async () => {
     if (!template.name.trim()) {
       toast({
@@ -262,7 +244,7 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
   };
 
   const handlePreview = () => {
-    setShowPreview(true);
+    setActiveTab('preview');
   };
 
   return (
@@ -331,10 +313,8 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
             {/* Metadata Tab */}
             <TabsContent value="metadata" className="p-6">
               <TemplateMetadataForm
-                template={template}
-                onUpdate={handleUpdateTemplate}
-                onAddTag={handleAddTag}
-                onRemoveTag={handleRemoveTag}
+                metadata={template}
+                onChange={handleUpdateTemplate}
                 readOnly={readOnly}
               />
             </TabsContent>
@@ -636,15 +616,6 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
           </Tabs>
         </CardContent>
       </Card>
-
-      {/* Preview Modal */}
-      {showPreview && (
-        <TemplatePreviewModal
-          template={template}
-          open={showPreview}
-          onClose={() => setShowPreview(false)}
-        />
-      )}
     </div>
   );
 };

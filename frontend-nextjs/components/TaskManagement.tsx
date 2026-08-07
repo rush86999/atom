@@ -51,6 +51,14 @@ const TaskManagementWrapper: React.FC = () => {
     fetchData();
   }, []);
 
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8">
+        <p className="mt-4 text-sm text-muted-foreground">Loading tasks...</p>
+      </div>
+    );
+  }
+
   const handleCreateTask = async (task: Task) => {
     try {
       const response = await fetch("/api/v1/tasks", {

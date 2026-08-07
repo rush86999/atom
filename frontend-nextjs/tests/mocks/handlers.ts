@@ -1554,46 +1554,80 @@ export const slackHandlers = [
     );
   }),
 
+  // Fetch workspace (SlackIntegration.tsx loadWorkspace)
+  rest.post('/api/integrations/slack/workspace', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        data: {
+          workspace: {
+            id: 'T1234567890',
+            name: 'Test Workspace',
+            domain: 'test-workspace',
+            email_domain: 'example.com',
+            icon: { image_102: 'https://example.com/icon.png' },
+          },
+        },
+      })
+    );
+  }),
+
   // Fetch channels
   rest.get('/api/integrations/slack/channels', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
         success: true,
-        channels: [
-          {
-            id: 'C1234567890',
-            name: 'general',
-            is_channel: true,
-            is_archived: false,
-            members: 150,
-            topic: { value: 'Company-wide announcements' },
-          },
-          {
-            id: 'C0987654321',
-            name: 'engineering',
-            is_channel: true,
-            is_archived: false,
-            members: 45,
-          },
-        ],
+        data: {
+          channels: [
+            {
+              id: 'C1234567890',
+              name: 'general',
+              purpose: 'Company-wide announcements',
+              is_channel: true,
+              is_archived: false,
+              is_general: true,
+              is_private: false,
+              num_members: 150,
+              created: 1234567890,
+              creator: 'U1234567890',
+              topic: { value: 'Company-wide announcements' },
+            },
+            {
+              id: 'C0987654321',
+              name: 'engineering',
+              purpose: 'Engineering team discussions',
+              is_channel: true,
+              is_archived: false,
+              is_general: false,
+              is_private: false,
+              num_members: 45,
+              created: 1234567891,
+              creator: 'U1234567890',
+            },
+          ],
+        },
       })
     );
   }),
 
-  // Fetch messages
-  rest.get('/api/integrations/slack/messages/:channelId', (req, res, ctx) => {
+  // Fetch messages (query-string channel selector, matching the component)
+  rest.get('/api/integrations/slack/messages', (req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
         success: true,
-        messages: [
-          {
-            type: 'message',
-            text: 'Test message from bot',
-            ts: '1234567890.123456',
-          },
-        ],
+        data: {
+          messages: [
+            {
+              type: 'message',
+              text: 'Test message from bot',
+              ts: '1234567890.123456',
+              user_profile: { display_name: 'Slack Bot' },
+            },
+          ],
+        },
       })
     );
   }),
@@ -1619,20 +1653,42 @@ export const slackHandlers = [
       ctx.status(200),
       ctx.json({
         success: true,
-        members: [
-          {
-            id: 'U1234567890',
-            name: 'john.doe',
-            deleted: false,
-            real_name: 'John Doe',
-            profile: {
-              email: 'john@example.com',
+        data: {
+          users: [
+            {
+              id: 'U1234567890',
+              name: 'john.doe',
+              real_name: 'John Doe',
               display_name: 'John Doe',
-              status_text: 'Working on Atom',
-              status_emoji: ':rocket:',
+              deleted: false,
+              is_admin: false,
+              is_owner: false,
+              is_bot: false,
+              profile: {
+                email: 'john@example.com',
+                display_name: 'John Doe',
+                real_name: 'John Doe',
+                image_48: 'https://example.com/avatar48.jpg',
+                status_text: 'Working on Atom',
+                status_emoji: ':rocket:',
+              },
             },
-          },
-        ],
+          ],
+        },
+      })
+    );
+  }),
+
+  // Create channel (SlackIntegration.tsx createChannel)
+  rest.post('/api/integrations/slack/channels/create', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        channel: {
+          id: 'C1234567890',
+          name: req.body?.name || 'general',
+        },
       })
     );
   }),
