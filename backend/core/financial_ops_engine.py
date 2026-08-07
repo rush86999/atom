@@ -103,10 +103,13 @@ class CostLeakDetector:
         invalid = []
 
         for sub_id, sub in self._subscriptions.items():
-            if not sub.category or sub.category.strip() == "":
-                uncategorized.append(sub_id)
+            # R50: None must be classified as "invalid", NOT "uncategorized".
+            # Previously `not sub.category` was True for None, leaking None
+            # into uncategorized before the explicit `is None` check ran.
             if sub.category is None:
                 invalid.append(sub_id)
+            elif not sub.category or sub.category.strip() == "":
+                uncategorized.append(sub_id)
 
         return {
             "valid": len(uncategorized) == 0 and len(invalid) == 0,
@@ -519,7 +522,16 @@ class InvoiceReconciler:
 
         # Check amount within tolerance
         expected = contract.monthly_amount
-        diff_percent = abs(float(invoice.amount - expected)) / float(expected) * 100
+        # R51: a zero-dollar contract (e.g. a free pilot) makes the percent
+        # diff undefined -> ZeroDivisionError. Treat a non-zero invoice against
+        # a zero-dollar contract as an infinite/100%+ discrepancy.
+        if expected == 0:
+            if invoice.amount == 0:
+                diff_percent = 0.0
+            else:
+                diff_percent = float("inf")
+        else:
+            diff_percent = abs(float(invoice.amount - expected)) / float(expected) * 100
 
         if diff_percent > self.tolerance_percent:
             result["status"] = "discrepancy"

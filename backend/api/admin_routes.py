@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import logging
 from typing import Dict, List, Optional
 from fastapi import Depends, Request, status
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from sqlalchemy.orm import Session
 
 from core.api_governance import ActionComplexity, require_governance
@@ -24,6 +24,10 @@ from core.models import AdminRole, AdminUser, User
 
 router = BaseAPIRouter(prefix="/api/admin", tags=["Admin"])
 logger = logging.getLogger(__name__)
+
+# Allowed status values for AdminUser (used by UpdateAdminUserRequest validator).
+# Kept module-level so it is not mistaken for a Pydantic private attr.
+_ADMIN_USER_ALLOWED_STATUSES = {"active", "inactive"}
 
 
 async def require_super_admin(current_user: User = Depends(get_current_user)) -> User:
@@ -74,6 +78,22 @@ class UpdateAdminUserRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     role_id: Optional[str] = Field(None, description="ID of the admin role to assign")
     status: Optional[str] = Field(None, description="Admin status (active, inactive)")
+
+    # P2: validate status against the fixed allow-list to prevent arbitrary
+    # strings (e.g. 'superadmin') from being persisted via mass-assignment.
+    @field_validator("status")
+    @classmethod
+    def _validate_status(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        normalized = v.strip().lower()
+        # Module-level constant (avoids Pydantic treating a class attr as a
+        # private model field).
+        if normalized not in _ADMIN_USER_ALLOWED_STATUSES:
+            raise ValueError(
+                f"status must be one of {sorted(_ADMIN_USER_ALLOWED_STATUSES)}, got '{v}'"
+            )
+        return normalized
 
 
 class AdminUserResponse(BaseModel):
