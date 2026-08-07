@@ -153,6 +153,13 @@ class CircuitBreaker:
             stats.failures += 1
             stats.consecutive_failures += 1
             stats.last_failure_time = time.time()
+            # Persist error details (parity with Redis path above). Previously
+            # the in-memory path dropped last_error_type/last_error_message even
+            # when an error was supplied, leaving get_stats() always reporting
+            # empty error info for single-instance deployments.
+            if error:
+                stats.last_error_type = type(error).__name__
+                stats.last_error_message = str(error)
 
         # Check if should disable
         if await self._should_disable(integration, stats):
@@ -307,10 +314,13 @@ class CircuitBreaker:
         if stats.consecutive_failures >= self.consecutive_failure_limit:
             return True
 
-        # High failure rate
-        failure_rate = stats.failures / stats.total_calls
-        if failure_rate >= self.failure_threshold:
-            return True
+        # High failure rate. Guard against ZeroDivisionError when total_calls
+        # is 0 (possible when min_calls is configured to 0) — a 0/0 call
+        # previously crashed record_failure() with ZeroDivisionError.
+        if stats.total_calls > 0:
+            failure_rate = stats.failures / stats.total_calls
+            if failure_rate >= self.failure_threshold:
+                return True
 
         return False
 

@@ -575,9 +575,16 @@ class HealthMonitoringService:
                 status = "degraded"
                 connection_status = "disconnected"
 
-            # Get health metrics from historical data
+            # Get health metrics from historical data.
+            # NOTE: IntegrationHealthMetrics is keyed by integration_id (there
+            # is no connection_id column on this model). The previous code
+            # referenced IntegrationHealthMetrics.connection_id, which raised
+            # AttributeError on every call and was swallowed by the surrounding
+            # try/except — causing every integration to be reported as
+            # error/declining regardless of real health.
+            integration_ref = getattr(connection, "integration_id", None) or integration.id
             metrics = self.db.query(IntegrationHealthMetrics).filter(
-                IntegrationHealthMetrics.connection_id == connection.id
+                IntegrationHealthMetrics.integration_id == integration_ref
             ).order_by(IntegrationHealthMetrics.created_at.desc()).limit(100).all()
 
             # Calculate health trend, latency, and error rate from metrics

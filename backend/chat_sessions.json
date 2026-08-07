@@ -4188,5 +4188,68 @@
     "metadata": {},
     "message_count": 0,
     "history": []
+  },
+  {
+    "session_id": "0de16dd8-1473-4988-86b1-1ad09521ceaa",
+    "user_id": "940ac3a0-373b-471b-99d0-c7051a154ed9",
+    "created_at": "2026-08-07T22:34:32.533642+00:00",
+    "last_active": "2026-08-07T22:34:34.328830+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "12027498-1c20-4162-8795-6831da27f2c1",
+    "user_id": "b704e4fe-794e-4c50-bbce-b6c84c90a53f",
+    "created_at": "2026-08-07T22:34:38.118663+00:00",
+    "last_active": "2026-08-07T22:34:40.000811+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "d49ad58f-44ba-41ae-8dd4-bbf8599680b9",
+    "user_id": "f3039516-19cb-4a65-91f3-f2a170511cc6",
+    "created_at": "2026-08-07T22:34:40.993682+00:00",
+    "last_active": "2026-08-07T22:34:43.842772+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "1cf6e99c-b21a-4733-b53c-130e0769a4c1",
+    "user_id": "d857bb2b-03d1-4e7d-bbf2-00bb7170b22a",
+    "created_at": "2026-08-07T22:34:50.089528+00:00",
+    "last_active": "2026-08-07T22:34:54.102761+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "fa2e37b1-2038-4a79-9664-60ae8903b4d0",
+    "user_id": "05fc01ba-c7f6-4002-a4e5-c3860be0441f",
+    "created_at": "2026-08-07T22:34:54.731371+00:00",
+    "last_active": "2026-08-07T22:34:57.305162+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "1a9fefae-abd2-4ede-b52b-0cd340cbaeea",
+    "user_id": "f69becc7-a8cb-4ef0-880c-409f3bf203cf",
+    "created_at": "2026-08-07T22:34:57.814113+00:00",
+    "last_active": "2026-08-07T22:35:00.421672+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "1cb0837e-39de-4325-ab5e-ab522b2633ff",
+    "user_id": "33c65bc1-ec50-4b0a-ad50-2c6e9667c255",
+    "created_at": "2026-08-07T22:35:00.927637+00:00",
+    "last_active": "2026-08-07T22:35:03.665749+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
   }
 ]

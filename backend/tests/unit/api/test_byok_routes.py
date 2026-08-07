@@ -154,6 +154,59 @@ class TestUsageAndOptimization:
         response = client.get("/api/ai/usage/stats")
         assert response.status_code in [200, 401, 500]
 
+    def test_usage_calls(self, client):
+        """GET /api/ai/usage/calls returns per-call LLM usage logs."""
+        from core.llm_call_tracker import get_llm_call_tracker
+
+        get_llm_call_tracker().record(
+            provider="opencode-go", model="gpt-5", success=True,
+            latency_ms=4200.0, input_tokens=1200, output_tokens=800,
+        )
+        response = client.get("/api/ai/usage/calls")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert "calls" in data and "summary" in data
+        latest = data["calls"][0]
+        assert latest["provider"] == "opencode-go"
+        assert latest["model"] == "gpt-5"
+        assert latest["success"] is True
+        assert latest["latency_ms"] >= 0
+        assert latest["input_tokens"] == 1200
+        assert latest["output_tokens"] == 800
+        assert latest["fallback"] is False
+        assert latest["fallback_provider"] is None
+        assert latest["error"] is None
+        assert data["summary"]["total_calls"] >= 1
+
+    def test_usage_calls_filter_and_limit(self, client):
+        """GET /api/ai/usage/calls honors provider/model/limit filters."""
+        from core.llm_call_tracker import get_llm_call_tracker
+
+        tracker = get_llm_call_tracker()
+        tracker.record(provider="openai", model="gpt-4o", success=True)
+        tracker.record(provider="deepseek", model="deepseek-chat", success=False,
+                       error="boom")
+        response = client.get(
+            "/api/ai/usage/calls", params={"provider": "openai", "limit": 1}
+        )
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert len(data["calls"]) == 1
+        assert data["calls"][0]["provider"] == "openai"
+        assert data["summary"]["by_provider"] == {"openai": data["summary"]["by_provider"]["openai"]}
+
+    def test_usage_calls_requires_auth(self):
+        """GET /api/ai/usage/calls is rejected without identity override."""
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from api.byok_routes import router
+
+        app = FastAPI()
+        app.include_router(router)
+        response = TestClient(app).get("/api/ai/usage/calls")
+        assert response.status_code in [401, 403, 500]
+
     def test_optimize_cost(self, client):
         """POST /api/ai/optimize-cost recommends a provider."""
         response = client.post(

@@ -531,6 +531,12 @@ class EmbeddingService:
             key: Cache key (episode_id)
             value: 384-dimensional embedding vector
         """
+        # If the key already exists, remove its prior occurrence from the
+        # access-order list so re-caching an episode_id doesn't leave a stale
+        # duplicate entry (which would corrupt eviction bookkeeping).
+        if key in self._fastembed_cache_order:
+            self._fastembed_cache_order.remove(key)
+
         # Evict oldest if at capacity
         if len(self._fastembed_cache_order) >= self._fastembed_cache_max:
             oldest_key = self._fastembed_cache_order.pop(0)

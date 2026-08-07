@@ -666,8 +666,12 @@ class WorkflowEngine:
 
                 # --- START SAAS GOVERNANCE INTERLOCK ---
                 # Check for agent governance authorization
-                with get_db_session() as db:
-                    try:
+                # try wraps the whole `with get_db_session()` block: the
+                # session context manager commits on exit, and a failure there
+                # (e.g. an invalidated transaction after a swallowed inner
+                # error) must not abort the run — fail open as intended.
+                try:
+                    with get_db_session() as db:
                         governance = ServiceFactory.get_governance_service(db, tenant_id=tenant_id)
                         agent_id = workflow.get("agent_id") or "system_agent"
                         
@@ -703,8 +707,8 @@ class WorkflowEngine:
                                 await self.state_manager.update_execution_status(execution_id, "FAILED", error=f"Governance Block: {message}")
                                 await ws_manager.notify_workflow_status(user_id, execution_id, "FAILED", {"error": f"Governance Block: {message}", "step_id": step_id})
                                 return
-                    except Exception as gov_error:
-                        logger.error(f"Governance check failed, failing open for safety but logging error: {gov_error}")
+                except Exception as gov_error:
+                    logger.error(f"Governance check failed, failing open for safety but logging error: {gov_error}")
                 # --- END SAAS GOVERNANCE INTERLOCK ---
 
                 # Phase 5: publish STEP_STARTED for EventBus observability.
@@ -713,8 +717,8 @@ class WorkflowEngine:
                 )
 
                 # Create step execution record
-                with get_db_session() as db:
-                    try:
+                try:
+                    with get_db_session() as db:
                         step_exec = WorkflowExecutionLog(
                             execution_id=execution_id,
                             workflow_id=workflow.get("id", "unknown"),
@@ -728,8 +732,8 @@ class WorkflowEngine:
                         )
                         db.add(step_exec)
                         db.commit()
-                    except Exception as e:
-                        logger.error(f"Failed to create step execution record: {e}")
+                except Exception as e:
+                    logger.error(f"Failed to create step execution record: {e}")
                 
                 try:
                     output = await self._execute_step(step, resolved_params)
@@ -746,8 +750,8 @@ class WorkflowEngine:
 
                     # --- START SAAS TIME TRAVEL SNAPSHOT ---
                     # Create snapshot for forking/replay capability
-                    with get_db_session() as db:
-                        try:
+                    try:
+                        with get_db_session() as db:
                             # Refresh state to capture current results
                             current_state = await self.state_manager.get_execution_state(execution_id)
                             snapshot_data = {
@@ -768,13 +772,13 @@ class WorkflowEngine:
                             db.add(snapshot)
                             db.commit()
                             logger.debug(f"📸 Snapshot created for {execution_id} at step {step_id}")
-                        except Exception as snapshot_error:
-                            logger.warning(f"Failed to create Time Travel snapshot: {snapshot_error}")
+                    except Exception as snapshot_error:
+                        logger.warning(f"Failed to create Time Travel snapshot: {snapshot_error}")
                     # --- END SAAS TIME TRAVEL SNAPSHOT ---
 
                     # Update step execution record
-                    with get_db_session() as db:
-                        try:
+                    try:
+                        with get_db_session() as db:
                             step_exec = db.query(WorkflowExecutionLog).filter(
                                 WorkflowExecutionLog.execution_id == execution_id,
                                 WorkflowExecutionLog.step_id == step_id
@@ -786,8 +790,8 @@ class WorkflowEngine:
                                 step_exec.duration_ms = int((end_time - step_exec.start_time).total_seconds() * 1000)
                                 step_exec.results = output
                                 db.commit()
-                        except Exception as e:
-                            logger.error(f"Failed to update step execution record: {e}")
+                    except Exception as e:
+                        logger.error(f"Failed to update step execution record: {e}")
                     
                     # Update in-memory state for next steps
                     state = await self.state_manager.get_execution_state(execution_id)

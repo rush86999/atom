@@ -168,6 +168,23 @@ class AlertThresholdService:
         elif current_state == "violated" and error_rate < clear_threshold:
             # Alert clears when below clear threshold
             self._set_alert_state(tenant_id, connector_id, "error_rate", "cleared")
+        elif current_state == "violated":
+            # Hysteresis: rate is in the band [clear_threshold, threshold].
+            # The alert has NOT cleared (still firing), so continue reporting
+            # the violation — otherwise get_violations_for_tenant() silently
+            # drops an ongoing alert (false-negative). Severity is recomputed
+            # from the current rate so it downgrades as the rate falls.
+            violation = AlertViolation(
+                tenant_id=tenant_id,
+                connector_id=connector_id,
+                metric_type="error_rate",
+                actual_value=error_rate,
+                threshold=threshold,
+                severity=AlertSeverity.CRITICAL if error_rate > threshold * 2 else AlertSeverity.WARNING,
+                timestamp=datetime.now(timezone.utc),
+                window_start=window_start,
+                window_end=datetime.now(timezone.utc)
+            )
 
         return violation
 

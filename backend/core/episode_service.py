@@ -1406,14 +1406,16 @@ class EpisodeService:
             # Calculate date threshold
             since_date = datetime.now(timezone.utc) - timedelta(days=days)
 
-            # Query feedback for domain
+            # Query feedback for domain, ordered chronologically so the trend
+            # comparison (first half vs second half) is meaningful: first half
+            # = older feedback, second half = newer feedback.
             feedback_query = self.db.query(EpisodeFeedback).filter(
                 and_(
                     EpisodeFeedback.tenant_id == tenant_id,
                     EpisodeFeedback.capability_domain == domain,
                     EpisodeFeedback.provided_at >= since_date
                 )
-            )
+            ).order_by(EpisodeFeedback.provided_at.asc())
 
             all_feedback = feedback_query.all()
 

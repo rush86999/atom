@@ -42,6 +42,7 @@ def db_engine():
 
     # Reconfigure SessionLocal to bind to the test engine
     import core.database
+    original_bind = core.database.SessionLocal.kw.get("bind")
     core.database.SessionLocal.configure(bind=engine)
 
     yield engine
@@ -53,6 +54,15 @@ def db_engine():
         os.unlink(db_path)
     except:
         pass
+
+    # Restore the global SessionLocal bind. The db_engine fixture mutates
+    # the module-level core.database.SessionLocal, and without restoring it
+    # every later test in the same process that does NOT use this fixture
+    # (e.g. tests/core/test_workflow_engine_core_execution.py) inherits a
+    # sessionmaker bound to a disposed engine whose file was just deleted —
+    # any get_db_session() write then fails and can abort engine runs.
+    if original_bind is not None:
+        core.database.SessionLocal.configure(bind=original_bind)
 
 
 @pytest.fixture(scope="function")

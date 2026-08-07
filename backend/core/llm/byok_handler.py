@@ -45,6 +45,7 @@ from core.dynamic_pricing_fetcher import (
     get_pricing_fetcher_initialized_sync,
     refresh_pricing_cache,
     DynamicPricingFetcher)
+from core.llm_call_tracker import get_llm_call_tracker
 
 
 class AwaitableResult:
@@ -946,6 +947,30 @@ class BYOKHandler:
         except Exception:
             logger.debug("Rate usage tracking failed (non-fatal)", exc_info=True)
 
+    def _track_llm_call(self, provider: str, model: str, success: bool,
+                        latency_ms: float = 0.0, input_tokens: int = 0,
+                        output_tokens: int = 0, fallback: bool = False,
+                        fallback_provider: Optional[str] = None,
+                        error: Optional[str] = None) -> None:
+        """Record a per-call LLM provider usage entry (best-effort, no-op).
+
+        Feeds ``core.llm_call_tracker``: one record per provider attempt
+        (success or failure) with timestamp/provider/model/latency/tokens/
+        fallback/error, plus Prometheus counters/histograms. Covers every
+        provider (opencode-go, openai, anthropic, deepseek, gemini, ollama,
+        ...) across all dispatch paths. Never raises — tracking failures are
+        logged and swallowed so the hot generation path is unaffected.
+        """
+        try:
+            get_llm_call_tracker().record(
+                provider=provider, model=model, success=success,
+                latency_ms=latency_ms, input_tokens=input_tokens,
+                output_tokens=output_tokens, fallback=fallback,
+                fallback_provider=fallback_provider, error=error,
+            )
+        except Exception:
+            logger.debug("LLM call tracking failed (non-fatal)", exc_info=True)
+
     def _monthly_tpm_limit(self) -> Optional[int]:
         """Opt-in monthly subscription allowance (``OPENCODE_MONTHLY_TPM``).
 
@@ -1793,6 +1818,7 @@ class BYOKHandler:
                 return "No eligible LLM providers found for your current plan."
 
             last_error = None
+            primary_provider = options[0][0] if options else None
             for provider_id, model in options:
                 # Per-provider flag: each provider gets at most one self-heal retry.
                 heal_attempted_for_current = False
@@ -1930,6 +1956,14 @@ class BYOKHandler:
                         output_tokens=getattr(usage, 'completion_tokens', 0) if usage else 0,
                         model_id=model,
                     )
+                    self._track_llm_call(
+                        provider=provider_id, model=model, success=True,
+                        latency_ms=latency_ms,
+                        input_tokens=getattr(usage, 'prompt_tokens', 0) if usage else 0,
+                        output_tokens=getattr(usage, 'completion_tokens', 0) if usage else 0,
+                        fallback=provider_id != primary_provider,
+                        fallback_provider=primary_provider if provider_id != primary_provider else None,
+                    )
 
                     # Learning-router outcome observation (flag-gated, best-effort).
                     # Feeds real response quality (truncation, empty, etc.) into the
@@ -1958,6 +1992,13 @@ class BYOKHandler:
                     try:
                         latency_ms = (time.time() - request_start) * 1000
                         self.health_monitor.record_call(provider_id, success=False, latency_ms=latency_ms)
+                        self._track_llm_call(
+                            provider=provider_id, model=model, success=False,
+                            latency_ms=latency_ms,
+                            fallback=provider_id != primary_provider,
+                            fallback_provider=primary_provider if provider_id != primary_provider else None,
+                            error=str(attempt_err)[:500],
+                        )
                     except Exception:                         pass  # Don't let health monitoring errors affect primary flow
 
                     # --- Self-healing autofix (rule-based, single attempt) ---
@@ -2002,6 +2043,12 @@ class BYOKHandler:
                                     except Exception:
                                         pass
                                     self._track_rate_usage(provider_id, model_id=model)
+                                    self._track_llm_call(
+                                        provider=provider_id, model=model, success=True,
+                                        latency_ms=latency_ms,
+                                        fallback=provider_id != primary_provider,
+                                        fallback_provider=primary_provider if provider_id != primary_provider else None,
+                                    )
                                     await self._record_outcome_feedback(
                                         model=model, provider_id=provider_id, task_type=task_type,
                                         content=result, finish_reason=finish_reason,
@@ -2724,6 +2771,7 @@ class BYOKHandler:
             # without re-iterating the original ranking.
             cascade_options: list = list(options)
             cascade_idx = 0
+            primary_provider = cascade_options[0][0] if cascade_options else None
 
             while cascade_idx < len(cascade_options):
                 provider_id, model = cascade_options[cascade_idx]
@@ -2835,6 +2883,17 @@ class BYOKHandler:
                     except Exception as cost_err:
                         logger.warning(f"Could not attribute structured LLM cost: {cost_err}")
 
+                    # Per-call provider usage tracking (always recorded on
+                    # structured success, even when usage is unavailable).
+                    self._track_llm_call(
+                        provider=provider_id, model=model, success=True,
+                        latency_ms=_structured_latency_ms,
+                        input_tokens=getattr(usage, 'prompt_tokens', 0) if usage else 0,
+                        output_tokens=getattr(usage, 'completion_tokens', 0) if usage else 0,
+                        fallback=provider_id != primary_provider,
+                        fallback_provider=primary_provider if provider_id != primary_provider else None,
+                    )
+
                     # Learning-router outcome observation (structured success).
                     # Pass the REAL finish_reason/latency/cost so predictors can
                     # learn "model X truncates structured output" / "model Y is
@@ -2866,6 +2925,17 @@ class BYOKHandler:
                         or "validation" in str(attempt_err).lower()
                     )
                     last_was_schema_error = is_schema_err
+                    # Per-call provider usage tracking (structured failure).
+                    # Schema failures count as failed calls (matching the
+                    # learning-router convention); everything else is a
+                    # provider failure with the error surfaced.
+                    self._track_llm_call(
+                        provider=provider_id, model=model, success=not is_schema_err,
+                        latency_ms=0.0,
+                        fallback=provider_id != primary_provider,
+                        fallback_provider=primary_provider if provider_id != primary_provider else None,
+                        error=str(attempt_err)[:500],
+                    )
                     # Learning-router outcome observation (structured failure).
                     # schema_error=True tells assess_response_quality this was a
                     # validation failure (not a transient provider error), so the
@@ -3265,6 +3335,8 @@ class BYOKHandler:
         if not provider_order:
             raise ValueError(f"No available providers for streaming. Requested: {provider_id}")
 
+        primary_provider = provider_order[0] if provider_order else None
+
         # Stash prompt features for this decision so the streaming outcome hook
         # can recover REAL features (not task defaults) when recording feedback.
         # The streaming path doesn't re-rank, so without this its feedback
@@ -3386,6 +3458,12 @@ class BYOKHandler:
                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
                 self._track_rate_usage(attempt_provider_id, output_tokens=token_count,
                                        model_id=model)
+                self._track_llm_call(
+                    provider=attempt_provider_id, model=model, success=True,
+                    latency_ms=latency_ms, output_tokens=token_count,
+                    fallback=attempt_provider_id != primary_provider,
+                    fallback_provider=primary_provider if attempt_provider_id != primary_provider else None,
+                )
 
                 # Learning-router outcome observation (streaming success).
                 # Pass the accumulated content + real finish_reason so quality
@@ -3410,6 +3488,13 @@ class BYOKHandler:
                 try:
                     latency_ms = (time.time() - request_start) * 1000
                     self.health_monitor.record_call(attempt_provider_id, success=False, latency_ms=latency_ms)
+                    self._track_llm_call(
+                        provider=attempt_provider_id, model=model, success=False,
+                        latency_ms=latency_ms,
+                        fallback=attempt_provider_id != primary_provider,
+                        fallback_provider=primary_provider if attempt_provider_id != primary_provider else None,
+                        error=str(e)[:500],
+                    )
                 except Exception:                     pass  # Don't let health monitoring errors affect primary flow
 
                 # --- Self-healing autofix (rule-based, single attempt) ---
@@ -3473,6 +3558,12 @@ class BYOKHandler:
                                     pass
                                 self._track_rate_usage(attempt_provider_id, output_tokens=token_count,
                                                        model_id=model)
+                                self._track_llm_call(
+                                    provider=attempt_provider_id, model=model, success=True,
+                                    latency_ms=latency_ms, output_tokens=token_count,
+                                    fallback=attempt_provider_id != primary_provider,
+                                    fallback_provider=primary_provider if attempt_provider_id != primary_provider else None,
+                                )
                                 await self._record_outcome_feedback(
                                     model=model, provider_id=attempt_provider_id, task_type=task_type,
                                     content="".join(_stream_content_parts),
@@ -3639,6 +3730,7 @@ class BYOKHandler:
         if extra_kwargs:
             base_kwargs.update({k: v for k, v in extra_kwargs.items() if v is not None})
 
+        primary_provider = provider_order[0] if provider_order else None
         for attempt_provider_id in provider_order:
             heal_attempted = False
             client = self.async_clients.get(attempt_provider_id)
@@ -3704,6 +3796,14 @@ class BYOKHandler:
                     output_tokens=completion_tokens or 0,
                     model_id=model,
                 )
+                self._track_llm_call(
+                    provider=attempt_provider_id, model=model, success=True,
+                    latency_ms=latency_ms,
+                    input_tokens=prompt_tokens or 0,
+                    output_tokens=completion_tokens or 0,
+                    fallback=attempt_provider_id != primary_provider,
+                    fallback_provider=primary_provider if attempt_provider_id != primary_provider else None,
+                )
                 await self._record_outcome_feedback(
                     model=model, provider_id=attempt_provider_id, task_type=task_type,
                     content=content, finish_reason=finish_reason,
@@ -3740,6 +3840,13 @@ class BYOKHandler:
                 try:
                     latency_ms = (datetime.now() - request_start).total_seconds() * 1000.0
                     self.health_monitor.record_call(attempt_provider_id, success=False, latency_ms=latency_ms)
+                    self._track_llm_call(
+                        provider=attempt_provider_id, model=model, success=False,
+                        latency_ms=latency_ms,
+                        fallback=attempt_provider_id != primary_provider,
+                        fallback_provider=primary_provider if attempt_provider_id != primary_provider else None,
+                        error=str(e)[:500],
+                    )
                 except Exception:
                     pass
 
@@ -3772,6 +3879,13 @@ class BYOKHandler:
                                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=0.0)
                                 self._track_rate_usage(attempt_provider_id, input_tokens=hp, output_tokens=hc,
                                                        model_id=model)
+                                self._track_llm_call(
+                                    provider=attempt_provider_id, model=model, success=True,
+                                    latency_ms=(datetime.now() - request_start).total_seconds() * 1000.0,
+                                    input_tokens=hp, output_tokens=hc,
+                                    fallback=attempt_provider_id != primary_provider,
+                                    fallback_provider=primary_provider if attempt_provider_id != primary_provider else None,
+                                )
                                 await self._record_outcome_feedback(
                                     model=model, provider_id=attempt_provider_id, task_type=task_type,
                                     content=healed_content, finish_reason=healed_finish,

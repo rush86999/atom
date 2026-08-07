@@ -2371,7 +2371,7 @@ class IngestionPipelineService(HybridDataIngestionService):
             "email": webhook_data.get("contact", {}).get("email", ""),
             "object_type": "contact",
             "properties": webhook_data,
-            "event_type": webhook_data.get("event", "").get("name", ""),
+            "event_type": webhook_data.get("event", {}).get("name", ""),
         }
         records.append(record)
         return records
@@ -2616,11 +2616,14 @@ class IngestionPipelineService(HybridDataIngestionService):
             }
         else:
             pass
-            # Push event
+            # Push event. Guard against an empty/missing 'changes' list (a valid
+            # push webhook can carry no change entries) to avoid IndexError.
+            changes = webhook_data.get("changes") or [{}]
+            first_change = changes[0] if changes else {}
             record = {
                 "type": "bitbucket_push",
-                "id": webhook_data.get("changes", [{}])[0].get("toHash", "")[:7],
-                "ref": webhook_data.get("changes", [{}])[0].get("ref", {}).get("displayId", ""),
+                "id": first_change.get("toHash", "")[:7],
+                "ref": first_change.get("ref", {}).get("displayId", ""),
                 "object_type": "push",
                 "properties": webhook_data,
                 "event_type": "push",

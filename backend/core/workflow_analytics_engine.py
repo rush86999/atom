@@ -1519,8 +1519,82 @@ class WorkflowAnalyticsEngine:
             conn.close()
 
     # Create and update alert methods (wrappers for compatibility with API)
-    def create_alert(self, alert: Alert):
-        """Create a new alert (wrapper for compatibility)."""
+    def create_alert(self, alert=None, *, name: str = None, description: str = None,
+                     severity: AlertSeverity = None, condition: str = None,
+                     threshold_value: Union[int, float] = None, metric_name: str = None,
+                     workflow_id: Optional[str] = None, step_id: Optional[str] = None,
+                     notification_channels: Optional[List[str]] = None):
+        """
+        Create a new alert.
+
+        BUG FIX: this class previously defined create_alert TWICE (once taking
+        kwargs at line 760, once taking an Alert object here at line 1522). In
+        Python the later definition silently shadowed the earlier one, so every
+        kwargs-style call (engine.create_alert(name=..., description=...))
+        raised TypeError: got an unexpected keyword argument 'name'. This
+        single dispatching method supports BOTH calling conventions:
+
+            engine.create_alert(name=..., description=..., severity=..., ...)
+            engine.create_alert(my_alert_object)
+            engine.create_alert(alert=my_alert_object)
+        """
+        # Object-style call (positional Alert, or alert= kwarg).
+        if isinstance(alert, Alert):
+            return self._create_alert_from_object(alert)
+
+        # kwargs-style call — delegate to the original kwargs implementation.
+        return self._create_alert_kwargs(
+            name=name, description=description, severity=severity,
+            condition=condition, threshold_value=threshold_value,
+            metric_name=metric_name, workflow_id=workflow_id, step_id=step_id,
+            notification_channels=notification_channels,
+        )
+
+    def _create_alert_kwargs(self, name: str, description: str, severity: AlertSeverity,
+                             condition: str, threshold_value: Union[int, float],
+                             metric_name: str, workflow_id: Optional[str] = None,
+                             step_id: Optional[str] = None,
+                             notification_channels: Optional[List[str]] = None) -> Alert:
+        """Original kwargs-based create_alert (formerly the first definition)."""
+        alert = Alert(
+            alert_id=str(uuid.uuid4()),
+            name=name,
+            description=description,
+            severity=severity,
+            condition=condition,
+            threshold_value=threshold_value,
+            metric_name=metric_name,
+            workflow_id=workflow_id,
+            step_id=step_id,
+            notification_channels=notification_channels or [],
+            created_at=datetime.now()
+        )
+
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO analytics_alerts
+            (alert_id, name, description, severity, condition, threshold_value,
+             metric_name, workflow_id, step_id, notification_channels)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            alert.alert_id, alert.name, alert.description, alert.severity.value,
+            alert.condition, str(alert.threshold_value), alert.metric_name,
+            alert.workflow_id, alert.step_id, json.dumps(alert.notification_channels)
+        ))
+
+        conn.commit()
+        conn.close()
+
+        self.active_alerts[alert.alert_id] = alert
+
+        logger.info(f"Created alert: {alert.name} ({alert.alert_id})")
+        return alert
+
+    def _create_alert_from_object(self, alert: Alert):
+        """Create a new alert from an Alert object (formerly the second
+        shadowing definition)."""
         conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
 

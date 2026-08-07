@@ -67,11 +67,17 @@ class RateLimiter:
         Returns:
             Tuple of (is_limited, remaining_requests)
         """
-        # Determine limit: override -> default -> global fallback
-        effective_limit = limit or self.default_limits.get(
-            connector_id,
-            self.default_limits["default"]
-        )
+        # Determine limit: explicit override (incl. 0) -> default -> global fallback.
+        # NOTE: use `is not None` rather than truthiness — an explicit limit of 0
+        # means "block everything" and must be honored, not silently replaced
+        # with the default.
+        if limit is not None:
+            effective_limit = limit
+        else:
+            effective_limit = self.default_limits.get(
+                connector_id,
+                self.default_limits["default"]
+            )
 
         # Try Redis first
         if self.redis:

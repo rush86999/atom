@@ -1116,6 +1116,40 @@ async def get_usage_stats(
         )
 
 
+@router.get("/api/ai/usage/calls")
+async def get_llm_usage_calls(
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user),
+):
+    """Per-call LLM provider usage logs (all providers incl. opencode-go).
+
+    Returns recent call records (timestamp, provider, model, success,
+    latency_ms, input_tokens, output_tokens, fallback, fallback_provider,
+    error) from the in-memory call tracker plus an aggregated summary,
+    optionally filtered by provider/model.
+    """
+    try:
+        from core.llm_call_tracker import get_llm_call_tracker
+
+        tracker = get_llm_call_tracker()
+        n = max(1, min(int(limit or 100), 1000))
+        calls = tracker.get_recent_calls(provider=provider, model=model, limit=n)
+        summary = tracker.get_summary(provider=provider, model=model)
+        return ApiResponse(
+            success=True,
+            data={
+                "calls": [asdict(c) for c in calls],
+                "summary": summary,
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal error")
+
+
 # PDF-specific BYOK endpoints
 
 
