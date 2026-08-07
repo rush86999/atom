@@ -502,8 +502,10 @@ def score_model_for_routing(
     Returns:
         Composite score for routing (higher is better)
     """
-    # Start with quality score
-    score = model.quality_score or 75.0  # Default to mid-range if no score
+    # Start with quality score. Numeric columns round-trip as Decimal on both
+    # Postgres and SQLite, so coerce to float up front — Decimal arithmetic
+    # with float penalties would TypeError (B5).
+    score = float(model.quality_score) if model.quality_score is not None else 75.0  # Default to mid-range if no score
 
     # Apply health penalty (health_priority 0 = no penalty, 3 = -15 penalty)
     if health_priority is not None:
@@ -514,7 +516,12 @@ def score_model_for_routing(
     # This helps new models get tried
     if hasattr(model, 'discovered_at') and model.discovered_at:
         from datetime import datetime, timedelta, timezone
-        if model.discovered_at > datetime.now(timezone.utc) - timedelta(days=30):
+        discovered = model.discovered_at
+        # SQLite round-trips DateTime(timezone=True) as a naive datetime;
+        # comparing naive against aware `now` would TypeError (B5).
+        if discovered.tzinfo is None:
+            discovered = discovered.replace(tzinfo=timezone.utc)
+        if discovered > datetime.now(timezone.utc) - timedelta(days=30):
             score += 2.0  # +2 for newly discovered models
 
-    return max(0, min(100, score))  # Clamp to 0-100
+    return max(0.0, min(100.0, score))  # Clamp to 0-100

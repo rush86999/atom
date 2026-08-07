@@ -199,18 +199,28 @@ class SelfConsistencyVoter:
         n = max(1, n)
         temps = self._temperatures_for(n, base=temperature)
 
+        # Extract known kwargs ONCE outside the per-sample closure so every
+        # sample sees the same values (kwargs.pop inside the loop would
+        # mutate the captured dict across iterations — only the first sample
+        # would receive the caller's system_instruction/task_type/etc. and
+        # samples 2..N would silently fall back to defaults).
+        system_instruction = kwargs.pop("system_instruction", "You are a helpful assistant.")
+        task_type = kwargs.pop("task_type", None)
+        chain_id = kwargs.pop("chain_id", None)
+        image_payload = kwargs.pop("image_payload", None)
+
         async def _one(temp: float) -> T | None:
             try:
                 return await self.handler.generate_structured_response(
                     prompt=prompt,
-                    system_instruction=kwargs.pop("system_instruction", "You are a helpful assistant."),
+                    system_instruction=system_instruction,
                     response_model=response_model,
                     temperature=temp,
                     max_tokens=max_tokens,
-                    task_type=kwargs.pop("task_type", None),
+                    task_type=task_type,
                     agent_id=agent_id,
-                    chain_id=kwargs.pop("chain_id", None),
-                    image_payload=kwargs.pop("image_payload", None),
+                    chain_id=chain_id,
+                    image_payload=image_payload,
                     cascade=cascade,
                     # R72 F: voter samples must never re-trigger MoA.
                     allow_moa=False,
@@ -396,20 +406,23 @@ class SelfConsistencyVoter:
         else:
             fields = {"value": str(action_plan)}
 
-        # Bug #13: only match against field NAMES that look like action verbs
-        # (start with an irreversible prefix), not against field VALUES or
-        # benign fields like created_at/updated_at/updated_by that happen to
-        # contain "create_"/"update_" as substrings. This avoids triggering
-        # 3× LLM cost on read-only plans that merely carry timestamps.
+        # Bug #13: don't match substring-wise — "create_" inside
+        # created_at/updated_at fields triggered 3× LLM cost on read-only
+        # plans that merely carry timestamps. Match by PREFIX only, and skip
+        # benign metadata fields (_at/_by/_time/_date/_count/_id...) entirely.
+        # The module contract (docstring + original C5 spec) matches the
+        # destructive verb in the VALUE as well as the field NAME — e.g.
+        # {"action": "send_email"} — so both haystacks are checked with
+        # startswith (never `in`, so mid-string occurrences stay inert).
         _BENIGN_FIELD_SUFFIXES = ("_at", "_by", "_time", "_date", "_timestamp", "_count", "_id")
         for key, val in fields.items():
             key_l = str(key).lower()
             # Skip fields that are clearly metadata (timestamps, counters, ids).
             if any(key_l.endswith(suffix) for suffix in _BENIGN_FIELD_SUFFIXES):
                 continue
-            # Match the field NAME only (not values — values can be anything).
+            val_l = str(val).lower() if isinstance(val, str) else ""
             for pat in _IRREVERSIBLE_PATTERNS:
-                if key_l.startswith(pat):
+                if key_l.startswith(pat) or val_l.startswith(pat):
                     return True
         return False
 

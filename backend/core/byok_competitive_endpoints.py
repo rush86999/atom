@@ -232,6 +232,11 @@ async def get_provider_intelligence(
             "intelligence": intelligence,
             "generated_at": datetime.now().isoformat()
         }
+    except HTTPException:
+        # The not-found 404 for an unknown/missing-insight provider must
+        # propagate — the broad except below previously swallowed it and
+        # returned 500.
+        raise
     except ValueError as e:
         raise HTTPException(status_code=404, detail="Internal error")
     except Exception as e:

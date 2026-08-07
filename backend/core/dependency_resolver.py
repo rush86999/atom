@@ -123,10 +123,10 @@ class DependencyResolver:
             # Detect version conflicts
             conflicts = []
             for name, versions in package_versions.items():
-                if len(versions) > 1:
+                if len(set(versions)) > 1:
                     conflicts.append({
                         "package": name,
-                        "requested_versions": versions
+                        "requested_versions": sorted(set(versions))
                     })
 
             if conflicts:

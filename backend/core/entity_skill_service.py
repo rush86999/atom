@@ -76,6 +76,11 @@ class EntitySkillService:
             # Check for duplicate
             current_skills = entity_type.available_skills or []
             if skill_id in current_skills:
+                # The context-manager session commits+closes on exit, which
+                # would expire+detach the instance and crash attribute access
+                # on the returned object (DetachedInstanceError). Expunge it
+                # with the already-loaded state instead.
+                session.expunge(entity_type)
                 return entity_type
 
             # Append skill
@@ -84,6 +89,7 @@ class EntitySkillService:
             try:
                 session.commit()
                 session.refresh(entity_type)
+                session.expunge(entity_type)
                 logger.info(f"Attached skill '{skill_id}' to entity type '{entity_type.slug}'")
                 return entity_type
             except Exception as e:
@@ -110,6 +116,7 @@ class EntitySkillService:
 
             current_skills = entity_type.available_skills or []
             if skill_id not in current_skills:
+                session.expunge(entity_type)
                 return entity_type
 
             entity_type.available_skills = [s for s in current_skills if s != skill_id]
@@ -117,6 +124,7 @@ class EntitySkillService:
             try:
                 session.commit()
                 session.refresh(entity_type)
+                session.expunge(entity_type)
                 return entity_type
             except Exception as e:
                 session.rollback()

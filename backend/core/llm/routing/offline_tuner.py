@@ -157,7 +157,10 @@ async def tune_routing_weights(
     Returns:
         Summary dict with per-task results.
     """
-    results: Dict[str, Any] = {"tenant_id": tenant_id, "tasks_tuned": []}
+    # tasks_tuned_count is part of the summary contract — set it up front so
+    # the no-data early return (which never reaches the final recount) still
+    # exposes the key.
+    results: Dict[str, Any] = {"tenant_id": tenant_id, "tasks_tuned": [], "tasks_tuned_count": 0}
 
     # Gather feedback data per task type.
     task_data: Dict[str, List[dict]] = defaultdict(list)

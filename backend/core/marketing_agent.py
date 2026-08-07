@@ -6,7 +6,7 @@ from ecommerce.models import EcommerceCustomer, EcommerceOrder
 from service_delivery.models import Appointment, AppointmentStatus
 
 from core.communication_intelligence import CommunicationIntelligenceService
-from core.database import get_db_session
+from core.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,13 @@ class MarketingAgent:
         """
         Sends a review request if the customer sentiment is positive.
         """
-        db = self.db or get_db_session()
+        # get_db_session() returns a context manager, NOT a Session — use it as
+        # a session crashed on the no-injected-session path. Own the session
+        # only when none was injected.
+        db = self.db
+        owns_db = db is None
+        if owns_db:
+            db = SessionLocal()
         try:
             customer = db.query(EcommerceCustomer).filter(EcommerceCustomer.id == customer_id).first()
             if not customer:
@@ -44,7 +50,7 @@ class MarketingAgent:
 
             return {"status": "success", "message": message, "target": "sms/email"}
         finally:
-            if not self.db:
+            if owns_db:
                 db.close()
 
 class RetentionEngine:
@@ -59,7 +65,12 @@ class RetentionEngine:
         """
         Identify customers who are due for a recurring service.
         """
-        db = self.db or get_db_session()
+        # Same get_db_session() context-manager trap as MarketingAgent: the
+        # no-session path crashed instead of just closing a session.
+        db = self.db
+        owns_db = db is None
+        if owns_db:
+            db = SessionLocal()
         opportunities = []
         try:
             # Prototype logic: If a customer had a 'COMPLETED' appointment/order > 6 months ago 
@@ -74,5 +85,5 @@ class RetentionEngine:
             
             return opportunities
         finally:
-            if not self.db:
+            if owns_db:
                 db.close()

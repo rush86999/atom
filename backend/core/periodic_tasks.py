@@ -59,17 +59,17 @@ async def run_global_ingestion_pulse():
 
             for ws in workspaces:
                 # Get service for this workspace
-                service = get_document_ingestion_service(ws.id)
+                service = get_document_ingestion_service()
                 settings_list = service.get_all_settings()
 
                 for settings in settings_list:
-                    if settings.enabled:
+                    if settings["enabled"]:
                         # Dispatch Sync Task
                         # We do NOT force here. We let the task logic decide if it's time based on Tier.
                         dispatch_task(
                             task_name="handle_document_ingestion_sync",
                             payload={
-                                "integration_id": settings.integration_id,
+                                "integration_id": settings["integration_id"],
                                 "workspace_id": ws.id,
                                 "force": False
                             }

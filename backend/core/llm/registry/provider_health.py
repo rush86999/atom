@@ -87,14 +87,20 @@ class ProviderHealthService:
         data['last_success_ts'] = datetime.now(timezone.utc).isoformat()
 
         # Update rolling average latency
-        current_avg = data.get('avg_latency_ms', latency_ms)
+        current_avg = data.get('avg_latency_ms') or latency_ms
         success_count = data['success_count']
         data['avg_latency_ms'] = (
             (current_avg * (success_count - 1) + latency_ms) / success_count
         )
 
-        # Check for recovery
-        if data.get('current_state') in (HealthState.UNHEALTHY.value, HealthState.DEGRADED.value):
+        # Check for recovery. RATE_LIMITED participates: a provider that once
+        # hit a 429 must return to the healthy routing pool after a clean
+        # streak, not stay deprioritized forever.
+        if data.get('current_state') in (
+            HealthState.UNHEALTHY.value,
+            HealthState.DEGRADED.value,
+            HealthState.RATE_LIMITED.value,
+        ):
             if data['consecutive_successes'] >= CONSECUTIVE_SUCCESSES_RECOVERY:
                 data['current_state'] = HealthState.HEALTHY.value
                 logger.info(f"Provider {provider} recovered to HEALTHY state")
@@ -160,6 +166,19 @@ class ProviderHealthService:
                 return {}
         return {}
 
+    @staticmethod
+    def _safe_state(state_value: Any) -> HealthState:
+        """Resolve a stored state string to a HealthState, falling back to
+        HEALTHY for None/corrupt/unknown values so a bad cache row can never
+        crash the health check."""
+        try:
+            if state_value is None:
+                return HealthState.HEALTHY
+            return HealthState(state_value)
+        except ValueError:
+            logger.warning(f"Unknown provider health state {state_value!r}; treating as HEALTHY")
+            return HealthState.HEALTHY
+
     async def get_health_state(self, provider: str) -> HealthState:
         """Get current health state for a provider.
 
@@ -171,7 +190,7 @@ class ProviderHealthService:
         """
         data = await self._get_health_data(provider)
         state_value = data.get('current_state', HealthState.HEALTHY.value)
-        return HealthState(state_value)
+        return self._safe_state(state_value)
 
     async def get_health_metrics(self, provider: str) -> Dict[str, Any]:
         """Get full health metrics for a provider.
@@ -194,7 +213,9 @@ class ProviderHealthService:
             }
         return {
             'provider': provider,
-            'state': data.get('current_state', HealthState.HEALTHY.value),
+            'state': self._safe_state(
+                data.get('current_state', HealthState.HEALTHY.value)
+            ).value,
             'success_count': data.get('success_count', 0),
             'error_count': data.get('error_count', 0),
             'consecutive_failures': data.get('consecutive_failures', 0),

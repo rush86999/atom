@@ -6,7 +6,7 @@ from service_delivery.models import BudgetStatus, Milestone, Project, ProjectTas
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from core.database import get_db_session
+from core.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,16 @@ class BudgetGuardrailService:
         """
         Aggregates costs for the project.
         """
-        db = self.db or get_db_session()
+        # get_db_session() returns a context manager, NOT a Session — using it
+        # as `db = self.db or get_db_session()` crashed with AttributeError on
+        # the no-injected-session path. Own the session only when none was
+        # injected (mirrors the marketing_agent fix, same bug shape).
+        if self.db is not None:
+            db = self.db
+            owns_db = False
+        else:
+            db = SessionLocal()
+            owns_db = True
         try:
             # 1. Labor Costs (Calculated from project tasks)
             # In a real system, we'd join with User.hourly_cost_rate
@@ -49,7 +58,7 @@ class BudgetGuardrailService:
                 "status": project.budget_status.value if project else "unknown"
             }
         finally:
-            if not self.db:
+            if owns_db:
                 db.close()
 
     def _calculate_labor_burn(self, project_id: str, db: Session) -> float:
@@ -64,16 +73,22 @@ class BudgetGuardrailService:
             rate = 50.0 # Default hourly rate if user not found/no rate
             if task.assigned_to:
                 user = db.query(User).filter(User.id == task.assigned_to).first()
-                if user and user.hourly_cost_rate:
-                    rate = user.hourly_cost_rate
+                # `hourly_cost_rate` is not a live column on the User model
+                # (commented out in core/models.py) — guard with getattr so the
+                # default rate applies instead of an AttributeError.
+                if user:
+                    rate = getattr(user, "hourly_cost_rate", None) or 50.0
             total += (task.actual_hours or 0.0) * rate
         return total
 
     def _calculate_expense_burn(self, project_id: str, db: Session) -> float:
         """Sum of transactions and bills linked to project."""
-        tx_burn = db.query(func.sum(Transaction.amount)).filter(Transaction.project_id == project_id).scalar() or 0.0
-        bill_burn = db.query(func.sum(Bill.amount)).filter(Bill.project_id == project_id).scalar() or 0.0
-        return float(tx_burn + bill_burn)
+        # func.sum on Numeric columns yields Decimal, while the `or 0.0`
+        # fallback yields float — `float(tx + bill)` crashed with
+        # TypeError when exactly one source had no rows. Convert each side.
+        tx_burn = db.query(func.sum(Transaction.amount)).filter(Transaction.project_id == project_id).scalar()
+        bill_burn = db.query(func.sum(Bill.amount)).filter(Bill.project_id == project_id).scalar()
+        return float(tx_burn or 0.0) + float(bill_burn or 0.0)
 
     def _update_status(self, project: Project):
         """Updates Project.budget_status based on burn thresholds."""
