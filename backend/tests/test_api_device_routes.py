@@ -62,6 +62,27 @@ def _csrf_test_secret(api_test_client: TestClient):
     yield
 
 
+@pytest.fixture(autouse=True)
+def _device_routes_use_test_db(api_test_client: TestClient, db_session: Session):
+    """
+    Point the device routes' `get_db` dependency at the test session.
+
+    The route-level agent lookup (execute_command requires an AUTONOMOUS
+    agent in the DB) and device/session/audit reads must see the rows these
+    tests create via `db_session`; otherwise every agent lookup misses and
+    governance denies with 403 regardless of the agent created in the test.
+    """
+    from core.database import get_db
+
+    def _override_get_db():
+        yield db_session
+
+    app = api_test_client.app
+    app.dependency_overrides[get_db] = _override_get_db
+    yield
+    app.dependency_overrides.pop(get_db, None)
+
+
 def check_device_router_available(client: TestClient) -> bool:
     """
     Check if the device router is registered in the app.
@@ -138,6 +159,7 @@ def create_test_agent(db: Session, status: AgentStatus, name: str = None) -> Age
         category="test",
         module_path="test.module",
         class_name=f"Test{status.value.capitalize()}",
+        workspace_id="default",  # AgentGovernanceService scopes lookups to workspace_id="default"
         status=status.value,
         confidence_score={
             AgentStatus.STUDENT: 0.3,
@@ -167,7 +189,7 @@ class TestDeviceCamera:
         agent = create_test_agent(db_session, AgentStatus.INTERN, "TestInternAgent")
 
         # Mock device tool to succeed
-        with patch('tools.device_tool.device_camera_snap', new_callable=AsyncMock) as mock_snap:
+        with patch('api.device_capabilities.device_camera_snap', new_callable=AsyncMock) as mock_snap:
             mock_snap.return_value = {
                 "success": True,
                 "file_path": "/tmp/camera_snap_test.jpg",
@@ -199,7 +221,7 @@ class TestDeviceCamera:
         agent = create_test_agent(db_session, AgentStatus.STUDENT, "TestStudentAgent")
 
         # Mock device tool to fail governance
-        with patch('tools.device_tool.device_camera_snap', new_callable=AsyncMock) as mock_snap:
+        with patch('api.device_capabilities.device_camera_snap', new_callable=AsyncMock) as mock_snap:
             mock_snap.return_value = {
                 "success": False,
                 "error": "Camera snap requires INTERN+ maturity level",
@@ -228,7 +250,7 @@ class TestDeviceCamera:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.SUPERVISED, "TestSupervisedAgent")
 
-        with patch('tools.device_tool.device_camera_snap', new_callable=AsyncMock) as mock_snap:
+        with patch('api.device_capabilities.device_camera_snap', new_callable=AsyncMock) as mock_snap:
             mock_snap.return_value = {
                 "success": True,
                 "file_path": "/tmp/camera_snap.jpg",
@@ -250,7 +272,7 @@ class TestDeviceCamera:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.AUTONOMOUS, "TestAutonomousAgent")
 
-        with patch('tools.device_tool.device_camera_snap', new_callable=AsyncMock) as mock_snap:
+        with patch('api.device_capabilities.device_camera_snap', new_callable=AsyncMock) as mock_snap:
             mock_snap.return_value = {
                 "success": True,
                 "file_path": "/tmp/camera_snap.jpg",
@@ -277,8 +299,11 @@ class TestDeviceCamera:
             }
         )
 
-        # Should handle missing device gracefully
-        assert response.status_code in [200, 401, 404]
+        # Should handle missing device gracefully. Without an explicit agent,
+        # the route resolves the system default (STUDENT) agent, and the
+        # documented INTERN+ camera maturity gate denies first (403) — that is
+        # the graceful, governance-bounded behavior.
+        assert response.status_code in [200, 401, 403, 404]
 
     def test_camera_snap_validation_missing_device_id(self, api_test_client: TestClient):
         """Test camera snap without device_node_id returns validation error."""
@@ -297,7 +322,7 @@ class TestDeviceCamera:
         """Test camera snap with custom save path."""
         device = create_test_device_node(db_session, api_test_client.test_user.id)
 
-        with patch('tools.device_tool.device_camera_snap', new_callable=AsyncMock) as mock_snap:
+        with patch('api.device_capabilities.device_camera_snap', new_callable=AsyncMock) as mock_snap:
             mock_snap.return_value = {
                 "success": True,
                 "file_path": "/custom/path/photo.jpg",
@@ -320,7 +345,7 @@ class TestDeviceCamera:
         """Test DeviceAudit record created for camera snap."""
         device = create_test_device_node(db_session, api_test_client.test_user.id)
 
-        with patch('tools.device_tool.device_camera_snap', new_callable=AsyncMock) as mock_snap:
+        with patch('api.device_capabilities.device_camera_snap', new_callable=AsyncMock) as mock_snap:
             mock_snap.return_value = {
                 "success": True,
                 "file_path": "/tmp/camera_snap.jpg",
@@ -351,7 +376,7 @@ class TestDeviceCamera:
         device.status = "offline"
         db_session.commit()
 
-        with patch('tools.device_tool.device_camera_snap', new_callable=AsyncMock) as mock_snap:
+        with patch('api.device_capabilities.device_camera_snap', new_callable=AsyncMock) as mock_snap:
             mock_snap.return_value = {
                 "success": False,
                 "error": "Device is offline"
@@ -385,7 +410,7 @@ class TestDeviceLocation:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.INTERN, "TestInternAgent")
 
-        with patch('tools.device_tool.device_get_location', new_callable=AsyncMock) as mock_location:
+        with patch('api.device_capabilities.device_get_location', new_callable=AsyncMock) as mock_location:
             mock_location.return_value = {
                 "success": True,
                 "latitude": 37.7749,
@@ -414,7 +439,7 @@ class TestDeviceLocation:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.STUDENT, "TestStudentAgent")
 
-        with patch('tools.device_tool.device_get_location', new_callable=AsyncMock) as mock_location:
+        with patch('api.device_capabilities.device_get_location', new_callable=AsyncMock) as mock_location:
             mock_location.return_value = {
                 "success": False,
                 "error": "Location requires INTERN+ maturity level",
@@ -435,7 +460,7 @@ class TestDeviceLocation:
         """Test location with high accuracy."""
         device = create_test_device_node(db_session, api_test_client.test_user.id)
 
-        with patch('tools.device_tool.device_get_location', new_callable=AsyncMock) as mock_location:
+        with patch('api.device_capabilities.device_get_location', new_callable=AsyncMock) as mock_location:
             mock_location.return_value = {
                 "success": True,
                 "latitude": 37.7749,
@@ -461,7 +486,7 @@ class TestDeviceLocation:
         """Test location with medium accuracy."""
         device = create_test_device_node(db_session, api_test_client.test_user.id)
 
-        with patch('tools.device_tool.device_get_location', new_callable=AsyncMock) as mock_location:
+        with patch('api.device_capabilities.device_get_location', new_callable=AsyncMock) as mock_location:
             mock_location.return_value = {
                 "success": True,
                 "latitude": 37.7749,
@@ -483,7 +508,7 @@ class TestDeviceLocation:
         """Test location with low accuracy."""
         device = create_test_device_node(db_session, api_test_client.test_user.id)
 
-        with patch('tools.device_tool.device_get_location', new_callable=AsyncMock) as mock_location:
+        with patch('api.device_capabilities.device_get_location', new_callable=AsyncMock) as mock_location:
             mock_location.return_value = {
                 "success": True,
                 "latitude": 37.7749,
@@ -505,7 +530,7 @@ class TestDeviceLocation:
         """Test location when location services disabled."""
         device = create_test_device_node(db_session, api_test_client.test_user.id)
 
-        with patch('tools.device_tool.device_get_location', new_callable=AsyncMock) as mock_location:
+        with patch('api.device_capabilities.device_get_location', new_callable=AsyncMock) as mock_location:
             mock_location.return_value = {
                 "success": False,
                 "error": "Location services disabled"
@@ -525,7 +550,7 @@ class TestDeviceLocation:
         """Test DeviceAudit record created for location action."""
         device = create_test_device_node(db_session, api_test_client.test_user.id)
 
-        with patch('tools.device_tool.device_get_location', new_callable=AsyncMock) as mock_location:
+        with patch('api.device_capabilities.device_get_location', new_callable=AsyncMock) as mock_location:
             mock_location.return_value = {
                 "success": True,
                 "latitude": 37.7749,
@@ -564,7 +589,7 @@ class TestDeviceScreenRecord:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.SUPERVISED, "TestSupervisedAgent")
 
-        with patch('tools.device_tool.device_screen_record_start', new_callable=AsyncMock) as mock_start:
+        with patch('api.device_capabilities.device_screen_record_start', new_callable=AsyncMock) as mock_start:
             mock_start.return_value = {
                 "success": True,
                 "session_id": str(uuid.uuid4()),
@@ -598,7 +623,7 @@ class TestDeviceScreenRecord:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.STUDENT, "TestStudentAgent")
 
-        with patch('tools.device_tool.device_screen_record_start', new_callable=AsyncMock) as mock_start:
+        with patch('api.device_capabilities.device_screen_record_start', new_callable=AsyncMock) as mock_start:
             mock_start.return_value = {
                 "success": False,
                 "error": "Screen recording requires SUPERVISED+ maturity level",
@@ -620,7 +645,7 @@ class TestDeviceScreenRecord:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.INTERN, "TestInternAgent")
 
-        with patch('tools.device_tool.device_screen_record_start', new_callable=AsyncMock) as mock_start:
+        with patch('api.device_capabilities.device_screen_record_start', new_callable=AsyncMock) as mock_start:
             mock_start.return_value = {
                 "success": False,
                 "error": "Screen recording requires SUPERVISED+ maturity level",
@@ -642,7 +667,7 @@ class TestDeviceScreenRecord:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.SUPERVISED, "TestSupervisedAgent")
 
-        with patch('tools.device_tool.device_screen_record_start', new_callable=AsyncMock) as mock_start:
+        with patch('api.device_capabilities.device_screen_record_start', new_callable=AsyncMock) as mock_start:
             mock_start.return_value = {
                 "success": True,
                 "session_id": str(uuid.uuid4())
@@ -663,7 +688,7 @@ class TestDeviceScreenRecord:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.AUTONOMOUS, "TestAutonomousAgent")
 
-        with patch('tools.device_tool.device_screen_record_start', new_callable=AsyncMock) as mock_start:
+        with patch('api.device_capabilities.device_screen_record_start', new_callable=AsyncMock) as mock_start:
             mock_start.return_value = {
                 "success": True,
                 "session_id": str(uuid.uuid4()),
@@ -689,7 +714,7 @@ class TestDeviceScreenRecord:
         """Test starting screen recording with audio enabled."""
         device = create_test_device_node(db_session, api_test_client.test_user.id)
 
-        with patch('tools.device_tool.device_screen_record_start', new_callable=AsyncMock) as mock_start:
+        with patch('api.device_capabilities.device_screen_record_start', new_callable=AsyncMock) as mock_start:
             mock_start.return_value = {
                 "success": True,
                 "session_id": str(uuid.uuid4()),
@@ -711,7 +736,7 @@ class TestDeviceScreenRecord:
         """Test screen record with invalid duration."""
         device = create_test_device_node(db_session, api_test_client.test_user.id)
 
-        with patch('tools.device_tool.device_screen_record_start', new_callable=AsyncMock) as mock_start:
+        with patch('api.device_capabilities.device_screen_record_start', new_callable=AsyncMock) as mock_start:
             mock_start.return_value = {
                 "success": False,
                 "error": "Duration must be between 1 and 300 seconds"
@@ -731,7 +756,7 @@ class TestDeviceScreenRecord:
         """Test stopping screen recording session."""
         session_id = str(uuid.uuid4())
 
-        with patch('tools.device_tool.device_screen_record_stop', new_callable=AsyncMock) as mock_stop:
+        with patch('api.device_capabilities.device_screen_record_stop', new_callable=AsyncMock) as mock_stop:
             mock_stop.return_value = {
                 "success": True,
                 "session_id": session_id,
@@ -754,7 +779,7 @@ class TestDeviceScreenRecord:
         """Test stopping screen recording when no active session exists."""
         session_id = str(uuid.uuid4())
 
-        with patch('tools.device_tool.device_screen_record_stop', new_callable=AsyncMock) as mock_stop:
+        with patch('api.device_capabilities.device_screen_record_stop', new_callable=AsyncMock) as mock_stop:
             mock_stop.return_value = {
                 "success": False,
                 "error": "No active recording session found"
@@ -781,7 +806,7 @@ class TestDeviceScreenRecord:
         """Test DeviceSession record created when starting screen recording."""
         device = create_test_device_node(db_session, api_test_client.test_user.id)
 
-        with patch('tools.device_tool.device_screen_record_start', new_callable=AsyncMock) as mock_start:
+        with patch('api.device_capabilities.device_screen_record_start', new_callable=AsyncMock) as mock_start:
             mock_start.return_value = {
                 "success": True,
                 "session_id": str(uuid.uuid4())
@@ -811,7 +836,7 @@ class TestDeviceNotification:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.INTERN, "TestInternAgent")
 
-        with patch('tools.device_tool.device_send_notification', new_callable=AsyncMock) as mock_notify:
+        with patch('api.device_capabilities.device_send_notification', new_callable=AsyncMock) as mock_notify:
             mock_notify.return_value = {
                 "success": True,
                 "device_node_id": device.device_id,
@@ -837,7 +862,7 @@ class TestDeviceNotification:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.STUDENT, "TestStudentAgent")
 
-        with patch('tools.device_tool.device_send_notification', new_callable=AsyncMock) as mock_notify:
+        with patch('api.device_capabilities.device_send_notification', new_callable=AsyncMock) as mock_notify:
             mock_notify.return_value = {
                 "success": False,
                 "error": "Notifications require INTERN+ maturity level",
@@ -860,7 +885,7 @@ class TestDeviceNotification:
         """Test sending notification with icon and sound options."""
         device = create_test_device_node(db_session, api_test_client.test_user.id)
 
-        with patch('tools.device_tool.device_send_notification', new_callable=AsyncMock) as mock_notify:
+        with patch('api.device_capabilities.device_send_notification', new_callable=AsyncMock) as mock_notify:
             mock_notify.return_value = {
                 "success": True,
                 "title": "Alert",
@@ -885,7 +910,7 @@ class TestDeviceNotification:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.SUPERVISED, "TestSupervisedAgent")
 
-        with patch('tools.device_tool.device_send_notification', new_callable=AsyncMock) as mock_notify:
+        with patch('api.device_capabilities.device_send_notification', new_callable=AsyncMock) as mock_notify:
             mock_notify.return_value = {
                 "success": True,
                 "title": "Supervised Alert",
@@ -910,7 +935,7 @@ class TestDeviceNotification:
         device.status = "offline"
         db_session.commit()
 
-        with patch('tools.device_tool.device_send_notification', new_callable=AsyncMock) as mock_notify:
+        with patch('api.device_capabilities.device_send_notification', new_callable=AsyncMock) as mock_notify:
             mock_notify.return_value = {
                 "success": False,
                 "error": "Device is offline"
@@ -943,7 +968,7 @@ class TestDeviceNotification:
         """Test DeviceAudit record created for notification."""
         device = create_test_device_node(db_session, api_test_client.test_user.id)
 
-        with patch('tools.device_tool.device_send_notification', new_callable=AsyncMock) as mock_notify:
+        with patch('api.device_capabilities.device_send_notification', new_callable=AsyncMock) as mock_notify:
             mock_notify.return_value = {
                 "success": True,
                 "title": "Test",
@@ -975,7 +1000,7 @@ class TestDeviceExecute:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.AUTONOMOUS, "TestAutonomousAgent")
 
-        with patch('tools.device_tool.device_execute_command', new_callable=AsyncMock) as mock_exec:
+        with patch('api.device_capabilities.device_execute_command', new_callable=AsyncMock) as mock_exec:
             mock_exec.return_value = {
                 "success": True,
                 "exit_code": 0,
@@ -1073,7 +1098,7 @@ class TestDeviceExecute:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.AUTONOMOUS, "TestAutonomousAgent")
 
-        with patch('tools.device_tool.device_execute_command', new_callable=AsyncMock) as mock_exec:
+        with patch('api.device_capabilities.device_execute_command', new_callable=AsyncMock) as mock_exec:
             # Mock whitelist rejection
             mock_exec.return_value = {
                 "success": False,
@@ -1089,7 +1114,9 @@ class TestDeviceExecute:
                 }
             )
 
-            assert response.status_code in [200, 401, 403, 404]
+            # Whitelist rejection surfaces as a documented 400
+            # (EXECUTE_COMMAND_FAILED) from the route
+            assert response.status_code in [200, 400, 401, 403, 404]
 
             if response.status_code == 200:
                 data = response.json()
@@ -1099,13 +1126,15 @@ class TestDeviceExecute:
     def test_execute_command_timeout_enforced(self, api_test_client: TestClient, db_session: Session):
         """Test command timeout enforced (max 300s)."""
         device = create_test_device_node(db_session, api_test_client.test_user.id)
+        agent = create_test_agent(db_session, AgentStatus.AUTONOMOUS, "TestAutonomousAgent")
 
         response = api_test_client.post(
             "/api/devices/execute",
             json={
                 "device_node_id": device.device_id,
                 "command": "sleep 400",
-                "timeout_seconds": 400  # Exceeds 300s max
+                "timeout_seconds": 400,  # Exceeds 300s max
+                "agent_id": agent.id  # AUTONOMOUS agent passes the route gate so the tool's timeout validation runs
             }
         )
 
@@ -1116,7 +1145,7 @@ class TestDeviceExecute:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.AUTONOMOUS, "TestAutonomousAgent")
 
-        with patch('tools.device_tool.device_execute_command', new_callable=AsyncMock) as mock_exec:
+        with patch('api.device_capabilities.device_execute_command', new_callable=AsyncMock) as mock_exec:
             mock_exec.return_value = {
                 "success": True,
                 "exit_code": 0,
@@ -1142,7 +1171,7 @@ class TestDeviceExecute:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.AUTONOMOUS, "TestAutonomousAgent")
 
-        with patch('tools.device_tool.device_execute_command', new_callable=AsyncMock) as mock_exec:
+        with patch('api.device_capabilities.device_execute_command', new_callable=AsyncMock) as mock_exec:
             mock_exec.return_value = {
                 "success": True,
                 "exit_code": 0,
@@ -1168,7 +1197,7 @@ class TestDeviceExecute:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.AUTONOMOUS, "TestAutonomousAgent")
 
-        with patch('tools.device_tool.device_execute_command', new_callable=AsyncMock) as mock_exec:
+        with patch('api.device_capabilities.device_execute_command', new_callable=AsyncMock) as mock_exec:
             mock_exec.return_value = {
                 "success": True,
                 "exit_code": 0,
@@ -1193,7 +1222,7 @@ class TestDeviceExecute:
         device = create_test_device_node(db_session, api_test_client.test_user.id)
         agent = create_test_agent(db_session, AgentStatus.AUTONOMOUS, "TestAutonomousAgent")
 
-        with patch('tools.device_tool.device_execute_command', new_callable=AsyncMock) as mock_exec:
+        with patch('api.device_capabilities.device_execute_command', new_callable=AsyncMock) as mock_exec:
             mock_exec.return_value = {
                 "success": True,
                 "exit_code": 0,

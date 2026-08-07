@@ -14,7 +14,7 @@ Refactored to use standardized decorators and service factory.
 """
 
 from typing import Any, Dict, List, Optional
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
@@ -264,6 +264,8 @@ async def camera_snap(
 
     except Exception as e:
         logger.error(f"Camera snap error: {e}")
+        if isinstance(e, HTTPException):
+            raise
         if "permission" in str(e).lower() or "governance" in str(e).lower():
             raise router.permission_denied_error("camera_snap", "Device", details={"error": str(e)})
         raise router.internal_error("Internal error")
@@ -311,10 +313,21 @@ async def screen_record_start(
                 raise router.permission_denied_error("screen_record_start", "Device", details={"error": result.get("error")})
             raise router.error_response("SCREEN_RECORD_START_FAILED", result.get("error", "Screen record start failed"), status_code=400)
 
-        return router.success_response(data=result, message="Screen recording started successfully")
+        return ScreenRecordStartResponse(
+            success=True,
+            session_id=result.get("session_id") or "",
+            device_node_id=request.device_node_id,
+            duration_seconds=result.get("duration_seconds") or request.duration_seconds,
+            audio_enabled=bool(result.get("audio_enabled", request.audio_enabled)),
+            resolution=result.get("resolution") or request.resolution,
+            output_format=result.get("output_format") or request.output_format,
+            message="Screen recording started successfully"
+        )
 
     except Exception as e:
         logger.error(f"Screen record start error: {e}")
+        if isinstance(e, HTTPException):
+            raise
         if "permission" in str(e).lower() or "governance" in str(e).lower():
             raise router.permission_denied_error("screen_record_start", "Device", details={"error": str(e)})
         raise router.internal_error("Internal error")
@@ -350,14 +363,22 @@ async def screen_record_stop(
         if not result.get("success"):
             raise router.error_response("SCREEN_RECORD_STOP_FAILED", result.get("error", "Screen record stop failed"), status_code=400)
 
-        return router.success_response(data=result, message="Screen recording stopped successfully")
+        return ScreenRecordStopResponse(
+            success=True,
+            session_id=result.get("session_id") or request.session_id,
+            file_path=result.get("file_path"),
+            duration_seconds=result.get("duration_seconds"),
+            message="Screen recording stopped successfully"
+        )
 
     except Exception as e:
         logger.error(f"Screen record stop error: {e}")
+        if isinstance(e, HTTPException):
+            raise
         raise router.internal_error("Internal error")
 
 
-@router.post("/location", response_model=ScreenRecordStopResponse)
+@router.post("/location", response_model=GetLocationResponse)
 async def get_location(
     request: GetLocationRequest,
     current_user: User = Depends(get_current_user),
@@ -396,16 +417,25 @@ async def get_location(
                 raise router.permission_denied_error("get_location", "Device", details={"error": result.get("error")})
             raise router.error_response("GET_LOCATION_FAILED", result.get("error", "Get location failed"), status_code=400)
 
-        return router.success_response(data=result, message="Location retrieved successfully")
+        return GetLocationResponse(
+            success=True,
+            latitude=result.get("latitude"),
+            longitude=result.get("longitude"),
+            accuracy=result.get("accuracy") or request.accuracy,
+            device_node_id=request.device_node_id,
+            message="Location retrieved successfully"
+        )
 
     except Exception as e:
         logger.error(f"Get location error: {e}")
+        if isinstance(e, HTTPException):
+            raise
         if "permission" in str(e).lower() or "governance" in str(e).lower():
             raise router.permission_denied_error("get_location", "Device", details={"error": str(e)})
         raise router.internal_error("Internal error")
 
 
-@router.post("/notification", response_model=ScreenRecordStopResponse)
+@router.post("/notification", response_model=SendNotificationResponse)
 async def send_notification(
     request: SendNotificationRequest,
     current_user: User = Depends(get_current_user),
@@ -447,16 +477,23 @@ async def send_notification(
                 raise router.permission_denied_error("send_notification", "Device", details={"error": result.get("error")})
             raise router.error_response("SEND_NOTIFICATION_FAILED", result.get("error", "Send notification failed"), status_code=400)
 
-        return router.success_response(data=result, message="Notification sent successfully")
+        return SendNotificationResponse(
+            success=True,
+            device_node_id=request.device_node_id,
+            title=result.get("title") or request.title,
+            message="Notification sent successfully"
+        )
 
     except Exception as e:
         logger.error(f"Send notification error: {e}")
+        if isinstance(e, HTTPException):
+            raise
         if "permission" in str(e).lower() or "governance" in str(e).lower():
             raise router.permission_denied_error("send_notification", "Device", details={"error": str(e)})
         raise router.internal_error("Internal error")
 
 
-@router.post("/execute", response_model=ScreenRecordStopResponse)
+@router.post("/execute", response_model=ExecuteCommandResponse)
 async def execute_command(
     request: ExecuteCommandRequest,
     current_user: User = Depends(get_current_user),
@@ -527,10 +564,20 @@ async def execute_command(
                 raise router.permission_denied_error("execute_command", "Device", details={"error": result.get("error")})
             raise router.error_response("EXECUTE_COMMAND_FAILED", result.get("error", "Command execution failed"), status_code=400)
 
-        return router.success_response(data=result, message="Command executed successfully")
+        return ExecuteCommandResponse(
+            success=True,
+            device_node_id=request.device_node_id,
+            command=request.command,
+            exit_code=result.get("exit_code"),
+            stdout=result.get("stdout"),
+            stderr=result.get("stderr"),
+            message="Command executed successfully"
+        )
 
     except Exception as e:
         logger.error(f"Execute command error: {e}")
+        if isinstance(e, HTTPException):
+            raise
         if "permission" in str(e).lower() or "governance" in str(e).lower():
             raise router.permission_denied_error("execute_command", "Device", details={"error": str(e)})
         raise router.internal_error("Internal error")
@@ -571,10 +618,21 @@ async def get_device_info_endpoint(
                 details={"device_id": device_node_id, "reason": "User does not own this device"}
             )
 
-        return router.success_response(data=result, message="Device information retrieved")
+        return DeviceInfoResponse(
+            id=result["id"],
+            device_id=result["device_id"],
+            name=result["name"],
+            node_type=result["node_type"],
+            status=result["status"],
+            platform=result.get("platform"),
+            capabilities=result.get("capabilities", []),
+            last_seen=result.get("last_seen")
+        )
 
     except Exception as e:
         logger.error(f"Get device info error: {e}")
+        if isinstance(e, HTTPException):
+            raise
         if "not found" in str(e).lower():
             raise router.not_found_error("Device", device_node_id)
         raise router.internal_error("Internal error")
@@ -666,6 +724,8 @@ async def get_device_audit(
 
     except Exception as e:
         logger.error(f"Get device audit error: {e}")
+        if isinstance(e, HTTPException):
+            raise
         if "not found" in str(e).lower():
             raise router.not_found_error("Device", device_node_id)
         raise router.internal_error("Internal error")
@@ -699,7 +759,7 @@ async def get_active_sessions(
                 "device_node_id": session.device_node_id,
                 "status": session.status,
                 "configuration": session.configuration,
-                "created_at": session.created_at.isoformat() if session.created_at else None,
+                "created_at": session.started_at.isoformat() if session.started_at else None,
                 "agent_id": session.agent_id
             }
             for session in sessions
