@@ -21,8 +21,9 @@ from datetime import datetime, timedelta
 from typing import Dict, Any
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.pool import StaticPool
 
 from core.llm.cognitive_tier_system import CognitiveClassifier, CognitiveTier
 from core.llm.cache_aware_router import CacheAwareRouter
@@ -35,26 +36,42 @@ from core.models import (
 )
 from main_api_app_safe import app
 
-# Test database
-SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///./test_cognitive_tier_e2e.db"
-engine = create_engine(
-    SQLALCHEMY_TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 
 @pytest.fixture(scope="function")
 def db_session():
-    """Create a fresh database session for each test."""
+    """Create a fresh in-memory database session for each test.
+
+    Each test gets its own pristine database, so no state leaks between
+    tests or between pytest runs (the previous implementation used a
+    persistent on-disk SQLite file whose teardown ``drop_all`` was
+    unreliable: the canvases <-> mini_apps FK cycle defeats SQLAlchemy's
+    DDL sorter, which dropped tables in arbitrary order and could abort
+    mid-way, leaving partial schema behind and causing nondeterministic
+    UNIQUE/"table already exists" setup errors).
+    """
     from core.models import Base
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
+
     db = TestingSessionLocal()
     try:
         yield db
     finally:
         db.close()
-        Base.metadata.drop_all(bind=engine)
+        # Raw DROP TABLE IF EXISTS bypasses SQLAlchemy's DDL sorter (which
+        # fails on the canvases <-> mini_apps FK cycle). SQLite FK enforcement
+        # is off by default, so drop order is irrelevant.
+        with engine.begin() as conn:
+            for table in Base.metadata.tables:
+                conn.execute(text(f'DROP TABLE IF EXISTS "{table}"'))
+        engine.dispose()
+        engine.dispose()
 
 
 @pytest.fixture(scope="function")
@@ -620,7 +637,6 @@ class TestEscalationIntegration:
         )
         assert should_escalate_79 is True
 
-        # Reset cooldown so the 80 check tests the threshold, not the cooldown
         escalation_manager.reset_cooldown(CognitiveTier.STANDARD)
 
         # Score 80 should NOT trigger escalation
@@ -650,7 +666,7 @@ class TestAPIIntegration:
             "default_tier": "complex",
             "min_tier": "standard",
             "max_tier": "complex",
-            "monthly_budget_usd": 50.0,
+            "monthly_budget_cents": 5000,
             "enable_auto_escalation": True,
             "preferred_providers": ["openai", "anthropic"]
         }
@@ -708,7 +724,7 @@ class TestAPIIntegration:
         # Act
         response = test_client.put(
             f"/api/v1/cognitive-tier/preferences/{workspace_id}/budget",
-            json={"monthly_budget_usd": 100.0}
+            json={"monthly_budget_cents": 10000}
         )
 
         # Assert
