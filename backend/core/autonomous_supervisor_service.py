@@ -275,7 +275,7 @@ class AutonomousSupervisorService:
                         data={
                             "execution_id": execution.id,
                             "duration_seconds": execution.duration_seconds,
-                            "output_summary": execution.output_summary
+                            "result_summary": execution.result_summary
                         }
                     )
                     break

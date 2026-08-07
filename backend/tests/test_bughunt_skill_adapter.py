@@ -75,3 +75,35 @@ def test_analyze_package_scripts_malicious_blocks_install(monkeypatch):
 
     assert result["success"] is False
     adapter.installer.install_packages.assert_not_called()
+
+
+def test_community_skill_tool_constructs_with_kwargs():
+    """Regression: without langchain installed, the fallback BaseTool stub was
+    a plain class, so CommunitySkillTool() took no arguments — community skills
+    were unconstructable in langchain-less environments."""
+    import core.skill_adapter as sa
+
+    tool = sa.CommunitySkillTool(
+        name="my-skill",
+        description="test skill",
+        skill_id="skill-1",
+        skill_type="prompt_only",
+        skill_content="Answer the query",
+    )
+    assert tool.skill_id == "skill-1"
+    assert tool.name == "my-skill"
+
+
+def test_create_community_tool_factory_works_without_langchain():
+    import core.skill_adapter as sa
+
+    tool = sa.create_community_tool(
+        {
+            "name": "skill-a",
+            "description": "A skill",
+            "skill_type": "prompt_only",
+            "skill_content": "Do the thing",
+        }
+    )
+    assert tool.name == "skill-a"
+    assert tool.skill_type == "prompt_only"

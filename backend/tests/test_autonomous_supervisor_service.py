@@ -70,12 +70,13 @@ def agent_proposal():
     proposal = AgentProposal(
         id="prop-001",
         agent_id="intern-001",
-        proposed_action={
+        proposal_type="action",
+        proposal_data={
             "action_type": "canvas_present",
             "canvas_type": "chart",
-            "data": {"labels": ["Q1", "Q2"], "values": [100, 200]}
-        },
-        reasoning="Present sales data as chart"
+            "data": {"labels": ["Q1", "Q2"], "values": [100, 200]},
+            "reasoning": "Present sales data as chart"
+        }
     )
     proposal.status = ProposalStatus.PENDING_APPROVAL.value
     return proposal
@@ -258,7 +259,7 @@ class TestProposalReview:
     ):
         """Test proposal review with safe action type."""
         # Arrange
-        agent_proposal.proposed_action = {"action_type": "canvas_present"}
+        agent_proposal.proposal_data = {"action_type": "canvas_present"}
 
         # Act
         review = await service.review_proposal(
@@ -278,7 +279,7 @@ class TestProposalReview:
     ):
         """Test proposal review rejects high-risk actions."""
         # Arrange
-        agent_proposal.proposed_action = {"action_type": "device_command"}
+        agent_proposal.proposal_data = {"action_type": "device_command"}
         low_confidence_supervisor = AgentRegistry(
             id="auto-002",
             name="Low Confidence Supervisor",
@@ -305,7 +306,7 @@ class TestProposalReview:
     ):
         """Test proposal review with medium risk and conditional approval."""
         # Arrange
-        agent_proposal.proposed_action = {"action_type": "browser_automate"}
+        agent_proposal.proposal_data = {"action_type": "browser_automate"}
 
         # Act
         review = await service.review_proposal(
@@ -325,7 +326,7 @@ class TestProposalReview:
     ):
         """Test confidence score calculation based on action type."""
         # Arrange
-        agent_proposal.proposed_action = {"action_type": "canvas_present"}
+        agent_proposal.proposal_data = {"action_type": "canvas_present"}
 
         # Act
         review = await service.review_proposal(
@@ -344,10 +345,10 @@ class TestProposalReview:
     ):
         """Test suggested modifications can be generated."""
         # Arrange
-        agent_proposal.proposed_action = {"action_type": "canvas_present"}
+        agent_proposal.proposal_data = {"action_type": "canvas_present"}
 
         # Mock world model
-        with patch('core.autonomous_supervisor_service.WorldModelService') as mock_world_model:
+        with patch('core.agent_world_model.WorldModelService') as mock_world_model:
             mock_world_model.return_value.get_experience_statistics = AsyncMock(
                 return_value={"success_rate": 0.85}
             )
@@ -368,14 +369,14 @@ class TestProposalReview:
     ):
         """Test LLM-based analysis integration."""
         # Arrange
-        agent_proposal.proposed_action = {
+        agent_proposal.proposal_data = {
             "action_type": "workflow_trigger",
-            "workflow_id": "daily-report"
+            "workflow_id": "daily-report",
+            "reasoning": "Execute daily sales report workflow"
         }
-        agent_proposal.reasoning = "Execute daily sales report workflow"
 
         # Mock world model
-        with patch('core.autonomous_supervisor_service.WorldModelService') as mock_world_model:
+        with patch('core.agent_world_model.WorldModelService') as mock_world_model:
             mock_world_model.return_value.get_experience_statistics = AsyncMock(
                 return_value={"success_rate": 0.90}
             )
@@ -411,7 +412,7 @@ class TestExecutionMonitoring:
             agent_id="intern-001",
             status="completed",
             duration_seconds=5.0,
-            output_summary="Chart presented successfully"
+            result_summary="Chart presented successfully"
         )
 
         mock_query = MagicMock()
@@ -575,6 +576,9 @@ class TestExecutionMonitoring:
         mock_query.filter.return_value = mock_query
         mock_query.first.return_value = execution
         mock_db.query.return_value = mock_query
+        service._check_execution_concerns = AsyncMock(
+            return_value={"has_concerns": True, "concerns": ["long running"], "severity": "medium"}
+        )
 
         # Act
         events = []
@@ -688,6 +692,7 @@ class TestFallbackSupervision:
 
         mock_query = MagicMock()
         mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
         mock_query.all.return_value = supervisors
         service.db.query.return_value = mock_query
 
@@ -718,6 +723,9 @@ class TestFallbackSupervision:
         mock_query.filter.return_value = mock_query
         mock_query.first.return_value = execution
         mock_db.query.return_value = mock_query
+        service._check_execution_concerns = AsyncMock(
+            return_value={"has_concerns": True, "concerns": ["long running"], "severity": "medium"}
+        )
 
         # Act
         events = []

@@ -79,3 +79,37 @@ async def test_monitor_loop_detects_completed_with_fast_poll():
 
     assert elapsed < 30
     assert any(e.event_type == "execution_completed" for e in events)
+
+
+@pytest.mark.asyncio
+async def test_completed_execution_yields_completion_event_not_error():
+    """Completed executions must yield execution_completed (regression: the
+    monitor read ``execution.output_summary`` — a column that does not exist
+    on AgentExecution — so real completed executions yielded monitoring_error)."""
+    from core.models import AgentExecution
+
+    execution = AgentExecution(
+        id="exec-2", agent_id="intern-001", status="completed", duration_seconds=5.0,
+        result_summary="Chart presented successfully",
+    )
+    db = MagicMock()
+    query = MagicMock()
+    query.filter.return_value = query
+    query.first.return_value = execution
+    db.query.return_value = query
+
+    service = AutonomousSupervisorService(db=db, poll_interval=0.01, max_duration_seconds=2)
+
+    supervisor = MagicMock()
+    supervisor.id = "auto-001"
+
+    events = []
+    async for event in service.monitor_execution("exec-2", supervisor):
+        events.append(event)
+        if event.event_type in ("execution_completed", "monitoring_error"):
+            break
+
+    assert any(e.event_type == "execution_completed" for e in events), [
+        e.event_type for e in events
+    ]
+    assert not any(e.event_type == "monitoring_error" for e in events)
