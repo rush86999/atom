@@ -148,7 +148,7 @@ class HybridDataIngestionService:
     def __init__(self, workspace_id: str = "default", tenant_id: str = "default"):
         self.workspace_id = workspace_id
         self.tenant_id = tenant_id
-        logger.error(f"DEBUG: HybridDataIngestionService initialized for {workspace_id} / {tenant_id}")
+        logger.info(f"HybridDataIngestionService initialized for {workspace_id} / {tenant_id}")
         self.usage_stats: Dict[str, IntegrationUsageStats] = {}
         self.sync_configs: Dict[str, SyncConfiguration] = {}
         self._sync_tasks: Dict[str, asyncio.Task] = {}
@@ -223,7 +223,7 @@ class HybridDataIngestionService:
     
     def enable_auto_sync(self, integration_id: str, config: Optional[SyncConfiguration] = None):
         """Enable automatic data sync for an integration"""
-        logger.error(f"DEBUG: enable_auto_sync called for {integration_id}")
+        logger.info(f"enable_auto_sync called for {integration_id}")
         if integration_id not in self.usage_stats:
             self.usage_stats[integration_id] = IntegrationUsageStats(
                 integration_id=integration_id,
@@ -238,7 +238,7 @@ class HybridDataIngestionService:
             self.sync_configs[integration_id] = config
         elif integration_id in DEFAULT_SYNC_CONFIGS:
             self.sync_configs[integration_id] = DEFAULT_SYNC_CONFIGS[integration_id]
-            logger.error(f"DEBUG: Loaded default sync config for {integration_id}: {self.sync_configs[integration_id]}")
+            logger.info(f"Loaded default sync config for {integration_id}")
         else:
             # Create basic config
             self.sync_configs[integration_id] = SyncConfiguration(

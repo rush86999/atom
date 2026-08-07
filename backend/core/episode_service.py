@@ -114,8 +114,8 @@ def _get_canvas_context_provider():
     """Get or create the global canvas context provider instance"""
     global _canvas_context_provider
     if _canvas_context_provider is None:
-        from core.canvas_context_provider import CanvasContextProvider
-        _canvas_context_provider = CanvasContextProvider()
+        from core.canvas_context_provider import get_canvas_provider
+        _canvas_context_provider = get_canvas_provider()
     return _canvas_context_provider
 
 
@@ -409,7 +409,8 @@ class EpisodeService:
                 try:
                     summary_service = _get_canvas_summary_service(workspace_id=str(execution.tenant_id))
                     # Fetch full canvas state from provider
-                    canvas_state = provider.get_canvas_state(canvas_id)
+                    canvas_ctx = provider.get_canvas(canvas_id)
+                    canvas_state = canvas_ctx.data if canvas_ctx else None
                     if canvas_state:
                         semantic_summary = await summary_service.generate_summary(
                             canvas_type=canvas.canvas_type if canvas else "generic",
@@ -765,8 +766,12 @@ class EpisodeService:
         # Total interventions
         total_interventions = sum(e.human_intervention_count for e in episodes)
 
-        # Average step efficiency
-        avg_step_efficiency = sum(e.step_efficiency for e in episodes if e.step_efficiency) / len(episodes) if episodes else 0.0
+        # Average step efficiency (only over episodes that recorded one —
+        # a None entry means the metric was never computed, not 0).
+        efficiency_values = [e.step_efficiency for e in episodes if e.step_efficiency]
+        avg_step_efficiency = (
+            sum(efficiency_values) / len(efficiency_values) if efficiency_values else 0.0
+        )
 
         return {
             "success_rate": success_rate,
@@ -1487,7 +1492,7 @@ class EpisodeService:
             logger.error(f"Failed to get domain feedback metrics: {e}")
             return {
                 "domain": domain,
-                "error": str(e),
+                "error": "Failed to get domain feedback metrics",
                 "avg_rating": 0.0,
                 "feedback_count": 0
             }

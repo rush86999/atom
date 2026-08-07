@@ -737,7 +737,8 @@ class WorkflowVersioningSystem:
 
         # Find parametric changes
         parametric_changes = {}
-        for step_id, step in modified_steps:
+        for step in modified_steps:
+            step_id = step['step_id']
             old_params = step['old_step'].get('parameters', {})
             new_params = step['new_step'].get('parameters', {})
 
@@ -1064,6 +1065,10 @@ class WorkflowVersioningSystem:
                 version
             ))
 
+            if cursor.rowcount == 0:
+                conn.close()
+                return False
+
             conn.commit()
             conn.close()
 
@@ -1101,7 +1106,7 @@ class WorkflowVersioningSystem:
                     'avg_execution_time': result[2],
                     'error_count': result[3],
                     'last_execution': result[4],
-                    'performance_score': result[4]
+                    'performance_score': result[5]
                 }
             return None
 

@@ -5,7 +5,7 @@
  * Supports various input types with validation, auto-save, and progress tracking.
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -59,7 +59,11 @@ export const CanvasForm: React.FC<CanvasFormProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [draftSaving, setDraftSaving] = useState(false);
 
-  const fields = data?.fields ?? [];
+  // Stable reference: when `data?.fields` is undefined/null (edge payloads),
+  // a bare `data?.fields ?? []` re-created the array on every render, which
+  // re-ran the defaults effect every render → setValues → re-render →
+  // infinite render loop → JS heap OOM (CanvasForm.test "null form data").
+  const fields = useMemo(() => data?.fields ?? [], [data?.fields]);
 
   // Initialize default values
   useEffect(() => {

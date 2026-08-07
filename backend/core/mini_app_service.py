@@ -431,17 +431,52 @@ def scaffold(
     return app, canvas_id
 
 
+def _run_async(coro: Any) -> Any:
+    """Run a coroutine on a fresh event loop in a worker thread.
+
+    ``scaffold`` stays sync but is invoked from async handlers (a running
+    loop), where ``asyncio.run``/``run_until_complete`` would raise. A
+    dedicated thread with its own loop works in both sync and async contexts.
+    """
+    import asyncio
+    import threading
+
+    box: Dict[str, Any] = {}
+
+    def _worker() -> None:
+        loop = asyncio.new_event_loop()
+        try:
+            box["result"] = loop.run_until_complete(coro)
+        except BaseException as e:  # noqa: BLE001
+            box["error"] = e
+        finally:
+            loop.close()
+
+    thread = threading.Thread(target=_worker)
+    thread.start()
+    thread.join()
+    if "error" in box:
+        raise box["error"]
+    return box.get("result")
+
+
 def _llm_scaffold(name: str, spec: Dict[str, Any]) -> Optional[str]:
     """Optional LLM-assisted starter body. Deterministic template is the default."""
     try:
-        from core.llm_service import llm_service  # type: ignore[import-not-found]
-        prompt = (
-            "Write short Python for a canvas mini-app that reads a `state` dict "
-            f"(name '{name}') and returns an updated `state`. Only pure Python, "
-            "no imports beyond stdlib. Return only code."
-        )
-        resp = llm_service.complete(prompt)
-        code = (resp or "").strip()
+        from core.llm_service import LLMService
+
+        async def _generate() -> str:
+            svc = LLMService()
+            resp = await svc.generate_completion([
+                {"role": "user", "content": (
+                    "Write short Python for a canvas mini-app that reads a `state` dict "
+                    f"(name '{name}') and returns an updated `state`. Only pure Python, "
+                    "no imports beyond stdlib. Return only code."
+                )},
+            ])
+            return (resp or {}).get("content") or ""
+
+        code = _run_async(_generate()).strip()
         if code:
             syntax_check(code)
             return code
@@ -1385,7 +1420,7 @@ def _validate_record_op(op: Any, max_record_bytes: int) -> Optional[Dict[str, An
         if rid is not None and (not isinstance(rid, str) or not rid):
             return None
         valid["id"] = rid
-    if op_type in {"update", "delete"}:
+    if op_type in {"get", "update", "delete"}:
         rid = op.get("id")
         if not isinstance(rid, str) or not rid:
             return None

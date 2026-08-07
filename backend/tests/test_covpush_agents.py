@@ -17,6 +17,7 @@ import pytest
 import os
 
 from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 
 
@@ -957,6 +958,21 @@ class TestHandleAgentHandoff:
 # Agent integration gateway
 # ============================================================================
 
+class _FakeSessionCM:
+    def __init__(self, session):
+        self.session = session
+
+    def __enter__(self):
+        return self.session
+
+    def __exit__(self, *exc):
+        return False
+
+
+def _session_cm(session):
+    return _FakeSessionCM(session)
+
+
 class FakeService:
     def __init__(self, result=True):
         self.result = result
@@ -1350,7 +1366,7 @@ class TestAgentIntegrationGateway:
              patch("core.agent_governance_service.AgentGovernanceService",
                    return_value=governance), \
              patch("core.database.get_db_session",
-                   return_value=iter([db_session_mock])):
+                   return_value=_session_cm(db_session_mock)):
             result = await gateway.execute_action(
                 g.ActionType.APPLY_FORMULA, "x",
                 {"formula_id": "f1", "inputs": {"A1": 100}, "agent_id": "agent-1",

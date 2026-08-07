@@ -5148,6 +5148,10 @@ class EpisodeFeedback(Base):
     provider_id = Column(String(255), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     provider_type = Column(String(50), default="human")  # "human", "automated", "peer_agent"
 
+    # Phase 247-06: capability domain tagging for per-capability RLHF
+    capability_domain = Column(String(100), nullable=True)
+    capability_name = Column(String(100), nullable=True)
+
     # Timestamps
     provided_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

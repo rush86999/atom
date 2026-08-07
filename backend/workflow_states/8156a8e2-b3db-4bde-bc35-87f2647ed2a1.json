@@ -1,0 +1,50 @@
+{
+  "workflow_id": "8156a8e2-b3db-4bde-bc35-87f2647ed2a1",
+  "name": "conditional_approval",
+  "description": "Conditional workflow: conditional_approval",
+  "version": "1.0",
+  "category": "general",
+  "tags": [],
+  "input_schema": [],
+  "steps": [
+    {
+      "step_id": "condition_0",
+      "name": "condition_0",
+      "description": "Condition: amount > 1000",
+      "step_type": "condition",
+      "input_parameters": [],
+      "output_schema": {},
+      "depends_on": [],
+      "condition": "amount > 1000",
+      "retry_config": {},
+      "timeout_seconds": 300,
+      "can_pause": true,
+      "is_parallel": false
+    },
+    {
+      "step_id": "condition_1",
+      "name": "condition_1",
+      "description": "Condition: amount <= 1000",
+      "step_type": "condition",
+      "input_parameters": [],
+      "output_schema": {},
+      "depends_on": [],
+      "condition": "amount <= 1000",
+      "retry_config": {},
+      "timeout_seconds": 300,
+      "can_pause": true,
+      "is_parallel": false
+    }
+  ],
+  "step_connections": [],
+  "output_config": null,
+  "state": "draft",
+  "current_step": null,
+  "execution_context": {},
+  "user_inputs": {},
+  "step_results": {},
+  "created_at": "2026-08-06 19:19:14.758671",
+  "updated_at": "2026-08-06 19:19:14.758676",
+  "created_by": null,
+  "saved_at": "2026-08-06T19:19:14.758701"
+}

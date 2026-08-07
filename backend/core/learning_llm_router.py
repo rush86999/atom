@@ -2040,12 +2040,17 @@ class LearningBasedRouter:
             if not model_id:
                 continue
 
-            # Parse capabilities
+            # Parse capabilities. Accepts both member names ("CODE_GENERATION")
+            # and enum values ("code_generation") — callers pass lowercase
+            # values (e.g. load_local_models_into_registry), so checking
+            # __members__ alone silently parsed every capability list to empty.
             caps_str = model_def.get("capabilities", [])
-            capabilities = {
-                ModelCapability(c) for c in caps_str
-                if c in ModelCapability.__members__
-            }
+            capabilities = set()
+            for c in caps_str:
+                try:
+                    capabilities.add(ModelCapability(c))
+                except ValueError:
+                    continue
 
             spec = ModelSpec(
                 model_id=model_id,

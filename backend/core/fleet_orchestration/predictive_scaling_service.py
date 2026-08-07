@@ -8,11 +8,9 @@ import logging
 import statistics
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone, timedelta
-from decimal import Decimal
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
 
-from core.models import ScalingProposal, DelegationChain, FleetPerformanceMetric
+from core.models import DelegationChain, FleetPerformanceMetric
 from core.database import SessionLocal
 from core.fleet_orchestration.performance_metrics_service import PerformanceMetricsService
 from core.fleet_orchestration.scaling_proposal_service import ScalingProposalService

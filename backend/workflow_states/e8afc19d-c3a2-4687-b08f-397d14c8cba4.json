@@ -1,0 +1,21 @@
+{
+  "workflow_id": "e8afc19d-c3a2-4687-b08f-397d14c8cba4",
+  "name": "P",
+  "description": "Parallel workflow: P",
+  "version": "1.0",
+  "category": "general",
+  "tags": [],
+  "input_schema": [],
+  "steps": [],
+  "step_connections": [],
+  "output_config": null,
+  "state": "draft",
+  "current_step": null,
+  "execution_context": {},
+  "user_inputs": {},
+  "step_results": {},
+  "created_at": "2026-08-06 20:38:14.017377",
+  "updated_at": "2026-08-06 20:38:14.017377",
+  "created_by": null,
+  "saved_at": "2026-08-06T20:38:14.017389"
+}

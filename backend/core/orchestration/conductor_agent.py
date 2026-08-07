@@ -220,9 +220,16 @@ class WorkflowExecutionContext:
         if self.status in [ExecutionStatus.COMPLETED, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED]:
             return True
 
+        # Steps that exist only as rollback-compensation targets never execute
+        # in the main path (they run only when a rollback is triggered) — they
+        # must not block workflow completion.
+        compensation_ids = {
+            s.compensation_step_id for s in self.steps if s.compensation_step_id
+        }
         # Check if all steps are completed or failed (allow partial completion)
         all_terminal = all(
             s.status in [ExecutionStatus.COMPLETED, ExecutionStatus.FAILED]
+            or s.step_id in compensation_ids
             for s in self.steps
         )
         return all_terminal
@@ -380,6 +387,13 @@ class ConductorAgent:
             elif result.failed_steps > 0:
                 context.status = ExecutionStatus.FAILED
                 result.status = ExecutionStatus.FAILED
+            elif not result.completed_steps and not result.skipped_steps:
+                # No step could run (e.g. the start step's dependencies or
+                # condition blocked it) — don't leave the workflow dangling
+                # in RUNNING forever with zero progress.
+                context.status = ExecutionStatus.FAILED
+                result.status = ExecutionStatus.FAILED
+                result.errors.append("Workflow made no progress: no steps could execute")
 
         except Exception as e:
             logger.error(f"Workflow execution failed: {e}")
@@ -434,6 +448,18 @@ class ConductorAgent:
                     timeout=step.timeout_seconds
                 )
 
+                # An executor can signal failure via the returned dict's status
+                # field (it caught the exception internally). Convert that into
+                # an exception so the retry/error accounting below applies —
+                # previously a failed dict was recorded as COMPLETED and the
+                # workflow proceeded as if the step succeeded.
+                if isinstance(step_result, dict) and str(
+                    step_result.get("status", "completed")
+                ).lower() == "failed":
+                    raise RuntimeError(str(
+                        step_result.get("error", "step executor returned failed status")
+                    ))
+
                 step.status = ExecutionStatus.COMPLETED
                 step.completed_at = datetime.now()
                 step.result = step_result
@@ -454,15 +480,17 @@ class ConductorAgent:
             except Exception as e:
                 step.status = ExecutionStatus.FAILED
                 step.error = str(e)
-                result.failed_steps += 1
-                result.errors.append(f"Step {current_id} failed: {e}")
 
                 if step.retry_count < step.max_retries:
                     step.retry_count += 1
                     step.status = ExecutionStatus.PENDING
-                    # Retry this step
+                    # Retry this step. Don't count the attempt as a failure
+                    # yet — if a retry succeeds the step must not leave a
+                    # failed_steps mark that fails the whole workflow.
                     continue
                 else:
+                    result.failed_steps += 1
+                    result.errors.append(f"Step {current_id} failed: {e}")
                     current_id = None
                     break
 
@@ -641,6 +669,12 @@ class ConductorAgent:
                             # Deterministic path: single execution, skip
                             # the verification cascade (nothing to vote on).
                             single = await self._execute_step(s, context)
+                            if isinstance(single, dict) and str(
+                                single.get("status", "completed")
+                            ).lower() == "failed":
+                                raise RuntimeError(str(
+                                    single.get("error", "step executor returned failed status")
+                                ))
                             return single
 
                         valid_results = [r for r in branch_results if not isinstance(r, Exception)]

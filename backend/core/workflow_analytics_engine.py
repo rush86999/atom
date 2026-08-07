@@ -126,8 +126,7 @@ class WorkflowAnalyticsEngine:
 
     def __init__(self, db: Optional[Session] = None, workspace_id: str = "default", tenant_id: Optional[str] = None, db_path: str = "analytics.db", enable_background_thread: bool = False):
         self.db = db
-        self.db_path = Path(db_path)
-        self.db_path.expanduser().absolute()
+        self.db_path = Path(db_path).expanduser().absolute()
 
         # Initialize database
         self._init_database()
@@ -552,7 +551,7 @@ class WorkflowAnalyticsEngine:
         # Check cache
         if cache_key in self.performance_cache:
             cached = self.performance_cache[cache_key]
-            if (datetime.now() - cached.timestamp).seconds < self.cache_ttl:
+            if (datetime.now() - cached.timestamp).total_seconds() < self.cache_ttl:
                 return cached
 
         conn = sqlite3.connect(str(self.db_path))
@@ -938,6 +937,8 @@ class WorkflowAnalyticsEngine:
         import threading
         thread = threading.Thread(target=lambda: loop.run_forever(), daemon=True)
         thread.start()
+        self._background_thread = thread
+        self._stop_event = threading.Event()
 
     async def _process_metrics_batch(self, metrics: List[WorkflowMetric]):
         """Process a batch of metrics"""
@@ -1067,7 +1068,7 @@ class WorkflowAnalyticsEngine:
         try:
             # Get all workflow execution events
             cursor.execute("""
-                SELECT execution_id, event_type, timestamp, duration_ms, status, user_id
+                SELECT execution_id, event_type, timestamp, duration_ms, status, user_id, error_message
                 FROM workflow_events
                 WHERE timestamp >= ?
                 ORDER BY timestamp
@@ -1101,7 +1102,7 @@ class WorkflowAnalyticsEngine:
             unique_users = len(set([e[5] for e in events if e[5]]))
 
             # Get most common errors
-            error_messages = [e[5] for e in completed_events if e[5] is not None]
+            error_messages = [e[6] for e in completed_events if e[6] is not None]
             error_counts = defaultdict(int)
             for error in error_messages:
                 error_counts[error] += 1
@@ -1417,7 +1418,11 @@ class WorkflowAnalyticsEngine:
         cursor = conn.cursor()
 
         try:
-            query = "SELECT * FROM analytics_alerts WHERE 1=1"
+            query = """SELECT alert_id, name, description, severity, condition,
+                              threshold_value, metric_name, workflow_id, step_id,
+                              enabled, created_at, triggered_at, resolved_at,
+                              notification_channels
+                       FROM analytics_alerts WHERE 1=1"""
             params = []
 
             if workflow_id:

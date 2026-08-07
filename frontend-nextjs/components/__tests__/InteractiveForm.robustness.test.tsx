@@ -186,9 +186,12 @@ describe('InteractiveForm - Loading States During Error Recovery', () => {
   test('should show loading state during form submission', async () => {
     const user = userEvent.setup();
 
-    // Mock slow submission
+    // Mock slow submission (300ms — long enough to observe the loading
+    // state, short enough that waitFor's default 1000ms timeout never races
+    // with the mock delay under full-suite load; a 1000ms mock delay == the
+    // default waitFor timeout and flakes in CI).
     const mockSubmit = jest.fn().mockImplementation(async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 300));
       return { success: true };
     });
 

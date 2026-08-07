@@ -9,14 +9,13 @@ All handlers verify HMAC signatures before processing and enqueue background job
 to avoid webhook timeout issues.
 
 Key features:
+    pass
 - HMAC signature verification for security
 - Tenant extraction from webhook payloads
 - Background job enqueueing via WebhookIngestionQueue
 - 200 OK immediate response pattern
 - Integration-specific handlers for 5+ platforms
 """
-
-import sys
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -56,6 +55,7 @@ async def slack_webhook_handler(
     Returns 200 OK immediately to avoid Slack retry issues.
     """
     try:
+        pass
         # Get raw body for signature verification
         payload = await request.body()
         event_data = await request.json()
@@ -67,6 +67,7 @@ async def slack_webhook_handler(
         # 2. Extract team_id for tenant resolution
         team_id = event_data.get("team_id")
         if not team_id:
+            pass
             # Check inside event if not top-level
             team_id = event_data.get("event", {}).get("team")
 
@@ -185,6 +186,7 @@ async def hubspot_webhook_handler(
     Returns 200 OK immediately to avoid HubSpot retry issues.
     """
     try:
+        pass
         # Get raw body for signature verification
         payload = await request.body()
         event_data = await request.json()
@@ -193,6 +195,7 @@ async def hubspot_webhook_handler(
         events = event_data if isinstance(event_data, list) else [event_data]
 
         for event in events:
+            pass
             # Extract portal_id for tenant resolution
             portal_id = event.get("portalId")
             if not portal_id:
@@ -311,6 +314,7 @@ async def salesforce_webhook_handler(
     Returns 200 OK immediately to avoid Salesforce retry issues.
     """
     try:
+        pass
         # Get raw body for signature verification
         payload = await request.body()
         event_data = await request.json()
@@ -424,6 +428,7 @@ async def gmail_webhook_handler(request: Request, db: Session = Depends(get_db))
     Returns 200 OK immediately to avoid Google retry issues.
     """
     try:
+        pass
         # Gmail push notification payload
         event_data = await request.json()
 
@@ -524,6 +529,7 @@ async def notion_webhook_handler(
     Returns 200 OK immediately to avoid Notion retry issues.
     """
     try:
+        pass
         # Get raw body for signature verification
         payload = await request.body()
         event_data = await request.json()
@@ -626,7 +632,7 @@ async def notion_webhook_handler(
 # ============================================================================
 
 
-@router.post("/webhooks/communication/outlook")
+@router.api_route("/webhooks/communication/outlook", methods=["POST", "GET"])
 async def outlook_webhook_handler(
     request: Request,
     validationToken: str = Header(None),  # Microsoft Graph handshake
@@ -636,14 +642,12 @@ async def outlook_webhook_handler(
     Handle Outlook (Microsoft Graph) webhook and trigger ingestion.
 
     Supports:
+        pass
     1. Validation handshake (validationToken)
     2. Change notifications for Mail, Calendar, and Drive
     3. Tenant resolution via clientState (standardized as tenant_id)
     4. Async processing via WebhookIngestionQueue
     """
-    # EXPLICIT DEBUG LOGGING
-    import sys
-
     logger.info("[OUTLOOK_WEBHOOK_START] Handler called at /api/webhooks/communication/outlook")
     logger.info(f"[OUTLOOK_WEBHOOK] Host: {request.headers.get('host')}")
     logger.info(f"[OUTLOOK_WEBHOOK] URL: {request.url.path}")
@@ -675,84 +679,36 @@ async def outlook_webhook_handler(
         notifications = payload.get("value", [])
 
         logger.info(f"[OUTLOOK_WEBHOOK] Received {len(notifications)} notifications")
-        print(
-            f"[OUTLOOK_WEBHOOK] Received {len(notifications)} notifications",
-            file=sys.stderr,
-            flush=True,
-        )
-        print(
-            f"[OUTLOOK_WEBHOOK] DEBUG: About to check if notifications is empty",
-            file=sys.stderr,
-            flush=True,
-        )
 
         if not notifications:
             logger.warning("[OUTLOOK_WEBHOOK] Empty notification payload")
             return {"status": "ignored", "reason": "empty_payload"}
 
-        print(
-            f"[OUTLOOK_WEBHOOK] DEBUG: Notifications not empty, creating processed_jobs",
-            file=sys.stderr,
-            flush=True,
-        )
         processed_jobs = []
 
         for idx, notification in enumerate(notifications):
-            print(
-                f"[OUTLOOK_WEBHOOK] DEBUG: Loop iteration {idx + 1}/{len(notifications)}",
-                file=sys.stderr,
-                flush=True,
-            )
             logger.info(f"[OUTLOOK_WEBHOOK] Processing notification {idx + 1}/{len(notifications)}")
 
             # BRUTAL DEBUGGING: Wrap entire loop in try/except
             try:
+                pass
                 # 1. Log raw notification payload
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: Raw notification keys: {list(notification.keys())}",
-                    file=sys.stderr,
-                    flush=True,
-                )
                 logger.info(f"[OUTLOOK_WEBHOOK] Notification keys: {list(notification.keys())}")
 
                 # 2. Extract clientState
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: About to extract clientState",
-                    file=sys.stderr,
-                    flush=True,
-                )
                 client_state_signed = notification.get("clientState")
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: clientState length: {len(client_state_signed) if client_state_signed else 0}",
-                    file=sys.stderr,
-                    flush=True,
-                )
 
                 if not client_state_signed:
-                    print(
-                        "[OUTLOOK_WEBHOOK] ERROR: Missing clientState - skipping",
-                        file=sys.stderr,
-                        flush=True,
-                    )
                     logger.warning("Outlook notification missing clientState")
                     continue
 
                 # 3. Verify/decrypt clientState
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: About to verify clientState",
-                    file=sys.stderr,
-                    flush=True,
-                )
                 from core.webhook_security import get_client_state_data, verify_client_state
 
                 is_valid = verify_client_state(client_state_signed)
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: clientState valid: {is_valid}",
-                    file=sys.stderr,
-                    flush=True,
-                )
 
                 if not is_valid:
+                    pass
                     # Round 46: FAIL CLOSED — previously this only logged a
                     # warning and processing continued (tenant resolution via
                     # the client-controlled Host header, connection lookup,
@@ -764,59 +720,24 @@ async def outlook_webhook_handler(
                     )
                     continue
 
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: About to get_client_state_data",
-                    file=sys.stderr,
-                    flush=True,
-                )
                 client_state_raw = get_client_state_data(client_state_signed)
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: clientState_raw length: {len(client_state_raw)}",
-                    file=sys.stderr,
-                    flush=True,
-                )
 
                 # 4. Parse clientState JSON
                 import json
 
                 state_data = json.loads(client_state_raw)
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: Parsed state_data keys: {list(state_data.keys())}",
-                    file=sys.stderr,
-                    flush=True,
-                )
 
                 # 5. Resolve tenant from subdomain
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: About to resolve tenant from subdomain",
-                    file=sys.stderr,
-                    flush=True,
-                )
                 # Check X-Forwarded-Host first (set by Fly.io/Next.js proxy) before falling back to Host
                 host = request.headers.get("x-forwarded-host") or request.headers.get("host", "")
 
                 subdomain = host.split(".")[0] if host else None
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: Extracted subdomain: {subdomain}",
-                    file=sys.stderr,
-                    flush=True,
-                )
 
                 if not subdomain:
-                    print(
-                        "[OUTLOOK_WEBHOOK] ERROR: No subdomain found - skipping",
-                        file=sys.stderr,
-                        flush=True,
-                    )
                     logger.warning("Could not extract subdomain from request")
                     continue
 
                 # 6. Database lookup (bypass RLS)
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: About to query DB for tenant",
-                    file=sys.stderr,
-                    flush=True,
-                )
                 from sqlalchemy import text
 
                 from core.models import Tenant
@@ -829,48 +750,23 @@ async def outlook_webhook_handler(
                 if db.bind and db.bind.dialect.name == "postgresql":
                     db.execute(text("SET LOCAL row_security = on"))
 
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: DB query result: {tenant is not None}",
-                    file=sys.stderr,
-                    flush=True,
-                )
 
                 if not tenant:
-                    print(
-                        f"[OUTLOOK_WEBHOOK] ERROR: No tenant found for subdomain: {subdomain}",
-                        file=sys.stderr,
-                        flush=True,
-                    )
                     logger.warning(f"Could not find tenant for subdomain: {subdomain}")
                     continue
 
                 tenant_id = str(tenant.id)
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: Resolved tenant_id: {tenant_id[:8]}...",
-                    file=sys.stderr,
-                    flush=True,
-                )
 
                 # 6. Deletion detection & execution
                 change_type = notification.get("changeType", "")
                 resource_path = notification.get("resource", "")
                 if "deleted" in change_type.lower():
-                    print(
-                        f"[OUTLOOK_WEBHOOK] Deletion event detected for resource: {resource_path}",
-                        file=sys.stderr,
-                        flush=True,
-                    )
                     message_id = None
                     if resource_path:
                         path_clean = resource_path.split("?")[0].strip("/")
                         message_id = path_clean.split("/")[-1]
 
                     if not message_id:
-                        print(
-                            f"[OUTLOOK_WEBHOOK] ERROR: Could not extract message_id from resource: {resource_path}",
-                            file=sys.stderr,
-                            flush=True,
-                        )
                         continue
 
                     if db.bind and db.bind.dialect.name == "postgresql":
@@ -886,31 +782,16 @@ async def outlook_webhook_handler(
                             )
                             .all()
                         )
-                        print(
-                            f"[OUTLOOK_WEBHOOK] Found {len(entities)} DiscoveredEntity records to delete for message_id {message_id}",
-                            file=sys.stderr,
-                            flush=True,
-                        )
                         for entity in entities:
                             db.delete(entity)
                         db.commit()
                     except Exception as db_err:
                         db.rollback()
-                        print(
-                            f"[OUTLOOK_WEBHOOK] ERROR: Failed during DB deletion: {db_err}",
-                            file=sys.stderr,
-                            flush=True,
-                        )
                         logger.error(f"Failed during DB deletion of Outlook entities: {db_err}")
                     finally:
                         if db.bind and db.bind.dialect.name == "postgresql":
                             db.execute(text("SET LOCAL row_security = on"))
 
-                    print(
-                        f"[OUTLOOK_WEBHOOK] Deletion process completed for message_id {message_id}",
-                        file=sys.stderr,
-                        flush=True,
-                    )
                     continue
 
                 # 6b. Resolve connection from clientState prefix
@@ -921,6 +802,7 @@ async def outlook_webhook_handler(
                 connection_prefix = state_data.get("c", "")
                 source_connection_id = None
                 if connection_prefix:
+                    pass
                     # RLS is still off from tenant lookup
                     # Cast UUID to text for LIKE comparison (PostgreSQL limitation)
                     connection = (
@@ -935,36 +817,12 @@ async def outlook_webhook_handler(
                     )
                     if connection:
                         source_connection_id = str(connection.id)
-                        print(
-                            f"[OUTLOOK_WEBHOOK] DEBUG: Resolved connection_id: {source_connection_id[:8]}...",
-                            file=sys.stderr,
-                            flush=True,
-                        )
                     else:
-                        print(
-                            f"[OUTLOOK_WEBHOOK] WARNING: No connection found for prefix '{connection_prefix}'",
-                            file=sys.stderr,
-                            flush=True,
-                        )
+                        pass
 
                 # 7. Enqueue to Redis
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: About to enqueue to Redis",
-                    file=sys.stderr,
-                    flush=True,
-                )
 
                 # Verify Redis client before enqueue
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: webhook_queue.redis_client = {webhook_queue.redis_client}",
-                    file=sys.stderr,
-                    flush=True,
-                )
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: webhook_queue.queue_key = {webhook_queue.queue_key}",
-                    file=sys.stderr,
-                    flush=True,
-                )
 
                 job_id = await webhook_queue.enqueue_ingestion_job(
                     tenant_id=tenant_id,
@@ -973,28 +831,13 @@ async def outlook_webhook_handler(
                     payload=notification,
                     source_connection_id=source_connection_id,
                 )
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: Enqueued job_id: {job_id}",
-                    file=sys.stderr,
-                    flush=True,
-                )
 
                 # Check queue depth immediately after enqueue
                 queue_depth = await webhook_queue.get_queue_depth()
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: Queue depth after enqueue: {queue_depth}",
-                    file=sys.stderr,
-                    flush=True,
-                )
 
                 logger.info(f"[OUTLOOK_WEBHOOK] Successfully enqueued job {job_id}")
                 processed_jobs.append(job_id)
 
-                print(
-                    f"[OUTLOOK_WEBHOOK] DEBUG: Loop iteration {idx + 1} COMPLETE",
-                    file=sys.stderr,
-                    flush=True,
-                )
 
             except Exception as e:
                 logger.error(
@@ -1002,11 +845,6 @@ async def outlook_webhook_handler(
                 )
 
         logger.info(f"[OUTLOOK_WEBHOOK] Completed processing notifications")
-        print(
-            f"[OUTLOOK_WEBHOOK] RETURNING: status=enqueued, job_count={len(processed_jobs)}",
-            file=sys.stderr,
-            flush=True,
-        )
         return {"status": "enqueued", "job_count": len(processed_jobs), "job_ids": processed_jobs}
 
     except Exception as e:
@@ -1055,20 +893,24 @@ async def zoho_webhook_handler(
     try:
         payload = await request.json()
     except Exception:
+        pass
         # Fallback if body is not valid JSON
         payload = {}
 
     # 1. Resolve org_id / portal_id from payload for tenant discovery
-    org_id = (
-        payload.get("orgId")
-        or payload.get("organization_id")
-        or payload.get("org_id")
-        or payload.get("portalId")
-        or payload.get("portal_id")
-        or payload.get("organization", {}).get("organization_id")
-    )
+    org_id = None
+    if isinstance(payload, dict):
+        org_id = (
+            payload.get("orgId")
+            or payload.get("organization_id")
+            or payload.get("org_id")
+            or payload.get("portalId")
+            or payload.get("portal_id")
+            or payload.get("organization", {}).get("organization_id")
+        )
 
     if not org_id:
+        pass
         # Check inside first item if payload is a list
         if isinstance(payload, list) and len(payload) > 0 and isinstance(payload[0], dict):
             org_id = payload[0].get("orgId") or payload[0].get("organization_id")
@@ -1083,6 +925,7 @@ async def zoho_webhook_handler(
     tenant_id = await discoverer.get_tenant_id_by_external_id(integration_id, str(org_id))
 
     if not tenant_id:
+        pass
         # Fallback: check if we can resolve using the generic "zoho" base connector ID
         tenant_id = await discoverer.get_tenant_id_by_external_id("zoho", str(org_id))
 
@@ -1192,6 +1035,7 @@ async def pm_crm_webhook_handler(
     try:
         payload = await request.json()
     except Exception:
+        pass
         # Fallback if body is not valid JSON
         payload = {}
 
@@ -1250,6 +1094,7 @@ async def pm_crm_webhook_handler(
         tenant_id = await discoverer.get_tenant_id_by_external_id(integration_id, str(external_id))
 
         if not tenant_id:
+            pass
             # Fallback: check if we can resolve using the generic "pm_crm" base connector ID
             tenant_id = await discoverer.get_tenant_id_by_external_id("pm_crm", str(external_id))
 
@@ -1403,6 +1248,7 @@ async def communication_webhook_handler(
         tenant_id = await discoverer.get_tenant_id_by_external_id(integration_id, str(external_id))
 
         if not tenant_id:
+            pass
             # Fallback: check if we can resolve using the generic "communication" base connector ID
             tenant_id = await discoverer.get_tenant_id_by_external_id("communication", str(external_id))
 
@@ -1575,6 +1421,7 @@ async def dev_prod_webhook_handler(
         tenant_id = await discoverer.get_tenant_id_by_external_id(integration_id, str(external_id))
 
         if not tenant_id:
+            pass
             # Fallback: check if we can resolve using the generic "dev_prod" base connector ID
             tenant_id = await discoverer.get_tenant_id_by_external_id("dev_prod", str(external_id))
 
@@ -1749,6 +1596,7 @@ async def ecommerce_marketing_webhook_handler(
             or payload.get("team_id")
         )
     elif isinstance(payload, list) and len(payload) > 0:
+        pass
         # SendGrid sends batch event arrays
         first_event = payload[0]
         if isinstance(first_event, dict):
@@ -1770,6 +1618,7 @@ async def ecommerce_marketing_webhook_handler(
         tenant_id = await discoverer.get_tenant_id_by_external_id(integration_id, str(external_id))
 
         if not tenant_id:
+            pass
             # Fallback: check if we can resolve using the generic "ecommerce_marketing" base connector ID
             tenant_id = await discoverer.get_tenant_id_by_external_id(
                 "ecommerce_marketing", str(external_id)

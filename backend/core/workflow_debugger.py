@@ -382,7 +382,7 @@ class WorkflowDebugger:
             return None
 
         # Push current frame onto call stack
-        call_stack = session.call_stack or []
+        call_stack = list(session.call_stack or [])
         current_frame = {
             "step_number": session.current_step,
             "node_id": session.current_node_id,
@@ -418,7 +418,7 @@ class WorkflowDebugger:
         if not session:
             return None
 
-        call_stack = session.call_stack or []
+        call_stack = list(session.call_stack or [])
 
         if not call_stack:
             logger.warning(f"Cannot step out: call stack is empty for session {session_id}")
@@ -711,7 +711,7 @@ class WorkflowDebugger:
                 return None
 
             # Update variable in session state
-            variables = session.variables or {}
+            variables = dict(session.variables or {})
             old_value = variables.get(variable_name)
 
             # Create variable snapshot for audit trail
@@ -959,7 +959,7 @@ class WorkflowDebugger:
             if not session or not session.performance_metrics:
                 return False
 
-            metrics = session.performance_metrics
+            metrics = copy.deepcopy(session.performance_metrics)
             metrics["step_times"].append({
                 "node_id": node_id,
                 "node_type": node_type,
@@ -987,6 +987,7 @@ class WorkflowDebugger:
             # Update total duration
             metrics["total_duration_ms"] += duration_ms
 
+            session.performance_metrics = metrics
             session.updated_at = datetime.now()
             self.db.commit()
 
@@ -1064,7 +1065,7 @@ class WorkflowDebugger:
             if not session:
                 return False
 
-            collaborators = session.collaborators or {}
+            collaborators = dict(session.collaborators or {})
 
             collaborators[user_id] = {
                 "permission": permission,
@@ -1090,7 +1091,7 @@ class WorkflowDebugger:
             if not session:
                 return False
 
-            collaborators = session.collaborators or {}
+            collaborators = dict(session.collaborators or {})
 
             if user_id in collaborators:
                 del collaborators[user_id]

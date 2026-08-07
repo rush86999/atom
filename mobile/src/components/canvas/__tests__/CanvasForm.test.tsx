@@ -540,7 +540,7 @@ describe('CanvasForm Component', () => {
         />
       );
 
-      const dateField = getAllByText(/Birth\ Date/)[0];
+      const dateField = getAllByText(/Birth\ Date/)[1];
       fireEvent.press(dateField);
 
       // onChange fires via the auto-save draft timer
@@ -647,8 +647,6 @@ describe('CanvasForm Component', () => {
       );
 
       expect(UNSAFE_root).toBeTruthy();
-
-      expect(container).toBeTruthy();
     });
 
     test('should handle special characters in values', () => {

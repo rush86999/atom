@@ -7,6 +7,7 @@ Extends HybridDataIngestionService to automatically ingest fetched data into
 GraphRAG for entity/relationship extraction and knowledge graph construction.
 
 Key features:
+    pass
 - Fetches integration data via HybridDataIngestionService
 - Extracts entities/relationships via GraphRAGEngine.ingest_structured_data()
 - Tracks progress in IngestionJob table
@@ -120,6 +121,7 @@ class IngestionPipelineService(HybridDataIngestionService):
         Sync integration data and ingest into Knowledge Graph.
 
         Orchestrates the full pipeline:
+            pass
         1. Fetch integration data via HybridDataIngestionService._fetch_integration_data()
         2. Convert each record to text via _record_to_text()
         3. Extract entities/relationships via GraphRAGEngine.ingest_structured_data()
@@ -141,6 +143,7 @@ class IngestionPipelineService(HybridDataIngestionService):
         # Get sync configuration
         config = self.sync_configs.get(integration_id)
         if not config:
+            pass
             # Use default config if available
             if integration_id in DEFAULT_SYNC_CONFIGS:
                 config = DEFAULT_SYNC_CONFIGS[integration_id]
@@ -176,6 +179,7 @@ class IngestionPipelineService(HybridDataIngestionService):
         start_time = datetime.now(timezone.utc)
 
         try:
+            pass
             # Update job status to running (if IngestionJob model exists)
             if INGESTION_JOB_EXISTS:
                 self._update_ingestion_job(
@@ -211,6 +215,7 @@ class IngestionPipelineService(HybridDataIngestionService):
 
             for record in records:
                 try:
+                    pass
                     # Step 2: Convert record to text representation
                     text = self._record_to_text(record, integration_id)
 
@@ -318,6 +323,7 @@ class IngestionPipelineService(HybridDataIngestionService):
                 results["acu_consumed"] = acu_consumed
                 logger.info(f"[{job_id}] ACU usage tracked: {acu_consumed:.2f} ACU")
             except Exception as usage_err:
+                pass
                 # Don't fail the job if usage tracking fails
                 logger.warning(f"[{job_id}] Failed to track ACU usage: {usage_err}")
                 results["usage_tracking_error"] = str(usage_err)
@@ -497,6 +503,7 @@ class IngestionPipelineService(HybridDataIngestionService):
         """
         session = SessionLocal()
         try:
+            pass
             # Query UserConnection with tenant isolation
             connection = (
                 session.query(UserConnection)
@@ -504,7 +511,7 @@ class IngestionPipelineService(HybridDataIngestionService):
                     UserConnection.tenant_id == self.tenant_id,
                     UserConnection.integration_id == integration_id,
                     UserConnection.user_id == user_id,
-                    UserConnection.is_active == True,
+                    UserConnection.status == "active",
                 )
                 .first()
             )
@@ -546,6 +553,7 @@ class IngestionPipelineService(HybridDataIngestionService):
             Job ID (UUID string)
         """
         if not INGESTION_JOB_EXISTS:
+            pass
             # Fallback if model doesn't exist yet
             return f"fallback-{uuid.uuid4()}"
 
@@ -609,6 +617,7 @@ class IngestionPipelineService(HybridDataIngestionService):
             True if update successful, False otherwise
         """
         if not INGESTION_JOB_EXISTS:
+            pass
             # Silently skip if model doesn't exist yet
             return False
 
@@ -671,6 +680,7 @@ class IngestionPipelineService(HybridDataIngestionService):
         Asynchronously prepare record text for ingestion.
 
         Standardized binary ingestion path:
+            pass
         1. Checks for 'file' or 'files' type
         2. Applies global and per-provider feature flags
         3. Validates extension against Docling supported formats
@@ -679,8 +689,7 @@ class IngestionPipelineService(HybridDataIngestionService):
         """
         logger.info(
             f"[INGEST_PREPARE] Preparing text for {integration_id} record {record.get('id')}",
-            tenant_id=self.tenant_id,
-            record_type=record.get("type"),
+            extra={"tenant_id": self.tenant_id, "record_type": record.get("type")},
         )
         # 0. Global Kill Switch check
         if os.getenv("ENABLE_BINARY_INGESTION", "true").lower() == "false":
@@ -688,6 +697,7 @@ class IngestionPipelineService(HybridDataIngestionService):
 
         # 1. Detect File Record (Standardized 'file' or Zoho 'files')
         if record.get("type") in ["file", "files"]:
+            pass
             # Per-provider legacy flag (backward compat)
             legacy_flag = f"ENABLE_{integration_id.upper()}_FILE_PARSING"
             if os.getenv(legacy_flag, "true").lower() == "false":
@@ -709,13 +719,13 @@ class IngestionPipelineService(HybridDataIngestionService):
             if extension and not processor.is_format_supported(extension):
                 logger.info(
                     f"[INGEST_BINARY_SKIP] Unsupported extension: {extension}. Falling back to metadata.",
-                    tenant_id=self.tenant_id,
-                    file_name=file_name,
+                    extra={"tenant_id": self.tenant_id, "file_name": file_name},
                 )
                 # Fall back early if format is unsupported
                 return self._record_to_text(record, integration_id)
 
             try:
+                pass
                 # 3. Get service instance from registry
                 service = await self.integration_registry.get_service(
                     integration_id, self.tenant_id, connection_id
@@ -798,6 +808,7 @@ class IngestionPipelineService(HybridDataIngestionService):
             and has_attachments
         ):
             try:
+                pass
                 # Check feature flag
                 flag_name = f"ENABLE_{integration_id.upper()}_ATTACHMENT_INGESTION"
                 if os.getenv(flag_name, "true").lower() == "false":
@@ -878,6 +889,7 @@ class IngestionPipelineService(HybridDataIngestionService):
                         continue
 
                     try:
+                        pass
                         # Download attachment binary content
                         attachment_bytes = await service.download_attachment(
                             user_id=connection_id or self.tenant_id,
@@ -980,6 +992,7 @@ class IngestionPipelineService(HybridDataIngestionService):
         start_time = datetime.now(timezone.utc)
 
         try:
+            pass
             # Transform webhook payload to standardized record format
             # Include source_connection_id in webhook_data for transformers that need it
             if source_connection_id:
@@ -989,7 +1002,7 @@ class IngestionPipelineService(HybridDataIngestionService):
             if not records:
                 logger.info(
                     f"No records extracted from webhook payload for {integration_id}",
-                    tenant_id=self.tenant_id,
+                    extra={"tenant_id": self.tenant_id},
                 )
                 results["success"] = True
                 return results
@@ -1000,13 +1013,8 @@ class IngestionPipelineService(HybridDataIngestionService):
 
             for record in records:
                 try:
-                    import sys
+                    pass
 
-                    print(
-                        f"[FATAL_DEBUG] Processing record: type={record.get('type')}, id={record.get('id')[:8] if record.get('id') else 'N/A'}",
-                        file=sys.stderr,
-                        flush=True,
-                    )
                     # Convert record to text (potentially parsing attachments asynchronously)
                     text = await self._prepare_record_text_async(
                         record, integration_id, source_connection_id
@@ -1020,28 +1028,13 @@ class IngestionPipelineService(HybridDataIngestionService):
                     if "bodyPreview" in record:
                         record["bodyPreview"] = ""
 
-                    print(
-                        f"[FATAL_DEBUG] Record text length: {len(text) if text else 0}, text preview: {text[:50] if text else 'None'}...",
-                        file=sys.stderr,
-                        flush=True,
-                    )
                     if not text or len(text) < 10:
-                        print(
-                            f"[FATAL_DEBUG] Skipping record: text too short",
-                            file=sys.stderr,
-                            flush=True,
-                        )
                         continue
 
                     results["records_processed"] += 1
 
                     # Extract entities and relationships
                     entity, rel = self._extract_structured_entities(record, integration_id, text)
-                    print(
-                        f"[FATAL_DEBUG] Extracted: entity={bool(entity)}, rel={bool(rel)}",
-                        file=sys.stderr,
-                        flush=True,
-                    )
                     if entity:
                         entities.append(entity)
                     if rel:
@@ -1051,22 +1044,16 @@ class IngestionPipelineService(HybridDataIngestionService):
                     error_msg = f"Failed to process webhook record: {record_err}"
                     results["errors"].append(error_msg)
                     logger.warning(
-                        error_msg, integration_id=integration_id, tenant_id=self.tenant_id
+                        error_msg,
+                        extra={"integration_id": integration_id, "tenant_id": self.tenant_id},
                     )
 
             # Batch ingest into GraphRAG
             if entities or relationships:
-                import sys
 
-                print(
-                    f"[FATAL_DEBUG] Ingesting to GraphRAG: {len(entities)} entities, {len(relationships)} relationships",
-                    file=sys.stderr,
-                    flush=True,
-                )
                 logger.info(
                     f"Ingesting webhook data: {len(entities)} entities, {len(relationships)} relationships",
-                    integration_id=integration_id,
-                    tenant_id=self.tenant_id,
+                    extra={"integration_id": integration_id, "tenant_id": self.tenant_id},
                 )
                 self.graphrag.ingest_structured_data(
                     workspace_id=self.workspace_id, entities=entities, relationships=relationships
@@ -1074,68 +1061,31 @@ class IngestionPipelineService(HybridDataIngestionService):
                 results["entities_extracted"] = len(entities)
                 results["relationships_extracted"] = len(relationships)
             else:
-                import sys
+                pass
 
-                print(
-                    f"[FATAL_DEBUG] No entities/relationships extracted, skipping GraphRAG ingestion",
-                    file=sys.stderr,
-                    flush=True,
-                )
 
             # Phase 323: Multi-entity extraction to discovered_entities
             # This enables schema discovery and entity type promotion
-            import sys
 
-            print(
-                f"[FATAL_DEBUG] === PHASE 323 MULTI-ENTITY EXTRACTION === records_count={len(records)}",
-                file=sys.stderr,
-                flush=True,
-            )
             logger.info(f"[PHASE_323] Starting multi-entity extraction for {len(records)} records")
             for record in records:
+                pass
                 # Use pre-mutated content (including attachment text) rather than recomputing via _record_to_text
                 text = record.get("content") or record.get("text", "")
-                print(
-                    f"[FATAL_DEBUG] Phase 323: record_id={record.get('id', 'unknown')[:8]}, text_len={len(text) if text else 0}",
-                    file=sys.stderr,
-                    flush=True,
-                )
                 if text and len(text) > 50:
                     try:
                         job_id = f"webhook_{record.get('id', 'unknown')[:8]}"
-                        print(
-                            f"[FATAL_DEBUG] Phase 323: calling _process_multi_entity_extraction with job_id={job_id}",
-                            file=sys.stderr,
-                            flush=True,
-                        )
                         discovered_count = await self._process_multi_entity_extraction(
                             record, integration_id, text, job_id
-                        )
-                        print(
-                            f"[FATAL_DEBUG] Phase 323: returned discovered_count={discovered_count}",
-                            file=sys.stderr,
-                            flush=True,
                         )
                         if discovered_count > 0:
                             results["entities_extracted"] += discovered_count
                     except Exception as extract_err:
-                        print(
-                            f"[FATAL_DEBUG] Phase 323: EXCEPTION - {extract_err}",
-                            file=sys.stderr,
-                            flush=True,
-                        )
-                        import traceback
-
-                        traceback.print_exc()
                         logger.warning(
                             f"Multi-entity extraction failed for record {record.get('id')}: {extract_err}"
                         )
                 else:
-                    print(
-                        f"[FATAL_DEBUG] Phase 323: SKIPPED - text too short or empty",
-                        file=sys.stderr,
-                        flush=True,
-                    )
+                    pass
 
             # LanceDB indexing for webhook records (communication memory)
             # This enables semantic search for email/chat content
@@ -1149,9 +1099,11 @@ class IngestionPipelineService(HybridDataIngestionService):
                     )
 
                     for record in records:
+                        pass
                         # Extract text content from record
                         text = record.get("text") or record.get("content", "")
                         if not text:
+                            pass
                             # Try to construct from other fields
                             if record.get("type") == "email":
                                 subject = record.get("subject", "")
@@ -1189,16 +1141,15 @@ class IngestionPipelineService(HybridDataIngestionService):
 
                     logger.info(
                         f"Indexed {len(records)} webhook records in LanceDB",
-                        integration_id=integration_id,
-                        tenant_id=self.tenant_id,
+                        extra={"integration_id": integration_id, "tenant_id": self.tenant_id},
                     )
                     results["lancedb_indexed"] = len(records)
                 except Exception as lancedb_err:
+                    pass
                     # Don't fail webhook processing if LanceDB fails
                     logger.warning(
                         f"LanceDB indexing failed for webhook: {lancedb_err}",
-                        integration_id=integration_id,
-                        tenant_id=self.tenant_id,
+                        extra={"integration_id": integration_id, "tenant_id": self.tenant_id},
                     )
                     results["lancedb_error"] = str(lancedb_err)
 
@@ -1241,6 +1192,7 @@ class IngestionPipelineService(HybridDataIngestionService):
                 results["acu_consumed"] = acu_consumed
                 logger.info(f"Webhook ACU usage tracked: {acu_consumed:.2f} ACU")
             except Exception as usage_err:
+                pass
                 # Don't fail webhook processing if usage tracking fails
                 logger.warning(f"Failed to track webhook ACU usage: {usage_err}")
                 results["usage_tracking_error"] = str(usage_err)
@@ -1249,10 +1201,12 @@ class IngestionPipelineService(HybridDataIngestionService):
 
             logger.info(
                 f"Webhook payload processing complete for {integration_id}",
-                tenant_id=self.tenant_id,
-                records_processed=results["records_processed"],
-                entities_extracted=results["entities_extracted"],
-                relationships_extracted=results["relationships_extracted"],
+                extra={
+                    "tenant_id": self.tenant_id,
+                    "records_processed": results["records_processed"],
+                    "entities_extracted": results["entities_extracted"],
+                    "relationships_extracted": results["relationships_extracted"],
+                },
             )
         except Exception as e:
             logger.error(f"Webhook processing failed for {integration_id}: {e}")
@@ -1293,6 +1247,7 @@ class IngestionPipelineService(HybridDataIngestionService):
         start_time = datetime.now(timezone.utc)
 
         try:
+            pass
             # Include source_connection_id in webhook_data for transformers that need it
             if source_connection_id:
                 webhook_data["_source_connection_id"] = source_connection_id
@@ -1486,13 +1441,7 @@ class IngestionPipelineService(HybridDataIngestionService):
 
         CRITICAL: Tenant_id is enforced for multi-tenant security.
         """
-        import sys
 
-        print(
-            f"[FATAL_DEBUG] _transform_webhook_payload ENTERED: integration_id={integration_id}, webhook_data keys={list(webhook_data.keys())}",
-            file=sys.stderr,
-            flush=True,
-        )
         # Integration-specific payload transformers
         transformers = {
             # Existing (from 220-04)
@@ -1566,7 +1515,8 @@ class IngestionPipelineService(HybridDataIngestionService):
         transformer = transformers.get(integration_id)
         if not transformer:
             logger.warning(
-                f"No webhook payload transformer for {integration_id}", tenant_id=self.tenant_id
+                f"No webhook payload transformer for {integration_id}",
+                extra={"tenant_id": self.tenant_id},
             )
             return []
 
@@ -1732,7 +1682,8 @@ class IngestionPipelineService(HybridDataIngestionService):
             records.append(record)
 
         logger.debug(
-            f"Transformed Slack webhook payload: {len(records)} records", tenant_id=self.tenant_id
+            f"Transformed Slack webhook payload: {len(records)} records",
+            extra={"tenant_id": self.tenant_id},
         )
 
         return records
@@ -1771,7 +1722,8 @@ class IngestionPipelineService(HybridDataIngestionService):
             records.append(record)
 
         logger.debug(
-            f"Transformed HubSpot webhook payload: {len(records)} records", tenant_id=self.tenant_id
+            f"Transformed HubSpot webhook payload: {len(records)} records",
+            extra={"tenant_id": self.tenant_id},
         )
 
         return records
@@ -1810,7 +1762,7 @@ class IngestionPipelineService(HybridDataIngestionService):
 
         logger.debug(
             f"Transformed Salesforce webhook payload: {len(records)} records",
-            tenant_id=self.tenant_id,
+            extra={"tenant_id": self.tenant_id},
         )
 
         return records
@@ -1834,6 +1786,7 @@ class IngestionPipelineService(HybridDataIngestionService):
 
         if source_connection_id and history_id:
             try:
+                pass
                 # 1. Fetch history from Gmail API using startHistoryId
                 history_data = await self._fetch_gmail_resource_direct(
                     source_connection_id,
@@ -1841,6 +1794,7 @@ class IngestionPipelineService(HybridDataIngestionService):
                 )
 
                 if history_data and "history" in history_data:
+                    pass
                     # Collect all message IDs that were added
                     message_ids = []
                     for hist in history_data["history"]:
@@ -1856,6 +1810,7 @@ class IngestionPipelineService(HybridDataIngestionService):
                             f"users/me/messages/{msg_id}"
                         )
                         if msg_detail:
+                            pass
                             # Extract headers
                             headers = msg_detail.get("payload", {}).get("headers", [])
                             header_dict = {h["name"].lower(): h["value"] for h in headers}
@@ -1945,7 +1900,8 @@ class IngestionPipelineService(HybridDataIngestionService):
         records.append(record)
 
         logger.debug(
-            f"Transformed Notion webhook payload: {len(records)} records", tenant_id=self.tenant_id
+            f"Transformed Notion webhook payload: {len(records)} records",
+            extra={"tenant_id": self.tenant_id},
         )
 
         return records
@@ -2584,6 +2540,7 @@ class IngestionPipelineService(HybridDataIngestionService):
                 "event_type": f"issue_{webhook_data.get('action', '')}",
             }
         else:
+            pass
             # Push event
             record = {
                 "type": "github_push",
@@ -2626,6 +2583,7 @@ class IngestionPipelineService(HybridDataIngestionService):
                 "event_type": f"issue_{issue.get('action', '')}",
             }
         else:
+            pass
             # Push event
             record = {
                 "type": "gitlab_push",
@@ -2657,6 +2615,7 @@ class IngestionPipelineService(HybridDataIngestionService):
                 "event_type": f"pr_{webhook_data.get('action', '')}",
             }
         else:
+            pass
             # Push event
             record = {
                 "type": "bitbucket_push",
@@ -2927,13 +2886,7 @@ class IngestionPipelineService(HybridDataIngestionService):
         Handles both pre-normalized data and raw Microsoft Graph notifications.
         If raw notification, fetches the full resource data from Graph API.
         """
-        import sys
 
-        print(
-            f"[FATAL_DEBUG] _transform_outlook_payload ENTERED: keys={list(webhook_data.keys())}, has _source_connection_id={bool(webhook_data.get('_source_connection_id'))}",
-            file=sys.stderr,
-            flush=True,
-        )
         records = []
         # Extract source_connection_id if available (for credentials resolution)
         source_connection_id = webhook_data.get("_source_connection_id")
@@ -2943,6 +2896,7 @@ class IngestionPipelineService(HybridDataIngestionService):
         if resource_path and "resourceData" in webhook_data:
             logger.info(f"Processing raw Outlook notification for resource: {resource_path}")
             try:
+                pass
                 # Fetch directly using ConnectionService + httpx (bypass integration_registry)
                 # The v2 registry's get_service() doesn't accept connection_id, and returns
                 # OutlookIntegration (not V2 with fetch_resource), so we fetch directly.
@@ -2990,6 +2944,7 @@ class IngestionPipelineService(HybridDataIngestionService):
                     }
                     records.append(record)
                 else:
+                    pass
                     # Fallback for generic drive items or other types
                     record = {
                         "type": "outlook_resource",
@@ -3007,6 +2962,7 @@ class IngestionPipelineService(HybridDataIngestionService):
                 logger.error(f"Failed to fetch Outlook resource {resource_path}: {e}")
                 return []
         else:
+            pass
             # 2. Handle pre-normalized data (existing behavior)
             record = {
                 "type": "email",
@@ -3024,13 +2980,7 @@ class IngestionPipelineService(HybridDataIngestionService):
             }
             records.append(record)
 
-        import sys
 
-        print(
-            f"[FATAL_DEBUG] _transform_outlook_payload RETURNING: {len(records)} records",
-            file=sys.stderr,
-            flush=True,
-        )
         return records
 
     async def _fetch_outlook_resource_direct(
@@ -3062,6 +3012,7 @@ class IngestionPipelineService(HybridDataIngestionService):
             close_session = True
 
         try:
+            pass
             # 1. Get connection
             import httpx
 
@@ -3093,6 +3044,7 @@ class IngestionPipelineService(HybridDataIngestionService):
             # 3. Refresh token if needed
             updated_creds = await conn_service._refresh_token_if_needed(conn, creds)
             if updated_creds:
+                pass
                 # Save updated credentials back to database
                 conn.credentials = conn_service._encrypt(updated_creds)
                 db.commit()
@@ -3165,6 +3117,7 @@ class IngestionPipelineService(HybridDataIngestionService):
             close_session = True
 
         try:
+            pass
             # 1. Get connection
             import httpx
             from core.connection_service import ConnectionService
@@ -3203,6 +3156,7 @@ class IngestionPipelineService(HybridDataIngestionService):
             # 3. Refresh token if needed
             updated_creds = await conn_service._refresh_token_if_needed(conn, creds)
             if updated_creds:
+                pass
                 # Save updated credentials back to database
                 conn.credentials = conn_service._encrypt(updated_creds)
                 db.commit()
@@ -3337,13 +3291,7 @@ class IngestionPipelineService(HybridDataIngestionService):
 
         Includes retry logic with fallback models (matches backfill pattern).
         """
-        import sys
 
-        print(
-            f"[FATAL_DEBUG] _extract_multi_entity_only ENTERED: record_id={record.get('id')[:8]}, text_len={len(text)}",
-            file=sys.stderr,
-            flush=True,
-        )
 
         # Use provided LLMService or the instance's LLMService (has tenant context)
         service = llm_service or self.multi_entity_extractor.llm
@@ -3372,6 +3320,7 @@ class IngestionPipelineService(HybridDataIngestionService):
             )
 
             try:
+                pass
                 # Set integration_id on extractor so _parse_llm_response can use it
                 # (it references self.integration_id which defaults to None)
                 self.multi_entity_extractor.integration_id = integration_id
@@ -3458,22 +3407,12 @@ class IngestionPipelineService(HybridDataIngestionService):
         """
         Convenience wrapper for single-threaded callers: extract + persist.
         """
-        import sys
 
-        print(
-            f"[FATAL_DEBUG] _process_multi_entity_extraction ENTERED: record_id={record.get('id')[:8]}",
-            file=sys.stderr,
-            flush=True,
-        )
         entities = await self._extract_multi_entity_only(
             record, integration_id, text, job_id, llm_service
         )
-        print(
-            f"[FATAL_DEBUG] _extract_multi_entity_only returned: {len(entities)} entities",
-            file=sys.stderr,
-            flush=True,
-        )
         if entities:
+            pass
             # Defensive pattern: handle cases where self.db is None
             # (e.g., webhook path where db isn't passed to IngestionPipelineService)
             db = self.db
@@ -3499,6 +3438,7 @@ class IngestionPipelineService(HybridDataIngestionService):
         Run schema discovery and auto-promotion to GraphRAG.
         """
         try:
+            pass
             # 1. Discover schemas from high-confidence entities
             new_types = await self.schema_discovery.discover_schemas_from_entities(
                 tenant_id=self.tenant_id,
@@ -3557,15 +3497,12 @@ class IngestionPipelineService(HybridDataIngestionService):
             discovered = DiscoveredEntity(
                 tenant_id=self.tenant_id,
                 workspace_id=self.workspace_id,
-                sync_job_id=sync_job_id,
                 _discovered_type=entity.get("type", "Unknown"),
-                entity_name=entity.get("name"),
                 properties=entity.get("properties", {}),
                 confidence_score=float(entity.get("confidence", 0.0)),
                 source_record_id=source_id,
                 source_record_type=source_type,
                 status="pending",
-                ingested=False,
             )
             discovered_models.append(discovered)
 

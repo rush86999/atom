@@ -321,6 +321,7 @@ class LanceDBHandler:
         table_name: str,
         schema: Union[dict[str, Any], None] = None,
         vector_size: int = 1536,
+        dual_vector: bool = False,
     ) -> Union[Table, None]:
         """
         Create a new table.
@@ -329,6 +330,7 @@ class LanceDBHandler:
             table_name: Name of the table
             schema: Optional custom schema
             vector_size: Vector size for 'vector' column (default: 1536)
+            dual_vector: Accepted for API compatibility with add_embedding
 
         Returns:
             LanceDB Table object or None if failed

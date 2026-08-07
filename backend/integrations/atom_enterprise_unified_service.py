@@ -22,6 +22,10 @@ from core.circuit_breaker import circuit_breaker
 from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
 from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
 from fastapi import HTTPException
+try:
+    from atom_enterprise_security_service import ComplianceStandard
+except ImportError:
+    from integrations.atom_enterprise_security_service import ComplianceStandard
 
 
 # Import existing ATOM services
@@ -146,6 +150,16 @@ class ComplianceAutomation:
     artifact_generation: List[str]
     audit_requirements: List[str]
 
+def _coerce_compliance_standard(value: Any) -> ComplianceStandard:
+    if isinstance(value, ComplianceStandard):
+        return value
+    if isinstance(value, str):
+        if value in ComplianceStandard.__members__:
+            return ComplianceStandard[value]
+        return ComplianceStandard(value)
+    raise ValueError(f"Invalid compliance standard: {value}")
+
+
 class AtomEnterpriseUnifiedService:
     """Unified enterprise service integrating security, compliance, workflows, and AI"""
     
@@ -267,7 +281,7 @@ class AtomEnterpriseUnifiedService:
                 description=workflow_data['description'],
                 service_type=EnterpriseServiceType(workflow_data['service_type']),
                 security_level=WorkflowSecurityLevel(workflow_data['security_level']),
-                compliance_standards=workflow_data['compliance_standards'],  # Changed from ComplianceStandard objects to strings
+                compliance_standards=[_coerce_compliance_standard(s) for s in workflow_data['compliance_standards']],
                 triggers=workflow_data['triggers'],
                 steps=workflow_data['steps'],
                 actions=workflow_data['actions'],
@@ -338,8 +352,6 @@ class AtomEnterpriseUnifiedService:
                 'message': "Enterprise workflow created successfully"
             }
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error creating enterprise workflow: {e}")
             return {'ok': False, 'error': str(e)}
     
@@ -347,6 +359,7 @@ class AtomEnterpriseUnifiedService:
         """Execute enterprise workflow with security and compliance checks"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_enterprise_unified", "create_enterprise_workflow", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
                 logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
@@ -364,7 +377,6 @@ class AtomEnterpriseUnifiedService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_enterprise_unified"
                 )
-        try:
             enterprise_workflow = self.enterprise_workflows.get(workflow_id)
             if not enterprise_workflow:
                 return {'ok': False, 'error': 'Enterprise workflow not found'}
@@ -457,6 +469,7 @@ class AtomEnterpriseUnifiedService:
         """Create security automation with workflow integration"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_enterprise_unified", "execute_enterprise_workflow", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
                 logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
@@ -474,7 +487,6 @@ class AtomEnterpriseUnifiedService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_enterprise_unified"
                 )
-        try:
             automation_id = f"sec_auto_{int(time.time())}_{hashlib.md5(automation_data['name'].encode()).hexdigest()[:8]}"
             
             # Create security workflow
@@ -562,6 +574,7 @@ class AtomEnterpriseUnifiedService:
         """Create compliance automation with workflow integration"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_enterprise_unified", "create_security_automation", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
                 logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
@@ -579,7 +592,6 @@ class AtomEnterpriseUnifiedService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_enterprise_unified"
                 )
-        try:
             automation_id = f"comp_auto_{int(time.time())}_{hashlib.md5(automation_data['name'].encode()).hexdigest()[:8]}"
             
             # Create compliance workflow
@@ -674,6 +686,7 @@ class AtomEnterpriseUnifiedService:
         """Handle security event with automated workflows"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_enterprise_unified", "create_compliance_automation", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
                 logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
@@ -691,7 +704,6 @@ class AtomEnterpriseUnifiedService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_enterprise_unified"
                 )
-        try:
             # Detect threat type
             threat_type = security_event.get('threat_type')
             severity = security_event.get('severity')
@@ -756,6 +768,7 @@ class AtomEnterpriseUnifiedService:
         """Handle compliance violation with automated workflows"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_enterprise_unified", "handle_security_event", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
                 logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
@@ -773,7 +786,6 @@ class AtomEnterpriseUnifiedService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_enterprise_unified"
                 )
-        try:
             # Get compliance standard
             standard = compliance_violation.get('standard')
             violation_type = compliance_violation.get('violation_type')
@@ -836,6 +848,7 @@ class AtomEnterpriseUnifiedService:
         """Get enterprise workflows with security and compliance details"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_enterprise_unified", "handle_compliance_violation", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
                 logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
@@ -853,7 +866,6 @@ class AtomEnterpriseUnifiedService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_enterprise_unified"
                 )
-        try:
             filters = filters or {}
             workflows = []
             
@@ -901,6 +913,7 @@ class AtomEnterpriseUnifiedService:
         """Get automations status"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_enterprise_unified", "get_enterprise_workflows", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
                 logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
@@ -918,7 +931,6 @@ class AtomEnterpriseUnifiedService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_enterprise_unified"
                 )
-        try:
             status_report = {
                 'total_automations': len(self.active_automations),
                 'security_automations': 0,
@@ -954,6 +966,7 @@ class AtomEnterpriseUnifiedService:
         """Validate enterprise workflow security and compliance"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_enterprise_unified", "get_automations_status", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
                 logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
@@ -971,7 +984,6 @@ class AtomEnterpriseUnifiedService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_enterprise_unified"
                 )
-        try:
             validation_result = {'valid': True, 'errors': [], 'warnings': []}
             
             # Security validation
@@ -1050,6 +1062,7 @@ class AtomEnterpriseUnifiedService:
     
     async def _security_pre_check(self, workflow: EnterpriseWorkflow, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Perform security pre-check before workflow execution"""
+        try:
             # User authorization check
             auth_check = await self._check_user_authorization(user_id, workflow.security_level)
             if not auth_check['authorized']:
@@ -1068,14 +1081,12 @@ class AtomEnterpriseUnifiedService:
                 }
             return {'passed': True, 'auth_check': auth_check, 'context_check': context_check}
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error in security pre-check: {e}")
             return {'passed': False, 'reason': str(e)}
     
     async def _compliance_pre_check(self, workflow: EnterpriseWorkflow, context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Perform compliance pre-check before workflow execution"""
+        try:
             # Check compliance requirements
             for standard in workflow.compliance_standards:
                 compliance_check = await self._check_compliance_requirements(standard, context, user_id)
@@ -1087,14 +1098,12 @@ class AtomEnterpriseUnifiedService:
                     }
             return {'passed': True, 'compliance_checks': 'All requirements met'}
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error in compliance pre-check: {e}")
             return {'passed': False, 'reason': str(e)}
     
     async def _get_ai_enhanced_context(self, workflow: EnterpriseWorkflow, context: Dict[str, Any]) -> Dict[str, Any]:
         """Get AI-enhanced context for workflow execution"""
+        try:
             if not self.ai_service:
                 return {'ai_enhanced': False, 'context': context}
             # Create AI request for context enhancement
@@ -1128,14 +1137,12 @@ class AtomEnterpriseUnifiedService:
             else:
                 return {'ai_enhanced': False, 'context': context}
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error getting AI-enhanced context: {e}")
             return {'ai_enhanced': False, 'context': context}
     
     async def _execute_workflow_step(self, step: Dict[str, Any], context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Execute individual workflow step with security and compliance monitoring"""
+        try:
             start_time = time.time()
             # Execute step based on type
             step_result = {}
@@ -1156,9 +1163,6 @@ class AtomEnterpriseUnifiedService:
             step_result['execution_time'] = execution_time
             return step_result
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error executing workflow step: {e}")
             return {
                 'success': False,
@@ -1169,6 +1173,7 @@ class AtomEnterpriseUnifiedService:
     # Additional private methods would be implemented here
     async def _initialize_enterprise_services(self):
         """Initialize enterprise services"""
+        try:
             logger.info("Initializing enterprise services")
             # Initialize security service
             if not self.security_service:
@@ -1182,52 +1187,44 @@ class AtomEnterpriseUnifiedService:
                 self.ai_integration = ai_integration
             logger.info("Enterprise services initialized successfully")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error initializing enterprise services: {e}")
 
     async def _setup_workflow_security_integration(self):
         """Setup workflow security integration"""
+        try:
             logger.info("Setting up workflow security integration")
             # Configure security monitoring for workflows
             if self.security_service:
                 await self.security_service.setup_workflow_monitoring()
             logger.info("Workflow security integration setup complete")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up workflow security integration: {e}")
 
     async def _setup_compliance_automation(self):
         """Setup compliance automation"""
+        try:
             logger.info("Setting up compliance automation")
             # Configure automated compliance checks
             if self.security_service:
                 await self.security_service.setup_compliance_automation()
             logger.info("Compliance automation setup complete")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up compliance automation: {e}")
 
     async def _setup_ai_powered_automation(self):
         """Setup AI-powered automation"""
+        try:
             logger.info("Setting up AI-powered automation")
             # Configure AI analysis for workflows
             if self.ai_integration:
                 await self.ai_integration.setup_workflow_automation()
             logger.info("AI-powered automation setup complete")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up AI-powered automation: {e}")
 
     async def _start_enterprise_monitoring(self):
         """Start enterprise monitoring"""
+        try:
             logger.info("Starting enterprise monitoring")
             # Start background monitoring tasks
             if self.security_service:
@@ -1236,8 +1233,6 @@ class AtomEnterpriseUnifiedService:
                 await self.ai_integration.start_monitoring()
             logger.info("Enterprise monitoring started successfully")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error starting enterprise monitoring: {e}")
     
     async def _validate_workflow_security(self, workflow: EnterpriseWorkflow) -> Dict[str, Any]:
@@ -1306,6 +1301,7 @@ class AtomEnterpriseUnifiedService:
     
     async def _handle_security_alert(self, alert: Dict[str, Any], workflow: EnterpriseWorkflow, step: Dict[str, Any], user_id: str):
         """Handle security alert"""
+        try:
             logger.warning(f"Security alert triggered for workflow {workflow.id}: {alert}")
             # Log the alert
             if self.security_service:
@@ -1326,13 +1322,11 @@ class AtomEnterpriseUnifiedService:
             # Notify administrators
             await self._notify_security_team(alert, workflow, user_id)
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error handling security alert: {e}")
 
     async def _handle_compliance_violation(self, violation: Dict[str, Any], workflow: EnterpriseWorkflow, step: Dict[str, Any], user_id: str):
         """Handle compliance violation"""
+        try:
             logger.warning(f"Compliance violation detected for workflow {workflow.id}: {violation}")
             # Log the violation
             if self.security_service:
@@ -1353,26 +1347,22 @@ class AtomEnterpriseUnifiedService:
             # Notify compliance team
             await self._notify_compliance_team(violation, workflow, user_id)
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error handling compliance violation: {e}")
 
     async def _block_workflow_execution(self, workflow_id: str, reason: str):
         """Block workflow execution"""
+        try:
             logger.warning(f"Blocking workflow {workflow_id} execution: {reason}")
             # Update workflow status
             if workflow_id in self.active_workflows:
                 self.active_workflows[workflow_id].status = "blocked"
             logger.info(f"Workflow {workflow_id} blocked successfully")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error blocking workflow: {e}")
 
     async def _increase_workflow_monitoring(self, workflow_id: str):
         """Increase monitoring for workflow"""
+        try:
             logger.info(f"Increasing monitoring for workflow {workflow_id}")
             # Add enhanced monitoring
             self.workflow_monitoring[workflow_id] = {
@@ -1380,13 +1370,11 @@ class AtomEnterpriseUnifiedService:
                 "enabled_at": datetime.now().isoformat()
             }
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error increasing workflow monitoring: {e}")
 
     async def _enable_compliance_logging(self, workflow_id: str):
         """Enable enhanced compliance logging"""
+        try:
             logger.info(f"Enabling compliance logging for workflow {workflow_id}")
             # Add compliance logging
             self.workflow_monitoring[workflow_id] = {
@@ -1394,31 +1382,24 @@ class AtomEnterpriseUnifiedService:
                 "enabled_at": datetime.now().isoformat()
             }
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error enabling compliance logging: {e}")
 
     async def _notify_security_team(self, alert: Dict[str, Any], workflow: EnterpriseWorkflow, user_id: str):
         """Notify security team of alert"""
+        try:
             logger.info(f"Sending security alert notification: {alert.get('type')}")
             # Send notification via configured channels
             # Implementation depends on notification system
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error notifying security team: {e}")
 
     async def _notify_compliance_team(self, violation: Dict[str, Any], workflow: EnterpriseWorkflow, user_id: str):
         """Notify compliance team of violation"""
+        try:
             logger.info(f"Sending compliance violation notification: {violation.get('type')}")
             # Send notification via configured channels
             # Implementation depends on notification system
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error notifying compliance team: {e}")
     
     async def _security_post_check(self, workflow: EnterpriseWorkflow, results: List[Dict[str, Any]], user_id: str) -> Dict[str, Any]:
@@ -1468,23 +1449,23 @@ class AtomEnterpriseUnifiedService:
         """Get enterprise unified service metrics"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_enterprise_unified", "get_service_info", locals())
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
-                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_enterprise_unified integration temporarily disabled"
-                )
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_enterprise_unified"
-                )
+        # Check circuit breaker
+        if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
+            logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
+            log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+            raise HTTPException(
+                status_code=503,
+                detail=f"Atom_enterprise_unified integration temporarily disabled"
+            )
+        # Check rate limiter
+        is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
+        if is_limited:
+            logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
+            log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+            raise HTTPException(
+                status_code=429,
+                detail=f"Rate limit exceeded for atom_enterprise_unified"
+            )
         return {
             "total_workflows": self.enterprise_metrics['total_workflows'],
             "active_workflows": self.enterprise_metrics['active_workflows'],
@@ -1505,23 +1486,23 @@ class AtomEnterpriseUnifiedService:
         """Close enterprise unified service"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_enterprise_unified", "get_enterprise_metrics", locals())
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
-                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_enterprise_unified integration temporarily disabled"
-                )
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_enterprise_unified"
-                )
+        # Check circuit breaker
+        if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
+            logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
+            log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+            raise HTTPException(
+                status_code=503,
+                detail=f"Atom_enterprise_unified integration temporarily disabled"
+            )
+        # Check rate limiter
+        is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
+        if is_limited:
+            logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
+            log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+            raise HTTPException(
+                status_code=429,
+                detail=f"Rate limit exceeded for atom_enterprise_unified"
+            )
         logger.info("Enterprise Unified Service closed")
 
 # Global enterprise unified service instance
@@ -1543,22 +1524,3 @@ if _ai_integration:
     _enterprise_config['ai_integration'] = _ai_integration
 
 atom_enterprise_unified_service = AtomEnterpriseUnifiedService(_enterprise_config)
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_enterprise_unified", "close", locals())
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
-                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_enterprise_unified integration temporarily disabled"
-                )
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_enterprise_unified"
-                )

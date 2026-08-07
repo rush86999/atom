@@ -424,6 +424,7 @@ class WorkflowEngine:
 
                             async with state_lock:
                                 await self.state_manager.update_step_status(execution_id, step_id, "FAILED", error=str(e))
+                            step_status[step_id] = "FAILED"
                             return (step_id, False, None, e)
 
                 # Execute all ready steps concurrently
@@ -1168,7 +1169,7 @@ class WorkflowEngine:
 
                 if timeout is not None and timeout > 0:
                     try:
-                        result = await asyncio.wait_for(executor(action, params, step.get("connection_id")), timeout=timeout)
+                        result = await asyncio.wait_for(executor(action, params, connection_id=step.get("connection_id")), timeout=timeout)
                     except asyncio.TimeoutError:
                         raise StepTimeoutError(
                             f"Step {step['id']} timed out after {timeout} seconds",
@@ -1176,7 +1177,14 @@ class WorkflowEngine:
                             timeout=timeout
                         )
                 else:
-                    result = await executor(action, params, step.get("connection_id"))
+                    result = await executor(action, params, connection_id=step.get("connection_id"))
+                # Executors that return {"status": "error", ...} (e.g. MCP,
+                # sub-workflow timeouts) must surface as failures, not be
+                # wrapped as successful results.
+                if isinstance(result, dict) and result.get("status") == "error":
+                    raise Exception(
+                        f"Step {step['id']} failed: {result.get('error', 'Step execution failed')}"
+                    )
                 return {
                     "status": "success",
                     "service": service,
@@ -1197,7 +1205,7 @@ class WorkflowEngine:
                 fallback_executor = service_registry[fallback_service]
                 if timeout is not None and timeout > 0:
                     try:
-                        result = await asyncio.wait_for(fallback_executor(action, params, step.get("connection_id")), timeout=timeout)
+                        result = await asyncio.wait_for(fallback_executor(action, params, connection_id=step.get("connection_id")), timeout=timeout)
                     except asyncio.TimeoutError:
                         raise StepTimeoutError(
                             message=f"Fallback service {fallback_service}.{action} timed out after {timeout}s",
@@ -1205,7 +1213,12 @@ class WorkflowEngine:
                             timeout=timeout,
                         )
                 else:
-                    result = await fallback_executor(action, params, step.get("connection_id"))
+                    result = await fallback_executor(action, params, connection_id=step.get("connection_id"))
+                if isinstance(result, dict) and result.get("status") == "error":
+                    raise ValueError(
+                        f"Fallback service {fallback_service}.{action} returned error: "
+                        f"{result.get('error', 'unknown error')}"
+                    )
                 return {
                     "status": "success",
                     "service": fallback_service,
@@ -1501,12 +1514,13 @@ class WorkflowEngine:
 
     async def _execute_hubspot_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute HubSpot service actions"""
-        from integrations.hubspot_service import hubspot_service
-        
+        from integrations.hubspot_service import HubSpotService
+
         token = self._get_token(connection_id, "hubspot")
         logger.info(f"Executing HubSpot action {action} with connection {connection_id}")
         
         try:
+            hubspot_service = HubSpotService()
             if not token and not hubspot_service.access_token:
                  raise AuthenticationError("HubSpot authentication required")
 
@@ -1593,8 +1607,9 @@ class WorkflowEngine:
         logger.info(f"Executing GitHub action {action} with connection {connection_id}")
         
         try:
-            # Instantiate service with token
-            github = GitHubService(access_token=token)
+            # Instantiate service with token (config-based; the constructor
+            # does not accept an access_token positional/keyword argument)
+            github = GitHubService(config={"access_token": token} if token else {})
             
             if action == "create_issue":
                  owner = params.get("owner")
@@ -1616,9 +1631,10 @@ class WorkflowEngine:
             raise e
             
     async def _execute_zoom_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
-        from integrations.zoom_service import zoom_service
+        from integrations.zoom_service import ZoomService
         token = self._get_token(connection_id, "zoom")
         try:
+            zoom_service = ZoomService()
             if action == "create_meeting":
                 topic = params.get("topic")
                 result = await zoom_service.create_meeting(topic=topic, access_token=token)
@@ -1634,7 +1650,7 @@ class WorkflowEngine:
         from integrations.notion_service import NotionService
         token = self._get_token(connection_id, "notion")
         try:
-            notion = NotionService(access_token=token)
+            notion = NotionService(config={"access_token": token} if token else {})
             if action == "create_page":
                 parent = params.get("parent") # e.g. {"database_id": "..."}
                 properties = params.get("properties")
@@ -1670,7 +1686,7 @@ class WorkflowEngine:
 
     async def _execute_gmail_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Gmail service actions"""
-        from integrations.gmail_service import gmail_service
+        from integrations.gmail_service import GmailService
 
         # Try to get token if connection_id is present
         token_data = None
@@ -1683,6 +1699,7 @@ class WorkflowEngine:
         logger.info(f"Executing Gmail action {action} with connection {connection_id} (Token found: {bool(token)})")
         
         try:
+            gmail_service = GmailService()
             result = None
             if action == "send_email":
                 to = params.get("to")
@@ -1720,7 +1737,7 @@ class WorkflowEngine:
              logger.error(f"Gmail execution failed: {e}")
              raise e
 
-    async def _execute_calendar_action(self, action: str, params: dict) -> dict:
+    async def _execute_calendar_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Calendar service actions"""
         await asyncio.sleep(0.1)
         return {
@@ -1729,7 +1746,7 @@ class WorkflowEngine:
             "status": "success"
         }
 
-    async def _execute_database_action(self, action: str, params: dict) -> dict:
+    async def _execute_database_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Database service actions"""
         await asyncio.sleep(0.1)
         return {
@@ -1738,7 +1755,7 @@ class WorkflowEngine:
             "status": "success"
         }
 
-    async def _execute_ai_action(self, action: str, params: dict) -> dict:
+    async def _execute_ai_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute AI service actions"""
         await asyncio.sleep(0.2)  # AI actions take longer
         return {
@@ -1747,7 +1764,7 @@ class WorkflowEngine:
             "status": "success"
         }
 
-    async def _execute_webhook_action(self, action: str, params: dict) -> dict:
+    async def _execute_webhook_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Webhook service actions"""
         await asyncio.sleep(0.1)
         return {
@@ -1756,7 +1773,7 @@ class WorkflowEngine:
             "status": "success"
         }
 
-    async def _execute_mcp_action(self, action: str, params: dict) -> dict:
+    async def _execute_mcp_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute MCP server actions"""
         try:
             from integrations.mcp_service import mcp_service
@@ -1787,7 +1804,7 @@ class WorkflowEngine:
                 "status": "error"
             }
 
-    async def _execute_main_agent_action(self, action: str, params: dict) -> dict:
+    async def _execute_main_agent_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Main Agent actions with MCP connections"""
         try:
             # This allows the main agent to act as a workflow node with MCP capabilities
@@ -1862,9 +1879,11 @@ class WorkflowEngine:
             agent_id = agent_context.get("agent_id")
 
             # Get agent from database
-            agent = self.db.query(AgentRegistry).filter(
-                AgentRegistry.id == agent_id
-            ).first()
+            from core.database import get_db_session
+            with get_db_session() as db:
+                agent = db.query(AgentRegistry).filter(
+                    AgentRegistry.id == agent_id
+                ).first()
 
             if not agent:
                 logger.error(f"Agent {agent_id} not found for MCP execution")
@@ -1904,14 +1923,15 @@ Use the available tools as needed to complete the action. Return your response i
 
             # Execute using LLMService (infrastructure layer - accessing handler for tool calling support)
             try:
-                llm_service = get_llm_service(db=self.db)
-                response = await llm_service.handler.chat_completion(
-                    provider=agent.llm_provider,
-                    model=agent.llm_model,
-                    messages=[{"role": "user", "content": prompt}],
-                    tools=tool_definitions if tool_definitions else None,
-                    temperature=0.7
-                )
+                with get_db_session() as db:
+                    llm_service = get_llm_service(db=db)
+                    response = await llm_service.handler.chat_completion(
+                        provider=agent.llm_provider,
+                        model=agent.llm_model,
+                        messages=[{"role": "user", "content": prompt}],
+                        tools=tool_definitions if tool_definitions else None,
+                        temperature=0.7
+                    )
 
                 return {
                     "success": True,
@@ -1946,7 +1966,7 @@ Use the available tools as needed to complete the action. Return your response i
                 cause=e
             )
 
-    async def _execute_email_automation_action(self, action: str, params: dict) -> dict:
+    async def _execute_email_automation_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute email automation service actions (Follow-ups, etc.)"""
         try:
             from core.email_followup_engine import followup_engine
@@ -1987,7 +2007,7 @@ Use the available tools as needed to complete the action. Return your response i
             logger.error(f"Email automation failed: {e}")
             return {"status": "error", "error": str(e)}
 
-    async def _execute_workflow_action(self, action: str, params: dict) -> dict:
+    async def _execute_workflow_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute a sub-workflow as a step."""
         try:
             workflow_id = params.get("workflow_id")
@@ -2473,7 +2493,7 @@ Use the available tools as needed to complete the action. Return your response i
             response.raise_for_status()
             return response.json()
 
-    async def _execute_goal_management_action(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_goal_management_action(self, action: str, params: Dict[str, Any], connection_id: Optional[str] = None) -> Dict[str, Any]:
         """Execute goal management actions"""
         from core.goal_engine import goal_engine
         

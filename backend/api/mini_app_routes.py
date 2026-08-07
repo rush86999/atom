@@ -457,6 +457,9 @@ async def upload_instance_asset(
     from core.mini_app_storage import validate_key
 
     canvas = _require_instance_canvas(db, canvas_id, current_user)
+    # Mutations are owner-gated: a public app must NOT let a stranger write
+    # into the owner's instance namespace (viewer/operator rights never widen).
+    _require_instance_owner(canvas, current_user)
     cap = get_max_object_bytes()
     data = await file.read()
     if len(data) > cap:
@@ -722,6 +725,8 @@ async def update_instance_record(
     _require_instance_owner(canvas, current_user)
     s = _record_series_or_400(body.series)
     cfg = _manifest_db_caps(db, canvas)
+    if not bool(cfg.get("enabled", True)):
+        raise HTTPException(status_code=503, detail="db_disabled")
     max_bytes = cfg.get("max_record_bytes", DEFAULT_MAX_RECORD_BYTES)
     if not validate_record_data(body.data, max_bytes):
         raise HTTPException(status_code=400, detail="record data must be an object within the size cap")
@@ -745,6 +750,9 @@ async def delete_instance_record(
     canvas = _require_instance_canvas(db, canvas_id, current_user)
     _require_instance_owner(canvas, current_user)
     s = _record_series_or_400(series)
+    cfg = _manifest_db_caps(db, canvas)
+    if not bool(cfg.get("enabled", True)):
+        raise HTTPException(status_code=503, detail="db_disabled")
     ok = delete_record(db, canvas.id, s, record_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Record not found")
@@ -764,5 +772,8 @@ async def delete_instance_record_series(
     canvas = _require_instance_canvas(db, canvas_id, current_user)
     _require_instance_owner(canvas, current_user)
     s = _record_series_or_400(series)
+    cfg = _manifest_db_caps(db, canvas)
+    if not bool(cfg.get("enabled", True)):
+        raise HTTPException(status_code=503, detail="db_disabled")
     n = delete_series(db, canvas.id, s)
     return {"success": True, "series": s, "deleted": n}

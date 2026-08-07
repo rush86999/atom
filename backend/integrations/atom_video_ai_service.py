@@ -454,8 +454,6 @@ class AtomVideoAIService:
                 await self._log_video_request(request, response)
             return response
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error processing video request: {e}")
             return self._create_error_response(request, str(e))
     
@@ -463,6 +461,7 @@ class AtomVideoAIService:
         """Load video AI models"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_video_ai", "process_video_request", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_video_ai"):
                 logger.warning(f"Circuit breaker is open for atom_video_ai")
@@ -480,7 +479,6 @@ class AtomVideoAIService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_video_ai"
                 )
-        try:
             start_time = time.time()
             
             # Load BLIP model for video summarization
@@ -511,6 +509,7 @@ class AtomVideoAIService:
     
     async def _summarize_video(self, request: VideoRequest, video_data: bytes) -> VideoResponse:
         """Summarize video content"""
+        try:
             start_time = time.time()
             # Extract frames from video
             frames = await self._extract_frames(video_data, num_frames=10)
@@ -614,13 +613,12 @@ class AtomVideoAIService:
             self.video_summaries[summary.summary_id] = summary
             return response
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error summarizing video: {e}")
             return self._create_error_response(request, str(e))
     
     async def _analyze_video_content(self, request: VideoRequest, video_data: bytes) -> VideoResponse:
         """Analyze video content comprehensively"""
+        try:
             start_time = time.time()
             # Extract frames for analysis
             frames = await self._extract_frames(video_data, num_frames=15)
@@ -694,13 +692,12 @@ class AtomVideoAIService:
             self.video_analyses[analysis.analysis_id] = analysis
             return response
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error analyzing video content: {e}")
             return self._create_error_response(request, str(e))
     
     async def _detect_objects(self, request: VideoRequest, video_data: bytes) -> VideoResponse:
         """Detect objects in video"""
+        try:
             start_time = time.time()
             # Extract frames for object detection
             frames = await self._extract_frames(video_data, num_frames=20)
@@ -759,13 +756,12 @@ class AtomVideoAIService:
             )
             return response
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error detecting objects: {e}")
             return self._create_error_response(request, str(e))
     
     async def _extract_frames(self, video_data: bytes, num_frames: int = 10) -> List[np.ndarray]:
         """Extract frames from video data"""
+        try:
             import tempfile
             import cv2
             with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
@@ -789,14 +785,12 @@ class AtomVideoAIService:
                 os.unlink(temp_file.name)
             return frames
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error extracting frames: {e}")
             return []
     
     async def _classify_video_content(self, frames: List[np.ndarray]) -> str:
         """Classify video content"""
+        try:
             # Simple classification based on detected objects
             # In a real implementation, this would use a trained video classifier
             common_classes = ['person', 'car', 'computer', 'phone', 'whiteboard', 'desk']
@@ -826,14 +820,12 @@ class AtomVideoAIService:
             else:
                 return 'general'
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error classifying video content: {e}")
             return 'unknown'
     
     async def _analyze_video_quality(self, video_data: bytes) -> float:
         """Analyze video quality"""
+        try:
             import tempfile
             import cv2
             with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
@@ -854,9 +846,6 @@ class AtomVideoAIService:
                 os.unlink(temp_file.name)
             return min(quality_score, 100.0)
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error analyzing video quality: {e}")
             return 50.0  # Default quality score
     
@@ -877,6 +866,7 @@ class AtomVideoAIService:
     
     async def _setup_content_moderation(self):
         """Setup content moderation policies"""
+        try:
             self.content_moderation_policies = {
                 'adult_content': {'enabled': True, 'threshold': 0.7, 'action': 'flag'},
                 'violence': {'enabled': True, 'threshold': 0.6, 'action': 'flag'},
@@ -886,13 +876,11 @@ class AtomVideoAIService:
             }
             logger.info("Content moderation policies setup complete")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up content moderation: {e}")
     
     async def _setup_enterprise_features(self):
         """Setup enterprise features"""
+        try:
             # Setup video retention policies
             self.video_retention_policies = {
                 'meeting_recordings': 365,  # days
@@ -910,13 +898,11 @@ class AtomVideoAIService:
             }
             logger.info("Enterprise features setup complete")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up enterprise features: {e}")
     
     async def _setup_security_and_compliance(self):
         """Setup security and compliance monitoring"""
+        try:
             # Setup monitoring for security events
             if self.video_config['enable_enterprise_features']:
                 # Security monitoring
@@ -925,13 +911,11 @@ class AtomVideoAIService:
                 await self._setup_compliance_monitoring()
             logger.info("Security and compliance setup complete")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up security and compliance: {e}")
     
     async def _setup_security_monitoring(self):
         """Setup security monitoring"""
+        try:
             self.security_monitoring = {
                 'video_anomaly_detection': {
                     'enabled': True,
@@ -951,13 +935,11 @@ class AtomVideoAIService:
             }
             logger.info("Security monitoring setup complete")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up security monitoring: {e}")
     
     async def _setup_compliance_monitoring(self):
         """Setup compliance monitoring"""
+        try:
             self.compliance_monitoring = {
                 'content_compliance_checking': {
                     'enabled': True,
@@ -977,23 +959,19 @@ class AtomVideoAIService:
             }
             logger.info("Compliance monitoring setup complete")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up compliance monitoring: {e}")
     
     async def _load_existing_video_data(self):
         """Load existing video data"""
+        try:
             # Mock implementation - would load from database
             logger.info("Existing video data loaded")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error loading existing video data: {e}")
     
     async def _preprocess_video(self, request: VideoRequest) -> bytes:
         """Preprocess video data"""
+        try:
             start_time = time.time()
             # Convert video to standard format if needed
             if request.format != VideoFormat.MP4:
@@ -1006,14 +984,12 @@ class AtomVideoAIService:
             self.performance_metrics['video_preprocessing_time'] = preprocessing_time
             return video_data
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error preprocessing video: {e}")
             return request.video_data or b''
     
     async def _perform_security_check(self, request: VideoRequest) -> Dict[str, Any]:
         """Perform security check on video request"""
+        try:
             if not self.enterprise_security:
                 return {'passed': True}
             # Check user permissions
@@ -1022,14 +998,12 @@ class AtomVideoAIService:
             # Check rate limits
             return {'passed': True}
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error performing security check: {e}")
             return {'passed': False, 'reason': str(e)}
     
     async def _log_video_request(self, request: VideoRequest, response: VideoResponse):
         """Log video request for enterprise compliance"""
+        try:
             if self.enterprise_security:
                 await self.enterprise_security.audit_event({
                     'event_type': 'video_ai_request',
@@ -1051,9 +1025,6 @@ class AtomVideoAIService:
                     }
                 })
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error logging video request: {e}")
     
     def _create_error_response(self, request: VideoRequest, error_message: str) -> VideoResponse:
@@ -1079,6 +1050,7 @@ class AtomVideoAIService:
     
     async def get_service_status(self) -> Dict[str, Any]:
         """Get Video AI service status"""
+        try:
             return {
                 'service': 'video_ai',
                 'status': 'active' if self.is_initialized else 'inactive',
@@ -1099,8 +1071,6 @@ class AtomVideoAIService:
                 'uptime': time.time() - (self._start_time if hasattr(self, '_start_time') else time.time())
             }
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error getting service status: {e}")
             return {'error': str(e), 'service': 'video_ai'}
     
@@ -1108,6 +1078,7 @@ class AtomVideoAIService:
         """Close Video AI Service"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_video_ai", "get_service_status", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_video_ai"):
                 logger.warning(f"Circuit breaker is open for atom_video_ai")
@@ -1125,7 +1096,6 @@ class AtomVideoAIService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_video_ai"
                 )
-        try:
             # Unload models
             self.blip_model = None
             self.yolo_model = None
@@ -1173,22 +1143,3 @@ if _atom_voice:
     _atom_video_config['voice_ai_service'] = _atom_voice
 
 atom_video_ai_service = AtomVideoAIService(_atom_video_config)
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_video_ai", "close", locals())
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_video_ai"):
-                logger.warning(f"Circuit breaker is open for atom_video_ai")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_video_ai integration temporarily disabled"
-                )
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_video_ai")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_video_ai")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_video_ai"
-                )

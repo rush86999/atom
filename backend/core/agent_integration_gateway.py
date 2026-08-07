@@ -428,13 +428,13 @@ class AgentIntegrationGateway:
                     from core.agent_governance_service import AgentGovernanceService
                     from core.database import get_db_session
                     
-                    db = next(get_db_session())
-                    governance = AgentGovernanceService(db)
-                    governance._update_confidence_score(
-                        agent_id=agent_id,
-                        positive=success,
-                        impact_level="low"  # Formula usage is low-impact learning
-                    )
+                    with get_db_session() as db:
+                        governance = AgentGovernanceService(db)
+                        governance._update_confidence_score(
+                            agent_id=agent_id,
+                            positive=success,
+                            impact_level="low"  # Formula usage is low-impact learning
+                        )
                     logger.info(f"Updated confidence for agent {agent_id} after formula {'success' if success else 'failure'}")
                 except Exception as gov_err:
                     logger.warning(f"Could not update agent confidence: {gov_err}")

@@ -1,6 +1,7 @@
 # Mini-Apps — Design & Implemented Architecture
 
 > **Status:** **IMPLEMENTED** (backend, Aug 2026). Last updated Aug 6, 2026.
+> **WS2 Host-Callback Channel:** **IMPLEMENTED** (Aug 2026) — Mini-apps can now make conditional, parametrized integration calls mid-run via host-mediated vsock channel.
 > **Target app class:** long-running stateful document apps — spreadsheets, docs,
 > decks — plus interactive canvases. Atom is the harness; the mini-app is a
 > document with logic.

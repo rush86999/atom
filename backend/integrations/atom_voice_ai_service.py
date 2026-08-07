@@ -425,8 +425,6 @@ class AtomVoiceAIService:
                 await self._log_voice_request(request, response)
             return response
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error processing voice request: {e}")
             return self._create_error_response(request, str(e))
     
@@ -434,6 +432,7 @@ class AtomVoiceAIService:
         """Load voice AI models"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_voice_ai", "process_voice_request", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_voice_ai"):
                 logger.warning(f"Circuit breaker is open for atom_voice_ai")
@@ -451,7 +450,6 @@ class AtomVoiceAIService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_voice_ai"
                 )
-        try:
             start_time = time.time()
             
             # Load Whisper model for transcription
@@ -483,6 +481,7 @@ class AtomVoiceAIService:
     
     async def _transcribe_audio(self, request: VoiceRequest, audio_data: bytes) -> VoiceResponse:
         """Transcribe audio to text"""
+        try:
             start_time = time.time()
             # Use Whisper for transcription
             import tempfile
@@ -524,13 +523,12 @@ class AtomVoiceAIService:
             )
             return response
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error transcribing audio: {e}")
             return self._create_error_response(request, str(e))
     
     async def _translate_speech(self, request: VoiceRequest, audio_data: bytes) -> VoiceResponse:
         """Translate speech from one language to another"""
+        try:
             start_time = time.time()
             # First transcribe the audio
             transcription_response = await self._transcribe_audio(request, audio_data)
@@ -577,13 +575,12 @@ class AtomVoiceAIService:
             )
             return response
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error translating speech: {e}")
             return self._create_error_response(request, str(e))
     
     async def _recognize_command(self, request: VoiceRequest, audio_data: bytes) -> VoiceResponse:
         """Recognize voice command"""
+        try:
             start_time = time.time()
             # First transcribe the audio
             transcription_response = await self._transcribe_audio(request, audio_data)
@@ -633,13 +630,12 @@ class AtomVoiceAIService:
             )
             return response
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error recognizing command: {e}")
             return self._create_error_response(request, str(e))
     
     async def _analyze_sentiment(self, request: VoiceRequest, audio_data: bytes) -> VoiceResponse:
         """Analyze sentiment from voice"""
+        try:
             start_time = time.time()
             # First transcribe the audio
             transcription_response = await self._transcribe_audio(request, audio_data)
@@ -683,13 +679,12 @@ class AtomVoiceAIService:
             )
             return response
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error analyzing sentiment: {e}")
             return self._create_error_response(request, str(e))
     
     async def _detect_emotion(self, request: VoiceRequest, audio_data: bytes) -> VoiceResponse:
         """Detect emotion from voice"""
+        try:
             start_time = time.time()
             # For emotion detection, we need to analyze the audio directly
             # This would use a specialized emotion recognition model
@@ -748,13 +743,12 @@ class AtomVoiceAIService:
             )
             return response
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error detecting emotion: {e}")
             return self._create_error_response(request, str(e))
     
     async def _preprocess_audio(self, request: VoiceRequest) -> bytes:
         """Preprocess audio data"""
+        try:
             start_time = time.time()
             # Convert audio to standard format if needed
             if request.format != VoiceFormat.WAV:
@@ -769,14 +763,17 @@ class AtomVoiceAIService:
             self.performance_metrics['audio_preprocessing_time'] = preprocessing_time
             return audio_data
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error preprocessing audio: {e}")
             return request.audio_data or b''
     
+    async def _setup_language_models(self):
+        """Configure language model routing for supported languages"""
+        return True
+
     async def _initialize_command_patterns(self):
-        """Initialize voice command patterns"""
+        """Initialize command patterns for voice commands"""
+        try:
+            # Initialize default command patterns
             self.command_patterns = {
                 'start_meeting': {
                     'patterns': ['start meeting', 'begin meeting', 'create meeting', 'schedule meeting'],
@@ -813,13 +810,11 @@ class AtomVoiceAIService:
             }
             logger.info("Voice command patterns initialized")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error initializing command patterns: {e}")
     
     def _extract_command_parameters(self, command_text: str, pattern: str) -> Dict[str, Any]:
         """Extract parameters from command text"""
+        try:
             # Simplified parameter extraction
             # In a real implementation, this would use NLP techniques
             parameters = {}
@@ -832,14 +827,12 @@ class AtomVoiceAIService:
                     parameters['target_language'] = parts[1].strip()
             return parameters
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error extracting command parameters: {e}")
             return {}
     
     async def _setup_enterprise_features(self):
         """Setup enterprise features"""
+        try:
             # Setup voice data retention policies
             self.voice_data_retention = {
                 'transcriptions': 365,  # days
@@ -856,13 +849,11 @@ class AtomVoiceAIService:
             }
             logger.info("Enterprise features setup complete")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up enterprise features: {e}")
     
     async def _setup_security_and_compliance(self):
         """Setup security and compliance monitoring"""
+        try:
             # Setup voice security policies
             self.voice_security_policies = {
                 'voice_authentication': {
@@ -901,23 +892,19 @@ class AtomVoiceAIService:
             }
             logger.info("Security and compliance setup complete")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up security and compliance: {e}")
     
     async def _load_voice_profiles(self):
         """Load existing voice profiles"""
+        try:
             # Mock implementation - would load from database
             logger.info("Voice profiles loaded")
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error loading voice profiles: {e}")
     
     async def _perform_security_check(self, request: VoiceRequest) -> Dict[str, Any]:
         """Perform security check on voice request"""
+        try:
             if not self.enterprise_security:
                 return {'passed': True}
             # Check user permissions
@@ -926,14 +913,12 @@ class AtomVoiceAIService:
             # Check rate limits
             return {'passed': True}
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error performing security check: {e}")
             return {'passed': False, 'reason': str(e)}
     
     async def _log_voice_request(self, request: VoiceRequest, response: VoiceResponse):
         """Log voice request for enterprise compliance"""
+        try:
             if self.enterprise_security:
                 await self.enterprise_security.audit_event({
                     'event_type': 'voice_ai_request',
@@ -954,9 +939,6 @@ class AtomVoiceAIService:
                     }
                 })
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
-            return {'ok': False, 'error': str(e)}
             logger.error(f"Error logging voice request: {e}")
     
     def _create_error_response(self, request: VoiceRequest, error_message: str) -> VoiceResponse:
@@ -979,6 +961,7 @@ class AtomVoiceAIService:
     
     async def get_service_status(self) -> Dict[str, Any]:
         """Get Voice AI service status"""
+        try:
             return {
                 'service': 'voice_ai',
                 'status': 'active' if self.is_initialized else 'inactive',
@@ -1000,8 +983,6 @@ class AtomVoiceAIService:
                 'uptime': time.time() - (self._start_time if hasattr(self, '_start_time') else time.time())
             }
         except Exception as e:
-            logger.error(f"Operation failed: {e}")
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error getting service status: {e}")
             return {'error': str(e), 'service': 'voice_ai'}
     
@@ -1009,6 +990,7 @@ class AtomVoiceAIService:
         """Close Voice AI Service"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_voice_ai", "get_service_status", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_voice_ai"):
                 logger.warning(f"Circuit breaker is open for atom_voice_ai")
@@ -1026,7 +1008,6 @@ class AtomVoiceAIService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_voice_ai"
                 )
-        try:
             # Unload models
             self.whisper_model = None
             self.translation_model = None
@@ -1070,22 +1051,3 @@ if _atom_ai:
     _atom_voice_config['ai_service'] = _atom_ai
 
 atom_voice_ai_service = AtomVoiceAIService(_atom_voice_config)
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_voice_ai", "close", locals())
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_voice_ai"):
-                logger.warning(f"Circuit breaker is open for atom_voice_ai")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_voice_ai integration temporarily disabled"
-                )
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_voice_ai")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_voice_ai")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_voice_ai"
-                )

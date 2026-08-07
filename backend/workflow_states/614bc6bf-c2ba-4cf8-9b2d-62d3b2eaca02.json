@@ -1,0 +1,21 @@
+{
+  "workflow_id": "614bc6bf-c2ba-4cf8-9b2d-62d3b2eaca02",
+  "name": "C",
+  "description": "Conditional workflow: C",
+  "version": "1.0",
+  "category": "general",
+  "tags": [],
+  "input_schema": [],
+  "steps": [],
+  "step_connections": [],
+  "output_config": null,
+  "state": "draft",
+  "current_step": null,
+  "execution_context": {},
+  "user_inputs": {},
+  "step_results": {},
+  "created_at": "2026-08-06 20:31:51.916383",
+  "updated_at": "2026-08-06 20:31:51.916383",
+  "created_by": null,
+  "saved_at": "2026-08-06T20:31:51.916393"
+}

@@ -54,13 +54,13 @@
     "last_executed": "2026-03-15T21:45:12.123456"
   },
   "test-workflow": {
-    "execution_count": 37,
-    "success_count": 5,
+    "execution_count": 45,
+    "success_count": 13,
     "failure_count": 32,
-    "total_duration_seconds": 0.107316,
-    "total_time_saved_seconds": 300.0,
-    "total_business_value": 50.0,
-    "last_executed": "2026-04-24T17:18:33.276765"
+    "total_duration_seconds": 0.11641199999999999,
+    "total_time_saved_seconds": 780.0,
+    "total_business_value": 130.0,
+    "last_executed": "2026-08-07T00:39:02.366087+00:00"
   },
   "test-state-persist": {
     "execution_count": 1,

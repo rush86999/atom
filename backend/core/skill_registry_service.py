@@ -398,8 +398,14 @@ class SkillRegistryService:
                     # Re-raise ValueError from permission check
                     raise
                 except Exception as e:
-                    logger.error(f"Error checking package permission for {package_req}: {e}")
-                    # Continue on parsing errors (already validated in SkillParser)
+                    # Fail closed: a governance check that errors must NOT let
+                    # the package through unvetted (previously logged + continued,
+                    # a supply-chain permission bypass).
+                    logger.error(f"Package permission check failed for {package_req}: {e}")
+                    raise ValueError(
+                        f"Package permission check failed for {package_req}; "
+                        "execution aborted (fail-closed)"
+                    )
 
             # npm package permission checks (Phase 36)
             if node_packages:
@@ -432,12 +438,18 @@ class SkillRegistryService:
                         raise  # Re-raise ValueError from permission check
                     except Exception as e:
                         logger.error(f"Error checking npm package permission for {pkg_spec}: {e}")
-                        # Continue on parsing errors
+                        # Fail closed: an errored governance check must not let
+                        # the package through unvetted.
+                        raise ValueError(
+                            f"npm package permission check failed for {pkg_spec}; "
+                            "execution aborted (fail-closed)"
+                        )
 
         # Create execution record
         execution = SkillExecution(
             agent_id=agent_id,
             skill_id=f"{skill_name}_{skill_id[:8]}",
+            tenant_id="system",  # Community skills belong to the system tenant
             workspace_id="default",
             status="running",
             input_params=inputs,
@@ -876,9 +888,7 @@ class SkillRegistryService:
 
         # Step 2: Scan for postinstall scripts
         script_analyzer = NpmScriptAnalyzer()
-        script_warnings = script_analyzer.analyze_package_scripts(
-            node_packages, package_manager
-        )
+        script_warnings = script_analyzer.analyze_package_scripts(node_packages)
 
         if script_warnings["malicious"]:
             error_msg = (

@@ -703,7 +703,7 @@ def start_development_now():
     actions = sprint_plan['immediate_actions']['today']
     for i, action in enumerate(actions, 1):
         print(f"\\n{i}. {action['action']} [{action['priority']} - {action['estimated_time']}]")
-        print(f"   📋 Commands: {' \\\\   '.join(action['commands'])}")
+        print("   📋 Commands: " + " \\\\   ".join(action['commands']))
         print(f"   ✅ Success: {action['success_criteria']}")
     
     # Display tomorrow's actions
