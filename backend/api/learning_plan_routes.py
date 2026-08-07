@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.llm_service import LLMService
-from core.models import User, LearningPlan, OAuthToken
+from core.models import User, LearningPlan
 from core.security_dependencies import get_current_user
 from integrations.notion_service import NotionService
 
@@ -515,18 +515,24 @@ async def create_learning_plan(
         if payload.notion_database_id:
             logger.info(f"Notion export requested: database_id={payload.notion_database_id}")
 
-            # Get Notion OAuth token for the user
-            notion_token_record = db.query(OAuthToken).filter(
-                OAuthToken.user_id == current_user.id,
-                OAuthToken.provider == "notion",
-                OAuthToken.status == "active"
+            # Get Notion OAuth token for the user (IntegrationToken — Notion
+            # credentials live there, encrypted at rest)
+            from core.models import IntegrationToken
+            from core.privsec.token_encryption import decrypt_token
+
+            notion_token_record = db.query(IntegrationToken).filter(
+                IntegrationToken.user_id == current_user.id,
+                IntegrationToken.provider == "notion",
+                IntegrationToken.status == "active"
             ).first()
 
             if notion_token_record and notion_token_record.access_token:
                 notion_page_id = await export_learning_plan_to_notion(
                     plan=learning_plan,
                     modules=modules,
-                    notion_token=notion_token_record.access_token
+                    notion_token=decrypt_token(
+                        notion_token_record.access_token, allow_plaintext=True
+                    )
                 )
 
                 if notion_page_id:

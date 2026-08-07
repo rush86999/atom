@@ -384,7 +384,6 @@ class EscalationManager:
                 escalation_record = EscalationLog(
                     id=str(uuid.uuid4()),
                     workspace_id=self.workspace_id,
-                    tenant_id=self.tenant_id,
                     request_id=request_id or "unknown",
                     from_tier=from_tier.value,
                     to_tier=to_tier.value,

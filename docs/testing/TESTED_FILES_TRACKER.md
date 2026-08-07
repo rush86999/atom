@@ -268,3 +268,14 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | 2026-08-07 | `api/agent_routes.py`, `api/agent_governance_routes.py` | VERIFIED-OK | both modules exist + import clean; 17-file sweep of all `api.agent_routes|agent_governance_routes` importers → 0 collection errors |
 | 2026-08-07 | `tests/standalone/test_chat_attachment_flow.py` | FIXED (test-side) | was the only collection failure (SyntaxError via `Optional[LLMModel]`): removed `sys.modules['core.database']=MagicMock()` (mocked Base breaks LLMModel class-def → registry service import); patch target → `core.chat_session_manager.get_chat_session_manager` (lazy import); `ChatIntent.AI_ANALYTICS`→`DATA_ANALYSIS` (enum has no AI_ANALYTICS). 1/1 pass, exit 0 |
 | 2026-08-07 | `tests/test_user_templates_endpoints.py`, `tests/test_learning_plan_routes.py`, `tests/test_competitor_analysis_routes.py` | FIXED (test-side) | `User.name` is read-only property (no setter, `core/models.py:485`); 3 decorative `user.name=` Mock-fixture hits → `first_name`/`last_name`; behavior-neutral (failure sets unchanged: 3F/8P, 4F/13P, 1 skipped) |
+
+### Round 2026-08-07 late — tracker-gap items (canary + OAuth sweep + e2e)
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-07 | `core/advanced_workflow_system.py` | FIXED | ReDoS canary closed: `ParameterValidator` pattern rule passed user regex to `re.match` uncapped → `MAX_REGEX_LENGTH=256` guard; test_round19 canary RED→GREEN (128 workflow tests green) |
+| 2026-08-07 | `tests/test_cognitive_tier_e2e.py` | FIXED | 17F/6E → 32/32 stable (hermetic in-memory fixture): HEAVY/COMPLEX enum drift, `record_cache_outcome(provider=)` → prompt-hash API, `should_escalate(workspace_id=)` → `(bool, reason, target)`, removed methods, `monthly_budget_usd` → `monthly_budget_cents` |
+| 2026-08-07 | `core/llm/escalation_manager.py:387` | FIXED | HIGH: `EscalationLog(tenant_id=...)` — model has no such column → every escalation log silently lost (exception swallowed) |
+| 2026-08-07 | `core/llm/cognitive_tier_service.py:369` | FIXED | `monthly_budget_cents` dead knob — only `max_cost_per_request_cents` was enforced; now a ceiling |
+| 2026-08-07 | `api/learning_plan_routes.py:519` | FIXED | Notion token lookup queried `OAuthToken` (server model, no `provider`) → AttributeError on every plan-with-notion export; now `IntegrationToken` + decrypt (sweep: spotify fixed earlier, social_media_routes comments only, oauth_routes correct client_id usage) |
+| 2026-08-07 | `tests/test_bughunt_learning_plan_oauth.py` | TESTED | source-inspection regression test (1 test, RED→GREEN) |
+| 2026-08-07 | `tests/test_llm_service.py` | GREEN | 86/86 (verified — fixed by e25f1859f sweep; AwaitableResult + embedding seams) |
