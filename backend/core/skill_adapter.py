@@ -636,8 +636,7 @@ class NodeJsSkillAdapter(BaseTool):
             # Step 2: Analyze package scripts (postinstall/preinstall detection)
             script_analyzer = NpmScriptAnalyzer()
             script_warnings = script_analyzer.analyze_package_scripts(
-                self.node_packages,
-                self.package_manager
+                self.node_packages
             )
 
             if script_warnings["malicious"]:

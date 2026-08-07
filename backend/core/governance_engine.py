@@ -7,6 +7,7 @@ from datetime import datetime
 import json
 import logging
 from typing import Any, Dict, List, Optional
+from contextlib import nullcontext
 from sqlalchemy.orm import Session
 
 from core.database import get_db_session
@@ -23,6 +24,17 @@ class ContactGovernance:
     def __init__(self, db_session: Optional[Session] = None):
         self.db = db_session
 
+    def _session_scope(self):
+        """
+        Context manager for the DB session used by this call.
+
+        Uses the injected session without closing it (caller owns it), or a
+        fresh context-managed session when none was injected.
+        """
+        if self.db is not None:
+            return nullcontext(self.db)
+        return get_db_session()
+
     def is_external_contact(self, platform: str, params: Dict[str, Any]) -> bool:
         """
         Heuristic to determine if a recipient is external to the workspace.
@@ -34,9 +46,7 @@ class ContactGovernance:
         if "@" in recipient_id:
             domain = recipient_id.split("@")[-1].lower()
 
-            # Fetch workspace domains from database
-            db = self.db or get_db_session()
-            try:
+            with self._session_scope() as db:
                 # Get workspace_id from params
                 workspace_id = params.get("workspace_id")
                 if not workspace_id and "agent_id" in params:
@@ -67,10 +77,6 @@ class ContactGovernance:
                 internal_domains = [d.strip().lower() for d in default_domains.split(",")]
                 return domain not in internal_domains
 
-            finally:
-                if not self.db:
-                    db.close()
-
         # 2. Phone (WhatsApp): External if not in a 'team_numbers' list
         if platform in ["whatsapp", "messenger", "slack"]:
             return params.get("is_internal") is not True
@@ -81,8 +87,7 @@ class ContactGovernance:
         """
         Determines if the action must be paused for HITL review.
         """
-        db = self.db or get_db_session()
-        try:
+        with self._session_scope() as db:
             workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
             if not workspace:
                 logger.warning(f"Workspace {workspace_id} not found for governance check.")
@@ -105,16 +110,12 @@ class ContactGovernance:
             # Default to pause if not graduated nor confident
             logger.info(f"Action paused: Learning phase in progress and low pattern confidence ({confidence}).")
             return True
-        finally:
-            if not self.db:
-                db.close()
 
     def get_confidence_score(self, workspace_id: str, action_type: str, platform: str) -> float:
         """
         Calculates confidence score based on historical approval ratings.
         """
-        db = self.db or get_db_session()
-        try:
+        with self._session_scope() as db:
             # Fetch recent HITL actions for this pattern
             actions = db.query(HITLAction).filter(
                 HITLAction.workspace_id == workspace_id,
@@ -129,17 +130,13 @@ class ContactGovernance:
             total_count = len(actions)
             
             return approved_count / total_count
-        finally:
-            if not self.db:
-                db.close()
 
     async def request_approval(self, workspace_id: str, action_type: str, platform: str, params: Dict[str, Any], reason: str) -> str:
         """
         Pauses the action and creates a HITL record in the database.
         Triggers messaging notifications for high-priority actions.
         """
-        db = self.db or get_db_session()
-        try:
+        with self._session_scope() as db:
             # 1. Determine Priority
             priority = params.get("priority", "MEDIUM")
             if action_type in ["delete_customer", "wipe_database", "send_mass_email"]:
@@ -171,9 +168,6 @@ class ContactGovernance:
                 await self._notify_governance_channel(db, hitl_action)
 
             return hitl_action.id
-        finally:
-            if not self.db:
-                db.close()
 
     async def _notify_governance_channel(self, db, hitl_action: HITLAction):
         """Send notification to the configured governance channel"""

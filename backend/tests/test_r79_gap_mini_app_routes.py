@@ -324,7 +324,7 @@ class TestAssets:
         )
         assert r.status_code == 404
 
-    def test_upload_asset_public_app_allowed(self, client, db_session, storage):
+    def test_upload_asset_public_app_foreign_user_403(self, client, db_session, storage):
         _make_app_row(db_session, app_id="app-1", owner="owner-2", is_public=True)
         _make_canvas_row(db_session, mini_app_id="app-1", owner="owner-2")
         with patch("api.mini_app_routes.get_mini_app_storage", return_value=storage):
@@ -333,7 +333,7 @@ class TestAssets:
                 data={"key": "k"},
                 files={"file": ("k", b"x", "text/plain")},
             )
-        assert r.status_code == 200
+        assert r.status_code == 403
 
     def test_upload_asset_private_foreign_403(self, client, db_session):
         _make_app_row(db_session, app_id="app-1", owner="owner-2", is_public=False)
