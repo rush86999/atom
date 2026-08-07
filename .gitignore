@@ -776,6 +776,10 @@ mobile/coverage/html/
 /openapi_*.json
 !/openapi.json
 
+# Test runtime artifacts
+backend/workflow_states/
+backend/.coverage_r80.json
+
 # Planning directory (local development only)
 .planning/
 backend/backend/
