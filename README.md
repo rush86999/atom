@@ -25,6 +25,8 @@ Atom is an open-source, self-hosted **AI agent workforce** for your employees. I
 
 **Your data stays yours**: workflow data, agent state, and memory live on your infrastructure. LLM inference uses your own API keys (BYOK) — or local models (Ollama/Llama.cpp) for fully private deployments.
 
+**💰 Budget-friendly coding**: OpenCode Go subscription (~90% savings vs pay-per-token) — one key unlocks DeepSeek V4, Kimi K2.7, GLM 5.2, MiniMax M3 for high-volume coding workloads.
+
 **No lock-in**: 16+ LLM providers (OpenAI, Anthropic, DeepSeek, Gemini, MiniMax, Groq…) with automatic cost-aware routing, fallback, and self-healing.
 
 ---
