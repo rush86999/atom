@@ -17,6 +17,8 @@ def mock_student_agent():
         id="student_agent_123",
         name="Student Finance Agent",
         category="Finance",
+        module_path="finance.agent",
+        class_name="StudentFinanceAgent",
         status=AgentStatus.STUDENT
     )
     agent.configuration = {}
@@ -30,19 +32,20 @@ def mock_episodes():
     for i in range(15):  # 15 episodes (above INTERN threshold of 10)
         episode = Episode(
             id=f"episode_{i}",
-            title=f"Training Episode {i}",
+            task_description=f"Training Episode {i}",
             agent_id="student_agent_123",
-            user_id="user_123",
+            tenant_id="default",
             workspace_id="default",
             status="completed",
+            outcome="success",
+            success=True,
             maturity_at_time="STUDENT",
             human_intervention_count=0 if i < 12 else 1,  # Some with interventions
             constitutional_score=0.75 + (i * 0.01),  # Improving scores
             started_at=datetime.now(),
-            ended_at=datetime.now(),
+            completed_at=datetime.now(),
             topics=["tax", "finance"],
             entities=[],
-            execution_ids=[],
             importance_score=0.7
         )
         episodes.append(episode)
@@ -57,20 +60,11 @@ class TestGraduationReadiness:
         self, mock_lancedb, db_session, mock_student_agent, mock_episodes
     ):
         """Test readiness calculation for qualified agent"""
-        # Setup query mocks
-        agent_query = Mock()
-        agent_query.first = Mock(return_value=mock_student_agent)
-
-        episode_query = Mock()
-        episode_query.filter = Mock(return_value=episode_query)
-        episode_query.all = Mock(return_value=mock_episodes)
-
-        def query_side_effect(model):
-            if model == AgentRegistry:
-                return agent_query
-            return episode_query
-
-        db_session.query = query_side_effect
+        mock_student_agent.tenant_id = "default"
+        db_session.add(mock_student_agent)
+        for episode in mock_episodes:
+            db_session.add(episode)
+        db_session.commit()
 
         service = AgentGraduationService(db_session)
 
@@ -83,7 +77,7 @@ class TestGraduationReadiness:
         assert "ready" in result
         assert "score" in result
         assert result["episode_count"] == 15
-        # Check that current_maturity is set (may be Mock or str depending on query)
+        # Check that current_maturity is set
         assert "current_maturity" in result
         assert 0 <= result["score"] <= 100
 
@@ -93,40 +87,33 @@ class TestGraduationReadiness:
     ):
         """Test readiness calculation with insufficient episodes"""
         # Only 5 episodes (below INTERN threshold of 10)
+        mock_student_agent.tenant_id = "default"
+        db_session.add(mock_student_agent)
+
         few_episodes = [
             Episode(
                 id=f"episode_{i}",
-                title=f"Episode {i}",
+                task_description=f"Episode {i}",
                 agent_id="student_agent_123",
-                user_id="user_123",
+                tenant_id="default",
                 workspace_id="default",
                 status="completed",
+                outcome="success",
+                success=True,
                 maturity_at_time="STUDENT",
                 human_intervention_count=0,
                 constitutional_score=0.8,
                 started_at=datetime.now(),
-                ended_at=datetime.now(),
+                completed_at=datetime.now(),
                 topics=[],
                 entities=[],
-                execution_ids=[],
                 importance_score=0.7
             )
             for i in range(5)
         ]
-
-        agent_query = Mock()
-        agent_query.first = Mock(return_value=mock_student_agent)
-
-        episode_query = Mock()
-        episode_query.filter = Mock(return_value=episode_query)
-        episode_query.all = Mock(return_value=few_episodes)
-
-        def query_side_effect(model):
-            if model == AgentRegistry:
-                return agent_query
-            return episode_query
-
-        db_session.query = query_side_effect
+        for episode in few_episodes:
+            db_session.add(episode)
+        db_session.commit()
 
         service = AgentGraduationService(db_session)
 
@@ -137,7 +124,7 @@ class TestGraduationReadiness:
         ))
 
         assert result["ready"] is False
-        assert "Need 5 more episodes" in result["gaps"]
+        assert "Insufficient episodes (5/10 required)" in result["gaps"]
         assert result["score"] < 100
 
     @patch('core.agent_graduation_service.get_lancedb_handler')
@@ -146,40 +133,33 @@ class TestGraduationReadiness:
     ):
         """Test readiness calculation with high intervention rate"""
         # Episodes with many interventions (50% rate)
+        mock_student_agent.tenant_id = "default"
+        db_session.add(mock_student_agent)
+
         high_intervention_episodes = [
             Episode(
                 id=f"episode_{i}",
-                title=f"Episode {i}",
+                task_description=f"Episode {i}",
                 agent_id="student_agent_123",
-                user_id="user_123",
+                tenant_id="default",
                 workspace_id="default",
                 status="completed",
+                outcome="success",
+                success=True,
                 maturity_at_time="STUDENT",
                 human_intervention_count=1 if i % 2 == 0 else 0,  # 50% intervention
                 constitutional_score=0.8,
                 started_at=datetime.now(),
-                ended_at=datetime.now(),
+                completed_at=datetime.now(),
                 topics=[],
                 entities=[],
-                execution_ids=[],
                 importance_score=0.7
             )
             for i in range(15)
         ]
-
-        agent_query = Mock()
-        agent_query.first = Mock(return_value=mock_student_agent)
-
-        episode_query = Mock()
-        episode_query.filter = Mock(return_value=episode_query)
-        episode_query.all = Mock(return_value=high_intervention_episodes)
-
-        def query_side_effect(model):
-            if model == AgentRegistry:
-                return agent_query
-            return episode_query
-
-        db_session.query = query_side_effect
+        for episode in high_intervention_episodes:
+            db_session.add(episode)
+        db_session.commit()
 
         service = AgentGraduationService(db_session)
 
@@ -196,6 +176,19 @@ class TestGraduationReadiness:
     @patch('core.agent_graduation_service.get_lancedb_handler')
     def test_unknown_maturity_level(self, mock_lancedb, db_session):
         """Test error handling for unknown maturity level"""
+        agent = AgentRegistry(
+            id="agent_123",
+            name="Unknown Agent",
+            category="Test",
+            module_path="test.module",
+            class_name="TestClass",
+            tenant_id="default",
+            status=AgentStatus.STUDENT
+        )
+        agent.configuration = {}
+        db_session.add(agent)
+        db_session.commit()
+
         service = AgentGraduationService(db_session)
 
         import asyncio
@@ -300,19 +293,20 @@ class TestGraduationExam:
         """Test constitutional compliance validation"""
         episode = Episode(
             id="episode_123",
-            title="Tax Calculation Episode",
+            task_description="Tax Calculation Episode",
             agent_id="agent_123",
-            user_id="user_123",
+            tenant_id="default",
             workspace_id="default",
             status="completed",
+            outcome="success",
+            success=True,
             maturity_at_time="INTERN",
             human_intervention_count=0,
             constitutional_score=1.0,
             started_at=datetime.now(),
-            ended_at=datetime.now(),
+            completed_at=datetime.now(),
             topics=["tax", "HST"],
             entities=[],
-            execution_ids=[],
             importance_score=0.9
         )
 
@@ -338,20 +332,11 @@ class TestGraduationAuditTrail:
     @patch('core.agent_graduation_service.get_lancedb_handler')
     def test_get_graduation_audit_trail(self, mock_lancedb, db_session, mock_student_agent, mock_episodes):
         """Test getting full audit trail for agent"""
-        agent_query = Mock()
-        agent_query.first = Mock(return_value=mock_student_agent)
-
-        episode_query = Mock()
-        episode_query.filter = Mock(return_value=episode_query)
-        episode_query.order_by = Mock(return_value=episode_query)
-        episode_query.all = Mock(return_value=mock_episodes)
-
-        def query_side_effect(model):
-            if model == AgentRegistry:
-                return agent_query
-            return episode_query
-
-        db_session.query = query_side_effect
+        mock_student_agent.tenant_id = "default"
+        db_session.add(mock_student_agent)
+        for episode in mock_episodes:
+            db_session.add(episode)
+        db_session.commit()
 
         service = AgentGraduationService(db_session)
 
@@ -391,10 +376,10 @@ class TestSandboxExecutorCoverage:
         db_session.commit()
 
         from core.agent_graduation_service import AgentGraduationService
-        from core.sandbox_executor import SandboxExecutor
+        from core.sandbox_executor import GraduationExamSandboxExecutor
         import asyncio
 
-        executor = SandboxExecutor(db_session)
+        executor = GraduationExamSandboxExecutor(db_session)
         result = asyncio.run(executor.execute_exam(
             agent_id="agent_no_episodes",
             target_maturity="INTERN"
@@ -435,19 +420,20 @@ class TestSandboxExecutorCoverage:
         for i in range(15):
             episode = Episode(
                 id=f"exam_episode_{i}",
-                title=f"Exam Episode {i}",
+                task_description=f"Exam Episode {i}",
                 agent_id="agent_with_episodes",
-                user_id="test_user",
+                tenant_id="default",
                 workspace_id="default",
                 status="completed",
+                outcome="success",
+                success=True,
                 maturity_at_time=current_status,  # Use actual status value
                 human_intervention_count=0 if i < 10 else 1,  # 33% intervention rate
                 constitutional_score=0.8 + (i * 0.01),  # Improving scores
                 started_at=datetime.now(),
-                ended_at=datetime.now(),
+                completed_at=datetime.now(),
                 topics=["test"],
                 entities=[],
-                execution_ids=[],
                 importance_score=0.7
             )
             episodes.append(episode)
@@ -455,10 +441,10 @@ class TestSandboxExecutorCoverage:
         db_session.commit()
 
         from core.agent_graduation_service import AgentGraduationService
-        from core.sandbox_executor import SandboxExecutor
+        from core.sandbox_executor import GraduationExamSandboxExecutor
         import asyncio
 
-        executor = SandboxExecutor(db_session)
+        executor = GraduationExamSandboxExecutor(db_session)
         result = asyncio.run(executor.execute_exam(
             agent_id="agent_with_episodes",
             target_maturity="INTERN"
@@ -497,29 +483,30 @@ class TestSandboxExecutorCoverage:
         for i in range(15):
             episode = Episode(
                 id=f"high_int_ep_{i}",
-                title=f"High Intervention Episode {i}",
+                task_description=f"High Intervention Episode {i}",
                 agent_id="agent_high_interventions",
-                user_id="test_user",
+                tenant_id="default",
                 workspace_id="default",
                 status="completed",
+                outcome="success",
+                success=True,
                 maturity_at_time=current_status,  # Use actual status value
                 human_intervention_count=1 if i % 5 < 3 else 0,  # 60% intervention
                 constitutional_score=0.75,
                 started_at=datetime.now(),
-                ended_at=datetime.now(),
+                completed_at=datetime.now(),
                 topics=["test"],
                 entities=[],
-                execution_ids=[],
                 importance_score=0.7
             )
             db_session.add(episode)
         db_session.commit()
 
         from core.agent_graduation_service import AgentGraduationService
-        from core.sandbox_executor import SandboxExecutor
+        from core.sandbox_executor import GraduationExamSandboxExecutor
         import asyncio
 
-        executor = SandboxExecutor(db_session)
+        executor = GraduationExamSandboxExecutor(db_session)
         result = asyncio.run(executor.execute_exam(
             agent_id="agent_high_interventions",
             target_maturity="SUPERVISED"
@@ -676,6 +663,7 @@ class TestSkillUsageMetricsCoverage:
             execution = SkillExecution(
                 id=f"skill_exec_{i}",
                 agent_id="skill_agent",
+                tenant_id="default",
                 workspace_id="default",
                 skill_id=skill_id,
                 skill_source="community",
@@ -718,6 +706,7 @@ class TestSkillUsageMetricsCoverage:
             category="Test",
             module_path="test.module",
             class_name="TestClass",
+            tenant_id="default",
             status=AgentStatus.INTERN
         )
         agent.configuration = {}
@@ -726,19 +715,20 @@ class TestSkillUsageMetricsCoverage:
         for i in range(12):
             episode = Episode(
                 id=f"skill_ep_{i}",
-                title=f"Episode {i}",
+                task_description=f"Episode {i}",
                 agent_id="skill_ready_agent",
-                user_id="test_user",
+                tenant_id="default",
                 workspace_id="default",
                 status="completed",
+                outcome="success",
+                success=True,
                 maturity_at_time="INTERN",
                 human_intervention_count=0,
                 constitutional_score=0.9,
                 started_at=datetime.now(),
-                ended_at=datetime.now(),
+                completed_at=datetime.now(),
                 topics=["test"],
                 entities=[],
-                execution_ids=[],
                 importance_score=0.7
             )
             db_session.add(episode)

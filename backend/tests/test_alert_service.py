@@ -610,7 +610,7 @@ class TestNotificationDispatch:
     @pytest.mark.asyncio
     async def test_send_email_notification_success(self, service, mock_violation, mock_config):
         """Email notification sent successfully."""
-        with patch('core.email_service.EmailService') as mock_email_class:
+        with patch('integrations.email_routes.EmailService') as mock_email_class:
             mock_email_instance = Mock()
             mock_email_class.return_value = mock_email_instance
 
@@ -677,7 +677,7 @@ class TestAlertClearedNotification:
         mock_config.notification_channels = ["email"]
         mock_config.slack_channel_id = None
 
-        with patch('core.email_service.EmailService') as mock_email_class:
+        with patch('integrations.email_routes.EmailService') as mock_email_class:
             mock_email_instance = Mock()
             mock_email_class.return_value = mock_email_instance
 

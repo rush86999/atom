@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class CommunicationIntelligenceService:
     def __init__(self, ai_service: Any = None, db_session: Any = None):
-        self.extractor = KnowledgeExtractor(ai_service)
+        self.extractor = KnowledgeExtractor()
         self.settings = get_automation_settings()
         self.ai_service = ai_service
         self.db_session = db_session

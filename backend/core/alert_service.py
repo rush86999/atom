@@ -454,7 +454,7 @@ class AlertThresholdService:
             True if notification sent successfully
         """
         try:
-            from core.email_service import EmailService
+            from integrations.email_routes import EmailService
 
             email_service = EmailService()
 
@@ -472,10 +472,9 @@ class AlertThresholdService:
             success_count = 0
             for recipient in recipients:
                 if await email_service.send_email(
-                    to_email=recipient,
+                    to=recipient,
                     subject=subject,
-                    html_content=html_content,
-                    tenant_id=violation.tenant_id
+                    body=html_content
                 ):
                     success_count += 1
 
@@ -545,7 +544,7 @@ class AlertThresholdService:
                         results["slack"] = False
 
             if "email" in channels and configuration.email_recipients:
-                from core.email_service import EmailService
+                from integrations.email_routes import EmailService
 
                 email_service = EmailService()
                 subject = f"✓ Alert Cleared: {connector_id} {metric_type}"
@@ -553,10 +552,9 @@ class AlertThresholdService:
                 success_count = 0
                 for recipient in configuration.email_recipients or []:
                     if await email_service.send_email(
-                        to_email=recipient,
+                        to=recipient,
                         subject=subject,
-                        html_content=f"<p>{message.replace(chr(10), '<br>')}</p>",
-                        tenant_id=tenant_id
+                        body=f"<p>{message.replace(chr(10), '<br>')}</p>"
                     ):
                         success_count += 1
 

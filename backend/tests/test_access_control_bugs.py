@@ -22,40 +22,40 @@ class TestBrokenAccessControlVulnerabilities:
 
     def test_line_user_profile_missing_authentication(self):
         """
-        Test that LINE user profile endpoint is missing authentication.
+        Test that LINE user profile endpoint requires authentication.
 
-        BUG: Line 227-239 - get_line_user_profile() doesn't require authentication.
-        Any unauthenticated user can access any user's LINE profile.
+        FIX VERIFIED: get_line_user_profile() now requires authentication.
+        Unauthenticated access is rejected by the get_current_user dependency.
         """
         from api.line_routes import get_line_user_profile
 
         source = inspect.getsource(get_line_user_profile)
 
-        # Verify the bug - no authentication dependency
-        assert 'current_user' not in source or 'Depends(get_current_user)' not in source, \
-            "Bug confirmed: No authentication dependency found"
+        # Verify the fix - authentication dependency is present
+        assert 'current_user' in source and 'Depends(get_current_user)' in source, \
+            "Fix verified: Authentication dependency is present"
 
-        # Verify no ownership check
+        # Verify user_id parameter is still used (subject of the ownership check)
         assert 'user_id' in source, \
-            "Bug confirmed: user_id parameter used without ownership check"
+            "user_id parameter used by the ownership check"
 
     def test_line_user_profile_allows_idor(self):
         """
-        Test that LINE user profile endpoint allows IDOR attacks.
+        Test that LINE user profile endpoint blocks IDOR attacks.
 
-        BUG: Any user can access any other user's profile by modifying user_id.
+        FIX VERIFIED: Accessing another user's profile (non-admin) is denied.
         """
         from api.line_routes import get_line_user_profile
 
         source = inspect.getsource(get_line_user_profile)
 
-        # Verify the bug - user_id is used directly without ownership validation
-        assert 'user_id' in source, \
-            "Bug confirmed: user_id from URL parameter used directly"
+        # Verify the fix - ownership check against the authenticated user
+        assert 'current_user.id' in source, \
+            "Fix verified: Ownership check compares user_id with current_user.id"
 
-        # Verify no authorization check
-        assert 'permission' not in source.lower(), \
-            "Bug confirmed: No authorization check for user_id access"
+        # Verify authorization check is present
+        assert 'permission' in source.lower(), \
+            "Fix verified: Authorization check present for cross-user access"
 
     def test_operation_update_ownership_check(self):
         """

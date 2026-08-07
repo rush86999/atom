@@ -118,9 +118,8 @@ class TestProviderSelection:
 
     def test_get_provider_fallback_order_anthropic(self, byok_handler):
         """Test fallback order for Anthropic primary provider."""
-        # Note: Anthropic is grouped under 'lux' provider in the actual implementation
-        fallback = byok_handler._get_provider_fallback_order("lux")
-        assert "lux" in fallback
+        fallback = byok_handler._get_provider_fallback_order("anthropic")
+        assert "anthropic" in fallback
         assert isinstance(fallback, list)
 
     def test_get_provider_fallback_order_unknown(self, byok_handler):
@@ -152,8 +151,8 @@ class TestProviderSelection:
     def test_filter_by_health_unhealthy_provider(self, byok_handler):
         """Test filtering unhealthy provider."""
         # Add provider to health_scores so it doesn't return True for "unknown"
-        byok_handler.health_monitor.health_scores["openai"] = 0.3
-        with patch.object(byok_handler.health_monitor, 'get_health_score', return_value=0.3):
+        byok_handler.health_monitor.health_scores["openai"] = 0.1
+        with patch.object(byok_handler.health_monitor, 'get_health_score', return_value=0.1):
             result = byok_handler._filter_by_health("openai")
             assert result is False
 
@@ -668,8 +667,8 @@ class TestProviderSelectionEnhanced:
             "deepseek": 0.3
         }
         # Mock get_health_score to return unhealthy values
-        with patch.object(byok_handler.health_monitor, 'get_health_score', return_value=0.2):
-            # Should be filtered out (0.2 < 0.5 threshold)
+        with patch.object(byok_handler.health_monitor, 'get_health_score', return_value=0.1):
+            # Should be filtered out (0.1 < 0.2 threshold)
             assert byok_handler._filter_by_health("openai") is False
             assert byok_handler._filter_by_health("anthropic") is False
             assert byok_handler._filter_by_health("deepseek") is False

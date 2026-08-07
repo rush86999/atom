@@ -23,7 +23,8 @@ async def test_atom_governance_gating():
             category="Meta",
             module_path="core.atom_meta_agent",
             class_name="AtomMetaAgent",
-            confidence_score=0.1
+            confidence_score=0.1,
+            workspace_id="default"
         )
         db.add(agent_model)
         db.commit()
@@ -52,7 +53,8 @@ async def test_atom_governance_gating():
             category="Meta",
             module_path="core.atom_meta_agent",
             class_name="AtomMetaAgent",
-            confidence_score=1.0
+            confidence_score=1.0,
+            workspace_id="default"
         )
         db.add(autonomous_atom)
         db.commit()
@@ -111,7 +113,8 @@ async def test_atom_learning_progression():
             category="Meta",
             module_path="core.atom_meta_agent",
             class_name="AtomMetaAgent",
-            confidence_score=0.49
+            confidence_score=0.49,
+            workspace_id="default"
         )
         db.add(agent_model)
         db.commit()
@@ -120,6 +123,13 @@ async def test_atom_learning_progression():
 
         # Mock LLM - uses correct AtomMetaAgent.llm.generate_response API
         atom.llm.generate_response = AsyncMock(return_value="Thought: I should finish.\nFinal Answer: Done.")
+
+        # Mock structured step generation - the ReAct loop uses
+        # generate_structured_response (not generate_response)
+        from core.atom_meta_agent import ReActStep
+        atom.llm.generate_structured_response = AsyncMock(
+            return_value=ReActStep(thought="I should finish.", final_answer="Done.")
+        )
 
         # Execute a task using AtomMetaAgent.execute() - NOT _step_act
         result = await atom.execute("Test task")
@@ -131,7 +141,7 @@ async def test_atom_learning_progression():
 
         # If we got here without AttributeError about _step_act, the test passes
         # The mapper errors are warnings that don't prevent execution
-        atom.llm.generate_response.assert_called_once()
+        atom.llm.generate_structured_response.assert_called_once()
 
     finally:
         # Cleanup

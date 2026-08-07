@@ -368,19 +368,6 @@ class WorkflowEngine:
                                                      result_data.get("task_id") or 
                                                      result_data.get("email_id") or 
                                                      result_data.get("execution_id") or "")
-                            
-                            # Track step execution in analytics
-                            analytics.track_step_execution(
-                                workflow_id=workflow.get("id", "unknown"),
-                                execution_id=execution_id,
-                                step_id=step_id,
-                                step_name=step.get("name", step_id),
-                                event_type="step_completed",
-                                duration_ms=duration_ms,
-                                status="COMPLETED",
-                                resource_id=resource_id if resource_id else None,
-                                user_id=user_id
-                            )
 
                             async with state_lock:
                                 await self.state_manager.update_step_status(execution_id, step_id, "COMPLETED", output=output)
@@ -403,24 +390,6 @@ class WorkflowEngine:
 
                         except Exception as e:
                             logger.error(f"Step {step_id} failed: {e}")
-                            
-                            # Track step failure in analytics
-                            try:
-                                # Calculate duration for failed step if start_step_time was set
-                                duration_ms = int((datetime.now(timezone.utc) - start_step_time).total_seconds() * 1000) if 'start_step_time' in locals() else None
-                                analytics.track_step_execution(
-                                    workflow_id=workflow.get("id", "unknown"),
-                                    execution_id=execution_id,
-                                    step_id=step_id,
-                                    step_name=step.get("name", step_id),
-                                    event_type="step_failed",
-                                    duration_ms=duration_ms,
-                                    status="FAILED",
-                                    error_message=str(e),
-                                    user_id=user_id
-                                )
-                            except Exception as ae:
-                                logger.error(f"Failed to track step failure: {ae}")
 
                             async with state_lock:
                                 await self.state_manager.update_step_status(execution_id, step_id, "FAILED", error=str(e))
@@ -611,7 +580,12 @@ class WorkflowEngine:
             steps = workflow.get("steps", [])
             # Sort steps by sequence_order
             steps.sort(key=lambda x: x.get("sequence_order", 0))
-            
+
+            # Tracks steps that failed but were allowed to continue via the
+            # continue_on_error flag — the workflow ends PARTIAL so the failure
+            # stays visible (mirrors the graph-execution path).
+            had_step_failures = False
+
             for step in steps:
                 step_id = step["id"]
 
@@ -702,19 +676,33 @@ class WorkflowEngine:
                         if agent_id != "system_agent":
                             agent_record = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
                         
-                        # Use complexity-based gating logic from SaaS
-                        can_perform, message = await governance.can_perform_action(
-                            agent_id=agent_id,
-                            action=step.get("action", "default"),
-                            context={"step_id": step_id, "params": resolved_params}
-                        )
-                        
-                        if not can_perform:
-                            logger.warning(f"🚫 Governance block for execution {execution_id} at step {step_id}: {message}")
-                            await self.state_manager.update_step_status(execution_id, step_id, "FAILED", error=f"Governance Block: {message}")
-                            await self.state_manager.update_execution_status(execution_id, "FAILED", error=f"Governance Block: {message}")
-                            await ws_manager.notify_workflow_status(user_id, execution_id, "FAILED", {"error": f"Governance Block: {message}", "step_id": step_id})
-                            return
+                        # Governance applies only to registry-backed agents;
+                        # unbound system_agent workflows have no identity to
+                        # govern. Use the async variant (the sync method
+                        # cannot await the budget check inside a running loop)
+                        # with the correct action_type kwarg; the result is a
+                        # dict {"allowed": bool, "reason": str}.
+                        if agent_record is not None:
+                            can_perform_result = await governance.can_perform_action_async(
+                                agent_id=agent_id,
+                                action_type=step.get("action", "default"),
+                            )
+                            can_perform = (
+                                can_perform_result.get("allowed", False)
+                                if isinstance(can_perform_result, dict)
+                                else bool(can_perform_result)
+                            )
+                            message = (
+                                can_perform_result.get("reason", "Governance denied")
+                                if isinstance(can_perform_result, dict)
+                                else ""
+                            )
+                            if not can_perform:
+                                logger.warning(f"🚫 Governance block for execution {execution_id} at step {step_id}: {message}")
+                                await self.state_manager.update_step_status(execution_id, step_id, "FAILED", error=f"Governance Block: {message}")
+                                await self.state_manager.update_execution_status(execution_id, "FAILED", error=f"Governance Block: {message}")
+                                await ws_manager.notify_workflow_status(user_id, execution_id, "FAILED", {"error": f"Governance Block: {message}", "step_id": step_id})
+                                return
                     except Exception as gov_error:
                         logger.error(f"Governance check failed, failing open for safety but logging error: {gov_error}")
                 # --- END SAAS GOVERNANCE INTERLOCK ---
@@ -812,6 +800,22 @@ class WorkflowEngine:
                 except Exception as e:
                     logger.error(f"Step {step_id} failed: {e}")
                     await self.state_manager.update_step_status(execution_id, step_id, "FAILED", error=str(e))
+
+                    # continue_on_error: mark the step FAILED but keep the
+                    # workflow running (mirrors the graph-execution path that
+                    # activates downstream connections after a tolerated
+                    # failure). The workflow ends PARTIAL instead of COMPLETED
+                    # so the failure remains visible.
+                    if step.get("continue_on_error"):
+                        logger.warning(f"Step {step_id} failed but continue_on_error is True, continuing workflow")
+                        await ws_manager.notify_workflow_status(
+                            user_id, execution_id, "STEP_FAILED",
+                            {"step_id": step_id, "error": str(e), "continue_on_error": True}
+                        )
+                        had_step_failures = True
+                        state = await self.state_manager.get_execution_state(execution_id)
+                        continue
+
                     await self.state_manager.update_execution_status(execution_id, "FAILED", error=str(e))
                     await ws_manager.notify_workflow_status(user_id, execution_id, "FAILED", {"error": str(e), "step_id": step_id})
 
@@ -854,8 +858,12 @@ class WorkflowEngine:
                         )
                     return
 
-            await self.state_manager.update_execution_status(execution_id, "COMPLETED")
-            await ws_manager.notify_workflow_status(user_id, execution_id, "COMPLETED")
+            if had_step_failures:
+                await self.state_manager.update_execution_status(execution_id, "PARTIAL")
+                await ws_manager.notify_workflow_status(user_id, execution_id, "PARTIAL")
+            else:
+                await self.state_manager.update_execution_status(execution_id, "COMPLETED")
+                await ws_manager.notify_workflow_status(user_id, execution_id, "COMPLETED")
 
             # Phase 5: publish WORKFLOW_COMPLETED for EventBus observability.
             self._publish_orchestration_event(

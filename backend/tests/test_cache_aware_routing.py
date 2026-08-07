@@ -76,7 +76,7 @@ class TestEffectiveCostCalculation:
 
     def test_zero_cache_hit_probability(self, router):
         """Test that 0% cache hit probability results in full cost"""
-        cost = router.calculate_effective_cost("gpt-4o", "openai", 2000, 0.0)
+        cost = router.calculate_effective_cost("gpt-4o", "openai", 2000, cache_hit_probability=0.0)
 
         # With 0% cache hit, effective cost = full price
         full_price = (0.0000025 + 0.00001) / 2
@@ -235,7 +235,7 @@ class TestBYOKIntegration:
 
     def test_byok_integration_with_estimated_tokens(self):
         """Test that BYOKHandler accepts estimated_tokens parameter"""
-        from core.llm.byok_handler import QueryComplexity
+        from core.llm.byok_handler import QueryComplexity, AwaitableResult
 
         handler = BYOKHandler()
 
@@ -247,20 +247,20 @@ class TestBYOKIntegration:
                 workspace_id="test"
             )
             # Result is a list of (provider, model) tuples
-            assert isinstance(result, list), "Should return a list"
+            assert isinstance(result, AwaitableResult), "Should return a list"
         except TypeError as e:
             pytest.fail(f"get_ranked_providers should accept estimated_tokens: {e}")
 
     def test_backward_compatibility_no_params(self):
         """Test that BYOKHandler works without new parameters (backward compatible)"""
-        from core.llm.byok_handler import QueryComplexity
+        from core.llm.byok_handler import QueryComplexity, AwaitableResult
 
         handler = BYOKHandler()
 
         # Should work with default parameters
         try:
             result = handler.get_ranked_providers(QueryComplexity.SIMPLE)
-            assert isinstance(result, list), "Should return a list"
+            assert isinstance(result, AwaitableResult), "Should return a list"
         except TypeError as e:
             pytest.fail(f"get_ranked_providers should work without new params: {e}")
 

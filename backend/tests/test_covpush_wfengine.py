@@ -775,22 +775,39 @@ class TestRunExecutionLinear:
             assert state["status"] == "COMPLETED"
         asyncio.run(run())
 
-    def test_governance_block_fails_workflow(self, engine_env):
+    def test_governance_block_fails_workflow(self, engine_env, monkeypatch):
         async def run():
             engine = engine_env["engine"]
             blocked = MagicMock()
-            blocked.can_perform_action = AsyncMock(return_value=(False, "not allowed"))
+            blocked.can_perform_action_async = AsyncMock(
+                return_value={"allowed": False, "reason": "not allowed"}
+            )
 
             class BlockedFactory:
                 @staticmethod
                 def get_governance_service(db, tenant_id="default"):
                     return blocked
 
+            # The interlock governs registry-backed agents only — make the
+            # registry lookup return a record for the workflow's agent.
+            import contextlib
+            from types import SimpleNamespace
+
+            @contextlib.contextmanager
+            def _db_cm():
+                db = MagicMock()
+                q = MagicMock()
+                q.filter.return_value = q
+                q.first.return_value = SimpleNamespace(id="agent-1")
+                db.query.return_value = q
+                yield db
+
+            monkeypatch.setattr("core.workflow_engine.get_db_session", _db_cm)
             import core.workflow_engine as wfmod
             old = wfmod.ServiceFactory
             wfmod.ServiceFactory = BlockedFactory
             try:
-                wf = _workflow([_step("s1")])
+                wf = _workflow([_step("s1")], agent_id="agent-1")
                 eid = await engine.start_workflow(wf, {})
                 await asyncio.gather(*list(engine._background_tasks))
                 state = await engine.state_manager.get_execution_state(eid)

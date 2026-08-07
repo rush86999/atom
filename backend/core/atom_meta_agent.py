@@ -1269,9 +1269,8 @@ What is your next step?"""
             system_instruction=system_prompt,
             response_model=ReActStep,
             temperature=0.2,
-            task_type="reasoning",
-            agent_id="atom_main",
-            turn_index=turn_index  # NEW: Deterministic BPC
+            model="reasoning",
+            agent_id="atom_main"
         )
         
         if structured_result:

@@ -205,7 +205,9 @@ class TestAtomCliWrapperExecution:
                 ["atom-os", "status"],
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
+                cwd=None,
+                env=None
             )
 
             # Verify return format
@@ -266,7 +268,9 @@ class TestAtomCliWrapperExecution:
                 ["atom-os", "daemon", "--port", "3000", "--dev"],
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
+                cwd=None,
+                env=None
             )
 
             assert result["success"] is True

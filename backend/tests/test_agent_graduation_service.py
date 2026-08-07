@@ -135,11 +135,11 @@ class TestGraduationEligibility:
             )
 
         # Assert - should call episode service
-        # Note: Production code passes user_id as tenant_id (agent.user_id maps to tenant_id)
+        # Note: Production code passes agent.tenant_id (falls back to "default")
         episode_service.get_graduation_readiness.assert_called_once()
         call_args = episode_service.get_graduation_readiness.call_args
         assert call_args[1]['agent_id'] == "agent-001"
-        assert call_args[1]['tenant_id'] == "user-001"  # agent.user_id becomes tenant_id
+        assert call_args[1]['tenant_id'] == "tenant-001"
         assert call_args[1]['target_level'] == "intern"
 
     @pytest.mark.asyncio
@@ -189,7 +189,7 @@ class TestGraduationEligibility:
         episode_service.get_graduation_readiness.assert_called_once()
         call_args = episode_service.get_graduation_readiness.call_args
         assert call_args[1]['agent_id'] == "agent-001"
-        assert call_args[1]['tenant_id'] == "user-001"
+        assert call_args[1]['tenant_id'] == "tenant-001"
         assert call_args[1]['target_level'] == "supervised"
 
     @pytest.mark.asyncio
@@ -239,7 +239,7 @@ class TestGraduationEligibility:
         episode_service.get_graduation_readiness.assert_called_once()
         call_args = episode_service.get_graduation_readiness.call_args
         assert call_args[1]['agent_id'] == "agent-001"
-        assert call_args[1]['tenant_id'] == "user-001"
+        assert call_args[1]['tenant_id'] == "tenant-001"
         assert call_args[1]['target_level'] == "autonomous"
 
     @pytest.mark.asyncio

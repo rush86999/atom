@@ -37,37 +37,27 @@ class MockAIService:
             if "Requesting a Quote" in text:
                 return {"success": True, "response": "DRAFT: Professional Quote Request"}
             return {"success": True, "response": "DRAFT: Generic Business Email"}
-            
-        # extraction calls
-        if "shipped" in text.lower():
-            return {
-                "success": True,
-                "response": """
-                {
-                  "entities": [
-                    {"id": "ship_1", "type": "Shipment", "properties": {"tracking_number": "TRK123", "carrier": "FedEx", "status": "shipped"}}
-                  ],
-                  "relationships": [
-                    {"from": "msg_1", "to": "confirm_shipping", "type": "INTENT"}
-                  ]
-                }
-                """
-            }
-        if "quote" in text.lower():
-            return {
-                "success": True,
-                "response": """
-                {
-                  "entities": [
-                    {"id": "quote_1", "type": "Quote", "properties": {"amount": 500.0, "status": "requested"}}
-                  ],
-                  "relationships": [
-                    {"from": "msg_1", "to": "request_quote", "type": "INTENT"}
-                  ]
-                }
-                """
-            }
         return {"success": True, "response": '{"entities": [], "relationships": []}'}
+
+
+QUOTE_KNOWLEDGE = {
+    "entities": [
+        {"id": "quote_1", "type": "Quote", "properties": {"amount": 500.0, "status": "requested"}}
+    ],
+    "relationships": [
+        {"from": "msg_1", "to": "request_quote", "type": "INTENT"}
+    ]
+}
+
+SHIPPING_KNOWLEDGE = {
+    "entities": [
+        {"id": "ship_1", "type": "Shipment", "properties": {"tracking_number": "TRK123", "carrier": "FedEx", "status": "shipped"}}
+    ],
+    "relationships": [
+        {"from": "msg_1", "to": "confirm_shipping", "type": "INTENT"}
+    ]
+}
+
 
 class TestBusinessIntelligence(unittest.TestCase):
     def setUp(self):
@@ -84,6 +74,15 @@ class TestBusinessIntelligence(unittest.TestCase):
         
         self.ai = MockAIService()
         self.comm_intel = CommunicationIntelligenceService(ai_service=self.ai, db_session=self.db)
+
+        async def fake_extract(text, workspace_id=None, tenant_id=None, source="unknown"):
+            if "shipped" in text.lower():
+                return SHIPPING_KNOWLEDGE
+            if "quote" in text.lower():
+                return QUOTE_KNOWLEDGE
+            return {"entities": [], "relationships": []}
+
+        self.comm_intel.extractor.extract_knowledge = fake_extract
 
     def tearDown(self):
         self.db.close()

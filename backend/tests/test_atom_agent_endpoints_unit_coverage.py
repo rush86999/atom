@@ -9,9 +9,15 @@ helper functions and internal logic.
 """
 import pytest
 import json
+from types import SimpleNamespace
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime
 from sqlalchemy.orm import Session
+
+
+def _make_user(user_id: str):
+    """Create a minimal authenticated-user stub for direct endpoint calls."""
+    return SimpleNamespace(id=user_id)
 
 
 class TestSaveChatInteraction:
@@ -220,11 +226,11 @@ class TestEndpointHelperFunctions:
         mock_session_mgr.list_user_sessions.return_value = []
         mock_get_session_mgr.return_value = mock_session_mgr
 
-        result = await list_sessions(user_id="test-no-sessions", limit=10)
+        result = await list_sessions(current_user=_make_user("test-no-sessions"), limit=10)
 
         assert result["success"] is True
         assert result["sessions"] == []
-        mock_session_mgr.list_user_sessions.assert_called_once_with("test-no-sessions", 10)
+        mock_session_mgr.list_user_sessions.assert_called_once_with("test-no-sessions", limit=10)
 
     @patch('core.atom_agent_endpoints.get_chat_session_manager')
     async def test_list_sessions_with_data(self, mock_get_session_mgr, db_session: Session):
@@ -244,7 +250,7 @@ class TestEndpointHelperFunctions:
         ]
         mock_get_session_mgr.return_value = mock_session_mgr
 
-        result = await list_sessions(user_id="test-user", limit=50)
+        result = await list_sessions(current_user=_make_user("test-user"), limit=50)
 
         assert result["success"] is True
         assert len(result["sessions"]) == 1
@@ -260,7 +266,7 @@ class TestEndpointHelperFunctions:
         mock_session_mgr.create_session.return_value = "new-session-123"
         mock_get_session_mgr.return_value = mock_session_mgr
 
-        result = await create_new_session(user_id="test-create")
+        result = await create_new_session(current_user=_make_user("test-create"))
 
         assert result["success"] is True
         assert result["session_id"] == "new-session-123"
@@ -273,7 +279,7 @@ class TestEndpointHelperFunctions:
         from core.atom_agent_endpoints import get_session_history
 
         mock_session_mgr = MagicMock()
-        mock_session_mgr.get_session.return_value = {"session_id": "sess-1"}
+        mock_session_mgr.get_session.return_value = {"session_id": "sess-1", "user_id": "test-user"}
         mock_chat_mgr = MagicMock()
         mock_chat_mgr.get_session_history.return_value = [
             {
@@ -287,7 +293,7 @@ class TestEndpointHelperFunctions:
         mock_get_session.return_value = mock_session_mgr
         mock_get_chat.return_value = mock_chat_mgr
 
-        result = await get_session_history(session_id="sess-1")
+        result = await get_session_history(session_id="sess-1", current_user=_make_user("test-user"))
 
         assert result["success"] is True
         assert "messages" in result
@@ -341,7 +347,7 @@ class TestIntentHandlers:
         from core.atom_agent_endpoints import ChatRequest
 
         mock_load.return_value = [
-            {"id": "wf-1", "name": "Test Workflow"}
+            {"workflow_id": "wf-1", "name": "Test Workflow"}
         ]
 
         request = ChatRequest(
@@ -593,7 +599,7 @@ class TestErrorHandling:
         mock_session_mgr.list_user_sessions.side_effect = Exception("Database error")
         mock_get_session.return_value = mock_session_mgr
 
-        result = await list_sessions(user_id="test-error", limit=10)
+        result = await list_sessions(current_user=_make_user("test-error"), limit=10)
 
         # Should return error response
         assert result["success"] is False
@@ -608,7 +614,7 @@ class TestErrorHandling:
         mock_session_mgr.create_session.side_effect = Exception("Session creation failed")
         mock_get_session.return_value = mock_session_mgr
 
-        result = await create_new_session(user_id="test-create-error")
+        result = await create_new_session(current_user=_make_user("test-create-error"))
 
         # Should return error response
         assert result["success"] is False

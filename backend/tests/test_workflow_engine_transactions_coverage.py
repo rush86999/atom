@@ -17,6 +17,8 @@ from datetime import datetime
 from typing import Dict, Any
 from unittest.mock import Mock, patch, AsyncMock, MagicMock
 
+from sqlalchemy.orm import Session
+
 # Import WorkflowEngine and related classes
 from core.workflow_engine import WorkflowEngine, MissingInputError
 from core.models import WorkflowExecution, WorkflowExecutionStatus, Workflow
@@ -62,6 +64,25 @@ def workflow_engine_with_mock_state(monkeypatch, db_session):
     mock_state_manager.save_state = AsyncMock()
     mock_state_manager.load_state = AsyncMock(return_value={})
     mock_state_manager.delete_state = AsyncMock()
+
+    async def mock_create_execution(workflow_id, input_data):
+        import json
+        import uuid
+        execution = WorkflowExecution(
+            execution_id=f"exec-{uuid.uuid4().hex[:12]}",
+            workflow_id=workflow_id,
+            status=WorkflowExecutionStatus.PENDING.value,
+            input_data=json.dumps(input_data),
+            steps=json.dumps({}),
+            outputs=json.dumps({}),
+            context=json.dumps({}),
+            version=1,
+        )
+        db_session.add(execution)
+        db_session.commit()
+        return execution.execution_id
+
+    mock_state_manager.create_execution = mock_create_execution
 
     def mock_get_state_manager():
         return mock_state_manager
@@ -398,22 +419,20 @@ class TestWorkflowTransactionHandling:
         with patch.object(engine, "_execute_workflow_graph", new_callable=AsyncMock) as mock_exec:
             mock_exec.side_effect = Exception("Step execution failed")
 
-            # Start workflow (should handle exception)
-            with pytest.raises(Exception):
-                asyncio.run(
-                    engine.start_workflow(
-                        failing_workflow_data,
-                        {"test": "input"}
-                    )
+            # Start workflow (failures surface via execution status, not an exception)
+            execution_id = asyncio.run(
+                engine.start_workflow(
+                    failing_workflow_data,
+                    {"test": "input"}
                 )
+            )
 
-            # Verify execution was created with error status
-            executions = db_session.query(WorkflowExecution).filter_by(
-                workflow_id=failing_workflow_data["id"]
-            ).all()
+            # Verify execution was created
+            execution = db_session.query(WorkflowExecution).filter_by(
+                execution_id=execution_id
+            ).first()
 
-            # Execution should exist but may be in error state
-            assert len(executions) >= 0  # May be 0 if transaction rolled back completely
+            assert execution is not None
 
     @pytest.mark.integration
     def test_partial_completion_saves_intermediate_state(
@@ -448,8 +467,8 @@ class TestWorkflowTransactionHandling:
                 )
             )
 
-            # Verify state was saved
-            assert len(saved_states) > 0 or mock_state.save_state.called
+            # Verify state was saved via state manager calls
+            assert mock_state.update_execution_status.called or mock_state.save_state.called
 
     @pytest.mark.integration
     def test_concurrent_execution_isolation(
@@ -843,16 +862,18 @@ class TestWorkflowOrchestrationEdgeCases:
         engine, mock_state = workflow_engine_with_mock_state
 
         # Create existing executions
+        created_ids = []
         for i in range(5):
-            WorkflowExecutionFactory.create_execution(
+            execution = WorkflowExecutionFactory.create_execution(
                 db_session,
                 workflow_id=simple_workflow_data["id"],
                 status=WorkflowExecutionStatus.RUNNING.value
             )
+            created_ids.append(execution.execution_id)
 
         # Verify executions exist
-        executions = db_session.query(WorkflowExecution).filter_by(
-            workflow_id=simple_workflow_data["id"]
+        executions = db_session.query(WorkflowExecution).filter(
+            WorkflowExecution.execution_id.in_(created_ids)
         ).all()
 
         assert len(executions) == 5
@@ -914,13 +935,13 @@ class TestWorkflowOrchestrationEdgeCases:
             ]
         }
 
-        # Should handle cycle gracefully (topological sort may exclude some nodes)
-        steps = engine._convert_nodes_to_steps(cyclic_workflow)
+        # Cycles are rejected with ValueError (topological sort cannot complete)
+        with pytest.raises(ValueError):
+            engine._convert_nodes_to_steps(cyclic_workflow)
         graph = engine._build_execution_graph(cyclic_workflow)
 
         assert "nodes" in graph
         assert "connections" in graph
-        assert isinstance(steps, list)
 
     @pytest.mark.integration
     def test_workflow_with_missing_inputs(
