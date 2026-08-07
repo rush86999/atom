@@ -388,3 +388,27 @@ Final corpus: 3,282 passed / 0 failed (all test_bughunt_* + test_covpush_*).
 |---|---|---|---|
 | 2026-08-07 | `tests/property_tests/conftest.py` (`db_engine`) | FIXED | Fixture rebound the GLOBAL `core.database.SessionLocal` to a per-test temp engine and never restored it; teardown disposed the engine + deleted the file, leaving every later same-process test (e.g. tests/core/test_workflow_engine_core_execution.py) with a dead SessionLocal → `get_db_session()` writes failed. Now saves `SessionLocal.kw["bind"]` before `configure(bind=engine)` and restores it after cleanup. Evidence: `pytest tests/security/test_canvas_security.py tests/core/test_workflow_engine_core_execution.py::TestWorkflowEngineDAGExecution` 2F→55P |
 | 2026-08-07 | `core/workflow_engine.py` (`_run_execution` linear loop) | FIXED | REAL ENGINE BUG exposed by the pollution: the 4 ancillary `with get_db_session()` blocks (governance interlock, step-log insert, Time Travel snapshot, step-record update) had try/except INSIDE the `with` — a swallowed inner error invalidates the session transaction, then the context-exit `db.commit()` (core/database.py:223) raised OUTSIDE the guard → outer catch marked the whole execution FAILED before `_execute_step` ran (DAG tests: `assert 0 == 2/4`). Hoisted each try/except to wrap the `with` (fail-open per block intent). Evidence: poisoned-SessionLocal repro script 0 calls→COMPLETED/2 calls; standalone file 37P; combined batch 232P |
+
+### Round 2026-08-07 late-7 — per-call LLM provider usage metrics (opencode-go + all providers)
+| Date | File | Status | Fix |
+|---|---|---|---|
+| 2026-08-07 | `core/llm_call_tracker.py` (NEW) | TESTED | Per-call LLM provider usage tracking: `LLMCallRecord` (timestamp, provider, model, success, latency_ms, input_tokens, output_tokens, fallback, fallback_provider, error) + thread-safe bounded `LLMCallTracker` (5k) + Prometheus metrics (`llm_calls_total`, `llm_call_duration_seconds`, `llm_tokens_total`, `llm_fallbacks_total`, `llm_call_errors_total`, scraped by existing /health/metrics). 17 unit tests (tests/unit/core/test_llm_call_tracker.py). mypy clean |
+| 2026-08-07 | `core/llm/byok_handler.py` | TESTED | New `_track_llm_call()` helper wired at all 4 dispatch sites (generate_response, generate_structured_response, stream_completion, chat_completion) on success/heal-retry/failure paths; fallback detected as provider != primary candidate (options[0]/provider_order[0]); error strings truncated to 500 chars. 9 wiring tests (tests/unit/core/test_llm_call_tracking_wiring.py, FakeClient pattern). mypy: 0 new errors (68 pre-existing unchanged) |
+| 2026-08-07 | `api/byok_routes.py` | TESTED | `GET /api/ai/usage/calls` — recent call logs + aggregated summary (per-provider/per-model rollups), auth'd, filters provider/model/limit. 3 API tests (16/16 in file). mypy: 0 new errors |
+| 2026-08-07 | regression | VERIFIED-OK | 75/75 (tracker + wiring + byok routes + chat completion + usage tracker); byok_handler full suites: 4 failed / 214 passed — identical failure set reproduced on clean HEAD (pre-existing, not caused by this change) |
+
+### Round 2026-08-07 late-6 — final coverage measurement + episodes mock fix
+| Date | File | Status | Fix |
+|---|---|---|---|
+| 2026-08-07 | `tests/test_covpush_episodes.py` (3) | FIXED | get_domain_feedback_metrics tests: mock chain missing .order_by() link → Mock len() error → error dict without trend key; chain now self-referential (116/116) |
+
+## FINAL POST-CAMPAIGN COVERAGE (2026-08-07, chunked full-suite + all 3,282 new tests merged)
+| Layer | Pre-campaign | Post-campaign | Δ |
+|---|---|---|---|
+| core | 31.3% | **53.0%** | +21.7pp |
+| api | 36.5% | **53.3%** | +16.8pp |
+| tools | 17.3% | **92.5%** | +75.2pp |
+| integrations | ~0% (8 files unparseable) | **17.0%** | +17pp |
+| ALL (158,377 stmts) | ~30% | **44.4%** (70,285 covered) | +14pp |
+
+Methodology: 6 chunked batches (--timeout=90, -n 4, maxfail=60) + all test_bughunt_*/test_covpush_* (3,282 passed, 0 failed) combined via coverage combine in a fresh dir. Same-batch methodology as pre-campaign measurement.

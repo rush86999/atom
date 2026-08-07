@@ -489,7 +489,11 @@ class TestEpisodeServiceFeedback:
         assert out[0]["feedback_score"] == 0.8
 
     def test_get_domain_feedback_metrics_empty(self, service):
-        service.db.query.return_value.filter.return_value.all.return_value = []
+        q = Mock()
+        q.filter.return_value = q
+        q.order_by.return_value = q
+        q.all.return_value = []
+        service.db.query.return_value = q
         m = service.get_domain_feedback_metrics("t", "reasoning")
         assert m["trend"] == "no_data"
 
@@ -500,7 +504,11 @@ class TestEpisodeServiceFeedback:
                 provided_at=datetime.now(timezone.utc),
             )
         records = [fb(0.3), fb(0.3), fb(0.9), fb(0.9)]
-        service.db.query.return_value.filter.return_value.all.return_value = records
+        q = Mock()
+        q.filter.return_value = q
+        q.order_by.return_value = q
+        q.all.return_value = records
+        service.db.query.return_value = q
         m = service.get_domain_feedback_metrics("t", "reasoning")
         assert m["trend"] == "improving"
         assert m["feedback_count"] == 4
@@ -514,7 +522,11 @@ class TestEpisodeServiceFeedback:
                 provided_at=datetime.now(timezone.utc),
             )
         records = [fb(0.9), fb(0.9), fb(0.1)]
-        service.db.query.return_value.filter.return_value.all.return_value = records
+        q = Mock()
+        q.filter.return_value = q
+        q.order_by.return_value = q
+        q.all.return_value = records
+        service.db.query.return_value = q
         m = service.get_domain_feedback_metrics("t", "reasoning")
         assert m["trend"] == "declining"
 
