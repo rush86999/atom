@@ -192,6 +192,8 @@ Python 3.11+, PEP 8, type hints required (mypy in CI), Google-style docstrings �
 
 **TDD mandatory for bug fixes** — see `docs/testing/BUG_FIX_PROCESS.md`. **Never fix a bug without a failing test first.** Red → Green (minimal fix) → Refactor. Frontend (Jest/RTL): same pattern (`waitFor`, fake timers).
 
+> **Before touching any file, check `docs/testing/TESTED_FILES_TRACKER.md`** — date-stamped log of every file tested/fixed (R79+), measured coverage, and known-remaining failures. Grep it to skip already-verified work; append a row after every fix.
+
 ```bash
 PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/ -v
 pytest tests/test_governance_streaming.py -v
