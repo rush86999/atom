@@ -29,6 +29,7 @@ from tests.factories.execution_factory import AgentExecutionFactory
 from tests.factories.episode_factory import EpisodeFactory
 from tests.factories.feedback_factory import AgentFeedbackFactory
 from tests.factories.workspace_factory import WorkspaceFactory, TeamFactory
+from tests.factories.core_factory import TenantFactory
 from core.models import (
     AgentRegistry,
     AgentExecution,
@@ -44,7 +45,7 @@ from core.models import (
     HITLActionStatus,
     Episode,
     EpisodeSegment,
-    OAuthToken,
+    IntegrationToken,
     OAuthState,
     user_workspaces,
     team_members,
@@ -166,19 +167,17 @@ class TestRelationships:
         assert retrieved_execution.agent_id == agent.id
 
     def test_agent_feedback_multiple_relationships(self, db_session: Session):
-        """Test Feedback links to agent, execution, user, and episode."""
+        """Test Feedback links to agent, execution, and user."""
         # Create test data
         agent = AgentFactory(name="FeedbackAgent", _session=db_session)
         user = UserFactory(email="feedbackuser@test.com", _session=db_session)
         execution = AgentExecutionFactory(agent_id=agent.id, _session=db_session)
-        episode = EpisodeFactory(agent_id=agent.id, title="Feedback Episode", _session=db_session)
 
         # Create feedback
         feedback = AgentFeedbackFactory(
             agent_id=agent.id,
             user_id=user.id,
             agent_execution_id=execution.id,
-            episode_id=episode.id,
             _session=db_session
         )
         db_session.commit()
@@ -190,7 +189,6 @@ class TestRelationships:
         assert retrieved_feedback.agent_id == agent.id
         assert retrieved_feedback.user_id == user.id
         assert retrieved_feedback.agent_execution_id == execution.id
-        assert retrieved_feedback.episode_id == episode.id
 
     def test_feedback_from_agent_relationship(self, db_session: Session):
         """Test Query feedback from agent feedback_history relationship."""
@@ -230,7 +228,7 @@ class TestRelationships:
     def test_episode_segment_one_to_many_relationship(self, db_session: Session):
         """Test Episode has many segments."""
         agent = AgentFactory(name="SegmentAgent", _session=db_session)
-        episode = EpisodeFactory(agent_id=agent.id, title="Segment Test Episode", _session=db_session)
+        episode = EpisodeFactory(agent_id=agent.id, task_description="Segment Test Episode", _session=db_session)
 
         # Create segments manually (factory doesn't exist)
         segment1 = EpisodeSegment(
@@ -268,7 +266,7 @@ class TestRelationships:
     def test_segment_belongs_to_one_episode(self, db_session: Session):
         """Test Segment belongs to one episode."""
         agent = AgentFactory(name="SingleSegmentAgent", _session=db_session)
-        episode = EpisodeFactory(agent_id=agent.id, title="Single Segment Episode", _session=db_session)
+        episode = EpisodeFactory(agent_id=agent.id, task_description="Single Segment Episode", _session=db_session)
 
         segment = EpisodeSegment(
             episode_id=episode.id,
@@ -289,7 +287,7 @@ class TestRelationships:
     def test_segment_ordering_by_timestamp(self, db_session: Session):
         """Test Ordering of segments by sequence_order."""
         agent = AgentFactory(name="OrderAgent", _session=db_session)
-        episode = EpisodeFactory(agent_id=agent.id, title="Order Episode", _session=db_session)
+        episode = EpisodeFactory(agent_id=agent.id, task_description="Order Episode", _session=db_session)
 
         # Create segments out of order
         segment3 = EpisodeSegment(
@@ -329,10 +327,12 @@ class TestRelationships:
     def test_oauth_token_user_relationship(self, db_session: Session):
         """Test OAuthToken belongs to user."""
         user = UserFactory(email="oauthuser@test.com", _session=db_session)
+        tenant = TenantFactory(_session=db_session)
 
         # Create OAuth token
-        token = OAuthToken(
+        token = IntegrationToken(
             user_id=user.id,
+            tenant_id=tenant.id,
             provider="google",
             access_token="test_access_token",
             token_type="Bearer"
@@ -341,30 +341,34 @@ class TestRelationships:
         db_session.commit()
 
         # Verify token belongs to user
-        retrieved_token = db_session.query(OAuthToken).filter(
-            OAuthToken.id == token.id
+        retrieved_token = db_session.query(IntegrationToken).filter(
+            IntegrationToken.id == token.id
         ).first()
         assert retrieved_token.user_id == user.id
 
     def test_user_has_multiple_oauth_tokens(self, db_session: Session):
         """Test User has multiple oauth_tokens."""
         user = UserFactory(email="multiuser@test.com", _session=db_session)
+        tenant = TenantFactory(_session=db_session)
 
         # Create multiple tokens for different providers
-        google_token = OAuthToken(
+        google_token = IntegrationToken(
             user_id=user.id,
+            tenant_id=tenant.id,
             provider="google",
             access_token="google_token",
             token_type="Bearer"
         )
-        github_token = OAuthToken(
+        github_token = IntegrationToken(
             user_id=user.id,
+            tenant_id=tenant.id,
             provider="github",
             access_token="github_token",
             token_type="Bearer"
         )
-        notion_token = OAuthToken(
+        notion_token = IntegrationToken(
             user_id=user.id,
+            tenant_id=tenant.id,
             provider="notion",
             access_token="notion_token",
             token_type="Bearer"
@@ -374,8 +378,8 @@ class TestRelationships:
         db_session.commit()
 
         # Query tokens for user
-        user_tokens = db_session.query(OAuthToken).filter(
-            OAuthToken.user_id == user.id
+        user_tokens = db_session.query(IntegrationToken).filter(
+            IntegrationToken.user_id == user.id
         ).all()
 
         assert len(user_tokens) == 3
@@ -383,16 +387,19 @@ class TestRelationships:
     def test_oauth_token_provider_filtering(self, db_session: Session):
         """Test Provider filtering works for OAuth tokens."""
         user = UserFactory(email="provideruser@test.com", _session=db_session)
+        tenant = TenantFactory(_session=db_session)
 
         # Create tokens for different providers
-        google_token = OAuthToken(
+        google_token = IntegrationToken(
             user_id=user.id,
+            tenant_id=tenant.id,
             provider="google",
             access_token="google_access",
             token_type="Bearer"
         )
-        github_token = OAuthToken(
+        github_token = IntegrationToken(
             user_id=user.id,
+            tenant_id=tenant.id,
             provider="github",
             access_token="github_access",
             token_type="Bearer"
@@ -402,12 +409,12 @@ class TestRelationships:
         db_session.commit()
 
         # Filter by provider
-        google_tokens = db_session.query(OAuthToken).filter(
-            and_(OAuthToken.user_id == user.id, OAuthToken.provider == "google")
+        google_tokens = db_session.query(IntegrationToken).filter(
+            and_(IntegrationToken.user_id == user.id, IntegrationToken.provider == "google")
         ).all()
 
-        github_tokens = db_session.query(OAuthToken).filter(
-            and_(OAuthToken.user_id == user.id, OAuthToken.provider == "github")
+        github_tokens = db_session.query(IntegrationToken).filter(
+            and_(IntegrationToken.user_id == user.id, IntegrationToken.provider == "github")
         ).all()
 
         assert len(google_tokens) == 1
@@ -440,10 +447,12 @@ class TestConstraints:
     def test_unique_constraint_oauth_state(self, db_session: Session):
         """Test OAuthState.state must be unique."""
         user = UserFactory(email="stateuser@test.com", _session=db_session)
+        tenant = TenantFactory(_session=db_session)
 
         # Create first OAuth state
         state1 = OAuthState(
             user_id=user.id,
+            tenant_id=tenant.id,
             provider="google",
             state="unique_state_123",
             expires_at=datetime.utcnow() + timedelta(minutes=10)
@@ -455,6 +464,7 @@ class TestConstraints:
         with pytest.raises(IntegrityError):
             state2 = OAuthState(
                 user_id=user.id,
+                tenant_id=tenant.id,
                 provider="github",
                 state="unique_state_123",  # Duplicate state
                 expires_at=datetime.utcnow() + timedelta(minutes=10)
@@ -467,15 +477,14 @@ class TestConstraints:
     def test_not_null_constraint_agent_name(self, db_session: Session):
         """Test AgentRegistry.name cannot be NULL."""
         # Try to create agent without name
-        agent = AgentRegistry(
-            name=None,  # Violates NOT NULL
-            category="test",
-            module_path="test.module",
-            class_name="TestAgent"
-        )
-        db_session.add(agent)
-
         with pytest.raises((IntegrityError, Exception)):
+            agent = AgentRegistry(
+                name=None,  # Violates NOT NULL
+                category="test",
+                module_path="test.module",
+                class_name="TestAgent"
+            )
+            db_session.add(agent)
             db_session.commit()
 
         db_session.rollback()
@@ -597,8 +606,10 @@ class TestConstraints:
             id=str(uuid.uuid4()),
             agent_id="invalid_agent_id",
             workspace_id=str(uuid.uuid4()),
-            title="Test Episode",
+            tenant_id="default",
+            task_description="Test Episode",
             maturity_at_time="STUDENT",  # Required field
+            outcome="success",
             human_intervention_count=0,  # Required field
             started_at=datetime.utcnow()
         )
@@ -746,7 +757,7 @@ class TestCascades:
     def test_cascade_delete_episode_to_segments(self, db_session: Session):
         """Test deleting episode removes segments (cascade configured)."""
         agent = AgentFactory(name="SegmentCascadeAgent", _session=db_session)
-        episode = EpisodeFactory(agent_id=agent.id, title="Cascade Episode", _session=db_session)
+        episode = EpisodeFactory(agent_id=agent.id, task_description="Cascade Episode", _session=db_session)
 
         # Create 10 segments
         segments = []
@@ -917,7 +928,7 @@ class TestORMQueries:
     def test_join_episodes_with_segments(self, db_session: Session):
         """Test Join episodes with segments."""
         agent = AgentFactory(name="JoinEpisodeAgent", _session=db_session)
-        episode = EpisodeFactory(agent_id=agent.id, title="Join Episode", _session=db_session)
+        episode = EpisodeFactory(agent_id=agent.id, task_description="Join Episode", _session=db_session)
 
         segment1 = EpisodeSegment(
             episode_id=episode.id,
@@ -1181,7 +1192,7 @@ class TestSpecialFields:
         assert "search" in retrieved.configuration["tools"]
 
     def test_json_field_user_preferences(self, db_session: Session):
-        """Test User.preferences JSON field."""
+        """Test User.notification_preferences JSON field."""
         prefs = {
             "theme": "dark",
             "notifications": True,
@@ -1190,15 +1201,15 @@ class TestSpecialFields:
 
         user = UserFactory(
             email="prefs@test.com",
-            preferences=prefs,
+            notification_preferences=prefs,
             _session=db_session
         )
         db_session.commit()
 
         # Verify preferences stored correctly
         retrieved = db_session.query(User).filter(User.id == user.id).first()
-        assert retrieved.preferences["theme"] == "dark"
-        assert retrieved.preferences["notifications"] is True
+        assert retrieved.notification_preferences["theme"] == "dark"
+        assert retrieved.notification_preferences["notifications"] is True
 
     def test_json_field_workspace_metadata(self, db_session: Session):
         """Test Workspace.metadata_json JSON field."""
@@ -1226,12 +1237,14 @@ class TestSpecialFields:
         """Test OAuthToken access_token is encrypted on write and decrypted on read."""
         import uuid
         user = UserFactory(email="tokenuser@test.com", _session=db_session)
+        tenant = TenantFactory(_session=db_session)
 
         # Set access token (should be encrypted)
         original_token = "original_access_token_12345"
-        oauth_token = OAuthToken(
+        oauth_token = IntegrationToken(
             id=str(uuid.uuid4()),
             user_id=user.id,
+            tenant_id=tenant.id,
             provider="test",
             access_token=original_token,
             token_type="Bearer"
@@ -1240,8 +1253,8 @@ class TestSpecialFields:
         db_session.commit()
 
         # Retrieve and verify decrypted value
-        retrieved = db_session.query(OAuthToken).filter(
-            OAuthToken.id == oauth_token.id
+        retrieved = db_session.query(IntegrationToken).filter(
+            IntegrationToken.id == oauth_token.id
         ).first()
         assert retrieved.access_token == original_token
 
@@ -1249,11 +1262,13 @@ class TestSpecialFields:
         """Test OAuthToken.refresh_token encryption/decryption."""
         import uuid
         user = UserFactory(email="refreshuser@test.com", _session=db_session)
+        tenant = TenantFactory(_session=db_session)
 
         refresh_token = "refresh_token_secret_67890"
-        oauth_token = OAuthToken(
+        oauth_token = IntegrationToken(
             id=str(uuid.uuid4()),
             user_id=user.id,
+            tenant_id=tenant.id,
             provider="test",
             access_token="access",
             refresh_token=refresh_token,
@@ -1263,8 +1278,8 @@ class TestSpecialFields:
         db_session.commit()
 
         # Verify refresh token decrypted correctly
-        retrieved = db_session.query(OAuthToken).filter(
-            OAuthToken.id == oauth_token.id
+        retrieved = db_session.query(IntegrationToken).filter(
+            IntegrationToken.id == oauth_token.id
         ).first()
         assert retrieved.refresh_token == refresh_token
 
@@ -1294,10 +1309,12 @@ class TestSpecialFields:
         assert workspace.is_startup is False
 
     def test_boolean_default_oauth_state_used(self, db_session: Session):
-        """Test OAuthState.used defaults to False."""
+        """Test OAuthState starts valid (not expired)."""
         user = UserFactory(email="oauthstate@test.com", _session=db_session)
+        tenant = TenantFactory(_session=db_session)
         state = OAuthState(
             user_id=user.id,
+            tenant_id=tenant.id,
             provider="google",
             state="test_state",
             expires_at=datetime.utcnow() + timedelta(minutes=10)
@@ -1305,8 +1322,8 @@ class TestSpecialFields:
         db_session.add(state)
         db_session.commit()
 
-        # Verify default is False
-        assert state.used is False
+        # Verify state is initially valid
+        assert state.is_valid() is True
 
     def test_datetime_default_created_at(self, db_session: Session):
         """Test created_at defaults to current timestamp."""

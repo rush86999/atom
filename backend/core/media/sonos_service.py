@@ -32,6 +32,7 @@ try:
     logger.info("SoCo library available - Sonos control enabled")
 except ImportError:
     SOCOS_AVAILABLE = False
+    soco = None  # type: ignore
     logger.warning("SoCo library not installed - Sonos functions will fail")
 
 

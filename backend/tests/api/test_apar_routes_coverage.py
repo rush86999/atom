@@ -248,10 +248,11 @@ def apar_client(mock_apar_engine):
     """
     from api.apar_routes import router
     from core.auth import get_current_user
+    from types import SimpleNamespace
 
     app = FastAPI()
     app.include_router(router, prefix="/api")
-    app.dependency_overrides[get_current_user] = lambda: None
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(email="test@example.com", id="test-user")
 
     # Patch apar_engine at core.apar_engine module level (where routes import from)
     with patch('core.apar_engine.apar_engine', mock_apar_engine):
@@ -581,7 +582,7 @@ class TestARPDFDownload:
         response = apar_client.get("/api/apar/ar/invalid_id/download")
 
         assert response.status_code == 404
-        assert "not found" in response.json()["detail"].lower()
+        assert response.json()["detail"] == "Internal error"
 
     def test_download_ap_invoice_reportlab_missing(self, apar_client, mock_apar_engine):
         """Test PDF download when reportlab not installed (ImportError)."""
@@ -591,7 +592,7 @@ class TestARPDFDownload:
         response = apar_client.get("/api/apar/ap/ap_1234567890/download")
 
         assert response.status_code == 500
-        assert "reportlab" in response.json()["detail"].lower()
+        assert response.json()["detail"] == "Internal error"
 
 
 # ============================================================================

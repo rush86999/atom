@@ -31,7 +31,6 @@ class TenantFactory(BaseFactory):
     # Optional fields
     plan_type = fuzzy.FuzzyChoice(['personal', 'team', 'enterprise'])
     edition = fuzzy.FuzzyChoice(['personal', 'professional', 'enterprise'])
-    memory_limit_mb = fuzzy.FuzzyInteger(1000, 10000)
     created_at = factory.Faker('date_time_this_year')
 
 

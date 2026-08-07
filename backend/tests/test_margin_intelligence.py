@@ -43,7 +43,8 @@ class TestMarginIntelligence(unittest.IsolatedAsyncioTestCase):
         self.db.add(self.team)
         
         # Setup User with labor cost
-        self.worker = User(id="u1", email="worker@test.com", first_name="Dev", hourly_cost_rate=50.0, last_name="User", role="member", status="active")
+        self.worker = User(id="u1", email="worker@test.com", first_name="Dev", last_name="User", role="member", status="active")
+        self.worker.hourly_cost_rate = 50.0
         self.db.add(self.worker)
         
         self.db.commit()

@@ -313,6 +313,15 @@ def db_session(worker_database):
         session.rollback()
     except Exception:
         pass
+    # Tests commit explicitly, so the nested-transaction rollback cannot undo
+    # persisted rows. Wipe all tables to restore per-test isolation.
+    try:
+        from core.models_registration import Base as _all_models_base
+        for table in reversed(_all_models_base.metadata.sorted_tables):
+            session.execute(table.delete())
+        session.commit()
+    except Exception:
+        session.rollback()
     session.close()
 
 

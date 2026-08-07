@@ -61,11 +61,9 @@ async def _check_media_governance(
     # Check governance cache
     try:
         # Get agent maturity level
-        from core.agent_context_resolver import AgentContextResolver
-        resolver = AgentContextResolver(db)
-        agent_context = await resolver.resolve_agent_context(agent_id)
-
-        maturity_level = agent_context.get("maturity_level", "STUDENT")
+        from core.models import AgentRegistry
+        agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        maturity_level = agent.status if agent else "STUDENT"
 
         # Map media actions to maturity requirements
         maturity_requirements = {
@@ -103,18 +101,19 @@ async def _check_media_governance(
                 "required_maturity": required_maturity
             }
 
-        # Check governance cache for tool-specific permission
-        gc = AsyncGovernanceCache(db)
-        has_permission = await gc.check_permission(
+        # Check via governance service (maturity vs action complexity + budget).
+        # The service is workspace-scoped; an unregistered/unscoped agent falls
+        # back to the deterministic maturity-hierarchy check above.
+        from core.agent_governance_service import AgentGovernanceService
+        governance = AgentGovernanceService(db)
+        decision = await governance.can_perform_action_async(
             agent_id=agent_id,
-            tool_name=action,
-            maturity_level=maturity_level
+            action_type=action,
         )
-
-        if not has_permission:
+        if not decision.get("allowed", True) and decision.get("reason") != "Agent not found":
             return {
                 "allowed": False,
-                "reason": f"Governance check failed for {action}",
+                "reason": decision.get("reason", f"Governance check failed for {action}"),
                 "governance_check_passed": False,
                 "maturity_level": maturity_level
             }

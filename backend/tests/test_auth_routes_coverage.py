@@ -33,7 +33,7 @@ from sqlalchemy.pool import StaticPool
 from api.enterprise_auth_endpoints import router, UserRegister, UserLogin, TokenResponse, ChangePasswordRequest
 
 # Import models
-from core.models import Base, User
+from core.models import Base, User, Tenant, Workspace
 
 # Import auth dependencies
 from core.auth import get_current_user
@@ -53,8 +53,13 @@ def test_db():
         poolclass=StaticPool
     )
 
-    # Create only the tables we need for auth routes testing
-    User.__table__.create(bind=engine, checkfirst=True)
+    # Create the tables we need for auth routes testing.
+    # The register endpoint now provisions a default Tenant + Workspace for
+    # every new user, so those tables must exist alongside users.
+    Base.metadata.create_all(
+        bind=engine,
+        tables=[User.__table__, Tenant.__table__, Workspace.__table__],
+    )
 
     # Create session
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -64,7 +69,7 @@ def test_db():
 
     # Cleanup
     db.close()
-    User.__table__.drop(bind=engine)
+    Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture(scope="function")
@@ -270,6 +275,20 @@ def mock_email_service():
     # The send_email function may not exist, so we use a safer mock
     with patch('core.enterprise_auth_service.logger') as mock_logger:
         yield mock_logger
+
+
+@pytest.fixture(autouse=True)
+def bypass_auth_rate_limits():
+    """Bypass the process-wide auth rate limiters (login 10/min, register 3/5min).
+
+    The limiters in core.security.auth_rate_limit are module-level singletons
+    keyed by client IP; this suite exercises login/register/refresh far more
+    often than the production limits allow, which otherwise returns 429s.
+    """
+    with patch('core.security.auth_rate_limit._login_limiter.check', return_value=(True, 10)), \
+         patch('core.security.auth_rate_limit._register_limiter.check', return_value=(True, 3)), \
+         patch('core.security.auth_rate_limit._refresh_limiter.check', return_value=(True, 30)):
+        yield
 
 
 # ============================================================================
@@ -641,7 +660,8 @@ class TestRefreshTokenEndpoint:
     def test_refresh_token_success(self, client: TestClient, test_user: User, valid_refresh_token: str):
         """Test successful token refresh."""
         response = client.post(
-            f"/api/auth/refresh?refresh_token={valid_refresh_token}"
+            "/api/auth/refresh",
+            json={"refresh_token": valid_refresh_token}
         )
 
         assert response.status_code == 200
@@ -653,7 +673,8 @@ class TestRefreshTokenEndpoint:
     def test_refresh_token_with_invalid_token(self, client: TestClient):
         """Test refresh with invalid token returns 401."""
         response = client.post(
-            "/api/auth/refresh?refresh_token=invalid_token"
+            "/api/auth/refresh",
+            json={"refresh_token": "invalid_token"}
         )
 
         assert response.status_code == 401
@@ -661,7 +682,8 @@ class TestRefreshTokenEndpoint:
     def test_refresh_token_with_expired_token(self, client: TestClient, expired_auth_token: str):
         """Test refresh with expired token returns 401."""
         response = client.post(
-            f"/api/auth/refresh?refresh_token={expired_auth_token}"
+            "/api/auth/refresh",
+            json={"refresh_token": expired_auth_token}
         )
 
         assert response.status_code == 401
@@ -675,7 +697,8 @@ class TestRefreshTokenEndpoint:
     def test_refresh_token_returns_new_access_token(self, client: TestClient, test_user: User, valid_refresh_token: str):
         """Test that refresh returns a new access token."""
         response = client.post(
-            f"/api/auth/refresh?refresh_token={valid_refresh_token}"
+            "/api/auth/refresh",
+            json={"refresh_token": valid_refresh_token}
         )
 
         assert response.status_code == 200

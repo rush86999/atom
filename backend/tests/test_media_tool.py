@@ -9,14 +9,17 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 
-from core.models import AgentRegistry, OAuthToken, User, AgentStatus
+from core.models import AgentRegistry, IntegrationToken, User, AgentStatus
 
 # Import functions directly
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from core.media.spotify_service import SpotifyService
+from core.media.sonos_service import SonosService
 from tools.media_tool import (
     spotify_current,
     spotify_play,
@@ -45,52 +48,27 @@ class TestSpotifyService:
         """Mock OAuth handler for Spotify."""
         mock = MagicMock()
         mock.get_authorization_url.return_value = "https://accounts.spotify.com/authorize?client_id=test&redirect_uri=http://localhost:8000/integrations/spotify/callback&scope=user-read-playback-state"
-        return mock
-
-    @pytest.fixture
-    def spotify_service(self, mock_oauth_handler):
-        """Create SpotifyService with mocked OAuth handler."""
-        with patch('core.media.spotify_service.OAuthHandler', return_value=mock_oauth_handler):
-            service = SpotifyService()
-            service.oauth = mock_oauth_handler
-            return service
-
-    def test_get_authorization_url_generates_valid_url(self, spotify_service):
-        """Test authorization URL generation includes required parameters."""
-        url = spotify_service.get_authorization_url()
-
-        assert url is not None
-        assert "client_id=" in url
-        assert "redirect_uri=" in url
-        assert "scope=" in url
-        assert "user-read-playback-state" in url
-
-    def test_exchange_code_for_tokens_stores_encrypted(self, spotify_service, db_session: Session):
-        """Test token exchange stores encrypted token in database."""
-        # Mock token exchange response
-        spotify_service.oauth.exchange_code_for_token = MagicMock(return_value={
+        mock.exchange_code_for_tokens = AsyncMock(return_value={
             "access_token": "test_access_token",
             "refresh_token": "test_refresh_token",
             "expires_in": 3600,
-            "token_type": "Bearer"
+            "token_type": "Bearer",
+            "scope": "user-read-playback-state",
         })
+        return mock
 
-        # Mock token encryption
-        with patch('core.media.spotify_service.encrypt_token') as mock_encrypt:
-            mock_encrypt.return_value = "encrypted_access_token"
+    @pytest.fixture
+    def spotify_service(self, mock_oauth_handler, db_session):
+        """Create SpotifyService with mocked OAuth handler."""
+        with patch('core.media.spotify_service.OAuthHandler', return_value=mock_oauth_handler):
+            service = SpotifyService(db_session)
+            return service
 
-            user_id = "test_user"
-            result = spotify_service.exchange_code_for_token("test_code", user_id, db_session)
-
-            assert result is not None
-            assert "access_token" in result
-            # Verify token was encrypted before storage
-            mock_encrypt.assert_called()
-
-    def test_get_current_track_returns_track_info(self, spotify_service):
-        """Test getting current track information."""
-        # Mock Spotify API response
+    @pytest.fixture
+    def mock_http_client(self):
+        """Mock httpx client and response."""
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.json.return_value = {
             "item": {
                 "name": "Test Song",
@@ -101,80 +79,117 @@ class TestSpotifyService:
             "progress_ms": 50000,
             "is_playing": True
         }
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(return_value=mock_response)
+        mock_cm = MagicMock()
+        mock_cm.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_cm.__aexit__ = AsyncMock(return_value=False)
+        return mock_cm, mock_response
 
-        with patch('core.media.spotify_service.requests.get', return_value=mock_response):
-            track = spotify_service.get_current_track("test_access_token")
+    @pytest.mark.asyncio
+    async def test_get_authorization_url_generates_valid_url(self, spotify_service):
+        """Test authorization URL generation includes required parameters."""
+        url = await spotify_service.get_authorization_url("test_user")
 
-            assert track is not None
-            assert track["name"] == "Test Song"
-            assert track["artist"] == "Test Artist"
-            assert track["album"] == "Test Album"
-            assert track["is_playing"] is True
+        assert url is not None
+        assert "client_id=" in url
+        assert "redirect_uri=" in url
+        assert "scope=" in url
+        assert "user-read-playback-state" in url
 
-    def test_play_track_success(self, spotify_service):
+    @pytest.mark.asyncio
+    async def test_exchange_code_for_tokens_stores_token(self, spotify_service, db_session):
+        """Test token exchange stores token in database."""
+        result = await spotify_service.exchange_code_for_tokens("test_code", "test_user")
+
+        assert result["success"] is True
+
+        token = db_session.query(IntegrationToken).filter(
+            IntegrationToken.user_id == "test_user"
+        ).first()
+        assert token is not None
+        assert token.provider == "spotify"
+        assert token.access_token == "test_access_token"
+
+    @pytest.mark.asyncio
+    async def test_get_current_track_returns_track_info(self, spotify_service, mock_http_client):
+        """Test getting current track information."""
+        mock_cm, _ = mock_http_client
+
+        with patch('core.media.spotify_service.httpx.AsyncClient', return_value=mock_cm):
+            with patch.object(spotify_service, '_get_access_token', new=AsyncMock(return_value="test_access_token")):
+                track = await spotify_service.get_current_track("test_user")
+
+        assert track["success"] is True
+        assert track["track"]["name"] == "Test Song"
+        assert track["track"]["artist"] == "Test Artist"
+        assert track["track"]["album"] == "Test Album"
+        assert track["playing"] is True
+
+    @pytest.mark.asyncio
+    async def test_play_track_success(self, spotify_service, mock_http_client):
         """Test playing a track successfully."""
-        mock_response = MagicMock()
+        mock_cm, mock_response = mock_http_client
         mock_response.status_code = 204
         mock_response.json.return_value = {}
 
-        with patch('core.media.spotify_service.requests.put', return_value=mock_response):
-            result = spotify_service.play("test_access_token", track_uri="spotify:track:test")
+        with patch('core.media.spotify_service.httpx.AsyncClient', return_value=mock_cm):
+            with patch.object(spotify_service, '_get_access_token', new=AsyncMock(return_value="test_access_token")):
+                result = await spotify_service.play_track("test_user", track_uri="spotify:track:test")
 
-            assert result is True
+        assert result["success"] is True
 
-    def test_pause_playback_success(self, spotify_service):
+    @pytest.mark.asyncio
+    async def test_pause_playback_success(self, spotify_service, mock_http_client):
         """Test pausing playback successfully."""
-        mock_response = MagicMock()
+        mock_cm, mock_response = mock_http_client
         mock_response.status_code = 204
         mock_response.json.return_value = {}
 
-        with patch('core.media.spotify_service.requests.put', return_value=mock_response):
-            result = spotify_service.pause("test_access_token")
+        with patch('core.media.spotify_service.httpx.AsyncClient', return_value=mock_cm):
+            with patch.object(spotify_service, '_get_access_token', new=AsyncMock(return_value="test_access_token")):
+                result = await spotify_service.pause_playback("test_user")
 
-            assert result is True
+        assert result["success"] is True
 
-    def test_expired_token_refreshes_automatically(self, spotify_service, db_session: Session):
+    @pytest.mark.asyncio
+    async def test_expired_token_refreshes_automatically(self, spotify_service, db_session, mock_http_client):
         """Test expired token triggers automatic refresh."""
-        # Create an expired token
-        user = User(id="test_user", email="test@example.com", first_name="Test", last_name="User", role="member", status="active")
-        db_session.add(user)
-
-        expired_token = OAuthToken(
+        token = IntegrationToken(
+            id="tok_expired",
+            tenant_id="default",
             user_id="test_user",
             provider="spotify",
             access_token="old_access_token",
             refresh_token="test_refresh_token",
             expires_at=datetime.utcnow() - timedelta(hours=1),  # Expired
-            scope="user-read-playback-state"
+            scope="user-read-playback-state",
+            status="active"
         )
-        db_session.add(expired_token)
+        db_session.add(token)
         db_session.commit()
 
-        # Mock token refresh
-        with patch('core.media.spotify_service.SpotifyService.refresh_token') as mock_refresh:
-            mock_refresh.return_value = {
-                "access_token": "new_access_token",
-                "expires_in": 3600
-            }
+        mock_cm, _ = mock_http_client
 
-            # Attempt to use expired token should trigger refresh
-            mock_response = MagicMock()
-            mock_response.json.return_value = {"item": {"name": "Test"}}
-            with patch('core.media.spotify_service.requests.get', return_value=mock_response):
-                track = spotify_service.get_current_track("old_access_token", "test_user", db_session)
+        with patch('core.media.spotify_service.httpx.AsyncClient', return_value=mock_cm):
+            with patch.object(spotify_service, 'refresh_tokens', new=AsyncMock(return_value={"success": True})) as mock_refresh:
+                await spotify_service.get_current_track("test_user")
 
-                # Refresh should have been called
+                # Refresh should have been called (token expired)
                 assert mock_refresh.called
 
-    def test_unauthorized_error_handling(self, spotify_service):
+    @pytest.mark.asyncio
+    async def test_unauthorized_error_handling(self, spotify_service, mock_http_client):
         """Test unauthorized error is handled gracefully."""
-        mock_response = MagicMock()
+        mock_cm, mock_response = mock_http_client
         mock_response.status_code = 401
-        mock_response.json.return_value = {"error": "Invalid token"}
+        mock_response.json.return_value = {"error": {"message": "Invalid token"}}
 
-        with patch('core.media.spotify_service.requests.get', return_value=mock_response):
-            with pytest.raises(Exception, match="Unauthorized"):
-                spotify_service.get_current_track("invalid_token")
+        with patch('core.media.spotify_service.httpx.AsyncClient', return_value=mock_cm):
+            with patch.object(spotify_service, '_get_access_token', new=AsyncMock(return_value="invalid_token")):
+                with patch.object(spotify_service, 'refresh_tokens', new=AsyncMock(side_effect=HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token"))):
+                    with pytest.raises(HTTPException, match="Invalid token"):
+                        await spotify_service.get_current_track("test_user")
 
 
 # ============================================================================
@@ -199,59 +214,84 @@ class TestSonosService:
         service = SonosService()
         return service
 
-    def test_discover_speakers_returns_speaker_list(self, sonos_service):
+    @pytest.mark.asyncio
+    async def test_discover_speakers_returns_speaker_list(self, sonos_service):
         """Test speaker discovery returns list of found devices."""
         mock_speaker = MagicMock()
         mock_speaker.ip_address = "192.168.1.100"
         mock_speaker.player_name = "Living Room"
         mock_speaker.uid = "RINCON_00000000000001400"
+        mock_speaker.get_speaker_info.return_value = {"model_name": "Sonos One"}
+        mock_speaker.is_visible = True
+        mock_speaker.is_bridge = False
 
-        with patch('core.media.sonos_service.SoCo.discover', return_value=[mock_speaker]):
-            speakers = sonos_service.discover_speakers()
+        with patch('core.media.sonos_service.SOCOS_AVAILABLE', True):
+            fake_soco = MagicMock()
+            fake_soco.discover.return_value = [mock_speaker]
+            with patch('core.media.sonos_service.soco', fake_soco):
+                speakers = await sonos_service.discover_speakers()
 
-            assert len(speakers) == 1
-            assert speakers[0]["ip"] == "192.168.1.100"
-            assert speakers[0]["name"] == "Living Room"
-            assert "uid" in speakers[0]
+        assert len(speakers) == 1
+        assert speakers[0]["ip"] == "192.168.1.100"
+        assert speakers[0]["name"] == "Living Room"
+        assert "uid" in speakers[0]
 
-    def test_play_on_speaker(self, sonos_service):
+    @pytest.mark.asyncio
+    async def test_play_on_speaker(self, sonos_service):
         """Test playing on a Sonos speaker."""
         mock_speaker = MagicMock()
+        mock_speaker.is_visible = True
 
-        with patch('core.media.sonos_service.SoCo', return_value=mock_speaker):
-            result = sonos_service.play("192.168.1.100", track_uri="spotify:track:test")
+        with patch('core.media.sonos_service.SOCOS_AVAILABLE', True):
+            fake_soco = MagicMock()
+            fake_soco.SoCo.return_value = mock_speaker
+            with patch('core.media.sonos_service.soco', fake_soco):
+                result = await sonos_service.play("192.168.1.100", uri="spotify:track:test")
 
-            assert result is True
-            mock_speaker.play_from_queue.assert_called_once()
+        assert result["success"] is True
+        mock_speaker.play_uri.assert_called_once_with("spotify:track:test")
 
-    def test_set_volume(self, sonos_service):
+    @pytest.mark.asyncio
+    async def test_set_volume(self, sonos_service):
         """Test setting volume on Sonos speaker."""
         mock_speaker = MagicMock()
+        mock_speaker.is_visible = True
 
-        with patch('core.media.sonos_service.SoCo', return_value=mock_speaker):
-            result = sonos_service.set_volume("192.168.1.100", 50)
+        with patch('core.media.sonos_service.SOCOS_AVAILABLE', True):
+            fake_soco = MagicMock()
+            fake_soco.SoCo.return_value = mock_speaker
+            with patch('core.media.sonos_service.soco', fake_soco):
+                result = await sonos_service.set_volume("192.168.1.100", 50)
 
-            assert result is True
-            mock_speaker.volume = 50
+        assert result["success"] is True
+        assert mock_speaker.volume == 50
 
-    def test_join_group(self, sonos_service):
+    @pytest.mark.asyncio
+    async def test_join_group(self, sonos_service):
         """Test joining a speaker group."""
         mock_speaker = MagicMock()
+        mock_speaker.is_visible = True
         mock_coordinator = MagicMock()
+        mock_coordinator.is_visible = True
 
-        with patch('core.media.sonos_service.SoCo') as mock_soco_class:
-            mock_soco_class.side_effect = [mock_speaker, mock_coordinator]
+        with patch('core.media.sonos_service.SOCOS_AVAILABLE', True):
+            fake_soco = MagicMock()
+            fake_soco.SoCo.side_effect = [mock_speaker, mock_coordinator]
+            with patch('core.media.sonos_service.soco', fake_soco):
+                result = await sonos_service.join_group("192.168.1.100", "192.168.1.101")
 
-            result = sonos_service.join_group("192.168.1.100", "192.168.1.101")
+        assert result["success"] is True
+        mock_speaker.join.assert_called_once_with(mock_coordinator.group)
 
-            assert result is True
-            mock_speaker.join.assert_called_once_with(mock_coordinator)
-
-    def test_speaker_not_found_error(self, sonos_service):
+    @pytest.mark.asyncio
+    async def test_speaker_not_found_error(self, sonos_service):
         """Test error handling when speaker not found."""
-        with patch('core.media.sonos_service.SoCo', side_effect=Exception("Speaker not found")):
-            with pytest.raises(Exception, match="Speaker not found"):
-                sonos_service.play("192.168.1.999", track_uri="spotify:track:test")
+        with patch('core.media.sonos_service.SOCOS_AVAILABLE', True):
+            fake_soco = MagicMock()
+            fake_soco.SoCo.side_effect = Exception("Speaker not found")
+            with patch('core.media.sonos_service.soco', fake_soco):
+                with pytest.raises(HTTPException):
+                    await sonos_service.play("192.168.1.999")
 
 
 # ============================================================================
@@ -328,7 +368,7 @@ class TestSpotifyToolGovernance:
         # Mock Spotify service
         with patch('tools.media_tool.SpotifyService') as mock_service_class:
             mock_service = MagicMock()
-            mock_service.get_current_track.return_value = {"name": "Test Song"}
+            mock_service.get_current_track = AsyncMock(return_value={"name": "Test Song"})
             mock_service_class.return_value = mock_service
 
             result = await spotify_current(
@@ -338,7 +378,7 @@ class TestSpotifyToolGovernance:
             )
 
             # Should pass governance check (will fail at service call if no token, but that's ok)
-            assert "governance_check" in result
+            assert result["name"] == "Test Song"
 
     @pytest.mark.asyncio
     async def test_autonomous_agent_has_full_access(self, db_session: Session):
@@ -358,7 +398,7 @@ class TestSpotifyToolGovernance:
         # Mock Spotify service
         with patch('tools.media_tool.SpotifyService') as mock_service_class:
             mock_service = MagicMock()
-            mock_service.pause.return_value = True
+            mock_service.pause_playback = AsyncMock(return_value={"success": True})
             mock_service_class.return_value = mock_service
 
             result = await spotify_pause(
@@ -368,7 +408,7 @@ class TestSpotifyToolGovernance:
             )
 
             # Should pass governance check
-            assert "governance_check" in result
+            assert result["success"] is True
 
 
 # ============================================================================
@@ -395,7 +435,6 @@ class TestSonosToolGovernance:
 
         result = await sonos_play(
             agent_id=agent.id,
-            user_id="test_user",
             db=db_session,
             speaker_ip="192.168.1.100"
         )
@@ -421,18 +460,17 @@ class TestSonosToolGovernance:
         # Mock Sonos service
         with patch('tools.media_tool.SonosService') as mock_service_class:
             mock_service = MagicMock()
-            mock_service.play.return_value = True
+            mock_service.play = AsyncMock(return_value={"success": True})
             mock_service_class.return_value = mock_service
 
             result = await sonos_play(
                 agent_id=agent.id,
-                user_id="test_user",
                 db=db_session,
                 speaker_ip="192.168.1.100"
             )
 
             # Should pass governance check
-            assert "governance_check" in result
+            assert result["success"] is True
 
     @pytest.mark.asyncio
     async def test_discover_action_restricted_to_intern_plus(self, db_session: Session):
@@ -451,7 +489,6 @@ class TestSonosToolGovernance:
 
         result = await sonos_discover(
             agent_id=agent.id,
-            user_id="test_user",
             db=db_session
         )
 

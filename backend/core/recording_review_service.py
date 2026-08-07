@@ -500,14 +500,22 @@ class RecordingReviewService:
     ):
         """Create audit entry for review."""
         try:
-            from core.models import CanvasAudit
+            from core.models import CanvasAudit, CanvasRecording
+
+            recording = self.db.query(CanvasRecording).filter(
+                CanvasRecording.recording_id == review.recording_id
+            ).first()
+            canvas_id = recording.canvas_id if recording else None
+            if not canvas_id:
+                logger.info(f"Skipping audit for review {review.id}: recording has no canvas_id")
+                return
 
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
                 tenant_id="default",
                 agent_id=review.agent_id,
                 user_id=review.user_id,
-                canvas_id=None,
+                canvas_id=canvas_id,
                 session_id=None,
                 action_type=f"review_{review.review_status}",
                 details_json={

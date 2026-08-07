@@ -458,7 +458,7 @@ class TestTransactionRollback:
         users_to_create = []
         for i in range(5):
             user = User(
-                email=f"rollback{i}@test.com",
+                email=f"partialrollback{i}@test.com",
                 first_name="User",
                 last_name=f"{i}",
                 hashed_password="hash", role="member", status="active"
@@ -467,7 +467,7 @@ class TestTransactionRollback:
 
         # Try to add duplicate email (will fail)
         duplicate_user = User(
-            email="rollback0@test.com",  # Duplicate!
+            email="partialrollback0@test.com",  # Duplicate!
             first_name="Duplicate",
             last_name="User",
             hashed_password="hash", role="member", status="active"
@@ -485,7 +485,7 @@ class TestTransactionRollback:
         # Verify no users were created (or only consistent state)
         # With rollback, all pending additions are cancelled
         users = db_session.query(User).filter(
-            User.email.like("rollback%@test.com")
+            User.email.like("partialrollback%@test.com")
         ).all()
         # Rollback should have cancelled all pending additions
         assert len(users) == 0

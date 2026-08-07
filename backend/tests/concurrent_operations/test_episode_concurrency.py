@@ -122,7 +122,7 @@ class TestConcurrentEpisodeCreation:
                 msg = ChatMessage(
                     id=str(uuid.uuid4()),
                     conversation_id=session_id,
-                    workspace_id="default",
+                    tenant_id="default",
                     role="user",
                     content=f"Test message {task_id}",
                     created_at=datetime.utcnow(),
@@ -236,7 +236,7 @@ class TestConcurrentEpisodeCreation:
                 msg = ChatMessage(
                     id=str(uuid.uuid4()),
                     conversation_id=session_id,
-                    workspace_id="default",
+                    tenant_id="default",
                     role="user",
                     content=f"Agent{agent_idx} message {ep_idx}",
                     created_at=datetime.utcnow(),
@@ -330,7 +330,7 @@ class TestConcurrentSegmentationOperations:
                 msg = ChatMessage(
                     id=str(uuid.uuid4()),
                     conversation_id=session.id,
-                    workspace_id="default",
+                    tenant_id="default",
                     role="user",
                     content=f"Session{i}_Message{msg_idx}",
                     created_at=datetime.utcnow() + timedelta(seconds=msg_idx),
@@ -428,7 +428,7 @@ class TestConcurrentLanceDBArchival:
                 summary=f"Summary for episode {i}",
                 agent_id=agent.id,
                 user_id=user.id,
-                workspace_id="default",
+                tenant_id="default",
                 session_id=str(uuid.uuid4()),
                 execution_ids=[],
                 canvas_ids=[],
@@ -580,7 +580,7 @@ class TestConcurrentCanvasContextExtraction:
             msg = ChatMessage(
                 id=str(uuid.uuid4()),
                 conversation_id=session.id,
-                workspace_id="default",
+                tenant_id="default",
                 role="user",
                 content="Test message",
                 created_at=datetime.utcnow(),
@@ -686,7 +686,7 @@ class TestAsyncResourceCleanup:
                     msg = ChatMessage(
                         id=str(uuid.uuid4()),
                         conversation_id=session.id,
-                        workspace_id="default",
+                        tenant_id="default",
                         role="user",
                         content=f"Failing message {task_id}",
                         created_at=datetime.utcnow(),
@@ -786,7 +786,7 @@ class TestAsyncResourceCleanup:
                 msg = ChatMessage(
                     id=str(uuid.uuid4()),
                     conversation_id=session.id,
-                    workspace_id="default",
+                    tenant_id="default",
                     role="user",
                     content=f"Message {task_id}",
                     created_at=datetime.utcnow(),
@@ -898,7 +898,7 @@ class TestAsyncResourceCleanup:
                 msg = ChatMessage(
                     id=str(uuid.uuid4()),
                     conversation_id=session.id,
-                    workspace_id="default",
+                    tenant_id="default",
                     role="user",
                     content=f"Message {op_id}",
                     created_at=datetime.utcnow(),

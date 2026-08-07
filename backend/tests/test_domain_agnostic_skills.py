@@ -35,8 +35,10 @@ class TestDomainAgnosticSkills(unittest.TestCase):
         self.db.add(self.ws)
         
         # Non-IT Users
-        self.u1 = User(id="u_electrician", email="sparky@corp.com", first_name="Elec", last_name="Trician", skills="Electrical Wiring, Safety Inspection", status="active", role="member")
-        self.u2 = User(id="u_lawyer", email="legal@corp.com", first_name="Sue", last_name="Diligence", skills="Contract Review, Litigation", status="active", role="member")
+        self.u1 = User(id="u_electrician", email="sparky@corp.com", first_name="Elec", last_name="Trician", status="active", role="member")
+        self.u1.skills = "Electrical Wiring, Safety Inspection"
+        self.u2 = User(id="u_lawyer", email="legal@corp.com", first_name="Sue", last_name="Diligence", status="active", role="member")
+        self.u2.skills = "Contract Review, Litigation"
         self.db.add_all([self.u1, self.u2])
         
         self.p1 = Project(id="p1", workspace_id="w_agnostic", name="Construction Project")

@@ -4,7 +4,7 @@ import os
 import sys
 import unittest
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 from sqlalchemy import create_engine
 from sqlalchemy.orm import configure_mappers, sessionmaker
@@ -36,8 +36,11 @@ class TestRevenueForecasting(unittest.IsolatedAsyncioTestCase):
         self.SessionLocal = sessionmaker(bind=self.engine)
         self.db = self.SessionLocal()
         
-        # Patch SessionLocal for service
-        self.patcher_db = patch("accounting.revenue_recognition.SessionLocal", return_value=self.db)
+        # Patch get_db_session (context manager) for service
+        mock_cm = MagicMock()
+        mock_cm.__enter__.return_value = self.db
+        mock_cm.__exit__.return_value = False
+        self.patcher_db = patch("accounting.revenue_recognition.get_db_session", return_value=mock_cm)
         self.patch_rr = self.patcher_db.start()
         
         # Prevent service from closing the test's main session
@@ -152,7 +155,7 @@ class TestRevenueForecasting(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(total_contracted_empty, 0.0)
 
         # Setup unbilled milestone in biz_b for 4 weeks from now
-        future_date = datetime.utcnow() + timedelta(weeks=4)
+        future_date = datetime.now(timezone.utc) + timedelta(weeks=4)
         contract = Contract(workspace_id="biz_b", name="Future Deal", total_amount=10000.0)
         self.db.add(contract)
         self.db.flush()

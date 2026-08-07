@@ -397,6 +397,7 @@ class ErrorGuidanceEngine:
         try:
             resolution = OperationErrorResolution(
                 id=str(uuid.uuid4()),
+                tenant_id="default",
                 error_type=error_type,
                 error_code=error_code,
                 resolution_attempted=resolution_attempted,
@@ -414,6 +415,7 @@ class ErrorGuidanceEngine:
             )
 
         except Exception as e:
+            self.db.rollback()
             logger.error(f"Failed to track resolution: {e}")
 
     def get_historical_resolutions(
@@ -794,7 +796,7 @@ class ErrorGuidanceEngine:
                 tenant_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
-                canvas_id=None,
+                canvas_id="",
                 session_id=None,
                 action_type=action,
                 details_json={
@@ -808,6 +810,7 @@ class ErrorGuidanceEngine:
             self.db.add(audit)
             self.db.commit()
         except Exception as e:
+            self.db.rollback()
             logger.error(f"Failed to create audit: {e}")
 
 

@@ -30,11 +30,14 @@ class TestResourceIntelligence(unittest.IsolatedAsyncioTestCase):
         
         self.workspace_id = "test_ws_resources"
         
-        # Patch SessionLocal for managers
-        self.patcher_db = patch("core.resource_manager.SessionLocal", return_value=self.db)
+        # Patch get_db_session (context manager) for managers
+        mock_cm = MagicMock()
+        mock_cm.__enter__.return_value = self.db
+        mock_cm.__exit__.return_value = False
+        self.patcher_db = patch("core.resource_manager.get_db_session", return_value=mock_cm)
         self.patch_rm = self.patcher_db.start()
         
-        self.patcher_db2 = patch("core.staffing_advisor.SessionLocal", return_value=self.db)
+        self.patcher_db2 = patch("core.staffing_advisor.get_db_session", return_value=mock_cm)
         self.patch_sa = self.patcher_db2.start()
 
         self.rm = ResourceMonitor()
@@ -47,20 +50,20 @@ class TestResourceIntelligence(unittest.IsolatedAsyncioTestCase):
             first_name="Alice", 
             last_name="Dev",
             workspace_id=self.workspace_id,
-            skills=json.dumps(["Python", "PostgreSQL", "React"]),
-            capacity_hours=40.0,
             status="active", role="member"
         )
+        self.user1.skills = json.dumps(["Python", "PostgreSQL", "React"])
+        self.user1.capacity_hours = 40.0
         self.user2 = User(
             id="u2", 
             email="sales1@test.com", 
             first_name="Bob", 
             last_name="Sales",
             workspace_id=self.workspace_id,
-            skills=json.dumps(["Salesforce", "Communication", "Negotiation"]),
-            capacity_hours=30.0,
             status="active", role="member"
         )
+        self.user2.skills = json.dumps(["Salesforce", "Communication", "Negotiation"])
+        self.user2.capacity_hours = 30.0
         self.db.add(self.user1)
         self.db.add(self.user2)
         self.db.commit()

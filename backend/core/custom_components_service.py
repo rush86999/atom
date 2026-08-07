@@ -141,6 +141,13 @@ class CustomComponentsService:
         if js_content:
             self._check_governance_for_js(agent_id)
 
+        # Reject duplicate names (CustomComponent.name is unique)
+        existing = self.db.query(CustomComponent).filter(
+            CustomComponent.name == name
+        ).first()
+        if existing:
+            raise ValueError(f"Component '{name}' already exists")
+
         # Generate unique slug
         base_slug = self._slugify(name)
         slug = self._generate_unique_slug(base_slug)
@@ -157,22 +164,20 @@ class CustomComponentsService:
         # Create component
         component = CustomComponent(
             id=str(uuid.uuid4()),
-            user_id=user_id,
+            created_by=user_id,
             name=name,
+            display_name=name,
             slug=slug,
+            component_type=category,
             description=description,
-            category=category,
             html_content=html_sanitized,
             css_content=css_sanitized,
             js_content=js_sanitized,
             props_schema=props_schema,
             default_props=default_props or {},
-            dependencies=dependencies or [],
             is_public=is_public,
-            requires_governance=True,
             min_maturity_level="AUTONOMOUS" if js_content else "SUPERVISED",
             current_version=1,
-            usage_count=0,
             is_active=True
         )
 
@@ -188,12 +193,8 @@ class CustomComponentsService:
             html_content=html_sanitized,
             css_content=css_sanitized,
             js_content=js_sanitized,
-            props_schema=props_schema,
-            default_props=default_props or {},
-            dependencies=dependencies or [],
-            change_description=f"Initial version created by {user_id}",
-            changed_by=user_id,
-            change_type="create"
+            change_summary=f"Initial version created by {user_id}",
+            created_by=user_id
         )
 
         self.db.add(version)
@@ -209,7 +210,7 @@ class CustomComponentsService:
             "name": component.name,
             "slug": component.slug,
             "description": component.description,
-            "category": component.category,
+            "category": component.component_type,
             "html_content": component.html_content,
             "css_content": component.css_content,
             "has_js": bool(component.js_content),
@@ -254,7 +255,7 @@ class CustomComponentsService:
             return {"error": "Component not found"}
 
         # Check access permission
-        if component.user_id != user_id and not component.is_public:
+        if component.created_by != user_id and not component.is_public:
             return {"error": "Access denied: Component is private"}
 
         return {
@@ -262,17 +263,15 @@ class CustomComponentsService:
             "name": component.name,
             "slug": component.slug,
             "description": component.description,
-            "category": component.category,
+            "category": component.component_type,
             "html_content": component.html_content,
             "css_content": component.css_content,
-            "js_content": component.js_content if component.user_id == user_id else None,  # JS only for owner
+            "js_content": component.js_content if component.created_by == user_id else None,  # JS only for owner
             "props_schema": component.props_schema,
             "default_props": component.default_props,
-            "dependencies": component.dependencies,
             "has_js": bool(component.js_content),
             "is_public": component.is_public,
             "version": component.current_version,
-            "usage_count": component.usage_count,
             "created_at": component.created_at.isoformat(),
             "updated_at": component.updated_at.isoformat() if component.updated_at else None
         }
@@ -304,7 +303,7 @@ class CustomComponentsService:
         if user_id:
             query = query.filter(
                 or_(
-                    CustomComponent.user_id == user_id,
+                    CustomComponent.created_by == user_id,
                     CustomComponent.is_public == True
                 )
             )
@@ -312,13 +311,12 @@ class CustomComponentsService:
             query = query.filter(CustomComponent.is_public == True)
 
         if category:
-            query = query.filter(CustomComponent.category == category)
+            query = query.filter(CustomComponent.component_type == category)
 
         if is_public is not None:
             query = query.filter(CustomComponent.is_public == is_public)
 
         components = query.order_by(
-            desc(CustomComponent.usage_count),
             desc(CustomComponent.created_at)
         ).limit(limit).all()
 
@@ -330,11 +328,10 @@ class CustomComponentsService:
                     "name": c.name,
                     "slug": c.slug,
                     "description": c.description,
-                    "category": c.category,
+                    "category": c.component_type,
                     "has_js": bool(c.js_content),
                     "is_public": c.is_public,
-                    "is_owner": c.user_id == user_id if user_id else False,
-                    "usage_count": c.usage_count,
+                    "is_owner": c.created_by == user_id if user_id else False,
                     "version": c.current_version,
                     "created_at": c.created_at.isoformat()
                 }
@@ -378,7 +375,7 @@ class CustomComponentsService:
             return {"error": "Component not found"}
 
         # Check ownership
-        if component.user_id != user_id:
+        if component.created_by != user_id:
             return {"error": "Access denied: Not component owner"}
 
         # Security checks for JS
@@ -409,7 +406,6 @@ class CustomComponentsService:
 
         if dependencies is not None:
             self._validate_dependencies(dependencies)
-            component.dependencies = dependencies
 
         if is_public is not None:
             component.is_public = is_public
@@ -428,12 +424,8 @@ class CustomComponentsService:
             html_content=component.html_content,
             css_content=component.css_content,
             js_content=component.js_content,
-            props_schema=component.props_schema,
-            default_props=component.default_props,
-            dependencies=component.dependencies,
-            change_description=change_description or f"Updated to version {component.current_version}",
-            changed_by=user_id,
-            change_type="update"
+            change_summary=change_description or f"Updated to version {component.current_version}",
+            created_by=user_id
         )
 
         self.db.add(version)
@@ -475,7 +467,7 @@ class CustomComponentsService:
         if not component:
             return {"error": "Component not found"}
 
-        if component.user_id != user_id:
+        if component.created_by != user_id:
             return {"error": "Access denied: Not component owner"}
 
         component.is_active = False
@@ -515,7 +507,7 @@ class CustomComponentsService:
         if not component:
             return {"error": "Component not found"}
 
-        if component.user_id != user_id:
+        if component.created_by != user_id:
             return {"error": "Access denied: Not component owner"}
 
         versions = self.db.query(ComponentVersion).filter(
@@ -529,8 +521,7 @@ class CustomComponentsService:
             "versions": [
                 {
                     "version_number": v.version_number,
-                    "change_description": v.change_description,
-                    "change_type": v.change_type,
+                    "change_summary": getattr(v, "change_summary", None),
                     "created_at": v.created_at.isoformat()
                 }
                 for v in versions
@@ -561,7 +552,7 @@ class CustomComponentsService:
         if not component:
             return {"error": "Component not found"}
 
-        if component.user_id != user_id:
+        if component.created_by != user_id:
             return {"error": "Access denied: Not component owner"}
 
         # Get target version
@@ -579,9 +570,6 @@ class CustomComponentsService:
         component.html_content = target.html_content
         component.css_content = target.css_content
         component.js_content = target.js_content
-        component.props_schema = target.props_schema
-        component.default_props = target.default_props
-        component.dependencies = target.dependencies
         component.current_version += 1
         component.updated_at = datetime.now()
 
@@ -595,12 +583,8 @@ class CustomComponentsService:
             html_content=target.html_content,
             css_content=target.css_content,
             js_content=target.js_content,
-            props_schema=target.props_schema,
-            default_props=target.default_props,
-            dependencies=target.dependencies,
-            change_description=f"Rollback to version {target_version}",
-            changed_by=user_id,
-            change_type="rollback"
+            change_summary=f"Rollback to version {target_version}",
+            created_by=user_id
         )
 
         self.db.add(rollback_version)
@@ -653,28 +637,21 @@ class CustomComponentsService:
         Returns:
             Usage record
         """
-        # Update component usage stats
-        component = self.db.query(CustomComponent).filter(
-            CustomComponent.id == component_id
-        ).first()
-
-        if component:
-            component.usage_count += 1
-            component.last_used_at = datetime.now()
-
         # Create usage record
         usage = ComponentUsage(
             id=str(uuid.uuid4()),
             component_id=component_id,
             canvas_id=canvas_id,
-            session_id=session_id,
-            user_id=user_id,
-            agent_id=agent_id,
-            props_passed=props_passed,
-            rendering_time_ms=rendering_time_ms,
-            error_message=error_message,
-            governance_check_passed=governance_check_passed,
-            agent_maturity_level=agent_maturity_level
+            execution_context={
+                "user_id": user_id,
+                "session_id": session_id,
+                "agent_id": agent_id,
+                "props_passed": props_passed,
+                "rendering_time_ms": rendering_time_ms,
+                "error_message": error_message,
+                "governance_check_passed": governance_check_passed,
+                "agent_maturity_level": agent_maturity_level,
+            }
         )
 
         self.db.add(usage)
@@ -708,7 +685,7 @@ class CustomComponentsService:
         if not component:
             return {"error": "Component not found"}
 
-        if component.user_id != user_id:
+        if component.created_by != user_id:
             return {"error": "Access denied: Not component owner"}
 
         # Get usage records
@@ -718,9 +695,9 @@ class CustomComponentsService:
 
         # Calculate stats
         total_renders = len(usage_records)
-        successful_renders = sum(1 for u in usage_records if not u.error_message)
+        successful_renders = sum(1 for u in usage_records if not (u.execution_context or {}).get("error_message"))
         avg_rendering_time = sum(
-            u.rendering_time_ms for u in usage_records if u.rendering_time_ms
+            (u.execution_context or {}).get("rendering_time_ms") for u in usage_records if (u.execution_context or {}).get("rendering_time_ms")
         ) / successful_renders if successful_renders > 0 else 0
 
         # Top canvases

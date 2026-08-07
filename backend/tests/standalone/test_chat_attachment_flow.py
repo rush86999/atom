@@ -11,7 +11,10 @@ from unittest.mock import MagicMock, patch
 sys.path.append(os.path.join(os.getcwd(), 'backend'))
 
 # Mock dependencies to avoid full environment setup
-sys.modules['core.database'] = MagicMock()
+# NOTE: core.database must NOT be mocked — chat_orchestrator's transitive
+# imports (core.llm.registry.models) subclass core.database.Base, and a
+# MagicMock base turns LLMModel into a mock, breaking `Optional[LLMModel]`
+# at class-definition time (collection SyntaxError).
 sys.modules['core.chat_session_manager'] = MagicMock()
 sys.modules['api.agent_routes'] = MagicMock()
 sys.modules['core.unified_search_endpoints'] = MagicMock()
@@ -41,7 +44,7 @@ async def test_attachment_flow():
     print("Initializing Chat Orchestrator (Mocked)...")
     
     # Mock the internal components of Orchestrator
-    with patch('integrations.chat_orchestrator.get_chat_session_manager') as mock_get_manager:
+    with patch('core.chat_session_manager.get_chat_session_manager') as mock_get_manager:
         orchestrator = ChatOrchestrator()
         
         # Mock Session Manager methods
@@ -53,7 +56,7 @@ async def test_attachment_flow():
         mock_nlp.parse_command.return_value = MagicMock(
             confidence=0.9, 
             command_type="analyze",
-            primary_intent=ChatIntent.AI_ANALYTICS,
+                primary_intent=ChatIntent.DATA_ANALYSIS,
             entities=[],
             platforms=[]
         )

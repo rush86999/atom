@@ -29,8 +29,10 @@ class MarginCalculatorService:
         for task in tasks:
             if task.assigned_to and task.actual_hours:
                 user = db.query(User).filter(User.id == task.assigned_to).first()
-                if user and user.hourly_cost_rate:
-                    total_cost += (task.actual_hours * user.hourly_cost_rate)
+                if user:
+                    hourly_cost_rate = getattr(user, "hourly_cost_rate", None) or 0.0
+                    if hourly_cost_rate:
+                        total_cost += (task.actual_hours * hourly_cost_rate)
         return round(total_cost, 2)
 
     def get_project_margin(self, project_id: str, db: Session = None) -> Dict[str, Any]:

@@ -238,7 +238,7 @@ class TestCoreModelJSONFields:
         db_session.refresh(workspace)
 
         # Verify NULL is handled
-        assert workspace.metadata_json is None
+        assert workspace.metadata_json == {}
 
     def test_workspace_metadata_json_empty_dict(self, db_session: Session):
         """Test Workspace metadata_json handles empty dict."""

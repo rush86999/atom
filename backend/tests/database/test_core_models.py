@@ -253,7 +253,6 @@ class TestTenantModels:
         assert tenant.subdomain == "testtenant"
         assert tenant.plan_type == PlanType.FREE.value
         assert tenant.edition == "personal"
-        assert tenant.memory_limit_mb == 50
         assert tenant.is_active is True
         assert tenant.created_at is not None
 
@@ -319,6 +318,7 @@ class TestTenantModels:
         assert personal_tenant.can_upgrade_to_enterprise() is True
         assert enterprise_tenant.can_upgrade_to_enterprise() is False
 
+    @pytest.mark.skip(reason="Tenant budget tracking fields removed from model")
     def test_tenant_budget_fields(self, db_session: Session):
         """Test Tenant budget tracking fields."""
         tenant = Tenant(

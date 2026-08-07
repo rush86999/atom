@@ -113,6 +113,13 @@ class FPAService:
         forecast = []
         running_cash = current_cash
 
+        def _as_aware(dt):
+            if dt is None:
+                return None
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt
+
         for week in range(1, 14):
             week_start = start_date + timedelta(weeks=week-1)
             week_end = start_date + timedelta(weeks=week)
@@ -121,9 +128,9 @@ class FPAService:
             weekly_change = weekly_avg_diff
             
             # Add discrete known items
-            bills_this_week = sum(b.amount for b in open_bills if week_start <= b.due_date < week_end)
-            invoices_this_week = sum(i.amount for i in open_invoices if week_start <= i.due_date < week_end)
-            milestones_this_week = sum(m.amount for m in unbilled_milestones if m.due_date and week_start <= m.due_date < week_end)
+            bills_this_week = sum(b.amount for b in open_bills if week_start <= _as_aware(b.due_date) < week_end)
+            invoices_this_week = sum(i.amount for i in open_invoices if week_start <= _as_aware(i.due_date) < week_end)
+            milestones_this_week = sum(m.amount for m in unbilled_milestones if _as_aware(m.due_date) and week_start <= _as_aware(m.due_date) < week_end)
             
             weekly_change -= bills_this_week
             weekly_change += (invoices_this_week + milestones_this_week)

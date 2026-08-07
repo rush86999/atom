@@ -29,21 +29,22 @@ class StaffingAdvisor:
         # 2. Match Users
         recommendations = []
         with get_db_session() as db:
-            # Fetch all active users in workspace with skills
+            # Fetch all active users in workspace
             users = db.query(User).filter(
                 User.workspace_id == workspace_id,
-                User.skills != None,
                 User.status == "active"
             ).all()
 
             for user in users:
+                raw_skills = getattr(user, "skills", None)
                 user_skills = []
                 try:
-                    user_skills = json.loads(user.skills) if user.skills.startswith('[') else user.skills.split(',')
-                    user_skills = [s.strip().lower() for s in user_skills]
+                    if raw_skills:
+                        user_skills = json.loads(raw_skills) if raw_skills.startswith('[') else raw_skills.split(',')
+                        user_skills = [s.strip().lower() for s in user_skills]
                 except Exception as e:
                     logger.warning(f"Failed to parse user skills for {user.id}: {e}")
-                    user_skills = [user.skills.lower()]
+                    user_skills = [raw_skills.lower()] if raw_skills else []
 
                 # Calculate match score
                 matches = [s for s in required_skills if s.lower() in user_skills]

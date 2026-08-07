@@ -121,6 +121,17 @@ def mock_scanner_high_risk():
     }
 
 
+@pytest.fixture(autouse=True)
+def clean_skill_registry(db_session):
+    """import_skill commits, which escapes the db_session savepoint rollback;
+    clear community skill rows so each test sees an empty registry."""
+    db_session.query(SkillExecution).filter(
+        SkillExecution.skill_source == "community"
+    ).delete()
+    db_session.commit()
+    yield
+
+
 # ============================================================================
 # Test Class 1: TestSkillImportBasic (6 tests)
 # ============================================================================

@@ -127,8 +127,14 @@ def test_categorize_unknown_error(error_engine):
     assert error_type == "unknown"
 
 
-def test_get_suggested_resolution_default(error_engine):
+def test_get_suggested_resolution_default(db, error_engine):
     """Test getting suggested resolution when no history."""
+    # Clear any history rows left by prior runs (shared dev DB)
+    db.query(OperationErrorResolution).filter(
+        OperationErrorResolution.error_type == "permission_denied"
+    ).delete()
+    db.commit()
+
     resolution_index = error_engine.get_suggested_resolution("permission_denied")
 
     # Should return default (first option = 0)
@@ -247,6 +253,7 @@ async def test_track_resolution_updates_suggestion(db, error_engine):
     with patch('core.websockets.manager.broadcast'):
         await error_engine.track_resolution(
             error_type=error_type,
+            error_code=None,
             resolution_attempted="Request Permission",
             success=True,
             agent_suggested=True
@@ -256,6 +263,7 @@ async def test_track_resolution_updates_suggestion(db, error_engine):
     with patch('core.websockets.manager.broadcast'):
         await error_engine.track_resolution(
             error_type=error_type,
+            error_code=None,
             resolution_attempted="Grant Manually",
             success=True,
             agent_suggested=False
@@ -265,7 +273,7 @@ async def test_track_resolution_updates_suggestion(db, error_engine):
     suggestion = error_engine.get_suggested_resolution(error_type)
 
     # Should suggest the one with more successes
-    assert suggestion in [0, 1]
+    assert suggestion in ["Request Permission", "Grant Manually"]
 
 
 @pytest.mark.asyncio
@@ -345,20 +353,20 @@ async def test_resolution_with_alternative(db, error_engine, test_user):
     with patch('core.websockets.manager.broadcast'):
         await error_engine.track_resolution(
             error_type="network_error",
+            error_code=None,
             resolution_attempted="Let Agent Retry",
             success=False,
             user_feedback="Didn't work, I restarted manually",
-            agent_suggested=True,
-            alternative_used="Manual restart"
+            agent_suggested=True
         )
 
-    # Verify alternative tracked
+    # Verify resolution tracked with feedback
     resolution = db.query(OperationErrorResolution).filter(
         OperationErrorResolution.error_type == "network_error"
     ).first()
 
     assert resolution is not None
-    assert resolution.alternative_used == "Manual restart"
+    assert resolution.user_feedback == "Didn't work, I restarted manually"
 
 
 @pytest.mark.asyncio

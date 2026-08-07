@@ -591,7 +591,7 @@ async def get_websocket_status(
     **Security**: Requires super_admin role
     """
     # Check governance (AUTONOMOUS required)
-    from core.agent_governance_service import GovernanceCache
+    from core.governance_cache import GovernanceCache
     governance_cache = GovernanceCache()
 
     # Get user's maturity level
@@ -708,6 +708,7 @@ async def disable_websocket(
     ws_state.fallback_started_at = datetime.now()
     ws_state.connected = False
     ws_state.disconnect_reason = "disabled_by_admin"
+    ws_state.websocket_enabled = False
     db.commit()
 
     return WebSocketToggleResponse(
@@ -751,6 +752,7 @@ async def enable_websocket(
     ws_state.fallback_to_polling = False
     ws_state.next_ws_attempt_at = None
     ws_state.reconnect_attempts = 0
+    ws_state.websocket_enabled = True
     db.commit()
 
     return WebSocketToggleResponse(
@@ -846,10 +848,10 @@ async def trigger_rating_sync(
     # Check if sync is already in progress
     if sync_service._sync_in_progress:
         from fastapi import status
-        raise router.api_error(
+        raise router.error_response(
             error_code="RATING_SYNC_IN_PROGRESS",
             message="Rating sync is already in progress",
-            http_status=status.HTTP_503_SERVICE_UNAVAILABLE
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE
         )
 
     # Get pending count before sync
@@ -888,7 +890,7 @@ async def get_failed_rating_uploads(
 
     **Security**: Requires super_admin role
     """
-    from core.agent_governance_service import GovernanceCache
+    from core.governance_cache import GovernanceCache
     governance_cache = GovernanceCache()
 
     # Get user's maturity level
@@ -1240,7 +1242,8 @@ async def resolve_conflict(
     valid_strategies = ["remote_wins", "local_wins", "merge"]
     if request.strategy not in valid_strategies:
         raise router.validation_error(
-            "Invalid strategy",
+            field="strategy",
+            message="Invalid strategy",
             details={"valid_strategies": valid_strategies, "provided": request.strategy}
         )
 
@@ -1324,7 +1327,8 @@ async def bulk_resolve_conflicts(
     valid_strategies = ["remote_wins", "local_wins", "merge"]
     if request.strategy not in valid_strategies:
         raise router.validation_error(
-            "Invalid strategy",
+            field="strategy",
+            message="Invalid strategy",
             details={"valid_strategies": valid_strategies, "provided": request.strategy}
         )
 

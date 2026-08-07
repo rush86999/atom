@@ -1911,6 +1911,7 @@ class TestCategorizationRuleModel:
         rule2 = CategorizationRuleFactory(
             workspace_id=workspace.id,
             target_account_id=account.id,
+            merchant_pattern="UniquePattern_Inactive",
             is_active=False,
             _session=db_session
         )

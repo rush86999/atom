@@ -414,10 +414,8 @@ class TestOfflineActionModel:
         action = OfflineAction(
             id="test_action",
             device_id=mobile_device.id,
-            user_id=mobile_device.user_id,
             action_type="agent_message",
-            action_data={"message": "Test"},
-            priority=5,
+            payload={"message": "Test"},
             status="pending"
         )
 
@@ -430,7 +428,7 @@ class TestOfflineActionModel:
 
         assert retrieved is not None
         assert retrieved.action_type == "agent_message"
-        assert retrieved.priority == 5
+        assert retrieved.payload == {"message": "Test"}
         assert retrieved.status == "pending"
 
 
@@ -440,23 +438,21 @@ class TestSyncStateModel:
     def test_create_sync_state(self, db, mobile_device):
         """Test creating a sync state."""
         sync_state = SyncState(
-            id="test_sync",
-            device_id=mobile_device.id,
-            user_id=mobile_device.user_id,
-            pending_actions_count=5,
-            auto_sync_enabled=True
+            status="syncing",
+            skills_cached=5,
+            categories_cached=3
         )
 
         db.add(sync_state)
         db.commit()
 
         retrieved = db.query(SyncState).filter(
-            SyncState.id == "test_sync"
+            SyncState.id == sync_state.id
         ).first()
 
         assert retrieved is not None
-        assert retrieved.pending_actions_count == 5
-        assert retrieved.auto_sync_enabled is True
+        assert retrieved.status == "syncing"
+        assert retrieved.skills_cached == 5
 
 
 class TestMobileDeviceRelationships:
@@ -477,14 +473,14 @@ class TestMobileDeviceRelationships:
         assert device.user == user
         assert device in user.mobile_devices
 
+    @pytest.mark.skip(reason="offline sync feature deleted; OfflineAction has no device relationship")
     def test_device_offline_actions_relationship(self, db, mobile_device):
         """Test device to offline actions relationship."""
         action = OfflineAction(
             id="test_action",
             device_id=mobile_device.id,
-            user_id=mobile_device.user_id,
             action_type="agent_message",
-            action_data={"message": "Test"}
+            payload={"message": "Test"}
         )
 
         db.add(action)
@@ -493,12 +489,12 @@ class TestMobileDeviceRelationships:
         assert action in mobile_device.offline_actions
         assert action.device == mobile_device
 
+    @pytest.mark.skip(reason="offline sync feature deleted; SyncState repurposed for marketplace sync")
     def test_sync_state_device_relationship(self, db, mobile_device):
         """Test sync state to device relationship."""
         sync_state = SyncState(
             id="test_sync",
-            device_id=mobile_device.id,
-            user_id=mobile_device.user_id
+            status="idle"
         )
 
         db.add(sync_state)

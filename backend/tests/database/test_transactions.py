@@ -84,16 +84,16 @@ class TestTransactionRollback:
 
         # Try to create invalid agent (missing required fields)
         # This tests implicit rollback when constraint is violated
-        invalid_agent = AgentRegistry(
-            name=None,  # Violates NOT NULL constraint
-            category="test",
-            status=AgentStatus.STUDENT.value
-        )
-        db_session.add(invalid_agent)
-
-        # This should fail due to NOT NULL constraint
         error_raised = False
         try:
+            invalid_agent = AgentRegistry(
+                name=None,  # Violates NOT NULL constraint
+                category="test",
+                status=AgentStatus.STUDENT.value
+            )
+            db_session.add(invalid_agent)
+
+            # This should fail due to NOT NULL constraint
             db_session.commit()
         except Exception:
             # SQLite may allow NULLs, but production DB won't
