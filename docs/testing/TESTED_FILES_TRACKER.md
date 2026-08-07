@@ -116,6 +116,14 @@
 | Device/browser | `test_api_device_routes.py` (44→58), `test_api_browser_routes.py` (45→125) | 169 → green |
 | Mini-app suites | `test_r79_gap_mini_app_routes.py`, `test_covpush_miniapp.py` | already green at HEAD (no regression) |
 
+### Late R80 additions (2026-08-07)
+| Date | File | Status | Note |
+|---|---|---|---|
+| 2026-08-07 | `api/device_capabilities.py` (follow-up) | FIXED | Broad `except Exception` swallowed own HTTPExceptions → 400/403 became 500s (all 7 endpoints); wrong response models (`ScreenRecordStopResponse` on location/notification/command) → 500 on success; `get_active_sessions` read nonexistent `created_at` |
+| 2026-08-07 | `tools/device_tool.py` (follow-up) | FIXED | `_create_device_audit` omitted NOT-NULL action/endpoint → IntegrityError misread as governance 403 |
+| 2026-08-07 | `tests/test_api_device_routes.py` | FIXED | 36 patch sites retargeted `tools.device_tool.*` → `api.device_capabilities.*` (route binds at module level — mock-namespace bug class); get_db override fixture; workspace_id=default in test agents; stale premises updated to documented maturity gates → 58/58 green |
+| 2026-08-07 | `tests/test_api_request_validation.py` | GREEN | 77/77 (verified; no changes needed) |
+
 ---
 
 ## Measured coverage (session stamps)
