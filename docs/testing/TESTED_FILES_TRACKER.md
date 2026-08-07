@@ -372,3 +372,12 @@ Real product bugs fixed this wave (TDD):
 | 2026-08-07 | `core/communication_intelligence.py:20` | FIXED | ai_service passed into workspace_id ctor slot (MED) |
 | 2026-08-07 | graduation cluster (5 files) | FIXED | 26F+3E→164P: agent_graduation, graduation_service, atom_agent_endpoints_unit_coverage, connection_routes_coverage, workflow_engine_transactions_coverage (Episode/SkillExecution NOT NULL, Session import, auth signatures, removed routes) |
 | 2026-08-07 | routing/byok cluster (8 files) | FIXED | 19F→216P: byok_handler root, extended_coverage, cache_aware_routing, business_intelligence, atom_governance, alert_service, access_control_bugs (RED-phase→GREEN), cli_skills_simple |
+
+### Round 2026-08-07 late-5 — last flagged items + corpus contract alignment
+| Date | File | Status | Fix |
+|---|---|---|---|
+| 2026-08-07 | `tests/test_communication_intelligence.py`, `tests/test_negotiation_flow.py` | FIXED | 3F+1E→3P+1S: extraction now mocked at the real seam (KnowledgeExtractor.llm_service.generate_completion); phantom followup_service test skipped with reason (feature never existed) |
+| 2026-08-07 | `api/admin/cache_routes.py` + `main_api_app.py` | FIXED | Routes implemented by mopping agent were never MOUNTED (module dead); now mounted with `get_super_admin` dependency on all 3 handlers; tests updated with dependency override (26/26) |
+| 2026-08-07 | `tests/test_covpush_tools_c.py` (4), `tests/test_covpush_ingest.py` (1) | FIXED | Corpus aligned to post-fix contracts: media governance tests patched at new seams (DB status lookup + AgentGovernanceService.can_perform_action_async instead of phantom AsyncGovernanceCache); permission denials assert error-dict contract (not raise); alert email exception patches integrations.email_routes.EmailService |
+
+Final corpus: 3,282 passed / 0 failed (all test_bughunt_* + test_covpush_*).

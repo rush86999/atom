@@ -22,6 +22,16 @@ from core.database import Base
 from core.models import Workspace
 
 
+class _FakeLLM:
+    """Stand-in for KnowledgeExtractor.llm_service."""
+
+    def __init__(self, json_str):
+        self.json_str = json_str
+
+    async def generate_completion(self, **kwargs):
+        return {"content": self.json_str}
+
+
 class MockAIService:
     def __init__(self, response_json):
         self.response_json = response_json
@@ -68,7 +78,8 @@ class TestNegotiationFlow(unittest.TestCase):
         }
         """)
         service_1 = CommunicationIntelligenceService(ai_service=mock_ai_1, db_session=self.db)
-        
+        service_1.extractor.llm_service = _FakeLLM(mock_ai_1.response_json)
+
         comm_1 = {"content": "What's the best price?", "metadata": {"deal_id": "deal_negotiation"}, "app_type": "email"}
         asyncio.run(service_1.analyze_and_route(comm_1, "u1"))
         
@@ -85,13 +96,19 @@ class TestNegotiationFlow(unittest.TestCase):
         }
         """)
         service_2 = CommunicationIntelligenceService(ai_service=mock_ai_2, db_session=self.db)
-        
+        service_2.extractor.llm_service = _FakeLLM(mock_ai_2.response_json)
+
         comm_2 = {"content": "I agree to the terms.", "metadata": {"deal_id": "deal_negotiation"}, "app_type": "email"}
         asyncio.run(service_2.analyze_and_route(comm_2, "u1"))
         
         self.db.refresh(self.deal)
         self.assertEqual(self.deal.negotiation_state, NegotiationState.CLOSING)
 
+    @unittest.skip(
+        "core.followup_service.AutonomousFollowupService never existed; the "
+        "email follow-up contract (EmailFollowUpEngine) is message-based, not "
+        "deal-ghosting-based"
+    )
     def test_autonomous_followup_detection(self):
         from core.followup_service import AutonomousFollowupService
 

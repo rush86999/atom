@@ -1331,6 +1331,7 @@ app.include_router(supervised_queue_router)
 app.include_router(core_user_activity_router)
 app.include_router(operational_router)
 app.include_router(forensics_router, prefix="/api/v1/forensics", tags=["forensics"])
+app.include_router(debug_router)
 # Agent status router: do NOT add a prefix — the router already declares its
 # own prefix="/api/agent-status" with internal routes /agent/status/{task_id}.
 # The old prefix="/api/v1" produced a doubled path
@@ -2019,6 +2020,8 @@ try:
 
         from api.admin.system_health_routes import router as admin_health_router
         app.include_router(admin_health_router)
+        from api.admin.cache_routes import router as admin_cache_router
+        app.include_router(admin_cache_router)
 
         logger.info("✓ JIT Verification & Admin Governance Routes Loaded")
     except Exception as e:
@@ -2752,6 +2755,15 @@ try:
         app.include_router(canvas_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas routes not found: {e}")
+
+    # Custom Canvas Components (HTML/CSS/JS) with governance + security validation
+    try:
+        from api.custom_components import router as custom_components_router
+
+        app.include_router(custom_components_router)
+        logger.info("✓ Custom Components Routes Loaded")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Custom components routes not found: {e}")
 
     try:
         from api.canvas_coding_routes import router as canvas_coding_router

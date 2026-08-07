@@ -50,9 +50,16 @@ from core.database import SessionLocal
 @pytest.fixture
 def app():
     """Create test FastAPI app with cache routes."""
+    from types import SimpleNamespace
+
     app = FastAPI()
     from api.admin.cache_routes import router
+    from core.admin_endpoints import get_super_admin
+
     app.include_router(router)
+    app.dependency_overrides[get_super_admin] = lambda: SimpleNamespace(
+        id="admin-1", role="super_admin"
+    )
     return app
 
 

@@ -758,9 +758,8 @@ class TestAlertThresholdServiceCoverage:
                          connector_id="slack", actual_value=1.0, threshold=0.5,
                          timestamp=datetime.now(timezone.utc))
         config = self._config(email_recipients=["a@b.c"])
-        with patch.dict("sys.modules", {"core.email_service": MagicMock()}):
-            from core.email_service import EmailService
-            EmailService.side_effect = RuntimeError("smtp down")
+        with patch("integrations.email_routes.EmailService") as email_cls:
+            email_cls.side_effect = RuntimeError("smtp down")
             assert await service.send_email_notification(violation, config) is False
 
     @pytest.mark.asyncio

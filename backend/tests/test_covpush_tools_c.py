@@ -57,36 +57,37 @@ class TestMediaTool:
         assert res["allowed"] is True
 
     async def test_check_media_governance_insufficient_maturity(self):
-        resolver = MagicMock()
-        resolver.resolve_agent_context = AsyncMock(return_value={"maturity_level": "STUDENT"})
-        with patch("core.agent_context_resolver.AgentContextResolver", return_value=resolver):
-            from tools.media_tool import _check_media_governance
-            res = await _check_media_governance(Mock(), "a-1", "spotify_play", "u-1")
+        q = MagicMock()
+        q.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
+            status="STUDENT")
+        from tools.media_tool import _check_media_governance
+        res = await _check_media_governance(q, "a-1", "spotify_play", "u-1")
         assert res["allowed"] is False
         assert "insufficient" in res["reason"]
 
     async def test_check_media_governance_allowed(self):
-        resolver = MagicMock()
-        resolver.resolve_agent_context = AsyncMock(return_value={"maturity_level": "AUTONOMOUS"})
-        gc = MagicMock()
-        gc.check_permission = AsyncMock(return_value=True)
-        with patch("core.agent_context_resolver.AgentContextResolver", return_value=resolver), \
-             patch("tools.media_tool.AsyncGovernanceCache", return_value=gc):
+        q = MagicMock()
+        q.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
+            status="AUTONOMOUS")
+        gov = MagicMock()
+        gov.can_perform_action_async = AsyncMock(return_value={"allowed": True, "reason": "ok"})
+        with patch("core.agent_governance_service.AgentGovernanceService", return_value=gov):
             from tools.media_tool import _check_media_governance
-            res = await _check_media_governance(Mock(), "a-1", "spotify_devices", "u-1")
+            res = await _check_media_governance(q, "a-1", "spotify_devices", "u-1")
         assert res["allowed"] is True
 
-    async def test_check_media_governance_cache_denied(self):
-        resolver = MagicMock()
-        resolver.resolve_agent_context = AsyncMock(return_value={"maturity_level": "AUTONOMOUS"})
-        gc = MagicMock()
-        gc.check_permission = AsyncMock(return_value=False)
-        with patch("core.agent_context_resolver.AgentContextResolver", return_value=resolver), \
-             patch("tools.media_tool.AsyncGovernanceCache", return_value=gc):
+    async def test_check_media_governance_governance_denied(self):
+        q = MagicMock()
+        q.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
+            status="AUTONOMOUS")
+        gov = MagicMock()
+        gov.can_perform_action_async = AsyncMock(
+            return_value={"allowed": False, "reason": "budget exhausted"})
+        with patch("core.agent_governance_service.AgentGovernanceService", return_value=gov):
             from tools.media_tool import _check_media_governance
-            res = await _check_media_governance(Mock(), "a-1", "spotify_play", "u-1")
+            res = await _check_media_governance(q, "a-1", "spotify_play", "u-1")
         assert res["allowed"] is False
-        assert "Governance check failed" in res["reason"]
+        assert "budget exhausted" in res["reason"]
 
     async def test_check_media_governance_exception(self):
         resolver = MagicMock()
@@ -420,8 +421,9 @@ class TestProductivityTool:
         with patch.object(self._tool().__class__, "_check_notion_permission",
                            new=AsyncMock(return_value=(False, "denied"))):
             tool = self._tool()
-            with pytest.raises(PermissionError):
-                await tool.run("search", agent_id="a-1", user_id="u-1")
+            res = await tool.run("search", agent_id="a-1", user_id="u-1")
+            assert res["success"] is False
+            assert "denied" in res.get("error", "")
 
     async def test_run_agent_allowed_with_local_only_guard(self):
         with patch.object(self._tool().__class__, "_check_notion_permission",
@@ -443,8 +445,9 @@ class TestProductivityTool:
             q.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
                 maturity_level="AUTONOMOUS")
             with _patch_tool_db("productivity_tool", q):
-                with pytest.raises(PermissionError):
-                    await tool.run("list_databases", agent_id="a-1", user_id="u-1")
+                res = await tool.run("list_databases", agent_id="a-1", user_id="u-1")
+            # Denial is surfaced as an error dict, not a raised exception
+            assert res.get("success") is False
 
     async def test_run_execution_error(self):
         self.service.search_workspace.side_effect = RuntimeError("api down")

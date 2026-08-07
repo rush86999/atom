@@ -22,6 +22,31 @@ from core.database import Base
 from core.models import Workspace
 
 
+class _FakeLLM:
+    """Stand-in for KnowledgeExtractor.llm_service — returns the graph JSON
+    the tests' MockAIService used to produce via analyze_text."""
+
+    def __init__(self, json_str):
+        self.json_str = json_str
+
+    async def generate_completion(self, **kwargs):
+        return {"content": self.json_str}
+
+
+FAKE_GRAPH_JSON = """
+{
+  "entities": [
+    {"id": "d1", "type": "Deal", "properties": {"name": "Big Contract", "external_id": "ext_deal_123", "value": 5000.0}},
+    {"id": "p1", "type": "Person", "properties": {"name": "Alice", "role": "Stakeholder"}}
+  ],
+  "relationships": [
+    {"from": "msg_1", "to": "approval", "type": "INTENT", "properties": {"confidence": 0.95}},
+    {"from": "msg_1", "to": "ext_deal_123", "type": "LINKS_TO_EXTERNAL", "properties": {}}
+  ]
+}
+"""
+
+
 class MockAIService:
     async def analyze_text(self, text, system_prompt=None):
         # Simulate extraction of a Deal link and decision
@@ -60,6 +85,7 @@ class TestCommunicationIntelligence(unittest.TestCase):
         
         self.mock_ai = MockAIService()
         self.service = CommunicationIntelligenceService(ai_service=self.mock_ai, db_session=self.db)
+        self.service.extractor.llm_service = _FakeLLM(FAKE_GRAPH_JSON)
 
     def tearDown(self):
         self.db.close()
