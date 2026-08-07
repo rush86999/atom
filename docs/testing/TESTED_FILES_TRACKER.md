@@ -254,6 +254,15 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | 2026-08-07 | `frontend-nextjs/components/Settings/**` (16 files) | TESTED/FIXED | 17 suites / 293 tests, 0% → 84–100% per file; **3 missing-import build errors** (GDrive/Dropbox/ShopifyManager imported nonexistent src/skills/*) → modules recreated; LocalFileIngestion crash guard |
 | 2026-08-07 | Combined verification | GREEN | 247 (security+agent/skill) + 82 (OAuth) + 293 (FE) = **622 tests** |
 
+### Resolved 2026-08-07 (R83 wave — pushed `eb7c2ed95` + `b150eb9a1`)
+| Date | Area | Status | Result |
+|---|---|---|---|
+| 2026-08-07 | FE integrations (Discord/Freshdesk/Intercom/Mailchimp/Stripe/Tableau/JiraOAuthFlow) | TESTED | 7 suites / 66 tests, 84–93% coverage; SlackIntegration fixed — stale MSW handlers (`tests/mocks/handlers.ts`): missing workspace endpoint, bare arrays vs `data.data.*` shapes |
+| 2026-08-07 | FE onboarding/templates/teams | TESTED/FIXED | 7 suites / 75 tests, 82–100%; **3 real bugs**: TemplateEditor nonexistent TemplatePreviewModal import (module crash), wrong props to TemplateMetadataForm, spinner.tsx missing React import |
+| 2026-08-07 | FE devstudio/dashboards | TESTED/FIXED | 8 suites / 88 tests, 66–96%; **2 real bugs**: TaskManagement never displayed fetched tasks (mount-before-fetch, useState init), ReasoningChainViewer loader forever (loading keyed off `!chainData`) |
+| 2026-08-07 | FE full suite + coverage | GREEN | **6,628 passed / 0 failed; 43.2% lines** (was 37.0%) |
+| 2026-08-07 | Backend chunked coverage (unit/api/core/database/security) | MEASURED | **30.0%** for that scope (was 22.6% — suite fixes +7.4pts); full picture pending root chunk |
+
 ## Known remaining work (verified at last run — updated 2026-08-07)
 - `core/models.py` `OAuthToken` — server-side model; verify `api/oauth` routes don't use stale columns (Notion/Spotify moved to IntegrationToken; sweep remaining writers)
 - `tests/test_cognitive_tier_e2e.py` — 11 collection ERRORS remain after the survey-sweep alignment (23 pass / 11 error; the stale `CognitiveTierPreference` kwargs were fixed but 11 tests still fail at setup — next target)
