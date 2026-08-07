@@ -683,11 +683,7 @@ def test_user(db_session: Session):
     import secrets
 
     user = User(
-        email="test@example.com",
-        username="testuser",
-        hashed_password="hashed_password_here",
-        is_active=True,
-        created_at=datetime.utcnow()
+        email="test@example.com", hashed_password="hashed_password_here", created_at=datetime.utcnow(), first_name="Test", last_name="User", role="member", status="active"
     )
     db_session.add(user)
     db_session.commit()
@@ -711,12 +707,8 @@ def admin_user(db_session: Session):
     import secrets
 
     user = User(
-        email="admin@example.com",
-        username="admin",
-        hashed_password="hashed_password_here",
-        is_active=True,
-        is_superuser=True,
-        created_at=datetime.utcnow()
+        email="admin@example.com", hashed_password="hashed_password_here", 
+        created_at=datetime.utcnow(), first_name="Test", last_name="User", role="member", status="active"
     )
     db_session.add(user)
     db_session.commit()

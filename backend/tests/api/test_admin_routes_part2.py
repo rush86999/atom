@@ -95,11 +95,8 @@ def admin_user(test_db: Session) -> User:
     """Create admin user for testing."""
     user = User(
         id="admin_test_user",
-        email="admin@test.com",
-        name="Test Admin",
-        role="super_admin",
-        tenant_id="test_tenant",
-        is_active=True
+        email="admin@test.com", role="super_admin",
+        tenant_id="test_tenant", first_name="Test", last_name="User", status="active"
     )
     test_db.add(user)
     test_db.commit()
@@ -200,11 +197,8 @@ class TestWebSocketStatus:
         # Create regular user (non-admin)
         regular_user = User(
             id="regular_user",
-            email="regular@test.com",
-            name="Regular User",
-            role="user",
-            tenant_id="test_tenant",
-            is_active=True
+            email="regular@test.com", role="user",
+            tenant_id="test_tenant", first_name="Test", last_name="User", status="active"
         )
         test_db.add(regular_user)
         test_db.commit()
@@ -278,7 +272,7 @@ class TestWebSocketReconnect:
                 id="regular",
                 email="regular@test.com",
                 role="user",
-                tenant_id="test_tenant"
+                tenant_id="test_tenant", first_name="Test", last_name="User", status="active"
             )
             test_db.add(regular_user)
             test_db.commit()

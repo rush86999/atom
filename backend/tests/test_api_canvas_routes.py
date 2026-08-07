@@ -65,8 +65,8 @@ def authenticated_user(db_session):
     """Create an authenticated test user."""
     user = User(
         id=str(uuid.uuid4()),
-        email="canvas-test@example.com",
-        hashed_password="hashed_password"
+        email=f"canvas-test-{uuid.uuid4()}@example.com",
+        hashed_password="hashed_password", first_name="Test", last_name="User", role="member", status="active"
     )
     db_session.add(user)
     db_session.commit()

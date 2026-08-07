@@ -46,7 +46,7 @@ def user(db):
         id="test_user_1",
         email="test@example.com",
         first_name="Test",
-        last_name="User"
+        last_name="User", role="member", status="active"
     )
     db.add(user)
     db.commit()

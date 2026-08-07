@@ -35,7 +35,7 @@ class TestMarginIntelligence(unittest.IsolatedAsyncioTestCase):
         self.db.add(self.ws)
         
         # Setup System User for notifications
-        self.system_user = User(id="system", email="system@atom.ai", first_name="System", last_name="User")
+        self.system_user = User(id="system", email="system@atom.ai", first_name="System", last_name="User", role="member", status="active")
         self.db.add(self.system_user)
         
         # Setup Team
@@ -43,7 +43,7 @@ class TestMarginIntelligence(unittest.IsolatedAsyncioTestCase):
         self.db.add(self.team)
         
         # Setup User with labor cost
-        self.worker = User(id="u1", email="worker@test.com", first_name="Dev", hourly_cost_rate=50.0)
+        self.worker = User(id="u1", email="worker@test.com", first_name="Dev", hourly_cost_rate=50.0, last_name="User", role="member", status="active")
         self.db.add(self.worker)
         
         self.db.commit()

@@ -28,8 +28,8 @@ def test_user(db):
     """Create test user."""
     user = User(
         id=str(uuid.uuid4()),
-        email="test@example.com",
-        hashed_password="hash"
+        email=f"test-{uuid.uuid4()}@example.com",
+        hashed_password="hash", first_name="Test", last_name="User", role="member", status="active"
     )
     db.add(user)
     db.commit()

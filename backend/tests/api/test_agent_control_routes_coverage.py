@@ -60,7 +60,7 @@ def client(test_app: FastAPI):
     super_admin_user = User(
         id="test-super-admin-coverage",
         email="superadmin-coverage@test.com",
-        role="super_admin"
+        role="super_admin", first_name="Test", last_name="User", status="active"
     )
 
     def override_get_super_admin():

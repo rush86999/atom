@@ -210,11 +210,8 @@ def admin_user(test_db: Session) -> User:
     user_id = str(uuid.uuid4())
     user = User(
         id=user_id,
-        email="admin@test.com",
-        name="Test Admin",
-        role="super_admin",
-        tenant_id="test_tenant",
-        is_active=True
+        email="admin@test.com", role="super_admin",
+        tenant_id="test_tenant", first_name="Test", last_name="User", status="active"
     )
     test_db.add(user)
     test_db.commit()

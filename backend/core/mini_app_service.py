@@ -893,15 +893,16 @@ async def _inject_integration_sources(
     """Pre-fetch integration data into ``inputs["data_sources"]``.
 
     ``manifest.integrations`` entries ``{service, action, params}`` are host
-    pre-fetches (NOT live guest calls — the microVM has no network):
-    credentials are resolved from ``IntegrationToken`` (P0-encrypted,
-    decrypted host-side) and the call goes through
-    ``ExternalIntegrationService.execute_integration_action``. Only the result
-    payload is injected — tokens never reach the guest. Failures/unknown
-    services are logged + skipped; results are size-capped.
+    pre-fetches (NOT live guest calls — the microVM has no network). Each
+    resolves through the unified dispatcher: native (IntegrationRegistry) →
+    Activepieces piece → MCP server. Credentials are resolved host-side
+    (tokens never reach the guest). Failures/unknown services are logged +
+    skipped; results are size-capped.
 
     ``mcp_servers`` is a deprecated alias read as a fallback.
     """
+    from core.mini_app_integration_dispatch import dispatch
+
     integrations = manifest.get("integrations")
     if integrations is None:
         integrations = manifest.get("mcp_servers") or []
@@ -912,20 +913,13 @@ async def _inject_integration_sources(
         if not service or not action:
             continue
         try:
-            creds = _resolve_integration_credentials(tenant_id, service, db=db)
-            from core.external_integration_service import ExternalIntegrationService
-
-            result = await ExternalIntegrationService().execute_integration_action(
-                integration_id=service,
-                action_id=action,
-                params=ms.get("params") or {},
-                credentials=creds or None,
+            result = await dispatch(
+                service, action, ms.get("params") or {},
+                tenant_id=tenant_id, db=db,
             )
-            payload = getattr(result, "data", None)
-            if payload is None and isinstance(result, dict):
-                payload = result.get("data")
-            if payload is None:
-                payload = result
+            if not result.get("ok"):
+                continue
+            payload = result.get("data")
             if isinstance(payload, (dict, list)) and _json_bytes(payload) <= _DEFAULT_DATA_SOURCE_CAP:
                 out[service] = payload
         except Exception as e:  # noqa: BLE001
@@ -1028,28 +1022,30 @@ def _make_callback_handler(
         service = str(request.get("service") or "")
         action = str(request.get("action") or "")
         params = request.get("params") or {}
-        # Scope gate: '*' or an explicit 'integrations.<service>' permit the call.
-        needed = f"integrations.{service}"
-        allowed = "*" in scopes or needed in scopes
+        # Resolve the backend FIRST (needed for the scope gate — MCP uses a
+        # different scope namespace than native/piece).
+        from core.mini_app_integration_dispatch import resolve_backend, dispatch
+
+        backend, server_id = await resolve_backend(service, action)
+        # Scope gate: '*' permits everything. native+piece need
+        # 'integrations.<service>'; mcp needs 'mcp.<server_id>'.
+        if "*" in scopes:
+            allowed = True
+        elif backend == "mcp" and server_id:
+            allowed = f"mcp.{server_id}" in scopes
+        else:
+            allowed = f"integrations.{service}" in scopes
         if not allowed:
-            logger.warning("callback %s denied by scope gate (need %s)", needed, needed)
+            needed = f"mcp.{server_id}" if backend == "mcp" else f"integrations.{service}"
+            logger.warning("callback %s denied by scope gate (need %s)", service, needed)
             return {"ok": False, "error": "scope_denied"}
         try:
-            creds = _resolve_integration_credentials(tenant_id, service, db=db)
-            from core.external_integration_service import ExternalIntegrationService
-
-            result = await ExternalIntegrationService().execute_integration_action(
-                integration_id=service, action_id=action,
-                params=params, credentials=creds or None,
-            )
-            payload = getattr(result, "data", None)
-            if payload is None and isinstance(result, dict):
-                payload = result.get("data")
-            if payload is None:
-                payload = result
+            result = await dispatch(service, action, params, tenant_id=tenant_id, db=db)
+            payload = result.get("data")
             if _json_bytes(payload) > _DEFAULT_DATA_SOURCE_CAP:
                 return {"ok": False, "error": "result_too_large"}
-            return {"ok": True, "data": payload}
+            return {"ok": result.get("ok", True), "data": payload,
+                    "backend": result.get("backend")}
         except Exception as e:  # noqa: BLE001
             logger.warning("callback fetch_integration %s.%s failed: %s", service, action, e)
             return {"ok": False, "error": "failed"}

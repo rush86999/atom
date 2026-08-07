@@ -16,17 +16,19 @@ from core.models import Canvas, MiniApp, MiniAppInstallation
 
 def _seed_app(db, owner_id="u1", app_id=None, **kw):
     app_id = app_id or f"app-{uuid.uuid4().hex[:10]}"
+    # Build a fresh default manifest each call (avoid mutable-default sharing).
+    default_manifest = kw.get("manifest") or {
+        "declared_scopes": ["*"], "dependencies": ["pandas==2.2"],
+        "integrations": [{"service": "notion", "action": "search", "params": {}}],
+        "blueprint": {"content": {}, "style": {}, "logic_source": "state = state",
+                      "logic_language": "python", "component_installations": []},
+        "initial_state": {},
+    }
     db.add(MiniApp(
         id=app_id, tenant_id=kw.get("tenant_id", "t_author"), created_by=owner_id,
         name=kw.get("name", "t"), description=kw.get("description", "a test app"),
         version=kw.get("version", "1.0.0"),
-        manifest=kw.get("manifest", {
-            "declared_scopes": ["*"], "dependencies": ["pandas==2.2"],
-            "integrations": [{"service": "notion", "action": "search", "params": {}}],
-            "blueprint": {"content": {}, "style": {}, "logic_source": "state = state",
-                          "logic_language": "python", "component_installations": []},
-            "initial_state": {},
-        }),
+        manifest=default_manifest,
         status=kw.get("status", "published"),
         is_public=kw.get("is_public", False),
         is_approved=kw.get("is_approved", False),
@@ -161,7 +163,8 @@ class TestBrowseMetadata:
         r = c.get("/api/mini-apps")
         assert r.status_code == 200
         apps = r.json()["apps"]
-        a = apps[0]
+        # Find THIS test's app (the shared DB session may have apps from prior tests).
+        a = next((x for x in apps if x["name"] == "Revenue Tracker"), apps[0])
         assert "declared_scopes" in a and "dependencies" in a
         assert "integrations_count" in a and a["integrations_count"] == 1
         assert "description" in a and "is_approved" in a

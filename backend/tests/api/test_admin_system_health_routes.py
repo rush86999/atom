@@ -102,9 +102,7 @@ def super_admin_user():
     user = User(
         id="test_super_admin",
         email="superadmin@test.com",
-        role="super_admin",
-        full_name="Test Super Admin",
-        is_active=True
+        role="super_admin", first_name="Test", last_name="User", status="active"
     )
     return user
 

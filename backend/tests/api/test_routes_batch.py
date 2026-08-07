@@ -288,7 +288,7 @@ class TestAuthRoutes:
             id="user_mobile_001",
             email="mobile@test.com",
             hashed_password="hashed_password_here",
-            role=UserRole.USER
+            role=UserRole.USER, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -334,7 +334,7 @@ class TestAuthRoutes:
 
     def test_register_biometric_success(self, db_session: Session, client: TestClient):
         """Test biometric registration initiation"""
-        user = User(id="user_bio_001", email="bio@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_bio_001", email="bio@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         device = MobileDevice(
             id="device_001",
             user_id=user.id,
@@ -362,7 +362,7 @@ class TestAuthRoutes:
 
     def test_biometric_auth_success(self, db_session: Session, client: TestClient):
         """Test successful biometric authentication"""
-        user = User(id="user_bio_002", email="bio2@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_bio_002", email="bio2@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         device = MobileDevice(
             id="device_002",
             user_id=user.id,
@@ -421,7 +421,7 @@ class TestAuthRoutes:
 
     def test_refresh_mobile_token_success(self, db_session: Session, client: TestClient):
         """Test mobile token refresh"""
-        user = User(id="user_refresh_001", email="refresh@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_refresh_001", email="refresh@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         device = MobileDevice(
             id="device_refresh_001",
             user_id=user.id,
@@ -455,7 +455,7 @@ class TestAuthRoutes:
 
     def test_get_mobile_device_info_success(self, db_session: Session, client: TestClient):
         """Test retrieving mobile device information"""
-        user = User(id="user_device_001", email="device@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_device_001", email="device@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         device = MobileDevice(
             id="device_info_001",
             user_id=user.id,
@@ -478,7 +478,7 @@ class TestAuthRoutes:
 
     def test_delete_mobile_device_success(self, db_session: Session, client: TestClient):
         """Test unregistering mobile device"""
-        user = User(id="user_delete_001", email="delete@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_delete_001", email="delete@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         device = MobileDevice(
             id="device_delete_001",
             user_id=user.id,
@@ -499,7 +499,7 @@ class TestAuthRoutes:
 
     def test_mobile_device_not_found(self, db_session: Session, client: TestClient):
         """Test retrieving non-existent device returns 404"""
-        user = User(id="user_404", email="404@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_404", email="404@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         db_session.add(user)
         db_session.commit()
 
@@ -519,7 +519,7 @@ class TestTokenRoutes:
 
     def test_revoke_token_success(self, db_session: Session, client: TestClient):
         """Test successful token revocation"""
-        user = User(id="user_revoke_001", email="revoke@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_revoke_001", email="revoke@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         db_session.add(user)
         db_session.commit()
 
@@ -545,8 +545,8 @@ class TestTokenRoutes:
 
     def test_revoke_token_permission_denied(self, db_session: Session, client: TestClient):
         """Test revoking another user's token fails"""
-        user1 = User(id="user1", email="user1@test.com", hashed_password="hash", role=UserRole.USER)
-        user2 = User(id="user2", email="user2@test.com", hashed_password="hash", role=UserRole.USER)
+        user1 = User(id="user1", email="user1@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
+        user2 = User(id="user2", email="user2@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         db_session.add_all([user1, user2])
         db_session.commit()
 
@@ -567,7 +567,7 @@ class TestTokenRoutes:
 
     def test_cleanup_expired_tokens_admin_success(self, db_session: Session, client: TestClient):
         """Test admin can cleanup expired tokens"""
-        admin = User(id="admin_001", email="admin@test.com", hashed_password="hash", role=UserRole.SUPER_ADMIN)
+        admin = User(id="admin_001", email="admin@test.com", hashed_password="hash", role=UserRole.SUPER_ADMIN, first_name="Test", last_name="User", status="active")
         db_session.add(admin)
         db_session.commit()
 
@@ -581,7 +581,7 @@ class TestTokenRoutes:
 
     def test_cleanup_expired_tokens_non_admin_fails(self, db_session: Session, client: TestClient):
         """Test non-admin cannot cleanup tokens"""
-        user = User(id="user_cleanup_001", email="user@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_cleanup_001", email="user@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         db_session.add(user)
         db_session.commit()
 
@@ -592,7 +592,7 @@ class TestTokenRoutes:
 
     def test_verify_token_valid(self, db_session: Session, client: TestClient):
         """Test verifying a valid non-revoked token"""
-        user = User(id="user_verify_001", email="verify@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_verify_001", email="verify@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         db_session.add(user)
         db_session.commit()
 
@@ -618,7 +618,7 @@ class TestTokenRoutes:
 
     def test_verify_token_revoked(self, db_session: Session, client: TestClient):
         """Test verifying a revoked token"""
-        user = User(id="user_verify_002", email="verify2@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_verify_002", email="verify2@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         db_session.add(user)
         db_session.commit()
 
@@ -644,7 +644,7 @@ class TestTokenRoutes:
 
     def test_verify_token_no_jti(self, db_session: Session, client: TestClient):
         """Test token without JTI cannot be revoked"""
-        user = User(id="user_verify_003", email="verify3@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_verify_003", email="verify3@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         db_session.add(user)
         db_session.commit()
 
@@ -672,7 +672,7 @@ class TestMarketingRoutes:
 
     def test_get_marketing_summary_success(self, db_session: Session, client: TestClient):
         """Test retrieving marketing dashboard summary"""
-        user = User(id="user_marketing_001", email="marketing@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_marketing_001", email="marketing@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         db_session.add(user)
         db_session.commit()
 
@@ -710,7 +710,7 @@ class TestMarketingRoutes:
 
     def test_get_marketing_summary_no_leads(self, db_session: Session, client: TestClient):
         """Test marketing summary with no leads"""
-        user = User(id="user_marketing_002", email="marketing2@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_marketing_002", email="marketing2@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         db_session.add(user)
         db_session.commit()
 
@@ -727,7 +727,7 @@ class TestMarketingRoutes:
 
     def test_score_lead_success(self, db_session: Session, client: TestClient):
         """Test AI lead scoring endpoint"""
-        user = User(id="user_marketing_003", email="marketing3@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_marketing_003", email="marketing3@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         lead = Lead(
             id="lead_score_001",
             workspace_id="default",
@@ -752,7 +752,7 @@ class TestMarketingRoutes:
 
     def test_score_lead_not_found(self, db_session: Session, client: TestClient):
         """Test scoring non-existent lead returns 404"""
-        user = User(id="user_marketing_004", email="marketing4@test.com", hashed_password="hash", role=UserRole.USER)
+        user = User(id="user_marketing_004", email="marketing4@test.com", hashed_password="hash", role=UserRole.USER, first_name="Test", last_name="User", status="active")
         db_session.add(user)
         db_session.commit()
 
@@ -1157,7 +1157,7 @@ def test_all_routes_respond(db_session: Session, client: TestClient):
 def test_response_formats_consistent(db_session: Session, client: TestClient):
     """Verify API responses follow consistent format"""
     # Test success response format
-    user = User(id="user_format_001", email="format@test.com", hashed_password="hash", role=UserRole.SUPER_ADMIN)
+    user = User(id="user_format_001", email="format@test.com", hashed_password="hash", role=UserRole.SUPER_ADMIN, first_name="Test", last_name="User", status="active")
     db_session.add(user)
     db_session.commit()
 

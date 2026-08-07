@@ -22,7 +22,7 @@ async def test_feedback_triggers_learning(mock_db_session):
     
     # Mock Data
     agent = AgentRegistry(id="agent-123", name="Test Agent", category="finance", status=AgentStatus.STUDENT.value, confidence_score=0.5)
-    user = User(id="user-1", email="admin@example.com", role="workspace_admin", specialty="finance")
+    user = User(id="user-1", email="admin@example.com", role="workspace_admin", specialty="finance", first_name="Test", last_name="User", status="active")
     
     mock_db_session.query.return_value.filter.return_value.first.side_effect = [agent, user, agent, agent] 
     # 1. get agent (submit)

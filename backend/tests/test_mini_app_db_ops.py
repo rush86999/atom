@@ -320,9 +320,10 @@ class TestReadBridge:
 
     @pytest.mark.asyncio
     async def test_mcp_source_injected_with_credentials(self, db_session, monkeypatch):
+        """Integration pre-fetch routes through the unified dispatcher."""
         import core.mini_app_service as svc
         from core.models import IntegrationToken
-        _, canvas_id = canvas_fixture = _make_app(db_session)
+        _make_app(db_session)
         db_session.add(IntegrationToken(
             tenant_id="t1", provider="notion", access_token="plain-token", status="active",
         ))
@@ -330,33 +331,27 @@ class TestReadBridge:
 
         seen = {}
 
-        class FakeExtService:
-            async def execute_integration_action(self, integration_id, action_id, params, credentials):
-                seen["integration_id"] = integration_id
-                seen["action_id"] = action_id
-                seen["credentials"] = credentials
-                seen["params"] = params
-                return type("R", (), {"data": {"pages": [{"title": "x"}]}})()
+        async def fake_dispatch(service, action, params, *, tenant_id, db):
+            seen["service"] = service
+            seen["action"] = action
+            return {"ok": True, "data": {"pages": [{"title": "x"}]}, "backend": "native"}
 
-        monkeypatch.setattr("core.external_integration_service.ExternalIntegrationService",
-                            FakeExtService)
+        monkeypatch.setattr("core.mini_app_integration_dispatch.dispatch", fake_dispatch)
         out = await svc._inject_integration_sources(
             {"mcp_servers": [{"service": "notion", "action": "search", "params": {"q": "x"}}]},
             "t1", "w1", "ag1", db=db_session,
         )
         assert out["notion"] == {"pages": [{"title": "x"}]}
-        assert seen["credentials"]["access_token"] == "plain-token"
+        assert seen["service"] == "notion"
 
     @pytest.mark.asyncio
     async def test_mcp_source_failure_skipped(self, monkeypatch):
+        """A failing dispatch result is skipped (never crashes the run)."""
         import core.mini_app_service as svc
 
-        class BoomService:
-            async def execute_integration_action(self, **kw):
-                raise RuntimeError("integration down")
-
-        monkeypatch.setattr("core.external_integration_service.ExternalIntegrationService",
-                            BoomService)
+        async def fake_dispatch(service, action, params, *, tenant_id, db):
+            return {"ok": False, "error": "failed"}
+        monkeypatch.setattr("core.mini_app_integration_dispatch.dispatch", fake_dispatch)
         out = await svc._inject_integration_sources(
             {"mcp_servers": [{"service": "slack", "action": "send", "params": {}}]},
             "t1", "w1", "ag1",

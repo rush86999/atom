@@ -37,11 +37,7 @@ def canvas_agent(db_session):
 def canvas_user(db_session):
     """Create a test user for canvas operations."""
     user = User(
-        email="canvas@example.com",
-        username="canvasuser",
-        hashed_password="hashed_password_here",
-        is_active=True,
-        created_at=datetime.utcnow()
+        email="canvas@example.com", hashed_password="hashed_password_here", created_at=datetime.utcnow(), first_name="Test", last_name="User", role="member", status="active"
     )
     db_session.add(user)
     db_session.commit()

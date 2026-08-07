@@ -5,6 +5,7 @@ Tests the integration of supervision metrics into agent graduation validation.
 """
 
 import pytest
+import uuid
 from hypothesis import given, strategies as st, settings
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
@@ -40,10 +41,10 @@ def db():
 def user(db: Session):
     """Create test user."""
     user = User(
-        id="test_graduation_user",
-        email="graduation_test@example.com",
+        id=f"test_graduation_user_{uuid.uuid4()}",
+        email=f"graduation_test-{uuid.uuid4()}@example.com",
         first_name="Graduation",
-        last_name="Test User",
+        last_name="Test User", role="member", status="active"
     )
     db.add(user)
     db.commit()
@@ -54,10 +55,8 @@ def user(db: Session):
 def workspace(db: Session, user: User):
     """Create test workspace."""
     workspace = Workspace(
-        id="test_graduation_workspace",
-        name="Graduation Test Workspace",
-        
-    )
+        id=f"test_graduation_workspace_{uuid.uuid4()}",
+        name="Graduation Test Workspace", )
     db.add(workspace)
     db.commit()
     return workspace
@@ -67,15 +66,13 @@ def workspace(db: Session, user: User):
 def agent(db: Session, workspace: Workspace, user: User):
     """Create test agent."""
     agent = AgentRegistry(
-        id="test_graduation_agent",
+        id=f"test_graduation_agent_{uuid.uuid4()}",
         name="Test Graduation Agent",
         category="testing",
         module_path="agents.test_agent",
         class_name="TestAgent",
         status=AgentStatus.INTERN.value,
-        confidence_score=0.65,
-        
-        
+        confidence_score=0.65, 
     )
     db.add(agent)
     db.commit()

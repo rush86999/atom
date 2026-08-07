@@ -44,9 +44,9 @@ def mock_user(db_session):
     """Create a mock user for testing."""
     user = User(
         id="test-user-123",
-        email="test@example.com",
+        email=f"test-{uuid.uuid4()}@example.com",
         first_name="Test",
-        last_name="User"
+        last_name="User", role="member", status="active"
     )
     db_session.add(user)
     db_session.commit()

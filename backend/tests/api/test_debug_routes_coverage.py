@@ -44,10 +44,7 @@ def mock_user(db_session: Session):
     """Mock authenticated user."""
     user = User(
         id="test-user-1",
-        email="test@example.com",
-        username="testuser",
-        is_active=True,
-        is_superuser=False
+        email="test@example.com", first_name="Test", last_name="User", role="member", status="active"
     )
     db_session.add(user)
     db_session.commit()
@@ -59,10 +56,7 @@ def mock_superuser(db_session: Session):
     """Mock superuser for admin operations."""
     user = User(
         id="admin-user-1",
-        email="admin@example.com",
-        username="adminuser",
-        is_active=True,
-        is_superuser=True
+        email="admin@example.com", first_name="Test", last_name="User", role="member", status="active"
     )
     db_session.add(user)
     db_session.commit()

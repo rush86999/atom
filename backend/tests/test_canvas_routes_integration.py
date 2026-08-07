@@ -4,6 +4,7 @@ Integration coverage tests for api/canvas_routes.py.
 These tests use FastAPI TestClient to increase code coverage.
 """
 import pytest
+import uuid
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime
@@ -23,10 +24,10 @@ def test_client():
 def canvas_user(db_session):
     """Create authenticated test user."""
     user = User(
-        email="canvas_test@example.com",
+        email=f"canvas_test-{uuid.uuid4()}@example.com",
         hashed_password="hashed_password_here",
         status="active",
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(), first_name="Test", last_name="User", role="member"
     )
     db_session.add(user)
     db_session.commit()

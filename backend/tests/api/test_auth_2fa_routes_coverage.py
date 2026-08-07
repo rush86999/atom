@@ -110,7 +110,6 @@ def test_user(test_db: Session) -> User:
         last_name="User",
         role="member",
         status="active",
-        email_verified=True,
         two_factor_enabled=False,
         two_factor_secret=None,
         two_factor_backup_codes=None
@@ -131,7 +130,6 @@ def test_user_with_2fa(test_db: Session) -> User:
         last_name="User2FA",
         role="member",
         status="active",
-        email_verified=True,
         two_factor_enabled=True,
         two_factor_secret="JBSWY3DPEHPK3PXP",
         two_factor_backup_codes=["UP-BACKUP-1234-5678"]

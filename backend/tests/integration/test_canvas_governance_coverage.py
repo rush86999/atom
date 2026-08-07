@@ -12,6 +12,7 @@ Tests cover:
 """
 
 import pytest
+import uuid
 from sqlalchemy.orm import Session
 from datetime import datetime
 
@@ -53,10 +54,10 @@ def db():
 def user(db: Session):
     """Create test user."""
     user = User(
-        id="test_coverage_user",
-        email="coverage_test@example.com",
+        id=f"test_coverage_user_{uuid.uuid4()}",
+        email=f"coverage_test-{uuid.uuid4()}@example.com",
         first_name="Coverage",
-        last_name="Test User",
+        last_name="Test User", role="member", status="active"
     )
     db.add(user)
     db.commit()
@@ -67,7 +68,7 @@ def user(db: Session):
 def workspace(db: Session, user: User):
     """Create test workspace."""
     workspace = Workspace(
-        id="test_coverage_workspace",
+        id=f"test_coverage_workspace_{uuid.uuid4()}",
         name="Coverage Test Workspace",
     )
     db.add(workspace)
@@ -79,7 +80,7 @@ def workspace(db: Session, user: User):
 def autonomous_agent(db: Session, workspace: Workspace):
     """Create AUTONOMOUS agent."""
     agent = AgentRegistry(
-        id="test_coverage_autonomous_agent",
+        id=f"test_coverage_autonomous_agent_{uuid.uuid4()}",
         name="Test Coverage Autonomous Agent",
         category="testing",
         module_path="agents.test_agent",
@@ -98,7 +99,7 @@ def autonomous_agent(db: Session, workspace: Workspace):
 def student_agent(db: Session, workspace: Workspace):
     """Create STUDENT agent."""
     agent = AgentRegistry(
-        id="test_coverage_student_agent",
+        id=f"test_coverage_student_agent_{uuid.uuid4()}",
         name="Test Coverage Student Agent",
         category="testing",
         module_path="agents.test_agent",
@@ -219,7 +220,7 @@ class TestCanvasRealDatabase:
     def test_create_canvas_saves_to_database(self, db: Session, workspace: Workspace, user: User):
         """Test creating a canvas saves to real database."""
         canvas = Canvas(
-            id="test_coverage_canvas",
+            id=f"test_coverage_canvas_{uuid.uuid4()}",
             tenant_id=workspace.id,  # Using workspace.id as tenant_id
             workspace_id=workspace.id,
             created_by=user.id,
@@ -241,7 +242,7 @@ class TestCanvasRealDatabase:
         """Test updating a canvas modifies real database."""
         # Create canvas first
         canvas = Canvas(
-            id="test_coverage_canvas_update",
+            id=f"test_coverage_canvas_update_{uuid.uuid4()}",
             tenant_id=workspace.id,
             workspace_id=workspace.id,
             created_by=user.id,
@@ -266,7 +267,7 @@ class TestCanvasRealDatabase:
         """Test deleting a canvas removes from real database."""
         # Create canvas first
         canvas = Canvas(
-            id="test_coverage_canvas_delete",
+            id=f"test_coverage_canvas_delete_{uuid.uuid4()}",
             tenant_id=workspace.id,
             workspace_id=workspace.id,
             created_by=user.id,
@@ -291,7 +292,7 @@ class TestCanvasRealDatabase:
         # Create multiple canvases
         for i in range(3):
             canvas = Canvas(
-                id=f"test_coverage_canvas_{i}",
+                id=f"test_coverage_canvas_{i}_{uuid.uuid4()}",
                 tenant_id=workspace.id,
                 workspace_id=workspace.id,
                 created_by=user.id,

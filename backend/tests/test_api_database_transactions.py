@@ -40,7 +40,7 @@ def test_user_with_id(db_session: Session):
         email="transaction-test@example.com",
         hashed_password="hash",
         first_name="Transaction",
-        last_name="Test User",
+        last_name="Test User", role="member", status="active"
     )
     db_session.add(user)
     db_session.commit()

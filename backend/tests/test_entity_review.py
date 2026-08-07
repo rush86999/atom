@@ -74,8 +74,7 @@ def sample_user(db_session):
     user = User(
         id="user-001",
         email="admin@example.com",
-        tenant_id="tenant-001",
-        is_active=True
+        tenant_id="tenant-001", first_name="Test", last_name="User", role="member", status="active"
     )
     db_session.add(user)
     db_session.commit()

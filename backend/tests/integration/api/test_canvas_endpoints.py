@@ -356,9 +356,7 @@ class TestFormSubmissionWithGovernance:
         # Create user
         user = User(
             id="test_user_123",
-            email="test@example.com",
-            username="testuser",
-            hashed_password="hash"
+            email="test@example.com", hashed_password="hash", first_name="Test", last_name="User", role="member", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -395,9 +393,7 @@ class TestFormSubmissionWithGovernance:
         # Create user
         user = User(
             id="test_user_456",
-            email="test2@example.com",
-            username="testuser2",
-            hashed_password="hash"
+            email="test2@example.com", hashed_password="hash", first_name="Test", last_name="User", role="member", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -432,9 +428,7 @@ class TestFormSubmissionWithGovernance:
 
         user = User(
             id="test_user_789",
-            email="test3@example.com",
-            username="testuser3",
-            hashed_password="hash"
+            email="test3@example.com", hashed_password="hash", first_name="Test", last_name="User", role="member", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -467,9 +461,7 @@ class TestFormSubmissionWithGovernance:
 
         user = User(
             id="audit_user_123",
-            email="audit@example.com",
-            username="audituser",
-            hashed_password="hash"
+            email="audit@example.com", hashed_password="hash", first_name="Test", last_name="User", role="member", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -521,9 +513,7 @@ class TestFormSubmissionWithGovernance:
 
         user = User(
             id="exec_user_123",
-            email="exec@example.com",
-            username="execuser",
-            hashed_password="hash"
+            email="exec@example.com", hashed_password="hash", first_name="Test", last_name="User", role="member", status="active"
         )
         db_session.add(user)
         db_session.commit()

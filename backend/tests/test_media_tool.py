@@ -136,7 +136,7 @@ class TestSpotifyService:
     def test_expired_token_refreshes_automatically(self, spotify_service, db_session: Session):
         """Test expired token triggers automatic refresh."""
         # Create an expired token
-        user = User(id="test_user", email="test@example.com")
+        user = User(id="test_user", email="test@example.com", first_name="Test", last_name="User", role="member", status="active")
         db_session.add(user)
 
         expired_token = OAuthToken(

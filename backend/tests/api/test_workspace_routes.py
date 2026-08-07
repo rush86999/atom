@@ -83,9 +83,7 @@ def test_user(db_session):
     """Create a test user in the database."""
     user = User(
         id="test-user-123",
-        email="test@example.com",
-        username="testuser",
-        created_at=datetime.now(timezone.utc)
+        email="test@example.com", created_at=datetime.now(timezone.utc), first_name="Test", last_name="User", role="member", status="active"
     )
     db_session.add(user)
     db_session.commit()

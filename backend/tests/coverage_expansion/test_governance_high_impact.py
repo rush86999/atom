@@ -50,7 +50,7 @@ class TestGovernanceHighImpact:
             id="test-user-123",
             email="test@example.com",
             role=UserRole.WORKSPACE_ADMIN,
-            specialty="Finance"
+            first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()

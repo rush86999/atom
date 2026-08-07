@@ -36,9 +36,9 @@ class TestEstimationBias(unittest.TestCase):
         self.db.add(self.ws)
         
         # User 1: Optimistic (Under-estimates, takes 2x time)
-        self.u_opt = User(id="u_opt", email="opt@corp.com", first_name="Optimistic", last_name="Oliver", status="active")
+        self.u_opt = User(id="u_opt", email="opt@corp.com", first_name="Optimistic", last_name="Oliver", status="active", role="member")
         # User 2: Pessimistic (Over-estimates, takes 0.5x time)
-        self.u_pess = User(id="u_pess", email="pess@corp.com", first_name="Pessimistic", last_name="Pete", status="active")
+        self.u_pess = User(id="u_pess", email="pess@corp.com", first_name="Pessimistic", last_name="Pete", status="active", role="member")
         self.db.add_all([self.u_opt, self.u_pess])
         
         self.p1 = Project(id="p1", workspace_id="w_bias", name="Bias Project")

@@ -85,7 +85,7 @@ def mock_user(db: Session) -> Any:
         id=user_id,
         email=f"test-{user_id}@example.com",
         role="member",
-        status="active"
+        status="active", first_name="Test", last_name="User"
     )
     db.add(user)
     db.commit()

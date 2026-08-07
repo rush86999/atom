@@ -52,7 +52,7 @@ class TestDatabaseConnectionCleanup:
             id=str(uuid.uuid4()),
             email="test@example.com",
             hashed_password="hash",
-            status="active",
+            status="active", first_name="Test", last_name="User", role="member"
         )
 
         async def failing_task():
@@ -112,7 +112,7 @@ class TestDatabaseConnectionCleanup:
                     id=user_id,
                     email="test@example.com",
                     hashed_password="hash",
-                    status="active",
+                    status="active", first_name="Test", last_name="User", role="member"
                 )
                 db.add(user)
                 # Error before commit - should still cleanup

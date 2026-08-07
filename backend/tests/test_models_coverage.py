@@ -60,8 +60,8 @@ class TestAgentRegistryCoverage:
     def test_agent_registry_create_with_all_fields(self, db_session: Session):
         """Test AgentRegistry creation with all fields populated."""
         user = User(
-            email="test@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"test-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -124,8 +124,8 @@ class TestAgentRegistryCoverage:
         db_session.commit()
 
         user = User(
-            email="feedback@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"feedback-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -250,8 +250,8 @@ class TestAgentRegistryCoverage:
         db_session.commit()
 
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -410,8 +410,8 @@ class TestAgentExecutionCoverage:
         db_session.commit()
 
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -478,8 +478,8 @@ class TestAgentFeedbackCoverage:
         db_session.commit()
 
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -509,8 +509,8 @@ class TestAgentFeedbackCoverage:
         db_session.commit()
 
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -550,8 +550,8 @@ class TestAgentFeedbackCoverage:
         db_session.commit()
 
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -587,8 +587,8 @@ class TestAgentFeedbackCoverage:
         db_session.commit()
 
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -626,8 +626,8 @@ class TestCanvasAuditCoverage:
         db_session.commit()
 
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -675,8 +675,8 @@ class TestCanvasAuditCoverage:
         db_session.commit()
 
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -718,8 +718,8 @@ class TestCanvasAuditCoverage:
         db_session.commit()
 
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -781,8 +781,8 @@ class TestCanvasAuditCoverage:
         db_session.commit()
 
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -816,8 +816,8 @@ class TestCanvasAuditCoverage:
         db_session.commit()
 
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -900,8 +900,8 @@ class TestEpisodeCoverage:
         db_session.commit()
 
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -1164,8 +1164,8 @@ class TestWorkflowExecutionCoverage:
     def test_workflow_execution_create(self, db_session: Session):
         """Test workflow execution creation."""
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -1185,8 +1185,8 @@ class TestWorkflowExecutionCoverage:
     def test_workflow_execution_with_steps(self, db_session: Session):
         """Test workflow execution with step tracking."""
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -1209,8 +1209,8 @@ class TestWorkflowExecutionCoverage:
     def test_workflow_execution_relationships(self, db_session: Session):
         """Test WorkflowExecution relationships."""
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -1237,8 +1237,8 @@ class TestWorkflowStepExecutionCoverage:
     def test_step_execution_create(self, db_session: Session):
         """Test step execution creation."""
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -1271,8 +1271,8 @@ class TestWorkflowStepExecutionCoverage:
     def test_step_execution_with_timing(self, db_session: Session):
         """Test step execution with timing data."""
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -1334,8 +1334,8 @@ class TestRelationshipCrossCoverage:
         db_session.commit()
 
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -1365,8 +1365,8 @@ class TestRelationshipCrossCoverage:
         db_session.commit()
 
         user = User(
-            email="user@example.com",
-            role=UserRole.MEMBER.value,
+            email=f"user-{uuid.uuid4()}@example.com",
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -1425,7 +1425,7 @@ class TestModelValidationCoverage:
         """Test that user email is required."""
         user = User(
             email=None,  # Should fail,
-            role=UserRole.MEMBER.value,
+            role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
 

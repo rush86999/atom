@@ -81,7 +81,7 @@ def test_user(db_session: Session):
     """Create test user"""
     user = User(
         id=str(uuid.uuid4()),
-        email="test@example.com"
+        email=f"test-{uuid.uuid4()}@example.com", first_name="Test", last_name="User", role="member", status="active"
     )
     db_session.add(user)
     db_session.commit()

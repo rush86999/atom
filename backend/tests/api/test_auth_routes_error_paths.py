@@ -130,9 +130,7 @@ class TestRegistrationErrors:
         try:
             existing_user = User(
                 email="existing@example.com",
-                hashed_password="hashed",
-                is_active=True,
-                created_at=datetime.utcnow()
+                hashed_password="hashed", created_at=datetime.utcnow(), first_name="Test", last_name="User", role="member", status="active"
             )
         except TypeError:
             # User model may have different fields

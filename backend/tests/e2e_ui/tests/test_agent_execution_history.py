@@ -46,7 +46,6 @@ def create_test_user_db(db_session: Session, email: str, password: str) -> User:
         hashed_password=get_password_hash(password),
         is_active=True,
         status="active",
-        email_verified=True,
         created_at=datetime.utcnow()
     )
 

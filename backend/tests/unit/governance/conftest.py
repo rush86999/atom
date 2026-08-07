@@ -5,6 +5,7 @@ Provides database session and common test data.
 """
 
 import pytest
+import uuid
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -83,9 +84,7 @@ def db_session():
 def test_user(db_session: Session):
     """Create a test user."""
     user = User(
-        email="test@example.com",
-        name="Test User",
-        role=UserRole.MEMBER.value,
+        email=f"test-{uuid.uuid4()}@example.com", role=UserRole.MEMBER.value, first_name="Test", last_name="User", status="active"
     )
     db_session.add(user)
     db_session.commit()

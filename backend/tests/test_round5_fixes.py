@@ -61,7 +61,7 @@ class TestAdminAuthEnforced:
         non_admin = User(
             id="00000000-0000-0000-0000-000000000000",
             email="member@example.com",
-            role=UserRole.MEMBER,
+            role=UserRole.MEMBER, first_name="Test", last_name="User", status="active"
         )
 
         # We can verify the source enforces role check

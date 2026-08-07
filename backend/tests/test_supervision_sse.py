@@ -5,6 +5,7 @@ Test Server-Sent Events streaming for real-time monitoring.
 """
 
 import pytest
+import uuid
 import asyncio
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -41,10 +42,10 @@ def db():
 def test_user(db: Session):
     """Create test user."""
     user = User(
-        email="test@example.com",
+        email=f"test-{uuid.uuid4()}@example.com",
         first_name="Test",
         last_name="User",
-        status="ACTIVE"
+        status="ACTIVE", role="member"
     )
     db.add(user)
     db.commit()

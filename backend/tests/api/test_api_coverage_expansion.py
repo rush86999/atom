@@ -29,7 +29,7 @@ class TestAdminAPIRoutes:
         admin_user = User(
             id="test-admin-252",
             email="admin@test.com",
-            role="super_admin"
+            role="super_admin", first_name="Test", last_name="User", status="active"
         )
 
         # Override super admin dependency if it exists
@@ -76,7 +76,7 @@ class TestCanvasAPIRoutes:
         """Create authenticated client for canvas endpoints."""
         from core.models import User
 
-        user = User(id="user-252", email="user@test.com", role="user")
+        user = User(id="user-252", email="user@test.com", role="user", first_name="Test", last_name="User", status="active")
 
         # Override current user dependency if it exists
         try:
@@ -142,7 +142,7 @@ class TestAgentAPIRoutes:
         """Create authenticated client for agent endpoints."""
         from core.models import User
 
-        user = User(id="user-252", email="user@test.com", role="user")
+        user = User(id="user-252", email="user@test.com", role="user", first_name="Test", last_name="User", status="active")
 
         # Override current user dependency if it exists
         try:
@@ -181,7 +181,7 @@ class TestBrowserAPIRoutes:
         """Create authenticated client for browser endpoints."""
         from core.models import User
 
-        user = User(id="user-252", email="user@test.com", role="user")
+        user = User(id="user-252", email="user@test.com", role="user", first_name="Test", last_name="User", status="active")
 
         # Override current user dependency if it exists
         try:
@@ -224,7 +224,7 @@ class TestWorkflowAPIRoutes:
         """Create authenticated client for workflow endpoints."""
         from core.models import User
 
-        user = User(id="user-252", email="user@test.com", role="user")
+        user = User(id="user-252", email="user@test.com", role="user", first_name="Test", last_name="User", status="active")
 
         # Override current user dependency if it exists
         try:
@@ -275,7 +275,7 @@ class TestAnalyticsAPIRoutes:
         """Create client for analytics endpoints."""
         from core.models import User
 
-        user = User(id="user-252", email="user@test.com", role="user")
+        user = User(id="user-252", email="user@test.com", role="user", first_name="Test", last_name="User", status="active")
 
         # Override current user dependency if it exists
         try:

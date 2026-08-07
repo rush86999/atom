@@ -46,7 +46,7 @@ class TestJWTTokenRefresh:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Refresh",
             last_name="Token",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -72,7 +72,7 @@ class TestJWTTokenRefresh:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Exp",
             last_name="Refresh",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -109,7 +109,7 @@ class TestJWTClaims:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Claims",
             last_name="Test",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -135,7 +135,7 @@ class TestJWTClaims:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Issued",
             last_name="At",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -170,7 +170,7 @@ class TestSessionManagement:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Session",
             last_name="Test",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -200,7 +200,7 @@ class TestSessionManagement:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Multi",
             last_name="Session",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -245,7 +245,7 @@ class TestPasswordChange:
             hashed_password=get_password_hash("OldPass123!"),
             first_name="Change",
             last_name="Pass",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -288,7 +288,7 @@ class TestPasswordReset:
             hashed_password=get_password_hash("OldPass123!"),
             first_name="Reset",
             last_name="Test",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -312,7 +312,7 @@ class TestPasswordReset:
             hashed_password=get_password_hash("OldPass123!"),
             first_name="Reset",
             last_name="Valid",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -351,7 +351,7 @@ class TestPasswordReset:
             hashed_password=get_password_hash("OldPass123!"),
             first_name="Reset",
             last_name="Expired",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -432,7 +432,7 @@ class TestAuthXSSProtection:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name=xss_payload,
             last_name="Test",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()

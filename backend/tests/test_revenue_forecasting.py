@@ -51,7 +51,7 @@ class TestRevenueForecasting(unittest.IsolatedAsyncioTestCase):
         self.db.commit()
 
         # 2. Setup User in Multiple Businesses
-        self.user = User(id="u1", email="owner@test.com", first_name="Owner")
+        self.user = User(id="u1", email="owner@test.com", first_name="Owner", last_name="User", role="member", status="active")
         self.db.add(self.user)
         self.db.commit()
         

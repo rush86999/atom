@@ -173,7 +173,7 @@ def mock_tenant_integration(db_session):
         id=str(uuid.uuid4()),
         tenant_id=tenant_id,
         email="test@example.com",
-        name="Test User",
+         first_name="Test", last_name="User", role="member", status="active"
     )
     db_session.add(user)
     db_session.flush()

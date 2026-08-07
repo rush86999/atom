@@ -63,7 +63,7 @@ class TestFeedbackService:
             id=supervisor_id,
             email=f"test-{uuid.uuid4().hex[:8]}@example.com",
             first_name="Test",
-            last_name="Supervisor",
+            last_name="Supervisor", role="member", status="active"
         )
         db.add(user)
 
@@ -123,7 +123,7 @@ class TestFeedbackService:
             id=supervisor_id,
             email=f"test-{uuid.uuid4().hex[:8]}@example.com",
             first_name="Test",
-            last_name="User",
+            last_name="User", role="member", status="active"
         )
         db.add(user)
 
@@ -196,7 +196,7 @@ class TestFeedbackService:
             id=supervisor_id,
             email=f"test-{uuid.uuid4().hex[:8]}@example.com",
             first_name="Test",
-            last_name="User",
+            last_name="User", role="member", status="active"
         )
         db.add(user)
 
@@ -281,7 +281,7 @@ class TestFeedbackService:
             id=supervisor_id,
             email=f"test-{uuid.uuid4().hex[:8]}@example.com",
             first_name="Test",
-            last_name="User",
+            last_name="User", role="member", status="active"
         )
         db.add(user)
 
@@ -381,7 +381,7 @@ class TestSupervisorPerformanceService:
             id=supervisor_id,
             email=f"test-{uuid.uuid4().hex[:8]}@example.com",
             first_name="Test",
-            last_name="User",
+            last_name="User", role="member", status="active"
         )
         db.add(user)
 
@@ -452,7 +452,7 @@ class TestSupervisorPerformanceService:
                 id=supervisor_id,
                 email=f"test-{uuid.uuid4().hex[:8]}@example.com",
                 first_name="Test",
-                last_name=f"User{i}",
+                last_name=f"User{i}", role="member", status="active"
             )
             db.add(user)
 
@@ -519,7 +519,7 @@ class TestSupervisorPerformanceService:
             id=supervisor_id,
             email=f"test-{uuid.uuid4().hex[:8]}@example.com",
             first_name="Test",
-            last_name="User",
+            last_name="User", role="member", status="active"
         )
         db.add(user)
 

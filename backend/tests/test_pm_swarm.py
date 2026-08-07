@@ -34,7 +34,7 @@ class TestPMSwarm(unittest.TestCase):
         self.db.add(self.ws)
         
         # User with historical bias (taking 2x longer)
-        self.u1 = User(id="u_bias", email="bias@corp.com", first_name="Opti", last_name="Mistic", skills="Python", status="active")
+        self.u1 = User(id="u_bias", email="bias@corp.com", first_name="Opti", last_name="Mistic", skills="Python", status="active", role="member")
         self.db.add(self.u1)
         
         # Project that is overdue

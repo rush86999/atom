@@ -23,9 +23,7 @@ def admin_user(db: Session):
     """Create admin user for testing"""
     user = User(
         id="test_admin",
-        email="admin@test.com",
-        name="Test Admin",
-        role="super_admin"
+        email="admin@test.com", role="super_admin", first_name="Test", last_name="User", status="active"
     )
     db.add(user)
     db.commit()
@@ -37,9 +35,7 @@ def regular_user(db: Session):
     """Create regular user for testing"""
     user = User(
         id="test_user",
-        email="user@test.com",
-        name="Test User",
-        role="user"
+        email="user@test.com", role="user", first_name="Test", last_name="User", status="active"
     )
     db.add(user)
     db.commit()

@@ -90,7 +90,7 @@ def test_setup(db_session: Session) -> Dict[str, Any]:
         email=f"operator-{uuid.uuid4().hex[:8]}@test.com",
         tenant_id=tenant_id,
         role="operator",
-        status="active",
+        status="active", first_name="Test", last_name="User"
     )
     user.workspace_id = workspace_id
     db_session.add(user)
@@ -236,9 +236,7 @@ def test_list_sync_jobs_api(client: TestClient, db_session: Session, test_setup:
 def test_tenant_scoped_vs_personal_scoped_jobs_api(
     client: TestClient, db_session: Session, test_setup: Dict[str, Any]
 ):
-    """Verify that tenant-scoped integrations fetch jobs across all tenant workspaces,
-
-    while personal-scoped integrations are strictly confined to the active workspace.
+    """Verify that tenant-scoped integrations fetch jobs across all tenant workspaces, while personal-scoped integrations are strictly confined to the active workspace.
     """
     tenant_id = test_setup["tenant_id"]
     workspace_id = test_setup["workspace_id"]

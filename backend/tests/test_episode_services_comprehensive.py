@@ -72,7 +72,7 @@ def test_user(db_session):
     user = User(
         id=f"test_user_{uuid.uuid4().hex[:8]}",
         email=f"episode_{uuid.uuid4().hex[:8]}@test.com",
-        role="member"
+        role="member", first_name="Test", last_name="User", status="active"
     )
     db_session.add(user)
     db_session.commit()

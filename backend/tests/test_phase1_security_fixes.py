@@ -50,7 +50,7 @@ class TestTokenRevocation:
         user = User(
             id='test-user-token',
             email='token@test.com',
-            role='member'
+            role='member', first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -84,7 +84,7 @@ class TestTokenRevocation:
         user = User(
             id='test-user-revoke',
             email='revoke@test.com',
-            role='member'
+            role='member', first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -116,7 +116,7 @@ class TestTokenRevocation:
         user = User(
             id='test-user-except',
             email='except@test.com',
-            role='member'
+            role='member', first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()

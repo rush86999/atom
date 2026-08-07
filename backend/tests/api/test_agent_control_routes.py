@@ -39,7 +39,7 @@ def agent_control_client() -> TestClient:
     super_admin_user = User(
         id="test-super-admin",
         email="superadmin@test.com",
-        role="super_admin"
+        role="super_admin", first_name="Test", last_name="User", status="active"
     )
 
     def override_get_super_admin():

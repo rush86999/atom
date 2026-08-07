@@ -50,8 +50,7 @@ def sample_user(test_db):
     """Create sample user."""
     user = User(
         id="user-grad-123",
-        email="graduation@test.com",
-        name="Graduation Test User"
+        email="graduation@test.com", first_name="Test", last_name="User", role="member", status="active"
     )
     test_db.add(user)
     test_db.commit()

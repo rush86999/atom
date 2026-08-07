@@ -59,9 +59,9 @@ class TestConcurrentEpisodeCreation:
         # Create test data
         user = User(
             id=str(uuid.uuid4()),
-            email="test@example.com",
+            email=f"test-{uuid.uuid4()}@example.com",
             hashed_password="hash",
-            status="active",
+            status="active", first_name="Test", last_name="User", role="member"
         )
         db_session.add(user)
 
@@ -168,9 +168,9 @@ class TestConcurrentEpisodeCreation:
         # Create test data
         user = User(
             id=str(uuid.uuid4()),
-            email="test@example.com",
+            email=f"test-{uuid.uuid4()}@example.com",
             hashed_password="hash",
-            status="active",
+            status="active", first_name="Test", last_name="User", role="member"
         )
         db_session.add(user)
 
@@ -293,9 +293,9 @@ class TestConcurrentSegmentationOperations:
         # Create test data
         user = User(
             id=str(uuid.uuid4()),
-            email="test@example.com",
+            email=f"test-{uuid.uuid4()}@example.com",
             hashed_password="hash",
-            status="active",
+            status="active", first_name="Test", last_name="User", role="member"
         )
         db_session.add(user)
 
@@ -400,9 +400,9 @@ class TestConcurrentLanceDBArchival:
         # Create test data
         user = User(
             id=str(uuid.uuid4()),
-            email="test@example.com",
+            email=f"test-{uuid.uuid4()}@example.com",
             hashed_password="hash",
-            status="active",
+            status="active", first_name="Test", last_name="User", role="member"
         )
         db_session.add(user)
 
@@ -505,9 +505,9 @@ class TestConcurrentCanvasContextExtraction:
         # Create test data
         user = User(
             id=str(uuid.uuid4()),
-            email="test@example.com",
+            email=f"test-{uuid.uuid4()}@example.com",
             hashed_password="hash",
-            status="active",
+            status="active", first_name="Test", last_name="User", role="member"
         )
         db_session.add(user)
 
@@ -632,9 +632,9 @@ class TestAsyncResourceCleanup:
         # Create test data
         user = User(
             id=str(uuid.uuid4()),
-            email="test@example.com",
+            email=f"test-{uuid.uuid4()}@example.com",
             hashed_password="hash",
-            status="active",
+            status="active", first_name="Test", last_name="User", role="member"
         )
         db_session.add(user)
 
@@ -731,9 +731,9 @@ class TestAsyncResourceCleanup:
         # Create test data
         user = User(
             id=str(uuid.uuid4()),
-            email="test@example.com",
+            email=f"test-{uuid.uuid4()}@example.com",
             hashed_password="hash",
-            status="active",
+            status="active", first_name="Test", last_name="User", role="member"
         )
         db_session.add(user)
 
@@ -845,9 +845,9 @@ class TestAsyncResourceCleanup:
         # Create test data
         user = User(
             id=str(uuid.uuid4()),
-            email="test@example.com",
+            email=f"test-{uuid.uuid4()}@example.com",
             hashed_password="hash",
-            status="active",
+            status="active", first_name="Test", last_name="User", role="member"
         )
         db_session.add(user)
 

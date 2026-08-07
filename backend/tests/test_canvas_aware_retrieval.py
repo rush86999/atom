@@ -6,6 +6,7 @@ and progressive detail levels.
 """
 
 import pytest
+import uuid
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
@@ -33,7 +34,7 @@ def retrieval_service(db_session: Session) -> EpisodeRetrievalService:
 def test_agent(db_session: Session) -> AgentRegistry:
     """Create test agent with INTERN maturity (can use semantic search)"""
     agent = AgentRegistry(
-        id="test-agent-retrieval",
+        id=f"test-agent-retrieval-{uuid.uuid4()}",
         name="RetrievalTestAgent",
         description="Test agent for canvas-aware retrieval",
         category="test",
@@ -51,10 +52,10 @@ def test_agent(db_session: Session) -> AgentRegistry:
 def test_user(db_session: Session) -> User:
     """Create test user"""
     user = User(
-        id="test-user-retrieval",
-        email="retrieval@example.com",
+        id=f"test-user-retrieval-{uuid.uuid4()}",
+        email=f"retrieval-{uuid.uuid4()}@example.com",
         first_name="Retrieval",
-        last_name="Tester"
+        last_name="Tester", role="member", status="active"
     )
     db_session.add(user)
     db_session.commit()

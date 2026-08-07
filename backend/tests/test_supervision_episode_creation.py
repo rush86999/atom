@@ -8,6 +8,7 @@ to ensure supervision sessions are properly captured as learning episodes.
 import asyncio
 from datetime import datetime, timedelta
 import pytest
+import uuid
 from hypothesis import given, strategies as st, settings
 from sqlalchemy.orm import Session
 
@@ -43,10 +44,10 @@ def db():
 def user(db: Session):
     """Create test user."""
     user = User(
-        id="test_supervision_user",
-        email="supervision_test@example.com",
+        id=f"test_supervision_user_{uuid.uuid4()}",
+        email=f"supervision_test-{uuid.uuid4()}@example.com",
         first_name="Supervision",
-        last_name="Test User",
+        last_name="Test User", role="member", status="active"
     )
     db.add(user)
     db.commit()
@@ -58,9 +59,7 @@ def workspace(db: Session, user: User):
     """Create test workspace."""
     workspace = Workspace(
         id="test_supervision_workspace",
-        name="Supervision Test Workspace",
-        
-    )
+        name="Supervision Test Workspace", )
     db.add(workspace)
     db.commit()
     return workspace
@@ -76,9 +75,7 @@ def supervised_agent(db: Session, workspace: Workspace, user: User):
         module_path="agents.test_agent",
         class_name="TestAgent",
         status=AgentStatus.SUPERVISED.value,
-        confidence_score=0.75,
-        
-        
+        confidence_score=0.75, 
     )
     db.add(agent)
     db.commit()
@@ -133,9 +130,7 @@ def agent_execution_factory(db: Session, supervised_agent: AgentRegistry, user: 
         execution = AgentExecution(
             id=f"test_exec_{datetime.now().timestamp()}",
             agent_id=supervised_agent.id,
-            agent_name=supervised_agent.name,
-            
-            status=status,
+            agent_name=supervised_agent.name, status=status,
             task_description=task_description,
             input_summary="Test input",
             output_summary="Test output",

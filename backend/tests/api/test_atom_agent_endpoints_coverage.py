@@ -42,7 +42,7 @@ def client(app):
     test_user = User(
         id="test-user-id",
         email="test@example.com",
-        role="member"
+        role="member", first_name="Test", last_name="User", status="active"
     )
 
     def override_get_current_user():

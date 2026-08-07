@@ -34,7 +34,7 @@ class TestJWTTokenStructure:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="JWT",
             last_name="Test",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -62,7 +62,7 @@ class TestJWTTokenStructure:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Header",
             last_name="Test",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -89,7 +89,7 @@ class TestJWTTokenStructure:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Type",
             last_name="Test",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -119,7 +119,7 @@ class TestJWTTokenExpiration:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Exp",
             last_name="Claim",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -146,7 +146,7 @@ class TestJWTTokenExpiration:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Future",
             last_name="Exp",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -174,7 +174,7 @@ class TestJWTTokenExpiration:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="24",
             last_name="Hour",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -208,7 +208,7 @@ class TestJWTTokenValidation:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Valid",
             last_name="Token",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -276,7 +276,7 @@ class TestJWTTokenInvalidSignature:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Wrong",
             last_name="Sig",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -303,7 +303,7 @@ class TestJWTTokenInvalidSignature:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Tam",
             last_name="per",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -377,7 +377,7 @@ class TestJWTTokenAlgorithmSecurity:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Algo",
             last_name="Test",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()

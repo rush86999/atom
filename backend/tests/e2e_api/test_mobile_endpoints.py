@@ -47,13 +47,8 @@ def create_test_user(db_session: Session, email: str, password: str) -> User:
         User: Created user instance
     """
     user = User(
-        email=email,
-        username=f"mobileapi_{str(uuid.uuid4())[:8]}",
-        hashed_password=get_password_hash(password),
-        is_active=True,
-        status="active",
-        email_verified=True,
-        created_at=datetime.utcnow()
+        email=email, hashed_password=get_password_hash(password), status="active",
+        created_at=datetime.utcnow(), first_name="Test", last_name="User", role="member"
     )
 
     db_session.add(user)

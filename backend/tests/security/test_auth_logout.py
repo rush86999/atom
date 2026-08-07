@@ -32,7 +32,7 @@ class TestLogoutWithValidToken:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Log",
             last_name="Out",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -64,7 +64,7 @@ class TestLogoutWithValidToken:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Clear",
             last_name="Token",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -138,7 +138,7 @@ class TestLogoutWithExpiredToken:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Exp",
             last_name="ired",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -175,7 +175,7 @@ class TestLogoutTokenRevocation:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Rev",
             last_name="oke",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -223,7 +223,7 @@ class TestLogoutMultipleSessions:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="Multi",
             last_name="Session",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -273,7 +273,7 @@ class TestLogoutSecurity:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="CS",
             last_name="RF",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()
@@ -305,7 +305,7 @@ class TestLogoutSecurity:
             hashed_password=get_password_hash("SecurePass123!"),
             first_name="No",
             last_name="Leak",
-            status="active"
+            status="active", role="member"
         )
         db_session.add(user)
         db_session.commit()

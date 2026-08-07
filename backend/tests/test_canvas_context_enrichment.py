@@ -6,6 +6,7 @@ and enrichment of EpisodeSegment with canvas_context.
 """
 
 import pytest
+import uuid
 from datetime import datetime
 from sqlalchemy.orm import Session
 
@@ -35,10 +36,10 @@ def segmentation_service(db_session: Session) -> EpisodeSegmentationService:
 def test_user(db_session: Session) -> User:
     """Create test user"""
     user = User(
-        id="test-user-canvas",
-        email="canvas@example.com",
+        id=f"test-user-canvas-{uuid.uuid4()}",
+        email=f"canvas-{uuid.uuid4()}@example.com",
         first_name="Canvas",
-        last_name="Tester"
+        last_name="Tester", role="member", status="active"
     )
     db_session.add(user)
     db_session.commit()
@@ -49,7 +50,7 @@ def test_user(db_session: Session) -> User:
 def test_agent(db_session: Session) -> AgentRegistry:
     """Create test agent"""
     agent = AgentRegistry(
-        id="test-agent-canvas",
+        id=f"test-agent-canvas-{uuid.uuid4()}",
         name="CanvasTestAgent",
         description="Test agent for canvas context",
         category="test",
@@ -67,7 +68,7 @@ def test_agent(db_session: Session) -> AgentRegistry:
 def test_session(db_session: Session, test_user: User) -> ChatSession:
     """Create test chat session"""
     session = ChatSession(
-        id="test-session-canvas",
+        id=f"test-session-canvas-{uuid.uuid4()}",
         user_id=test_user.id,
         created_at=datetime.now()
     )

@@ -36,7 +36,7 @@ def test_password_reset_flow():
             hashed_password=get_password_hash(password),
             first_name="Test",
             last_name="User",
-            status=UserStatus.ACTIVE
+            status=UserStatus.ACTIVE, role="member"
         )
         db.add(user)
         db.commit()

@@ -60,7 +60,7 @@ class TestSOXCompliance:
         All must be present in audit entries.
         """
         # Create user and agent
-        user = User(id=str(uuid.uuid4()), email="sox_test@example.com")
+        user = User(id=str(uuid.uuid4()), email="sox_test@example.com", first_name="Test", last_name="User", role="member", status="active")
         agent = AgentRegistry(
             id=str(uuid.uuid4()),
             name="SOX Test Agent",
@@ -150,7 +150,7 @@ class TestSOXCompliance:
         - Governance check passed (governance_check_passed)
         - Agent maturity at time of action (agent_maturity)
         """
-        user = User(id=str(uuid.uuid4()), email="auth_test@example.com")
+        user = User(id=str(uuid.uuid4()), email="auth_test@example.com", first_name="Test", last_name="User", role="member", status="active")
         self.db.add(user)
         self.db.commit()
 
@@ -202,7 +202,7 @@ class TestSOXCompliance:
         - Tampering breaks the chain
         - Chain can be verified for integrity
         """
-        user = User(id=str(uuid.uuid4()), email="nonrepudiation@example.com")
+        user = User(id=str(uuid.uuid4()), email="nonrepudiation@example.com", first_name="Test", last_name="User", role="member", status="active")
         self.db.add(user)
         self.db.commit()
 
@@ -288,7 +288,7 @@ class TestSOXCompliance:
         - Queries can retrieve old records
         - Archive-ready structure exists
         """
-        user = User(id=str(uuid.uuid4()), email="retention@example.com")
+        user = User(id=str(uuid.uuid4()), email="retention@example.com", first_name="Test", last_name="User", role="member", status="active")
         self.db.add(user)
         self.db.commit()
 
@@ -372,7 +372,7 @@ class TestSOXCompliance:
         Runs all SOX checks and generates compliance report.
         """
         # Create test data
-        user = User(id=str(uuid.uuid4()), email="compliance@example.com")
+        user = User(id=str(uuid.uuid4()), email="compliance@example.com", first_name="Test", last_name="User", role="member", status="active")
         self.db.add(user)
         self.db.commit()
 
@@ -440,7 +440,7 @@ class TestSOXCompliance:
         with full SOX compliance fields.
         """
         # Create user and account
-        user = User(id=str(uuid.uuid4()), email="audit_trail@example.com")
+        user = User(id=str(uuid.uuid4()), email="audit_trail@example.com", first_name="Test", last_name="User", role="member", status="active")
         self.db.add(user)
         self.db.commit()
 

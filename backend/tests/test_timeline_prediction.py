@@ -50,7 +50,7 @@ class TestTimelinePrediction(unittest.TestCase):
         self.ws = Workspace(id="w_predict", name="Predict Corp")
         self.db.add(self.ws)
         
-        self.u1 = User(id="u_busy", email="busy@corp.com", first_name="Bob", last_name="Busy")
+        self.u1 = User(id="u_busy", email="busy@corp.com", first_name="Bob", last_name="Busy", role="member", status="active")
         self.db.add(self.u1)
         
         self.p1 = Project(

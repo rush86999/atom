@@ -50,7 +50,6 @@ def create_test_user(db_session: Session, email: str = None) -> User:
         hashed_password=get_password_hash("TestPassword123!"),
         is_active=True,
         status="active",
-        email_verified=True,
         created_at=datetime.utcnow()
     )
 

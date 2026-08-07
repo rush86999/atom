@@ -44,7 +44,7 @@ def test_user(db_session: Session):
     user = User(
         id="test_user_recording_review",
         email="recording_review@test.com",
-        role="member"
+        role="member", first_name="Test", last_name="User", status="active"
     )
     db_session.add(user)
     db_session.flush()

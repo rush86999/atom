@@ -29,8 +29,7 @@ def test_user():
     """Mock test user"""
     return User(
         id=uuid4(),
-        email="test@example.com",
-        name="Test User"
+        email="test@example.com", first_name="Test", last_name="User", role="member", status="active"
     )
 
 

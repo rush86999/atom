@@ -63,8 +63,7 @@ def sample_user(test_db):
     """Create sample user."""
     user = User(
         id="user-lifecycle-123",
-        email="lifecycle@test.com",
-        name="Lifecycle Test User"
+        email="lifecycle@test.com", first_name="Test", last_name="User", role="member", status="active"
     )
     test_db.add(user)
     test_db.commit()

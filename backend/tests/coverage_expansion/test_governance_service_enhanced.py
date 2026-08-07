@@ -13,6 +13,7 @@ Target: Increase coverage from 70% to 85%+
 """
 
 import pytest
+import uuid
 from unittest.mock import Mock, patch, MagicMock, AsyncMock
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
@@ -52,10 +53,10 @@ class TestAgentGovernanceServiceEnhanced:
     def test_user(self, db_session):
         """Create test user."""
         user = User(
-            id="test-user-123",
-            email="test@example.com",
+            id=f"test-user-{uuid.uuid4()}",
+            email=f"test-{uuid.uuid4()}@example.com",
             role=UserRole.WORKSPACE_ADMIN,
-            specialty="Finance"
+            first_name="Test", last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()

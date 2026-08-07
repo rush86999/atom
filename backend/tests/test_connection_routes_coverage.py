@@ -56,9 +56,7 @@ def test_app(test_db):
     async def mock_get_current_user():
         return User(
             id="test-user-123",
-            email="test@example.com",
-            name="Test User",
-            created_at=datetime.now()
+            email="test@example.com", created_at=datetime.now(), first_name="Test", last_name="User", role="member", status="active"
         )
 
     app.dependency_overrides[get_current_user] = mock_get_current_user
@@ -242,9 +240,7 @@ def sample_user(test_db):
     if not user:
         user = User(
             id="test-user-123",
-            email="test@example.com",
-            name="Test User",
-            created_at=datetime.now()
+            email="test@example.com", created_at=datetime.now(), first_name="Test", last_name="User", role="member", status="active"
         )
         test_db.add(user)
         test_db.commit()

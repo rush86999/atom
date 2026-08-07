@@ -55,11 +55,7 @@ def client(db_session: Session):
         # Create test user
         from datetime import datetime
         user = User(
-            email=email,
-            username=f"testuser_{unique_id}",
-            hashed_password="hashed",
-            is_active=True,
-            created_at=datetime.utcnow()
+            email=email, hashed_password="hashed", created_at=datetime.utcnow(), first_name="Test", last_name="User", role="member", status="active"
         )
         db_session.add(user)
         db_session.commit()

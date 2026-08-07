@@ -51,8 +51,7 @@ def create_test_user(
         first_name=first_name,
         last_name=last_name,
         role="MEMBER",
-        status="ACTIVE",
-        email_verified=True
+        status="ACTIVE"
     )
 
 

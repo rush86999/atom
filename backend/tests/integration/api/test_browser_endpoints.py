@@ -70,9 +70,7 @@ class TestBrowserSessionCreation:
 
         user = User(
             id="browser_user_1",
-            email="browser@example.com",
-            username="browseruser",
-            hashed_password="hash"
+            email="browser@example.com", hashed_password="hash", first_name="Test", last_name="User", role="member", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -184,9 +182,7 @@ class TestBrowserNavigation:
 
         user = User(
             id="nav_user_1",
-            email="nav@example.com",
-            username="navuser",
-            hashed_password="hash"
+            email="nav@example.com", hashed_password="hash", first_name="Test", last_name="User", role="member", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -331,9 +327,7 @@ class TestBrowserFormFill:
 
         user = User(
             id="form_user_1",
-            email="form@example.com",
-            username="formuser",
-            hashed_password="hash"
+            email="form@example.com", hashed_password="hash", first_name="Test", last_name="User", role="member", status="active"
         )
         db_session.add(user)
         db_session.commit()

@@ -128,11 +128,8 @@ def super_admin_user(test_db: Session) -> User:
         id=str(uuid.uuid4()),
         email="superadmin@test.com",
         first_name="Super",
-        last_name="Admin",
-        name="Super Admin",
-        role="super_admin",
-        status="active",
-        email_verified=True
+        last_name="Admin", role="super_admin",
+        status="active"
     )
     test_db.add(user)
     test_db.commit()
@@ -147,11 +144,8 @@ def regular_user(test_db: Session) -> User:
         id=str(uuid.uuid4()),
         email="member@test.com",
         first_name="Regular",
-        last_name="Member",
-        name="Regular Member",
-        role="member",
-        status="active",
-        email_verified=True
+        last_name="Member", role="member",
+        status="active"
     )
     test_db.add(user)
     test_db.commit()
@@ -1582,11 +1576,8 @@ class TestAdminRoutesAuth:
         # Create inactive super_admin
         inactive_super = User(
             id=str(uuid.uuid4()),
-            email="inactive@test.com",
-            name="Inactive Super",
-            role="super_admin",
-            status="inactive",
-            email_verified=True
+            email="inactive@test.com", role="super_admin",
+            status="inactive", first_name="Test", last_name="User"
         )
         test_db.add(inactive_super)
         test_db.commit()

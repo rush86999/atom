@@ -14,30 +14,30 @@ from core.rbac_service import Permission, RBACService
 class TestRBACService(unittest.TestCase):
     def test_get_user_permissions(self):
         # Test Member Permissions
-        member = User(role=UserRole.MEMBER)
+        member = User(role=UserRole.MEMBER, first_name="Test", last_name="User", status="active")
         perms = RBACService.get_user_permissions(member)
         self.assertIn(Permission.AGENT_VIEW, perms)
         self.assertIn(Permission.AGENT_RUN, perms)
         self.assertNotIn(Permission.AGENT_MANAGE, perms)
 
         # Test Workspace Admin Permissions
-        admin = User(role=UserRole.WORKSPACE_ADMIN)
+        admin = User(role=UserRole.WORKSPACE_ADMIN, first_name="Test", last_name="User", status="active")
         perms = RBACService.get_user_permissions(admin)
         self.assertIn(Permission.AGENT_MANAGE, perms)
         self.assertIn(Permission.WORKFLOW_MANAGE, perms)
         
         # Test Guest Permissions
-        guest = User(role=UserRole.GUEST)
+        guest = User(role=UserRole.GUEST, first_name="Test", last_name="User", status="active")
         perms = RBACService.get_user_permissions(guest)
         self.assertIn(Permission.AGENT_VIEW, perms)
         self.assertNotIn(Permission.AGENT_RUN, perms)
 
     def test_check_permission(self):
-        member = User(role=UserRole.MEMBER)
+        member = User(role=UserRole.MEMBER, first_name="Test", last_name="User", status="active")
         self.assertTrue(RBACService.check_permission(member, Permission.AGENT_RUN))
         self.assertFalse(RBACService.check_permission(member, Permission.WORKFLOW_MANAGE))
 
-        super_admin = User(role=UserRole.SUPER_ADMIN)
+        super_admin = User(role=UserRole.SUPER_ADMIN, first_name="Test", last_name="User", status="active")
         self.assertTrue(RBACService.check_permission(super_admin, Permission.SYSTEM_ADMIN))
         self.assertTrue(RBACService.check_permission(super_admin, "any_random_permission"))
 
@@ -58,7 +58,7 @@ class TestRBACIntegration(unittest.TestCase):
 
     def test_agent_routes_enforcement(self):
         # Mock Member User
-        mock_member = User(id="u1", email="member@test.com", role=UserRole.MEMBER)
+        mock_member = User(id="u1", email="member@test.com", role=UserRole.MEMBER, first_name="Test", last_name="User", status="active")
         
         # Override dependency to return mock member
         app.dependency_overrides[get_current_user] = lambda: mock_member
@@ -86,7 +86,7 @@ class TestRBACIntegration(unittest.TestCase):
 
     def test_agent_routes_denial(self):
         # Mock Guest User
-        mock_guest = User(id="u2", role=UserRole.GUEST)
+        mock_guest = User(id="u2", role=UserRole.GUEST, first_name="Test", last_name="User", status="active")
         app.dependency_overrides[get_current_user] = lambda: mock_guest
 
         # 1. List Agents (Requires AGENT_VIEW) - Should Pass
@@ -99,7 +99,7 @@ class TestRBACIntegration(unittest.TestCase):
 
     def test_workflow_routes_enforcement(self):
         # Mock Member User (Cannot Manage Workflow)
-        mock_member = User(id="u1", role=UserRole.MEMBER)
+        mock_member = User(id="u1", role=UserRole.MEMBER, first_name="Test", last_name="User", status="active")
         app.dependency_overrides[get_current_user] = lambda: mock_member
 
         # Create Workflow (Requires WORKFLOW_MANAGE) -> Fail
@@ -109,7 +109,7 @@ class TestRBACIntegration(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
 
         # Switch to Admin
-        mock_admin = User(id="u3", role=UserRole.WORKSPACE_ADMIN)
+        mock_admin = User(id="u3", role=UserRole.WORKSPACE_ADMIN, first_name="Test", last_name="User", status="active")
         app.dependency_overrides[get_current_user] = lambda: mock_admin
         
         # Create Workflow -> Success (assuming payload valid, else 422 or 500 but not 403)

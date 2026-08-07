@@ -49,7 +49,7 @@ class TestResourceIntelligence(unittest.IsolatedAsyncioTestCase):
             workspace_id=self.workspace_id,
             skills=json.dumps(["Python", "PostgreSQL", "React"]),
             capacity_hours=40.0,
-            status="active"
+            status="active", role="member"
         )
         self.user2 = User(
             id="u2", 
@@ -59,7 +59,7 @@ class TestResourceIntelligence(unittest.IsolatedAsyncioTestCase):
             workspace_id=self.workspace_id,
             skills=json.dumps(["Salesforce", "Communication", "Negotiation"]),
             capacity_hours=30.0,
-            status="active"
+            status="active", role="member"
         )
         self.db.add(self.user1)
         self.db.add(self.user2)

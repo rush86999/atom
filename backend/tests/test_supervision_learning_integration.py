@@ -6,6 +6,7 @@ Tests the complete flow from supervision → episodes → graduation.
 
 import asyncio
 import pytest
+import uuid
 from hypothesis import given, strategies as st, settings
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
@@ -49,10 +50,10 @@ def db():
 def user(db: Session):
     """Create test user."""
     user = User(
-        id="test_integration_user",
-        email="integration_test@example.com",
+        id=f"test_integration_user_{uuid.uuid4()}",
+        email=f"integration_test-{uuid.uuid4()}@example.com",
         first_name="Integration",
-        last_name="Test User",
+        last_name="Test User", role="member", status="active"
     )
     db.add(user)
     db.commit()
@@ -64,9 +65,7 @@ def workspace(db: Session, user: User):
     """Create test workspace."""
     workspace = Workspace(
         id="test_integration_workspace",
-        name="Integration Test Workspace",
-        
-    )
+        name="Integration Test Workspace", )
     db.add(workspace)
     db.commit()
     return workspace
@@ -82,9 +81,7 @@ def supervised_agent(db: Session, workspace: Workspace, user: User):
         module_path="agents.test_agent",
         class_name="TestAgent",
         status=AgentStatus.SUPERVISED.value,
-        confidence_score=0.75,
-        
-        
+        confidence_score=0.75, 
     )
     db.add(agent)
     db.commit()
@@ -101,9 +98,7 @@ def intern_agent(db: Session, workspace: Workspace, user: User):
         module_path="agents.test_agent",
         class_name="TestAgent",
         status=AgentStatus.INTERN.value,
-        confidence_score=0.6,
-        
-        
+        confidence_score=0.6, 
     )
     db.add(agent)
     db.commit()
@@ -138,9 +133,7 @@ class TestSupervisionToEndToEnd:
         execution = AgentExecution(
             id=f"exec_{datetime.now().timestamp()}",
             agent_id=supervised_agent.id,
-            agent_name=supervised_agent.name,
-            
-            status="running",
+            agent_name=supervised_agent.name, status="running",
             task_description="Test task for supervision",
             started_at=datetime.now(),
         )
@@ -185,9 +178,7 @@ class TestSupervisionToEndToEnd:
             execution = AgentExecution(
                 id=f"exec_{datetime.now().timestamp()}_{_}",
                 agent_id=supervised_agent.id,
-                agent_name=supervised_agent.name,
-                
-                status="completed",
+                agent_name=supervised_agent.name, status="completed",
                 task_description=f"Test task {_}",
                 started_at=datetime.now(),
                 completed_at=datetime.now(),
@@ -233,9 +224,7 @@ class TestSupervisionToEndToEnd:
 
         # Step 2: Approve proposal
         await proposal_service.approve_proposal(
-            proposal_id=proposal.id,
-            
-        )
+            proposal_id=proposal.id, )
 
         # Step 3: Verify episode created
         episodes = db.query(Episode).filter(
@@ -260,9 +249,7 @@ class TestSupervisionToEndToEnd:
         )
 
         await proposal_service.reject_proposal(
-            proposal_id=proposal2.id,
-            
-            reason="Not needed",
+            proposal_id=proposal2.id, reason="Not needed",
         )
 
         # Step 5: Verify rejected episode
@@ -296,9 +283,7 @@ class TestSupervisionToEndToEnd:
             execution = AgentExecution(
                 id=f"exec_{datetime.now().timestamp()}_{i}",
                 agent_id=supervised_agent.id,
-                agent_name=supervised_agent.name,
-                
-                status="completed",
+                agent_name=supervised_agent.name, status="completed",
                 task_description=f"Task {i}",
                 started_at=datetime.now(),
                 completed_at=datetime.now(),
@@ -362,9 +347,7 @@ class TestLearningImpact:
             execution = AgentExecution(
                 id=f"exec_{datetime.now().timestamp()}_{i}",
                 agent_id=supervised_agent.id,
-                agent_name=supervised_agent.name,
-                
-                status="completed",
+                agent_name=supervised_agent.name, status="completed",
                 task_description=f"Task {i}",
                 started_at=datetime.now(),
                 completed_at=datetime.now(),
@@ -412,9 +395,7 @@ class TestLearningImpact:
             execution = AgentExecution(
                 id=f"exec_{datetime.now().timestamp()}_{i}",
                 agent_id=supervised_agent.id,
-                agent_name=supervised_agent.name,
-                
-                status="completed",
+                agent_name=supervised_agent.name, status="completed",
                 task_description=f"Task {i}",
                 started_at=datetime.now(),
                 completed_at=datetime.now(),
@@ -479,9 +460,7 @@ class TestIntegrationProperties:
             execution = AgentExecution(
                 id=f"exec_{datetime.now().timestamp()}_{i}",
                 agent_id=supervised_agent.id,
-                agent_name=supervised_agent.name,
-                
-                status="completed",
+                agent_name=supervised_agent.name, status="completed",
                 task_description=f"Task {i}",
                 started_at=datetime.now(),
                 completed_at=datetime.now(),
@@ -549,9 +528,7 @@ class TestIntegrationProperties:
             execution = AgentExecution(
                 id=f"exec_{datetime.now().timestamp()}_{i}",
                 agent_id=supervised_agent.id,
-                agent_name=supervised_agent.name,
-                
-                status="completed",
+                agent_name=supervised_agent.name, status="completed",
                 task_description=f"Task {i}",
                 started_at=datetime.now(),
                 completed_at=datetime.now(),
@@ -615,9 +592,7 @@ class TestIntegrationProperties:
         execution = AgentExecution(
             id=f"exec_{datetime.now().timestamp()}",
             agent_id=supervised_agent.id,
-            agent_name=supervised_agent.name,
-            
-            status="completed",
+            agent_name=supervised_agent.name, status="completed",
             task_description="Test task",
             started_at=datetime.now(),
             completed_at=datetime.now(),

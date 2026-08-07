@@ -6,6 +6,7 @@ to ensure proposal approvals/rejections are captured as learning episodes.
 """
 
 import pytest
+import uuid
 from hypothesis import given, strategies as st, settings
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -41,10 +42,10 @@ def db():
 def user(db: Session):
     """Create test user."""
     user = User(
-        id="test_proposal_user",
-        email="proposal_test@example.com",
+        id=f"test_proposal_user_{uuid.uuid4()}",
+        email=f"proposal_test-{uuid.uuid4()}@example.com",
         first_name="Proposal",
-        last_name="Test User",
+        last_name="Test User", role="member", status="active"
     )
     db.add(user)
     db.commit()
@@ -56,9 +57,7 @@ def workspace(db: Session, user: User):
     """Create test workspace."""
     workspace = Workspace(
         id="test_proposal_workspace",
-        name="Proposal Test Workspace",
-        
-    )
+        name="Proposal Test Workspace", )
     db.add(workspace)
     db.commit()
     return workspace
@@ -74,9 +73,7 @@ def intern_agent(db: Session, workspace: Workspace, user: User):
         module_path="agents.test_agent",
         class_name="TestAgent",
         status=AgentStatus.INTERN.value,
-        confidence_score=0.6,
-        
-        
+        confidence_score=0.6, 
     )
     db.add(agent)
     db.commit()
@@ -136,9 +133,7 @@ class TestProposalEpisodeCreation:
 
         # Approve proposal
         result = await proposal_service.approve_proposal(
-            proposal_id=proposal.id,
-            
-            modifications=None,
+            proposal_id=proposal.id, modifications=None,
         )
 
         # Verify episode created
@@ -170,9 +165,7 @@ class TestProposalEpisodeCreation:
 
         # Reject proposal
         await proposal_service.reject_proposal(
-            proposal_id=proposal.id,
-            
-            reason=rejection_reason,
+            proposal_id=proposal.id, reason=rejection_reason,
         )
 
         # Verify episode created
@@ -201,9 +194,7 @@ class TestProposalEpisodeCreation:
 
         # Approve with modifications
         await proposal_service.approve_proposal(
-            proposal_id=proposal.id,
-            
-            modifications=modifications,
+            proposal_id=proposal.id, modifications=modifications,
         )
 
         # Verify episode includes modifications
@@ -230,15 +221,11 @@ class TestProposalEpisodeCreation:
 
         # Approve one
         await proposal_service.approve_proposal(
-            proposal_id=approved_proposal.id,
-            
-        )
+            proposal_id=approved_proposal.id, )
 
         # Reject one
         await proposal_service.reject_proposal(
-            proposal_id=rejected_proposal.id,
-            
-            reason="Not good enough",
+            proposal_id=rejected_proposal.id, reason="Not good enough",
         )
 
         # Get episodes
@@ -269,9 +256,7 @@ class TestProposalEpisodeCreation:
 
         proposal_service = ProposalService(db)
         await proposal_service.approve_proposal(
-            proposal_id=proposal.id,
-            
-        )
+            proposal_id=proposal.id, )
 
         # Verify segments created
         from core.models import Episode, EpisodeSegment
@@ -304,9 +289,7 @@ class TestProposalEpisodeCreation:
 
         proposal_service = ProposalService(db)
         await proposal_service.approve_proposal(
-            proposal_id=proposal.id,
-            
-        )
+            proposal_id=proposal.id, )
 
         # Verify topics extracted
         from core.models import Episode
@@ -331,9 +314,7 @@ class TestProposalEpisodeCreation:
 
         proposal_service = ProposalService(db)
         await proposal_service.approve_proposal(
-            proposal_id=proposal.id,
-            
-        )
+            proposal_id=proposal.id, )
 
         # Verify human intervention counted
         from core.models import Episode
@@ -373,9 +354,7 @@ class TestProposalEpisodeProperties:
 
         proposal_service = ProposalService(db)
         await proposal_service.approve_proposal(
-            proposal_id=proposal.id,
-            
-        )
+            proposal_id=proposal.id, )
 
         # Verify content in episode
         from core.models import Episode
@@ -412,9 +391,7 @@ class TestProposalEpisodeProperties:
 
         proposal_service = ProposalService(db)
         await proposal_service.approve_proposal(
-            proposal_id=proposal.id,
-            
-            modifications=modifications_dict,
+            proposal_id=proposal.id, modifications=modifications_dict,
         )
 
         # Verify modifications in episode
@@ -445,9 +422,7 @@ class TestProposalEpisodeProperties:
 
         proposal_service = ProposalService(db)
         await proposal_service.reject_proposal(
-            proposal_id=proposal.id,
-            
-            reason=rejection_reason.strip(),
+            proposal_id=proposal.id, reason=rejection_reason.strip(),
         )
 
         # Verify rejection reason in episode
@@ -479,14 +454,10 @@ class TestProposalEpisodeProperties:
 
         if outcome == "approved":
             await proposal_service.approve_proposal(
-                proposal_id=proposal.id,
-                
-            )
+                proposal_id=proposal.id, )
         else:
             await proposal_service.reject_proposal(
-                proposal_id=proposal.id,
-                
-                reason="Test rejection",
+                proposal_id=proposal.id, reason="Test rejection",
             )
 
         # Verify outcome
@@ -517,9 +488,7 @@ class TestProposalEpisodeProperties:
 
         proposal_service = ProposalService(db)
         await proposal_service.approve_proposal(
-            proposal_id=proposal.id,
-            
-            modifications=modifications if modifications else None,
+            proposal_id=proposal.id, modifications=modifications if modifications else None,
         )
 
         # Verify importance score
@@ -559,9 +528,7 @@ class TestProposalEpisodeProperties:
 
         proposal_service = ProposalService(db)
         await proposal_service.approve_proposal(
-            proposal_id=proposal.id,
-            
-        )
+            proposal_id=proposal.id, )
 
         # Verify entities extracted
         from core.models import Episode

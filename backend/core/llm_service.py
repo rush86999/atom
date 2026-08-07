@@ -119,6 +119,11 @@ class LLMService:
         """Alias for _handler (parity with some callers)."""
         return self._handler
 
+    @handler.setter
+    def handler(self, value: BYOKHandler) -> None:
+        """Allow callers/tests to inject a mock handler."""
+        self._handler = value
+
     @property
     def workspace_id(self) -> str:
         """Return the workspace identifier."""

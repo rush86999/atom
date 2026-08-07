@@ -262,11 +262,10 @@ class TestRunStatefulCallback:
 
         monkeypatch.setattr(svc, "get_miniapp_runtime", FakeRuntime)
 
-        # Mock the integration service so the real Node bridge isn't contacted.
-        class FakeExt:
-            async def execute_integration_action(self, integration_id, action_id, params, credentials):
-                return type("R", (), {"data": {"pages": [1]}})()
-        monkeypatch.setattr("core.external_integration_service.ExternalIntegrationService", FakeExt)
+        # Mock the unified dispatcher so no real integration is contacted.
+        async def fake_dispatch(service, action, params, *, tenant_id, db):
+            return {"ok": True, "data": {"pages": [1]}, "backend": "native"}
+        monkeypatch.setattr("core.mini_app_integration_dispatch.dispatch", fake_dispatch)
 
         result = await svc.run_stateful(cid, user_id="u1", scopes=("*",))
         assert result["success"]

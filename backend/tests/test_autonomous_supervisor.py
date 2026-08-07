@@ -5,6 +5,7 @@ Test autonomous agent fallback supervision when users are unavailable.
 """
 
 import pytest
+import uuid
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
@@ -47,10 +48,10 @@ def db():
 def test_user(db: Session):
     """Create test user."""
     user = User(
-        email="test@example.com",
+        email=f"test-{uuid.uuid4()}@example.com",
         first_name="Test",
         last_name="User",
-        status="ACTIVE"
+        status="ACTIVE", role="member"
     )
     db.add(user)
     db.commit()

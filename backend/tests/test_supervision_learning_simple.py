@@ -61,7 +61,7 @@ class TestSupervisionLearningBasic:
             id=user_id,
             email=f"test-{uuid.uuid4().hex[:8]}@example.com",
             first_name="Test",
-            last_name="User",
+            last_name="User", role="member", status="active"
         )
         db.add(user)
 
@@ -189,7 +189,7 @@ class TestSupervisionLearningBasic:
             id=user_id,
             email=f"test-{uuid.uuid4().hex[:8]}@example.com",
             first_name="Test",
-            last_name="User",
+            last_name="User", role="member", status="active"
         )
         db.add(user)
 
@@ -268,7 +268,7 @@ class TestSupervisionLearningBasic:
             id=user_id,
             email=f"test-{uuid.uuid4().hex[:8]}@example.com",
             first_name="Test",
-            last_name="User",
+            last_name="User", role="member", status="active"
         )
         db.add(user)
 

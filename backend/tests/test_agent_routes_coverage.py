@@ -49,7 +49,6 @@ def admin_user(db: Session):
         first_name="Admin",
         last_name="User",
         role=UserRole.ADMIN.value,
-        email_verified=True,
         created_at=datetime.utcnow()
     )
     db.add(user)

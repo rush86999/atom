@@ -36,8 +36,8 @@ class TestWorkforceIntelligence(unittest.TestCase):
         self.db.add(self.ws)
         
         # 2 Users: Expert and Loader
-        self.u1 = User(id="u_expert", email="expert@corp.com", first_name="Alice", last_name="Expert", skills="Python, AI")
-        self.u2 = User(id="u_loader", email="loader@corp.com", first_name="Bob", last_name="Loader", skills="Java")
+        self.u1 = User(id="u_expert", email="expert@corp.com", first_name="Alice", last_name="Expert", skills="Python, AI", role="member", status="active")
+        self.u2 = User(id="u_loader", email="loader@corp.com", first_name="Bob", last_name="Loader", skills="Java", role="member", status="active")
         self.db.add_all([self.u1, self.u2])
         
         self.p1 = Project(id="p1", workspace_id="w_workforce", name="AI Integration")

@@ -25,7 +25,7 @@ async def run_integration_test():
             
         user = db.query(User).filter(User.tenant_id == tenant.id).first()
         if not user:
-            user = User(id=str(uuid.uuid4()), email="test@example.com", tenant_id=tenant.id)
+            user = User(id=str(uuid.uuid4()), email="test@example.com", tenant_id=tenant.id, first_name="Test", last_name="User", role="member", status="active")
             db.add(user)
             db.commit()
 

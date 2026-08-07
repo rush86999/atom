@@ -387,7 +387,7 @@ def episode_test_user(episode_db_session):
     user = User(
         id=user_id,
         email=f"test_{uuid4().hex[:8]}@example.com",
-        role="member"
+        role="member", first_name="Test", last_name="User", status="active"
     )
     episode_db_session.add(user)
     episode_db_session.commit()
@@ -539,13 +539,11 @@ def governance_test_user(db_session: Session):
     ) -> User:
         """Create a test user in the database."""
         user = User(
-            email=email,
-            name="Test User",
-            role=role.value if isinstance(role, UserRole) else role,
+            email=email, role=role.value if isinstance(role, UserRole) else role,
             status=UserStatus.ACTIVE.value,
             specialty=specialty,
             reputation_score=reputation,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc), first_name="Test", last_name="User"
         )
         db_session.add(user)
         db_session.commit()

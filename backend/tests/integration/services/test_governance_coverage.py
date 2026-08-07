@@ -39,15 +39,11 @@ class TestAgentMaturityRouting:
         (AgentStatus.STUDENT, 1, True),   # Can do complexity 1
         (AgentStatus.STUDENT, 2, False),  # Cannot do complexity 2+
         (AgentStatus.STUDENT, 3, False),
-        (AgentStatus.STUDENT, 4, False),
-
-        # INTERN agents (maturity level 1)
+        (AgentStatus.STUDENT, 4, False), # INTERN agents (maturity level 1)
         (AgentStatus.INTERN, 1, True),    # Can do complexity 1-2
         (AgentStatus.INTERN, 2, True),
         (AgentStatus.INTERN, 3, False),   # Cannot do complexity 3+
-        (AgentStatus.INTERN, 4, False),
-
-        # SUPERVISED agents (maturity level 2)
+        (AgentStatus.INTERN, 4, False), # SUPERVISED agents (maturity level 2)
         (AgentStatus.SUPERVISED, 1, True), # Can do complexity 1-3
         (AgentStatus.SUPERVISED, 2, True),
         (AgentStatus.SUPERVISED, 3, True),
@@ -414,7 +410,7 @@ class TestFeedbackAdjudication:
         user = User(
             email="test@example.com",
             first_name="Test",
-            role=UserRole.MEMBER.value
+            role=UserRole.MEMBER.value, last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -465,7 +461,7 @@ class TestFeedbackAdjudication:
             email="admin@example.com",
             first_name="Admin",
             role=UserRole.WORKSPACE_ADMIN.value,  # Trusted reviewer
-            specialty="Finance"
+            last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()  # Commit to get agent.id and user.id
@@ -519,7 +515,7 @@ class TestFeedbackAdjudication:
             email="member@example.com",
             first_name="Member",
             role=UserRole.MEMBER.value,  # Not admin
-            specialty="Engineering"  # Doesn't match agent category
+            last_name="User", status="active"  # Doesn't match agent category
         )
         db_session.add(user)
         db_session.commit()  # Commit to get agent.id and user.id
@@ -573,7 +569,7 @@ class TestFeedbackAdjudication:
             email="expert@example.com",
             first_name="Expert",
             role=UserRole.WORKSPACE_ADMIN.value,
-            specialty="Finance"  # Perfect match
+            last_name="User", status="active"  # Perfect match
         )
         db_session.add(user)
         db_session.commit()  # Commit to get agent.id and user.id
@@ -668,7 +664,7 @@ class TestHITLActionManagement:
         user = User(
             email="reviewer@example.com",
             first_name="Reviewer",
-            role=UserRole.MEMBER.value
+            role=UserRole.MEMBER.value, last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -716,7 +712,7 @@ class TestHITLActionManagement:
         user = User(
             email="reviewer@example.com",
             first_name="Reviewer",
-            role=UserRole.MEMBER.value
+            role=UserRole.MEMBER.value, last_name="User", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -963,7 +959,7 @@ class TestPromoteToAutonomous:
             email="admin@example.com",
             first_name="Admin",
             last_name="User",
-            role=UserRole.WORKSPACE_ADMIN.value
+            role=UserRole.WORKSPACE_ADMIN.value, status="active"
         )
         db_session.add(admin)
 
@@ -995,7 +991,7 @@ class TestPromoteToAutonomous:
             email="member@example.com",
             first_name="Regular",
             last_name="Member",
-            role=UserRole.MEMBER.value
+            role=UserRole.MEMBER.value, status="active"
         )
         db_session.add(user)
 
@@ -1283,7 +1279,7 @@ class TestPermissionEnforcement:
             email="admin@example.com",
             first_name="Admin",
             last_name="User",
-            role=UserRole.WORKSPACE_ADMIN.value
+            role=UserRole.WORKSPACE_ADMIN.value, status="active"
         )
         db_session.add(admin)
 
@@ -1310,7 +1306,7 @@ class TestPermissionEnforcement:
             first_name="Account",
             last_name="Ant",
             role=UserRole.MEMBER.value,
-            specialty="Finance"
+            status="active"
         )
         db_session.add(user)
 
@@ -1337,7 +1333,7 @@ class TestPermissionEnforcement:
             first_name="Regular",
             last_name="Member",
             role=UserRole.MEMBER.value,
-            specialty="Engineering"
+            status="active"
         )
         db_session.add(user)
 

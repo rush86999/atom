@@ -62,7 +62,6 @@ class PaymentScenarioFactory:
             last_name="Test",
             role="MEMBER",
             status="ACTIVE",
-            email_verified=True
         )
         db_session.add(user)
         db_session.flush()
@@ -214,7 +213,6 @@ class BudgetScenarioFactory:
             last_name="Test",
             role="MEMBER",
             status="ACTIVE",
-            email_verified=True
         )
         db_session.add(user)
         db_session.flush()
@@ -394,7 +392,6 @@ class SubscriptionScenarioFactory:
             last_name="Test",
             role="MEMBER",
             status="ACTIVE",
-            email_verified=True
         )
         db_session.add(user)
         db_session.flush()
@@ -541,7 +538,6 @@ class ReconciliationScenarioFactory:
             last_name="Test",
             role="MEMBER",
             status="ACTIVE",
-            email_verified=True
         )
         db_session.add(user)
         db_session.flush()
@@ -681,7 +677,6 @@ class ComplexMultiModelScenarioFactory:
             last_name="Test",
             role="MEMBER",
             status="ACTIVE",
-            email_verified=True
         )
         db_session.add(user)
         db_session.flush()

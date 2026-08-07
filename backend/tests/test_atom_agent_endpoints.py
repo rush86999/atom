@@ -75,7 +75,7 @@ def test_user(db_session):
         email="test@example.com",
         hashed_password="hashed_password_here",
         status="active",
-        role="member"
+        role="member", first_name="Test", last_name="User"
     )
     db_session.add(user)
     db_session.commit()

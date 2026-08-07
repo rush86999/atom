@@ -53,7 +53,6 @@ def create_test_user_with_canvas(db_session: Session, email: str) -> User:
         hashed_password=get_password_hash("TestPassword123!"),
         is_active=True,
         status="active",
-        email_verified=True,
         created_at=datetime.utcnow()
     )
 

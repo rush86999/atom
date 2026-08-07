@@ -17,6 +17,7 @@ Usage:
 """
 
 import asyncio
+import uuid
 from datetime import datetime
 from typing import AsyncIterator, Dict, Any, Optional
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -75,13 +76,12 @@ def api_test_client(db_session: Session):
 
     # Create test user
     test_user = User(
-        id="test-api-user-123",
-        email="test-api@example.com",
+        id=f"test-api-user-{uuid.uuid4()}",
+        email=f"test-api-{uuid.uuid4()}@example.com",
         hashed_password="hashed_password",
         first_name="Test",
         last_name="API",
-        status="active",
-        email_verified=True
+        status="active", role="member"
     )
     db_session.add(test_user)
     db_session.commit()

@@ -55,7 +55,6 @@ def create_test_user(db_session: Session, email: str, password: str = "TestPassw
         hashed_password=get_password_hash(password),
         is_active=True,
         status="active",
-        email_verified=True,  # Skip email verification for tests
         created_at=datetime.utcnow()
     )
 

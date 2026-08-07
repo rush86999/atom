@@ -159,7 +159,7 @@ class TestUserModels:
             email="test@example.com",
             first_name="Test",
             last_name="User",
-            role="user"
+            role="user", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -181,7 +181,7 @@ class TestUserModels:
             email="admin@example.com",
             first_name="Admin",
             last_name="User",
-            role="super_admin"
+            role="super_admin", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -198,7 +198,7 @@ class TestUserModels:
             id=str(uuid.uuid4()),
             email="update@example.com",
             first_name="Original",
-            last_name="Name"
+            last_name="Name", role="member", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -228,7 +228,7 @@ class TestUserModels:
                 email=f"{role}-{i}-{uuid.uuid4()}@example.com",
                 first_name=role.title(),
                 last_name="User",
-                role=role
+                role=role, status="active"
             )
             db_session.add(user)
 

@@ -42,7 +42,7 @@ def app_with_overrides():
 
     # Override get_current_user dependency
     async def override_get_current_user():
-        return User(id="test-user-123", email="test@example.com", username="testuser")
+        return User(id="test-user-123", email="test@example.com", first_name="Test", last_name="User", role="member", status="active")
 
     from core.security_dependencies import get_current_user
     app.dependency_overrides[get_current_user] = override_get_current_user
@@ -62,7 +62,7 @@ def client(app_with_overrides):
 @pytest.fixture
 def mock_user():
     """Create mock user for authentication."""
-    return User(id="test-user-123", email="test@example.com", username="testuser")
+    return User(id="test-user-123", email="test@example.com", first_name="Test", last_name="User", role="member", status="active")
 
 
 @pytest.fixture

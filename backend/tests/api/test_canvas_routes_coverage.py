@@ -109,8 +109,7 @@ def test_user(test_db: Session) -> User:
         first_name="Test",
         last_name="User",
         role="member",
-        status="active",
-        email_verified=True
+        status="active"
     )
     test_db.add(user)
     test_db.commit()

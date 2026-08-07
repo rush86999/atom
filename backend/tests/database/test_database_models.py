@@ -431,7 +431,7 @@ class TestConstraints:
 
         # Try to create second user with same email - should raise IntegrityError
         with pytest.raises(IntegrityError):
-            user2 = User(email="unique@test.com", first_name="User", last_name="Two")
+            user2 = User(email="unique@test.com", first_name="User", last_name="Two", role="member", status="active")
             db_session.add(user2)
             db_session.commit()
 
@@ -485,7 +485,7 @@ class TestConstraints:
         user = User(
             email=None,  # Violates NOT NULL
             first_name="Test",
-            last_name="User"
+            last_name="User", role="member", status="active"
         )
         db_session.add(user)
 
@@ -1268,6 +1268,7 @@ class TestSpecialFields:
         ).first()
         assert retrieved.refresh_token == refresh_token
 
+    @pytest.mark.skip(reason="email verification removed from User model")
     def test_boolean_default_email_verified(self, db_session: Session):
         """Test User.email_verified defaults to False."""
         import uuid
@@ -1275,7 +1276,7 @@ class TestSpecialFields:
             id=str(uuid.uuid4()),
             email="verify@test.com",
             first_name="Test",
-            last_name="User"
+            last_name="User", role="member", status="active"
         )
         db_session.add(user)
         db_session.commit()
@@ -1352,7 +1353,7 @@ class TestSpecialFields:
             id=str(uuid.uuid4()),
             email="roleuser@test.com",
             first_name="Test",
-            last_name="User"
+            last_name="User", role="member", status="active"
         )
         db_session.add(user)
         db_session.commit()

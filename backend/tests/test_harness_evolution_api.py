@@ -10,7 +10,7 @@ def mock_current_user():
     return User(
         id="user_123",
         email="test@example.com",
-        tenant_id="t1"
+        tenant_id="t1", first_name="Test", last_name="User", role="member", status="active"
     )
 
 def test_harness_evolution_endpoint_requires_auth():

@@ -47,13 +47,11 @@ class TestInjectorReadsIntegrations:
     async def test_inject_reads_integrations_field(self, monkeypatch):
         from core.mini_app_service import _inject_integration_sources
 
-        class FakeExt:
-            async def execute_integration_action(self, integration_id, action_id, params, credentials):
-                return type("R", (), {"data": {"ok": True}})()
+        # The injector now routes through the unified dispatcher; mock it.
+        async def fake_dispatch(service, action, params, *, tenant_id, db):
+            return {"ok": True, "data": {"ok": True}, "backend": "native"}
 
-        monkeypatch.setattr(
-            "core.external_integration_service.ExternalIntegrationService", FakeExt
-        )
+        monkeypatch.setattr("core.mini_app_integration_dispatch.dispatch", fake_dispatch)
         out = await _inject_integration_sources(
             {"integrations": [{"service": "notion", "action": "search", "params": {}}]},
             "t1", "w1", "ag1",
@@ -64,13 +62,10 @@ class TestInjectorReadsIntegrations:
     async def test_inject_falls_back_to_mcp_servers(self, monkeypatch):
         from core.mini_app_service import _inject_integration_sources
 
-        class FakeExt:
-            async def execute_integration_action(self, integration_id, action_id, params, credentials):
-                return {"data": {"pages": []}}
+        async def fake_dispatch(service, action, params, *, tenant_id, db):
+            return {"ok": True, "data": {"pages": []}, "backend": "piece"}
 
-        monkeypatch.setattr(
-            "core.external_integration_service.ExternalIntegrationService", FakeExt
-        )
+        monkeypatch.setattr("core.mini_app_integration_dispatch.dispatch", fake_dispatch)
         # No 'integrations' key → falls back to legacy 'mcp_servers'
         out = await _inject_integration_sources(
             {"mcp_servers": [{"service": "slack", "action": "list", "params": {}}]},

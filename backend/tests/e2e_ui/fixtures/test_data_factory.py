@@ -70,7 +70,6 @@ def user_factory(unique_test_id: str, **kwargs) -> Dict[str, Any]:
         "role": "MEMBER",
         "specialty": "Quality Assurance",
         "status": "ACTIVE",
-        "email_verified": True,
         "onboarding_completed": True,
         "capacity_hours": 40.0,
         "hourly_cost_rate": 75.0,

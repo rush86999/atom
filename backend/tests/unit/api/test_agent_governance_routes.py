@@ -69,8 +69,7 @@ def admin_user(db):
     user = User(
         id="admin-123",
         email="admin@example.com",
-        role=UserRole.ADMIN,
-        full_name="Admin User"
+        role=UserRole.ADMIN, first_name="Test", last_name="User", status="active"
     )
     db.add(user)
     db.commit()
@@ -84,8 +83,7 @@ def regular_user(db):
     user = User(
         id="user-123",
         email="user@example.com",
-        role=UserRole.USER,
-        full_name="Regular User"
+        role=UserRole.USER, first_name="Test", last_name="User", status="active"
     )
     db.add(user)
     db.commit()

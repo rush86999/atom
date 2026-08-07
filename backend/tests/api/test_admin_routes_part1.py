@@ -108,8 +108,7 @@ def mock_super_admin(test_db: Session) -> User:
         last_name="Admin",
         name="Super Admin",
         role="super_admin",
-        status="active",
-        email_verified=True
+        status="active"
     )
     test_db.add(user)
     test_db.commit()
@@ -127,8 +126,7 @@ def mock_team_lead(test_db: Session) -> User:
         last_name="Lead",
         name="Team Lead",
         role="team_lead",
-        status="active",
-        email_verified=True
+        status="active"
     )
     test_db.add(user)
     test_db.commit()
