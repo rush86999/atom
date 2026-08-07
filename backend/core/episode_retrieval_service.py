@@ -8,7 +8,7 @@ Provides four retrieval modes:
 4. Contextual - Hybrid score for current task
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -118,7 +118,7 @@ class EpisodeRetrievalService:
         # Calculate time delta
         deltas = {"1d": 1, "7d": 7, "30d": 30, "90d": 90}
         days = deltas.get(time_range, 7)
-        cutoff = datetime.now() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
         # Query episodes
         query = self.db.query(Episode).filter(
@@ -402,13 +402,20 @@ class EpisodeRetrievalService:
                 elif ep.aggregate_feedback_score < 0:
                     scored[ep_id] -= 0.3
 
-        # 5. Sort by score and return top N
-        sorted_ids = sorted(scored.items(), key=lambda x: x[1], reverse=True)[:limit]
+        # 5. Sort by score, apply requirement filters, THEN take top N.
+        # Previously the [:limit] slice ran BEFORE the require_canvas /
+        # require_feedback filters, so episodes ranked just below the cutoff
+        # that *would* qualify were never promoted in — a caller asking for
+        # `limit` canvas episodes received fewer even when eligible candidates
+        # existed just past the cut.
+        sorted_ids = sorted(scored.items(), key=lambda x: x[1], reverse=True)
 
         # 6. Filter by requirements and build results — reuse the batch-fetched
         # map (no second N+1 loop).
         filtered_episodes = []
         for ep_id, score in sorted_ids:
+            if len(filtered_episodes) >= limit:
+                break
             ep = episodes_map.get(ep_id)
             if not ep:
                 continue
@@ -879,7 +886,7 @@ class EpisodeRetrievalService:
         # Time filter
         deltas = {"1d": 1, "7d": 7, "30d": 30, "90d": 90}
         days = deltas.get(time_range, 30)
-        cutoff = datetime.now() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
         # Query episodes with canvas
         query = self.db.query(Episode).filter(
@@ -965,6 +972,17 @@ class EpisodeRetrievalService:
                 "governance_check": governance_check
             }
 
+        # Coerce retrieval_mode to the enum. The param is typed as
+        # RetrievalMode but the docstring documents passing the string value
+        # ('temporal', 'semantic', ...); a raw string previously fell through
+        # every Enum comparison (always False -> SEQUENTIAL) and then crashed
+        # at `retrieval_mode.value` with AttributeError.
+        if isinstance(retrieval_mode, str) and not isinstance(retrieval_mode, RetrievalMode):
+            try:
+                retrieval_mode = RetrievalMode(retrieval_mode)
+            except ValueError:
+                retrieval_mode = RetrievalMode.SEQUENTIAL
+
         # Get base episodes using specified retrieval mode
         if retrieval_mode == RetrievalMode.TEMPORAL:
             base_result = await self.retrieve_temporal(
@@ -1012,8 +1030,19 @@ class EpisodeRetrievalService:
             Episode.agent_id == agent_id
         ).all()
 
-        # Apply supervision filters
+        # Apply supervision filters.
+        # Record each active filter once, BEFORE the per-episode loop. The
+        # previous code appended inside the loop body, so if every episode was
+        # removed by a filter (e.g. min_rating too high) the loop never ran
+        # and the materially-applied filter was absent from the report.
         filters_applied = []
+        if supervision_outcome_filter:
+            filters_applied.append(supervision_outcome_filter)
+        if min_rating is not None:
+            filters_applied.append(f"min_rating_{min_rating}")
+        if max_interventions is not None:
+            filters_applied.append(f"max_interventions_{max_interventions}")
+
         filtered_episodes = []
 
         for episode in episodes:
@@ -1022,12 +1051,10 @@ class EpisodeRetrievalService:
                 if supervision_outcome_filter == "high_rated":
                     if episode.supervisor_rating is None or episode.supervisor_rating < 4:
                         continue
-                    filters_applied.append("high_rated")
 
                 elif supervision_outcome_filter == "low_intervention":
                     if _safe_intervention_count(episode) > 1:
                         continue
-                    filters_applied.append("low_intervention")
 
                 elif supervision_outcome_filter == "recent_improvement":
                     # Skip individual filtering - will apply at batch level
@@ -1037,20 +1064,17 @@ class EpisodeRetrievalService:
             if min_rating is not None:
                 if episode.supervisor_rating is None or episode.supervisor_rating < min_rating:
                     continue
-                filters_applied.append(f"min_rating_{min_rating}")
 
             # Apply intervention filter
             if max_interventions is not None:
                 if _safe_intervention_count(episode) > max_interventions:
                     continue
-                filters_applied.append(f"max_interventions_{max_interventions}")
 
             filtered_episodes.append(episode)
 
         # Apply improvement trend filter (batch operation)
         if supervision_outcome_filter == "recent_improvement":
             filtered_episodes = self._filter_improvement_trend(filtered_episodes)
-            filters_applied.append("recent_improvement")
 
         # Limit results
         filtered_episodes = filtered_episodes[:limit]
@@ -1138,15 +1162,19 @@ class EpisodeRetrievalService:
         Returns:
             Episodes showing improvement trend
         """
-        if len(episodes) < 5:
-            return episodes  # Not enough data for trend analysis
-
-        # Sort by start time
+        # Sort by start time (reverse chronological) ONCE, up front. All
+        # return paths must hand back consistently-ordered results: previously
+        # the <5-episode and no-ratings early returns gave back the original
+        # unsorted list while the positive-trend path returned the sorted one,
+        # so caller-visible ordering depended on which branch ran.
         sorted_episodes = sorted(
             episodes,
             key=lambda e: e.started_at or datetime.min,
             reverse=True
         )
+
+        if len(episodes) < 5:
+            return sorted_episodes  # Not enough data for trend analysis
 
         # Calculate recent vs earlier average ratings
         recent = sorted_episodes[:len(sorted_episodes) // 2]
@@ -1162,7 +1190,7 @@ class EpisodeRetrievalService:
         ]
 
         if not recent_ratings or not earlier_ratings:
-            return episodes  # Can't determine trend
+            return sorted_episodes  # Can't determine trend
 
         recent_avg = sum(recent_ratings) / len(recent_ratings)
         earlier_avg = sum(earlier_ratings) / len(earlier_ratings)

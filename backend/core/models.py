@@ -478,9 +478,9 @@ class User(Base):
     # hourly_cost_rate = Column(Float, default=0.0)  # Internal labor cost
     # verification_token = Column(String, nullable=True)
     # email_verified = Column(Boolean, default=False)
-    # two_factor_enabled = Column(Boolean, default=False)
-    # two_factor_secret = Column(String, nullable=True)
-    # two_factor_backup_codes = Column(JSONColumn, nullable=True)
+    two_factor_enabled = Column(Boolean, default=False)
+    two_factor_secret = Column(String, nullable=True)
+    two_factor_backup_codes = Column(JSONColumn, nullable=True)
 
     @property
     def name(self) -> str:
@@ -2963,6 +2963,15 @@ class SkillRating(Base):
     # Rating
     rating = Column(Integer, nullable=False)  # 1-5 stars
     review = Column(Text, nullable=True)  # Optional review text
+
+    # SaaS sync state. These columns are created by Alembic migration
+    # b55b0f499509 but were previously missing from the ORM model, so any
+    # query that filtered on SkillRating.synced_to_saas raised
+    # AttributeError. Declaring them here keeps the mapper in sync with the
+    # actual schema.
+    synced_to_saas = Column(Boolean, default=False, nullable=False, server_default="0")
+    synced_at = Column(DateTime(timezone=True), nullable=True)
+    remote_rating_id = Column(String, nullable=True, index=True)
 
     # Moderation
     is_flagged = Column(Boolean, default=False)

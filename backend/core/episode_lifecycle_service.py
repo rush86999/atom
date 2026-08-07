@@ -8,7 +8,7 @@ Manages episode lifecycle:
 - Update importance scores
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Dict, List
 from sqlalchemy.orm import Session
@@ -39,7 +39,7 @@ class EpisodeLifecycleService:
         Returns:
             {"affected": int, "archived": int}
         """
-        cutoff = datetime.now() - timedelta(days=days_threshold)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days_threshold)
 
         episodes = self.db.query(Episode).filter(
             Episode.started_at < cutoff,
@@ -50,17 +50,34 @@ class EpisodeLifecycleService:
         archived = 0
 
         for episode in episodes:
-            days_old = (datetime.now() - episode.started_at).days
-            new_decay = max(0, 1 - (days_old / 180))
+            # Normalize offset-naive started_at to aware UTC before subtracting,
+            # mirroring update_lifecycle (lines ~317-319). Without this, any
+            # naive timestamp raised "can't subtract offset-naive and offset-
+            # aware datetimes" and aborted the whole decay+archive batch.
+            started_at = episode.started_at
+            now = datetime.now(timezone.utc)
+            if started_at.tzinfo is None:
+                started_at = started_at.replace(tzinfo=timezone.utc)
+            days_old = (now - started_at).days
+
+            # Use the SAME decay formula as update_lifecycle (decay_score =
+            # min(1, days_old/90) — "how much decay has been applied", 0=fresh,
+            # 1=fully decayed). Previously this batch path used
+            # max(0, 1 - days_old/180) (a freshness score going 1->0), so the
+            # same field held opposite meanings depending on which job ran
+            # last, and retrieval serialized the non-deterministic value.
+            new_decay = min(1.0, max(0.0, days_old / 90.0))
 
             episode.decay_score = new_decay
-            episode.access_count += 1  # Track access
+            # Do NOT bump access_count here: this is a background maintenance
+            # op, but access_count is consumed by retrieval as a popularity /
+            # recall signal, so decay silently inflated those signals.
             affected += 1
 
             # Archive if very old (>180 days)
             if days_old > 180:
                 episode.status = "archived"
-                episode.archived_at = datetime.now()
+                episode.archived_at = datetime.now(timezone.utc)
                 archived += 1
 
         self.db.commit()
@@ -184,7 +201,7 @@ class EpisodeLifecycleService:
             return False
 
         episode.status = "archived"
-        episode.archived_at = datetime.now()
+        episode.archived_at = datetime.now(timezone.utc)
 
         self.db.commit()
         logger.info(f"Episode {episode_id} archived to cold storage")
@@ -206,7 +223,7 @@ class EpisodeLifecycleService:
         """
         try:
             episode.status = "archived"
-            episode.archived_at = datetime.now()
+            episode.archived_at = datetime.now(timezone.utc)
 
             self.db.commit()
             logger.info(f"Episode {episode.id} archived to cold storage")
@@ -314,7 +331,7 @@ class EpisodeLifecycleService:
 
             # Calculate episode age in days (float for precision)
             # Handle both offset-aware and offset-naive datetimes
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
             if episode.started_at.tzinfo is not None:
                 now = datetime.now(episode.started_at.tzinfo)
 
@@ -335,7 +352,7 @@ class EpisodeLifecycleService:
             # Archive if very old (>180 days)
             if days_old > 180 and episode.status != "archived":
                 episode.status = "archived"
-                episode.archived_at = datetime.now()
+                episode.archived_at = datetime.now(timezone.utc)
 
             self.db.commit()
             logger.info(f"Updated lifecycle for episode {episode.id}: decay_score={new_decay:.2f}, days_old={days_old}")

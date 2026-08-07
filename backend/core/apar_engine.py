@@ -41,7 +41,11 @@ class APInvoice:
     id: str
     vendor: str
     amount: float  # Accepts Decimal or float from API; engine stores as-is
+    due_date: datetime
+    line_items: List[Dict[str, Any]]
+    status: InvoiceStatus = InvoiceStatus.PENDING_APPROVAL
     payment_terms: str = "Net 30"
+    extracted_from: Optional[str] = None
     approved_by: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.now)
 
@@ -66,7 +70,7 @@ class APAREngine:
     - AR: Invoice generation, intelligent collections
     """
     
-    AUTO_APPROVE_THRESHOLD = 500.0  # Auto-approve invoices under this amount
+    AUTO_APPROVE_THRESHOLD = 500.0  # Auto-approve invoices at or under this amount
     
     def __init__(self):
         self._ap_invoices: Dict[str, APInvoice] = {}
@@ -103,16 +107,17 @@ class APAREngine:
             payment_terms=data.get("payment_terms", "Net 30")
         )
         
-        # Auto-approve if under threshold
+        # Auto-approve if at or under threshold (boundary is inclusive: an
+        # invoice for exactly AUTO_APPROVE_THRESHOLD is auto-approved).
         # M8: compare using Decimal to avoid float boundary issues (e.g.
         # 499.99999999 < 500.0 mis-approving or 500.00000001 over-approving).
         from decimal import Decimal as _Dec
         amt = _Dec(str(invoice.amount))
         threshold = _Dec(str(self.AUTO_APPROVE_THRESHOLD))
-        if amt < threshold:
+        if amt <= threshold:
             invoice.status = InvoiceStatus.APPROVED
             invoice.approved_by = "auto"
-            logger.info(f"Auto-approved AP invoice {invoice_id}: ${invoice.amount} < ${self.AUTO_APPROVE_THRESHOLD}")
+            logger.info(f"Auto-approved AP invoice {invoice_id}: ${invoice.amount} <= ${self.AUTO_APPROVE_THRESHOLD}")
         else:
             invoice.status = InvoiceStatus.PENDING_APPROVAL
         
@@ -134,11 +139,12 @@ class APAREngine:
         return [inv for inv in self._ap_invoices.values() if inv.status == InvoiceStatus.PENDING_APPROVAL]
     
     def get_upcoming_payments(self, days: int = 7) -> List[APInvoice]:
-        """Get approved invoices due in next N days"""
-        cutoff = datetime.now() + timedelta(days=days)
+        """Get approved invoices due in next N days (excludes already-past-due)."""
+        now = datetime.now()
+        cutoff = now + timedelta(days=days)
         return [
             inv for inv in self._ap_invoices.values()
-            if inv.status == InvoiceStatus.APPROVED and inv.due_date <= cutoff
+            if inv.status == InvoiceStatus.APPROVED and now < inv.due_date <= cutoff
         ]
     
     # ==================== ACCOUNTS RECEIVABLE ====================
@@ -147,6 +153,15 @@ class APAREngine:
         """
         Generate AR invoice from contract, CRM deal, or time tracking.
         """
+        # R49 (AP side) rejected non-positive amounts at intake; the AR path
+        # lacked the same guard, so a negative/zero receivable could be created
+        # and would corrupt totals (e.g. drive total_outstanding negative).
+        # Mirror the AP-side Decimal compare for boundary consistency.
+        from decimal import Decimal as _Dec
+        raw_amount = data.get("amount", 0.0)
+        if _Dec(str(raw_amount)) <= 0:
+            raise ValueError(f"Invoice amount must be positive, got {raw_amount}")
+
         import uuid as _uuid2
         invoice_id = f"ar_{_uuid2.uuid4().hex[:12]}"
         
@@ -180,19 +195,39 @@ class APAREngine:
         
         invoice.status = InvoiceStatus.PAID
         return invoice
+
+    def mark_invoice_paid(self, invoice_id: str) -> ARInvoice:
+        """Mark invoice as paid"""
+        return self.mark_paid(invoice_id)
+
+    def send_reminder(self, invoice_id: str, tone: Optional[ReminderTone] = None) -> Dict[str, Any]:
+        """Send a collection reminder, auto-escalating tone by reminder count."""
+        return self.generate_reminder(invoice_id, tone=tone)
     
     # ==================== INTELLIGENT COLLECTIONS ====================
     
     def get_overdue_invoices(self) -> List[ARInvoice]:
-        """Get overdue AR invoices"""
+        """Get overdue AR invoices.
+
+        Note: this also *promotes* SENT invoices whose due date has passed to
+        OVERDUE status (and commits that transition in-memory). This is an
+        intentional side effect relied on by existing callers/tests — calling
+        it twice therefore returns the same set the second time only because
+        the invoices are already OVERDUE. For a pure read-only view that does
+        not transition state, filter ``self._ar_invoices`` directly.
+        """
         now = datetime.now()
         overdue = []
-        
+
         for inv in self._ar_invoices.values():
             if inv.status == InvoiceStatus.SENT and inv.due_date < now:
                 inv.status = InvoiceStatus.OVERDUE
                 overdue.append(inv)
-        
+            elif inv.status == InvoiceStatus.OVERDUE:
+                # Already promoted (e.g. by a prior call) — still report it so
+                # the getter remains idempotent across repeat invocations.
+                overdue.append(inv)
+
         return overdue
     
     def get_all_invoices(self) -> List[Any]:
@@ -310,28 +345,39 @@ class APAREngine:
         
         return pdf_bytes
 
-    def generate_reminder(self, invoice_id: str) -> Dict[str, Any]:
+    def generate_reminder(self, invoice_id: str, tone: Optional[ReminderTone] = None) -> Dict[str, Any]:
         """
         Generate collection reminder with appropriate tone.
-        Escalates: friendly → firm → final
+        Escalates: friendly → firm → final (unless tone is specified).
         """
         invoice = self._ar_invoices.get(invoice_id)
         if not invoice:
             raise ValueError(f"Invoice {invoice_id} not found")
         
-        # Determine tone based on reminder count
-        if invoice.reminders_sent == 0:
-            tone = ReminderTone.FRIENDLY
-            subject = "Friendly Reminder: Invoice Due"
-            message = f"Just a friendly reminder that invoice #{invoice.id} for ${invoice.amount:.2f} is now due."
-        elif invoice.reminders_sent == 1:
-            tone = ReminderTone.FIRM
-            subject = "Second Notice: Payment Overdue"
-            message = f"This is a second notice regarding invoice #{invoice.id} for ${invoice.amount:.2f}. Please remit payment promptly."
+        # Determine tone based on reminder count or explicit tone
+        if tone is None:
+            if invoice.reminders_sent == 0:
+                tone = ReminderTone.FRIENDLY
+                subject = "Friendly Reminder: Invoice Due"
+                message = f"Just a friendly reminder that invoice #{invoice.id} for ${invoice.amount:.2f} is now due."
+            elif invoice.reminders_sent == 1:
+                tone = ReminderTone.FIRM
+                subject = "Second Notice: Payment Overdue"
+                message = f"This is a second notice regarding invoice #{invoice.id} for ${invoice.amount:.2f}. Please remit payment promptly."
+            else:
+                tone = ReminderTone.FINAL
+                subject = "Final Notice: Immediate Attention Required"
+                message = f"FINAL NOTICE: Invoice #{invoice.id} for ${invoice.amount:.2f} remains unpaid. Please contact us immediately."
         else:
-            tone = ReminderTone.FINAL
-            subject = "Final Notice: Immediate Attention Required"
-            message = f"FINAL NOTICE: Invoice #{invoice.id} for ${invoice.amount:.2f} remains unpaid. Please contact us immediately."
+            if tone == ReminderTone.FRIENDLY:
+                subject = "Friendly Reminder: Invoice Due"
+                message = f"Just a friendly reminder that invoice #{invoice.id} for ${invoice.amount:.2f} is now due."
+            elif tone == ReminderTone.FIRM:
+                subject = "Second Notice: Payment Overdue"
+                message = f"This is a second notice regarding invoice #{invoice.id} for ${invoice.amount:.2f}. Please remit payment promptly."
+            else:
+                subject = "Final Notice: Immediate Attention Required"
+                message = f"FINAL NOTICE: Invoice #{invoice.id} for ${invoice.amount:.2f} remains unpaid. Please contact us immediately."
         
         invoice.reminders_sent += 1
         invoice.last_reminder_date = datetime.now()

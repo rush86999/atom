@@ -86,7 +86,7 @@ class RatingSyncService:
                 }
 
             # Check if this is an update (has remote_rating_id)
-            if rating.remote_rating_id:
+            if getattr(rating, "remote_rating_id", None):
                 # TODO: Implement update via Atom SaaS API when available
                 logger.warning(f"Rating updates not yet supported: {rating.remote_rating_id}")
                 return {"success": False, "error": "Rating updates not yet supported"}
@@ -96,7 +96,7 @@ class RatingSyncService:
                 skill_id=rating.skill_id,
                 user_id=rating.user_id,
                 rating=rating.rating,
-                comment=rating.comment
+                comment=rating.review
             )
 
             if response.get("success") or response.get("id"):
@@ -196,6 +196,7 @@ class RatingSyncService:
             # Create new failed upload record
             failed = FailedRatingUpload(
                 rating_id=rating.id,
+                tenant_id=rating.tenant_id,
                 error_message=error,
                 failed_at=datetime.now(timezone.utc),
                 retry_count=1
@@ -322,6 +323,17 @@ class RatingSyncService:
         local_time = local_rating.created_at
         remote_time_str = remote_rating.get("created_at") or remote_rating.get("timestamp")
 
+        # A not-yet-persisted rating (or one loaded without a created_at)
+        # has created_at=None; previously this fell through to
+        # `local_time.tzinfo` below and raised AttributeError, aborting
+        # conflict resolution. Skip instead.
+        if local_time is None:
+            logger.warning(f"Local rating has no created_at timestamp: {getattr(local_rating, 'id', '?')}")
+            return {
+                "action": "skip",
+                "reason": "Local rating has no created_at timestamp"
+            }
+
         if not remote_time_str:
             logger.warning(f"Remote rating has no timestamp: {remote_rating}")
             return {
@@ -353,19 +365,20 @@ class RatingSyncService:
         # Detect conflict
         conflict_detected = (local_time != remote_time and
                             (local_rating.rating != remote_rating.get("rating") or
-                             local_rating.comment != remote_rating.get("comment")))
+                             local_rating.review != remote_rating.get("comment")))
 
         if conflict_detected:
             # Log to ConflictLog
             try:
                 conflict = ConflictLog(
                     skill_id=local_rating.skill_id,
+                    tenant_id=local_rating.tenant_id,
                     conflict_type="CONTENT_MISMATCH",  # Rating content differs
                     severity="LOW",  # Rating conflicts are low severity
                     local_data={
                         "rating_id": local_rating.id,
                         "rating": local_rating.rating,
-                        "comment": local_rating.comment,
+                        "comment": local_rating.review,
                         "created_at": local_time.isoformat()
                     },
                     remote_data={
@@ -387,7 +400,7 @@ class RatingSyncService:
         if remote_time > local_time:
             # Remote is newer - update local
             local_rating.rating = remote_rating.get("rating", local_rating.rating)
-            local_rating.comment = remote_rating.get("comment", local_rating.comment)
+            local_rating.review = remote_rating.get("comment", local_rating.review)
             local_rating.remote_rating_id = remote_rating.get("id")
             self.db.commit()
 

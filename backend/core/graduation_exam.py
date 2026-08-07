@@ -11,6 +11,7 @@ This service handles:
 """
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
+import asyncio
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 import logging
@@ -20,6 +21,11 @@ from core.models import (
     EdgeCaseLibrary, AgentStatus, PromotionType, EpisodeOutcome
 )
 from core.episode_service import EpisodeService, ReadinessThresholds
+
+try:
+    from core.edge_case_simulator import EdgeCaseSimulator
+except ImportError:
+    EdgeCaseSimulator = None
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +199,23 @@ class GraduationExamService:
                 edge_case_results={},
                 constitutional_check_passed=True,
                 failure_reason="Agent is already at maximum level (autonomous)"
+            )
+
+        # Reject same-level targets for every level (not just AUTONOMOUS).
+        # Previously only the terminal AUTONOMOUS case was guarded, so an INTERN
+        # agent could "pass" an exam targeting INTERN — incrementing
+        # promotion_count, writing a promotion-history row, and setting
+        # promoted=True for a no-op transition.
+        if target_level == current_level:
+            return ExamResult(
+                exam_id="",
+                agent_id=agent_id,
+                passed=False,
+                promoted=False,
+                readiness_score=0.0,
+                edge_case_results={},
+                constitutional_check_passed=True,
+                failure_reason=f"Target level ({target_level}) equals current level ({current_level})"
             )
 
         # ============================================================
@@ -386,6 +409,30 @@ class GraduationExamService:
 
         from_level = agent.status
 
+        # Validate promotion direction (new level must be STRICTLY higher).
+        # Previously only that `new_level` was a known status was checked, so an
+        # admin could "promote" AUTONOMOUS -> STUDENT (a demotion recorded as a
+        # MANUAL promotion, incrementing promotion_count). demote_agent already
+        # enforces the opposite direction; mirror its ordering map here.
+        level_order = {
+            AgentStatus.STUDENT.value: 1,
+            AgentStatus.INTERN.value: 2,
+            AgentStatus.SUPERVISED.value: 3,
+            AgentStatus.AUTONOMOUS.value: 4
+        }
+        if level_order.get(new_level, 0) <= level_order.get(from_level, 0):
+            return PromotionResult(
+                agent_id=agent_id,
+                from_level=from_level,
+                to_level=new_level,
+                promotion_type=PromotionType.MANUAL.value,
+                success=False,
+                message=(
+                    f"Cannot manually promote to equal or lower level "
+                    f"({from_level} -> {new_level}); use demote_agent instead"
+                )
+            )
+
         # Update agent
         agent.status = new_level
         agent.last_promotion_at = datetime.now(timezone.utc)
@@ -570,7 +617,16 @@ class GraduationExamService:
         Returns:
             Dictionary with edge case test results
         """
-        from core.edge_case_simulator import EdgeCaseSimulator
+        if EdgeCaseSimulator is None:
+            logger.warning(
+                "EdgeCaseSimulator unavailable; skipping edge case simulations"
+            )
+            return {
+                "total": 0,
+                "passed": 0,
+                "all_passed": True,
+                "results": []
+            }
 
         # Get active edge cases
         edge_cases = self.db.query(EdgeCaseLibrary).filter(
@@ -600,7 +656,6 @@ class GraduationExamService:
 
         for edge_case in edge_cases:
             # Run actual edge case simulation
-            import asyncio
             simulation_result = asyncio.run(
                 simulator.simulate_agent_behavior(
                     agent_id=agent_id,
@@ -609,7 +664,11 @@ class GraduationExamService:
                 )
             )
 
-            passed = simulation_result["passed"]
+            # Use .get() defensively: an EdgeCaseSimulator implementation that
+            # omits "passed" previously raised KeyError and aborted the entire
+            # exam. Treat a missing "passed" as a failure (cannot confirm pass)
+            # rather than crashing.
+            passed = simulation_result.get("passed", False)
             if passed:
                 passed_count += 1
 
@@ -627,6 +686,15 @@ class GraduationExamService:
             if passed:
                 edge_case.times_passed += 1
             edge_case.last_tested_at = datetime.now(timezone.utc)
+
+        # Flush the in-memory stat increments (times_tested / times_passed /
+        # last_tested_at) so they persist. The caller (execute_graduation_exam)
+        # only commits the exam object, so without this flush the edge-case
+        # stat updates are lost when the session isn't in autoflush mode.
+        try:
+            self.db.flush()
+        except Exception as e:
+            logger.warning(f"Could not flush edge-case stat updates: {e}")
 
         all_passed = passed_count == len(edge_cases)
 
@@ -679,8 +747,13 @@ class GraduationExamService:
                     "date": episode.started_at.isoformat()
                 })
 
-            # Check for human interventions (may indicate violations)
+            # Check for human interventions (may indicate violations).
+            # Previously this branch appended a violation but never flipped
+            # `passed` to False, so an agent with heavy human interventions
+            # could still pass the constitutional check as long as its
+            # constitutional_score stayed >= 0.95.
             if episode.human_intervention_count > 0:
+                passed = False
                 violations.append({
                     "episode_id": episode.id,
                     "type": "human_intervention",
@@ -777,7 +850,9 @@ class GraduationExamService:
         # 2. Skill diversity >= required skills for level
         # 3. Skill success rate >= minimum threshold for level
         required_skills = mastery.required_skills_for_level
-        unique_skill_count = len(mastery.skills_used)
+        # Dedupe before counting: a list like ["x","x","x"] previously
+        # satisfied a required_skills count of 3 with a single real skill.
+        unique_skill_count = len(set(mastery.skills_used))
 
         # Minimum success rates by level
         min_success_rates = {
@@ -950,8 +1025,16 @@ class GraduationExamService:
                     f"readiness score {readiness_score:.2f} below floor (0.40)"
                 )
         except Exception as e:
+            # Previously this swallowed the exception and silently scored the
+            # candidate a neutral 0.5 with no failure_reason entry, masking
+            # real evaluation failures. A candidate whose readiness cannot be
+            # computed must not be rated "fine": score 0.0 (clearly fails the
+            # 0.40 floor below) and record the reason so it is visible.
             logger.warning("GEA eval: readiness check failed: %s", e)
-            readiness_score = 0.5  # neutral if unavailable
+            readiness_score = 0.0
+            failure_reasons.append(
+                f"readiness score unavailable ({e.__class__.__name__}); scored 0.0"
+            )
 
         # ── 2. Constitutional check (recent episodes only, no config change) ──
         try:

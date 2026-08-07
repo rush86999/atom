@@ -74,7 +74,7 @@ class FormulaMemoryManager:
         Add a formula to Hybrid Memory (Postgres + LanceDB).
         """
         self._ensure_initialized()
-        from saas.models import Formula
+        from core.models import Formula
 
         from core.database import get_db_session
 
@@ -90,7 +90,6 @@ class FormulaMemoryManager:
             with get_db_session() as db:
                 formula = Formula(
                     id=formula_id,
-                    workspace_id=self.workspace_id,
                     name=name,
                     expression=expression,
                     description=use_case,
@@ -201,15 +200,22 @@ Output: {json.dumps(example_output)}
                 filter_str=filter_str
             )
 
-            # Return the rich text (the card) directly
+            # Return the rich text (the card) directly.
+            # Convert LanceDB _distance (a DISTANCE: 0 = identical, larger =
+            # less similar) into a similarity "score" where higher = better,
+            # which is the universal convention for a field named "score".
+            # Previously raw _distance was exposed as score, so sorting by
+            # score desc ranked the worst match first.
             formulas = []
             for result in results:
                 metadata = json.loads(result.get("metadata", "{}"))
+                distance = result.get("_distance", 0)
+                similarity = max(0.0, 1.0 - distance)
                 formulas.append({
                     "id": metadata.get("formula_id"),
                     "name": metadata.get("name", ""),
-                    "content": result.get("text", ""), # The full markdown card
-                    "score": result.get("_distance", 0)
+                    "content": result.get("text", ""),  # The full markdown card
+                    "score": similarity
                 })
 
             return formulas
@@ -220,7 +226,7 @@ Output: {json.dumps(example_output)}
 
     def get_formula(self, formula_id: str) -> Optional[Dict[str, Any]]:
         """Get strict formula definition from Postgres (Source of Truth)."""
-        from saas.models import Formula
+        from core.models import Formula
 
         from core.database import get_db_session
         
@@ -281,7 +287,7 @@ Output: {json.dumps(example_output)}
     def delete_formula(self, formula_id: str) -> bool:
         """Delete from Postgres AND LanceDB."""
         self._ensure_initialized()
-        from saas.models import Formula
+        from core.models import Formula
 
         from core.database import get_db_session
         
@@ -299,18 +305,19 @@ Output: {json.dumps(example_output)}
             logger.error(f"SQL Delete failed: {e}")
             
         # 2. LanceDB Delete
+        # Previously this branch was a literal `pass` with a TODO, so the rich
+        # formula card stayed in vector memory and search_formulas kept
+        # returning a card for a formula_id that no longer exists in Postgres
+        # (stale-data leak). metadata is stored as a JSON string, so filter via
+        # a LIKE clause on the embedded formula_id (mirrors the search filter).
         if self._lancedb:
             try:
                 table = self._lancedb.get_table(FORMULA_CARDS_TABLE)
-                if table:
-                    # Filter by metadata.formula_id
-                    # LanceDB SQL delete support varies, usually simple where clause
-                    # For now just log it, as vector delete might be expensive or unsupported in simple mode
-                    # Ideally: table.delete(f"metadata.formula_id = '{formula_id}'")
-                    pass
-            except Exception:
-                pass  # LanceDB delete is best-effort
-                
+                if table is not None:
+                    safe_id = formula_id.replace("'", "''")
+                    table.delete(f"metadata LIKE '%\"formula_id\": \"{safe_id}\"%'")
+            except Exception as e:
+                logger.warning(f"LanceDB delete for formula {formula_id} failed (best-effort): {e}")
         return success
 
 _formula_manager: Optional[FormulaMemoryManager] = None

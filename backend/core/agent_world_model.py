@@ -40,6 +40,12 @@ class AgentExperience(BaseModel):
     step_efficiency: float = 1.0  # (Steps Taken / Expected Steps) - lower is better
     metadata_trace: Dict[str, Any] = {} # Detailed execution trace, plan adherence, etc.
     
+    # Enhanced Rating Fields
+    thumbs_up_down: Optional[bool] = None  # Quick thumbs up/down feedback
+    rating: Optional[int] = None  # Star rating (1-5)
+    agent_execution_id: Optional[str] = None  # Link to agent execution
+    feedback_type: Optional[str] = None  # Type of feedback (correction, rating, approval, comment)
+    
     # Context for Scoping
     agent_role: str       # e.g. "Finance", "Operations"
     specialty: Optional[str] = None
@@ -105,7 +111,11 @@ class WorldModelService:
             "feedback_score": experience.feedback_score,
             "step_efficiency": experience.step_efficiency,
             "trace": experience.metadata_trace,
-            "type": "experience"
+            "type": "experience",
+            "thumbs_up_down": experience.thumbs_up_down,
+            "rating": experience.rating,
+            "agent_execution_id": experience.agent_execution_id,
+            "feedback_type": experience.feedback_type
         }
         
         return self.db.add_document(
@@ -247,10 +257,43 @@ class WorldModelService:
         Boost confidence when an experience leads to successful outcomes.
         Called when an agent successfully reuses a past experience pattern.
         """
-        # This is a lighter-weight update than full feedback
-        # In production, this would use a proper update mechanism
-        logger.info(f"Boosting experience {experience_id} confidence by {boost_amount}")
-        return True  # Placeholder - would implement with proper DB update
+        try:
+            results = self.db.search(
+                table_name=self.table_name,
+                query="",  # Empty query to get by ID
+                limit=100
+            )
+
+            for res in results:
+                if res.get("id") == experience_id:
+                    meta = res.get("metadata", {})
+                    old_confidence = meta.get("confidence_score", 0.5)
+
+                    # Boost confidence, clamped to the documented [0.0, 1.0]
+                    # range. Previously only the upper bound was capped, so a
+                    # negative boost_amount (or a large boost on a low-
+                    # confidence record) could drive the value below 0.
+                    meta["confidence_score"] = max(0.0, min(1.0, old_confidence + boost_amount))
+                    meta["boost_count"] = meta.get("boost_count", 0) + 1
+                    meta["last_boosted_at"] = datetime.now(timezone.utc).isoformat()
+
+                    self.db.add_document(
+                        table_name=self.table_name,
+                        text=res.get("text", ""),
+                        source=res.get("source", "system"),
+                        metadata=meta,
+                        user_id="boost_system"
+                    )
+
+                    logger.info(f"Boosted experience {experience_id} confidence by {boost_amount}")
+                    return True
+
+            logger.warning(f"Experience {experience_id} not found for confidence boost")
+            return False
+
+        except Exception as e:
+            logger.error(f"Failed to boost experience {experience_id} confidence: {e}")
+            return False
 
     async def get_experience_statistics(
         self,
@@ -607,11 +650,17 @@ class WorldModelService:
         experiences = []
         for result in results:
             try:
+                # Strip the "Input: " prefix the same way recall_experiences
+                # does (line ~1047) so callers get the raw input, not the
+                # "Input: ..." label.
+                _integ_text = result.get("text", "")
+                _integ_input_line = _integ_text.split("\n")[1] if "\n" in _integ_text else ""
+                _input_summary = _integ_input_line.replace("Input: ", "") if "Input: " in _integ_input_line else _integ_input_line
                 exp = AgentExperience(
                     id=result.get("id", str(uuid.uuid4())),
                     agent_id=result.get("metadata", {}).get("agent_id", ""),
                     task_type=result.get("metadata", {}).get("task_type", task_type),
-                    input_summary=result.get("text", "").split("\n")[1] if "\n" in result.get("text", "") else "",
+                    input_summary=_input_summary,
                     outcome=result.get("metadata", {}).get("outcome", "Unknown"),
                     learnings=result.get("text", "").split("Learnings:")[-1] if "Learnings:" in result.get("text", "") else "",
                     confidence_score=result.get("metadata", {}).get("confidence_score", 0.5),
@@ -989,8 +1038,12 @@ class WorldModelService:
                 outcome = meta.get("outcome", "unknown")
                 confidence = meta.get("confidence_score", 0.5)
 
-                # Simple filter: Ignore failures unless explicit negative feedback loop is implemented
-                if outcome == "failed" and confidence < 0.8:
+                # Simple filter: Ignore failures unless explicit negative feedback loop is implemented.
+                # Lower-case the outcome before comparing — record_experience stores it
+                # verbatim ("Failed", "Failure", etc.) and other call sites already
+                # normalize via .lower(); without this a capitalized low-confidence
+                # failure leaks past the filter.
+                if outcome.lower() == "failed" and confidence < 0.8:
                     continue
 
                 valid_experiences.append((
@@ -1144,10 +1197,44 @@ class WorldModelService:
                 )
                 episodes_result = episodes_response.get("episodes", [])
                 
-                # Enrich results with full context if not already enriched by service
-                # The service already handles basic serialization, but we can add full context here
-                # to match the Upstream "ALWAYS fetch" pattern if needed, 
-                # though retrieve_contextual in our service already returns serialized episodes.
+                # 7. Enrich episodes with canvas and feedback context (ALWAYS)
+                # This happens for EVERY episode recall, not just canvas-specific tasks
+                enriched_episodes = []
+                for episode_result in episodes_result:
+                    episode_id = episode_result.get("id")
+                    if not episode_id:
+                        enriched_episodes.append(episode_result)
+                        continue
+
+                    # ALWAYS fetch canvas context (if available)
+                    canvas_context = []
+                    if episode_result.get("canvas_ids"):
+                        try:
+                            canvas_context = await episode_service._fetch_canvas_context(
+                                episode_result["canvas_ids"]
+                            )
+                        except Exception as ce:
+                            logger.warning(f"Canvas context fetch failed for episode {episode_id}: {ce}")
+
+                    # ALWAYS fetch feedback context (if available)
+                    feedback_context = []
+                    if episode_result.get("feedback_ids"):
+                        try:
+                            feedback_context = await episode_service._fetch_feedback_context(
+                                episode_result["feedback_ids"]
+                            )
+                        except Exception as fe:
+                            logger.warning(f"Feedback context fetch failed for episode {episode_id}: {fe}")
+
+                    # Enrich episode with full context
+                    enriched_episodes.append({
+                        **episode_result,
+                        "canvas_context": canvas_context,
+                        "feedback_context": feedback_context
+                    })
+
+                # Replace with enriched episodes
+                episodes_result = enriched_episodes
                 
             finally:
                 db.close()
@@ -2075,6 +2162,11 @@ class WorldModelService:
                 # Extract canvas types from experience
                 canvas_types = meta.get("canvas_types", [])
                 outcome = meta.get("outcome", "").lower()
+                # Only treat feedback as present when the key actually exists.
+                # Previously a missing feedback_score was coerced to 0.0 and
+                # averaged in, dragging avg_feedback_score toward 0 for agents
+                # that simply had no feedback recorded.
+                has_feedback = "feedback_score" in meta
                 feedback_score = meta.get("feedback_score", 0.0)
                 engagement_time = meta.get("engagement_time_seconds", 0.0)
 
@@ -2084,7 +2176,8 @@ class WorldModelService:
                             "count": 0,
                             "successes": 0,
                             "total_engagement": 0.0,
-                            "total_feedback": 0.0
+                            "total_feedback": 0.0,
+                            "feedback_count": 0
                         }
 
                     stats = canvas_stats[canvas_type]
@@ -2094,16 +2187,19 @@ class WorldModelService:
                         stats["successes"] += 1
 
                     stats["total_engagement"] += engagement_time
-                    stats["total_feedback"] += feedback_score
+                    if has_feedback:
+                        stats["total_feedback"] += feedback_score
+                        stats["feedback_count"] += 1
 
             # Calculate averages and success rates
             preferences = {}
             for canvas_type, stats in canvas_stats.items():
+                fb_count = stats.get("feedback_count", 0)
                 preferences[canvas_type] = {
                     "count": stats["count"],
                     "success_rate": stats["successes"] / stats["count"] if stats["count"] > 0 else 0.0,
                     "avg_engagement": stats["total_engagement"] / stats["count"] if stats["count"] > 0 else 0.0,
-                    "avg_feedback_score": stats["total_feedback"] / stats["count"] if stats["count"] > 0 else 0.0
+                    "avg_feedback_score": stats["total_feedback"] / fb_count if fb_count > 0 else 0.0
                 }
 
             logger.info(f"Canvas preferences for agent {agent_id}: {list(preferences.keys())}")
@@ -2265,3 +2361,103 @@ class WorldModelService:
         except Exception as e:
             logger.error(f"Failed to record canvas outcome: {e}")
             return False
+
+    def _extract_canvas_insights(self, enriched_episodes: List[Any]) -> Dict[str, Any]:
+        """
+        Extract actionable insights from canvas context in episodes.
+
+        Analyzes canvas presentations and user feedback to derive patterns
+        that can inform agent decision-making.
+
+        Args:
+            enriched_episodes: List of episodes with canvas_context and feedback_context
+
+        Returns:
+            {
+                "canvas_type_counts": Dict[str, int],
+                "user_actions": Dict[str, int],
+                "high_engagement_canvases": List[Dict],
+                "preferred_canvas_types": List[str],
+                "user_interaction_patterns": Dict[str, List[str]]
+            }
+        """
+        insights = {
+            "canvas_type_counts": {},
+            "user_actions": {},
+            "high_engagement_canvases": [],
+            "preferred_canvas_types": [],
+            "user_interaction_patterns": {
+                "closes_quickly": [],
+                "engages": [],
+                "submits": []
+            }
+        }
+
+        try:
+            for episode in enriched_episodes:
+                canvas_context = episode.get("canvas_context", [])
+                feedback_context = episode.get("feedback_context", [])
+
+                for canvas in canvas_context:
+                    canvas_type = canvas.get("canvas_type")
+                    action = canvas.get("action")
+
+                    if not canvas_type:
+                        continue
+
+                    # Track canvas type usage
+                    insights["canvas_type_counts"][canvas_type] = \
+                        insights["canvas_type_counts"].get(canvas_type, 0) + 1
+
+                    # Track user actions
+                    if action:
+                        insights["user_actions"][action] = \
+                            insights["user_actions"].get(action, 0) + 1
+
+                        # Track interaction patterns
+                        if action == "close":
+                            insights["user_interaction_patterns"]["closes_quickly"].append(canvas_type)
+                        elif action in ["present", "update"]:
+                            insights["user_interaction_patterns"]["engages"].append(canvas_type)
+                        elif action == "submit":
+                            insights["user_interaction_patterns"]["submits"].append(canvas_type)
+
+                # Track high-engagement canvases (positive feedback)
+                if feedback_context and canvas_context:
+                    # Calculate average feedback rating
+                    ratings = [
+                        f.get("rating", 3)
+                        for f in feedback_context
+                        if f.get("rating") is not None
+                    ]
+
+                    if ratings:
+                        avg_feedback = sum(ratings) / len(ratings)
+
+                        if avg_feedback >= 4:
+                            # This episode had high engagement.
+                            # Skip canvases without a canvas_type, mirroring the
+                            # counting loop above (which guards `if not
+                            # canvas_type: continue`); otherwise null-typed
+                            # entries leak into high_engagement_canvases.
+                            for canvas in canvas_context:
+                                if not canvas.get("canvas_type"):
+                                    continue
+                                insights["high_engagement_canvases"].append({
+                                    "canvas_id": canvas.get("id"),
+                                    "canvas_type": canvas.get("canvas_type"),
+                                    "action": canvas.get("action"),
+                                    "avg_feedback": avg_feedback
+                                })
+
+            # Determine preferred canvas types (most used with positive engagement)
+            type_counts = insights["canvas_type_counts"]
+            if type_counts:
+                # Sort by count descending
+                sorted_types = sorted(type_counts.items(), key=lambda x: x[1], reverse=True)
+                insights["preferred_canvas_types"] = [t[0] for t in sorted_types]
+
+        except Exception as e:
+            logger.warning(f"Failed to extract canvas insights: {e}")
+
+        return insights

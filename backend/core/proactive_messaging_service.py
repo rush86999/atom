@@ -13,15 +13,44 @@ Maturity Levels:
 
 from datetime import datetime, timezone
 import logging
+import uuid
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException, status
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 
 from core.agent_integration_gateway import ActionType, agent_integration_gateway
+from core.database import Base
 from core.governance_cache import get_governance_cache
-from core.models import AgentRegistry, AgentStatus, ProactiveMessage, ProactiveMessageStatus, User
+from core.models import AgentRegistry, AgentStatus, JSONColumn, ProactiveMessageStatus, User
 
 logger = logging.getLogger(__name__)
+
+
+class AgentProactiveMessage(Base):
+    """Agent-initiated proactive message with governance lifecycle."""
+
+    __tablename__ = "agent_proactive_messages"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    agent_id = Column(String(255), ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_name = Column(String(255), nullable=True)
+    agent_maturity_level = Column(String(50), nullable=False)
+    platform = Column(String(100), nullable=False)
+    recipient_id = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    scheduled_for = Column(DateTime(timezone=True), nullable=True)
+    send_now = Column(Boolean, default=False)
+    status = Column(String(50), default="pending", nullable=False)
+    governance_metadata = Column(JSONColumn, nullable=True)
+    approved_by = Column(String(255), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    rejection_reason = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+    platform_message_id = Column(String(255), nullable=True)
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class ProactiveMessagingService:
@@ -45,7 +74,7 @@ class ProactiveMessagingService:
         scheduled_for: Optional[datetime] = None,
         send_now: bool = False,
         governance_metadata: Optional[Dict[str, Any]] = None,
-    ) -> ProactiveMessage:
+    ) -> AgentProactiveMessage:
         """
         Create a new proactive message from an agent.
 
@@ -88,7 +117,7 @@ class ProactiveMessagingService:
             )
 
         # Create the proactive message
-        message = ProactiveMessage(
+        message = AgentProactiveMessage(
             agent_id=agent_id,
             agent_name=agent.name,
             agent_maturity_level=agent_maturity,
@@ -116,16 +145,27 @@ class ProactiveMessagingService:
             logger.info(f"INTERN agent message {message.id} requires approval")
 
         elif agent_maturity in [AgentStatus.SUPERVISED.value, AgentStatus.AUTONOMOUS.value]:
-            # SUPERVISED and AUTONOMOUS can send immediately
-            if send_now and not scheduled_for:
-                # Auto-approve and send
-                message.status = ProactiveMessageStatus.APPROVED.value
-                message.approved_at = datetime.now(timezone.utc)
-                self.db.commit()
+            # SUPERVISED and AUTONOMOUS are auto-approved (send when requested)
+            message.status = ProactiveMessageStatus.APPROVED.value
+            message.approved_at = datetime.now(timezone.utc)
+            self.db.commit()
 
-                # Send in background
+            if send_now and not scheduled_for:
+                # Send in background when a loop is running; otherwise send
+                # synchronously so the gateway is actually invoked (previously
+                # the RuntimeError was swallowed and the message was stranded).
                 import asyncio
-                asyncio.create_task(self._send_message(message.id))
+                try:
+                    asyncio.create_task(self._send_message(message.id))
+                except RuntimeError:
+                    logger.debug(f"No running event loop for message {message.id}; sending synchronously")
+                    loop = asyncio.new_event_loop()
+                    try:
+                        loop.run_until_complete(self._send_message(message.id))
+                    except Exception as e:
+                        logger.error(f"Failed to send proactive message {message.id} synchronously: {e}")
+                    finally:
+                        loop.close()
 
         return message
 
@@ -133,7 +173,7 @@ class ProactiveMessagingService:
         self,
         message_id: str,
         approver_user_id: str,
-    ) -> ProactiveMessage:
+    ) -> AgentProactiveMessage:
         """
         Approve a pending proactive message (for INTERN agents).
 
@@ -147,8 +187,8 @@ class ProactiveMessagingService:
         Raises:
             HTTPException: If message not found or already processed
         """
-        message = self.db.query(ProactiveMessage).filter(
-            ProactiveMessage.id == message_id
+        message = self.db.query(AgentProactiveMessage).filter(
+            AgentProactiveMessage.id == message_id
         ).first()
 
         if not message:
@@ -184,10 +224,38 @@ class ProactiveMessagingService:
             f"from agent {message.agent_name}"
         )
 
-        # Send if scheduled_for is None or in the past
-        if not message.scheduled_for or message.scheduled_for <= datetime.now(timezone.utc):
+        # Send if scheduled_for is None or in the past.
+        # Compare against a timezone-aware "now"; the DB-loaded scheduled_for
+        # may be offset-naive (SQLite/SQLAlchemy strip tzinfo on refresh), so
+        # normalize both sides to aware UTC to avoid "can't compare offset-naive
+        # and offset-aware datetimes" TypeError on scheduled INTERN messages.
+        now_utc = datetime.now(timezone.utc)
+        scheduled_for = message.scheduled_for
+        if scheduled_for is not None and scheduled_for.tzinfo is None:
+            scheduled_for = scheduled_for.replace(tzinfo=timezone.utc)
+
+        if scheduled_for is None or scheduled_for <= now_utc:
             import asyncio
-            asyncio.create_task(self._send_message(message.id))
+            try:
+                # Fire-and-forget when an event loop is already running.
+                asyncio.create_task(self._send_message(message.id))
+            except RuntimeError:
+                # No running event loop (sync / Celery / CLI call path):
+                # actually send the message now instead of stranding it in
+                # APPROVED with sent_at=None. The previous code logged a
+                # "queued for background send" message but no such queue
+                # existed, so the gateway was never invoked.
+                # Use a freshly created+closed loop rather than asyncio.run(),
+                # which is fragile when a prior run left the policy without a
+                # current event loop (raises "There is no current event loop").
+                logger.debug(f"No running event loop for message {message_id}; sending synchronously")
+                loop = asyncio.new_event_loop()
+                try:
+                    loop.run_until_complete(self._send_message(message.id))
+                except Exception as e:
+                    logger.error(f"Failed to send proactive message {message_id} synchronously: {e}")
+                finally:
+                    loop.close()
 
         return message
 
@@ -196,7 +264,7 @@ class ProactiveMessagingService:
         message_id: str,
         rejecter_user_id: str,
         rejection_reason: str,
-    ) -> ProactiveMessage:
+    ) -> AgentProactiveMessage:
         """
         Reject a pending proactive message.
 
@@ -208,8 +276,8 @@ class ProactiveMessagingService:
         Returns:
             Updated ProactiveMessage
         """
-        message = self.db.query(ProactiveMessage).filter(
-            ProactiveMessage.id == message_id
+        message = self.db.query(AgentProactiveMessage).filter(
+            AgentProactiveMessage.id == message_id
         ).first()
 
         if not message:
@@ -237,7 +305,7 @@ class ProactiveMessagingService:
 
         return message
 
-    def cancel_message(self, message_id: str) -> ProactiveMessage:
+    def cancel_message(self, message_id: str) -> AgentProactiveMessage:
         """
         Cancel a scheduled or pending message.
 
@@ -247,8 +315,8 @@ class ProactiveMessagingService:
         Returns:
             Updated ProactiveMessage
         """
-        message = self.db.query(ProactiveMessage).filter(
-            ProactiveMessage.id == message_id
+        message = self.db.query(AgentProactiveMessage).filter(
+            AgentProactiveMessage.id == message_id
         ).first()
 
         if not message:
@@ -279,7 +347,7 @@ class ProactiveMessagingService:
         agent_id: Optional[str] = None,
         platform: Optional[str] = None,
         limit: int = 100,
-    ) -> List[ProactiveMessage]:
+    ) -> List[AgentProactiveMessage]:
         """
         Get pending messages awaiting approval or sending.
 
@@ -291,17 +359,17 @@ class ProactiveMessagingService:
         Returns:
             List of pending ProactiveMessage objects
         """
-        query = self.db.query(ProactiveMessage).filter(
-            ProactiveMessage.status == ProactiveMessageStatus.PENDING.value
+        query = self.db.query(AgentProactiveMessage).filter(
+            AgentProactiveMessage.status == ProactiveMessageStatus.PENDING.value
         )
 
         if agent_id:
-            query = query.filter(ProactiveMessage.agent_id == agent_id)
+            query = query.filter(AgentProactiveMessage.agent_id == agent_id)
 
         if platform:
-            query = query.filter(ProactiveMessage.platform == platform)
+            query = query.filter(AgentProactiveMessage.platform == platform)
 
-        messages = query.order_by(ProactiveMessage.created_at.desc()).limit(limit).all()
+        messages = query.order_by(AgentProactiveMessage.created_at.desc()).limit(limit).all()
         return messages
 
     def get_message_history(
@@ -311,7 +379,7 @@ class ProactiveMessagingService:
         platform: Optional[str] = None,
         status: Optional[str] = None,
         limit: int = 100,
-    ) -> List[ProactiveMessage]:
+    ) -> List[AgentProactiveMessage]:
         """
         Get message history with filters.
 
@@ -325,27 +393,27 @@ class ProactiveMessagingService:
         Returns:
             List of ProactiveMessage objects
         """
-        query = self.db.query(ProactiveMessage)
+        query = self.db.query(AgentProactiveMessage)
 
         if agent_id:
-            query = query.filter(ProactiveMessage.agent_id == agent_id)
+            query = query.filter(AgentProactiveMessage.agent_id == agent_id)
 
         if recipient_id:
-            query = query.filter(ProactiveMessage.recipient_id == recipient_id)
+            query = query.filter(AgentProactiveMessage.recipient_id == recipient_id)
 
         if platform:
-            query = query.filter(ProactiveMessage.platform == platform)
+            query = query.filter(AgentProactiveMessage.platform == platform)
 
         if status:
-            query = query.filter(ProactiveMessage.status == status)
+            query = query.filter(AgentProactiveMessage.status == status)
 
-        messages = query.order_by(ProactiveMessage.created_at.desc()).limit(limit).all()
+        messages = query.order_by(AgentProactiveMessage.created_at.desc()).limit(limit).all()
         return messages
 
-    def get_message(self, message_id: str) -> Optional[ProactiveMessage]:
+    def get_message(self, message_id: str) -> Optional[AgentProactiveMessage]:
         """Get a specific proactive message by ID."""
-        return self.db.query(ProactiveMessage).filter(
-            ProactiveMessage.id == message_id
+        return self.db.query(AgentProactiveMessage).filter(
+            AgentProactiveMessage.id == message_id
         ).first()
 
     async def _send_message(self, message_id: str) -> Dict[str, Any]:
@@ -358,8 +426,8 @@ class ProactiveMessagingService:
         Returns:
             Result dictionary
         """
-        message = self.db.query(ProactiveMessage).filter(
-            ProactiveMessage.id == message_id
+        message = self.db.query(AgentProactiveMessage).filter(
+            AgentProactiveMessage.id == message_id
         ).first()
 
         if not message:
@@ -445,9 +513,9 @@ class ProactiveMessagingService:
         now = datetime.now(timezone.utc)
 
         # Find approved messages scheduled for now or past
-        messages = self.db.query(ProactiveMessage).filter(
-            ProactiveMessage.status == ProactiveMessageStatus.APPROVED.value,
-            ProactiveMessage.scheduled_for <= now,
+        messages = self.db.query(AgentProactiveMessage).filter(
+            AgentProactiveMessage.status == ProactiveMessageStatus.APPROVED.value,
+            AgentProactiveMessage.scheduled_for <= now,
         ).all()
 
         sent_count = 0

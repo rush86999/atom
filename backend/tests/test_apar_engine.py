@@ -407,7 +407,7 @@ class TestReminderSystem:
         engine._ar_invoices["ar-001"] = invoice
         reminder = engine.generate_reminder("ar-001", tone=ReminderTone.FRIENDLY)
 
-        assert "friendly" in reminder.lower() or "hi" in reminder.lower()
+        assert "friendly" in reminder["message"].lower() or "hi" in reminder["message"].lower()
 
     def test_send_multiple_reminders_increments_counter(self, engine):
         """Multiple reminders increment counter each time."""
@@ -444,11 +444,14 @@ class TestAPAREngineIntegration:
 
     def test_complete_ap_workflow(self, engine):
         """Test complete AP workflow: intake -> approve -> payment."""
-        # Step 1: Intake invoice
+        # Step 1: Intake invoice (use a near-future due date so it lands in the
+        # "upcoming payments" window regardless of when the test runs).
+        from datetime import datetime, timedelta
+        future_due = (datetime.now() + timedelta(days=10)).date().isoformat()
         invoice = engine.intake_invoice("email", {
             "vendor": "Vendor Inc",
             "amount": 750.00,
-            "due_date": "2026-06-01",
+            "due_date": future_due,
             "line_items": []
         })
 
