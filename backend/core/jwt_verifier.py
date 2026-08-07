@@ -274,6 +274,12 @@ class JWTVerifier:
         except jwt.InvalidTokenError as e:
             logger.warning(f"JWT_VERIFICATION: Invalid token: {e}")
             raise HTTPException(status_code=401, detail="Invalid token")
+        except HTTPException:
+            # Re-raise our own intentionally-raised HTTPExceptions (e.g.
+            # "Token has been revoked", "Invalid token: missing subject")
+            # before the catch-all below — otherwise the specific, operationally
+            # meaningful detail is swallowed into "Could not validate credentials".
+            raise
         except Exception as e:
             logger.error(f"JWT_VERIFICATION: Unexpected error: {e}")
             raise HTTPException(status_code=401, detail="Could not validate credentials")

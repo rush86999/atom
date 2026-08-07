@@ -112,6 +112,13 @@ class SafeEvaluator(ast.NodeVisitor):
     # small are left to the execution-sandbox resource caps.
     POW_EXPONENT_CAP = 10 ** 6
     POW_FOLD_MAX_BITS = 10 ** 6
+    # Hard cap on the bit-length of any ``**`` / ``pow`` result. A Name-based
+    # (non-constant) exponent like ``2 ** e`` with ``e = 10**18`` defeats the
+    # static constant-folding guard and would otherwise make ``eval`` compute a
+    # ~10^18-bit integer (CWE-400, unbounded resource consumption). 2 ** (10**6)
+    # already produces a ~125 KB integer, far beyond any business-math need; the
+    # cap rejects anything larger at execution time.
+    POW_RESULT_MAX_BITS = 10 ** 6
 
     def _fold_int(self, node) -> tuple:
         """Best-effort static folding of an integer subexpression.
@@ -321,6 +328,64 @@ class SafeEvaluator(ast.NodeVisitor):
                 self.visit(old_value)
 
 
+# Module-level guarded pow used by the AST rewriter below. Bounded so a
+# non-constant (Name) exponent cannot drive ``eval`` into an unbounded
+# bigint computation (CWE-400). Raises ValueError on overflow; the eval
+# wrapper converts that to SafeEvalError.
+def _safe_pow(base, exponent, modulo=None):
+    max_bits = SafeEvaluator.POW_RESULT_MAX_BITS
+    try:
+        # Estimate the result bit-length without materialising the giant int.
+        # For modular pow the result is bounded by ``modulo`` — always safe.
+        if modulo is not None:
+            return pow(base, exponent, modulo)
+        # int ** int
+        if isinstance(base, int) and isinstance(exponent, int) and not isinstance(base, bool) and not isinstance(exponent, bool):
+            if exponent < 0:
+                # Negative exponent on int base yields a float (tiny result).
+                return pow(base, exponent)
+            est_bits = (base.bit_length() if base else 1) * exponent
+            if est_bits > max_bits:
+                raise ValueError("exponent too large")
+            return pow(base, exponent)
+        # float / other bases — defer to builtin pow (no unbounded bigint risk).
+        return pow(base, exponent)
+    except ValueError:
+        raise
+    except OverflowError:
+        raise ValueError("exponent too large")
+
+
+def _rewrite_pow_to_safe(tree: ast.AST) -> None:
+    """In-place: replace every ``a ** b`` with ``_safe_pow(a, b)``.
+
+    The static constant-fold guard only catches provably-constant huge
+    exponents. A Name-based exponent (``2 ** e``) bypasses it and ``eval``
+    would compute an unbounded bigint. Rewriting the operator into a call to
+    the bounded :func:`_safe_pow` closes that gap at execution time.
+    ``_safe_pow`` is injected into the eval globals, never exposed to user
+    code as a callable name (so the SafeEvaluator's call-whitelist still
+    applies).
+    """
+    _PowRewriter().visit(tree)
+    ast.fix_missing_locations(tree)
+
+
+class _PowRewriter(ast.NodeTransformer):
+    """Replace ``a ** b`` BinOp nodes with ``_safe_pow(a, b)`` calls."""
+
+    def visit_BinOp(self, node):
+        self.generic_visit(node)
+        if isinstance(node.op, ast.Pow):
+            call = ast.Call(
+                func=ast.Name(id="_safe_pow", ctx=ast.Load()),
+                args=[node.left, node.right],
+                keywords=[],
+            )
+            return ast.copy_location(call, node)
+        return node
+
+
 def safe_eval(expression: str, context: Optional[Dict[str, Any]] = None) -> Any:
     """
     Safely evaluate an expression with AST validation.
@@ -352,6 +417,11 @@ def safe_eval(expression: str, context: Optional[Dict[str, Any]] = None) -> Any:
     validator = SafeEvaluator(allow_function_calls=False)
     validator.validate(expression)
 
+    # Rewrite ``a ** b`` into ``_safe_pow(a, b)`` so a non-constant (Name)
+    # exponent cannot drive eval into an unbounded bigint computation (CWE-400).
+    tree = ast.parse(expression, mode="eval")
+    _rewrite_pow_to_safe(tree)
+
     # If validation passes, evaluate with restricted globals
     safe_globals = {"__builtins__": {}}
 
@@ -363,10 +433,17 @@ def safe_eval(expression: str, context: Optional[Dict[str, Any]] = None) -> Any:
         "true": True,
         "false": False,
         "null": None,
+        "_safe_pow": _safe_pow,  # execution-time DoS guard for `**`
     })
 
     try:
-        return eval(expression, safe_globals, context)
+        # compile the rewritten AST (not the original string) so the `**`
+        # rewrite actually takes effect.
+        code = compile(tree, "<safe_eval>", "eval")
+        return eval(code, safe_globals, context)
+    except ValueError as e:
+        # _safe_pow raises ValueError on overflow — surface as SafeEvalError.
+        raise SafeEvalError(f"Evaluation failed: {e}")
     except Exception as e:
         raise SafeEvalError(f"Evaluation failed: {e}")
 
@@ -397,6 +474,11 @@ def safe_eval_with_math(
     validator = SafeEvaluator(allow_function_calls=True)
     validator.validate(expression)
 
+    # Rewrite ``a ** b`` into ``_safe_pow(a, b)`` so a non-constant (Name)
+    # exponent cannot drive eval into an unbounded bigint computation (CWE-400).
+    tree = ast.parse(expression, mode="eval")
+    _rewrite_pow_to_safe(tree)
+
     # If validation passes, evaluate with restricted globals and math functions
     safe_globals = {"__builtins__": {}}
 
@@ -412,7 +494,10 @@ def safe_eval_with_math(
         "abs": abs,
         "round": round,
         "sqrt": math.sqrt,
-        "pow": pow,
+        # ``pow`` is whitelisted in SAFE_FUNCTIONS; route it through the
+        # bounded guard so 2-arg pow can't be used for DoS, while 3-arg
+        # (modular) pow stays bounded by its modulus.
+        "pow": _safe_pow,
         "log": math.log,
         "log10": math.log10,
         "exp": math.exp,
@@ -421,9 +506,21 @@ def safe_eval_with_math(
         "tan": math.tan,
         "pi": math.pi,
         "e": math.e,
+        # SAFE_FUNCTIONS advertises these conversions/inspectors; they must be
+        # available at eval time or expressions like ``int('5')`` / ``len(s)``
+        # validate but then fail with "name not defined".
+        "int": int,
+        "float": float,
+        "str": str,
+        "bool": bool,
+        "len": len,
+        "_safe_pow": _safe_pow,  # execution-time DoS guard for `**`
     })
 
     try:
-        return eval(expression, safe_globals, inputs)
+        code = compile(tree, "<safe_eval_with_math>", "eval")
+        return eval(code, safe_globals, inputs)
+    except ValueError as e:
+        raise SafeEvalError(f"Evaluation failed: {e}")
     except Exception as e:
         raise SafeEvalError(f"Evaluation failed: {e}")

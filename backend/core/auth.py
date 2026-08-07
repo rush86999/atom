@@ -39,6 +39,16 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=Fals
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password using bcrypt"""
+    # Reject non-string/non-bytes inputs up front. Without this, ``None``
+    # reaches ``plain_password[:71]`` below and raises TypeError OUTSIDE the
+    # try/except — surfacing as a 500 to callers (e.g. a malformed login
+    # request) instead of a clean "wrong password" False. bcrypt.checkpw
+    # requires bytes, so any other type is a no-match.
+    if not isinstance(plain_password, (str, bytes)):
+        return False
+    if not isinstance(hashed_password, (str, bytes)):
+        return False
+
     if isinstance(plain_password, str):
         plain_password = plain_password.encode('utf-8')
     if isinstance(hashed_password, str):
@@ -309,6 +319,12 @@ def verify_mobile_token(token: str, db: Session) -> Optional[User]:
             return None
 
         user = db.query(User).filter(User.id == user_id).first()
+        # Reject non-ACTIVE accounts. Mirrors get_current_user (line ~190),
+        # get_current_user_ws, and authenticate_mobile_user — without this,
+        # a suspended/deleted user's existing 24h mobile JWT kept
+        # authenticating them after their account was revoked.
+        if user is None or user.status != UserStatus.ACTIVE:
+            return None
         return user
     except JWTError as e:
         logger.warning(f"Mobile token verification failed: {e}")
