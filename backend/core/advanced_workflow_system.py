@@ -11,6 +11,8 @@ import logging
 import re
 from typing import Any, Callable, Dict, List, Optional, Union
 import uuid
+
+MAX_REGEX_LENGTH = 256  # ReDoS guard: cap user-supplied validation regex length
 from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
@@ -470,8 +472,11 @@ class ParameterValidator:
                 elif rule_name == "max_value" and value > rule_value:
                     return False, f"{param.label} must be at most {rule_value}"
 
-                elif rule_name == "pattern" and not re.match(rule_value, str(value)):
-                    return False, f"{param.label} format is invalid"
+                elif rule_name == "pattern":
+                    if len(rule_value) > MAX_REGEX_LENGTH:
+                        return False, f"{param.label} pattern is too complex"
+                    if not re.match(rule_value, str(value)):
+                        return False, f"{param.label} format is invalid"
 
             return True, None
 

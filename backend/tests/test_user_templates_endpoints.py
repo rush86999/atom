@@ -29,7 +29,8 @@ def test_user():
     user = Mock()
     user.id = uuid4()
     user.email = "test@example.com"
-    user.name = "Test User"
+    user.first_name = "Test"
+    user.last_name = "User"
     user.role = UserRole.ADMIN
     return user
 
@@ -40,7 +41,8 @@ def admin_user():
     user = Mock()
     user.id = uuid4()
     user.email = "admin@example.com"
-    user.name = "Admin User"
+    user.first_name = "Admin"
+    user.last_name = "User"
     user.role = UserRole.SUPER_ADMIN
     return user
 

@@ -16,6 +16,7 @@ Test Categories:
 
 import pytest
 import asyncio
+import hashlib
 from datetime import datetime, timedelta
 from typing import Dict, Any
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
@@ -25,7 +26,7 @@ from sqlalchemy.orm import sessionmaker, Session
 
 from core.llm.cognitive_tier_system import CognitiveClassifier, CognitiveTier
 from core.llm.cache_aware_router import CacheAwareRouter
-from core.llm.escalation_manager import EscalationManager
+from core.llm.escalation_manager import EscalationManager, EscalationReason
 from core.llm.cognitive_tier_service import CognitiveTierService
 from core.models import (
     CognitiveTierPreference,
@@ -78,13 +79,15 @@ def cognitive_classifier():
 @pytest.fixture
 def cache_aware_router():
     """Create a CacheAwareRouter instance."""
-    return CacheAwareRouter()
+    from core.dynamic_pricing_fetcher import get_pricing_fetcher
+
+    return CacheAwareRouter(get_pricing_fetcher())
 
 
 @pytest.fixture
-def escalation_manager(db_session: Session):
-    """Create an EscalationManager instance."""
-    return EscalationManager(db_session)
+def escalation_manager(db_session: Session, test_workspace: Workspace):
+    """Create an EscalationManager instance bound to the test workspace."""
+    return EscalationManager(db_session, workspace_id=test_workspace.id)
 
 
 @pytest.fixture
@@ -128,8 +131,8 @@ class TestFullPipeline:
         # Assert
         assert tier == CognitiveTier.MICRO
 
-    def test_code_query_complex_tier_routing(self, cognitive_classifier: CognitiveClassifier):
-        """Test that code queries route to COMPLEX tier."""
+    def test_code_query_heavy_tier_routing(self, cognitive_classifier: CognitiveClassifier):
+        """Test that code queries route to HEAVY tier."""
         # Arrange
         prompt = "```python\ndef complex_algorithm():\n    pass\n```"
 
@@ -137,7 +140,7 @@ class TestFullPipeline:
         tier = cognitive_classifier.classify(prompt)
 
         # Assert
-        assert tier == CognitiveTier.COMPLEX
+        assert tier == CognitiveTier.HEAVY
 
     def test_cache_aware_routing_with_classification(
         self,
@@ -147,13 +150,14 @@ class TestFullPipeline:
         """Test cache-aware routing after classification."""
         # Arrange
         long_prompt = "Analyze this long text... " * 100
+        prompt_hash = hashlib.sha256(long_prompt.encode()).hexdigest()
 
         # Simulate cache outcomes for OpenAI
         for _ in range(10):
             cache_aware_router.record_cache_outcome(
-                provider="openai",
-                model="gpt-4o",
-                cached=True
+                prompt_hash=prompt_hash,
+                workspace_id="test-workspace-1",
+                was_cached=True
             )
 
         # Act
@@ -161,12 +165,12 @@ class TestFullPipeline:
 
         # Get pricing for tier
         cache_prob = cache_aware_router.predict_cache_hit_probability(
-            provider="openai",
-            model="gpt-4o"
+            prompt_hash=prompt_hash,
+            workspace_id="test-workspace-1"
         )
 
         # Assert
-        assert tier in [CognitiveTier.HEAVY, CognitiveTier.COMPLEX]
+        assert tier == CognitiveTier.VERSATILE
         assert cache_prob > 0.5  # High cache hit probability
 
     def test_auto_escalation_on_low_quality(
@@ -181,11 +185,10 @@ class TestFullPipeline:
         current_tier = CognitiveTier.STANDARD
 
         # Act
-        should_escalate = escalation_manager.should_escalate(
-            workspace_id=workspace_id,
+        should_escalate, _, _ = escalation_manager.should_escalate(
             current_tier=current_tier,
-            quality_score=79,  # Below 80 threshold
-            response_text="low quality response"
+            response_quality=79,  # Below 80 threshold
+            error=None
         )
 
         # Assert
@@ -198,28 +201,27 @@ class TestFullPipeline:
 
         assert len(logs) > 0
         assert logs[0].from_tier == current_tier.value
-        assert logs[0].trigger_reason == "low_quality"
+        assert logs[0].reason == "quality_threshold"
 
     def test_rate_limit_escalation(
         self,
         escalation_manager: EscalationManager,
         test_workspace: Workspace
     ):
-        """Test that 429 error triggers immediate escalation."""
+        """Test that rate limit error triggers immediate escalation."""
         # Arrange
-        workspace_id = test_workspace.id
         current_tier = CognitiveTier.STANDARD
 
         # Act
-        should_escalate = escalation_manager.should_escalate_on_error(
-            workspace_id=workspace_id,
+        should_escalate, reason, _ = escalation_manager.should_escalate(
             current_tier=current_tier,
-            error_status=429,
-            error_message="Rate limit exceeded"
+            rate_limited=True,
+            error="Rate limit exceeded"
         )
 
         # Assert
         assert should_escalate is True
+        assert reason == EscalationReason.RATE_LIMITED
 
     def test_budget_prevents_expensive_tier(
         self,
@@ -236,8 +238,7 @@ class TestFullPipeline:
             workspace_id=workspace_id,
             default_tier=CognitiveTier.MICRO.value,
             max_tier=CognitiveTier.STANDARD.value,
-            monthly_budget_usd=1.0,
-            monthly_spend_usd=0.95
+            monthly_budget_cents=100
         )
         db_session.add(preference)
         db_session.commit()
@@ -379,27 +380,27 @@ class TestCostOptimization:
     ):
         """Test that cache hit probability affects cost calculation."""
         # Arrange
-        provider = "openai"
-        model = "gpt-4o"
+        prompt_hash = hashlib.sha256(b"cost-reduction-prompt").hexdigest()
+        workspace_id = "test-workspace-1"
 
         # Simulate cache outcomes: 90% hit rate
         for _ in range(90):
             cache_aware_router.record_cache_outcome(
-                provider=provider,
-                model=model,
-                cached=True
+                prompt_hash=prompt_hash,
+                workspace_id=workspace_id,
+                was_cached=True
             )
         for _ in range(10):
             cache_aware_router.record_cache_outcome(
-                provider=provider,
-                model=model,
-                cached=False
+                prompt_hash=prompt_hash,
+                workspace_id=workspace_id,
+                was_cached=False
             )
 
         # Act - Calculate cache hit probability
         cache_prob = cache_aware_router.predict_cache_hit_probability(
-            provider=provider,
-            model=model
+            prompt_hash=prompt_hash,
+            workspace_id=workspace_id
         )
 
         # Assert - High cache hit probability
@@ -410,11 +411,26 @@ class TestCostOptimization:
         cache_aware_router: CacheAwareRouter
     ):
         """Test that cached vs full pricing is calculated correctly."""
+        # Arrange - Known pricing so the cache discount is deterministic
+        cache_aware_router.pricing_fetcher.get_model_price = Mock(
+            return_value={
+                "input_cost_per_token": 0.00001,
+                "output_cost_per_token": 0.00003,
+            }
+        )
+
         # Act - Get pricing for a model
-        cached_price, full_price = cache_aware_router.get_cached_pricing(
-            provider="openai",
+        cached_price = cache_aware_router.calculate_effective_cost(
             model="gpt-4o",
-            estimated_tokens=1000
+            provider="openai",
+            estimated_input_tokens=2000,
+            cache_hit_probability=1.0
+        )
+        full_price = cache_aware_router.calculate_effective_cost(
+            model="gpt-4o",
+            provider="openai",
+            estimated_input_tokens=2000,
+            cache_hit_probability=0.0
         )
 
         # Assert - Both prices should be returned
@@ -431,7 +447,7 @@ class TestCostOptimization:
         test_cases = [
             ("hi", CognitiveTier.MICRO),
             ("explain quantum computing briefly", CognitiveTier.STANDARD),
-            ("```python\ndef complex_algorithm():\n    pass\n```", CognitiveTier.COMPLEX),
+            ("```python\ndef complex_algorithm():\n    pass\n```", CognitiveTier.HEAVY),
         ]
 
         # Act & Assert
@@ -453,8 +469,7 @@ class TestCostOptimization:
         # Set budget to $10
         preference = CognitiveTierPreference(
             workspace_id=workspace_id,
-            monthly_budget_usd=10.0,
-            monthly_spend_usd=5.0
+            monthly_budget_cents=1000
         )
         db_session.add(preference)
         db_session.commit()
@@ -464,7 +479,7 @@ class TestCostOptimization:
             request_cost_cents=500  # $5.00
         )
 
-        # Assert - Should succeed (total $10)
+        # Assert - Should succeed (within budget)
         assert can_proceed is True
 
 
@@ -483,20 +498,21 @@ class TestEscalationIntegration:
     ):
         """Test that second escalation within 5min blocked."""
         # Arrange
-        workspace_id = test_workspace.id
+        request_id = "req-cooldown"
 
-        # Record first escalation
-        escalation_manager.record_escalation(
-            workspace_id=workspace_id,
-            from_tier=CognitiveTier.STANDARD.value,
-            to_tier=CognitiveTier.COMPLEX.value,
-            trigger_reason="low_quality"
+        # Act - First escalation
+        should_escalate, _, _ = escalation_manager.should_escalate(
+            current_tier=CognitiveTier.STANDARD,
+            response_quality=79,
+            request_id=request_id
         )
+        assert should_escalate is True
 
         # Act - Try second escalation immediately
-        can_escalate = escalation_manager.can_escalate(
-            workspace_id=workspace_id,
-            current_tier=CognitiveTier.COMPLEX.value
+        can_escalate, _, _ = escalation_manager.should_escalate(
+            current_tier=CognitiveTier.STANDARD,
+            response_quality=79,
+            request_id=request_id
         )
 
         # Assert - Should be blocked (cooldown period)
@@ -510,26 +526,27 @@ class TestEscalationIntegration:
     ):
         """Test that 2 escalations max, then returns current response."""
         # Arrange
-        workspace_id = test_workspace.id
+        request_id = "req-max"
 
         # Record 2 escalations
-        escalation_manager.record_escalation(
-            workspace_id=workspace_id,
-            from_tier=CognitiveTier.MICRO.value,
-            to_tier=CognitiveTier.STANDARD.value,
-            trigger_reason="low_quality"
+        first, _, _ = escalation_manager.should_escalate(
+            current_tier=CognitiveTier.MICRO,
+            response_quality=79,
+            request_id=request_id
         )
-        escalation_manager.record_escalation(
-            workspace_id=workspace_id,
-            from_tier=CognitiveTier.STANDARD.value,
-            to_tier=CognitiveTier.COMPLEX.value,
-            trigger_reason="low_quality"
+        second, _, _ = escalation_manager.should_escalate(
+            current_tier=CognitiveTier.STANDARD,
+            response_quality=79,
+            request_id=request_id
         )
+        assert first is True
+        assert second is True
 
         # Act - Try third escalation
-        can_escalate = escalation_manager.can_escalate(
-            workspace_id=workspace_id,
-            current_tier=CognitiveTier.COMPLEX.value
+        can_escalate, _, _ = escalation_manager.should_escalate(
+            current_tier=CognitiveTier.VERSATILE,
+            response_quality=79,
+            request_id=request_id
         )
 
         # Assert - Should be blocked (max limit reached)
@@ -546,13 +563,12 @@ class TestEscalationIntegration:
         workspace_id = test_workspace.id
 
         # Act
-        escalation_manager.record_escalation(
-            workspace_id=workspace_id,
-            from_tier=CognitiveTier.STANDARD.value,
-            to_tier=CognitiveTier.COMPLEX.value,
-            trigger_reason="rate_limit",
-            quality_score=75
+        should_escalate, _, _ = escalation_manager.should_escalate(
+            current_tier=CognitiveTier.STANDARD,
+            response_quality=75,
+            request_id="req-log"
         )
+        assert should_escalate is True
 
         # Assert
         logs = db_session.query(EscalationLog).filter(
@@ -561,9 +577,9 @@ class TestEscalationIntegration:
 
         assert len(logs) == 1
         assert logs[0].from_tier == CognitiveTier.STANDARD.value
-        assert logs[0].to_tier == CognitiveTier.COMPLEX.value
-        assert logs[0].trigger_reason == "rate_limit"
-        assert logs[0].quality_score == 75
+        assert logs[0].to_tier == CognitiveTier.VERSATILE.value
+        assert logs[0].reason == "quality_threshold"
+        assert logs[0].trigger_value == 75
 
     def test_escalation_respects_preference(
         self,
@@ -596,25 +612,21 @@ class TestEscalationIntegration:
         test_workspace: Workspace
     ):
         """Test that quality score 79 triggers, 80 doesn't."""
-        # Arrange
-        workspace_id = test_workspace.id
-
         # Act & Assert
         # Score 79 should trigger escalation
-        should_escalate_79 = escalation_manager.should_escalate(
-            workspace_id=workspace_id,
-            current_tier=CognitiveTier.STANDARD.value,
-            quality_score=79,
-            response_text="response"
+        should_escalate_79, _, _ = escalation_manager.should_escalate(
+            current_tier=CognitiveTier.STANDARD,
+            response_quality=79
         )
         assert should_escalate_79 is True
 
+        # Reset cooldown so the 80 check tests the threshold, not the cooldown
+        escalation_manager.reset_cooldown(CognitiveTier.STANDARD)
+
         # Score 80 should NOT trigger escalation
-        should_escalate_80 = escalation_manager.should_escalate(
-            workspace_id=workspace_id,
-            current_tier=CognitiveTier.STANDARD.value,
-            quality_score=80,
-            response_text="response"
+        should_escalate_80, _, _ = escalation_manager.should_escalate(
+            current_tier=CognitiveTier.STANDARD,
+            response_quality=80
         )
         assert should_escalate_80 is False
 
@@ -760,21 +772,24 @@ class TestPerformance:
     ):
         """Test that cache prediction is fast."""
         # Arrange
-        providers = ["openai", "anthropic", "minimax", "deepseek"]
-        models = ["gpt-4o", "claude-3-5-sonnet", "abab6.5s", "deepseek-chat"]
+        prompt_hashes = [
+            hashlib.sha256(f"prompt-{i}".encode()).hexdigest()
+            for i in range(4)
+        ]
+        workspace_id = "test-workspace-1"
 
         # Act - Predict cache hit for all
         import time
         start = time.time()
-        for provider, model in zip(providers, models):
+        for prompt_hash in prompt_hashes:
             cache_aware_router.predict_cache_hit_probability(
-                provider=provider,
-                model=model
+                prompt_hash=prompt_hash,
+                workspace_id=workspace_id
             )
         elapsed = time.time() - start
 
         # Assert - Should complete in <10ms per prediction
-        avg_time = elapsed / len(providers)
+        avg_time = elapsed / len(prompt_hashes)
         assert avg_time < 0.01  # 10ms
 
     def test_pricing_calculation_performance(
@@ -784,19 +799,19 @@ class TestPerformance:
         """Test that pricing calculation is fast."""
         # Arrange
         test_cases = [
-            ("openai", "gpt-4o", 1000),
-            ("anthropic", "claude-3-5-sonnet", 2000),
-            ("minimax", "abab6.5s", 1500),
+            ("gpt-4o", "openai", 1000),
+            ("claude-3-5-sonnet", "anthropic", 2000),
+            ("abab6.5s", "minimax", 1500),
         ]
 
         # Act - Calculate pricing for all
         import time
         start = time.time()
-        for provider, model, tokens in test_cases:
-            cache_aware_router.get_cached_pricing(
-                provider=provider,
+        for model, provider, tokens in test_cases:
+            cache_aware_router.calculate_effective_cost(
                 model=model,
-                estimated_tokens=tokens
+                provider=provider,
+                estimated_input_tokens=tokens
             )
         elapsed = time.time() - start
 
@@ -843,10 +858,10 @@ class TestEdgeCases:
     ):
         """Test that unknown provider returns default pricing."""
         # Act
-        pricing = cache_aware_router.get_cached_pricing(
-            provider="unknown-provider",
+        pricing = cache_aware_router.calculate_effective_cost(
             model="unknown-model",
-            estimated_tokens=1000
+            provider="unknown-provider",
+            estimated_input_tokens=1000
         )
 
         # Assert - Should return default pricing
@@ -864,8 +879,7 @@ class TestEdgeCases:
 
         preference = CognitiveTierPreference(
             workspace_id=workspace_id,
-            monthly_budget_usd=0.0,
-            monthly_spend_usd=0.0
+            monthly_budget_cents=0
         )
         db_session.add(preference)
         db_session.commit()

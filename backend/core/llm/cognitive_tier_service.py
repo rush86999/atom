@@ -371,6 +371,13 @@ class CognitiveTierService:
                 logger.warning(f"Request cost {request_cost_cents:.2f}c exceeds limit")
                 return False
 
+        if (
+            preference.monthly_budget_cents is not None
+            and request_cost_cents > preference.monthly_budget_cents
+        ):
+            logger.warning(f"Request cost {request_cost_cents:.2f}c exceeds monthly budget")
+            return False
+
         return True
 
     def handle_escalation(

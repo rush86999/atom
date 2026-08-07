@@ -30,7 +30,8 @@ def test_user():
     user = Mock()
     user.id = uuid4()
     user.email = "test@example.com"
-    user.name = "Test User"
+    user.first_name = "Test"
+    user.last_name = "User"
     return user
 
 
