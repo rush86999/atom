@@ -201,8 +201,8 @@ class TestNpmGovernanceChecks:
 
         # Call install_npm_dependencies (governance is first step)
         # We'll patch installer to avoid actual installation
-        with patch.object(npm_adapter, 'installer') as mock_installer:
-            with patch('core.skill_adapter.NpmScriptAnalyzer') as mock_analyzer:
+        with patch.object(npm_adapter, '_installer') as mock_installer:
+            with patch('core.npm_script_analyzer.NpmScriptAnalyzer') as mock_analyzer:
                 mock_installer.install_packages.return_value = {
                     "success": True,
                     "image_tag": "atom-skill:test-skill-v1"
@@ -267,8 +267,8 @@ class TestNpmGovernanceChecks:
         npm_adapter._governance = mock_governance
 
         # Patch installer and analyzer to avoid actual work
-        with patch.object(npm_adapter, 'installer') as mock_installer:
-            with patch('core.skill_adapter.NpmScriptAnalyzer') as mock_analyzer:
+        with patch.object(npm_adapter, '_installer') as mock_installer:
+            with patch('core.npm_script_analyzer.NpmScriptAnalyzer') as mock_analyzer:
                 mock_installer.install_packages.return_value = {
                     "success": True,
                     "image_tag": "atom-skill:test-skill-v1"
@@ -294,8 +294,8 @@ class TestNpmGovernanceChecks:
         npm_adapter._governance = mock_governance
 
         # Patch installer and analyzer
-        with patch.object(npm_adapter, 'installer') as mock_installer:
-            with patch('core.skill_adapter.NpmScriptAnalyzer') as mock_analyzer:
+        with patch.object(npm_adapter, '_installer') as mock_installer:
+            with patch('core.npm_script_analyzer.NpmScriptAnalyzer') as mock_analyzer:
                 mock_installer.install_packages.return_value = {
                     "success": True,
                     "image_tag": "atom-skill:test-skill-v1"
@@ -321,8 +321,8 @@ class TestNpmGovernanceChecks:
         npm_adapter._governance = mock_governance
 
         # Patch installer and analyzer
-        with patch.object(npm_adapter, 'installer') as mock_installer:
-            with patch('core.skill_adapter.NpmScriptAnalyzer') as mock_analyzer:
+        with patch.object(npm_adapter, '_installer') as mock_installer:
+            with patch('core.npm_script_analyzer.NpmScriptAnalyzer') as mock_analyzer:
                 mock_installer.install_packages.return_value = {
                     "success": True,
                     "image_tag": "atom-skill:test-skill-v1"
@@ -363,8 +363,8 @@ class TestNpmGovernanceChecks:
         npm_adapter._governance = mock_gov
 
         # Patch installer and analyzer
-        with patch.object(npm_adapter, 'installer') as mock_installer:
-            with patch('core.skill_adapter.NpmScriptAnalyzer') as mock_analyzer:
+        with patch.object(npm_adapter, '_installer') as mock_installer:
+            with patch('core.npm_script_analyzer.NpmScriptAnalyzer') as mock_analyzer:
                 mock_installer.install_packages.return_value = {
                     "success": True,
                     "image_tag": "atom-skill:test-skill-v1"
@@ -408,8 +408,8 @@ class TestNpmScriptAnalysis:
         npm_adapter._governance = mock_gov
 
         # Patch installer and analyzer
-        with patch.object(npm_adapter, 'installer') as mock_installer:
-            with patch('core.skill_adapter.NpmScriptAnalyzer') as mock_analyzer_class:
+        with patch.object(npm_adapter, '_installer') as mock_installer:
+            with patch('core.npm_script_analyzer.NpmScriptAnalyzer') as mock_analyzer_class:
                 mock_installer.install_packages.return_value = {
                     "success": True,
                     "image_tag": "atom-skill:test-skill-v1"
@@ -453,7 +453,7 @@ class TestNpmScriptAnalysis:
         npm_adapter._governance = mock_gov
 
         # Patch analyzer to return malicious
-        with patch('core.skill_adapter.NpmScriptAnalyzer') as mock_analyzer_class:
+        with patch('core.npm_script_analyzer.NpmScriptAnalyzer') as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_analyzer.analyze_package_scripts.return_value = {
                 "malicious": True,
@@ -490,8 +490,8 @@ class TestNpmScriptAnalysis:
         npm_adapter._governance = mock_gov
 
         # Patch installer and analyzer
-        with patch.object(npm_adapter, 'installer') as mock_installer:
-            with patch('core.skill_adapter.NpmScriptAnalyzer') as mock_analyzer_class:
+        with patch.object(npm_adapter, '_installer') as mock_installer:
+            with patch('core.npm_script_analyzer.NpmScriptAnalyzer') as mock_analyzer_class:
                 mock_installer.install_packages.return_value = {
                     "success": True,
                     "image_tag": "atom-skill:test-skill-v1"
@@ -534,8 +534,8 @@ class TestNpmScriptAnalysis:
         npm_adapter._governance = mock_gov
 
         # Patch installer and analyzer
-        with patch.object(npm_adapter, 'installer') as mock_installer:
-            with patch('core.skill_adapter.NpmScriptAnalyzer') as mock_analyzer_class:
+        with patch.object(npm_adapter, '_installer') as mock_installer:
+            with patch('core.npm_script_analyzer.NpmScriptAnalyzer') as mock_analyzer_class:
                 mock_installer.install_packages.return_value = {
                     "success": True,
                     "image_tag": "atom-skill:test-skill-v1"
@@ -582,7 +582,7 @@ class TestNpmInstallation:
         npm_adapter._governance = mock_gov
 
         # Patch installer and analyzer
-        with patch('core.skill_adapter.NpmScriptAnalyzer') as mock_analyzer_class:
+        with patch('core.npm_script_analyzer.NpmScriptAnalyzer') as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_analyzer.analyze_package_scripts.return_value = {
                 "malicious": False,
@@ -590,7 +590,7 @@ class TestNpmInstallation:
             }
             mock_analyzer_class.return_value = mock_analyzer
 
-            with patch.object(npm_adapter, 'installer') as mock_installer:
+            with patch.object(npm_adapter, '_installer') as mock_installer:
                 mock_installer.install_packages.return_value = {
                     "success": True,
                     "image_tag": "atom-skill:test-skill-v1"
@@ -629,7 +629,7 @@ class TestNpmInstallation:
         npm_adapter._governance = mock_gov
 
         # Patch installer to return failure
-        with patch('core.skill_adapter.NpmScriptAnalyzer') as mock_analyzer_class:
+        with patch('core.npm_script_analyzer.NpmScriptAnalyzer') as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_analyzer.analyze_package_scripts.return_value = {
                 "malicious": False,
@@ -637,7 +637,7 @@ class TestNpmInstallation:
             }
             mock_analyzer_class.return_value = mock_analyzer
 
-            with patch.object(npm_adapter, 'installer') as mock_installer:
+            with patch.object(npm_adapter, '_installer') as mock_installer:
                 mock_installer.install_packages.return_value = {
                     "success": False,
                     "error": "Failed to build Docker image"
@@ -672,7 +672,7 @@ class TestNpmInstallation:
         npm_adapter._governance = mock_gov
 
         # Patch installer to return vulnerabilities
-        with patch('core.skill_adapter.NpmScriptAnalyzer') as mock_analyzer_class:
+        with patch('core.npm_script_analyzer.NpmScriptAnalyzer') as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_analyzer.analyze_package_scripts.return_value = {
                 "malicious": False,
@@ -680,7 +680,7 @@ class TestNpmInstallation:
             }
             mock_analyzer_class.return_value = mock_analyzer
 
-            with patch.object(npm_adapter, 'installer') as mock_installer:
+            with patch.object(npm_adapter, '_installer') as mock_installer:
                 mock_installer.install_packages.return_value = {
                     "success": True,
                     "image_tag": "atom-skill:test-skill-v1",
@@ -719,7 +719,7 @@ class TestNpmInstallation:
         npm_adapter._governance = mock_gov
 
         # Patch installer
-        with patch('core.skill_adapter.NpmScriptAnalyzer') as mock_analyzer_class:
+        with patch('core.npm_script_analyzer.NpmScriptAnalyzer') as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_analyzer.analyze_package_scripts.return_value = {
                 "malicious": False,
@@ -727,7 +727,7 @@ class TestNpmInstallation:
             }
             mock_analyzer_class.return_value = mock_analyzer
 
-            with patch.object(npm_adapter, 'installer') as mock_installer:
+            with patch.object(npm_adapter, '_installer') as mock_installer:
                 mock_installer.install_packages.return_value = {
                     "success": True,
                     "image_tag": "atom-skill:test-skill-v1"
@@ -762,7 +762,7 @@ class TestNpmInstallation:
         npm_adapter._governance = mock_gov
 
         # Patch installer
-        with patch('core.skill_adapter.NpmScriptAnalyzer') as mock_analyzer_class:
+        with patch('core.npm_script_analyzer.NpmScriptAnalyzer') as mock_analyzer_class:
             mock_analyzer = MagicMock()
             mock_analyzer.analyze_package_scripts.return_value = {
                 "malicious": False,
@@ -770,7 +770,7 @@ class TestNpmInstallation:
             }
             mock_analyzer_class.return_value = mock_analyzer
 
-            with patch.object(npm_adapter, 'installer') as mock_installer:
+            with patch.object(npm_adapter, '_installer') as mock_installer:
                 mock_installer.install_packages.return_value = {
                     "success": True,
                     "image_tag": "atom-skill:my-custom-skill-v1"
@@ -801,7 +801,7 @@ class TestNpmExecution:
         )
 
         # Mock installer for execution
-        with patch.object(npm_adapter, 'installer') as mock_installer:
+        with patch.object(npm_adapter, '_installer') as mock_installer:
             mock_installer.execute_with_packages.return_value = "Result: test query"
 
             # Call _run with tool_input
@@ -825,7 +825,7 @@ class TestNpmExecution:
         )
 
         # Mock installer
-        with patch.object(npm_adapter, 'installer') as mock_installer:
+        with patch.object(npm_adapter, '_installer') as mock_installer:
             mock_installer.execute_with_packages.return_value = "Result: test query"
 
             npm_adapter._run({"query": "test query"})
@@ -850,7 +850,7 @@ class TestNpmExecution:
         )
 
         # Mock installer to raise exception
-        with patch.object(npm_adapter, 'installer') as mock_installer:
+        with patch.object(npm_adapter, '_installer') as mock_installer:
             mock_installer.execute_with_packages.side_effect = Exception("Docker container crashed")
 
             result = npm_adapter._run({"query": "test query"})
@@ -874,7 +874,7 @@ class TestNpmExecution:
         )
 
         # Mock installer
-        with patch.object(npm_adapter, 'installer') as mock_installer:
+        with patch.object(npm_adapter, '_installer') as mock_installer:
             mock_installer.execute_with_packages.return_value = "Result: test query"
 
             # Execute (if no exception, logging worked)

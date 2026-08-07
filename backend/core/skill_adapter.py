@@ -26,11 +26,14 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Type
 
+from pydantic import BaseModel, Field, ConfigDict
+
 try:
     from langchain.tools import BaseTool
 except ImportError:
-    # langchain optional — provide minimal stand-in so module imports succeed
-    class BaseTool:  # type: ignore[no-redef]
+    # langchain optional — provide a pydantic stand-in so the tool classes
+    # keep their generated constructors when langchain is absent.
+    class BaseTool(BaseModel):  # type: ignore[no-redef]
         name: str = ""
         description: str = ""
 
@@ -39,8 +42,6 @@ except ImportError:
 
         async def _arun(self, *args, **kwargs):
             raise NotImplementedError("langchain not installed")
-
-from pydantic import BaseModel, Field, ConfigDict
 
 # Import CLI command wrapper for atom-* skills
 from tools.atom_cli_skill_wrapper import execute_atom_cli_command
