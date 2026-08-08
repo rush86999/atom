@@ -46,7 +46,11 @@ jest.mock('react-native-paper', () => ({
       primary: '#2196F3',
     },
   }),
-  Icon: 'Icon',
+  Icon: ({ source, size, color }: any) => {
+    const React = require('react');
+    const { View } = require('react-native');
+    return <View testID={`paper-icon-${source}`} />;
+  },
   Avatar: {
     Text: ({ label, style }: any) => {
       const React = require('react');
@@ -144,7 +148,7 @@ const mockMarkAsRead = jest.fn(() =>
 
 jest.mock('../../../services/chatService', () => ({
   chatService: {
-    getConversationList: () => mockGetConversationList(),
+    getConversationList: (...args: any[]) => mockGetConversationList(...args),
     archiveSession: (id: string) => mockArchiveSession(id),
     deleteSession: (id: string) => mockDeleteSession(id),
     markAsRead: (id: string) => mockMarkAsRead(id),
@@ -479,6 +483,23 @@ describe('ConversationListScreen', () => {
 
       expect(mockGetConversationList).toHaveBeenCalled();
     });
+
+    it('reloads the first page when the list is pulled to refresh', async () => {
+      const { RefreshControl } = require('react-native');
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      const refreshControl = screen.UNSAFE_getByType(RefreshControl);
+      fireEvent(refreshControl, 'refresh');
+
+      await waitFor(() => {
+        // First page reloaded (no offset)
+        expect(mockGetConversationList).toHaveBeenLastCalledWith(20, 0);
+      });
+    });
   });
 
   describe('Infinite Scroll', () => {
@@ -695,6 +716,406 @@ describe('ConversationListScreen', () => {
       await waitFor(() => {
         // Should show empty state on error
         expect(getByText('No conversations yet')).toBeTruthy();
+      });
+    });
+
+    it('should show error alert when load fails', async () => {
+      const Alert = require('react-native/Libraries/Alert/Alert').alert;
+      mockGetConversationList.mockImplementationOnce(() =>
+        Promise.reject(new Error('Network error'))
+      );
+
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(Alert).toHaveBeenCalledWith('Error', 'Failed to load conversations');
+      });
+    });
+  });
+
+  describe('Multi-Select Behavior', () => {
+    it('shows selected count and hides FAB after long press', async () => {
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      // FAB is visible before multi-select
+      expect(screen.getByTestId('fab')).toBeTruthy();
+
+      fireEvent(screen.getByText('Test Agent 1'), 'longPress');
+
+      await waitFor(() => {
+        expect(screen.getByText('1 selected')).toBeTruthy();
+        expect(screen.queryByTestId('fab')).toBeNull();
+      });
+    });
+
+    it('counts multiple selections', async () => {
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      fireEvent(screen.getByText('Test Agent 1'), 'longPress');
+      fireEvent(screen.getByText('Test Agent 2'), 'longPress');
+
+      await waitFor(() => {
+        expect(screen.getByText('2 selected')).toBeTruthy();
+      });
+    });
+
+    it('exits multi-select mode when close is pressed', async () => {
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      fireEvent(screen.getByText('Test Agent 1'), 'longPress');
+
+      await waitFor(() => {
+        expect(screen.getByText('1 selected')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId('icon-close'));
+
+      await waitFor(() => {
+        expect(screen.queryByText('1 selected')).toBeNull();
+        expect(screen.getByTestId('fab')).toBeTruthy();
+      });
+    });
+
+    it('toggles selection off when a selected conversation is pressed again', async () => {
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      fireEvent(screen.getByText('Test Agent 1'), 'longPress');
+      fireEvent(screen.getByText('Test Agent 1'), 'longPress');
+      fireEvent(screen.getByText('Test Agent 2'), 'longPress');
+
+      await waitFor(() => {
+        expect(screen.getByText('1 selected')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Swipe Actions (real)', () => {
+    it('archives conversation on archive action', async () => {
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getAllByTestId('paper-icon-archive')[0]);
+
+      await waitFor(() => {
+        expect(mockArchiveSession).toHaveBeenCalledWith('session-1');
+        expect(screen.queryByText('Test Agent 1')).toBeNull();
+        expect(screen.getByText('Test Agent 2')).toBeTruthy();
+      });
+    });
+
+    it('shows confirmation alert before delete', async () => {
+      const Alert = require('react-native/Libraries/Alert/Alert').alert;
+
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getAllByTestId('paper-icon-delete')[0]);
+
+      expect(Alert).toHaveBeenCalledWith(
+        'Delete Conversation',
+        'Are you sure you want to delete this conversation?',
+        expect.any(Array)
+      );
+    });
+
+    it('removes conversation from list after confirming delete', async () => {
+      const Alert = require('react-native/Libraries/Alert/Alert').alert;
+
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getAllByTestId('paper-icon-delete')[0]);
+
+      const buttons = Alert.mock.calls[Alert.mock.calls.length - 1][2];
+      const deleteButton = buttons.find((b: any) => b.text === 'Delete');
+      deleteButton.onPress();
+
+      await waitFor(() => {
+        expect(mockDeleteSession).toHaveBeenCalledWith('session-1');
+        expect(screen.queryByText('Test Agent 1')).toBeNull();
+      });
+    });
+
+    it('keeps conversation when delete is cancelled', async () => {
+      const Alert = require('react-native/Libraries/Alert/Alert').alert;
+
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getAllByTestId('paper-icon-delete')[0]);
+
+      const buttons = Alert.mock.calls[Alert.mock.calls.length - 1][2];
+      // The Cancel button carries no onPress — it just dismisses the alert
+      const cancelButton = buttons.find((b: any) => b.text === 'Cancel');
+      expect(cancelButton).toBeTruthy();
+      expect(typeof cancelButton.onPress).toBe('undefined');
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+      expect(mockDeleteSession).not.toHaveBeenCalled();
+    });
+
+    it('shows error alert when archive fails', async () => {
+      const Alert = require('react-native/Libraries/Alert/Alert').alert;
+      mockArchiveSession.mockImplementationOnce(() =>
+        Promise.resolve({ success: false, error: 'Archive failed' })
+      );
+
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getAllByTestId('paper-icon-archive')[0]);
+
+      await waitFor(() => {
+        expect(Alert).toHaveBeenCalledWith('Error', 'Archive failed');
+        // Conversation stays in the list
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+    });
+
+    it('shows error alert when archive throws', async () => {
+      const Alert = require('react-native/Libraries/Alert/Alert').alert;
+      mockArchiveSession.mockImplementationOnce(() =>
+        Promise.reject(new Error('Network error'))
+      );
+
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getAllByTestId('paper-icon-archive')[0]);
+
+      await waitFor(() => {
+        expect(Alert).toHaveBeenCalledWith('Error', 'Failed to archive conversation');
+      });
+    });
+
+    it('shows error alert when delete throws', async () => {
+      const Alert = require('react-native/Libraries/Alert/Alert').alert;
+      mockDeleteSession.mockImplementationOnce(() =>
+        Promise.reject(new Error('Network error'))
+      );
+
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getAllByTestId('paper-icon-delete')[0]);
+
+      const buttons = Alert.mock.calls[Alert.mock.calls.length - 1][2];
+      const deleteButton = buttons.find((b: any) => b.text === 'Delete');
+      deleteButton.onPress();
+
+      await waitFor(() => {
+        expect(Alert).toHaveBeenCalledWith('Error', 'Failed to delete conversation');
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+    });
+
+    it('shows error alert when bulk delete fails', async () => {
+      const Alert = require('react-native/Libraries/Alert/Alert').alert;
+      mockDeleteSession.mockImplementationOnce(() =>
+        Promise.reject(new Error('Network error'))
+      );
+
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      fireEvent(screen.getByText('Test Agent 1'), 'longPress');
+
+      await waitFor(() => {
+        expect(screen.getByText('1 selected')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId('icon-delete'));
+
+      const buttons = Alert.mock.calls[Alert.mock.calls.length - 1][2];
+      const deleteButton = buttons.find((b: any) => b.text === 'Delete');
+      deleteButton.onPress();
+
+      await waitFor(() => {
+        expect(Alert).toHaveBeenCalledWith('Error', 'Failed to delete conversation');
+      });
+    });
+
+    it('renders conversations with unknown maturity levels', async () => {
+      mockGetConversationList.mockImplementationOnce(() =>
+        Promise.resolve({
+          success: true,
+          data: [
+            {
+              session_id: 'session-x',
+              agent_id: 'agent-x',
+              agent_name: 'Unknown Agent',
+              agent_maturity: 'RECRUITING',
+              last_message: 'Hello',
+              last_message_time: new Date().toISOString(),
+              unread_count: 0,
+            },
+          ],
+        })
+      );
+
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Unknown Agent')).toBeTruthy();
+        expect(screen.getByText('RECRUITING')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Bulk Actions (real)', () => {
+    it('bulk marks selected conversations as read', async () => {
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      // Only session-1 has unread messages
+      expect(screen.getAllByTestId('badge')).toHaveLength(1);
+
+      fireEvent(screen.getByText('Test Agent 1'), 'longPress');
+
+      await waitFor(() => {
+        expect(screen.getByText('1 selected')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId('icon-email-open'));
+
+      await waitFor(() => {
+        expect(mockMarkAsRead).toHaveBeenCalledWith('session-1');
+        // Unread badge disappears after marking as read
+        expect(screen.queryAllByTestId('badge')).toHaveLength(0);
+        // Multi-select exits
+        expect(screen.queryByText('1 selected')).toBeNull();
+      });
+    });
+
+    it('bulk deletes selected conversations after confirmation', async () => {
+      const Alert = require('react-native/Libraries/Alert/Alert').alert;
+
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      fireEvent(screen.getByText('Test Agent 1'), 'longPress');
+      fireEvent(screen.getByText('Test Agent 2'), 'longPress');
+
+      await waitFor(() => {
+        expect(screen.getByText('2 selected')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId('icon-delete'));
+
+      expect(Alert).toHaveBeenCalledWith(
+        'Delete Conversations',
+        'Delete 2 conversations?',
+        expect.any(Array)
+      );
+
+      const buttons = Alert.mock.calls[Alert.mock.calls.length - 1][2];
+      const deleteButton = buttons.find((b: any) => b.text === 'Delete');
+      deleteButton.onPress();
+
+      await waitFor(() => {
+        expect(mockDeleteSession).toHaveBeenCalledWith('session-1');
+        expect(mockDeleteSession).toHaveBeenCalledWith('session-2');
+        expect(screen.queryByText('Test Agent 1')).toBeNull();
+        expect(screen.queryByText('Test Agent 2')).toBeNull();
+        expect(screen.queryByText('2 selected')).toBeNull();
+      });
+    });
+  });
+
+  describe('Infinite Scroll (real)', () => {
+    it('appends the next page when end is reached', async () => {
+      const pageOne = Array(20)
+        .fill(null)
+        .map((_, i) => ({
+          session_id: `session-${i}`,
+          agent_id: `agent-${i}`,
+          agent_name: `Agent ${i}`,
+          agent_maturity: 'AUTONOMOUS' as const,
+          last_message: `Message ${i}`,
+          last_message_time: new Date(Date.now() - i * 60000).toISOString(),
+          unread_count: 0,
+        }));
+      const pageTwo = Array(20)
+        .fill(null)
+        .map((_, i) => ({
+          session_id: `session-b-${i}`,
+          agent_id: `agent-b-${i}`,
+          agent_name: `Batch Agent ${i}`,
+          agent_maturity: 'SUPERVISED' as const,
+          last_message: `Batch message ${i}`,
+          // Newer than page 1 so the appended rows sort to the top of the
+          // list (VirtualizedList only renders the first rows)
+          last_message_time: new Date(Date.now() + (10 - i) * 60000).toISOString(),
+          unread_count: 0,
+        }));
+
+      mockGetConversationList
+        .mockImplementationOnce(() => Promise.resolve({ success: true, data: pageOne }))
+        .mockImplementationOnce(() => Promise.resolve({ success: true, data: pageTwo }));
+
+      const { FlatList } = require('react-native');
+      render(<ConversationListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Agent 0')).toBeTruthy();
+      });
+
+      const flatList = screen.UNSAFE_getByType(FlatList);
+      act(() => {
+        flatList.props.onEndReached();
+      });
+
+      await waitFor(() => {
+        expect(mockGetConversationList).toHaveBeenLastCalledWith(20, 20);
+        expect(screen.getByText('Batch Agent 0')).toBeTruthy();
       });
     });
   });

@@ -921,7 +921,10 @@ class LanceDBHandler:
 
             # Use PyArrow filtering or LanceDB specific filtering
             # Note: filtering syntax depends on LanceDB version, assuming standard SQL-like
-            results = table.search().where(f"id = '{doc_id}'").limit(1).to_pandas()
+            # SECURITY: escape single quotes in doc_id to prevent filter injection
+            # / broken filters, matching the escaping in search().
+            safe_doc_id = str(doc_id).replace("'", "''")
+            results = table.search().where(f"id = '{safe_doc_id}'").limit(1).to_pandas()
 
             if results.empty:
                 return None
@@ -1216,6 +1219,7 @@ class LanceDBHandler:
         Returns:
             Embedding vector or None if not found
         """
+        self._ensure_db()
         if self.db is None:
             logger.error("LanceDB not initialized")
             return None
@@ -1319,9 +1323,19 @@ class ChatHistoryManager:
         """Escape a value for safe interpolation into a LanceDB LIKE filter.
 
         Prevents filter-syntax injection / broken filters when the value (e.g. a
-        session_id) contains a quote or %/_ wildcard char.
+        session_id) contains a quote or %/_ wildcard char. ``%`` and ``_`` are
+        escaped so they match literally inside a LIKE clause (otherwise a
+        session_id like ``abc_1`` would match ``abcX1`` and leak cross-session
+        results through the substring pre-filter).
         """
-        return str(value).replace("'", "''").replace("\\", "\\\\")
+        # Backslash FIRST so we don't double-escape the escapes we add below.
+        return (
+            str(value)
+            .replace("\\", "\\\\")
+            .replace("'", "''")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        )
 
     def get_session_history(self, session_id: str, limit: int = 20) -> list[dict[str, Any]]:
         """

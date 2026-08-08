@@ -2101,7 +2101,8 @@ Provide your Mentorship Guidance:"""
         """Helper to fetch user communication style"""
         user_id = context.get("user_id") or (self.user.id if self.user else None)
         if not user_id: return ""
-        
+
+        db = None
         try:
             db = SessionLocal()
             user = db.query(User).filter(User.id == user_id).first()
@@ -2116,7 +2117,11 @@ Provide your Mentorship Guidance:"""
             logger.debug(f"Failed to load user communication style: {e}")
             return ""
         finally:
-            db.close()
+            # Guard against SessionLocal() raising before `db` is bound —
+            # an unbound db.close() would mask the original error with
+            # UnboundLocalError and crash the ReAct prompt builder.
+            if db is not None:
+                db.close()
 
     # ============================================================================
     # GOVERNANCE-GATED ROUTING (Phase 256-07)

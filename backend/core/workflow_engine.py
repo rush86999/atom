@@ -1216,10 +1216,17 @@ class WorkflowEngine:
                         )
                 else:
                     result = await executor(action, params, connection_id=step.get("connection_id"))
-                # Executors that return {"status": "error", ...} (e.g. MCP,
-                # sub-workflow timeouts) must surface as failures, not be
-                # wrapped as successful results.
-                if isinstance(result, dict) and result.get("status") == "error":
+                # Executors that return a non-success status envelope (e.g.
+                # MCP {"status": "error"}, sub-workflow {"status": "timeout"})
+                # must surface as failures, not be wrapped as a successful
+                # result. Previously only status == "error" was caught, so a
+                # timed-out sub-workflow (status == "timeout") was silently
+                # marked COMPLETED and the parent workflow continued.
+                if (
+                    isinstance(result, dict)
+                    and result.get("status")
+                    and result.get("status") != "success"
+                ):
                     raise Exception(
                         f"Step {step['id']} failed: {result.get('error', 'Step execution failed')}"
                     )
@@ -1252,7 +1259,7 @@ class WorkflowEngine:
                         )
                 else:
                     result = await fallback_executor(action, params, connection_id=step.get("connection_id"))
-                if isinstance(result, dict) and result.get("status") == "error":
+                if isinstance(result, dict) and result.get("status") and result.get("status") != "success":
                     raise ValueError(
                         f"Fallback service {fallback_service}.{action} returned error: "
                         f"{result.get('error', 'unknown error')}"

@@ -371,13 +371,14 @@ class TestWorkflowEngineStepExecution:
         }
 
         with patch.object(engine, '_execute_email_action') as mock_email:
-            mock_email.return_value = {"status": "sent"}
+            mock_email.return_value = {"status": "success", "result": {"sent": True}}
 
             result = await engine._execute_step(step, step["parameters"])
 
             # The engine wraps executor results in a success envelope
             assert result["status"] == "success"
-            assert result["result"]["status"] == "sent"
+            assert result["result"]["status"] == "success"
+            assert result["result"]["result"]["sent"] is True
             mock_email.assert_called_once()
 
     @pytest.mark.asyncio

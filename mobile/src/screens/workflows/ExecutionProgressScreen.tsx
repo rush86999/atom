@@ -3,12 +3,13 @@
  * Real-time monitoring of workflow execution progress
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -34,8 +35,10 @@ export const ExecutionProgressScreen: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
-  // Polling interval for real-time updates
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  // Polling interval for real-time updates (ref — the interval callback and
+  // the fetch path both need the latest reference; state captured in the
+  // interval closure would go stale after the first fetch)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch execution data
   const fetchExecutionData = useCallback(async (refresh: boolean = false) => {
@@ -59,9 +62,9 @@ export const ExecutionProgressScreen: React.FC = () => {
       if (executionData.status === 'completed' ||
           executionData.status === 'failed' ||
           executionData.status === 'cancelled') {
-        if (pollingInterval) {
-          clearInterval(pollingInterval);
-          setPollingInterval(null);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
         }
       }
     } catch (error: any) {
@@ -69,26 +72,25 @@ export const ExecutionProgressScreen: React.FC = () => {
       setIsRefreshing(false);
       console.error('Error fetching execution data:', error);
     }
-  }, [executionId, pollingInterval]);
+  }, [executionId]);
 
   // Start polling for running executions
   useEffect(() => {
     fetchExecutionData();
 
     const interval = setInterval(() => {
-      if (execution?.status === 'running') {
-        fetchExecutionData(true);
-      }
+      fetchExecutionData(true);
     }, 3000); // Poll every 3 seconds
 
-    setPollingInterval(interval);
+    pollingIntervalRef.current = interval;
 
     return () => {
-      if (interval) {
-        clearInterval(interval);
+      clearInterval(interval);
+      if (pollingIntervalRef.current === interval) {
+        pollingIntervalRef.current = null;
       }
     };
-  }, [executionId]);
+  }, [fetchExecutionData]);
 
   // Handle cancel execution
   const handleCancel = async () => {

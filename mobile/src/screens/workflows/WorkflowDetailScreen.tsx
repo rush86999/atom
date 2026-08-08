@@ -11,6 +11,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
   Alert,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp, NavigationProp } from '@react-navigation/native';
@@ -208,11 +209,13 @@ export const WorkflowDetailScreen: React.FC = () => {
       {/* Content */}
       <ScrollView
         style={styles.content}
-        refreshControl={{
-          refreshing: isRefreshing,
-          onRefresh: () => fetchWorkflowDetails(true),
-          colors: ['#2196F3'],
-        }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => fetchWorkflowDetails(true)}
+            colors={['#2196F3']}
+          />
+        }
       >
         {/* Info Section */}
         <View style={styles.section}>

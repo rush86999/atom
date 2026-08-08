@@ -446,7 +446,7 @@ class TestGenericExecutorAndBranches:
         cache.get = AsyncMock(return_value=None)
         cache.set = AsyncMock()
         with patch("core.cache.cache", cache), \
-             patch("core.database.get_db_session") as gds, \
+             patch("core.workflow_engine.get_db_session") as gds, \
              patch("core.workflow_engine.httpx.AsyncClient") as _Client:
             db = Mock()
             q = Mock()
@@ -506,25 +506,25 @@ class TestGenericExecutorAndBranches:
 
             assert (await e._execute_slack_action("chat_postMessage",
                     {"channel": "c", "text": "hi"}, connection_id="conn"))["status"] == "success"
-            assert (await e._execute_slack_action("list_channels", {}))["status"] == "success"
-            assert (await e._execute_slack_action("list_users", {}))["status"] == "success"
+            assert (await e._execute_slack_action("list_channels", {}, connection_id="conn"))["status"] == "success"
+            assert (await e._execute_slack_action("list_users", {}, connection_id="conn"))["status"] == "success"
             assert (await e._execute_slack_action("get_channel_info",
-                    {"channel_id": "c"}))["status"] == "success"
+                    {"channel_id": "c"}, connection_id="conn"))["status"] == "success"
             assert (await e._execute_slack_action("get_channel_history",
-                    {"channel_id": "c"}))["status"] == "success"
+                    {"channel_id": "c"}, connection_id="conn"))["status"] == "success"
             assert (await e._execute_slack_action("update_message",
-                    {"channel_id": "c", "message_ts": "1", "text": "x"}))["status"] == "success"
+                    {"channel_id": "c", "message_ts": "1", "text": "x"}, connection_id="conn"))["status"] == "success"
             assert (await e._execute_slack_action("delete_message",
-                    {"channel_id": "c", "message_ts": "1"}))["status"] == "success"
+                    {"channel_id": "c", "message_ts": "1"}, connection_id="conn"))["status"] == "success"
             assert (await e._execute_slack_action("search_messages",
-                    {"query": "q"}))["status"] == "success"
+                    {"query": "q"}, connection_id="conn"))["status"] == "success"
             assert (await e._execute_slack_action("files_list",
-                    {"channel_id": "c"}))["status"] == "success"
+                    {"channel_id": "c"}, connection_id="conn"))["status"] == "success"
             assert (await e._execute_slack_action("files_get_upload_url_external",
-                    {}))["status"] == "success"
-            assert (await e._execute_slack_action("reactions_add", {}))["status"] == "success"
+                    {}, connection_id="conn"))["status"] == "success"
+            assert (await e._execute_slack_action("reactions_add", {}, connection_id="conn"))["status"] == "success"
             with pytest.raises(ValueError):
-                await e._execute_slack_action("bogus", {})
+                await e._execute_slack_action("bogus", {}, connection_id="conn")
 
     @pytest.mark.asyncio
     async def test_slack_missing_param_raises(self):
@@ -534,63 +534,63 @@ class TestGenericExecutorAndBranches:
             ts.get_token.return_value = {"access_token": "tok"}
             sus.get_channel_info = AsyncMock()
             with pytest.raises(ValueError):
-                await e._execute_slack_action("get_channel_info", {})
+                await e._execute_slack_action("get_channel_info", {}, connection_id="conn")
             with pytest.raises(ValueError):
-                await e._execute_slack_action("update_message", {})
+                await e._execute_slack_action("update_message", {}, connection_id="conn")
 
     @pytest.mark.asyncio
     async def test_gmail_draft_and_send_failure(self):
         e = _engine()
         with patch("core.workflow_engine.token_storage") as ts, \
-             patch("core.workflow_engine.GmailService") as gs:
+             patch("integrations.gmail_service.GmailService") as gs:
             ts.get_token.return_value = {"access_token": "tok"}
             svc = gs.return_value
-            svc.send_message = AsyncMock(return_value={"ok": True})
-            svc.draft_message = AsyncMock(return_value={"draft": 1})
+            svc.send_message = Mock(return_value={"ok": True})
+            svc.draft_message = Mock(return_value={"draft": 1})
             assert (await e._execute_gmail_action("send_email",
-                    {"to": "a@b.c", "subject": "s", "body": "b"}))["status"] == "success"
+                    {"to": "a@b.c", "subject": "s", "body": "b"}, connection_id="conn"))["status"] == "success"
             assert (await e._execute_gmail_action("create_draft",
-                    {"to": "a@b.c", "subject": "s", "body": "b"}))["status"] == "success"
+                    {"to": "a@b.c", "subject": "s", "body": "b"}, connection_id="conn"))["status"] == "success"
             assert (await e._execute_gmail_action("whatever", {}))["status"] == "success"
 
-            svc.send_message = AsyncMock(return_value=None)
+            svc.send_message = Mock(return_value=None)
             with pytest.raises(Exception):
                 await e._execute_gmail_action("send_email",
-                    {"to": "a@b.c", "subject": "s", "body": "b"})
+                    {"to": "a@b.c", "subject": "s", "body": "b"}, connection_id="conn")
 
     @pytest.mark.asyncio
     async def test_salesforce_actions(self):
         e = _engine()
         with patch("core.workflow_engine.token_storage") as ts, \
-             patch("core.workflow_engine.SalesforceService") as ss:
+             patch("integrations.salesforce_service.SalesforceService") as ss:
             ts.get_token.return_value = {"access_token": "tok", "instance_url": "https://x"}
             svc = ss.return_value
             svc.create_client = Mock(return_value=object())
             svc.create_lead = AsyncMock(return_value={"id": 1})
             svc.create_contact = AsyncMock(return_value={"id": 2})
             svc.create_opportunity = AsyncMock(return_value={"id": 3})
-            assert (await e._execute_salesforce_action("create_lead", {}))["status"] == "success"
-            assert (await e._execute_salesforce_action("create_contact", {}))["status"] == "success"
-            assert (await e._execute_salesforce_action("create_opportunity", {}))["status"] == "success"
-            assert (await e._execute_salesforce_action("other", {}))["status"] == "success"
+            assert (await e._execute_salesforce_action("create_lead", {}, connection_id="conn"))["status"] == "success"
+            assert (await e._execute_salesforce_action("create_contact", {}, connection_id="conn"))["status"] == "success"
+            assert (await e._execute_salesforce_action("create_opportunity", {}, connection_id="conn"))["status"] == "success"
+            assert (await e._execute_salesforce_action("other", {}, connection_id="conn"))["status"] == "success"
 
     @pytest.mark.asyncio
     async def test_github_notion_zoom_actions(self):
         e = _engine()
         e._get_token = Mock(return_value="tok")
-        with patch("core.workflow_engine.GitHubService") as gh:
+        with patch("integrations.github_service.GitHubService") as gh:
             svc = gh.return_value
             svc.create_issue = Mock(return_value={"n": 1})
             out = await e._execute_github_action("create_issue",
                 {"owner": "o", "repo": "r", "title": "t", "body": "b"})
             assert out["status"] == "success"
-        with patch("core.workflow_engine.NotionService") as nn:
+        with patch("integrations.notion_service.NotionService") as nn:
             svc = nn.return_value
             svc.create_page = Mock(return_value={"p": 1})
             out = await e._execute_notion_action("create_page",
                 {"parent": {"database_id": "d"}, "properties": {}})
             assert out["status"] == "success"
-        with patch("core.workflow_engine.ZoomService") as zz:
+        with patch("integrations.zoom_service.ZoomService") as zz:
             svc = zz.return_value
             svc.create_meeting = AsyncMock(return_value={"m": 1})
             out = await e._execute_zoom_action("create_meeting", {"topic": "t"})
@@ -614,5 +614,6 @@ class TestGenericExecutorAndBranches:
 
             e.state_manager.get_execution_state = AsyncMock(
                 return_value={"status": "RUNNING", "outputs": {}})
-            out = await e._execute_workflow_action("run", {"workflow_id": "sub"})
-            assert out["status"] == "error"
+            out = await e._execute_workflow_action(
+                "run", {"workflow_id": "sub", "timeout": 0.1})
+            assert out["status"] in ("error", "timeout")

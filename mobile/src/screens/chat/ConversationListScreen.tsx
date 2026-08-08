@@ -269,14 +269,18 @@ export function ConversationListScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            for (const sessionId of selectedConversations) {
-              await chatService.deleteSession(sessionId);
+            try {
+              for (const sessionId of selectedConversations) {
+                await chatService.deleteSession(sessionId);
+              }
+              setConversations((prev) =>
+                prev.filter((c) => !selectedConversations.has(c.session_id))
+              );
+              setSelectedConversations(new Set());
+              setMultiSelectMode(false);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete conversation');
             }
-            setConversations((prev) =>
-              prev.filter((c) => !selectedConversations.has(c.session_id))
-            );
-            setSelectedConversations(new Set());
-            setMultiSelectMode(false);
           },
         },
       ]
