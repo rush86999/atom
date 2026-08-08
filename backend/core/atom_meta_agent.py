@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from core.models import (
     AgentRegistry, AgentStatus, User, HITLActionStatus, AgentExecution,
     Workspace, AgentReasoningStep, ExecutionStatus, AgentTriggerMode,
+    ChainLink,
 )
 from core.database import SessionLocal
 import traceback
@@ -606,6 +607,91 @@ class AtomMetaAgent:
             if step_callback: await step_callback(routing_log)
             execution_history += f"System Routing: {route.category.value.upper()} ({route.reasoning})\n"
 
+            # --- P1a (W4): governed fleet-routing branch ---------------------
+            # The previously-dead route_with_governance path (:2229) is wired in
+            # here, BEHIND A FLAG (ATOM_FLEET_ROUTING_ENABLED, default false).
+            # Flag off == exact pre-P1a behavior (kill-switch parity). Flag on +
+            # force-enforce on -> a fleet-eligible TASK intent recruits a
+            # specialist fleet and returns a recruitment summary (no auto-execute).
+            # Flag on + force-enforce off (shadow) -> recruitment is computed for
+            # telemetry but the request falls through to Queen→ReAct below.
+            try:
+                from core.fleet_routing_config import (
+                    fleet_routing_enabled,
+                    fleet_routing_force_enforce,
+                )
+            except Exception:
+                fleet_routing_enabled = lambda: False  # noqa: E731
+                fleet_routing_force_enforce = lambda: False  # noqa: E731
+
+            _fleet_eligible = (
+                fleet_routing_enabled()
+                and route.category == RouteCategory.ONE_OFF
+                and len(request) > 40  # non-trivial long-horizon task
+            )
+            if _fleet_eligible:
+                # Map the route result onto an IntentClassification (the governed
+                # method's contract). NOTE: a bottom-of-file import re-binds
+                # IntentClassification/IntentCategory to the core.intent_classifier
+                # versions (a @dataclass + str-Enum), so construct with THOSE
+                # fields (requires_execution, suggested_handler), not the local
+                # pydantic class at line 232.
+                from core.intent_classifier import (
+                    IntentClassification as _FleetIntent,
+                    IntentCategory as _FleetCategory,
+                )
+                _fleet_intent = _FleetIntent(
+                    category=_FleetCategory.TASK,
+                    confidence=0.7,
+                    reasoning=f"fleet-eligible one-off task: {route.reasoning}",
+                    requires_execution=True,
+                    suggested_handler="fleet_admiral",
+                    is_structured=False,
+                    is_long_horizon=True,
+                    requires_agent_recruitment=True,
+                    blueprint_applicable=False,
+                )
+                try:
+                    _fleet_user_id = (
+                        (context.get("user_id") if context else None)
+                        or (self.user.id if self.user else None)
+                        or "default"
+                    )
+                    _fleet_result = await self.route_with_governance(
+                        request, _fleet_intent, _fleet_user_id, agent_id="atom_main"
+                    )
+                except Exception as fleet_err:
+                    logger.warning(f"Fleet routing failed, falling back to Queen→ReAct: {fleet_err}")
+                    _fleet_result = None
+
+                if _fleet_result is not None:
+                    # Emit a synthetic recruitment-progress step (net-new: the
+                    # FleetAdmiral path has no step_callback of its own) so the
+                    # WS/canvas layer observes the fleet event.
+                    if step_callback:
+                        await step_callback({
+                            "execution_id": execution_id,
+                            "step": 0,
+                            "step_type": "fleet_recruitment",
+                            "thought": (
+                                f"Fleet recruited: {_fleet_result.get('specialists_count', 0)} "
+                                f"specialist(s) (chain {_fleet_result.get('chain_id')})."
+                            ),
+                            "action": {"tool": "route_with_governance", "params": {"intent": "task"}},
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        })
+
+                    if fleet_routing_force_enforce():
+                        # Return the recruitment summary directly (no auto-execute;
+                        # execution stays a separate explicit step — see plan P1a).
+                        return {
+                            "execution_id": execution_id,
+                            **_fleet_result,
+                            "status": _fleet_result.get("status", "fleet_recruited"),
+                        }
+                    # Shadow mode: fall through to Queen→ReAct (telemetry only).
+            # --- end P1a -----------------------------------------------------
+
             # 4. Planning & Specialty Delegation Phase
             is_complex = len(request) > 100 or any(kw in request.lower() for kw in ["analyze", "create", "sync", "report", "manage"]) or route.category == RouteCategory.AUTOMATION
         
@@ -680,6 +766,25 @@ class AtomMetaAgent:
 
             for current_step in range(1, max_steps + 1):
                 step_start = datetime.now(timezone.utc)
+
+                # AgentRadio — passive awareness: absorb @mentions from the
+                # team's lateral thread before planning the next step. Never
+                # raises; a missing thread simply yields nothing.
+                try:
+                    _radio_thread = context.get("radio_thread_id")
+                    if _radio_thread:
+                        from core.agent_radio.radio_service import (
+                            inbox_drain_text,
+                        )
+
+                        _inbox = inbox_drain_text(
+                            context.get("agent_id", "atom_main"),
+                            str(_radio_thread),
+                        )
+                        if _inbox:
+                            execution_history += _inbox
+                except Exception:
+                    pass  # the drain must never break the agent loop
 
                 # Spend gate: check the tenant budget BEFORE the expensive LLM
                 # call (not just before tools). When the enforcement mode denies
@@ -1549,6 +1654,7 @@ What is your next step?"""
                     
                     fleet_members.append({
                         "agent": agent.name if agent else domain,
+                        "agent_id": agent.id if agent else f"specialist_{domain}",
                         "task": task_desc,
                         "status": "recruited"
                     })
@@ -1559,7 +1665,50 @@ What is your next step?"""
                         "chain_id": chain.id,
                         "members": fleet_members
                     })
-                
+
+                # AgentRadio bridge: attach a lateral thread for the team —
+                # ONLY when the task crosses responsibility breakpoints
+                # (paper rule: a fixed multi-agent team is not the default;
+                # bounded local work stays single-agent). The thread id flows
+                # to every member's execution via context["radio_thread_id"]
+                # so their ReAct loops pick up @mentions passively.
+                try:
+                    from core.agent_radio.radio_adapter import (
+                        attach_thread_for_chain,
+                    )
+
+                    radio_thread = attach_thread_for_chain(
+                        db,
+                        chain_id=chain.id,
+                        task_description=(
+                            f"{goal}. "
+                            + " ".join(
+                                st.get("task", "") for st in sub_tasks
+                            )
+                        ),
+                        team_agent_ids=[
+                            m["agent_id"] for m in fleet_members
+                        ],
+                        created_by_agent_id="atom_main",
+                        execution_id=context.get("execution_id"),
+                        tenant_id=tenant_id,
+                    )
+                    if radio_thread is not None:
+                        context["radio_thread_id"] = radio_thread.id
+                        # Propagate the thread id onto every member's context_json
+                        # so each specialist's ReAct loop drains the lateral inbox
+                        # (passive awareness) when it runs. Without this the members
+                        # would be recruited onto a thread they never listen to.
+                        for link in db.query(ChainLink).filter(
+                            ChainLink.chain_id == chain.id
+                        ).all():
+                            ctx = dict(link.context_json or {})
+                            ctx["radio_thread_id"] = radio_thread.id
+                            link.context_json = ctx
+                        db.commit()
+                except Exception as e:
+                    logger.debug(f"radio thread attach skipped: {e}")
+
                 member_summary = "\n".join([f"- {m['agent']}: {m['task']}" for m in fleet_members])
                 return f"Fleet Successfully Recruited in Upstream (Chain: {chain.id}).\nMembers:\n{member_summary}\n\nAll members are now synchronized via the Fleet Blackboard."
 
@@ -2561,53 +2710,6 @@ async def _check_governance(
             return False, decision.reason
 
         return True, None
-
-
-async def route_with_governance(
-    self,
-    request: str,
-    intent: IntentClassification,
-    user_id: str,
-    agent_id: str = "atom_main"
-) -> Dict[str, Any]:
-    """
-    Route request with governance checks.
-
-    CHAT bypasses governance (simple conversational queries).
-    WORKFLOW/TASK require governance checks.
-
-    Args:
-        request: User's natural language request
-        intent: Classified intent from IntentClassifier
-        user_id: User identifier (single-tenant architecture)
-        agent_id: Agent UUID (default: atom_main)
-
-    Returns:
-        Routing result with handler and status
-    """
-    # CHAT bypasses governance
-    if intent.category == IntentCategory.CHAT:
-        return await self._route_to_chat(request, user_id)
-
-    # WORKFLOW/TASK require governance
-    allowed, reason = await self._check_governance(
-        user_id, agent_id, intent.category.value
-    )
-
-    if not allowed:
-        # Auto-takeover proposal mode: propose CHAT alternative
-        return await self._propose_chat_alternative(
-            original_request=request,
-            denied_route=intent.category.value,
-            denial_reason=reason,
-            user_id=user_id
-        )
-
-    # Proceed with routing
-    if intent.category == IntentCategory.WORKFLOW:
-        return await self._route_to_workflow(request, user_id)
-    else:  # TASK
-        return await self._route_to_task(request, user_id, agent_id)
 
 
 async def _route_to_chat(
