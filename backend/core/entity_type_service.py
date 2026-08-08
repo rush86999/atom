@@ -628,12 +628,6 @@ class EntityTypeService:
                     "path": f"/properties/{prop_name}",
                     "value": to_props[prop_name]
                 })
-                if prop_name in to_required and prop_name not in from_required:
-                    operations.append({
-                        "op": "add",
-                        "path": f"/required/{prop_name}",
-                        "value": True
-                    })
 
         # Detect property removals
         for prop_name in from_props:
@@ -657,16 +651,26 @@ class EntityTypeService:
                         "from": from_prop
                     })
 
-        # Detect required field changes
+        # Detect required field changes.
+        # Previously this block had two bugs:
+        #   1. The property-additions loop above emitted a bogus
+        #      ``/required/<prop>`` op (invalid JSON Patch path, value=True)
+        #      for newly-added required fields.
+        #   2. The loop below used a tautological condition
+        #      (``prop not in added_required`` while iterating
+        #      ``added_required``) AND-ed with ``prop in from_props``, which
+        #      inverted the intent: it appended ``/required/-`` for fields
+        #      that already existed and SKIPPED genuinely-new required fields.
+        # Fix: emit exactly one ``/required/-`` append for every newly-required
+        # field, regardless of whether the property itself is new or existing.
         added_required = to_required - from_required
         removed_required = from_required - to_required
         for prop in added_required:
-            if prop not in added_required or prop in from_props:
-                operations.append({
-                    "op": "add",
-                    "path": "/required/-",
-                    "value": prop
-                })
+            operations.append({
+                "op": "add",
+                "path": "/required/-",
+                "value": prop
+            })
         for prop in removed_required:
             operations.append({
                 "op": "remove",

@@ -775,11 +775,17 @@ class EpisodeService:
         zero_interventions = sum(1 for e in episodes if e.human_intervention_count == 0)
         zero_intervention_ratio = zero_interventions / len(episodes)
 
-        # Average constitutional score
-        avg_constitutional_score = sum(e.constitutional_score for e in episodes) / len(episodes)
+        # Average constitutional score.
+        # Episodes created via the proposal workflow (and legacy rows) may have
+        # constitutional_score=None. Treating None as 0 keeps the mean defined
+        # and reflects "no compliance credit recorded" — previously a single
+        # None crashed the whole readiness calc with TypeError.
+        constitutional_scores = [e.constitutional_score or 0.0 for e in episodes]
+        avg_constitutional_score = sum(constitutional_scores) / len(episodes)
 
-        # Average confidence score
-        avg_confidence_score = sum(e.confidence_score for e in episodes) / len(episodes)
+        # Average confidence score (same None-safety as constitutional score).
+        confidence_scores = [e.confidence_score or 0.0 for e in episodes]
+        avg_confidence_score = sum(confidence_scores) / len(episodes)
 
         # Episodes by outcome
         episodes_by_outcome = {}

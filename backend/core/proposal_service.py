@@ -888,6 +888,19 @@ Please review and approve or reject this proposal.
         try:
             from core.episode_segmentation_service import EpisodeSegmentationService
 
+            # approve_proposal passes ``modifications`` as a Dict[str, Any]
+            # (field overrides), but downstream code (human_edits, summaries,
+            # outcome formatting) expects a list. Normalize once so every
+            # consumer sees a list; otherwise dict[:5] / iteration semantics
+            # would raise or behave incorrectly.
+            raw_modifications = kwargs.get("modifications")
+            if isinstance(raw_modifications, dict):
+                kwargs["modifications"] = [
+                    {k: v} for k, v in raw_modifications.items()
+                ]
+            elif raw_modifications is None:
+                kwargs["modifications"] = []
+
             episode_service = EpisodeSegmentationService(self.db)
 
             # Get agent to determine maturity
@@ -1022,9 +1035,18 @@ Please review and approve or reject this proposal.
 
         if outcome == "approved":
             modifications = kwargs.get("modifications", [])
-            if modifications:
-                parts.append(f"\nModifications Applied: {len(modifications)}")
-                for mod in modifications[:5]:  # Limit to first 5
+            # approve_proposal passes ``modifications`` as a Dict[str, Any]
+            # (field overrides), but older callers may pass a list of change
+            # descriptions. Normalize to a list of human-readable change labels
+            # so we don't try to slice/iterate a dict (which raises TypeError
+            # on ``dict[:5]`` and would silently skip episode creation).
+            if isinstance(modifications, dict):
+                mod_items = [f"{k}: {v}" for k, v in modifications.items()]
+            else:
+                mod_items = list(modifications or [])
+            if mod_items:
+                parts.append(f"\nModifications Applied: {len(mod_items)}")
+                for mod in mod_items[:5]:  # Limit to first 5
                     parts.append(f"  - {mod}")
 
             execution_result = kwargs.get("execution_result", {})
