@@ -1,7 +1,7 @@
 'use client';
 
 import { DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { type BoardDetail, type BoardTask } from '../../lib/boards-api';
 import { useCreateTask, useDeleteTask, usePatchTask, useTasks } from '../../hooks/useBoard';
@@ -54,27 +54,27 @@ export function KanbanBoard({ board }: Props) {
         // Same-column reorder: SWAP sort_orders sequentially to avoid the
         // BUG-103 race where two concurrent PATCHes with stale
         // expected_version left the swap half-applied. Now the second
-        // PATCH waits for the first to complete.
-        patchTask.mutate(
-          {
+        // PATCH waits for the first to complete. (Chained via mutateAsync —
+        // a nested mutate() inside onSuccess re-enters the observer and
+        // crashes react-query v5's mutation notify, so we defer the second
+        // call to the promise continuation.)
+        patchTask
+          .mutateAsync({
             taskId: task.id,
             input: {
               expected_version: task.version_id,
               sort_order: overTask.sort_order,
             },
-          },
-          {
-            onSuccess: () => {
-              patchTask.mutate({
-                taskId: overTask.id,
-                input: {
-                  expected_version: overTask.version_id,
-                  sort_order: task.sort_order,
-                },
-              });
-            },
-          }
-        );
+          })
+          .then(() => {
+            patchTask.mutateAsync({
+              taskId: overTask.id,
+              input: {
+                expected_version: overTask.version_id,
+                sort_order: task.sort_order,
+              },
+            });
+          });
       }
       return;
     }

@@ -87,6 +87,10 @@ const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, onCommand, classN
       });
 
       const result = await response.json();
+      if (!response.ok) {
+        setError('Failed to process voice command');
+        return;
+      }
       if (onCommand) {
         onCommand(result);
       }

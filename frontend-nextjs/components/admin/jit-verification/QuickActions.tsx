@@ -16,7 +16,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
@@ -46,6 +45,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
 }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
 
   const handleStartWorker = async () => {
     setLoading("start");
@@ -170,20 +170,19 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
           )}
 
           {/* Clear Cache */}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                disabled={isLoading("clear")}
-              >
-                {isLoading("clear") ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Database className="h-4 w-4 mr-2" />
-                )}
-                Clear Cache
-              </Button>
-            </AlertDialogTrigger>
+          <Button
+            variant="outline"
+            disabled={isLoading("clear")}
+            onClick={() => setClearDialogOpen(true)}
+          >
+            {isLoading("clear") ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Database className="h-4 w-4 mr-2" />
+            )}
+            Clear Cache
+          </Button>
+          <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Clear JIT Verification Cache?</AlertDialogTitle>
@@ -193,7 +192,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => setClearDialogOpen(false)}>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleClearCache}>
                   Clear Cache
                 </AlertDialogAction>

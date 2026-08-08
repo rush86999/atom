@@ -69,8 +69,11 @@ export const CommunicationCommandCenter: React.FC = () => {
             setStats(prev => ({ ...prev, ...lastMessage.data }));
             toast.info('Communication stats updated');
         } else if (lastMessage.type === 'platform_status_change') {
+            // Match by substring so multi-word platform names ("Slack Workspace",
+            // "Microsoft Teams") still match the short id ("slack", "teams").
+            const target = String(lastMessage.data.platform).toLowerCase();
             setPlatformStatus(prev => prev.map(p =>
-                p.name.toLowerCase() === lastMessage.data.platform.toLowerCase()
+                p.name.toLowerCase().includes(target)
                     ? { ...p, status: lastMessage.data.status }
                     : p
             ));

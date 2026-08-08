@@ -121,6 +121,47 @@ apiClient.interceptors.response.use(
   },
 );
 
+// Fetch-style helper for the shared axios instance. The Kanban board stack
+// (lib/boards-api.ts) calls apiClient.fetch(url, init) and consumes the result
+// as a fetch Response (res.ok / res.status / res.json()) — including the 409
+// conflict and 424 BYOK-key responses that axios would otherwise reject. Axios
+// instances do not ship a `.fetch` method, so provide one backed by the same
+// instance — requests still flow through the auth-header and 401 interceptors.
+(apiClient as any).fetch = async (
+  url: string,
+  init: RequestInit = {},
+): Promise<Response> => {
+  const toResponse = (status: number, statusText: string, data: any): Response => {
+    const body =
+      data === undefined || data === null || data === ""
+        ? null
+        : JSON.stringify(data);
+    return new Response(body, {
+      status,
+      statusText,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  try {
+    const response = await apiClient.request({
+      url,
+      method: init.method || "GET",
+      headers: init.headers,
+      data: init.body,
+      signal: init.signal,
+      responseType: "json",
+    });
+    return toResponse(response.status, response.statusText, response.data);
+  } catch (error: any) {
+    // Axios rejects on non-2xx; fetch semantics return the response instead.
+    if (error?.response) {
+      return toResponse(error.response.status, error.response.statusText, error.response.data);
+    }
+    throw error;
+  }
+};
+
 // System API
 export const systemAPI = {
   getHealth: () => apiClient.get("/api/health"),

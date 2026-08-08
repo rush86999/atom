@@ -32,20 +32,27 @@ export const VerificationLogs: React.FC = () => {
 
   // BUG-066: Removed hardcoded mock log data. Logs load from the backend API.
 
+  // Fetch real verification logs from the API (shared by initial load and Refresh)
+  const fetchLogs = React.useCallback(
+    async (range: "1h" | "24h" | "7d" | "30d") => {
+      try {
+        const res = await fetch(`/api/admin/governance/jit/logs?time_range=${range}`);
+        const data = res.ok ? await res.json() : { logs: [] };
+        setLogs(data.logs || []);
+      } catch {
+        setLogs([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     // Fetch real verification logs from the API.
     setLoading(true);
-    fetch(`/api/admin/governance/jit/logs?time_range=${timeRange}`)
-      .then((res) => res.ok ? res.json() : { logs: [] })
-      .then((data) => {
-        setLogs(data.logs || []);
-        setLoading(false);
-      })
-      .catch(() => {
-        setLogs([]);
-        setLoading(false);
-      });
-  }, [timeRange]);
+    fetchLogs(timeRange);
+  }, [timeRange, fetchLogs]);
 
   // Filter logs by level
   const filteredLogs = React.useMemo(() => {
@@ -96,14 +103,11 @@ export const VerificationLogs: React.FC = () => {
   // Refresh logs
   const handleRefresh = () => {
     setLoading(true);
-    setTimeout(() => {
-      setLogs(mockLogs);
-      setLoading(false);
-      toast({
-        title: "Logs refreshed",
-        description: "Verification logs have been updated",
-      });
-    }, 500);
+    fetchLogs(timeRange);
+    toast({
+      title: "Logs refreshed",
+      description: "Verification logs have been updated",
+    });
   };
 
   return (

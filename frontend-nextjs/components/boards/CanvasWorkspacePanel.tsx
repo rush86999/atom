@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { ExternalLink, FolderPlus, FolderOpen, Users, FileText } from 'lucide-react';
 import { type BoardTask } from '../../lib/boards-api';

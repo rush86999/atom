@@ -39,7 +39,7 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
             if (action === "close") {
                 setState(null);
             } else {
-                const content = typeof data === 'string' ? data : (data.content || JSON.stringify(data, null, 2));
+                const content = typeof data === 'string' ? data : ((data?.content as string) || JSON.stringify(data ?? {}, null, 2));
                 localContentRef.current = content;
 
                 setState({
@@ -212,6 +212,7 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                     )}
                     <button
                         onClick={() => setState(null)}
+                        aria-label="Close canvas"
                         className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
                     >
                         <X className="h-4 w-4 text-zinc-500" />

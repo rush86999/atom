@@ -20,6 +20,7 @@ import {
   ArrowRight,
   ArrowLeft,
   GitCommit,
+  GitBranch,
   AlertTriangle,
   CheckCircle,
   XCircle,

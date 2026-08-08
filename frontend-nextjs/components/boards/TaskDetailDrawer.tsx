@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Trash2, Send, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import {

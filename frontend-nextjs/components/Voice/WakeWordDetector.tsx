@@ -94,11 +94,21 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
     const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
     const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
     const animationRef = useRef<number>();
+    const streamRef = useRef<MediaStream | null>(null);
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const isListeningRef = useRef(false);
+    const audioLevelRef = useRef(0);
+    const sensitivityRef = useRef(0.7);
+    const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { toast } = useToast();
 
-    // Default models if none provided
-    const defaultModels: WakeWordModel[] = [
+    // Default models if none provided.
+    // NOTE: held in a ref so the identity is stable across renders — a fresh
+    // array literal here (plus the `initialModels = []` prop default, which is
+    // also re-created per render) made the [initialModels] effect re-run on
+    // every render and loop forever (setModels -> render -> effect -> ...).
+    const defaultModels = useRef<WakeWordModel[]>([
         {
             id: "default_wakeword",
             name: "Default Wake Word",
@@ -131,22 +141,34 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
             fileSize: 0,
             lastUpdated: new Date(),
         },
-    ];
+    ]).current;
+
+    // The `initialModels = []` prop default is a fresh array identity on every
+    // render, so this effect cannot depend on identity alone: without a guard it
+    // re-runs every render and clobbers the user's model selection/sensitivity
+    // (and, pre-ref, looped forever). Process only once for the default case,
+    // and only on genuine prop changes otherwise.
+    const lastInitialModelsRef = useRef<WakeWordModel[] | null>(null);
 
     useEffect(() => {
         if (initialModels.length === 0) {
+            if (lastInitialModelsRef.current !== null) return;
+            lastInitialModelsRef.current = initialModels;
             setModels(defaultModels);
             setSelectedModel(defaultModels[0]);
-        } else {
-            setModels(initialModels);
-            const activeModel = initialModels.find((model) => model.isActive);
-            setSelectedModel(activeModel || initialModels[0]);
+            return;
         }
+        if (lastInitialModelsRef.current === initialModels) return;
+        lastInitialModelsRef.current = initialModels;
+        setModels(initialModels);
+        const activeModel = initialModels.find((model) => model.isActive);
+        setSelectedModel(activeModel || initialModels[0]);
     }, [initialModels]);
 
     useEffect(() => {
         if (selectedModel) {
             setSensitivity(selectedModel.sensitivity);
+            sensitivityRef.current = selectedModel.sensitivity;
         }
     }, [selectedModel]);
 
@@ -156,6 +178,11 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
     useEffect(() => {
         return () => {
             // Stop any active audio
+            isListeningRef.current = false;
+            if (detectionIntervalRef.current) {
+                clearInterval(detectionIntervalRef.current);
+                detectionIntervalRef.current = null;
+            }
             if (animationRef.current) {
                 cancelAnimationFrame(animationRef.current);
             }
@@ -191,7 +218,9 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
             source.connect(analyserNode);
 
             setStream(mediaStream);
+            streamRef.current = mediaStream;
             setAudioContext(ctx);
+            audioContextRef.current = ctx;
             setAnalyser(analyserNode);
 
             // Start audio level visualization
@@ -219,6 +248,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
             analyserNode.getByteFrequencyData(dataArray);
             const average =
                 dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+            audioLevelRef.current = average / 255;
             setAudioLevel(average / 255);
             animationRef.current = requestAnimationFrame(updateAudioLevel);
         };
@@ -232,6 +262,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
         const success = await initializeAudio();
         if (!success) return;
 
+        isListeningRef.current = true;
         setIsListening(true);
 
         // Simulate wake word detection (in a real implementation, this would use a proper wake word detection library)
@@ -246,23 +277,33 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
     const stopListening = () => {
         if (!isListening) return;
 
+        isListeningRef.current = false;
+
         // Clean up audio resources
+        if (detectionIntervalRef.current) {
+            clearInterval(detectionIntervalRef.current);
+            detectionIntervalRef.current = null;
+        }
+
         if (animationRef.current) {
             cancelAnimationFrame(animationRef.current);
         }
 
-        if (stream) {
-            stream.getTracks().forEach((track) => track.stop());
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach((track) => track.stop());
+            streamRef.current = null;
         }
 
-        if (audioContext) {
-            audioContext.close();
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+            audioContextRef.current = null;
         }
 
         setStream(null);
         setAudioContext(null);
         setAnalyser(null);
         setAudioLevel(0);
+        audioLevelRef.current = 0;
         setIsListening(false);
 
         toast({
@@ -275,13 +316,17 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
         // In a real implementation, this would be replaced with actual wake word detection
         // For demonstration, we'll simulate random detections
         const detectionInterval = setInterval(() => {
-            if (!isListening) {
-                clearInterval(detectionInterval);
+            if (!isListeningRef.current) {
+                if (detectionIntervalRef.current) {
+                    clearInterval(detectionIntervalRef.current);
+                    detectionIntervalRef.current = null;
+                }
                 return;
             }
 
             // Random chance of detection based on audio level and sensitivity
-            const detectionProbability = audioLevel * sensitivity * 0.1;
+            const detectionProbability =
+                audioLevelRef.current * sensitivityRef.current * 0.1;
             if (Math.random() < detectionProbability) {
                 const detection: WakeWordDetection = {
                     id: Date.now().toString(),
@@ -300,7 +345,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
             }
         }, 1000);
 
-        return () => clearInterval(detectionInterval);
+        detectionIntervalRef.current = detectionInterval;
     };
 
     const handleModelChange = (model: WakeWordModel) => {
@@ -347,6 +392,7 @@ const WakeWordDetector: React.FC<WakeWordDetectorProps> = ({
     const handleSensitivityChange = (value: number) => {
         const newSensitivity = value;
         setSensitivity(newSensitivity);
+        sensitivityRef.current = newSensitivity;
         if (selectedModel) {
             const updatedModel = { ...selectedModel, sensitivity: newSensitivity };
             setSelectedModel(updatedModel);
