@@ -99,3 +99,144 @@ async def test_oracle_returns_none_for_unregistered_action():
     from core.oracle import validate
     result = await validate("documents.search", {})
     assert result is None
+
+
+# ---------------------------------------------------------------------------
+# attach_tiebreak — stop promotion at INTERNAL_HIGH (P3c)
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_attach_tiebreak_promotes_to_bridge_not_internal_high(monkeypatch):
+    """An LLM pick is still internal self-assessment → bridge state, NOT HIGH.
+
+    Promoting PARTIAL to plain INTERNAL_HIGH would launder credibility
+    (plan H5) — the auto-proceed gate only trusts EXTERNAL_VERIFIED.
+    """
+    from core.selector_confidence_service import attach_tiebreak, MatchConfidence
+    from types import SimpleNamespace
+
+    partial = MatchConfidence(
+        level=PARTIAL, score=0.72, rationale="2 matches",
+        candidates=[], chosen_index=-1, provenance="internal",
+    )
+    fake_result = SimpleNamespace(used_llm=True, chosen_index=0, rationale="picked #2")
+
+    async def _fake_break_tie(candidates, page_context, llm_service):
+        return fake_result
+
+    monkeypatch.setattr(
+        "core.llm.match_confidence_tiebreaker.break_tie", _fake_break_tie
+    )
+
+    promoted = await attach_tiebreak(partial, {"url": "x"}, object())
+    assert promoted.level == NEEDS_EXTERNAL_VALIDATION
+    assert promoted.is_high is False, "promoted LLM pick must not read as HIGH"
+    assert promoted.is_credible is False
+    assert promoted.requires_review is True, "bridge state must route to review"
+    assert promoted.provenance == "internal"
+    assert promoted.chosen_index == 0
+
+
+def test_bridge_state_routes_to_review():
+    """NEEDS_EXTERNAL_VALIDATION is in the requires_review set (never auto-proceed)."""
+    mc = MatchConfidence(
+        level=NEEDS_EXTERNAL_VALIDATION, score=0.72, rationale="llm tiebreak",
+        provenance="internal",
+    )
+    assert mc.requires_review is True
+    assert mc.needs_external_validation is True
+    assert mc.is_credible is False
+
+
+# ---------------------------------------------------------------------------
+# verify-before-retry (P3b, arXiv 2608.02645)
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_verify_before_retry_flag_off_returns_false(monkeypatch):
+    """Kill-switch parity: flag off → never blocks a retry."""
+    monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "false")
+    from core.oracle import verify_before_retry
+    assert await verify_before_retry("trigger_workflow", {"workflow_id": "wf-1"}) is False
+
+
+@pytest.mark.asyncio
+async def test_verify_before_retry_effect_landed_blocks_retry(monkeypatch):
+    """Timeout but effect landed → verify() True → do NOT retry (no duplicate)."""
+    monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
+    import core.oracle.postcondition_verifiers  # noqa: F401
+    from core.oracle import verify_before_retry
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    wf = SimpleNamespace(id="wf-1", status="active")
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = wf
+
+    assert await verify_before_retry("trigger_workflow", {"workflow_id": "wf-1", "db": db}) is True
+
+
+@pytest.mark.asyncio
+async def test_verify_before_retry_effect_missing_allows_retry(monkeypatch):
+    """Timeout and effect genuinely missing → verify() False → retry is correct."""
+    monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
+    import core.oracle.postcondition_verifiers  # noqa: F401
+    from core.oracle import verify_before_retry
+    from unittest.mock import MagicMock
+
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = None
+
+    assert await verify_before_retry("trigger_workflow", {"workflow_id": "wf-ghost", "db": db}) is False
+
+
+@pytest.mark.asyncio
+async def test_verify_before_retry_unregistered_action_returns_false(monkeypatch):
+    """Non-mutating action has no postcondition → retry allowed (self-report stands)."""
+    monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
+    from core.oracle import verify_before_retry
+    assert await verify_before_retry("documents.search", {}) is False
+
+
+# ---------------------------------------------------------------------------
+# Provenance denormalization into BrowserAudit (P3c)
+# ---------------------------------------------------------------------------
+def test_browser_audit_denormalizes_confidence_provenance():
+    """Audit rows carry match_level/provenance/score so INTERNAL_HIGH never
+    reads as externally verified in audit/queries."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from core.database import Base
+    import core.models  # noqa: F401  (register tables on Base.metadata)
+    from core.audit_service import AuditService
+    from core.models import BrowserAudit
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine)()
+
+    aid = AuditService()._create_browser_audit_record(db, {
+        "agent_id": "a1",
+        "agent_execution_id": None,
+        "user_id": "u1",
+        "session_id": "s1",
+        "action": "click",
+        "metadata": {
+            "match_confidence": {
+                "level": NEEDS_EXTERNAL_VALIDATION,
+                "provenance": "internal",
+                "score": 0.72,
+                "rationale": "llm tiebreak",
+                "candidates": [],
+                "chosen_index": 0,
+                "external_score": None,
+                "external_evidence": None,
+            }
+        },
+    })
+
+    row = db.query(BrowserAudit).filter(BrowserAudit.id == aid).first()
+    assert row is not None
+    assert row.match_level == NEEDS_EXTERNAL_VALIDATION
+    assert row.match_confidence_provenance == "internal"
+    assert row.match_confidence_score == 0.72
+    assert row.external_validated_at is None

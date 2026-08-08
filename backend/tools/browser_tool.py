@@ -288,7 +288,10 @@ async def _maybe_gate_with_proposal(
     """
     if override:
         return None
-    if confidence.level == HIGH:
+    # P3c/W2: INTERNAL_HIGH must NOT auto-proceed-trusted. Only credible
+    # (externally oracle-verified) HIGH bypasses the gate; an internal
+    # self-assessment of HIGH falls through to proposal routing below.
+    if confidence.level == HIGH and confidence.provenance != "internal":
         return None
     if not MATCH_CONFIDENCE_FORCE_PROPOSAL:
         return None

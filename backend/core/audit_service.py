@@ -309,6 +309,12 @@ class AuditService:
         ip_address = request.client.host if request and request.client else None
         user_agent = request.headers.get("user-agent") if request else None
 
+        # P3c/W2 — denormalize the two-tier confidence provenance out of the
+        # metadata envelope into indexed columns so INTERNAL_HIGH can never be
+        # mistaken for an externally verified level in audit/queries.
+        metadata = data.get("metadata") or {}
+        match_confidence = metadata.get("match_confidence") or {}
+
         audit = BrowserAudit(
             id=str(uuid.uuid4()),
             tenant_id="default",
@@ -317,13 +323,24 @@ class AuditService:
             user_id=data["user_id"],
             session_id=data["session_id"],
             action_type=data.get("action"),
+            # action is NOT NULL in the model — the old code only set
+            # action_type, so every real browser-audit write silently dropped
+            # on IntegrityError (caught + swallowed by _log_with_retry).
+            action=data.get("action") or data.get("action_type"),
             action_target=data.get("url"),
+            # endpoint is also NOT NULL and was never populated — same silent
+            # IntegrityError drop. URL when navigating, else the action name.
+            endpoint=data.get("url") or data.get("action") or "browser",
             metadata_json={
-                **(data.get("metadata") or {}),
+                **metadata,
                 "agent_execution_id": data.get("agent_execution_id"),
                 "ip_address": ip_address,
                 "user_agent": user_agent,
             },
+            match_level=match_confidence.get("level"),
+            match_confidence_provenance=match_confidence.get("provenance"),
+            match_confidence_score=match_confidence.get("score"),
+            external_validated_at=None,
             created_at=datetime.now(timezone.utc)
         )
 

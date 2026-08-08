@@ -131,8 +131,12 @@ class TestProposalGating:
             assert result["match_confidence"]["level"] == "partial"
 
     @pytest.mark.asyncio
-    async def test_autonomous_agent_high_match_proceeds_without_proposal(self):
-        """AUTONOMOUS + high match → click executes, no proposal."""
+    async def test_autonomous_agent_internal_high_routes_to_proposal(self):
+        """AUTONOMOUS + internal HIGH + FORCE_PROPOSAL → proposal, NOT auto-click.
+
+        P3c/W2: INTERNAL_HIGH must NOT be auto-proceed-trusted — only
+        externally oracle-verified HIGH bypasses the gate.
+        """
         with patch("tools.browser_tool.get_browser_manager") as mock_mgr, \
              patch("tools.browser_tool.BROWSER_LOCATOR_API_ENABLED", True), \
              patch("tools.browser_tool.SELECTOR_CONFIDENCE_ENABLED", True), \
@@ -144,7 +148,7 @@ class TestProposalGating:
 
             mock_db = MagicMock()
 
-            mock_ps_cls, _ = _setup_proposal_service()
+            mock_ps_cls, mock_proposal = _setup_proposal_service()
             with patch("tools.browser_tool.ProposalService", mock_ps_cls):
                 result = await browser_click(
                     session_id="s1",
@@ -154,9 +158,11 @@ class TestProposalGating:
                     db=mock_db,
                 )
 
-            assert result["success"] is True
+            assert result["requires_approval"] is True
+            assert result["proposal_id"] == "prop-123"
             assert result["match_confidence"]["level"] == "high"
-            mock_ps_cls.return_value.create_action_proposal.assert_not_called()
+            assert result["match_confidence"]["provenance"] == "internal"
+            mock_ps_cls.return_value.create_action_proposal.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_approved_proposal_executes_without_re_gating(self):
@@ -314,3 +320,65 @@ class TestProposalGating:
             assert result["proposal_id"] == "prop-123"
             assert result["match_confidence"]["level"] == "ambiguous"
             assert result["match_confidence"]["score"] == 0.0
+
+
+# ===========================================================================
+# P3c/W2 — two-tier credibility gate: only externally verified HIGH auto-proceeds
+# ===========================================================================
+class TestTwoTierCredibilityGate:
+    """Direct ``_maybe_gate_with_proposal`` unit tests (no browser session)."""
+
+    @pytest.mark.asyncio
+    async def test_external_verified_high_auto_proceeds(self):
+        """Oracle-verified HIGH (provenance='oracle') bypasses the gate."""
+        from tools.browser_tool import _maybe_gate_with_proposal
+        from core.selector_confidence_service import EXTERNAL_VERIFIED
+
+        conf = MatchConfidence(
+            level=EXTERNAL_VERIFIED, score=0.95, rationale="oracle re-derived",
+            provenance="oracle", external_score=0.96, external_evidence="DB read-back",
+        )
+        with patch("tools.browser_tool.MATCH_CONFIDENCE_FORCE_PROPOSAL", True), \
+             patch("core.selector_confidence_service.MATCH_CONFIDENCE_FORCE_PROPOSAL", True):
+            result = await _maybe_gate_with_proposal(
+                "click", "#btn", conf, "agent-1", MagicMock(), "s1", "user-1",
+            )
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_internal_high_routes_to_proposal_when_enforced(self):
+        """INTERNAL_HIGH + enforcement → proposal, never auto-click (P3c)."""
+        from tools.browser_tool import _maybe_gate_with_proposal
+
+        conf = MatchConfidence(
+            level=HIGH, score=0.95, rationale="single exact match",
+            provenance="internal",
+        )
+        mock_ps_cls, _ = _setup_proposal_service()
+        with patch("tools.browser_tool.MATCH_CONFIDENCE_FORCE_PROPOSAL", True), \
+             patch("core.selector_confidence_service.MATCH_CONFIDENCE_FORCE_PROPOSAL", True), \
+             patch("tools.browser_tool.ProposalService", mock_ps_cls):
+            result = await _maybe_gate_with_proposal(
+                "click", "#btn", conf, "agent-1", MagicMock(), "s1", "user-1",
+            )
+        assert result is not None
+        assert result["requires_approval"] is True
+        assert result["proposal_id"] == "prop-123"
+        assert result["match_confidence"]["level"] == "high"
+        assert result["match_confidence"]["provenance"] == "internal"
+
+    @pytest.mark.asyncio
+    async def test_internal_high_shadow_mode_proceeds(self):
+        """INTERNAL_HIGH + shadow (FORCE_PROPOSAL=false) → annotate + proceed."""
+        from tools.browser_tool import _maybe_gate_with_proposal
+
+        conf = MatchConfidence(
+            level=HIGH, score=0.95, rationale="single exact match",
+            provenance="internal",
+        )
+        with patch("tools.browser_tool.MATCH_CONFIDENCE_FORCE_PROPOSAL", False), \
+             patch("core.selector_confidence_service.MATCH_CONFIDENCE_FORCE_PROPOSAL", False):
+            result = await _maybe_gate_with_proposal(
+                "click", "#btn", conf, "agent-1", MagicMock(), "s1", "user-1",
+            )
+        assert result is None

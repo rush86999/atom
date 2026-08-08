@@ -44,11 +44,11 @@ async def _verify_task_created(ctx: Dict[str, Any]) -> OracleResult:
     if not task_id or not db:
         return OracleResult("tasks.create", False, "missing task_id or db session")
     try:
-        from core.models import AgentTask
-        exists = db.query(AgentTask).filter(AgentTask.id == task_id).first() is not None
+        from core.models_board import BoardTask
+        exists = db.query(BoardTask).filter(BoardTask.id == task_id).first() is not None
         return OracleResult(
             "tasks.create", verified=exists,
-            evidence=f"AgentTask {task_id} {'present' if exists else 'absent'} in DB",
+            evidence=f"BoardTask {task_id} {'present' if exists else 'absent'} in DB",
         )
     except Exception as e:
         return OracleResult("tasks.create", False, f"DB read-back failed: {e}")

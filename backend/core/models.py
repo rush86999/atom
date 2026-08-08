@@ -1059,6 +1059,13 @@ class AgentReasoningStep(Base):
     # RLHF Feedback (Phase 6)
     feedback_score = Column(Integer, nullable=True) # 1 (like) or -1 (dislike)
     feedback_text = Column(Text, nullable=True)     # Optional user comment
+
+    # Two-tier confidence provenance (P3c/W2) — WHICH tier produced the level,
+    # so INTERNAL_HIGH is distinguishable from EXTERNAL_VERIFIED in audit.
+    match_level = Column(String(24), nullable=True, index=True)
+    match_confidence_provenance = Column(String(16), nullable=True, index=True)
+    match_confidence_score = Column(Float, nullable=True)
+    external_validated_at = Column(DateTime(timezone=True), nullable=True)
     
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -1126,6 +1133,17 @@ class TurnFact(Base):
     status = Column(String(16), default="active", nullable=False)  # active|superseded|invalidated
     superseded_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+    # Git-like versioning (P3d/W2): a fact's history is a chain of commits.
+    # ``parent_id`` links a superseding row to the row it replaced; the other
+    # fields describe who/what authored this version and why it changed.
+    # Oracle confirmation of a fact is recorded as a commit authored by the
+    # oracle itself (author_type='oracle').
+    parent_id = Column(String, nullable=True, index=True)  # id of the superseded predecessor
+    commit_message = Column(Text, nullable=True)           # why this version exists
+    author_type = Column(String(16), default="extractor", nullable=True)  # extractor|tool|user|oracle
+    branch_name = Column(String(64), default="main", nullable=True)
+    diff_summary = Column(Text, nullable=True)             # human-readable change vs parent
 
     # Vector join key into LanceDB `turn_facts` table (None if LanceDB write failed)
     vector_id = Column(String, nullable=True)
@@ -3703,6 +3721,14 @@ class BrowserAudit(Base):
 
     # Metadata
     metadata_json = Column(JSONColumn, default={})
+
+    # Two-tier confidence provenance (P3c/W2) — records the match-confidence
+    # tier that gated this operation (internal self-assessment vs oracle
+    # re-derivation), so INTERNAL_HIGH never reads as externally verified.
+    match_level = Column(String(24), nullable=True, index=True)
+    match_confidence_provenance = Column(String(16), nullable=True, index=True)
+    match_confidence_score = Column(Float, nullable=True)
+    external_validated_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index('idx_browser_audit_action_target', 'action_target'),

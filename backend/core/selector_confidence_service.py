@@ -145,7 +145,9 @@ class MatchConfidence:
 
     @property
     def requires_review(self) -> bool:
-        return self.level in {PARTIAL, AMBIGUOUS}
+        # NEEDS_EXTERNAL_VALIDATION is the bridge state attach_tiebreak promotes
+        # to — it must route to review/oracle, never auto-proceed (P3c).
+        return self.level in {PARTIAL, AMBIGUOUS, NEEDS_EXTERNAL_VALIDATION}
 
     @property
     def is_credible(self) -> bool:
@@ -159,7 +161,10 @@ class MatchConfidence:
     @property
     def needs_external_validation(self) -> bool:
         """Internal self-assessment that must clear the oracle before auto-proceed."""
-        return self.level in {HIGH, PARTIAL} and self.provenance == "internal"
+        return (
+            self.level in {HIGH, PARTIAL, NEEDS_EXTERNAL_VALIDATION}
+            and self.provenance == "internal"
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         """Serializable view — used in tool_result dicts + audit metadata."""
@@ -304,8 +309,11 @@ async def attach_tiebreak(
     confidence unchanged (caller routes to ProposalService per Phase 4).
 
     On a successful tie-break with chosen_index >= 0, returns a new
-    MatchConfidence with level=HIGH, rationale updated, and chosen_index
-    pointing at the LLM-selected candidate.
+    MatchConfidence with level=NEEDS_EXTERNAL_VALIDATION (the bridge state),
+    NOT HIGH. An LLM pick is still internal self-assessment — promoting it to
+    plain INTERNAL_HIGH would launder credibility without an external oracle
+    (P3c/W2: stop promotion at INTERNAL_HIGH). The bridge state routes to
+    review (requires_review) and never auto-proceeds.
     """
     if confidence.level != PARTIAL:
         return confidence
@@ -324,11 +332,13 @@ async def attach_tiebreak(
     if not result.used_llm or result.chosen_index < 0:
         return confidence
 
-    # LLM picked a candidate — upgrade to HIGH with the new rationale.
+    # LLM picked a candidate — but that pick is internal. Bridge state,
+    # NOT HIGH: still needs external verification before auto-proceed.
     return MatchConfidence(
-        level=HIGH,
+        level=NEEDS_EXTERNAL_VALIDATION,
         score=confidence.score,  # keep raw score for audit
-        rationale=f"LLM tiebreak: {result.rationale}",
+        rationale=f"LLM tiebreak (needs external validation): {result.rationale}",
         candidates=confidence.candidates,
         chosen_index=result.chosen_index,
+        provenance="internal",
     )

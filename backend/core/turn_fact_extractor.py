@@ -504,6 +504,12 @@ class TurnFactExtractor:
                         confidence=confidence,
                         content_hash=content_hash,
                         status="active",
+                        # P3d: versioning — initial commit on the main branch.
+                        parent_id=None,
+                        commit_message="created",
+                        author_type="extractor",
+                        branch_name="main",
+                        diff_summary=None,
                     )
                     db.add(row)
                     try:
@@ -521,6 +527,8 @@ class TurnFactExtractor:
                     # New fact meaningfully stronger — supersede + insert
                     existing.status = "superseded"
                     existing.superseded_at = func_now()
+                    existing.commit_message = f"superseded by {existing.id[:8]}"
+                    existing.diff_summary = f"replaced by stronger fact (confidence {confidence:.2f})"
                     row = TurnFact(
                         id=str(uuid.uuid4()),
                         tenant_id=self.tenant_id if self.tenant_id != "default" else None,
@@ -538,6 +546,13 @@ class TurnFactExtractor:
                         confidence=confidence,
                         content_hash=content_hash,
                         status="active",
+                        # P3d: the new row is a commit whose parent is the
+                        # row it superseded (git-style history chain).
+                        parent_id=existing.id,
+                        commit_message="superseded weaker fact",
+                        author_type="extractor",
+                        branch_name="main",
+                        diff_summary=f"replaces {existing.id[:8]} (confidence {confidence:.2f})",
                     )
                     db.add(row)
                     db.commit()
