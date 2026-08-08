@@ -914,8 +914,8 @@ class TestExecuteToolLocalTools:
     async def test_communication_hub_tools_import_error(self, svc, monkeypatch):
         monkeypatch.setitem(sys.modules, "core.collaboration_hub_service", None)
         for tool in ["analyze_message", "draft_response", "approve_draft"]:
-            with pytest.raises(ImportError):
-                await svc.execute_tool("local-tools", tool, {"message_id": "m"}, {})
+            result = await svc.execute_tool("local-tools", tool, {"message_id": "m"}, {})
+            assert "Collaboration Hub service not available" in result["error"]
 
     @pytest.mark.asyncio
     async def test_ingest_message_attachment(self, svc):
@@ -1252,13 +1252,13 @@ class TestExecuteToolBrowser:
     @pytest.mark.asyncio
     async def test_browser_cloud_import_error(self, svc, monkeypatch):
         monkeypatch.setitem(sys.modules, "core.cloud_browser_service", None)
-        with pytest.raises(ImportError):
-            await svc.execute_tool(
-                "local-tools",
-                "browser_navigate",
-                {"url": "http://x"},
-                {"computer_use_mode": "cloud", "workspace_id": "default"},
-            )
+        result = await svc.execute_tool(
+            "local-tools",
+            "browser_navigate",
+            {"url": "http://x"},
+            {"computer_use_mode": "cloud", "workspace_id": "default"},
+        )
+        assert "Cloud browser service not available" in result
 
     @pytest.mark.asyncio
     async def test_browser_click_desktop(self, svc, monkeypatch):
@@ -1334,41 +1334,41 @@ class TestExecuteToolBrowser:
             "browser_download_file",
         ]
         for tool in tools:
-            with pytest.raises(ImportError):
-                await svc.execute_tool("local-tools", tool, {}, ctx)
+            result = await svc.execute_tool("local-tools", tool, {}, ctx)
+            assert "Cloud browser service not available" in result
 
     @pytest.mark.asyncio
     async def test_browser_click_cloud_import_error(self, svc, monkeypatch):
         monkeypatch.setitem(sys.modules, "core.cloud_browser_service", None)
-        with pytest.raises(ImportError):
-            await svc.execute_tool(
-                "local-tools",
-                "browser_click",
-                {"selector": "#a"},
-                {"computer_use_mode": "cloud", "workspace_id": "default"},
-            )
+        result = await svc.execute_tool(
+            "local-tools",
+            "browser_click",
+            {"selector": "#a"},
+            {"computer_use_mode": "cloud", "workspace_id": "default"},
+        )
+        assert "Cloud browser service not available" in result
 
     @pytest.mark.asyncio
     async def test_browser_type_cloud_import_error(self, svc, monkeypatch):
         monkeypatch.setitem(sys.modules, "core.cloud_browser_service", None)
-        with pytest.raises(ImportError):
-            await svc.execute_tool(
-                "local-tools",
-                "browser_type",
-                {"text": "hi"},
-                {"computer_use_mode": "cloud", "workspace_id": "default"},
-            )
+        result = await svc.execute_tool(
+            "local-tools",
+            "browser_type",
+            {"text": "hi"},
+            {"computer_use_mode": "cloud", "workspace_id": "default"},
+        )
+        assert "Cloud browser service not available" in result
 
     @pytest.mark.asyncio
     async def test_browser_screenshot_cloud_import_error(self, svc, monkeypatch):
         monkeypatch.setitem(sys.modules, "core.cloud_browser_service", None)
-        with pytest.raises(ImportError):
-            await svc.execute_tool(
-                "local-tools",
-                "browser_screenshot",
-                {},
-                {"computer_use_mode": "cloud", "workspace_id": "default"},
-            )
+        result = await svc.execute_tool(
+            "local-tools",
+            "browser_screenshot",
+            {},
+            {"computer_use_mode": "cloud", "workspace_id": "default"},
+        )
+        assert "Cloud browser service not available" in result
 
 
 # ============================================================================
@@ -1765,41 +1765,50 @@ class TestExecuteToolUniversal:
         conn_cls = MagicMock()
         conn_cls.return_value.list_connections = AsyncMock(return_value=[])
         monkeypatch.setattr("core.connection_service.ConnectionService", conn_cls)
-        with pytest.raises(ImportError):
-            await svc.execute_tool(
-                "local-tools", "create_zoom_meeting", {}, {"user_id": "u"}
-            )
+        result = await svc.execute_tool(
+            "local-tools", "create_zoom_meeting", {}, {"user_id": "u"}
+        )
+        assert result == {"error": "Zoom not connected"}
 
     @pytest.mark.asyncio
-    async def test_create_zoom_meeting_missing_service_singleton(self, svc, monkeypatch):
+    async def test_create_zoom_meeting_with_connection(self, svc, monkeypatch):
         conn = MagicMock()
         conn.piece_name = "zoom"
         conn.credentials = {"access_token": "t"}
         conn_cls = MagicMock()
         conn_cls.return_value.list_connections = AsyncMock(return_value=[conn])
         monkeypatch.setattr("core.connection_service.ConnectionService", conn_cls)
-        with pytest.raises(ImportError):
-            await svc.execute_tool(
-                "local-tools", "create_zoom_meeting", {}, {"user_id": "u"}
-            )
+        zoom = MagicMock()
+        zoom.create_meeting = AsyncMock(return_value={"id": "m1"})
+        monkeypatch.setattr("integrations.zoom_service.ZoomService", lambda **kw: zoom)
+        result = await svc.execute_tool(
+            "local-tools", "create_zoom_meeting", {}, {"user_id": "u"}
+        )
+        assert result == {"id": "m1"}
 
     @pytest.mark.asyncio
     async def test_get_system_health_with_service(self, svc, monkeypatch):
         cb = MagicMock()
         cb.get_stats = MagicMock(return_value={"failures": 0})
         monkeypatch.setattr("core.circuit_breaker.circuit_breaker", cb)
-        with pytest.raises(ImportError):
-            await svc.execute_tool(
-                "local-tools", "get_system_health", {"service": "shopify"}, {}
-            )
+        analytics = MagicMock()
+        analytics.analyze_service_drift = MagicMock(return_value={"drift": 0.1})
+        monkeypatch.setattr("core.analytics_engine.get_analytics_engine", lambda: analytics)
+        result = await svc.execute_tool(
+            "local-tools", "get_system_health", {"service": "shopify"}, {}
+        )
+        assert result == {"stats": {"failures": 0}, "drift": {"drift": 0.1}}
 
     @pytest.mark.asyncio
     async def test_get_system_health_global(self, svc, monkeypatch):
         cb = MagicMock()
         cb.get_all_stats = MagicMock(return_value={"all": 1})
         monkeypatch.setattr("core.circuit_breaker.circuit_breaker", cb)
-        with pytest.raises(ImportError):
-            await svc.execute_tool("local-tools", "get_system_health", {}, {})
+        analytics = MagicMock()
+        analytics.get_global_performance_report = MagicMock(return_value={"ok": True})
+        monkeypatch.setattr("core.analytics_engine.get_analytics_engine", lambda: analytics)
+        result = await svc.execute_tool("local-tools", "get_system_health", {}, {})
+        assert result == {"circuit_breaker": {"all": 1}, "global_report": {"ok": True}}
 
     @pytest.mark.asyncio
     async def test_generate_pdf_report(self, svc, monkeypatch):
@@ -1856,10 +1865,10 @@ class TestExecuteToolUniversal:
     async def test_sales_lead_tools_import_error(self, svc, monkeypatch):
         monkeypatch.setitem(sys.modules, "core.sales_agent", None)
         for tool in ["score_lead", "draft_sales_outreach", "monitor_pipeline_health"]:
-            with pytest.raises(ImportError):
-                await svc.execute_tool(
-                    "local-tools", tool, {"lead_data": {}}, {"workspace_id": "ws"}
-                )
+            result = await svc.execute_tool(
+                "local-tools", tool, {"lead_data": {}}, {"workspace_id": "ws"}
+            )
+            assert "Sales agent service not available" in result["error"]
 
     @pytest.mark.asyncio
     async def test_shipping_no_platform_no_connection(self, svc, monkeypatch):
@@ -1906,11 +1915,14 @@ class TestExecuteToolUniversal:
         assert inst.execute.await_args.args[0] == "gcp"
 
     @pytest.mark.asyncio
-    async def test_unified_knowledge_search_import_error(self, svc):
-        with pytest.raises(ImportError):
-            await svc.execute_tool(
-                "local-tools", "unified_knowledge_search", {"query": "q"}, {}
-            )
+    async def test_unified_knowledge_search_empty_entities(self, svc, monkeypatch):
+        engine = MagicMock()
+        engine.entity_registry.values.return_value = []
+        monkeypatch.setattr("ai.data_intelligence.DataIntelligenceEngine", lambda: engine)
+        result = await svc.execute_tool(
+            "local-tools", "unified_knowledge_search", {"query": "q"}, {}
+        )
+        assert result == []
 
     @pytest.mark.asyncio
     async def test_save_business_fact(self, svc, monkeypatch):
@@ -2071,8 +2083,8 @@ class TestExecuteToolUniversal:
 
     @pytest.mark.asyncio
     async def test_search_formulas_no_query(self, svc):
-        with pytest.raises(TypeError):
-            await svc.execute_tool("local-tools", "search_formulas", {}, {})
+        result = await svc.execute_tool("local-tools", "search_formulas", {}, {})
+        assert result == {"error": "Search query is required"}
 
     @pytest.mark.asyncio
     async def test_search_formulas_success(self, svc, monkeypatch):
@@ -2897,13 +2909,18 @@ class TestRemainingEdges:
         ]
 
     @pytest.mark.asyncio
-    async def test_get_inventory_levels_shopify_import_error(self, svc, monkeypatch):
+    async def test_get_inventory_levels_shopify_connection(self, svc, monkeypatch):
         conn = MagicMock()
         conn.piece_name = "shopify"
+        conn.credentials = {"access_token": "t"}
+        conn.metadata = {"shop_url": "s.myshopify.com"}
         conn_cls = MagicMock()
         conn_cls.return_value.list_connections = AsyncMock(return_value=[conn])
         monkeypatch.setattr("core.connection_service.ConnectionService", conn_cls)
-        with pytest.raises(ImportError):
-            await svc.execute_tool(
-                "local-tools", "get_inventory_levels", {}, {"user_id": "u"}
-            )
+        shopify = MagicMock()
+        shopify.get_inventory_levels = AsyncMock(return_value=[{"id": 1}])
+        monkeypatch.setattr("integrations.shopify_service.ShopifyService", lambda **kw: shopify)
+        result = await svc.execute_tool(
+            "local-tools", "get_inventory_levels", {}, {"user_id": "u"}
+        )
+        assert result == [{"id": 1}]

@@ -1488,7 +1488,10 @@ class MCPService(IntegrationService):
             
             # --- Communication Hub Tools ---
             elif tool_name == "analyze_message":
-                from core.collaboration_hub_service import get_collaboration_hub_service
+                try:
+                    from core.collaboration_hub_service import get_collaboration_hub_service
+                except ImportError:
+                    return {"status": "error", "error": "Collaboration Hub service not available (analyze_message)"}
                 from core.database import SessionLocal
                 with SessionLocal() as db:
                     service = get_collaboration_hub_service(db)
@@ -1503,7 +1506,10 @@ class MCPService(IntegrationService):
                     )
 
             elif tool_name == "draft_response":
-                from core.collaboration_hub_service import get_collaboration_hub_service
+                try:
+                    from core.collaboration_hub_service import get_collaboration_hub_service
+                except ImportError:
+                    return {"status": "error", "error": "Collaboration Hub service not available (draft_response)"}
                 from core.database import SessionLocal
                 with SessionLocal() as db:
                     service = get_collaboration_hub_service(db)
@@ -1514,7 +1520,10 @@ class MCPService(IntegrationService):
                     )
 
             elif tool_name == "approve_draft":
-                from core.collaboration_hub_service import get_collaboration_hub_service
+                try:
+                    from core.collaboration_hub_service import get_collaboration_hub_service
+                except ImportError:
+                    return {"status": "error", "error": "Collaboration Hub service not available (approve_draft)"}
                 from core.database import SessionLocal
                 with SessionLocal() as db:
                     service = get_collaboration_hub_service(db)
@@ -1691,7 +1700,10 @@ class MCPService(IntegrationService):
                 url = arguments.get("url")
                 
                 if mode == "cloud":
-                    from core.cloud_browser_service import cloud_browser
+                    try:
+                        from core.cloud_browser_service import cloud_browser
+                    except ImportError:
+                        return "Error: Cloud browser service not available."
                     # Use session_id from context or agent_id
                     session_id = context.get("agent_id", "default_session")
                     return await cloud_browser.navigate(session_id, url, context)
@@ -1725,7 +1737,10 @@ class MCPService(IntegrationService):
                 selector = arguments.get("selector")
                 
                 if mode == "cloud":
-                    from core.cloud_browser_service import cloud_browser
+                    try:
+                        from core.cloud_browser_service import cloud_browser
+                    except ImportError:
+                        return "Error: Cloud browser service not available."
                     session_id = context.get("agent_id", "default_session")
                     return await cloud_browser.click(session_id, selector, context)
                 else:
@@ -1759,7 +1774,10 @@ class MCPService(IntegrationService):
                 selector = arguments.get("selector")
                 
                 if mode == "cloud":
-                    from core.cloud_browser_service import cloud_browser
+                    try:
+                        from core.cloud_browser_service import cloud_browser
+                    except ImportError:
+                        return "Error: Cloud browser service not available."
                     session_id = context.get("agent_id", "default_session")
                     return await cloud_browser.type_text(session_id, selector, text, context)
                 else:
@@ -1786,7 +1804,10 @@ class MCPService(IntegrationService):
                 if mode == "cloud":
                     if not await _check_cloud_access(workspace_id):
                         return "Error: Cloud screenshot is restricted to Enterprise tiers."
-                    from core.cloud_browser_service import cloud_browser
+                    try:
+                        from core.cloud_browser_service import cloud_browser
+                    except ImportError:
+                        return "Error: Cloud browser service not available."
                     session_id = context.get("agent_id", "default_session")
                     return await cloud_browser.screenshot(session_id, context)
                 else:
@@ -1811,7 +1832,10 @@ class MCPService(IntegrationService):
                 if mode == "cloud":
                     if not await _check_cloud_access(workspace_id):
                         return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                    from core.cloud_browser_service import cloud_browser
+                    try:
+                        from core.cloud_browser_service import cloud_browser
+                    except ImportError:
+                        return "Error: Cloud browser service not available."
                     session_id = context.get("agent_id", "default_session")
                     return await cloud_browser.new_tab(session_id, url, context)
                 return "Error: browser_new_tab is only available in cloud mode."
@@ -1823,7 +1847,10 @@ class MCPService(IntegrationService):
                 if mode == "cloud":
                     if not await _check_cloud_access(workspace_id):
                         return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                    from core.cloud_browser_service import cloud_browser
+                    try:
+                        from core.cloud_browser_service import cloud_browser
+                    except ImportError:
+                        return "Error: Cloud browser service not available."
                     session_id = context.get("agent_id", "default_session")
                     return await cloud_browser.switch_tab(session_id, index)
                 return "Error: browser_switch_tab is only available in cloud mode."
@@ -1837,7 +1864,10 @@ class MCPService(IntegrationService):
                 if mode == "cloud":
                     if not await _check_cloud_access(workspace_id):
                         return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                    from core.cloud_browser_service import cloud_browser
+                    try:
+                        from core.cloud_browser_service import cloud_browser
+                    except ImportError:
+                        return "Error: Cloud browser service not available."
                     session_id = context.get("agent_id", "default_session")
                     return await cloud_browser.click_coords(session_id, int(x), int(y), context)
                 return "Error: browser_click_coords is only available in cloud mode."
@@ -1848,7 +1878,10 @@ class MCPService(IntegrationService):
                  if mode == "cloud":
                      if not await _check_cloud_access(workspace_id):
                          return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     from core.cloud_browser_service import cloud_browser
+                     try:
+                        from core.cloud_browser_service import cloud_browser
+                     except ImportError:
+                        return "Error: Cloud browser service not available."
                      session_id = context.get("agent_id", "default_session")
                      return await cloud_browser.list_tabs(session_id)
                  return "Error: list_browser_tabs is only available in cloud mode."
@@ -1859,7 +1892,10 @@ class MCPService(IntegrationService):
                  if mode == "cloud":
                      if not await _check_cloud_access(workspace_id):
                          return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     from core.cloud_browser_service import cloud_browser
+                     try:
+                        from core.cloud_browser_service import cloud_browser
+                     except ImportError:
+                        return "Error: Cloud browser service not available."
                      session_id = context.get("agent_id", "default_session")
                      return await cloud_browser.save_session(session_id)
                  return "Error: browser_save_session is only available in cloud mode."
@@ -1871,7 +1907,10 @@ class MCPService(IntegrationService):
                  if mode == "cloud":
                      if not await _check_cloud_access(workspace_id):
                          return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     from core.cloud_browser_service import cloud_browser
+                     try:
+                        from core.cloud_browser_service import cloud_browser
+                     except ImportError:
+                        return "Error: Cloud browser service not available."
                      session_id = context.get("agent_id", "default_session")
                      return await cloud_browser.set_proxy(session_id, server, arguments.get("username"), arguments.get("password"))
                  return "Error: browser_set_proxy is only available in cloud mode."
@@ -1883,7 +1922,10 @@ class MCPService(IntegrationService):
                  if mode == "cloud":
                      if not await _check_cloud_access(workspace_id):
                          return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     from core.cloud_browser_service import cloud_browser
+                     try:
+                        from core.cloud_browser_service import cloud_browser
+                     except ImportError:
+                        return "Error: Cloud browser service not available."
                      session_id = context.get("agent_id", "default_session")
                      if active:
                          return await cloud_browser.start_monitoring(session_id, workspace_id)
@@ -1899,7 +1941,10 @@ class MCPService(IntegrationService):
                  if mode == "cloud":
                      if not await _check_cloud_access(workspace_id):
                          return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     from core.cloud_browser_service import cloud_browser
+                     try:
+                        from core.cloud_browser_service import cloud_browser
+                     except ImportError:
+                        return "Error: Cloud browser service not available."
                      session_id = context.get("agent_id", "default_session")
                      return await cloud_browser.wait_for_selector(session_id, selector, timeout, context)
                  return "Error: browser_wait_for_selector is only available in cloud mode."
@@ -1912,7 +1957,10 @@ class MCPService(IntegrationService):
                  if mode == "cloud":
                      if not await _check_cloud_access(workspace_id):
                          return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     from core.cloud_browser_service import cloud_browser
+                     try:
+                        from core.cloud_browser_service import cloud_browser
+                     except ImportError:
+                        return "Error: Cloud browser service not available."
                      session_id = context.get("agent_id", "default_session")
                      return await cloud_browser.extract_content(session_id, selector, extract_mode, context)
                  return "Error: browser_extract_content is only available in cloud mode."
@@ -1925,7 +1973,10 @@ class MCPService(IntegrationService):
                  if mode == "cloud":
                      if not await _check_cloud_access(workspace_id):
                          return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     from core.cloud_browser_service import cloud_browser
+                     try:
+                        from core.cloud_browser_service import cloud_browser
+                     except ImportError:
+                        return "Error: Cloud browser service not available."
                      session_id = context.get("agent_id", "default_session")
                      return await cloud_browser.upload_file(session_id, selector, file_path, context)
                  return "Error: browser_upload_file is only available in cloud mode."
@@ -1938,7 +1989,10 @@ class MCPService(IntegrationService):
                  if mode == "cloud":
                      if not await _check_cloud_access(workspace_id):
                          return "Error: Headless Cloud Browser is restricted to Enterprise tiers."
-                     from core.cloud_browser_service import cloud_browser
+                     try:
+                        from core.cloud_browser_service import cloud_browser
+                     except ImportError:
+                        return "Error: Cloud browser service not available."
                      session_id = context.get("agent_id", "default_session")
                      return await cloud_browser.download_file(session_id, url, filename, context)
                  return "Error: browser_download_file is only available in cloud mode."
@@ -2156,7 +2210,8 @@ class MCPService(IntegrationService):
                 return await service.execute(platform, "create_folder", arguments, context=context)
 
             elif tool_name == "unified_knowledge_search":
-                from ai.data_intelligence import engine
+                from ai.data_intelligence import DataIntelligenceEngine
+                engine = DataIntelligenceEngine()
                 query = arguments.get("query", "").lower()
                 results = []
                 for entity in engine.entity_registry.values():
@@ -2285,7 +2340,8 @@ class MCPService(IntegrationService):
                 if platform == "shopify" or not platform:
                     conn = next((c for c in connections if c.piece_name == "shopify"), None)
                     if conn:
-                        from integrations.shopify_service import shopify_service
+                        from integrations.shopify_service import ShopifyService
+                        shopify_service = ShopifyService(tenant_id=context.get("tenant_id", "default"))
                         results.extend(await shopify_service.get_inventory_levels(access_token=conn.credentials.get("access_token"), shop=conn.metadata.get("shop_url")))
                 if platform == "zoho" or not platform:
                     conn = next((c for c in connections if c.piece_name == "zoho_inventory"), None)
@@ -2337,7 +2393,8 @@ class MCPService(IntegrationService):
                      return {"error": f"WhatsApp Send Failed: {str(e)}"}
 
             elif tool_name == "create_zoom_meeting":
-                from integrations.zoom_service import zoom_service
+                from integrations.zoom_service import ZoomService
+                zoom_service = ZoomService(tenant_id=context.get("tenant_id", "default"))
                 from core.connection_service import ConnectionService
                 conn_service = ConnectionService()
                 connections = await conn_service.list_connections(user_id=context.get("user_id", "default_user"))
@@ -2348,7 +2405,8 @@ class MCPService(IntegrationService):
             # --- System & Health ---
             elif tool_name == "get_system_health":
                 from core.circuit_breaker import circuit_breaker
-                from core.analytics_engine import analyzer
+                from core.analytics_engine import get_analytics_engine
+                analyzer = get_analytics_engine()
                 service = arguments.get("service")
                 if service:
                     stats = circuit_breaker.get_stats(service)
@@ -2394,17 +2452,26 @@ class MCPService(IntegrationService):
 
             # --- Sales & Lead Intelligence ---
             elif tool_name == "score_lead":
-                from core.sales_agent import SalesAgent
+                try:
+                    from core.sales_agent import SalesAgent
+                except ImportError:
+                    return {"status": "error", "error": "Sales agent service not available (score_lead)"}
                 agent = SalesAgent()
                 return await agent.score_lead(workspace_id, arguments.get("lead_data", {}))
             
             elif tool_name == "draft_sales_outreach":
-                from core.sales_agent import SalesAgent
+                try:
+                    from core.sales_agent import SalesAgent
+                except ImportError:
+                    return {"status": "error", "error": "Sales agent service not available (draft_sales_outreach)"}
                 agent = SalesAgent()
                 return await agent.prepare_outreach(workspace_id, arguments.get("lead_id"), arguments.get("context"))
             
             elif tool_name == "monitor_pipeline_health":
-                from core.sales_agent import SalesAgent
+                try:
+                    from core.sales_agent import SalesAgent
+                except ImportError:
+                    return {"status": "error", "error": "Sales agent service not available (monitor_pipeline_health)"}
                 agent = SalesAgent()
                 return await agent.audit_pipeline(workspace_id)
 
@@ -2567,7 +2634,7 @@ class MCPService(IntegrationService):
 
             elif tool_name == "search_formulas":
                 from core.formula_memory import get_formula_manager
-                manager = get_formula_manager(tenant_id=context.get("workspace_id", "default"))
+                manager = get_formula_manager(workspace_id=context.get("workspace_id", "default"))
                 
                 query = arguments.get("query")
                 domain = arguments.get("domain")
