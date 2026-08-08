@@ -41,9 +41,13 @@ export function DesktopSecurityAudit() {
 
             if (scanOutput && scanOutput.success) {
                 const findings = JSON.parse(scanOutput.stdout || "[]");
+                // Scanner output could be object-shaped (e.g. {"findings": [...]})
+                // or malformed — normalize to an array so the render never calls
+                // .map on a non-array.
+                const findingsList = Array.isArray(findings) ? findings : [];
                 setResults({
-                    isSafe: findings.length === 0,
-                    findings: findings,
+                    isSafe: findingsList.length === 0,
+                    findings: findingsList,
                     raw: scanOutput.stdout
                 });
                 toast.success("Local security audit complete.");
@@ -51,9 +55,10 @@ export function DesktopSecurityAudit() {
                 // If it failed due to finding issues, parse them anyway
                 try {
                     const findings = JSON.parse(scanOutput.stdout || "[]");
+                    const findingsList = Array.isArray(findings) ? findings : [];
                     setResults({
                         isSafe: false,
-                        findings: findings,
+                        findings: findingsList,
                         raw: scanOutput.stdout
                     });
                 } catch {

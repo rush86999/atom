@@ -57,14 +57,16 @@ export const FactFilters: React.FC<FactFiltersProps> = ({
           <Select
             value={filters.domain || ""}
             onValueChange={(value) =>
-              onFilterChange({ domain: value || undefined })
+              onFilterChange({
+                domain: value === "__all_domains__" ? undefined : value,
+              })
             }
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="All domains" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Domains</SelectItem>
+              <SelectItem value="__all_domains__">All Domains</SelectItem>
               {domains.map((domain) => (
                 <SelectItem key={domain} value={domain}>
                   {domain}

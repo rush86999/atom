@@ -48,7 +48,28 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
         };
     }, [open, onOpenChange]);
 
-    if (!open) return null;
+    if (!open) {
+        // When the dialog is closed, still render a DialogTrigger child (if
+        // present) so the button that opens the dialog stays visible/clickable
+        // (e.g. BudgetPlanner's "Add Budget" button lives inside <Dialog>).
+        const trigger = React.Children.toArray(children).find(
+            (child) =>
+                React.isValidElement(child) &&
+                typeof child.type === 'function' &&
+                (child.type as any).name === 'DialogTrigger'
+        );
+        return trigger ? <>{trigger}</> : null;
+    }
+
+    // The trigger only belongs outside the open dialog
+    const dialogChildren = React.Children.toArray(children).filter(
+        (child) =>
+            !(
+                React.isValidElement(child) &&
+                typeof child.type === 'function' &&
+                (child.type as any).name === 'DialogTrigger'
+            )
+    );
 
     return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -57,7 +78,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
                 onClick={() => onOpenChange(false)}
                 aria-hidden="true"
             />
-            {children}
+            {dialogChildren}
         </div>,
         document.body
     );

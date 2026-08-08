@@ -259,6 +259,14 @@ const TransactionsList = () => {
                             {transactions.filter(tx => (tx as any).status === 'review_required').length} Pending Review
                         </Badge>
                     )}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsCreateOpen(true)}
+                        className="ml-auto"
+                    >
+                        <Plus className="h-4 w-4 mr-1" /> New Transaction
+                    </Button>
                 </div>
             </CardHeader>
             <CardContent>
@@ -272,8 +280,7 @@ const TransactionsList = () => {
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
-                        </div>
-                        <DropdownMenu>
+                        </div>                        <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" size="icon">
                                     <Filter className="h-4 w-4" />
@@ -303,6 +310,14 @@ const TransactionsList = () => {
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportCSV}
+                        title="Export transactions as CSV"
+                    >
+                        <Download className="h-4 w-4 mr-1" /> Export CSV
+                    </Button>
                 </div>
 
                 <div className="rounded-md border">
@@ -379,6 +394,64 @@ const TransactionsList = () => {
                     </Table>
                 </div>
             </CardContent>
+
+            {/* Create Dialog */}
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Create Transaction</DialogTitle>
+                        <DialogDescription>
+                            Add a transaction to the ledger for AI categorization.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateTransaction} className="space-y-4 pt-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="new-desc">Description</Label>
+                            <Input
+                                id="new-desc"
+                                value={newTx.description}
+                                onChange={(e) => setNewTx({ ...newTx, description: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="new-merchant">Merchant (Optional)</Label>
+                            <Input
+                                id="new-merchant"
+                                value={newTx.merchant}
+                                onChange={(e) => setNewTx({ ...newTx, merchant: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="new-amount">Amount ($)</Label>
+                            <Input
+                                id="new-amount"
+                                type="number"
+                                step="0.01"
+                                value={newTx.amount}
+                                onChange={(e) => setNewTx({ ...newTx, amount: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="new-date">Date</Label>
+                            <Input
+                                id="new-date"
+                                type="date"
+                                value={newTx.date}
+                                onChange={(e) => setNewTx({ ...newTx, date: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <DialogFooter className="pt-4">
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Save Transaction
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
             {/* Edit Dialog */}
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>

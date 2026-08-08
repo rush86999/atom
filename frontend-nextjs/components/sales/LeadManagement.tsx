@@ -44,7 +44,7 @@ const LeadManagement = () => {
     };
 
     const filteredLeads = Array.isArray(leads) ? leads.filter(lead =>
-        lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (lead.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (lead.company && lead.company.toLowerCase().includes(searchTerm.toLowerCase()))
     ) : [];
 

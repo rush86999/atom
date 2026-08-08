@@ -5,7 +5,7 @@
  * Displays execution progress, logs, supervisor info, and intervention controls.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import LogStreamViewer from './LogStreamViewer';
 import ExecutionProgressBar from './ExecutionProgressBar';
 import SupervisorIdentity from './SupervisorIdentity';
@@ -73,6 +73,13 @@ const LiveMonitoringPanel: React.FC<Props> = ({
   const [interventionType, setInterventionType] = useState<string>('pause');
   const [guidance, setGuidance] = useState<string>('');
 
+  // Fresh snapshot of steps for the SSE listeners. The listeners are
+  // registered once (mount) while `steps` state evolves, so reading `steps`
+  // directly from the closure would always see the initial all-pending list
+  // and never advance past step 0. A ref keeps the latest list readable.
+  const stepsRef = useRef<ExecutionStep[]>(steps);
+  stepsRef.current = steps;
+
   // Connect to SSE stream
   useEffect(() => {
     const eventSource = new EventSource(
@@ -114,8 +121,21 @@ const LiveMonitoringPanel: React.FC<Props> = ({
     });
 
     eventSource.addEventListener('error', (event: MessageEvent) => {
-      const data = JSON.parse(event.data);
-      setError(data.message);
+      // A connection-level 'error' event carries NO data (plain Event); only
+      // server-sent `event: error` frames carry a payload. Guard both paths so
+      // a network drop cannot crash the handler via JSON.parse(undefined).
+      let message = 'Connection error';
+      if (event.data) {
+        try {
+          const data = JSON.parse(event.data);
+          if (data && data.message) {
+            message = data.message;
+          }
+        } catch {
+          // malformed frame — fall back to the generic message
+        }
+      }
+      setError(message);
       setState(prev => ({ ...prev, isExecuting: false }));
       eventSource.close();
     });
@@ -140,7 +160,12 @@ const LiveMonitoringPanel: React.FC<Props> = ({
 
   const updateStepsFromEvent = useCallback((eventData: any) => {
     if (eventData.event_type === 'action') {
-      const stepIndex = steps.findIndex(s => s.status === 'pending' || s.status === 'in_progress');
+      // Read the CURRENT step list from the ref — the closure snapshot goes
+      // stale after the first event, which would re-mark step 0 in_progress
+      // forever instead of advancing the pipeline.
+      const stepIndex = stepsRef.current.findIndex(
+        s => s.status === 'pending' || s.status === 'in_progress'
+      );
       if (stepIndex >= 0) {
         setSteps(prev => {
           const updated = [...prev];
@@ -194,7 +219,7 @@ const LiveMonitoringPanel: React.FC<Props> = ({
         data: eventData.data
       });
     }
-  }, [steps, addLog]);
+  }, [addLog]);
 
   const handleIntervene = async () => {
     if (!guidance.trim()) {

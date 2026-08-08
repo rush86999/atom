@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -38,6 +38,9 @@ export function SatelliteControls() {
                 setStatus('stopped')
                 setMessage('Satellite disconnected.')
             } catch (e: any) {
+                // surface the failure — without flipping to 'error' the
+                // message box never renders and the UI lies (still 'running')
+                setStatus('error')
                 setMessage('Error stopping: ' + e)
             }
         } else {

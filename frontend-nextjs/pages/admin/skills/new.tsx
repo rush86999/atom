@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router' // Changed from next/navigation for Pages Router
 import { Code, FileText, Save, Terminal, Cpu, CheckCircle, AlertTriangle, ArrowLeft } from 'lucide-react'

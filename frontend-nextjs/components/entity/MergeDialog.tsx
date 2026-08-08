@@ -346,7 +346,7 @@ const MergeDialog: React.FC<MergeDialogProps> = ({ open, proposal, onApply, onCl
   const conflictsRemaining = decisions.filter(
     (d) =>
       d.source_value !== d.target_value &&
-      d.chosen === d.suggested_value && // still on AI suggestion — may be worth reviewing
+      d.chosen === 'suggested' && // still on AI suggestion — may be worth reviewing
       d.confidence < 0.5
   ).length;
 

@@ -55,7 +55,7 @@ const BudgetPlanner = () => {
                     </div>
                     <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                         <DialogTrigger asChild>
-                            <Button>
+                            <Button onClick={() => setIsAddOpen(true)}>
                                 <Plus className="mr-2 h-4 w-4" /> Add Budget
                             </Button>
                         </DialogTrigger>

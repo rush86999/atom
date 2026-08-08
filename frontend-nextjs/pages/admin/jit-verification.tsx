@@ -86,11 +86,16 @@ function JITVerificationDashboardContent() {
       }
       if (!cacheRes?.data && !cacheStats) {
         setCacheStats({
-          l1_hits: 450,
-          l1_misses: 20,
-          l2_hits: 180,
-          l2_misses: 5,
-          hit_ratio: 0.96,
+          l1_verification_cache_size: 450,
+          l1_query_cache_size: 20,
+          l1_verification_hits: 450,
+          l1_verification_misses: 20,
+          l1_verification_hit_rate: 0.96,
+          l1_query_hits: 180,
+          l1_query_misses: 5,
+          l1_query_hit_rate: 0.97,
+          l1_evictions: 0,
+          l2_enabled: false,
         } as any);
       }
       if (!healthRes?.data && !healthStatus) {

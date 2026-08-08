@@ -24,7 +24,8 @@ module.exports = {
     "<rootDir>/components/**/__tests__/**/*.test.(ts|tsx|js)",
     "<rootDir>/components/**/__tests__/**/*.a11y.test.(ts|tsx)",
     "<rootDir>/lib/**/__tests__/**/*.test.(ts|tsx|js)",
-    "<rootDir>/hooks/**/__tests__/**/*.test.(ts|tsx|js)"
+    "<rootDir>/hooks/**/__tests__/**/*.test.(ts|tsx|js)",
+    "<rootDir>/pages/__tests__/**/*.test.(ts|tsx|js)"
   ],
   collectCoverageFrom: [
     "components/**/*.{ts,tsx}",
