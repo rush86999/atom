@@ -123,10 +123,13 @@ class TestTeamsServiceBasics:
     def test_msal_available(self):
         mod = _teams_module()
         import base64
-        payload = base64.urlsafe_b64encode(json.dumps({
+        def _b64(data: bytes) -> str:
+            return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+        header = _b64(json.dumps({"alg": "none"}).encode())
+        payload = _b64(json.dumps({
             "tid": "ten1", "name": "Team", "upn": "u@x.com", "oid": "o1",
-        }).encode()).rstrip(b"=").decode()
-        token = f"header.{payload}.sig"
+        }).encode())
+        token = f"{header}.{payload}.{_b64(b'x')}"
         msal_app = MagicMock()
         msal_app.get_authorization_request_url.return_value = "https://login/oauth"
         msal_app.acquire_token_by_authorization_code.return_value = {"access_token": token, "refresh_token": "r"}
@@ -642,8 +645,9 @@ class TestOrchestratorInit:
         assert orch.session_manager is None
 
     def test_ai_engines_import_error(self):
-        with patch("builtins.__import__", side_effect=ImportError("no nlp")):
-            orch = make_orchestrator()
+        with patch("builtins.__import__", side_effect=ImportError("no nlp")), \
+             patch.object(co, "LLM_SERVICE_AVAILABLE", False):
+            orch = co.ChatOrchestrator()
         assert orch.ai_engines == {}
 
 
@@ -958,10 +962,10 @@ class TestOrchestratorRouting:
         tasks = {co.FeatureType.TASKS: {"success": True, "data": {"message": "task msg"}}}
         assert "task msg" in orch._generate_main_message("m", {"primary_intent": co.ChatIntent.TASK_MANAGEMENT}, tasks)
         assert "manage those tasks" in orch._generate_main_message("m", {"primary_intent": co.ChatIntent.TASK_MANAGEMENT}, {})
-        wf = {co.FeatureType.WORKFLOWS: {"data": {}}}
+        wf = {co.FeatureType.WORKFLOWS: {"data": {"workflow_id": "wf1"}}}
         assert "Workflow created" in orch._generate_main_message("m", {"primary_intent": co.ChatIntent.WORKFLOW_CREATION}, wf)
         assert "automation workflow" in orch._generate_main_message("m", {"primary_intent": co.ChatIntent.WORKFLOW_CREATION}, {})
-        sched = {co.FeatureType.SCHEDULING: {"data": {}}}
+        sched = {co.FeatureType.SCHEDULING: {"data": {"ok": True}}}
         assert "Schedule updated" in orch._generate_main_message("m", {"primary_intent": co.ChatIntent.SCHEDULING}, sched)
         assert "scheduling" in orch._generate_main_message("m", {"primary_intent": co.ChatIntent.SCHEDULING}, {})
         crm = {co.FeatureType.CRM: {"success": True, "data": {"answer": "crm ans"}}}
@@ -970,7 +974,7 @@ class TestOrchestratorRouting:
         bh = {co.FeatureType.BUSINESS_HEALTH: {"success": True, "message": "bh msg"}}
         assert "bh msg" in orch._generate_main_message("m", {"primary_intent": co.ChatIntent.BUSINESS_HEALTH}, bh)
         assert "business health" in orch._generate_main_message("m", {"primary_intent": co.ChatIntent.BUSINESS_HEALTH}, {})
-        assert "all connected platforms" in orch._generate_main_message("m", {"primary_intent": co.ChatIntent.SCHEDULING}, {})
+        assert "all connected platforms" in orch._generate_main_message("m", {"primary_intent": co.ChatIntent.AGENT_REQUEST}, {})
 
     def test_generate_next_steps(self):
         orch = make_orchestrator()
@@ -1052,9 +1056,10 @@ class TestOrchestratorHandlers:
 
     async def test_automation_handler(self):
         orch = make_orchestrator()
-        result = await orch._handle_automation_request("run payroll", {}, {"id": "s1"}, None)
-        assert result["success"] is False  # agent not configured path exercised below
-        with patch.object(co, "execute_agent_task", new=AsyncMock()):
+        with patch.object(co, "execute_agent_task", None):
+            result = await orch._handle_automation_request("run payroll", {}, {"id": "s1"}, None)
+            assert result["success"] is False  # agent execution unavailable
+        with patch.object(co, "execute_agent_task", new=AsyncMock()) as eat:
             result = await orch._handle_automation_request("run payroll", {}, {"id": "s1"}, None)
             assert result["success"] is True
             assert result["data"]["agent_id"] == "payroll_guardian"
@@ -1062,7 +1067,7 @@ class TestOrchestratorHandlers:
             assert result2["data"]["agent_id"] == "competitive_intel"
             result3 = await orch._handle_automation_request("inventory check", {}, {"id": "s1"}, None)
             assert result3["data"]["agent_id"] == "inventory_reconcile"
-            co.execute_agent_task.side_effect = RuntimeError("boom")
+            eat.side_effect = RuntimeError("boom")
             result4 = await orch._handle_automation_request("run payroll", {}, {"id": "s1"}, None)
             assert result4["success"] is False
 

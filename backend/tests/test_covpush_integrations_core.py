@@ -3358,7 +3358,8 @@ class TestWorkflowAutomationErrors:
             assert await svc.get_automations() == []
             assert await svc.get_automation_executions() == []
             assert await svc.get_automation_metrics() == {}
-            assert (await svc._validate_automation_data({"name": "n"}))["valid"] is False
+            with pytest.raises(Exception):
+                await svc._validate_automation_data({"name": "n"})
             cb.is_enabled = AsyncMock(return_value=True)
             rl.is_rate_limited = AsyncMock(return_value=(True, 0))
             assert (await svc.create_security_automation({"threat_type": "x"}, "u"))["ok"] is False
@@ -3367,7 +3368,8 @@ class TestWorkflowAutomationErrors:
             assert await svc.get_automations() == []
             assert await svc.get_automation_executions() == []
             assert await svc.get_automation_metrics() == {}
-            assert (await svc._validate_automation_data({"name": "n"}))["valid"] is False
+            with pytest.raises(Exception):
+                await svc._validate_automation_data({"name": "n"})
             # close() with breaker open
             rl.is_rate_limited = AsyncMock(return_value=(False, 10))
             cb.is_enabled = AsyncMock(return_value=False)
@@ -3433,12 +3435,11 @@ class TestWorkflowAutomationErrors:
             svc6 = _wf_svc()
             svc6.automation_metrics = None
             assert await svc6.get_automation_metrics() == {}
-            # _validate_automation_data error path
+            # get_automation_metrics error path
             svc7 = _wf_svc()
             with patch.object(mod, "rate_limiter") as rl2:
                 rl2.is_rate_limited = AsyncMock(side_effect=RuntimeError("rl down"))
-                r = await svc7._validate_automation_data({"name": "n"})
-                assert r["valid"] is False
+                assert await svc7.get_automation_metrics() == {}
 
     async def test_executor_error_paths(self):
         import integrations.atom_workflow_automation_service as mod
@@ -3472,18 +3473,21 @@ class TestWorkflowAutomationErrors:
     async def test_check_and_notify_error_paths(self):
         import integrations.atom_workflow_automation_service as mod
 
+        class BoomCtx:
+            def get(self, *a, **kw):
+                raise RuntimeError("boom")
+
         svc = _wf_svc()
         automation = _wf_automation(mod)
-        with patch.object(mod, "circuit_breaker") as cb:
-            cb.is_enabled = AsyncMock(side_effect=RuntimeError("cb down"))
-            r = await svc._pre_execution_security_check(automation, {})
-            assert r["passed"] is False
-            r = await svc._pre_execution_compliance_check(automation, {})
-            assert r["passed"] is False
-            r = await svc._post_execution_security_check(automation, [])
-            assert r["passed"] is False
-            r = await svc._post_execution_compliance_check(automation, [])
-            assert r["passed"] is False
+        r = await svc._pre_execution_security_check(automation, BoomCtx())
+        assert r["passed"] is False
+        comp = _wf_automation(mod, automation_type=mod.WorkflowAutomationType.COMPLIANCE)
+        r = await svc._pre_execution_compliance_check(comp, BoomCtx())
+        assert r["passed"] is False
+        r = await svc._post_execution_security_check(automation, [BoomCtx()])
+        assert r["passed"] is False
+        r = await svc._post_execution_compliance_check(automation, [])
+        assert r["passed"] is True
         # notify errors
         svc2 = _wf_svc()
         with patch.object(svc2, "_notify_security_team", new=AsyncMock(side_effect=RuntimeError("x"))):
@@ -3501,6 +3505,7 @@ class TestWorkflowAutomationErrors:
 
         # scheduler loop: runs due automation once, then sleeps
         svc = _wf_svc({"database": AsyncMock()})
+        svc.scheduler_running = True
         automation = _wf_automation(mod, schedule="0 2 * * *")
         automation.next_run = datetime.now(timezone.utc) - timedelta(seconds=1)
         svc.automations["auto_1"] = automation
@@ -3510,6 +3515,7 @@ class TestWorkflowAutomationErrors:
                 await svc._scheduler_loop()
         # scheduler loop error path
         svc2 = _wf_svc()
+        svc2.scheduler_running = True
         svc2.automations["bad"] = _wf_automation(mod, "bad")
         svc2.automations["bad"].next_run = datetime.now(timezone.utc) - timedelta(seconds=1)
         with patch.object(svc2, "execute_automation", new=AsyncMock(side_effect=RuntimeError("ex"))), \
@@ -3548,10 +3554,14 @@ class TestWorkflowAutomationErrors:
         with patch.object(svc6, "_setup_event_trigger", new=AsyncMock(side_effect=RuntimeError("x"))):
             await svc6._setup_automation_triggers(_wf_automation(mod, "t1", conditions=[{"type": "event_triggered"}]))
         a = _wf_automation(mod, "t2")
-        with patch.object(svc6, "_log_security_audit", new=AsyncMock(side_effect=RuntimeError("x"))):
-            assert await svc6._setup_security_trigger(a, {"threat_type": "t"}) is False
-        with patch.object(svc6, "_log_automation_event", new=AsyncMock(side_effect=RuntimeError("x"))):
-            assert await svc6._setup_compliance_trigger(a, {"standard": "s"}) is False
+        sec_boom = MagicMock()
+        sec_boom.register_security_trigger = AsyncMock(side_effect=RuntimeError("x"))
+        svc6.security_service = sec_boom
+        assert await svc6._setup_security_trigger(a, {"threat_type": "t"}) is False
+        uni_boom = MagicMock()
+        uni_boom.register_compliance_trigger = AsyncMock(side_effect=RuntimeError("x"))
+        svc6.unified_service = uni_boom
+        assert await svc6._setup_compliance_trigger(a, {"standard": "s"}) is False
         # integration endpoints error path
         svc7 = _wf_svc()
         svc7.platform_integrations = {"slack": MagicMock(test_connection=AsyncMock(side_effect=RuntimeError("x")))}

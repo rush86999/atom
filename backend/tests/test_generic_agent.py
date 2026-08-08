@@ -168,6 +168,7 @@ class TestAgentExecution:
     """Test agent task execution."""
 
     @pytest.mark.asyncio
+    @patch.object(GenericAgent, '_check_budget_before_react', new=AsyncMock(return_value={'allowed': True, 'reason': 'ok'}))
     async def test_execute_simple_task(self):
         """Agent executes a simple task successfully."""
         agent_model = AgentRegistry(
@@ -215,6 +216,7 @@ class TestAgentExecution:
             assert "output" in result
 
     @pytest.mark.asyncio
+    @patch.object(GenericAgent, '_check_budget_before_react', new=AsyncMock(return_value={'allowed': True, 'reason': 'ok'}))
     async def test_execute_with_timeout(self):
         """Agent execution times out after configured duration."""
         agent_model = AgentRegistry(
@@ -260,6 +262,7 @@ class TestAgentExecution:
             assert result["status"] == "timeout"
 
     @pytest.mark.asyncio
+    @patch.object(GenericAgent, '_check_budget_before_react', new=AsyncMock(return_value={'allowed': True, 'reason': 'ok'}))
     async def test_execute_with_max_steps(self):
         """Agent stops after reaching max steps."""
         agent_model = AgentRegistry(
@@ -364,6 +367,7 @@ class TestToolExecution:
     """Test tool execution and governance."""
 
     @pytest.mark.asyncio
+    @patch.object(GenericAgent, '_check_budget_before_react', new=AsyncMock(return_value={'allowed': True, 'reason': 'ok'}))
     async def test_execute_allowed_tool(self):
         """Agent executes tool when governance allows."""
         agent_model = AgentRegistry(

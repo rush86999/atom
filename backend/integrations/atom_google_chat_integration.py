@@ -21,11 +21,13 @@ try:
     from atom_search_service import AtomSearchService
     from atom_workflow_service import AtomWorkflowService
     from google_chat_analytics_engine import google_chat_analytics_engine
-
-    from core.models import UnifiedWorkspace
 except ImportError as e:
     logging.warning(f"Google Chat integration services not available: {e}")
     google_chat_analytics_engine = None
+
+try:
+    from core.models import UnifiedWorkspace
+except ImportError:
     UnifiedWorkspace = None
 
 try:

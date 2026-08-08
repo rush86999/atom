@@ -2952,7 +2952,7 @@ class TestGraduationGaps:
         from core.models import Episode
 
         db.add(Episode(id="ep1", agent_id="a1", tenant_id="t1", task_description="Edge",
-                       outcome="failure", status="completed",
+                       maturity_at_time="student", outcome="failure", status="completed",
                        started_at=datetime.now(timezone.utc)))
         db.commit()
         svc = self._service(db)
@@ -2972,10 +2972,11 @@ class TestGraduationGaps:
         from core.models import Episode, EpisodeSegment
 
         db.add(Episode(id="ep2", agent_id="a1", tenant_id="t1",
-                       outcome="success", status="completed",
+                       maturity_at_time="student", outcome="success", status="completed",
                        started_at=datetime.now(timezone.utc)))
         db.add(EpisodeSegment(id="seg1", episode_id="ep2", segment_type="execution",
-                              sequence_order=0, created_at=datetime.now(timezone.utc)))
+                              sequence_order=0, content="step", content_summary="s",
+                              created_at=datetime.now(timezone.utc)))
         db.commit()
         svc = self._service(db)
         assert (await svc.validate_constitutional_compliance("missing"))["error"]
@@ -3052,7 +3053,7 @@ class TestGraduationGaps:
         db.add(Episode(id="ep3", agent_id="a8", tenant_id="t1", task_description="X",
                        maturity_at_time="student", outcome="success",
                        status="completed", constitutional_score=0.9,
-                       human_intervention_count=1,
+                       human_intervention_count=1, workspace_id="w1",
                        started_at=datetime.now(timezone.utc)))
         db.commit()
         svc = self._service(db)
@@ -3168,9 +3169,16 @@ class TestGraduationGaps:
 
     @pytest.mark.asyncio
     async def test_calculate_skill_usage_metrics(self, db):
+        """Skill segments are scoped to the agent via the episode join —
+        EpisodeSegment has no 'metadata' column (reading it crashes)."""
         _seed_tenant(db)
-        from core.models import EpisodeSegment, SkillExecution
+        from core.models import AgentEpisode, EpisodeSegment, SkillExecution
 
+        db.add(AgentEpisode(
+            id="epx", agent_id="a11", tenant_id="t1", task_description="T",
+            maturity_at_time="student", outcome="success", status="completed",
+            started_at=datetime.now(timezone.utc),
+        ))
         db.add(SkillExecution(
             id="sk1", agent_id="a11", tenant_id="t1", skill_id="skill-1",
             skill_source="community", status="success",
@@ -3183,7 +3191,8 @@ class TestGraduationGaps:
         ))
         db.add(EpisodeSegment(
             id="segx", episode_id="epx", segment_type="skill_success",
-            sequence_order=0, metadata={"agent_id": "a11"}, created_at=datetime.now(),
+            sequence_order=0, content="step", content_summary="s",
+            created_at=datetime.now(),
         ))
         db.commit()
         svc = self._service(db)
@@ -3233,3 +3242,207 @@ class TestGraduationGaps:
             result2 = await svc.execute_graduation_exam("a1", "w1", "INTERN")
         assert result2["exam_completed"] is False
         assert "sandbox unavailable" in result2["error"]
+
+
+class TestGraduationGaps2:
+    def _service(self, db):
+        from core.agent_graduation_service import AgentGraduationService
+
+        with patch("core.agent_graduation_service.get_lancedb_handler"):
+            return AgentGraduationService(db)
+
+    @pytest.mark.asyncio
+    async def test_experience_driven_error_paths(self, db):
+        _seed_tenant(db)
+        from core.models import AgentRegistry
+
+        db.add(AgentRegistry(id="ax", name="A", category="general", status="student",
+                             tenant_id="t1", module_path="core.generic_agent",
+                             class_name="GenericAgent"))
+        db.commit()
+        svc = self._service(db)
+        svc.experience_calculator = MagicMock()
+        assert (await svc.calculate_experience_driven_readiness("missing", "INTERN"))["error"]
+        result = await svc.calculate_experience_driven_readiness("ax", "BOGUS")
+        assert "Unknown maturity level" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_trajectory_declining_and_stable(self):
+        import core.agent_graduation_service as ags
+
+        svc = self._service(MagicMock())
+        with patch.object(ags, "POMDP_AVAILABLE", True):
+            mm = MagicMock()
+            mems = []
+            for i in range(20):
+                m = MagicMock()
+                # all 10 recent need intervention; only 5 of the historical do
+                m.intervention_required = i < 10 or i >= 15
+                mems.append(m)
+            mm.recall_by_quality.return_value = mems
+            svc.memory_manager = mm
+            result = await svc._analyze_intervention_trajectory("a1")
+            assert result["trend"] == "declining"
+            assert result["is_improving"] is False
+
+            mems2 = []
+            for i in range(20):
+                m = MagicMock()
+                m.intervention_required = (i < 4) or (10 <= i < 14)
+                mems2.append(m)
+            mm.recall_by_quality.return_value = mems2
+            result2 = await svc._analyze_intervention_trajectory("a1")
+            assert result2["trend"] == "stable"
+
+    def test_recommendation_score_bands_and_trends(self):
+        svc = self._service(MagicMock())
+        r1 = svc._generate_experience_driven_recommendation(False, 50, "INTERN", [], {})
+        assert "progress" in r1
+        r2 = svc._generate_experience_driven_recommendation(False, 80, "INTERN", ["g1"], {})
+        assert "Close to ready" in r2
+        assert "Key gaps: g1" in r2
+        r3 = svc._generate_experience_driven_recommendation(
+            False, 30, "INTERN", [], {"trend": "declining"})
+        assert "declining" in r3
+        r4 = svc._generate_experience_driven_recommendation(
+            False, 30, "INTERN", [], {"trend": "improving"})
+        assert "improving" in r4
+        r5 = svc._generate_experience_driven_recommendation(True, 99, "SUPERVISED", [], {})
+        assert "ready for promotion to SUPERVISED" in r5
+
+    @pytest.mark.asyncio
+    async def test_learning_consistency_moderate_and_poor(self):
+        import core.agent_graduation_service as ags
+
+        svc = self._service(MagicMock())
+        with patch.object(ags, "POMDP_AVAILABLE", True):
+            mm = MagicMock()
+            mems = []
+            for i in range(10):
+                m = MagicMock()
+                m.quality_score = 0.0 if i % 2 == 0 else 0.5
+                m.intervention_required = True
+                mems.append(m)
+            mm.recall_by_quality.return_value = mems
+            svc.memory_manager = mm
+            result = await svc.analyze_learning_consistency("a1")
+            assert "Moderate" in result["recommendation"]
+
+            mems2 = []
+            for i in range(10):
+                m = MagicMock()
+                m.quality_score = 0.0
+                m.intervention_required = True
+                mems2.append(m)
+            mm.recall_by_quality.return_value = mems2
+            result2 = await svc.analyze_learning_consistency("a1")
+            assert "Good" in result2["recommendation"]
+
+    @pytest.mark.asyncio
+    async def test_constitutional_compliance_no_segments(self, db):
+        _seed_tenant(db)
+        from core.models import Episode
+
+        db.add(Episode(id="ep4", agent_id="a1", tenant_id="t1",
+                       maturity_at_time="student", outcome="success",
+                       status="completed", started_at=datetime.now(timezone.utc)))
+        db.commit()
+        svc = self._service(db)
+        result = await svc.validate_constitutional_compliance("ep4")
+        assert result["compliant"] is True
+        assert result["note"] == "No segments to validate"
+
+    @pytest.mark.asyncio
+    async def test_promote_agent_db_query_error(self, db):
+        svc = self._service(db)
+        db.close()  # force a query error
+        assert await svc.promote_agent("a1", "intern", "u1") is False
+
+    @pytest.mark.asyncio
+    async def test_promote_agent_commit_error_rolls_back(self, db):
+        _seed_tenant(db)
+        from core.models import AgentRegistry
+
+        db.add(AgentRegistry(id="a13", name="A", category="general", status="student",
+                             tenant_id="t1", module_path="core.generic_agent",
+                             class_name="GenericAgent"))
+        db.commit()
+        svc = self._service(db)
+        with patch("core.notification_service.NotificationService") as ns, \
+             patch("core.personal_scope.resolve_tenant_id", return_value="t1"), \
+             patch("core.personal_scope.resolve_workspace_id", return_value="w1"), \
+             patch.object(db, "commit", side_effect=Exception("db locked")):
+            ns.return_value.send_notification = AsyncMock()
+            assert await svc.promote_agent("a13", "intern", "u1") is False
+
+    @pytest.mark.asyncio
+    async def test_promote_agent_memory_consolidation_failure(self, db):
+        _seed_tenant(db)
+        from core.models import AgentRegistry
+
+        db.add(AgentRegistry(id="a14", name="A", category="general", status="student",
+                             tenant_id="t1", module_path="core.generic_agent",
+                             class_name="GenericAgent"))
+        db.commit()
+        svc = self._service(db)
+        with patch("core.notification_service.NotificationService") as ns, \
+             patch("core.personal_scope.resolve_tenant_id", return_value="t1"), \
+             patch("core.personal_scope.resolve_workspace_id", return_value="w1"), \
+             patch("core.memory.pomdp_memory_framework.MemoryConsolidation") as mc:
+            ns.return_value.send_notification = AsyncMock()
+            mc.return_value.consolidate_memories = AsyncMock(side_effect=Exception("oom"))
+            assert await svc.promote_agent("a14", "intern", "u1") is True
+
+    def test_performance_trend_declining_and_stable(self):
+        from core.models import SupervisionSession
+
+        svc = self._service(MagicMock())
+        # declining: recent ratings much lower
+        sessions = []
+        for i in range(10):
+            sessions.append(SupervisionSession(
+                id=f"d{i}", agent_id="a", tenant_id="t", status="completed",
+                agent_name="A", workspace_id="w1", supervisor_id="u1",
+                started_at=datetime.now(timezone.utc) - timedelta(days=i),
+                supervisor_rating=1.0 if i < 5 else 5.0,
+                intervention_count=5 if i < 5 else 0,
+            ))
+        assert svc._calculate_performance_trend(sessions) == "declining"
+
+        sessions2 = []
+        for i in range(10):
+            sessions2.append(SupervisionSession(
+                id=f"st{i}", agent_id="a", tenant_id="t", status="completed",
+                agent_name="A", workspace_id="w1", supervisor_id="u1",
+                started_at=datetime.now(timezone.utc) - timedelta(days=i),
+                supervisor_rating=4.0,
+                intervention_count=1,
+            ))
+        assert svc._calculate_performance_trend(sessions2) == "stable"
+
+    @pytest.mark.asyncio
+    async def test_validate_graduation_with_supervision_gaps(self, db):
+        _seed_tenant(db)
+        from core.models import AgentRegistry, SupervisionSession, Workspace
+
+        db.add(Workspace(id="w1", name="W", tenant_id="t1"))
+        db.add(AgentRegistry(id="a15", name="A", category="general", status="student",
+                             tenant_id="t1", module_path="core.generic_agent",
+                             class_name="GenericAgent"))
+        # one mediocre session -> high-quality / low-intervention / rating gaps
+        db.add(SupervisionSession(
+            id="sg1", agent_id="a15", tenant_id="t1", status="completed",
+            agent_name="A15", workspace_id="w1", supervisor_id="u1",
+            duration_seconds=600, intervention_count=8, supervisor_rating=2.0,
+            started_at=datetime.now(timezone.utc) - timedelta(days=1),
+        ))
+        db.commit()
+        from core.models import AgentStatus
+
+        svc = self._service(db)
+        result = await svc.validate_graduation_with_supervision("a15", AgentStatus.INTERN)
+        joined = "\n".join(result["gaps"])
+        assert "high-rated sessions" in joined
+        assert "low-intervention sessions" in joined
+        assert "rating too low" in joined
+        assert "rate too high" in joined

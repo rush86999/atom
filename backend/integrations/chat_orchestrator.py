@@ -733,7 +733,6 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 task = await agent_service.execute_task(
                     goal=message,
                     mode=mode,
-                    workspace_id=session.get("workspace_id", "default")
                 )
                 logger.info(f"Agent task started: {task}")
                 

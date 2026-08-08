@@ -1174,16 +1174,25 @@ class AgentGraduationService:
         successful_executions = len([s for s in skills if s.status == "success"])
         unique_skills_used = len(set(s.skill_id for s in skills))
 
-        # Get skill episodes (EpisodeSegment doesn't have agent_id, need to join differently)
+        # Get skill episodes scoped to THIS agent. EpisodeSegment has no
+        # agent_id (or metadata) column — the agent is reached through the
+        # owning AgentEpisode, so join on it. The previous
+        # `e.metadata.get("agent_id")` read hit SQLAlchemy's MetaData class
+        # attribute and crashed (AttributeError) whenever skill segments
+        # existed.
+        from core.models import AgentEpisode
+
         skill_episodes_result = self.db.execute(
             select(EpisodeSegment)
+            .join(AgentEpisode, AgentEpisode.id == EpisodeSegment.episode_id)
+            .where(AgentEpisode.agent_id == agent_id)
             .where(EpisodeSegment.segment_type.in_(["skill_success", "skill_failure"]))
             .where(EpisodeSegment.created_at >= start_date)
         )
         episodes = skill_episodes_result.scalars().all()
 
         # Filter episodes by agent_id from metadata
-        agent_episodes = [e for e in episodes if e.metadata.get("agent_id") == agent_id]
+        agent_episodes = list(episodes)
 
         # Calculate learning velocity (episodes per day)
         skill_learning_velocity = len(agent_episodes) / days_back if days_back > 0 else 0

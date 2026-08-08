@@ -509,7 +509,7 @@ class TeamsEnhancedService(IntegrationService):
             access_token = result.get('access_token')
             
             # Parse JWT token to extract claims
-            decoded_token = jwt.decode(access_token.split('.')[1], options={"verify_signature": False})
+            decoded_token = jwt.decode(access_token, options={"verify_signature": False})
             
             # Create workspace model
             workspace = TeamsWorkspace(
@@ -1022,6 +1022,7 @@ class TeamsEnhancedService(IntegrationService):
                         user_name='ATOM Enhanced Service',
                         user_email='system@atom.com',
                         channel_id=channel_id,
+                        workspace_id=workspace_id,
                         tenant_id=workspace_id,  # Would be actual tenant
                         timestamp=file_data.get('createdDateTime'),
                         created_at=datetime.fromisoformat(file_data.get('createdDateTime').replace('Z', '+00:00')),

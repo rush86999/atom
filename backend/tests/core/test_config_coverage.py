@@ -715,6 +715,12 @@ class TestConfigFileOperations:
         # Set production environment to prevent auto-secret generation
         monkeypatch.setenv('ENVIRONMENT', 'production')
         monkeypatch.delenv('DATABASE_URL', raising=False)
+        # Pin env vars the sub-config __post_init__ reads, so env leaked by
+        # sibling suites (e.g. LOG_LEVEL set by auth suites) can't override
+        # the file values under test (cross-suite pollution).
+        monkeypatch.setenv('LOG_LEVEL', 'DEBUG')
+        monkeypatch.setenv('REDIS_URL', 'redis://localhost:6379/0')
+        monkeypatch.setenv('MODEL_NAME', 'gpt-4')
 
         # Note: IntegrationConfig __post_init__ ALWAYS overwrites with env vars
         # So we need to set env vars to test file loading properly

@@ -2836,8 +2836,8 @@ class TestTelegramCoverage:
         st = run(svc.get_service_status())
         assert st["platform"] == "telegram" and "error" in st
 
-        # 459-470: enterprise features except
-        svc = self.make()
+        # 459-470: enterprise features except (services present, setup fails)
+        svc = self.make(security_service=Mock(), automation_service=Mock())
         svc._setup_security_policies = AsyncMock(side_effect=Exception("x"))
         run(svc._setup_enterprise_features())
         # enterprise features with one service missing
@@ -2883,6 +2883,51 @@ class TestTelegramCoverage:
         svc7.answer_inline_query = AsyncMock(side_effect=Exception("x"))
         run(svc7.handle_inline_query({"id": "iq", "query": "hello", "from": {"id": 1}}))
 
+        # 322-324: intelligent workspaces except
+        bad_ws_chat = TelegramChat(chat_id=2, chat_type=TelegramChatType.GROUP, title="T",
+                                   username=None, first_name=None, last_name=None, description=None,
+                                   permissions={}, security_level="s", is_active=True, member_count=0,
+                                   created_at=now, last_message=object(), metadata={})
+        svc8 = self.make()
+        svc8.active_chats = {2: bad_ws_chat}
+        assert run(svc8.get_intelligent_workspaces(1)) == []
+
+        # 459-470: enterprise features full-success path
+        svc9 = self.make(security_service=Mock(), automation_service=Mock())
+        run(svc9._setup_enterprise_features())
+        assert svc9.security_policies and svc9.compliance_rules and svc9.automation_triggers
+
+        # 625-626: security & compliance except
+        svc10 = self.make()
+        svc10._setup_security_monitoring = AsyncMock(side_effect=Exception("x"))
+        run(svc10._setup_security_and_compliance())
+
+        # 715-717: _load_existing_data except via logger.info
+        svc11 = self.make()
+        logger11 = MagicMock()
+        logger11.info.side_effect = Exception("log fail")
+        with patch.object(mod, "logger", logger11):
+            run(svc11._load_existing_data())
+            run(svc11.close())
+
+        # 784-785 / 1540-1542: close() and simple inline search excepts
+        svc12 = self.make()
+        logger12 = MagicMock()
+        logger12.debug.side_effect = Exception("log fail")
+        with patch.object(mod, "logger", logger12):
+            assert run(svc12._perform_simple_inline_search("q")) == []
+
+        # 698-699: _start_bot except via logger.info
+        svc13 = self.make()
+        logger13 = MagicMock()
+        logger13.info.side_effect = Exception("log fail")
+        with patch.object(mod, "logger", logger13):
+            run(svc13._start_bot())
+
+        # 715-717: relevance score except
+        svc14 = self.make()
+        assert svc14._calculate_relevance_score(None, "x") == 0.0
+
     def test_enterprise_imports_succeed(self):
         """The top-level enterprise import block must work when the legacy
         atom_* modules exist (stub modules simulate them via reload)."""
@@ -2925,3 +2970,540 @@ class TestTelegramCoverage:
             _pkg.atom_telegram_integration = orig
             for name in names:
                 sys.modules.pop(name, None)
+
+
+# ============================================================================
+# atom_google_chat_integration.py
+# ============================================================================
+
+class TestGchatCoverage:
+    def make(self, db=None, **overrides):
+        from integrations import atom_google_chat_integration as mod
+
+        cfg = {
+            "atom_memory_service": None,
+            "atom_search_service": None,
+            "atom_workflow_service": None,
+            "atom_ingestion_pipeline": None,
+            "database": db,
+        }
+        cfg.update(overrides)
+        svc = mod.AtomGoogleChatIntegration(cfg)
+        svc.google_chat_service = None
+        svc.google_chat_analytics = None
+        return svc
+
+    def test_initialize(self):
+        svc = self.make()
+        assert run(svc.initialize()) is False  # no services
+
+        svc = self.make()
+        svc.google_chat_service = Mock()
+        svc.atom_memory = Mock()
+        svc.atom_search = Mock()
+        svc.atom_workflow = Mock()
+        svc._start_integration_workers = AsyncMock()
+        svc._initialize_unified_data = AsyncMock()
+        svc._setup_cross_platform_handlers = AsyncMock()
+        assert run(svc.initialize()) is True
+
+        svc = self.make()
+        svc.google_chat_service = Mock()
+        svc._start_integration_workers = AsyncMock(side_effect=Exception("x"))
+        assert run(svc.initialize()) is False
+
+    def test_get_unified_workspaces(self):
+        from integrations.google_chat_enhanced_service import GoogleChatSpace
+
+        svc = self.make()
+        svc.google_chat_service = Mock()
+        space = GoogleChatSpace(
+            space_id="sp1", name="spaces/sp1", display_name="Room", type="ROOM",
+            space_type="SPACE", space_threading_state="THREADED",
+            space_uri="https://chat.google.com/room/sp1", space_permission_level="COLLABORATOR",
+            threaded=True, created_at=datetime.now(timezone.utc), is_active=True,
+        )
+        svc.google_chat_service.get_spaces = AsyncMock(return_value=[space])
+        ws = run(svc.get_unified_workspaces("u1"))
+        assert len(ws) == 1 and ws[0]["id"] == "google_chat_sp1"
+        assert svc.active_spaces == [space]
+
+        svc.google_chat_service.get_spaces = AsyncMock(side_effect=Exception("x"))
+        assert run(svc.get_unified_workspaces("u1")) == []
+
+    def test_get_unified_channels(self):
+        from integrations.google_chat_enhanced_service import GoogleChatSpace
+
+        svc = self.make()
+        svc.google_chat_service = Mock()
+        space = GoogleChatSpace(
+            space_id="sp1", name="spaces/sp1", display_name="Room", type="ROOM",
+            space_type="SPACE", space_threading_state="THREADED",
+            space_uri="u", space_permission_level="COLLABORATOR", threaded=True,
+            created_at=None, is_active=True, is_archived=False, description="d", member_count=2,
+            message_count=5, last_modified_at=None, single_user_bot_dm=False,
+            external_user_permission=None,
+        )
+        svc.active_spaces = [space]
+        ch = run(svc.get_unified_channels("google_chat_sp1"))
+        assert len(ch) == 1 and ch[0]["name"] == "Room"
+        assert run(svc.get_unified_channels("other_prefix")) == []
+        assert run(svc.get_unified_channels("google_chat_nope")) == []
+        svc.active_spaces = [object()]
+        assert run(svc.get_unified_channels("google_chat_sp1")) == []
+
+    def test_send_unified_message(self):
+        svc = self.make()
+        svc.google_chat_service = Mock()
+        svc.google_chat_service.send_message = AsyncMock(return_value={"ok": True, "message_id": "m1"})
+        svc._store_message_in_memory = AsyncMock()
+        svc._index_message_in_search = AsyncMock()
+        svc._trigger_workflows = AsyncMock()
+        r = run(svc.send_unified_message("ws1", "google_chat_sp1", "hi", {"thread_id": "t1", "message_format": "TEXT"}))
+        assert r["ok"] is True and r["message_id"] == "m1"
+        svc.google_chat_service.send_message = AsyncMock(return_value={"ok": False, "error": "denied"})
+        r = run(svc.send_unified_message("ws1", "google_chat_sp1", "hi"))
+        assert r["ok"] is False
+        r = run(svc.send_unified_message("ws1", "slack_C123", "hi"))
+        assert r["ok"] is False
+        svc.google_chat_service.send_message = AsyncMock(side_effect=Exception("x"))
+        r = run(svc.send_unified_message("ws1", "google_chat_sp1", "hi"))
+        assert r["ok"] is False
+
+    def test_get_unified_messages(self):
+        from integrations.google_chat_enhanced_service import GoogleChatMessage
+
+        svc = self.make()
+        svc.google_chat_service = Mock()
+        msg = GoogleChatMessage(
+            message_id="m1", space_id="sp1", user_id="u1", user_name="N", user_email="a@b",
+            user_avatar="av", text="hello", formatted_text="<b>hello</b>", timestamp="2026-08-01T10:00:00Z",
+            thread_id="t1", reply_to_id=None, message_type="MESSAGE", is_edited=False,
+            edit_timestamp=None, reactions=[{"emoji": "👍", "count": 2, "user_ids": []}],
+            attachment=[{"name": "f1", "title": "F", "contentType": "image/png", "downloadUri": "d", "size": 3}],
+            annotations=[{"type": "user_mention", "userMention": {"name": "u1", "displayName": "N"}}],
+            gu_id="g", sender_type="USER", space_threading_state="THREADED", thread_name="tn",
+            thread_id_created_by="u1", quoted_message_id=None, card_v2=[], slash_command=None,
+            action_response=None, arguments=None,
+        )
+        svc.google_chat_service.get_space_messages = AsyncMock(return_value=[msg])
+        msgs = run(svc.get_unified_messages("ws1", "google_chat_sp1", limit=10, options={"page_token": "p"}))
+        assert len(msgs) == 1 and msgs[0]["content"] == "hello"
+        assert msgs[0]["reactions"] == [{"emoji": "👍", "count": 2, "user_ids": []}]
+        assert msgs[0]["attachments"][0]["id"] == "f1"
+        assert msgs[0]["mentions"][0]["type"] == "user"
+        assert msgs[0]["files"][0]["type"] == "google_chat_file"
+        svc.google_chat_service.get_space_messages = AsyncMock(side_effect=Exception("x"))
+        assert run(svc.get_unified_messages("ws1", "google_chat_sp1")) == []
+
+    def test_unified_search(self):
+        from integrations.google_chat_enhanced_service import GoogleChatMessage
+
+        svc = self.make()
+        svc.google_chat_service = Mock()
+        msg = GoogleChatMessage(
+            message_id="m1", space_id="sp1", user_id="u1", user_name="N", user_email="a@b",
+            user_avatar="av", text="needle here", formatted_text="needle", timestamp="t",
+            thread_id="t1", reply_to_id=None, message_type="MESSAGE", is_edited=False,
+            edit_timestamp=None, reactions=[], attachment=[], annotations=[],
+            gu_id="g", sender_type="USER", space_threading_state="THREADED", thread_name="tn",
+            thread_id_created_by="u1", quoted_message_id=None, card_v2=[], slash_command=None,
+            action_response=None, arguments=None, integration_data={"search_score": 0.9},
+        )
+        svc.google_chat_service.search_messages = AsyncMock(return_value={"ok": True, "messages": [msg]})
+        res = run(svc.unified_search("needle", channel_id="google_chat_sp1", options={"limit": 5}))
+        assert len(res) == 1 and res[0]["relevance_score"] == 0.9
+        assert res[0]["highlights"] == ["needle here"]
+        svc.google_chat_service.search_messages = AsyncMock(side_effect=Exception("x"))
+        assert run(svc.unified_search("q", channel_id="google_chat_sp1")) == []
+
+    def test_create_unified_workflow(self):
+        svc = self.make()
+        svc.atom_workflow = Mock()
+        svc.atom_workflow.create_workflow = AsyncMock(return_value={"ok": True})
+        data = {"triggers": [{"platform": "slack"}], "actions": []}
+        assert run(svc.create_unified_workflow(data)) == {"ok": True}
+
+        data = {"triggers": [], "actions": [{"action": "google_chat_post"}]}
+        r = run(svc.create_unified_workflow(data))
+        assert r["ok"] is True and "gc_workflow_" in r["workflow_id"]
+
+        data = {"triggers": [{"platform": "google_chat"}], "actions": []}
+        r = run(svc.create_unified_workflow(data))
+        assert r["ok"] is True
+
+        svc2 = self.make()
+        svc2.atom_workflow = None
+        data = {"triggers": [{"platform": "slack"}], "actions": []}
+        r = run(svc2.create_unified_workflow(data))
+        assert r["ok"] is False
+
+        svc3 = self.make()
+        svc3.atom_workflow = Mock()
+        svc3.atom_workflow.create_workflow = AsyncMock(side_effect=Exception("x"))
+        r = run(svc3.create_unified_workflow(data))
+        assert r["ok"] is False
+
+    def test_get_unified_analytics(self):
+        svc = self.make()
+        svc.google_chat_analytics = None
+        r = run(svc.get_unified_analytics("messages", "7d"))
+        assert r["total_points"] == 0
+
+        svc.google_chat_analytics = Mock()
+        svc.google_chat_analytics.get_analytics = AsyncMock(return_value=[Mock(
+            timestamp=datetime.now(timezone.utc), value=5, dimensions={}, metadata={}
+        )])
+        r = run(svc.get_unified_analytics("messages", "7d", workspace_id="google_chat_sp1"))
+        assert r["total_points"] == 1
+        svc.google_chat_analytics.get_analytics = AsyncMock(side_effect=Exception("x"))
+        r = run(svc.get_unified_analytics("messages", "7d"))
+        assert r["ok"] is False
+
+    def test_workers_and_handlers(self):
+        svc = self.make()
+        svc._google_chat_message_ingestion_worker = AsyncMock()
+        svc._google_chat_event_processing_worker = AsyncMock()
+        svc._unified_search_indexing_worker = AsyncMock()
+        run(svc._start_integration_workers())
+
+        svc = self.make()
+        svc.atom_memory = Mock()
+        svc.atom_memory.query = AsyncMock(return_value=[])
+        run(svc._initialize_unified_data())
+        svc.atom_memory.query = AsyncMock(side_effect=Exception("x"))
+        run(svc._initialize_unified_data())
+
+        svc = self.make()
+        svc.google_chat_service = Mock()
+        svc.google_chat_service.event_handlers = {}
+        svc.google_chat_service.event_handlers = {t: [] for t in EventTypes()}
+        run(svc._setup_cross_platform_handlers())
+        assert len(svc.google_chat_service.event_handlers) > 0
+
+        svc = self.make()
+        svc._store_message_in_memory = AsyncMock(side_effect=Exception("x"))
+        run(svc._handle_google_chat_message_cross_platform({"a": 1}))
+        svc._update_workspace_cross_platform = AsyncMock(side_effect=Exception("x"))
+        run(svc._handle_google_chat_space_event_cross_platform({"a": 1}))
+
+    def test_get_space_by_id(self):
+        from integrations.google_chat_enhanced_service import GoogleChatSpace
+
+        svc = self.make()
+        space = GoogleChatSpace(space_id="sp1", name="spaces/sp1", display_name="R", type="ROOM",
+                                space_type="SPACE", space_threading_state="T", space_uri="u",
+                                space_permission_level="C", threaded=False, created_at=None,
+                                is_active=True)
+        svc.active_spaces = [space]
+        assert svc._get_space_by_id("sp1") is space
+        assert svc._get_space_by_id("nope") is None
+        svc.active_spaces = [object()]
+        assert svc._get_space_by_id("x") is None
+
+    def test_converters(self):
+        svc = self.make()
+        assert svc._convert_google_chat_reactions([{"emoji": "👍", "count": 3}, {"emoji": "x"}])[1]["count"] == 1
+        assert svc._convert_google_chat_attachments([{"name": "f", "title": "F", "contentType": "c", "downloadUri": "d", "size": 2}])[0]["id"] == "f"
+        assert svc._convert_google_chat_mentions([{"type": "user_mention", "userMention": {"name": "u", "displayName": "N"}}, {"type": "other"}])[0]["name"] == "N"
+        assert svc._convert_google_chat_files([{"contentType": "image/png", "name": "f", "title": "F", "downloadUri": "d", "size": 1}, {"contentType": "text/plain"}])[0]["type"] == "google_chat_file"
+        assert svc._generate_search_highlights("a b c d e f", "b") == ["a b c d e f"]
+        assert svc._generate_search_highlights("x", "") == []
+
+    def test_store_index_trigger(self):
+        svc = self.make()
+        svc.atom_memory = None
+        svc.atom_search = None
+        svc.atom_workflow = None
+        run(svc._store_message_in_memory({"message_id": "m1"}, "google_chat"))
+        run(svc._index_message_in_search({"message_id": "m1"}, "google_chat"))
+        run(svc._trigger_workflows({"a": 1}, "event"))
+
+        svc = self.make()
+        svc.atom_memory = Mock()
+        svc.atom_memory.store = AsyncMock(side_effect=Exception("x"))
+        run(svc._store_message_in_memory({"message_id": "m1"}, "google_chat"))
+        svc.atom_memory = Mock()
+        svc.atom_memory.store = AsyncMock()
+        run(svc._store_message_in_memory({"message_id": "m1", "text": "t"}, "google_chat"))
+        svc.atom_search = Mock()
+        svc.atom_search.index = AsyncMock(side_effect=Exception("x"))
+        run(svc._index_message_in_search({"message_id": "m1"}, "google_chat"))
+        svc.atom_search = Mock()
+        svc.atom_search.index = AsyncMock()
+        run(svc._index_message_in_search({"message_id": "m1", "text": "t"}, "google_chat"))
+        svc.atom_workflow = Mock()
+        svc.atom_workflow.trigger_workflows = AsyncMock(side_effect=Exception("x"))
+        run(svc._trigger_workflows({"a": 1}, "event"))
+        svc.atom_workflow = Mock()
+        svc.atom_workflow.trigger_workflows = AsyncMock()
+        run(svc._trigger_workflows({"a": 1}, "event"))
+
+    def test_update_workspace_cross_platform(self, sync_db):
+        svc = self.make(db=sync_db)
+        svc.workspace_sync = Mock()
+        svc.workspace_sync.propagate_change = AsyncMock()
+        svc._get_or_create_unified_workspace = AsyncMock(return_value=Mock(id="ws1"))
+        for event_type in ["SPACE_UPDATED", "RENAME_SPACE", "MEMBER_ADDED", "MEMBER_REMOVED", "SETTINGS_UPDATED", "OTHER"]:
+            run(svc._update_workspace_cross_platform({"space": {"name": "sp1"}, "type": event_type}, "google_chat"))
+        svc.workspace_sync.propagate_change.assert_awaited()
+
+        svc2 = self.make()
+        svc2.workspace_sync = None
+        run(svc2._update_workspace_cross_platform({"space": {"name": "s"}, "type": "X"}, "google_chat"))
+
+        svc3 = self.make(db=sync_db)
+        svc3.workspace_sync = Mock()
+        svc3.workspace_sync.propagate_change = AsyncMock()
+        svc3._get_or_create_unified_workspace = AsyncMock(return_value=None)
+        run(svc3._update_workspace_cross_platform({"space": {"name": "s"}, "type": "X"}, "google_chat"))
+
+        svc4 = self.make(db=sync_db)
+        svc4.workspace_sync = Mock()
+        svc4.workspace_sync.propagate_change = AsyncMock(side_effect=Exception("x"))
+        svc4._get_or_create_unified_workspace = AsyncMock(return_value=Mock(id="ws1"))
+        run(svc4._update_workspace_cross_platform({"space": {"name": "s"}, "type": "X"}, "google_chat"))
+
+    def test_get_or_create_unified_workspace(self, sync_db):
+        from core.models import UnifiedWorkspace
+
+        svc = self.make(db=sync_db)
+        svc.workspace_sync = Mock()
+        svc.workspace_sync.create_unified_workspace = Mock(return_value=Mock(id="ws-new"))
+
+        existing = sync_db.query(UnifiedWorkspace).filter(
+            UnifiedWorkspace.google_chat_space_id == "sp_existing"
+        ).first()
+        assert existing is None
+        ws = run(svc._get_or_create_unified_workspace("sp_existing", "Room"))
+        assert ws.id == "ws-new"
+        # second call finds it via the mock returning nothing? -> create again
+        ws2 = run(svc._get_or_create_unified_workspace("sp_existing", "Room"))
+        assert ws2.id == "ws-new"
+
+        # real DB create path (workspace_sync real service)
+        from integrations.workspace_sync_service import WorkspaceSyncService
+
+        svc2 = self.make(db=sync_db)
+        svc2.workspace_sync = WorkspaceSyncService(sync_db)
+        created = run(svc2._get_or_create_unified_workspace("sp_real", "Room2"))
+        assert created is not None and created.google_chat_space_id == "sp_real"
+        again = run(svc2._get_or_create_unified_workspace("sp_real", "Room2"))
+        assert again.id == created.id
+
+        svc3 = self.make(db=sync_db)
+        svc3.workspace_sync = Mock()
+        svc3.workspace_sync.create_unified_workspace = Mock(side_effect=Exception("x"))
+        assert run(svc3._get_or_create_unified_workspace("sp_x", "R")) is None
+
+        svc4 = self.make(db=None)
+        assert run(svc4._get_or_create_unified_workspace("sp_x", "R")) is None
+
+    def test_oauth_url(self):
+        svc = self.make()
+        with patch.dict(os.environ, {"GOOGLE_CHAT_CLIENT_ID": "cid"}):
+            url = run(svc.get_oauth_url("https://cb", state="st", access_type="offline",
+                                       prompt="consent", include_granted_scopes=True, login_hint="a@b"))
+            assert "client_id=cid" in url and "state=st" in url
+        with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(ValueError):
+                run(svc.get_oauth_url("https://cb"))
+
+    def test_oauth_callback_and_refresh(self):
+        svc = self.make()
+        with patch.dict(os.environ, {"GOOGLE_CHAT_CLIENT_ID": "cid", "GOOGLE_CHAT_CLIENT_SECRET": "cs"}):
+            with httpx_post_mock({"access_token": "at", "refresh_token": "rt", "expires_in": 3600, "scope": "s"}):
+                r = run(svc.handle_oauth_callback("code", state="st", redirect_uri="https://cb"))
+                assert r["success"] is True and r["access_token"] == "at"
+            with httpx_post_mock({"access_token": "at2", "expires_in": 3600}):
+                r = run(svc.refresh_access_token("rt"))
+                assert r["success"] is True and r["refresh_token"] == "rt"
+            with patch("httpx.AsyncClient") as ac:
+                ac.return_value.__aenter__.return_value.post = AsyncMock(side_effect=Exception("net"))
+                r = run(svc.handle_oauth_callback("code", state="st"))
+                assert r["success"] is False
+                r = run(svc.refresh_access_token("rt"))
+                assert r["success"] is False
+        with patch.dict(os.environ, {}, clear=True):
+            r = run(svc.handle_oauth_callback("code", state="st"))
+            assert r["success"] is False
+            r = run(svc.refresh_access_token("rt"))
+            assert r["success"] is False
+        with patch.dict(os.environ, {"GOOGLE_CHAT_CLIENT_ID": "cid", "GOOGLE_CHAT_CLIENT_SECRET": "cs"}):
+            r = run(svc.handle_oauth_callback("code", state=None))
+            assert r["success"] is False
+
+    def test_send_card(self):
+        svc = self.make()
+        svc.google_chat_service = None
+        r = run(svc.send_card("sp1", message="M", card={"cardHeader": {}}, thread_key="tk"))
+        assert r["success"] is True and r["note"] == "Service not available - simulated"
+        r = run(svc.send_card("sp1", message="M", header={"title": "T"}, sections=[{"x": 1}], widgets=[{"y": 2}], cards=[{"z": 3}]))
+        assert r["success"] is True
+
+        svc.google_chat_service = Mock()
+        svc.google_chat_service.send_message = AsyncMock(return_value={"ok": True, "message_id": "m1"})
+        r = run(svc.send_card("sp1", message="M", thread_key="tk"))
+        assert r["success"] is True and r["message_name"] == "m1"
+        svc.google_chat_service.send_message = AsyncMock(return_value={"ok": False, "error": "e"})
+        r = run(svc.send_card("sp1", message="M"))
+        assert r["success"] is False
+        svc.google_chat_service.send_message = AsyncMock(side_effect=Exception("x"))
+        r = run(svc.send_card("sp1", message="M"))
+        assert r["success"] is False
+
+    def test_update_card_and_dialog(self):
+        svc = self.make()
+        svc.google_chat_service = None
+        r = run(svc.update_card("sp1", "m1"))
+        assert r["success"] is True
+        r = run(svc.open_dialog("sp1", {"body": {}}))
+        assert r["success"] is True
+
+        svc.google_chat_service = Mock()
+        svc.google_chat_service.update_message = AsyncMock(return_value={"ok": False})
+        r = run(svc.update_card("sp1", "m1"))
+        assert r["success"] is False
+        svc.google_chat_service.update_message = AsyncMock(side_effect=Exception("x"))
+        r = run(svc.update_card("sp1", "m1"))
+        assert r["success"] is False
+
+        svc.google_chat_service.open_dialog = AsyncMock(return_value={"ok": False})
+        r = run(svc.open_dialog("sp1", {"body": {}}))
+        assert r["success"] is False
+        svc.google_chat_service.open_dialog = AsyncMock(side_effect=Exception("x"))
+        r = run(svc.open_dialog("sp1", {"body": {}}))
+        assert r["success"] is False
+
+    def test_create_space(self):
+        svc = self.make()
+        svc.google_chat_service = None
+        r = run(svc.create_space("Room", description="d", space_type="SPACE", members=["a@b"]))
+        assert r["success"] is True and "note" in r
+        r = run(svc.create_space("Room"))
+        assert r["success"] is True and r["members_added"] == 0
+
+        svc.google_chat_service = Mock()
+        svc.google_chat_service.create_space = AsyncMock(return_value={"ok": True, "space_name": "sp1"})
+        svc.add_space_members = AsyncMock()
+        r = run(svc.create_space("Room", space_type="SPACE", members=["a@b", "c@d"]))
+        assert r["success"] is True and r["members_added"] == 2
+        svc.google_chat_service.create_space = AsyncMock(return_value={"ok": False, "error": "e"})
+        r = run(svc.create_space("Room"))
+        assert r["success"] is False
+        svc.google_chat_service.create_space = AsyncMock(side_effect=Exception("x"))
+        r = run(svc.create_space("Room"))
+        assert r["success"] is False
+
+    def test_list_spaces_and_info(self):
+        svc = self.make()
+        svc.google_chat_service = None
+        r = run(svc.list_spaces())
+        assert r["success"] is True and r["count"] == 0
+
+        svc.google_chat_service = Mock()
+        svc.google_chat_service.get_spaces = AsyncMock(return_value={"ok": True, "spaces": [{"space_name": "s", "display_name": "D", "type": "T", "member_count": 1, "threaded": False}]})
+        r = run(svc.list_spaces())
+        assert r["count"] == 1
+        svc.google_chat_service.get_spaces = AsyncMock(side_effect=Exception("x"))
+        r = run(svc.list_spaces())
+        assert r["success"] is False
+
+        svc.google_chat_service.get_space = AsyncMock(return_value={"ok": True, "space": {"space_name": "s", "display_name": "D"}})
+        r = run(svc.get_space_info("s"))
+        assert r["success"] is True and r["name"] == "s"
+        svc.google_chat_service.get_space = AsyncMock(return_value={"ok": False})
+        svc.google_chat_service = Mock()
+        r = run(svc.get_space_info("s"))
+        assert r["success"] is True and "note" in r
+        svc2 = self.make()
+        svc2.google_chat_service = None
+        r = run(svc2.get_space_info("s"))
+        assert r["success"] is True
+        svc3 = self.make()
+        svc3.google_chat_service = Mock()
+        svc3.google_chat_service.get_space = AsyncMock(side_effect=Exception("x"))
+        r = run(svc3.get_space_info("s"))
+        assert r["success"] is False
+
+    def test_members(self):
+        svc = self.make()
+        svc.google_chat_service = None
+        r = run(svc.add_space_members("sp1", ["a@b"]))
+        assert r["added_count"] == 0 and r["total_requested"] == 1
+        r = run(svc.remove_space_members("sp1", ["a@b"]))
+        assert r["removed_count"] == 0
+
+        svc.google_chat_service = Mock()
+        svc.google_chat_service.add_member = AsyncMock(return_value={"ok": True})
+        r = run(svc.add_space_members("sp1", ["a@b", "c@d"]))
+        assert r["added_count"] == 2
+        svc.google_chat_service.add_member = AsyncMock(side_effect=Exception("x"))
+        r = run(svc.add_space_members("sp1", ["a@b"]))
+        assert r["added_count"] == 0
+
+        svc.google_chat_service.remove_member = AsyncMock(return_value={"ok": True})
+        r = run(svc.remove_space_members("sp1", ["a@b"]))
+        assert r["removed_count"] == 1
+        svc.google_chat_service.remove_member = AsyncMock(side_effect=Exception("x"))
+        r = run(svc.remove_space_members("sp1", ["a@b"]))
+        assert r["removed_count"] == 0
+
+    def test_webhook_and_message(self):
+        svc = self.make()
+        r = run(svc.set_space_webhook("sp1", "https://wh", state="st"))
+        assert r["success"] is True
+
+        svc.google_chat_service = None
+        r = run(svc.send_message("sp1", "hi", thread_key="tk"))
+        assert r["success"] is True and "note" in r
+
+        svc.google_chat_service = Mock()
+        svc.google_chat_service.send_message = AsyncMock(return_value={"ok": True, "message_id": "m1"})
+        r = run(svc.send_message("sp1", "hi", thread_key="tk"))
+        assert r["success"] is True
+        svc.google_chat_service.send_message = AsyncMock(return_value={"ok": False, "error": "e"})
+        r = run(svc.send_message("sp1", "hi"))
+        assert r["success"] is False
+        svc.google_chat_service.send_message = AsyncMock(side_effect=Exception("x"))
+        r = run(svc.send_message("sp1", "hi"))
+        assert r["success"] is False
+
+    def test_upload_file(self, tmp_path):
+        svc = self.make()
+        f = tmp_path / "doc.txt"
+        f.write_bytes(b"hello")
+        r = run(svc.upload_file("sp1", file_path=str(f), mime_type="text/plain"))
+        assert r["success"] is True and "note" in r
+
+        svc.google_chat_service = None
+        r = run(svc.upload_file("sp1", content="hello", filename="a.txt"))
+        assert r["success"] is True and r["filename"] == "a.txt"
+        r = run(svc.upload_file("sp1"))
+        assert r["success"] is False
+
+        svc.google_chat_service = Mock()
+        svc.google_chat_service.upload_file = AsyncMock(return_value={"ok": True, "file_name": "f1"})
+        r = run(svc.upload_file("sp1", content="hello", filename="a.txt", mime_type="text/plain"))
+        assert r["success"] is True and r["file_name"] == "f1"
+        svc.google_chat_service.upload_file = AsyncMock(return_value={"ok": False, "error": "e"})
+        r = run(svc.upload_file("sp1", content="hello"))
+        assert r["success"] is False
+        svc.google_chat_service.upload_file = AsyncMock(side_effect=Exception("x"))
+        r = run(svc.upload_file("sp1", content="hello"))
+        assert r["success"] is False
+
+    def test_service_status(self):
+        svc = self.make()
+        st = run(svc.get_service_status())
+        assert st["status"] == "inactive"
+        svc.google_chat_service = Mock()
+        svc.is_initialized = True
+        st = run(svc.get_service_status())
+        assert st["status"] == "active"
+
+
+def EventTypes():
+    from integrations.google_chat_enhanced_service import GoogleChatEventType
+
+    return GoogleChatEventType
