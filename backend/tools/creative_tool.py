@@ -258,9 +258,17 @@ class FFmpegTool(BaseTool):
                 f"Supported: {list(operations.keys())}"
             )
 
+        # Filter dispatch-context kwargs (agent_id/db/session_id...) to the
+        # operation's own signature — the op methods take exact params and a
+        # context splat raised TypeError on every invocation.
+        op_fn = operations[action]
+        import inspect
+        op_params = set(inspect.signature(op_fn).parameters)
+        op_kwargs = {k: v for k, v in kwargs.items() if k in op_params}
+
         # Execute operation (async)
         import asyncio
-        coro = operations[action](input_path, output_path, **kwargs)
+        coro = op_fn(input_path, output_path, **op_kwargs)
 
         # Run async operation in event loop. When invoked from inside a
         # running event loop (the norm — agent tools are dispatched from

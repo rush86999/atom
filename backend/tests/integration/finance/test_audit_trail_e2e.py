@@ -217,7 +217,8 @@ class TestAuditTrailE2E:
 
         # Verify governance fields populated
         for audit in audits:
-            assert audit.governance_check_passed is not None
+            metadata = audit.audit_metadata or {}
+            assert metadata.get('governance_check_passed') is not None
             assert audit.agent_maturity is not None
             assert audit.sequence_number > 0
 
@@ -607,16 +608,17 @@ class TestAuditTrailE2E:
 
         # Verify governance fields
         for audit in audits:
-            assert audit.governance_check_passed is not None, \
+            metadata = audit.audit_metadata or {}
+            assert metadata.get('governance_check_passed') is not None, \
                 "governance_check_passed should be populated"
             assert audit.agent_maturity is not None, \
                 "agent_maturity should be populated"
             assert audit.sequence_number > 0, \
                 "sequence_number should be positive"
-            assert audit.entry_hash is not None, \
-                "entry_hash should be populated"
-            assert len(audit.entry_hash) == 64, \
-                "entry_hash should be SHA-256 (64 chars)"
+            assert audit.hash_chain is not None, \
+                "hash_chain should be populated"
+            assert len(audit.hash_chain) == 64, \
+                "hash_chain should be SHA-256 (64 chars)"
 
 
     def test_actor_attribution(self):

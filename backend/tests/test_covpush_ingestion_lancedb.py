@@ -811,7 +811,9 @@ class TestChatHistoryManager:
         assert mgr.save_message("s1", "u1", "user", "hi") is False
 
     def test_escape_like(self):
-        assert ChatHistoryManager._escape_like("a'b\\c%d") == "a''b\\\\c%d"
+        # Hardened escaping: backslash, quote, and LIKE wildcards %/_ are all
+        # escaped so session_id values match literally inside LIKE filters.
+        assert ChatHistoryManager._escape_like("a'b\\c%d") == "a''b\\\\c\\%d"
 
     def test_get_session_history(self, manager):
         rows = [

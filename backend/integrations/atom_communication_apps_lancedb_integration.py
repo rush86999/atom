@@ -257,7 +257,7 @@ class CommunicationAppIngestionIntegration:
             """Get overall ingestion status"""
             try:
                 # Initialize memory manager if not already done
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 stats = ingestion_pipeline.get_ingestion_stats()
@@ -330,7 +330,7 @@ class CommunicationAppIngestionIntegration:
                 CommunicationAppType(app_id)
                 
                 # Initialize memory manager if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 # Ingest message
@@ -360,7 +360,7 @@ class CommunicationAppIngestionIntegration:
                 CommunicationAppType(app_id)
                 
                 # Initialize memory manager if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 # Ingest batch
@@ -393,7 +393,7 @@ class CommunicationAppIngestionIntegration:
                 CommunicationAppType(app_id)
                 
                 # Initialize memory manager if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 # Start stream
@@ -420,7 +420,7 @@ class CommunicationAppIngestionIntegration:
             """Search ingested communications"""
             try:
                 # Initialize memory manager if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 # Search communications
@@ -453,7 +453,7 @@ class CommunicationAppIngestionIntegration:
                 end_dt = datetime.fromisoformat(end_date)
                 
                 # Initialize memory manager if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 # Get communications
@@ -487,7 +487,7 @@ class CommunicationAppIngestionIntegration:
                 CommunicationAppType(app_id)
                 
                 # Initialize memory manager if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 # Get communications
@@ -513,7 +513,7 @@ class CommunicationAppIngestionIntegration:
             """Get detailed memory statistics"""
             try:
                 # Initialize memory manager if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 stats = ingestion_pipeline.get_ingestion_stats()
@@ -526,7 +526,7 @@ class CommunicationAppIngestionIntegration:
                 }
                 
                 # Get table statistics
-                if memory_manager.connections_table:
+                if memory_manager.connections_table is not None:
                     comm_count = memory_manager.connections_table.to_pandas()
                     db_stats["total_communications"] = len(comm_count)
                     db_stats["app_distribution"] = comm_count["app_type"].value_counts().to_dict()

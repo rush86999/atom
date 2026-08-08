@@ -42,6 +42,20 @@ def _create_tenant(db_session) -> Tenant:
     return tenant
 
 
+def _audit_seq_base(db_session, account_id: str) -> int:
+    """Next free sequence number for manually-inserted audit entries.
+
+    The FinancialAuditService event listener auto-audits FinancialAccount
+    INSERTs/UPDATEs, so manually-inserted entries must continue numbering
+    after the listener's entries to avoid sequence collisions.
+    """
+    from core.models import FinancialAudit
+    last = db_session.query(FinancialAudit).filter(
+        FinancialAudit.account_id == account_id
+    ).order_by(FinancialAudit.sequence_number.desc()).first()
+    return last.sequence_number if last else 0
+
+
 def _make_audit_kwargs(action: str, account_id: str, user_id: str,
                        seq: int, prev_hash: str, old_values=None, new_values=None,
                        **metadata) -> Dict[str, Any]:
@@ -179,6 +193,7 @@ class PaymentScenarioFactory:
         # Create audit entries manually for testing
         # In production, FinancialAuditService event listener would create these
         audit_entries = []
+        seq_base = _audit_seq_base(db_session, account.id)  # listener create audit
 
         # Account creation audit
         account_audit = FinancialAudit(
@@ -186,7 +201,7 @@ class PaymentScenarioFactory:
                 action='create',
                 account_id=account.id,
                 user_id=user.id,
-                seq=1,
+                seq=seq_base + 1,
                 prev_hash='',
                 old_values=None,
                 new_values={'balance': float(amount), 'currency': currency},
@@ -201,7 +216,7 @@ class PaymentScenarioFactory:
                 action='update',
                 account_id=account.id,
                 user_id=user.id,
-                seq=2,
+                seq=seq_base + 2,
                 prev_hash=account_audit.hash_chain,
                 old_values={'balance': float(amount)},
                 new_values={'transaction_id': transaction_id, 'amount': float(amount)},
@@ -300,6 +315,7 @@ class BudgetScenarioFactory:
 
         # Create audit entries
         audit_entries = []
+        seq_base = _audit_seq_base(db_session, account.id)  # listener create audit
 
         # Budget setup audit
         budget_audit = FinancialAudit(
@@ -307,7 +323,7 @@ class BudgetScenarioFactory:
                 action='create',
                 account_id=account.id,
                 user_id=user.id,
-                seq=1,
+                seq=seq_base + 1,
                 prev_hash='',
                 old_values=None,
                 new_values={'balance': float(budget_amount)},
@@ -323,7 +339,7 @@ class BudgetScenarioFactory:
                     action='update',
                     account_id=account.id,
                     user_id=user.id,
-                    seq=2,
+                    seq=seq_base + 2,
                     prev_hash=budget_audit.hash_chain,
                     old_values={'balance': float(budget_amount)},
                     new_values={'balance': new_balance, 'transaction_id': transaction['id']},
@@ -338,7 +354,7 @@ class BudgetScenarioFactory:
                     action='create',
                     account_id=account.id,
                     user_id=user.id,
-                    seq=2,
+                    seq=seq_base + 2,
                     prev_hash=budget_audit.hash_chain,
                     old_values=None,
                     new_values={'spend_denied': True, 'requested_amount': float(spend_amount)},
@@ -422,6 +438,7 @@ class SubscriptionScenarioFactory:
         # Create invoices for each month
         invoices = []
         audit_entries = []
+        seq_base = _audit_seq_base(db_session, account.id)  # listener create audit
 
         for month in range(num_months):
             invoice_id = str(uuid.uuid4())
@@ -444,7 +461,7 @@ class SubscriptionScenarioFactory:
                     action='create',
                     account_id=account.id,
                     user_id=user.id,
-                    seq=month + 1,
+                    seq=seq_base + month + 1,
                     prev_hash=audit_entries[-1].hash_chain if audit_entries else '',
                     old_values=None,
                     new_values={'invoice_id': invoice_id, 'amount': float(monthly_cost), 'month': month + 1},
@@ -459,7 +476,7 @@ class SubscriptionScenarioFactory:
                 action='update',
                 account_id=account.id,
                 user_id=user.id,
-                seq=num_months + 1,
+                seq=seq_base + num_months + 1,
                 prev_hash=audit_entries[-1].hash_chain if audit_entries else '',
                 old_values={'status': 'active'},
                 new_values={'status': 'cancelled', 'cancelled_at': datetime.utcnow().isoformat()},
@@ -542,6 +559,7 @@ class ReconciliationScenarioFactory:
         expected_balance = initial_balance
         transaction_ids = []
         audit_entries = []
+        seq_base = _audit_seq_base(db_session, account.id)  # listener create audit
 
         # Create initial balance audit
         initial_audit = FinancialAudit(
@@ -549,7 +567,7 @@ class ReconciliationScenarioFactory:
                 action='create',
                 account_id=account.id,
                 user_id=user.id,
-                seq=1,
+                seq=seq_base + 1,
                 prev_hash='',
                 old_values=None,
                 new_values={'balance': float(initial_balance)},
@@ -559,7 +577,7 @@ class ReconciliationScenarioFactory:
         audit_entries.append(initial_audit)
 
         # Process operations
-        seq_num = 2
+        seq_num = seq_base + 2
         for op in operations:
             amount = to_decimal(op['amount'])
 
@@ -681,6 +699,8 @@ class ComplexMultiModelScenarioFactory:
 
         # Create audit entries for project
         audit_entries = []
+        project_seq_base = _audit_seq_base(db_session, project_account.id)  # listener create audit
+        subscription_seq_base = _audit_seq_base(db_session, subscription_account.id)
 
         # Project account creation audit
         project_audit = FinancialAudit(
@@ -688,7 +708,7 @@ class ComplexMultiModelScenarioFactory:
                 action='create',
                 account_id=project_account.id,
                 user_id=user.id,
-                seq=1,
+                seq=project_seq_base + 1,
                 prev_hash='',
                 old_values=None,
                 new_values={'balance': 10000.00, 'project_id': project_id},
@@ -703,7 +723,7 @@ class ComplexMultiModelScenarioFactory:
                 action='create',
                 account_id=subscription_account.id,
                 user_id=user.id,
-                seq=1,
+                seq=subscription_seq_base + 1,
                 prev_hash='',
                 old_values=None,
                 new_values={'balance': 299.00, 'subscription_id': subscription_id},
@@ -718,7 +738,7 @@ class ComplexMultiModelScenarioFactory:
                 action='update',
                 account_id=project_account.id,
                 user_id=user.id,
-                seq=2,
+                seq=project_seq_base + 2,
                 prev_hash=project_audit.hash_chain,
                 old_values={'balance': 10000.00},
                 new_values={'balance': 9701.00, 'invoice_id': invoice_id, 'subscription_id': subscription_id},

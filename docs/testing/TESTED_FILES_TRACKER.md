@@ -789,3 +789,24 @@ Bug-hunt (RED→GREEN) + coverage push on `backend/integrations/` wave B. Test f
 - `tests/test_covpush_autodev.py` + `test_covpush_autodev2.py` cannot be collected in the same pytest process (SQLAlchemy `tool_mutations` double-registration — `core/auto_dev/models.py` + `core/models_registration.py` share one Base; coverage eager-import triggers redefinition).
 - Adapter `verify_request` stubs (facebook/line/matrix/signal/google_chat) return True unconditionally — fail-open by MVP design; real HMAC only in intercom/telegram.
 - Pre-existing stale tests: test_lancedb_handler_coverage_extend.py (19F — old embedder/dual-vector API), test_covpush_ingestion_lancedb::test_escape_like (expects pre-hardening `_escape_like` output).
+
+### Round 2026-08-08 — core wave B coverage push (TDD, 7 real bugs)
+| Date | File | Status | Fix |
+|---|---|---|---|
+| 2026-08-08 | `core/canvas_logic_service.py` | FIXED | 76% → **100%** (fail-open: `PolicyIssuer.issue` called with phantom `tier=` kwarg / missing required `agent_id` → TypeError → caught → policy always None → canvas logic executed with NO sandbox policy; both call paths corrected) |
+| 2026-08-08 | `core/mini_app_service.py` | FIXED | 65% → **100%** (storage-op assets attributed to app author instead of acting user; `validate_manifest` AttributeError→500 for non-object `storage`; RuntimeError str(e) leak of env names/FS paths to agent; updated `test_covpush_miniapp.py::test_runtime_error_fails_closed` to the new generic-message contract) |
+| 2026-08-08 | `core/atom_saas_websocket.py` | FIXED | 59% → **100%** (ratings never persisted — in-place JSON mutation + same-object reassign invisible to SQLAlchemy change detection; `SkillCache`/`CategoryCache` created without NOT NULL `tenant_id` → every SaaS cache update IntegrityError-failed; `_reconnect` detached task spawn → parallel reconnect chains beyond the attempts cap; `_reconnect_task` now type-annotated — mypy -1 error) |
+| 2026-08-08 | `core/ai_service.py` | TESTED | 0% → **100%** |
+| 2026-08-08 | `core/analytics_engine.py` | TESTED | 0% → **100%** |
+| 2026-08-08 | `core/app_secrets.py` | TESTED | 0% → **100%** |
+| 2026-08-08 | `core/audit_logger.py` | TESTED | 94% → **100%** |
+| 2026-08-08 | `core/capability_resolver.py` | TESTED | 79% → **100%** |
+| 2026-08-08 | `core/office_service.py` | VERIFIED-OK | already 100% (no changes) |
+| 2026-08-08 | `core/orchestration/conductor_agent.py` | TESTED | 98% → **100%** |
+| 2026-08-08 | tests: `test_bughunt_core_b.py` (11), `test_covpush_core_b.py` (38), `test_covpush_core_b_2.py` (45), `test_covpush_core_b_3.py` (66+3) | TESTED | 167 new tests; regression: 17 pre-existing failures (8 websocket DB-state + 9 capability_routing model_catalog) verified identical at HEAD; mypy: 0 new (1 pre-existing error fixed); `test_snapshot_history_and_revert` pre-existing failure at HEAD (revert_logic version semantics changed after test written) |
+
+### Out-of-scope (for coordinator) — wave B
+- `core/sync_service.py:347,387` — same `SkillCache`/`CategoryCache` tenant_id NOT NULL bug (created without tenant_id; fails on any fresh-schema DB) — same fix needed as atom_saas_websocket.
+- `tests/test_atom_saas_websocket.py` 8 DB-state failures (use real dev SQLite lacking `skill_cache`/`websocket_state` tables — need fixture/test-DB rebasing).
+- `tests/test_capability_routing.py` 9 failures (`no such table: model_catalog` — env/DB-state, pre-existing at HEAD).
+- `tests/test_covpush_miniapp.py::TestLogicHistory::test_snapshot_history_and_revert` — pre-existing at HEAD: asserts revert returns the reverted-to version, code now returns the NEW head checkpoint (intentional revert_logic fix landed without test update).

@@ -817,7 +817,11 @@ describe('ConversationListScreen', () => {
 
       await waitFor(() => {
         expect(mockArchiveSession).toHaveBeenCalledWith('session-1');
-        expect(screen.queryByText('Test Agent 1')).toBeNull();
+        // Compare through a boolean: when the item is still present, a direct
+        // `toBeNull()` on the element would pay jest's element-diff
+        // serialization cost (React fibers are huge) on every failing poll,
+        // which alone can blow past the 5s test timeout.
+        expect(screen.queryByText('Test Agent 1') == null).toBe(true);
         expect(screen.getByText('Test Agent 2')).toBeTruthy();
       });
     });
@@ -857,7 +861,9 @@ describe('ConversationListScreen', () => {
 
       await waitFor(() => {
         expect(mockDeleteSession).toHaveBeenCalledWith('session-1');
-        expect(screen.queryByText('Test Agent 1')).toBeNull();
+        // See note in "archives conversation on archive action": a boolean
+        // comparison keeps failing polls free of jest's element diff cost.
+        expect(screen.queryByText('Test Agent 1') == null).toBe(true);
       });
     });
 

@@ -88,8 +88,8 @@ class AtomSaaSWebSocketClient:
         # Connection state
         self._ws_connection = None  # websockets.WebSocketClientProtocol
         self._connected = False
-        self._reconnect_task = None
-        self._heartbeat_task = None
+        self._reconnect_task: Optional["asyncio.Task"] = None
+        self._heartbeat_task: Optional["asyncio.Task"] = None
         self._message_handler: Optional[Callable] = None
 
         # Reconnection state

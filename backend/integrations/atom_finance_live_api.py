@@ -135,8 +135,9 @@ async def get_live_financial_overview(
              logger.warning("XERO_ACCESS_TOKEN not configured, skipping Xero fetch")
          else:
              # Use xero_service to fetch invoices/transactions
-             from integrations.xero_service import xero_service
-             xero_invoices = xero_service.get_invoices(access_token=xero_token, limit=limit)
+             from integrations.xero_service import XeroService
+             xero_service = XeroService("default", {})
+             xero_invoices = await xero_service.get_invoices(access_token=xero_token, limit=limit)
              transactions.extend([map_xero_invoice(i) for i in xero_invoices])
              providers_status["xero"] = True
     except Exception as e:

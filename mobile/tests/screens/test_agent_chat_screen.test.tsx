@@ -109,10 +109,12 @@ jest.mock('../../src/contexts/WebSocketContext', () => ({
   useWebSocket: jest.fn(() => mockWebSocket),
 }));
 
-// These screens load data through async service mocks; the global fake
-// timers keep their promise chains from flushing, so use real timers here.
 beforeEach(() => {
-  jest.useRealTimers();
+  // Fake timers are enabled globally by jest.setup.js; the service mocks
+  // resolve via microtasks, which RNTL's waitFor flushes automatically.
+  // Keeping fake timers also prevents the screen's 30s unsubscribe timer
+  // from leaking a real handle that delays jest shutdown.
+  jest.useFakeTimers();
   // Each test starts with a connected WebSocket (streaming path)
   mockWebSocket = {
     isConnected: true,
@@ -187,7 +189,7 @@ describe('AgentChatScreen - Rendering', () => {
     const { getByTestId } = render(<AgentChatScreen />);
 
     await waitFor(() => {
-      const sendButton = getByTestId(/send/i);
+      const sendButton = getByTestId('send-message-button');
       expect(sendButton).toBeTruthy();
     });
   });
@@ -211,7 +213,7 @@ describe('AgentChatScreen - Message Sending', () => {
     fireEvent.changeText(input, 'Hello agent');
 
     await act(async () => {
-      const sendButton = getByTestId(/send/i);
+      const sendButton = getByTestId('send-message-button');
       fireEvent.press(sendButton);
     });
 
@@ -226,7 +228,7 @@ describe('AgentChatScreen - Message Sending', () => {
     const { getByTestId } = render(<AgentChatScreen />);
 
     await waitFor(() => {
-      const sendButton = getByTestId(/send/i);
+      const sendButton = getByTestId('send-message-button');
       fireEvent.press(sendButton);
     });
 
@@ -245,7 +247,7 @@ describe('AgentChatScreen - Message Sending', () => {
     fireEvent.changeText(input, 'Test message');
 
     await act(async () => {
-      const sendButton = getByTestId(/send/i);
+      const sendButton = getByTestId('send-message-button');
       fireEvent.press(sendButton);
     });
 
@@ -265,7 +267,7 @@ describe('AgentChatScreen - Message Sending', () => {
     const input = getByPlaceholderText('Type a message...');
     fireEvent.changeText(input, 'Test message');
 
-    const sendButton = getByTestId(/send/i);
+    const sendButton = getByTestId('send-message-button');
 
     await act(async () => {
       fireEvent.press(sendButton);
@@ -293,7 +295,7 @@ describe('AgentChatScreen - Message Sending', () => {
     fireEvent.changeText(input, 'Test message');
 
     await act(async () => {
-      const sendButton = getByTestId(/send/i);
+      const sendButton = getByTestId('send-message-button');
       fireEvent.press(sendButton);
     });
 
@@ -323,7 +325,7 @@ describe('AgentChatScreen - Message Display', () => {
     fireEvent.changeText(input, 'User message');
 
     await act(async () => {
-      const sendButton = getByTestId(/send/i);
+      const sendButton = getByTestId('send-message-button');
       fireEvent.press(sendButton);
     });
 
@@ -384,7 +386,7 @@ describe('AgentChatScreen - Message Display', () => {
     fireEvent.changeText(input, 'Hello');
 
     await act(async () => {
-      const sendButton = getByTestId(/send/i);
+      const sendButton = getByTestId('send-message-button');
       fireEvent.press(sendButton);
     });
 
@@ -405,7 +407,7 @@ describe('AgentChatScreen - Message Display', () => {
     fireEvent.changeText(input, 'Test');
 
     await act(async () => {
-      const sendButton = getByTestId(/send/i);
+      const sendButton = getByTestId('send-message-button');
       fireEvent.press(sendButton);
     });
 
@@ -447,7 +449,7 @@ describe('AgentChatScreen - Message Display', () => {
     fireEvent.changeText(input, 'Hello');
 
     await act(async () => {
-      const sendButton = getByTestId(/send/i);
+      const sendButton = getByTestId('send-message-button');
       fireEvent.press(sendButton);
     });
 
@@ -548,7 +550,7 @@ describe('AgentChatScreen - Episode Context', () => {
     fireEvent.changeText(input, 'Continue our conversation');
 
     await act(async () => {
-      const sendButton = getByTestId(/send/i);
+      const sendButton = getByTestId('send-message-button');
       fireEvent.press(sendButton);
     });
 
@@ -581,7 +583,7 @@ describe('AgentChatScreen - Episode Context', () => {
     fireEvent.changeText(input, 'Continue');
 
     await act(async () => {
-      const sendButton = getByTestId(/send/i);
+      const sendButton = getByTestId('send-message-button');
       fireEvent.press(sendButton);
     });
 
@@ -589,7 +591,7 @@ describe('AgentChatScreen - Episode Context', () => {
       expect(getByText('Relevant Context')).toBeTruthy();
     });
 
-    const closeButton = getByTestId(/close/i);
+    const closeButton = getByTestId('episode-close-button');
     fireEvent.press(closeButton);
 
     await waitFor(() => {
@@ -736,7 +738,7 @@ describe('AgentChatScreen - Accessibility', () => {
     const { getByTestId } = render(<AgentChatScreen />);
 
     await waitFor(() => {
-      const sendButton = getByTestId(/send/i);
+      const sendButton = getByTestId('send-message-button');
       expect(sendButton).toBeTruthy();
     });
   });

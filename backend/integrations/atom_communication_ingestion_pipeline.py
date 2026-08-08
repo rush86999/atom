@@ -341,7 +341,7 @@ class LanceDBMemoryManager:
     def search_communications(self, query: str, limit: int = 10, app_type: str = None, tag: str = None) -> List[Dict]:
         """Search communications using hybrid search (vector + FTS)"""
         try:
-            if not self.connections_table:
+            if self.connections_table is None:
                 logger.error("Connections table not initialized")
                 return []
                 
@@ -549,7 +549,7 @@ class CommunicationIngestionPipeline:
         """Ingest single message from any communication app"""
         try:
             # Initialize memory manager if needed
-            if not self.memory_manager.db:
+            if self.memory_manager.db is None:
                 # Use executor for potentially blocking initialize
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, self.memory_manager.initialize)

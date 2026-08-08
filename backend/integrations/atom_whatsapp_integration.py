@@ -99,6 +99,11 @@ try:
     )
 except (ImportError, Exception):
     ai_enhanced_service = None
+    AIModelType = None
+    AIRequest = None
+    AIResponse = None
+    AIServiceType = None
+    AITaskType = None
 
 try:
     from atom_slack_integration import atom_slack_integration

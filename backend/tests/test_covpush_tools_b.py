@@ -530,11 +530,11 @@ class TestPlatformManagementTool:
         res = await set_byok_api_key("openai", "sk-1")
         assert "Could not resolve" in res
         with patch("core.byok_endpoints.BYOKManager") as byok_cls:
-            byok_cls.return_value.set_api_key = AsyncMock()
+            byok_cls.return_value.store_api_key = Mock(return_value="openai_default_production")
             res2 = await set_byok_api_key("openai", "sk-1", {"workspace_id": "ws-1"})
         assert "Successfully" in res2
         with patch("core.byok_endpoints.BYOKManager") as byok_cls:
-            byok_cls.return_value.set_api_key = AsyncMock(side_effect=RuntimeError("x"))
+            byok_cls.return_value.store_api_key = Mock(side_effect=RuntimeError("x"))
             res3 = await set_byok_api_key("openai", "sk-1", {"workspace_id": "ws-1"})
         assert "Error" in res3
 

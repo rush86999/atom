@@ -559,3 +559,121 @@ class TestConductorRemaining:
         with patch.object(agent, "_execute_step", new=AsyncMock()):
             await agent._rollback_workflow(ctx, result)
         assert result.rolled_back is True
+
+
+# ============================================================================
+# Final top-up tests (combined-coverage gaps)
+# ============================================================================
+
+
+class TestWebSocketFinalTopUps:
+    @pytest.mark.asyncio
+    async def test_message_loop_delivers_message(self, ws_client):
+        conn = _IterConn(['{"type":"pong"}'])
+        ws_client._ws_connection = conn
+        with patch.object(ws_client, "_handle_message", new=AsyncMock()) as hm:
+            await ws_client._message_loop()
+            hm.assert_awaited_once_with('{"type":"pong"}')
+
+    @pytest.mark.asyncio
+    async def test_handle_message_handler_raises(self, ws_client):
+        async def boom(msg_type, data):
+            raise RuntimeError("handler crash")
+        ws_client._message_handler = boom
+        await ws_client._handle_message(
+            '{"type":"skill_update","data":{"skill_id":"s","name":"n"}}')
+
+    @pytest.mark.asyncio
+    async def test_heartbeat_happy_path(self, ws_client):
+        ws_client._connected = True
+        ws_client.send_message = AsyncMock()
+        ws_client._wait_for_pong = AsyncMock(return_value=True)
+
+        calls = {"n": 0}
+
+        async def sleep_then_disconnect(delay):
+            calls["n"] += 1
+            if calls["n"] == 2:
+                ws_client._connected = False
+
+        with patch.object(asyncio, "sleep",
+                          new=AsyncMock(side_effect=sleep_then_disconnect)):
+            await ws_client._heartbeat_loop()
+        assert calls["n"] >= 2
+        ws_client.send_message.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_rating_update_db_error(self, ws_client, monkeypatch, caplog):
+        import logging
+        monkeypatch.setattr("core.atom_saas_websocket.SessionLocal",
+                            MagicMock(side_effect=RuntimeError("db down")))
+        with caplog.at_level(logging.ERROR):
+            await ws_client.handle_rating_update({"skill_id": "r1", "rating": 5})
+        assert "Failed to update rating in cache" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_update_db_state_all_kwargs(self, db_session, monkeypatch):
+        from core.atom_saas_websocket import AtomSaaSWebSocketClient
+
+        raw = AtomSaaSWebSocketClient(api_token="tok")
+        _patch_session_local(monkeypatch, db_session)
+        await raw._update_db_state(
+            connected=True, last_connected_at=datetime.now(timezone.utc),
+            last_message_at=datetime.now(timezone.utc),
+            disconnect_reason="test", reconnect_attempts=2)
+        db_session.expire_all()
+        row = db_session.query(WebSocketState).first()
+        assert row.connected is True
+        assert row.last_message_at is not None
+        assert row.disconnect_reason == "test"
+
+
+class TestCanvasLogicFinalTopUps:
+    @pytest.mark.asyncio
+    async def test_run_legacy_policy_issuer_failure(self, db_session, monkeypatch):
+        from core import canvas_logic_service as cls
+
+        captured = {}
+
+        class FakeRuntime:
+            async def execute_python(self, code, *, policy=None, inputs=None, cwd=None):
+                captured["policy"] = policy
+                return SimpleNamespace(success=True, stdout="", stderr="", exit_code=0)
+
+        monkeypatch.setattr(cls, "get_runtime", lambda: FakeRuntime())
+        monkeypatch.setattr("core.sandbox_policy.PolicyIssuer",
+                            MagicMock(side_effect=RuntimeError("no issuer")))
+        svc = cls.CanvasLogicService(db_session)
+        svc.save_logic(canvas_id="c-pfail2", source="x=1", created_by="u1")
+        result = await svc.run("c-pfail2", inputs={})
+        assert result["success"] is True
+        assert captured["policy"] is None
+
+
+class TestConductorFinalTopUps:
+    @pytest.mark.asyncio
+    async def test_rollback_safe_missing_start_step(self):
+        from core.orchestration.conductor_agent import (
+            ConductorAgent, ExecutionStrategy,
+        )
+
+        agent = ConductorAgent()
+        ctx = TestConductorRemaining()._ctx(
+            [TestConductorRemaining()._step("s1")], "ghost", ExecutionStrategy.ROLLBACK_SAFE)
+        await agent._execute_rollback_safe(ctx, MagicMock())
+
+    @pytest.mark.asyncio
+    async def test_rollback_missing_comp_step(self):
+        from core.orchestration.conductor_agent import (
+            ConductorAgent, ExecutionStrategy,
+        )
+
+        agent = ConductorAgent()
+        ctx = TestConductorRemaining()._ctx(
+            [TestConductorRemaining()._step("s1", compensation_step_id="missing-comp")],
+            "s1", ExecutionStrategy.SEQUENTIAL)
+        ctx.rollback_stack = ["s1"]
+        result = MagicMock()
+        with patch.object(agent, "_execute_step", new=AsyncMock()):
+            await agent._rollback_workflow(ctx, result)
+        assert result.rolled_back is True

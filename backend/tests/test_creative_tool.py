@@ -6,7 +6,7 @@ Covers governance enforcement, path validation, security, async job processing.
 """
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock, Mock, patch
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 import tempfile
@@ -33,12 +33,23 @@ class TestFFmpegService:
             mock_input.output.return_value = mock_output
             mock_output.run.return_value = None  # Success
 
-            from core.creative.ffmpeg_service import FFmpegService
-            service = FFmpegService()
-            service.ffmpeg = mock_ffmpeg
-            return service
+            with patch('core.creative.ffmpeg_service.get_db_session') as m_db:
+                m_db.return_value.__enter__ = Mock(return_value=m_db.return_value)
+                m_db.return_value.__exit__ = Mock(return_value=False)
+                from core.creative.ffmpeg_service import FFmpegService
+                service = FFmpegService()
+                service.ffmpeg = mock_ffmpeg
+                # Temp-dir fixture paths are outside the allowlist — validation
+                # is exercised by its own dedicated tests
+                # (test_invalid_path_blocked).
+                service._validate_paths = MagicMock()
+                # Generator fixture: keep the patch contexts open until the
+                # test completes (a plain `return` would exit the `with`
+                # blocks and undo the patches before the test runs).
+                yield service
 
-    def test_trim_video_success(self, mock_ffmpeg_service, temp_directory):
+    @pytest.mark.asyncio
+    async def test_trim_video_success(self, mock_ffmpeg_service, temp_directory):
         """Test successful video trimming."""
         input_path = os.path.join(temp_directory, "input.mp4")
         output_path = os.path.join(temp_directory, "output.mp4")
@@ -47,16 +58,18 @@ class TestFFmpegService:
         with open(input_path, 'wb') as f:
             f.write(b"fake video data")
 
-        result = mock_ffmpeg_service.trim_video(
+        result = await mock_ffmpeg_service.trim_video(
             input_path=input_path,
             output_path=output_path,
             start_time="00:00:05",
             duration="00:01:00"
         )
 
-        assert result is True
+        assert result["status"] == "pending"
+        assert "job_id" in result
 
-    def test_extract_audio_success(self, mock_ffmpeg_service, temp_directory):
+    @pytest.mark.asyncio
+    async def test_extract_audio_success(self, mock_ffmpeg_service, temp_directory):
         """Test successful audio extraction."""
         input_path = os.path.join(temp_directory, "input.mp4")
         output_path = os.path.join(temp_directory, "audio.mp3")
@@ -65,15 +78,17 @@ class TestFFmpegService:
         with open(input_path, 'wb') as f:
             f.write(b"fake video data")
 
-        result = mock_ffmpeg_service.extract_audio(
-            input_path=input_path,
-            output_path=output_path,
+        result = await mock_ffmpeg_service.extract_audio(
+            video_path=input_path,
+            audio_path=output_path,
             format="mp3"
         )
 
-        assert result is True
+        assert result["status"] == "pending"
+        assert "job_id" in result
 
-    def test_generate_thumbnail_success(self, mock_ffmpeg_service, temp_directory):
+    @pytest.mark.asyncio
+    async def test_generate_thumbnail_success(self, mock_ffmpeg_service, temp_directory):
         """Test successful thumbnail generation."""
         input_path = os.path.join(temp_directory, "input.mp4")
         output_path = os.path.join(temp_directory, "thumb.jpg")
@@ -82,15 +97,17 @@ class TestFFmpegService:
         with open(input_path, 'wb') as f:
             f.write(b"fake video data")
 
-        result = mock_ffmpeg_service.generate_thumbnail(
-            input_path=input_path,
-            output_path=output_path,
+        result = await mock_ffmpeg_service.generate_thumbnail(
+            video_path=input_path,
+            thumbnail_path=output_path,
             timestamp="00:00:30"
         )
 
-        assert result is True
+        assert result["status"] == "pending"
+        assert "job_id" in result
 
-    def test_convert_format_success(self, mock_ffmpeg_service, temp_directory):
+    @pytest.mark.asyncio
+    async def test_convert_format_success(self, mock_ffmpeg_service, temp_directory):
         """Test successful format conversion."""
         input_path = os.path.join(temp_directory, "input.mov")
         output_path = os.path.join(temp_directory, "output.mp4")
@@ -99,15 +116,17 @@ class TestFFmpegService:
         with open(input_path, 'wb') as f:
             f.write(b"fake video data")
 
-        result = mock_ffmpeg_service.convert_format(
+        result = await mock_ffmpeg_service.convert_format(
             input_path=input_path,
             output_path=output_path,
             format="mp4"
         )
 
-        assert result is True
+        assert result["status"] == "pending"
+        assert "job_id" in result
 
-    def test_normalize_audio_success(self, mock_ffmpeg_service, temp_directory):
+    @pytest.mark.asyncio
+    async def test_normalize_audio_success(self, mock_ffmpeg_service, temp_directory):
         """Test successful audio normalization."""
         input_path = os.path.join(temp_directory, "audio.mp3")
         output_path = os.path.join(temp_directory, "normalized.mp3")
@@ -116,31 +135,49 @@ class TestFFmpegService:
         with open(input_path, 'wb') as f:
             f.write(b"fake audio data")
 
-        result = mock_ffmpeg_service.normalize_audio(
+        result = await mock_ffmpeg_service.normalize_audio(
             input_path=input_path,
             output_path=output_path
         )
 
-        assert result is True
+        assert result["status"] == "pending"
+        assert "job_id" in result
 
-    def test_file_not_found_error(self, mock_ffmpeg_service, temp_directory):
+    @pytest.mark.asyncio
+    async def test_file_not_found_error(self, mock_ffmpeg_service, temp_directory):
         """Test error handling for non-existent input file."""
         input_path = os.path.join(temp_directory, "nonexistent.mp4")
         output_path = os.path.join(temp_directory, "output.mp4")
 
-        with pytest.raises(FileNotFoundError):
-            mock_ffmpeg_service.trim_video(
-                input_path=input_path,
-                output_path=output_path,
-                start_time="00:00:05",
-                duration="00:01:00"
-            )
+        # ffmpeg binary is mocked — simulate the binary raising on a missing
+        # input. The error is handled inside the async background job (the job
+        # is marked failed) and never propagates from trim_video.
+        import asyncio
+        from core.creative.ffmpeg_service import ffmpeg
+        ffmpeg.run.side_effect = FileNotFoundError("input file missing")
 
-    def test_invalid_path_blocked(self, mock_ffmpeg_service):
+        result = await mock_ffmpeg_service.trim_video(
+            input_path=input_path,
+            output_path=output_path,
+            start_time="00:00:05",
+            duration="00:01:00"
+        )
+        assert result["status"] == "pending"
+        await asyncio.sleep(0.2)
+        assert ffmpeg.run.called
+
+    @pytest.mark.asyncio
+    async def test_invalid_path_blocked(self, mock_ffmpeg_service):
         """Test path validation rejects paths with traversal."""
+        # Re-enable the real validator (the shared fixture mocks it so the
+        # temp-dir success tests can run).
+        from core.creative.ffmpeg_service import FFmpegService
+        mock_ffmpeg_service._validate_paths = FFmpegService._validate_paths.__get__(
+            mock_ffmpeg_service, FFmpegService
+        )
         # Path traversal should be blocked
-        with pytest.raises(ValueError, match="path traversal"):
-            mock_ffmpeg_service.trim_video(
+        with pytest.raises(ValueError, match="outside allowed"):
+            await mock_ffmpeg_service.trim_video(
                 input_path="../../../etc/passwd",
                 output_path="output.mp4",
                 start_time="00:00:05",
@@ -162,7 +199,7 @@ class TestAsyncJobs:
         tool.service = MagicMock()
 
         # Mock job creation
-        with patch.object(tool.service, 'trim_video', return_value=True):
+        with patch.object(tool.service, 'trim_video', new=AsyncMock(return_value={"success": True, "job_id": "test_job_123"})):
             job_id = "test_job_123"
 
             result = await tool._run(
@@ -182,7 +219,7 @@ class TestAsyncJobs:
         tool = FFmpegTool()
         tool.service = MagicMock()
 
-        with patch.object(tool.service, 'trim_video', return_value=True):
+        with patch.object(tool.service, 'trim_video', new=AsyncMock(return_value={"success": True})):
             result = await tool._run(
                 action="trim_video",
                 input_path="/app/data/media/input.mp4",
@@ -201,7 +238,7 @@ class TestAsyncJobs:
         tool = FFmpegTool()
         tool.service = MagicMock()
 
-        with patch.object(tool.service, 'trim_video', return_value=True):
+        with patch.object(tool.service, 'trim_video', new=AsyncMock(return_value={"success": True})):
             result = await tool._run(
                 action="trim_video",
                 input_path="/app/data/media/input.mp4",
@@ -310,7 +347,7 @@ class TestFFmpegToolGovernance:
         db_session.add(agent)
         db_session.commit()
 
-        with patch.object(tool.service, 'trim_video', return_value=True):
+        with patch.object(tool.service, 'trim_video', new=AsyncMock(return_value={"success": True})):
             result = await tool._run(
                 action="trim_video",
                 input_path="/app/data/media/input.mp4",
@@ -342,7 +379,7 @@ class TestFFmpegToolGovernance:
         db_session.add(agent)
         db_session.commit()
 
-        with patch.object(tool.service, 'extract_audio', return_value=True):
+        with patch.object(tool.service, 'extract_audio', new=AsyncMock(return_value={"success": True})):
             result = await tool._run(
                 action="extract_audio",
                 input_path="/app/data/media/meeting.mp4",
@@ -449,7 +486,7 @@ class TestFFmpegSecurity:
 
         # Paths within allowed directories should work
         tool.service = MagicMock()
-        with patch.object(tool.service, 'trim_video', return_value=True):
+        with patch.object(tool.service, 'trim_video', new=AsyncMock(return_value={"success": True})):
             allowed_paths = [
                 "/app/data/media/input.mp4",
                 "/app/data/exports/output.mp4",

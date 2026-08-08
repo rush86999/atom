@@ -99,12 +99,13 @@ def mock_byok_manager():
 
 @pytest.fixture
 def pdf_ocr_service(mock_byok_manager):
-    """Create PDF OCR service instance with mocked BYOK manager."""
-    # PDFOCRService doesn't accept byok_manager in __init__
-    # It will use the get_byok_manager() internally
-    service = PDFOCRService(
-        use_byok=True
-    )
+    """Create PDF OCR service instance.
+
+    PDFOCRService.__init__(tesseract_path, easyocr_languages, tenant_id) has
+    no `use_byok` parameter — BYOK is probed internally via
+    backend.core.byok_endpoints.get_byok_manager().
+    """
+    service = PDFOCRService()
     return service
 
 
@@ -491,11 +492,33 @@ class TestIntegration:
             assert all("ai_description" in img for img in result["images"])
 
     def test_byok_manager_initialization(self):
-        """Test that BYOK manager is properly initialized."""
-        # Test with BYOK enabled
-        with patch('integrations.pdf_processing.pdf_ocr_service.BYOK_AVAILABLE', True):
-            service = PDFOCRService(use_byok=True)
+        """Test that BYOK manager is probed during initialization."""
+        import sys
+        import types
+
+        def _stub_get_byok_manager(manager):
+            # PDFOCRService.__init__ does
+            # `from backend.core.byok_endpoints import get_byok_manager`
+            # inside a try/except; stub the module so the probe is visible.
+            for name in ("backend", "backend.core"):
+                sys.modules.setdefault(name, types.ModuleType(name))
+            mod = types.ModuleType("backend.core.byok_endpoints")
+            mod.get_byok_manager = Mock(return_value=manager)
+            sys.modules["backend.core.byok_endpoints"] = mod
+
+        try:
+            # Manager available -> BYOK enabled
+            _stub_get_byok_manager(MagicMock())
+            service = PDFOCRService()
             assert service.use_byok is True
+            assert service.byok_manager is not None
+
+            # Manager returns None -> BYOK disabled, graceful fallback
+            _stub_get_byok_manager(None)
+            service = PDFOCRService()
+            assert service.use_byok is False
+        finally:
+            sys.modules.pop("backend.core.byok_endpoints", None)
 
     @pytest.mark.asyncio
     async def test_vision_feature_flag(self, pdf_ocr_service):

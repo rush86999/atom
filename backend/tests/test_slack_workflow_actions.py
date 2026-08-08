@@ -15,6 +15,7 @@ from integrations.slack_enhanced_service import (
     SlackEnhancedService,
     SlackWorkspace
 )
+from slack_sdk.errors import SlackApiError
 from integrations.slack_workflow_engine import (
     WorkflowExecutionEngine,
     WorkflowDefinition,
@@ -275,7 +276,8 @@ class TestSlackEnhancedServiceMethods:
         """Test channel invitation with some failures"""
         mock_client = AsyncMock()
 
-        # First call succeeds, second fails
+        # First call succeeds, second fails (per-user SlackApiError is
+        # captured into failed_users; overall result stays ok)
         call_count = [0]
 
         async def side_effect(*args, **kwargs):
@@ -283,7 +285,7 @@ class TestSlackEnhancedServiceMethods:
             if call_count[0] == 1:
                 return {'ok': True}
             else:
-                raise Exception("User not in workspace")
+                raise SlackApiError("User not in workspace", response=None)
 
         mock_client.conversations_invite = AsyncMock(side_effect=side_effect)
 
@@ -375,9 +377,10 @@ class TestWorkflowEngineIntegration:
 
         result = await workflow_engine._handle_send_message(execution, action)
 
-        assert result['ok'] is True
-        assert result['channel'] == 'C123456'
+        # Engine result carries method + message fields (no 'ok' key)
         assert result['method'] == 'slack_api'
+        assert result['channel'] == 'C123456'
+        assert result['message_id'] == 'msg123'
         mock_slack_service.send_message.assert_called_once()
 
     @pytest.mark.asyncio
@@ -466,8 +469,9 @@ class TestWorkflowEngineIntegration:
 
         result = await workflow_engine._handle_add_reaction(execution, action)
 
-        assert result['ok'] is True
         assert result['method'] == 'slack_api'
+        assert result['channel'] == 'C123456'
+        assert result['emoji'] == 'thumbsup'
         mock_slack_service.add_reaction.assert_called_once()
 
     @pytest.mark.asyncio
@@ -512,9 +516,9 @@ class TestWorkflowEngineIntegration:
 
         result = await workflow_engine._handle_create_channel(execution, action)
 
-        assert result['ok'] is True
         assert result['method'] == 'slack_api'
         assert result['channel_id'] == 'C789012'
+        assert result['channel_name'] == 'new-channel'
 
     @pytest.mark.asyncio
     async def test_handle_invite_to_channel_integration(self, workflow_engine, sample_trigger_data):
@@ -557,9 +561,9 @@ class TestWorkflowEngineIntegration:
 
         result = await workflow_engine._handle_invite_user(execution, action)
 
-        assert result['ok'] is True
         assert result['method'] == 'slack_api'
         assert result['invited_users'] == ['U123456', 'U789012']
+        assert result['failed_users'] == []
 
     @pytest.mark.asyncio
     async def test_handle_pin_message_integration(self, workflow_engine, sample_trigger_data):
@@ -602,8 +606,9 @@ class TestWorkflowEngineIntegration:
 
         result = await workflow_engine._handle_pin_message(execution, action)
 
-        assert result['ok'] is True
         assert result['method'] == 'slack_api'
+        assert result['channel'] == 'C123456'
+        assert result['message_ts'] == '1234567890.123456'
 
 
 # ============================================================================
@@ -697,12 +702,11 @@ class TestSlackActionsErrorHandling:
 
         result = await workflow_engine._handle_invite_user(execution, action)
 
-        # Should convert string to list
-        assert result['ok'] is True
+        assert result['method'] == 'slack_api'
         mock_slack_service.invite_to_channel.assert_called_once()
-        # Verify it was called with a list
+        # Verify it was called with a list (string converted by the engine)
         call_args = mock_slack_service.invite_to_channel.call_args
-        assert isinstance(call_args[0][2], list)  # user_ids should be a list
+        assert isinstance(call_args.kwargs['user_ids'], list)
 
 
 # ============================================================================

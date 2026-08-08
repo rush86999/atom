@@ -58,11 +58,14 @@ class TestChatDispatchTable:
                  patch("core.atom_agent_endpoints.trigger_episode_creation"), \
                  patch("core.time_expression_parser.parse_time_expression",
                        return_value=None), \
+                 patch("core.stakeholder_engine.get_stakeholder_engine") as seng, \
                  patch("core.atom_agent_endpoints.workflow_scheduler"):
                 sis.return_value.get_aggregated_context = Mock(return_value="")
                 kqm.return_value.answer_query = AsyncMock(
                     return_value={"answer": "A", "relevant_facts": []})
                 ba.return_value.detect_patterns = Mock(return_value=[])
+                seng.return_value.identify_silent_stakeholders = AsyncMock(
+                    return_value=[])
                 req = ChatRequest(message="do something", user_id="u1")
                 result = await chat_with_agent(req, current_user=SimpleNamespace(id="u1"))
                 assert isinstance(result, dict), f"{intent}: {result}"

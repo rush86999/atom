@@ -489,11 +489,11 @@ class SlackEnhancedService(IntegrationService):
                 )
                 
                 if response.status_code != 200:
-                    raise SlackApiError(f"OAuth request failed: {response.text}")
+                    raise SlackApiError(f"OAuth request failed: {response.text}", response=None)
                 
                 data = response.json()
                 if not data.get('ok'):
-                    raise SlackApiError(f"OAuth error: {data.get('error', 'Unknown error')}")
+                    raise SlackApiError(f"OAuth error: {data.get('error', 'Unknown error')}", response=None)
                 
                 # Create workspace model
                 team = data.get('team', {})
@@ -651,11 +651,11 @@ class SlackEnhancedService(IntegrationService):
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(workspace_id, 'conversations.list'):
-                raise SlackApiError("Rate limit exceeded for conversations.list")
+                raise SlackApiError("Rate limit exceeded for conversations.list", response=None)
             
             client = self._get_client(workspace_id)
             if not client:
-                raise SlackApiError("Failed to create Slack client")
+                raise SlackApiError("Failed to create Slack client", response=None)
             
             # Determine channel types
             types = ['public_channel']
@@ -670,7 +670,7 @@ class SlackEnhancedService(IntegrationService):
             )
             
             if not response['ok']:
-                raise SlackApiError(f"Failed to get channels: {response.get('error')}")
+                raise SlackApiError(f"Failed to get channels: {response.get('error')}", response=None)
             
             channels = []
             for channel_data in response['channels']:
@@ -724,11 +724,11 @@ class SlackEnhancedService(IntegrationService):
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(workspace_id, 'chat.postMessage'):
-                raise SlackApiError("Rate limit exceeded for chat.postMessage")
+                raise SlackApiError("Rate limit exceeded for chat.postMessage", response=None)
             
             client = self._get_client(workspace_id)
             if not client:
-                raise SlackApiError("Failed to create Slack client")
+                raise SlackApiError("Failed to create Slack client", response=None)
             
             message_data = {
                 'channel': channel_id,
@@ -758,7 +758,7 @@ class SlackEnhancedService(IntegrationService):
                     'message': response['message']
                 }
             else:
-                raise SlackApiError(f"Failed to send message: {response.get('error')}")
+                raise SlackApiError(f"Failed to send message: {response.get('error')}", response=None)
         
         except SlackApiError as e:
             logger.error(f"Error sending message: {e}")
@@ -783,11 +783,11 @@ class SlackEnhancedService(IntegrationService):
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(workspace_id, 'conversations.history'):
-                raise SlackApiError("Rate limit exceeded for conversations.history")
+                raise SlackApiError("Rate limit exceeded for conversations.history", response=None)
             
             client = self._get_client(workspace_id)
             if not client:
-                raise SlackApiError("Failed to create Slack client")
+                raise SlackApiError("Failed to create Slack client", response=None)
             
             # Get history
             response = await client.conversations_history(
@@ -799,7 +799,7 @@ class SlackEnhancedService(IntegrationService):
             )
             
             if not response['ok']:
-                raise SlackApiError(f"Failed to get channel history: {response.get('error')}")
+                raise SlackApiError(f"Failed to get channel history: {response.get('error')}", response=None)
             
             messages = []
             for msg_data in response['messages']:
@@ -848,11 +848,11 @@ class SlackEnhancedService(IntegrationService):
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(workspace_id, 'files.upload'):
-                raise SlackApiError("Rate limit exceeded for files.upload")
+                raise SlackApiError("Rate limit exceeded for files.upload", response=None)
             
             client = self._get_client(workspace_id)
             if not client:
-                raise SlackApiError("Failed to create Slack client")
+                raise SlackApiError("Failed to create Slack client", response=None)
             
             upload_data = {
                 'channels': channel_id,
@@ -902,7 +902,7 @@ class SlackEnhancedService(IntegrationService):
                     'message': 'File uploaded successfully'
                 }
             else:
-                raise SlackApiError(f"Failed to upload file: {response.get('error')}")
+                raise SlackApiError(f"Failed to upload file: {response.get('error')}", response=None)
         
         except SlackApiError as e:
             logger.error(f"Error uploading file: {e}")
@@ -928,11 +928,11 @@ class SlackEnhancedService(IntegrationService):
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(workspace_id, 'search.messages'):
-                raise SlackApiError("Rate limit exceeded for search.messages")
+                raise SlackApiError("Rate limit exceeded for search.messages", response=None)
             
             client = self._get_client(workspace_id)
             if not client:
-                raise SlackApiError("Failed to create Slack client")
+                raise SlackApiError("Failed to create Slack client", response=None)
             
             search_params = {
                 'query': query,
@@ -979,7 +979,7 @@ class SlackEnhancedService(IntegrationService):
                     'paging': response['messages']['paging']
                 }
             else:
-                raise SlackApiError(f"Search failed: {response.get('error')}")
+                raise SlackApiError(f"Search failed: {response.get('error')}", response=None)
         
         except SlackApiError as e:
             logger.error(f"Error searching messages: {e}")
@@ -1003,11 +1003,11 @@ class SlackEnhancedService(IntegrationService):
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(workspace_id, 'reactions.add'):
-                raise SlackApiError("Rate limit exceeded for reactions.add")
+                raise SlackApiError("Rate limit exceeded for reactions.add", response=None)
 
             client = self._get_client(workspace_id)
             if not client:
-                raise SlackApiError("Failed to create Slack client")
+                raise SlackApiError("Failed to create Slack client", response=None)
 
             # Remove colons if present (e.g., ":thumbsup:" -> "thumbsup")
             reaction = reaction.strip(':')
@@ -1027,7 +1027,7 @@ class SlackEnhancedService(IntegrationService):
                     'timestamp': timestamp
                 }
             else:
-                raise SlackApiError(f"Failed to add reaction: {response.get('error')}")
+                raise SlackApiError(f"Failed to add reaction: {response.get('error')}", response=None)
 
         except SlackApiError as e:
             logger.error(f"Error adding reaction: {e}")
@@ -1050,17 +1050,17 @@ class SlackEnhancedService(IntegrationService):
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(workspace_id, 'chat.postMessage'):
-                raise SlackApiError("Rate limit exceeded for chat.postMessage")
+                raise SlackApiError("Rate limit exceeded for chat.postMessage", response=None)
 
             client = self._get_client(workspace_id)
             if not client:
-                raise SlackApiError("Failed to create Slack client")
+                raise SlackApiError("Failed to create Slack client", response=None)
 
             # Open DM channel with user
             im_response = await client.conversations_open(users=[user_id])
 
             if not im_response['ok']:
-                raise SlackApiError(f"Failed to open DM: {im_response.get('error')}")
+                raise SlackApiError(f"Failed to open DM: {im_response.get('error')}", response=None)
 
             channel_id = im_response['channel']['id']
 
@@ -1087,7 +1087,7 @@ class SlackEnhancedService(IntegrationService):
                     'message_id': response['message']['ts']
                 }
             else:
-                raise SlackApiError(f"Failed to send DM: {response.get('error')}")
+                raise SlackApiError(f"Failed to send DM: {response.get('error')}", response=None)
 
         except SlackApiError as e:
             logger.error(f"Error sending DM: {e}")
@@ -1110,11 +1110,11 @@ class SlackEnhancedService(IntegrationService):
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(workspace_id, 'conversations.create'):
-                raise SlackApiError("Rate limit exceeded for conversations.create")
+                raise SlackApiError("Rate limit exceeded for conversations.create", response=None)
 
             client = self._get_client(workspace_id)
             if not client:
-                raise SlackApiError("Failed to create Slack client")
+                raise SlackApiError("Failed to create Slack client", response=None)
 
             create_params = {
                 'name': name,
@@ -1142,7 +1142,7 @@ class SlackEnhancedService(IntegrationService):
                     'created': channel.get('created')
                 }
             else:
-                raise SlackApiError(f"Failed to create channel: {response.get('error')}")
+                raise SlackApiError(f"Failed to create channel: {response.get('error')}", response=None)
 
         except SlackApiError as e:
             logger.error(f"Error creating channel: {e}")
@@ -1164,7 +1164,7 @@ class SlackEnhancedService(IntegrationService):
         try:
             client = self._get_client(workspace_id)
             if not client:
-                raise SlackApiError("Failed to create Slack client")
+                raise SlackApiError("Failed to create Slack client", response=None)
 
             invited_users = []
             failed_users = []
@@ -1224,11 +1224,11 @@ class SlackEnhancedService(IntegrationService):
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(workspace_id, 'pins.add'):
-                raise SlackApiError("Rate limit exceeded for pins.add")
+                raise SlackApiError("Rate limit exceeded for pins.add", response=None)
 
             client = self._get_client(workspace_id)
             if not client:
-                raise SlackApiError("Failed to create Slack client")
+                raise SlackApiError("Failed to create Slack client", response=None)
 
             response = await client.pins_add(
                 channel=channel_id,
@@ -1243,7 +1243,7 @@ class SlackEnhancedService(IntegrationService):
                     'timestamp': timestamp
                 }
             else:
-                raise SlackApiError(f"Failed to pin message: {response.get('error')}")
+                raise SlackApiError(f"Failed to pin message: {response.get('error')}", response=None)
 
         except SlackApiError as e:
             logger.error(f"Error pinning message: {e}")

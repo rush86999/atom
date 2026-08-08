@@ -385,6 +385,20 @@ class TestFFmpegToolDictContract:
         assert res["success"] is True
         assert res["job_id"] == "j1"
 
+    @pytest.mark.asyncio
+    async def test_dispatch_context_kwargs_do_not_crash(self, tool):
+        """agent_id/db context kwargs must not leak into the op methods
+        (exact signatures -> TypeError)."""
+        tool.service = MagicMock()
+        tool.service.trim_video = AsyncMock(return_value={"job_id": "j9"})
+        res = await tool._run(
+            "trim_video", "in.mp4", "out.mp4",
+            maturity_level="AUTONOMOUS", start_time="00:00:01", duration="00:01:00",
+            agent_id="agent-1", db="session",
+        )
+        assert res["success"] is True
+        assert res["job_id"] == "j9"
+
 
 # ---------------------------------------------------------------------------
 # tools.registry — complexity inference: CRITICAL never reached

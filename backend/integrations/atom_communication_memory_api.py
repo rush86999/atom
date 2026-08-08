@@ -39,7 +39,7 @@ class AtomCommunicationMemoryAPI:
             """Get complete memory system status"""
             try:
                 # Initialize if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 # Get ingestion stats
@@ -54,7 +54,7 @@ class AtomCommunicationMemoryAPI:
                 }
                 
                 # Get record count
-                if memory_manager.connections_table:
+                if memory_manager.connections_table is not None:
                     records = memory_manager.connections_table.to_pandas()
                     db_stats["total_records"] = len(records)
                     
@@ -125,7 +125,7 @@ class AtomCommunicationMemoryAPI:
                 CommunicationAppType(app_id)
                 
                 # Initialize memory manager if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 # Ingest message
@@ -172,7 +172,7 @@ class AtomCommunicationMemoryAPI:
                 CommunicationAppType(app_id)
                 
                 # Initialize memory manager if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 # Ingest batch
@@ -211,7 +211,7 @@ class AtomCommunicationMemoryAPI:
             """Search memory with various filters"""
             try:
                 # Initialize memory manager if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 # Build search results
@@ -268,7 +268,7 @@ class AtomCommunicationMemoryAPI:
                 CommunicationAppType(app_id)
                 
                 # Initialize memory manager if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 # Get communications
@@ -308,7 +308,7 @@ class AtomCommunicationMemoryAPI:
             """Get memory analytics and statistics"""
             try:
                 # Initialize memory manager if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 # Get base analytics
@@ -316,7 +316,7 @@ class AtomCommunicationMemoryAPI:
                 
                 # Get database records for analysis
                 all_records = []
-                if memory_manager.connections_table:
+                if memory_manager.connections_table is not None:
                     df = memory_manager.connections_table.to_pandas()
                     all_records = df.to_dict('records')
                 

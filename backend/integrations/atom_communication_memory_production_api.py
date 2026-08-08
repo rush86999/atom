@@ -100,7 +100,7 @@ class AtomCommunicationMemoryProductionAPI:
                 
                 # Get database stats
                 db_stats = {}
-                if memory_manager.connections_table:
+                if memory_manager.connections_table is not None:
                     records = memory_manager.connections_table.to_pandas()
                     db_stats = {
                         "total_records": len(records),
@@ -119,7 +119,7 @@ class AtomCommunicationMemoryProductionAPI:
                         "type": "LanceDB",
                         "healthy": memory_manager.db is not None,
                         "path": str(memory_manager.db_path),
-                        "tables": memory_manager.db.table_names() if memory_manager.db else [],
+                        "tables": memory_manager.db.table_names() if memory_manager.db is not None else [],
                         "statistics": db_stats
                     },
                     "ingestion_pipeline": stats,
@@ -233,7 +233,7 @@ class AtomCommunicationMemoryProductionAPI:
             """Advanced search with production features"""
             try:
                 # Initialize memory manager if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 # Build search results
@@ -301,7 +301,7 @@ class AtomCommunicationMemoryProductionAPI:
             """Get comprehensive production analytics"""
             try:
                 # Initialize memory manager if needed
-                if not memory_manager.db:
+                if memory_manager.db is None:
                     memory_manager.initialize()
                 
                 # Get base analytics
@@ -309,7 +309,7 @@ class AtomCommunicationMemoryProductionAPI:
                 
                 # Get database records for analysis
                 all_records = []
-                if memory_manager.connections_table:
+                if memory_manager.connections_table is not None:
                     df = memory_manager.connections_table.to_pandas()
                     all_records = df.to_dict('records')
                 

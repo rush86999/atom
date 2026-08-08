@@ -112,6 +112,12 @@ class HashChainIntegrity:
             64-character hexadecimal SHA-256 hash
         """
         # Build canonical data structure
+        # Normalize timezone-aware timestamps to naive wall-clock UTC: SQLite
+        # strips tzinfo on round-trip, so an aware timestamp would hash
+        # differently at insert time vs verification time.
+        if timestamp.tzinfo is not None:
+            timestamp = timestamp.replace(tzinfo=None)
+
         data = {
             'account_id': account_id,
             'action_type': action_type,

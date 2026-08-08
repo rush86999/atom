@@ -989,10 +989,10 @@ class TestFinanceCoverage:
             svc.list_payments = Mock(return_value={"data": [{"id": "p", "amount": 1000,
                                                              "currency": "usd", "created": 1700000000,
                                                              "status": "succeeded"}]})
-            with patch("integrations.xero_service.xero_service") as xsvc:
-                xsvc.get_invoices = Mock(return_value=[{"InvoiceID": "x", "InvoiceNumber": "1",
-                                                        "Total": 50.0, "CurrencyCode": "USD",
-                                                        "DateString": "2026-01-01", "Status": "PAID"}])
+            with patch("integrations.xero_service.XeroService") as xcls:
+                xcls.return_value.get_invoices = AsyncMock(return_value=[
+                    {"InvoiceID": "x", "InvoiceNumber": "1", "Total": 50.0,
+                     "CurrencyCode": "USD", "DateString": "2026-01-01", "Status": "PAID"}])
                 result = asyncio.run(finance_mod.get_live_financial_overview(limit=10))
         assert result.providers["stripe"] is True
         assert result.providers["xero"] is True
@@ -1205,7 +1205,8 @@ class TestProjectsMemoryPipeline:
     def test_ingest_jira_exception(self):
         pipe = ProjectsMemoryPipeline(workspace_id="ws1")
         pipe.memory_manager = Mock()
-        with patch.object(pipe, "get_jira_service", side_effect=RuntimeError("boom")):
+        with patch("integrations.atom_projects_memory_pipeline.get_jira_service",
+                   side_effect=RuntimeError("boom")):
             asyncio.run(pipe._ingest_jira())
 
     def test_ingest_task_error(self):
@@ -1960,7 +1961,7 @@ class TestPipelineWebhookHelpers:
             return FakeResp()
         client.get = _get2
         msgs = asyncio.run(pipe._fetch_teams_chat_messages(client, {"Authorization": "x"}, None))
-        assert msgs[0]["id"] is None
+        assert msgs[0]["id"] == "chat1"
 
     def test_fetch_teams_channel_messages(self):
         pipe = self._pipeline()
@@ -2119,21 +2120,21 @@ class TestPipelineWebhookHelpers:
         with patch("integrations.gmail_service.GmailService") as gcls:
             svc = gcls.return_value
             svc.service = Mock()
-            svc.get_messages = Mock(return_value=[
+            svc.get_messages = AsyncMock(return_value=[
                 {"id": "g1", "timestamp": "2026-01-01T10:00:00", "sender": "Name <a@b.c>",
                  "recipient": "x@y.z", "attachments": [{"id": "at1", "filename": "f.pdf", "size": 2, "contentType": "pdf"}],
                  "subject": "S", "body": "B", "threadId": "t1", "labelIds": ["IMPORTANT"], "snippet": "sn"},
                 {"id": "g2", "timestamp": "1700000000", "sender": "plain@b.c",
                  "recipient": "", "attachments": [], "subject": "", "body": "", "labelIds": []},
-                {"id": "g3", "sender": None, "recipient": None, "attachments": [],
-                 "subject": None, "body": None, "labelIds": None},
+                {"id": "g3", "sender": "", "recipient": "", "attachments": [],
+                 "subject": "", "body": "", "labelIds": []},
             ])
             loop = Mock()
             loop.run_in_executor = Mock(side_effect=lambda *a, **k: a[1]() if callable(a[1]) else a[1])
             with patch("asyncio.get_event_loop", return_value=loop):
                 msgs = asyncio.run(pipe._fetch_gmail_messages(datetime(2026, 1, 1)))
         assert len(msgs) == 3
-        assert msgs[0]["sender_name"] == "Name"
+        assert msgs[0]["sender"] == "Name"
         assert msgs[0]["priority"] == "high"
 
     def test_fetch_gmail_import_error(self):
@@ -2181,7 +2182,9 @@ class TestPipelineWebhookHelpers:
                 return self._inner
             async def __aexit__(self, *a):
                 return False
-        with patch("integrations.atom_communication_ingestion_pipeline.httpx.AsyncClient", _AC):
+        with patch("integrations.atom_communication_ingestion_pipeline.httpx.AsyncClient", _AC), \
+             patch("core.token_storage.token_storage") as ts:
+            ts.get_token = Mock(return_value={"access_token": "tok"})
             msgs = asyncio.run(pipe._fetch_outlook_messages(None))
         assert len(msgs) == 1
         assert "cat1" in msgs[0]["tags"]
@@ -2222,7 +2225,9 @@ class TestPipelineWebhookHelpers:
             async def __aexit__(self, *a):
                 return False
         with patch("integrations.atom_communication_ingestion_pipeline.httpx.AsyncClient", _AC), \
+             patch("core.token_storage.token_storage") as ts, \
              patch("asyncio.sleep", AsyncMock()):
+            ts.get_token = Mock(return_value={"access_token": "tok"})
             msgs = asyncio.run(pipe._fetch_outlook_messages(None))
         assert len(msgs) == 1
         assert msgs[0]["status"] == "unread"
@@ -2266,9 +2271,31 @@ class TestPipelineWebhookHelpers:
     def test_search_communications_filters_and_errors(self, tmp_path):
         mm = LanceDBMemoryManager(db_path=str(tmp_path), workspace_id="cov2")
         mm.initialize()
-        mm.ingest_communication(comm_data(id="1", app_type="slack", tags=["sales"]))
-        results = mm.search_communications("hello", app_type="slack", tag="sales")
+
+        class FakeBuilder:
+            def __init__(self):
+                self.wheres = []
+                self.query = None
+            def vector(self, v):
+                self.query = v
+                return self
+            def text(self, t):
+                return self
+            def limit(self, n):
+                return self
+            def where(self, w):
+                self.wheres.append(w)
+                return self
+            def to_pandas(self):
+                import pandas as pd
+                return pd.DataFrame([{"id": "1", "app_type": "slack", "tags": ["sales"]}])
+
+        builder = FakeBuilder()
+        with patch.object(mm.connections_table, "search", return_value=builder):
+            results = mm.search_communications("hello", app_type="slack", tag="sales")
         assert any(r["id"] == "1" for r in results)
+        assert any("slack" in w for w in builder.wheres)
+        assert any("array_has_any" in w for w in builder.wheres)
         with patch.object(mm.connections_table, "search", side_effect=RuntimeError("boom")):
             assert mm.search_communications("q") == []
 
@@ -2302,9 +2329,38 @@ class TestPipelineWebhookHelpers:
     def test_search_hybrid_fallback(self, tmp_path):
         mm = LanceDBMemoryManager(db_path=str(tmp_path), workspace_id="cov6")
         mm.initialize()
-        mm.ingest_communication(comm_data(id="1", app_type="slack", content="unique term xyz"))
-        real_search = mm.connections_table.search
-        with patch.object(mm.connections_table, "search", side_effect=TypeError("hybrid not supported")):
+
+        class FakeBuilder:
+            def vector(self, v):
+                return self
+            def text(self, t):
+                return self
+            def limit(self, n):
+                return self
+            def where(self, w):
+                return self
+            def to_pandas(self):
+                import pandas as pd
+                return pd.DataFrame([{"id": "1", "app_type": "slack", "content": "unique term xyz"}])
+
+        class FallbackBuilder:
+            def __init__(self):
+                self.query = None
+            def vector(self, v):
+                self.query = v
+                return self
+            def text(self, t):
+                return self
+            def limit(self, n):
+                return self
+            def where(self, w):
+                return self
+            def to_pandas(self):
+                import pandas as pd
+                return pd.DataFrame([{"id": "1", "app_type": "slack", "content": "unique term xyz"}])
+
+        with patch.object(mm.connections_table, "search",
+                          side_effect=[TypeError("hybrid not supported"), FallbackBuilder()]):
             results = mm.search_communications("unique term xyz")
         assert any(r["id"] == "1" for r in results)
 
@@ -2339,3 +2395,772 @@ def make_email_message():
         b"--b\nContent-Type: text/plain\n\nplain body\n"
         b"--b\nContent-Type: text/plain\nContent-Disposition: attachment; filename=x.txt\n\nattach\n"
         b"--b--\n")
+
+
+# ============================================================================
+# Gap-fill wave — remaining uncovered lines
+# ============================================================================
+
+class TestGapFillWhatsApp:
+    def _wa(self, **kw):
+        cfg = {"access_token": "tok", "phone_number_id": "ph1", "webhook_url": None,
+               "enable_enterprise_features": True}
+        cfg.update(kw)
+        return whatsapp_mod.AtomWhatsAppIntegration(cfg)
+
+    def test_initialize_with_webhook_and_exception_path(self):
+        wa = self._wa(webhook_url="https://x/wa")
+        with patch.object(wa, "_verify_api_connection", new_callable=AsyncMock), \
+             patch.object(wa, "_setup_webhook", new_callable=AsyncMock) as sw, \
+             patch.object(wa, "_setup_enterprise_features", new_callable=AsyncMock), \
+             patch.object(wa, "_setup_security_and_compliance", new_callable=AsyncMock), \
+             patch.object(wa, "_setup_automation", new_callable=AsyncMock), \
+             patch.object(wa, "_setup_monitoring", new_callable=AsyncMock), \
+             patch.object(wa, "_load_existing_data", new_callable=AsyncMock):
+            assert asyncio.run(wa.initialize()) is True
+            sw.assert_awaited_once()
+        wa2 = self._wa()
+        with patch.object(wa2, "_verify_api_connection", new_callable=AsyncMock,
+                          side_effect=RuntimeError("boom")):
+            assert asyncio.run(wa2.initialize()) is False
+
+    def test_get_intelligent_channels_exception(self):
+        wa = self._wa()
+        class Boom:
+            def __getattr__(self, name):
+                raise RuntimeError("boom")
+        wa.active_chats = {"c1": Boom()}
+        assert asyncio.run(wa.get_intelligent_channels("c1", "u1")) == []
+
+    def test_send_intelligent_message_exception(self):
+        wa = self._wa()
+        wa.http_session = Mock()
+        wa.http_session.post = AsyncMock(side_effect=RuntimeError("boom"))
+        result = asyncio.run(wa.send_intelligent_message("+1", "hi"))
+        assert result["success"] is False
+
+    def test_perform_intelligent_search_skips_other_workspace(self):
+        wa = self._wa()
+        msg = SimpleNamespace(message_id="m1", chat_id="c1", user_id="u1",
+                              message_type=whatsapp_mod.WhatsAppMessageType.TEXT,
+                              content="sales", timestamp=datetime(2026, 1, 1), metadata={})
+        wa.message_history = {"c1": [msg]}
+        wa.ai_service = None
+        assert asyncio.run(wa.perform_intelligent_search("sales", "u1", "other_ws")) == []
+
+    def test_get_user_conversation_history_exception(self):
+        wa = self._wa()
+        class Boom:
+            @property
+            def user_id(self):
+                raise RuntimeError("boom")
+        wa.message_history = {"c1": [Boom()]}
+        assert asyncio.run(wa.get_user_conversation_history("u1", "c1")) == []
+
+    def test_setup_enterprise_features_exception(self):
+        wa = self._wa()
+        wa.enterprise_security = Mock()
+        wa.enterprise_automation = Mock()
+        with patch.object(wa, "_setup_security_policies", new_callable=AsyncMock,
+                          side_effect=RuntimeError("boom")):
+            asyncio.run(wa._setup_enterprise_features())
+
+    def test_setup_bodies_and_exception_paths(self):
+        wa = self._wa()
+        asyncio.run(wa._setup_security_monitoring())
+        assert "message_anomaly_detection" in wa.security_monitoring
+        asyncio.run(wa._setup_compliance_monitoring())
+        assert "message_compliance_checking" in wa.compliance_monitoring
+        logger = whatsapp_mod.logger
+        with patch.object(logger, "info", side_effect=RuntimeError("boom")):
+            asyncio.run(wa._setup_security_policies())
+            asyncio.run(wa._setup_compliance_rules())
+            asyncio.run(wa._setup_automation_triggers())
+            asyncio.run(wa._setup_security_monitoring())
+            asyncio.run(wa._setup_compliance_monitoring())
+            asyncio.run(wa._setup_monitoring())
+            asyncio.run(wa._load_existing_data())
+
+    def test_security_and_compliance_exception(self):
+        wa = self._wa()
+        with patch.object(wa, "_setup_security_monitoring", new_callable=AsyncMock,
+                          side_effect=RuntimeError("boom")):
+            asyncio.run(wa._setup_security_and_compliance())
+
+    def test_relevance_score_exception(self):
+        wa = self._wa()
+        assert wa._calculate_relevance_score(1, "content") == 0.0
+
+    def test_ai_search_empty_result_branch(self):
+        wa = self._wa()
+        svc = Mock()
+        resp = Mock()
+        resp.ok = True
+        resp.output_data = {}
+        svc.process_ai_request = AsyncMock(return_value=resp)
+        wa.ai_service = svc
+        class _T:
+            SEARCH_QUERY = "search"
+        class _M:
+            GPT_4 = "gpt4"
+        class _S:
+            OPENAI = "openai"
+        with patch.object(whatsapp_mod, "AIRequest", Mock(return_value=Mock())), \
+             patch.object(whatsapp_mod, "AITaskType", _T), \
+             patch.object(whatsapp_mod, "AIModelType", _M), \
+             patch.object(whatsapp_mod, "AIServiceType", _S):
+            assert asyncio.run(wa._perform_ai_search("q")) == []
+
+    def test_import_fallbacks_when_optional_modules_missing(self, tmp_path):
+        import importlib.util
+        import shutil
+
+        pkg = tmp_path / "wapkg"
+        pkg.mkdir()
+        pkg_mod = types.ModuleType("wapkg")
+        pkg_mod.__path__ = [str(pkg)]
+        sys.modules["wapkg"] = pkg_mod
+        shutil.copy("integrations/atom_whatsapp_integration.py", pkg / "wa_copy.py")
+        real_import = builtins.__import__
+        blocked = {"numpy", "pandas", "ai_enhanced_service", "atom_slack_integration",
+                   "atom_memory_service", "atom_search_service", "atom_workflow_service"}
+
+        def _blocked(name, *a, **k):
+            if name.split(".")[0] in blocked:
+                raise ImportError(f"blocked: {name}")
+            return real_import(name, *a, **k)
+
+        spec = importlib.util.spec_from_file_location("wapkg.wa_copy", pkg / "wa_copy.py")
+        mod = importlib.util.module_from_spec(spec)
+        with patch("builtins.__import__", side_effect=_blocked):
+            spec.loader.exec_module(mod)
+        assert mod.np is None
+        assert mod.AIRequest is None
+        assert mod.AtomMemoryService is None
+        assert mod.atom_slack_integration is None
+
+
+class TestGapFillTeams:
+    def _svc(self):
+        return teams_mod.AtomTeamsIntegration({
+            "atom_memory_service": Mock(), "atom_search_service": Mock(),
+            "atom_workflow_service": Mock()})
+
+    def test_initialize_exception(self):
+        svc = self._svc()
+        svc.teams_service = Mock()
+        with patch.object(svc, "_start_integration_workers", new_callable=AsyncMock,
+                          side_effect=RuntimeError("boom")):
+            assert asyncio.run(svc.initialize()) is False
+
+    def test_create_workflow_action_loop_teams_detection(self):
+        svc = self._svc()
+        svc.atom_workflow = None
+        result = asyncio.run(svc.create_unified_workflow({
+            "name": "N", "triggers": [], "actions": [{"platform": "microsoft_teams"}]}))
+        assert result["ok"] is False
+
+    def test_create_workflow_teams_engine_path(self):
+        svc = self._svc()
+        engine = Mock()
+        engine.register_workflow = Mock(return_value=True)
+        twf = Mock()
+        twf.id = "twf1"
+        with patch.object(teams_mod, "teams_workflow_engine", engine), \
+             patch("integrations.atom_teams_integration.TeamsWorkflow", Mock(return_value=twf), create=True), \
+             patch("integrations.atom_teams_integration.TeamsWorkflowTrigger", Mock(return_value=Mock()), create=True), \
+             patch("integrations.atom_teams_integration.TeamsWorkflowAction", Mock(return_value=Mock()), create=True):
+            result = asyncio.run(svc.create_unified_workflow({
+                "name": "N", "description": "d", "triggers": [
+                    {"platform": "microsoft_teams", "event": "message"},
+                    {"platform": "slack", "event": "message"}],
+                "actions": [{"platform": "microsoft_teams", "action": "send"}],
+                "created_by": "u", "category": "teams", "tags": ["t"]}))
+        assert result["ok"] is True
+        assert result["workflow_id"] == "twf1"
+        engine.register_workflow = Mock(return_value=False)
+        with patch.object(teams_mod, "teams_workflow_engine", engine), \
+             patch("integrations.atom_teams_integration.TeamsWorkflow", Mock(return_value=twf), create=True), \
+             patch("integrations.atom_teams_integration.TeamsWorkflowTrigger", Mock(return_value=Mock()), create=True), \
+             patch("integrations.atom_teams_integration.TeamsWorkflowAction", Mock(return_value=Mock()), create=True):
+            result2 = asyncio.run(svc.create_unified_workflow({
+                "name": "N", "triggers": [{"platform": "microsoft_teams"}], "actions": []}))
+        assert result2["ok"] is False
+
+    def test_cross_platform_handler_exceptions(self):
+        svc = self._svc()
+        with patch.object(svc, "_store_message_in_memory", new_callable=AsyncMock,
+                          side_effect=RuntimeError("boom")):
+            asyncio.run(svc._handle_teams_message_cross_platform({"message_id": "1"}))
+        svc._index_file_in_search = AsyncMock(side_effect=RuntimeError("boom"))
+        svc._store_file_in_memory = AsyncMock()
+        with patch.object(svc, "_trigger_workflows", new_callable=AsyncMock):
+            asyncio.run(svc._handle_teams_file_cross_platform({}))
+        svc._update_user_profile_cross_platform = AsyncMock(side_effect=RuntimeError("boom"))
+        with patch.object(svc, "_trigger_workflows", new_callable=AsyncMock):
+            asyncio.run(svc._handle_teams_user_event_cross_platform({}))
+
+    def test_generate_search_highlights_exception(self):
+        svc = self._svc()
+        assert svc._generate_search_highlights(None, "q") == []
+
+    def test_message_ingestion_worker_error_path(self):
+        svc = self._svc()
+        with patch("asyncio.sleep",
+                   AsyncMock(side_effect=[RuntimeError("boom"), asyncio.CancelledError()])):
+            with pytest.raises(asyncio.CancelledError):
+                asyncio.run(svc._teams_message_ingestion_worker())
+
+    def test_get_unified_messages_returns_empty_for_non_teams(self):
+        svc = self._svc()
+        assert asyncio.run(svc.get_unified_messages("slack_w", "teams_c1")) == []
+
+
+class TestGapFillMemoryApi:
+    def test_apps_endpoint_exception(self):
+        with patch.object(memory_api_mod, "CommunicationAppType", Mock()), pytest.raises(Exception) as exc:
+            asyncio.run(route_endpoint(memory_api_mod.AtomCommunicationMemoryAPI().router,
+                                       "/api/atom/communication/memory/apps", "GET")())
+        assert getattr(exc.value, "status_code", None) == 500
+
+    def test_initialize_called_when_db_none(self):
+        mm = Mock()
+        mm.db = None
+        def _init():
+            mm.db = Mock()
+            mm.db.table_names = Mock(return_value=[])
+        mm.initialize = Mock(side_effect=_init)
+        with patch.object(memory_api_mod, "memory_manager", mm), \
+             patch.object(memory_api_mod, "ingestion_pipeline") as pipe:
+            pipe.get_ingestion_stats = Mock(return_value={"configured_apps": []})
+            asyncio.run(route_endpoint(memory_api_mod.AtomCommunicationMemoryAPI().router,
+                                       "/api/atom/communication/memory/status", "GET")())
+        mm.initialize.assert_called_once()
+
+    def test_batch_endpoint_exception(self):
+        with patch.object(memory_api_mod, "ingestion_pipeline") as pipe, \
+             patch.object(memory_api_mod, "memory_manager") as mm:
+            mm.db = Mock()
+            pipe.ingest_message = AsyncMock(side_effect=RuntimeError("boom"))
+            with pytest.raises(Exception) as exc:
+                asyncio.run(route_endpoint(memory_api_mod.AtomCommunicationMemoryAPI().router,
+                                           "/api/atom/communication/memory/ingest/batch")(
+                    app_id="slack", messages=[{"id": "1"}]))
+        assert getattr(exc.value, "status_code", None) == 500
+
+    def test_search_value_error_and_exception(self):
+        mm = Mock()
+        mm.db = Mock()
+        mm.get_communications_by_timeframe = Mock(side_effect=ValueError("bad date"))
+        with patch.object(memory_api_mod, "memory_manager", mm), pytest.raises(Exception) as exc:
+            asyncio.run(route_endpoint(memory_api_mod.AtomCommunicationMemoryAPI().router,
+                                       "/api/atom/communication/memory/search", "GET")(
+                query="q", app_id=None, limit=10, time_start="bad", time_end="bad2", tag=None))
+        assert getattr(exc.value, "status_code", None) == 400
+        mm.search_communications = Mock(side_effect=RuntimeError("boom"))
+        with patch.object(memory_api_mod, "memory_manager", mm), pytest.raises(Exception) as exc2:
+            asyncio.run(route_endpoint(memory_api_mod.AtomCommunicationMemoryAPI().router,
+                                       "/api/atom/communication/memory/search", "GET")(
+                query="q", app_id=None, limit=10, time_start=None, time_end=None, tag=None))
+        assert getattr(exc2.value, "status_code", None) == 500
+
+    def test_communications_exception(self):
+        mm = Mock()
+        mm.db = Mock()
+        mm.get_communications_by_app = Mock(side_effect=RuntimeError("boom"))
+        with patch.object(memory_api_mod, "memory_manager", mm), pytest.raises(Exception) as exc:
+            asyncio.run(route_endpoint(memory_api_mod.AtomCommunicationMemoryAPI().router,
+                                       "/api/atom/communication/memory/communications/{app_id}", "GET")(
+                app_id="slack", limit=50, time_start=None, time_end=None))
+        assert getattr(exc.value, "status_code", None) == 500
+
+    def test_analytics_branch_coverage(self):
+        mm = Mock()
+        mm.db = Mock()
+        table = Mock()
+        df = Mock()
+        records = [
+            {"app_type": "slack", "direction": "inbound", "priority": "normal",
+             "status": "active", "timestamp": datetime(2026, 1, 1, 10, 0),
+             "metadata": {"thread_id": "t1"}, "subject": "s", "id": "1"},
+            {"app_type": "slack", "direction": "outbound", "priority": "normal",
+             "status": "active", "timestamp": "2026-01-01T10:00:30",
+             "metadata": "not-json{", "subject": None, "id": "2"},
+            {"app_type": "slack", "direction": "inbound", "priority": "normal",
+             "status": "active", "timestamp": "2026-01-01T11:00:00",
+             "metadata": "{}", "subject": "s3", "id": "3"},
+        ]
+        df.to_dict = Mock(return_value=records)
+        table.to_pandas = Mock(return_value=df)
+        mm.connections_table = table
+        with patch.object(memory_api_mod, "memory_manager", mm), \
+             patch.object(memory_api_mod, "ingestion_pipeline") as pipe:
+            pipe.get_ingestion_stats = Mock(return_value={"configured_apps": []})
+            result = asyncio.run(route_endpoint(memory_api_mod.AtomCommunicationMemoryAPI().router,
+                                                "/api/atom/communication/memory/analytics", "GET")(
+                time_start=None, time_end=None))
+        assert result["analytics"]["performance"]["total_responses"] == 1
+        # 30s response time → "30s" format; second: subj_ group; third: ungrouped id
+        assert result["analytics"]["performance"]["avg_response_time"] == "30s"
+
+    def test_analytics_error_paths(self):
+        mm = Mock()
+        mm.db = Mock()
+        mm.connections_table = None
+        with patch.object(memory_api_mod, "memory_manager", mm), \
+             patch.object(memory_api_mod, "ingestion_pipeline") as pipe:
+            pipe.get_ingestion_stats = Mock(side_effect=ValueError("bad"))
+            with pytest.raises(Exception) as exc:
+                asyncio.run(route_endpoint(memory_api_mod.AtomCommunicationMemoryAPI().router,
+                                           "/api/atom/communication/memory/analytics", "GET")(
+                    time_start=None, time_end=None))
+        assert getattr(exc.value, "status_code", None) == 400
+
+    def test_configure_endpoint_exception(self):
+        config = pipeline_mod.IngestionConfig(
+            app_type=CommunicationAppType.SLACK, enabled=True, real_time=True,
+            batch_size=10, ingest_attachments=True, embed_content=True, retention_days=30)
+        with patch.object(memory_api_mod, "ingestion_pipeline") as pipe:
+            pipe.configure_app = Mock(side_effect=RuntimeError("boom"))
+            with pytest.raises(Exception) as exc:
+                asyncio.run(route_endpoint(memory_api_mod.AtomCommunicationMemoryAPI().router,
+                                           "/api/atom/communication/memory/configure")(
+                    app_id="slack", config=config))
+        assert getattr(exc.value, "status_code", None) == 500
+
+
+class TestGapFillProductionApi:
+    def test_verify_token_passthrough(self):
+        api = prod_api_mod.AtomCommunicationMemoryProductionAPI()
+        assert api.verify_token({"sub": "u"}) == {"sub": "u"}
+
+    def test_batch_value_error_and_exception(self):
+        with patch.object(prod_api_mod, "ingestion_pipeline") as pipe, \
+             patch.object(prod_api_mod, "memory_manager") as mm:
+            mm.db = Mock()
+            pipe.ingest_message = AsyncMock(return_value=True)
+            with pytest.raises(Exception) as exc:
+                asyncio.run(route_endpoint(prod_api_mod.AtomCommunicationMemoryProductionAPI().router,
+                                           "/api/atom/communication/memory/ingest/batch")(
+                    app_id="nope", messages=[{"id": "1"}], token={"sub": "u"}))
+            assert getattr(exc.value, "status_code", None) == 404
+            pipe.ingest_message = AsyncMock(side_effect=RuntimeError("boom"))
+            with pytest.raises(Exception) as exc2:
+                asyncio.run(route_endpoint(prod_api_mod.AtomCommunicationMemoryProductionAPI().router,
+                                           "/api/atom/communication/memory/ingest/batch")(
+                    app_id="slack", messages=[{"id": "1"}], token={"sub": "u"}))
+            assert getattr(exc2.value, "status_code", None) == 500
+
+    def test_search_include_metadata_and_errors(self):
+        mm = Mock()
+        mm.db = Mock()
+        mm.search_communications = Mock(return_value=[{"id": "1", "content": "c", "metadata": {}}])
+        with patch.object(prod_api_mod, "memory_manager", mm):
+            result = asyncio.run(route_endpoint(prod_api_mod.AtomCommunicationMemoryProductionAPI().router,
+                                                "/api/atom/communication/memory/search/production", "GET")(
+                query="q", app_id=None, limit=10, time_start=None, time_end=None,
+                include_metadata=True, token={"sub": "u"}))
+        assert result["total_results"] == 1
+        mm.get_communications_by_timeframe = Mock(side_effect=ValueError("bad date"))
+        with patch.object(prod_api_mod, "memory_manager", mm), pytest.raises(Exception) as exc:
+            asyncio.run(route_endpoint(prod_api_mod.AtomCommunicationMemoryProductionAPI().router,
+                                       "/api/atom/communication/memory/search/production", "GET")(
+                query="q", app_id=None, limit=10, time_start="bad", time_end="bad",
+                include_metadata=True, token={"sub": "u"}))
+        assert getattr(exc.value, "status_code", None) == 400
+        mm.search_communications = Mock(side_effect=RuntimeError("boom"))
+        with patch.object(prod_api_mod, "memory_manager", mm), pytest.raises(Exception) as exc2:
+            asyncio.run(route_endpoint(prod_api_mod.AtomCommunicationMemoryProductionAPI().router,
+                                       "/api/atom/communication/memory/search/production", "GET")(
+                query="q", app_id=None, limit=10, time_start=None, time_end=None,
+                include_metadata=True, token={"sub": "u"}))
+        assert getattr(exc2.value, "status_code", None) == 500
+
+    def test_analytics_attachment_and_storage_errors(self, tmp_path):
+        mm = Mock()
+        mm.db = Mock()
+        table = Mock()
+        df = Mock()
+        records = [
+            {"app_type": "slack", "direction": "inbound", "priority": "high",
+             "status": "active", "timestamp": "2026-01-01T10:00:00", "content": "x" * 100,
+             "attachments": "not-json"},
+            {"app_type": "slack", "direction": "inbound", "priority": "high",
+             "status": "active", "timestamp": "2026-01-01T10:00:00", "content": "y" * 100,
+             "attachments": json.dumps([{"id": 1}])},
+        ]
+        df.to_dict = Mock(return_value=records)
+        table.to_pandas = Mock(return_value=df)
+        mm.connections_table = table
+        mm.db_path = str(tmp_path)
+        (tmp_path / "a.bin").write_bytes(b"12345678")
+        with patch.object(prod_api_mod, "memory_manager", mm), \
+             patch.object(prod_api_mod, "ingestion_pipeline") as pipe, \
+             patch("os.walk", side_effect=RuntimeError("fs error")):
+            pipe.get_ingestion_stats = Mock(return_value={"configured_apps": []})
+            result = asyncio.run(route_endpoint(prod_api_mod.AtomCommunicationMemoryProductionAPI().router,
+                                                "/api/atom/communication/memory/analytics/production", "GET")(
+                time_start=None, time_end=None, app_id=None,
+                include_detailed_metrics=True, token={"sub": "u"}))
+        assert result["analytics"]["detailed_metrics"]["total_attachments"] == 1
+        assert result["analytics"]["detailed_metrics"]["storage_efficiency"]
+
+    def test_analytics_value_error_and_exception(self):
+        mm = Mock()
+        mm.db = Mock()
+        mm.connections_table = None
+        with patch.object(prod_api_mod, "memory_manager", mm), \
+             patch.object(prod_api_mod, "ingestion_pipeline") as pipe:
+            pipe.get_ingestion_stats = Mock(side_effect=ValueError("bad"))
+            with pytest.raises(Exception) as exc:
+                asyncio.run(route_endpoint(prod_api_mod.AtomCommunicationMemoryProductionAPI().router,
+                                           "/api/atom/communication/memory/analytics/production", "GET")(
+                    time_start=None, time_end=None, app_id=None,
+                    include_detailed_metrics=True, token={"sub": "u"}))
+        assert getattr(exc.value, "status_code", None) == 400
+        with patch.object(prod_api_mod, "memory_manager", mm), \
+             patch.object(prod_api_mod, "ingestion_pipeline") as pipe2, \
+             pytest.raises(Exception) as exc2:
+            pipe2.get_ingestion_stats = Mock(side_effect=RuntimeError("boom"))
+            asyncio.run(route_endpoint(prod_api_mod.AtomCommunicationMemoryProductionAPI().router,
+                                       "/api/atom/communication/memory/analytics/production", "GET")(
+                time_start=None, time_end=None, app_id=None,
+                include_detailed_metrics=True, token={"sub": "u"}))
+        assert getattr(exc2.value, "status_code", None) == 500
+
+
+class TestGapFillWebhooks:
+    def test_verify_token_method(self):
+        assert webhooks_mod.verify_token({"sub": "u"}) == {"sub": "u"}
+
+    def test_whatsapp_missing_header(self, monkeypatch):
+        monkeypatch.setenv("ATOM_WHATSAPP_WEBHOOK_SECRET", "w")
+        wh = webhooks_mod.AtomCommunicationMemoryWebhooks()
+        endpoint = route_endpoint(wh.router, "/api/webhooks/communication/whatsapp")
+        with pytest.raises(Exception) as exc:
+            asyncio.run(endpoint(request=make_request(b"{}"), background_tasks=Mock(),
+                                 x_hub_signature_256=None, token={}))
+        assert getattr(exc.value, "status_code", None) == 401
+
+    def test_slack_invalid_json_500(self, monkeypatch):
+        monkeypatch.setenv("ATOM_SLACK_WEBHOOK_SECRET", "s")
+        wh = webhooks_mod.AtomCommunicationMemoryWebhooks()
+        endpoint = route_endpoint(wh.router, "/api/webhooks/communication/slack")
+        import hashlib, hmac
+        body = b"bad-json{"
+        ts = str(int(time.time()))
+        sig = "v0=" + hmac.new(b"s", f"v0:{ts}:".encode() + body, hashlib.sha256).hexdigest()
+        with pytest.raises(Exception) as exc:
+            asyncio.run(endpoint(request=make_request(body), background_tasks=Mock(),
+                                 x_slack_signature=sig, x_slack_request_timestamp=ts, token={}))
+        assert getattr(exc.value, "status_code", None) == 500
+
+    def test_discord_missing_header(self, monkeypatch):
+        monkeypatch.setenv("ATOM_DISCORD_WEBHOOK_SECRET", "d")
+        wh = webhooks_mod.AtomCommunicationMemoryWebhooks()
+        endpoint = route_endpoint(wh.router, "/api/webhooks/communication/discord")
+        with pytest.raises(Exception) as exc:
+            asyncio.run(endpoint(request=make_request(b"{}"), background_tasks=Mock(),
+                                 x_signature_ed25519=None, x_signature_timestamp=None, token={}))
+        assert getattr(exc.value, "status_code", None) == 401
+
+    def test_discord_invalid_json_500(self, monkeypatch):
+        monkeypatch.setenv("ATOM_DISCORD_WEBHOOK_SECRET", "d")
+        wh = webhooks_mod.AtomCommunicationMemoryWebhooks()
+        endpoint = route_endpoint(wh.router, "/api/webhooks/communication/discord")
+        import hashlib, hmac
+        body = b"bad{"
+        sig = hmac.new(b"d", body, hashlib.sha256).hexdigest()
+        with pytest.raises(Exception) as exc:
+            asyncio.run(endpoint(request=make_request(body), background_tasks=Mock(),
+                                 x_signature_ed25519=sig, x_signature_timestamp="123", token={}))
+        assert getattr(exc.value, "status_code", None) == 500
+
+    def test_telegram_missing_header(self, monkeypatch):
+        monkeypatch.setenv("ATOM_TELEGRAM_WEBHOOK_SECRET", "t")
+        wh = webhooks_mod.AtomCommunicationMemoryWebhooks()
+        endpoint = route_endpoint(wh.router, "/api/webhooks/communication/telegram")
+        with pytest.raises(Exception) as exc:
+            asyncio.run(endpoint(request=make_request(b"{}"), background_tasks=Mock(),
+                                 x_telegram_bot_api_secret_token=None, token={}))
+        assert getattr(exc.value, "status_code", None) == 401
+
+    def test_telegram_invalid_json_500(self, monkeypatch):
+        monkeypatch.setenv("ATOM_TELEGRAM_WEBHOOK_SECRET", "t")
+        wh = webhooks_mod.AtomCommunicationMemoryWebhooks()
+        endpoint = route_endpoint(wh.router, "/api/webhooks/communication/telegram")
+        import hashlib, hmac
+        body = b"bad{"
+        sig = hmac.new(b"t", body, hashlib.sha256).hexdigest()
+        with pytest.raises(Exception) as exc:
+            asyncio.run(endpoint(request=make_request(body), background_tasks=Mock(),
+                                 x_telegram_bot_api_secret_token=sig, token={}))
+        assert getattr(exc.value, "status_code", None) == 500
+
+    def test_gmail_and_outlook_missing_header(self, monkeypatch):
+        monkeypatch.setenv("ATOM_GMAIL_WEBHOOK_SECRET", "g")
+        monkeypatch.setenv("ATOM_OUTLOOK_WEBHOOK_SECRET", "o")
+        wh = webhooks_mod.AtomCommunicationMemoryWebhooks()
+        gendpoint = route_endpoint(wh.router, "/api/webhooks/communication/gmail")
+        with pytest.raises(Exception) as exc:
+            asyncio.run(gendpoint(request=make_request(b"{}"), background_tasks=Mock(),
+                                  x_atom_webhook_secret=None, token={}))
+        assert getattr(exc.value, "status_code", None) == 401
+        oendpoint = route_endpoint(wh.router, "/api/webhooks/communication/outlook")
+        with pytest.raises(Exception) as exc2:
+            asyncio.run(oendpoint(request=make_request(b"{}"), background_tasks=Mock(),
+                                  x_atom_webhook_secret=None, token={}))
+        assert getattr(exc2.value, "status_code", None) == 401
+
+    def test_gmail_invalid_json_500(self, monkeypatch):
+        monkeypatch.setenv("ATOM_GMAIL_WEBHOOK_SECRET", "g")
+        wh = webhooks_mod.AtomCommunicationMemoryWebhooks()
+        endpoint = route_endpoint(wh.router, "/api/webhooks/communication/gmail")
+        import hashlib, hmac
+        body = b"bad{"
+        sig = hmac.new(b"g", body, hashlib.sha256).hexdigest()
+        with pytest.raises(Exception) as exc:
+            asyncio.run(endpoint(request=make_request(body), background_tasks=Mock(),
+                                 x_atom_webhook_secret=sig, token={}))
+        assert getattr(exc.value, "status_code", None) == 500
+
+    def test_outlook_invalid_json_500(self, monkeypatch):
+        monkeypatch.setenv("ATOM_OUTLOOK_WEBHOOK_SECRET", "o")
+        wh = webhooks_mod.AtomCommunicationMemoryWebhooks()
+        endpoint = route_endpoint(wh.router, "/api/webhooks/communication/outlook")
+        import hashlib, hmac
+        body = b"bad{"
+        sig = hmac.new(b"o", body, hashlib.sha256).hexdigest()
+        with pytest.raises(Exception) as exc:
+            asyncio.run(endpoint(request=make_request(body), background_tasks=Mock(),
+                                 x_atom_webhook_secret=sig, token={}))
+        assert getattr(exc.value, "status_code", None) == 500
+
+    @pytest.mark.parametrize("name,payload", [
+        ("_process_whatsapp_webhook", {"entry": []}),
+        ("_process_discord_webhook", {"message": {"id": "1"}}),
+        ("_process_telegram_webhook", {"message": {"message_id": 1}}),
+        ("_process_gmail_webhook", {"message": {"id": "1"}}),
+        ("_process_outlook_webhook", {"value": [{"id": "1"}]}),
+    ])
+    def test_processor_exception_paths(self, name, payload):
+        wh = webhooks_mod.AtomCommunicationMemoryWebhooks()
+        with patch.object(webhooks_mod, "ingestion_pipeline") as pipe:
+            pipe.ingest_message = AsyncMock(side_effect=RuntimeError("boom"))
+            asyncio.run(getattr(wh, name)(payload))
+
+
+class TestGapFillLanceDBIntegration:
+    def test_apps_endpoint_exception(self):
+        with patch.object(lancedb_intgr, "CommunicationAppType", Mock()), pytest.raises(Exception) as exc:
+            asyncio.run(route_endpoint(lancedb_intgr.CommunicationAppIngestionIntegration().router,
+                                       "/api/memory/ingestion/apps", "GET")())
+        assert getattr(exc.value, "status_code", None) == 500
+
+    def test_app_config_exception(self):
+        with patch.object(lancedb_intgr, "ingestion_pipeline") as pipe:
+            pipe.ingestion_configs = Mock()
+            pipe.ingestion_configs.get = Mock(side_effect=RuntimeError("boom"))
+            with pytest.raises(Exception) as exc:
+                asyncio.run(route_endpoint(lancedb_intgr.CommunicationAppIngestionIntegration().router,
+                                           "/api/memory/ingestion/apps/{app_id}", "GET")(app_id="slack"))
+        assert getattr(exc.value, "status_code", None) == 500
+
+    def test_ingest_batch_exception(self):
+        with patch.object(lancedb_intgr, "ingestion_pipeline") as pipe, \
+             patch.object(lancedb_intgr, "memory_manager") as mm:
+            mm.db = Mock()
+            pipe.ingest_message = AsyncMock(side_effect=RuntimeError("boom"))
+            with pytest.raises(Exception) as exc:
+                asyncio.run(route_endpoint(lancedb_intgr.CommunicationAppIngestionIntegration().router,
+                                           "/api/memory/ingestion/ingest/{app_id}/batch")(
+                    app_id="slack", messages=[{"id": "1"}]))
+        assert getattr(exc.value, "status_code", None) == 500
+
+    def test_initialize_branches_and_search_success(self):
+        mm = Mock()
+        mm.db = None
+        mm.initialize = Mock()
+        with patch.object(lancedb_intgr, "memory_manager", mm), \
+             patch.object(lancedb_intgr, "ingestion_pipeline") as pipe:
+            pipe.ingest_message = AsyncMock(return_value=True)
+            asyncio.run(route_endpoint(lancedb_intgr.CommunicationAppIngestionIntegration().router,
+                                       "/api/memory/ingestion/ingest/{app_id}")(
+                app_id="slack", message_data={"id": "1"}))
+            mm.initialize.assert_called_once()
+        mm2 = Mock()
+        mm2.db = Mock()
+        mm2.search_communications = Mock(return_value=[{"id": "1"}])
+        with patch.object(lancedb_intgr, "memory_manager", mm2):
+            result = asyncio.run(route_endpoint(lancedb_intgr.CommunicationAppIngestionIntegration().router,
+                                                "/api/memory/ingestion/search", "GET")(query="q"))
+        assert result["total_results"] == 1
+
+    def test_stream_start_initialize_and_invalid(self):
+        mm = Mock()
+        mm.db = None
+        mm.initialize = Mock()
+        with patch.object(lancedb_intgr, "memory_manager", mm), \
+             patch.object(lancedb_intgr, "ingestion_pipeline") as pipe:
+            pipe.start_real_time_stream = Mock(return_value=True)
+            asyncio.run(route_endpoint(lancedb_intgr.CommunicationAppIngestionIntegration().router,
+                                       "/api/memory/ingestion/stream/start/{app_id}")(app_id="slack"))
+            mm.initialize.assert_called_once()
+            with pytest.raises(Exception) as exc:
+                asyncio.run(route_endpoint(lancedb_intgr.CommunicationAppIngestionIntegration().router,
+                                           "/api/memory/ingestion/stream/start/{app_id}")(app_id="nope"))
+            assert getattr(exc.value, "status_code", None) == 404
+
+    def test_communications_initialize_and_errors(self):
+        mm = Mock()
+        mm.db = None
+        mm.initialize = Mock()
+        mm.get_communications_by_app = Mock(return_value=[{"app_type": "slack"}])
+        with patch.object(lancedb_intgr, "memory_manager", mm):
+            result = asyncio.run(route_endpoint(lancedb_intgr.CommunicationAppIngestionIntegration().router,
+                                                "/api/memory/ingestion/communications/{app_id}", "GET")(
+                app_id="slack", limit=100))
+            assert result["total_results"] == 1
+            mm.initialize.assert_called_once()
+            with pytest.raises(Exception) as exc:
+                asyncio.run(route_endpoint(lancedb_intgr.CommunicationAppIngestionIntegration().router,
+                                           "/api/memory/ingestion/communications/{app_id}", "GET")(
+                    app_id="nope", limit=100))
+            assert getattr(exc.value, "status_code", None) == 404
+        mm.get_communications_by_app = Mock(side_effect=RuntimeError("boom"))
+        mm.db = Mock()
+        with patch.object(lancedb_intgr, "memory_manager", mm), pytest.raises(Exception) as exc2:
+            asyncio.run(route_endpoint(lancedb_intgr.CommunicationAppIngestionIntegration().router,
+                                       "/api/memory/ingestion/communications/{app_id}", "GET")(
+                app_id="slack", limit=100))
+        assert getattr(exc2.value, "status_code", None) == 500
+
+    def test_timeline_generic_exception(self):
+        mm = Mock()
+        mm.db = Mock()
+        mm.get_communications_by_timeframe = Mock(side_effect=RuntimeError("boom"))
+        with patch.object(lancedb_intgr, "memory_manager", mm), pytest.raises(Exception) as exc:
+            asyncio.run(route_endpoint(lancedb_intgr.CommunicationAppIngestionIntegration().router,
+                                       "/api/memory/ingestion/communications/timeline", "GET")(
+                start_date="2026-01-01", end_date="2026-01-02", app_id=None))
+        assert getattr(exc.value, "status_code", None) == 500
+
+    def test_memory_stats_initialize(self):
+        mm = Mock()
+        mm.db = None
+        def _init():
+            mm.db = Mock()
+            mm.db.table_names = Mock(return_value=[])
+        mm.initialize = Mock(side_effect=_init)
+        with patch.object(lancedb_intgr, "memory_manager", mm), \
+             patch.object(lancedb_intgr, "ingestion_pipeline") as pipe:
+            pipe.get_ingestion_stats = Mock(return_value={"configured_apps": []})
+            asyncio.run(route_endpoint(lancedb_intgr.CommunicationAppIngestionIntegration().router,
+                                       "/api/memory/ingestion/memory/stats", "GET")())
+            mm.initialize.assert_called_once()
+
+
+class TestGapFillLiveApi:
+    def test_fetch_zoho_outlook_teams_no_token(self, monkeypatch):
+        monkeypatch.setattr(comm_live, "ZOHO_MAIL_AVAILABLE", True)
+        monkeypatch.setattr(comm_live, "M365_AVAILABLE", True)
+        monkeypatch.delenv("ZOHO_CRM_ACCESS_TOKEN", raising=False)
+        monkeypatch.delenv("MICROSOFT_365_ACCESS_TOKEN", raising=False)
+        assert asyncio.run(comm_live.fetch_zoho_mail_recent()) == []
+        assert asyncio.run(comm_live.fetch_outlook_recent()) == []
+        assert asyncio.run(comm_live.fetch_teams_recent()) == []
+
+    def test_recent_contacts_per_provider_errors_and_success(self, monkeypatch):
+        monkeypatch.setattr(comm_live, "SLACK_AVAILABLE", True)
+        monkeypatch.setattr(comm_live, "GMAIL_AVAILABLE", True)
+        monkeypatch.setattr(comm_live, "DISCORD_AVAILABLE", True)
+        monkeypatch.setattr(comm_live, "ZOHO_MAIL_AVAILABLE", True)
+        monkeypatch.setattr(comm_live, "M365_AVAILABLE", True)
+        with patch("integrations.atom_communication_live_api.fetch_slack_recent",
+                   AsyncMock(side_effect=RuntimeError("slack down"))), \
+             patch("integrations.atom_communication_live_api.fetch_gmail_recent",
+                   AsyncMock(return_value=[{"sender": "gm@x.com"}]), create=True), \
+             patch("integrations.atom_communication_live_api.fetch_discord_recent",
+                   AsyncMock(return_value=[{"sender": "dc@x.com"}]), create=True), \
+             patch("integrations.atom_communication_live_api.fetch_zoho_mail_recent",
+                   AsyncMock(side_effect=RuntimeError("zoho down"))), \
+             patch("integrations.atom_communication_live_api.fetch_outlook_recent",
+                   AsyncMock(side_effect=RuntimeError("outlook down"))), \
+             patch("integrations.atom_communication_live_api.fetch_teams_recent",
+                   AsyncMock(side_effect=RuntimeError("teams down"))):
+            result = asyncio.run(comm_live.get_recent_contacts(limit=10))
+        senders = {c["name"] for c in result["contacts"]}
+        assert {"gm@x.com", "dc@x.com"} <= senders
+
+
+class TestGapFillSmall:
+    def test_sales_live_provider_exceptions(self, monkeypatch):
+        monkeypatch.delenv("HUBSPOT_ACCESS_TOKEN", raising=False)
+        monkeypatch.setenv("SALESFORCE_ACCESS_TOKEN", "t")
+        monkeypatch.setenv("SALESFORCE_INSTANCE_URL", "https://x")
+        monkeypatch.setenv("ZOHO_CRM_ACCESS_TOKEN", "z")
+        monkeypatch.setenv("MICROSOFT_365_ACCESS_TOKEN", "ms")
+        with patch.object(sales_mod, "get_hubspot_service") as hsvc, \
+             patch.object(sales_mod, "token_storage") as ts, \
+             patch.object(sales_mod, "ZohoCRMService") as zcls, \
+             patch.object(sales_mod, "microsoft365_service") as msvc:
+            ts.get_token = Mock(return_value={"access_token": "t", "instance_url": "https://x"})
+            sf = Mock()
+            sf.query_all = Mock(side_effect=RuntimeError("sf down"))
+            with patch.object(sales_mod, "create_client_with_token", return_value=sf):
+                pass
+            hsvc.return_value.get_deals = AsyncMock(return_value=[])
+            zcls.return_value.get_deals = AsyncMock(side_effect=RuntimeError("zoho down"))
+            msvc.get_dynamics_deals = AsyncMock(side_effect=RuntimeError("ms down"))
+            with patch.object(sales_mod, "create_client_with_token", return_value=sf):
+                result = asyncio.run(sales_mod.get_live_pipeline(limit=10))
+        assert result.providers["salesforce"] is False
+        assert result.providers["zoho"] is False
+        assert result.providers["dynamics"] is False
+
+    def test_projects_live_provider_exceptions(self, monkeypatch):
+        monkeypatch.setenv("ASANA_ACCESS_TOKEN", "a")
+        monkeypatch.setenv("ZOHO_CRM_ACCESS_TOKEN", "z")
+        monkeypatch.setenv("ZOHO_PROJECTS_PORTAL_ID", "p")
+        monkeypatch.setenv("MICROSOFT_365_ACCESS_TOKEN", "ms")
+        with patch.object(projects_mod, "asana_service") as asvc, \
+             patch.object(projects_mod, "get_jira_service", return_value=None), \
+             patch.object(projects_mod, "ZohoProjectsService") as zcls, \
+             patch.object(projects_mod, "microsoft365_service") as msvc:
+            asvc.get_tasks = AsyncMock(side_effect=RuntimeError("asana down"))
+            zcls.return_value.get_all_active_tasks = AsyncMock(side_effect=RuntimeError("zoho down"))
+            msvc.get_planner_tasks = AsyncMock(side_effect=RuntimeError("ms down"))
+            result = asyncio.run(projects_mod.get_live_project_board(limit=10))
+        assert result.providers["asana"] is False
+        assert result.providers["zoho"] is False
+        assert result.providers["planner"] is False
+
+    def test_finance_xero_and_dynamics_exceptions(self, monkeypatch):
+        monkeypatch.delenv("STRIPE_SECRET_KEY", raising=False)
+        monkeypatch.setenv("XERO_ACCESS_TOKEN", "x")
+        monkeypatch.setenv("MICROSOFT_365_ACCESS_TOKEN", "ms")
+        with patch("integrations.xero_service.XeroService") as xcls, \
+             patch.object(finance_mod, "microsoft365_service") as msvc:
+            xcls.return_value.get_invoices = AsyncMock(side_effect=RuntimeError("xero down"))
+            msvc.get_dynamics_invoices = AsyncMock(side_effect=RuntimeError("ms down"))
+            result = asyncio.run(finance_mod.get_live_financial_overview(limit=10))
+        assert result.providers["xero"] is False
+        assert result.providers["dynamics"] is False
+
+    def test_sales_memory_broadcast_failure(self):
+        pipe = SalesMemoryPipeline(workspace_id="ws1")
+        pipe.memory_manager = Mock()
+        with patch("integrations.atom_sales_memory_pipeline.manager") as mgr:
+            mgr.broadcast_event = AsyncMock(side_effect=RuntimeError("ws down"))
+            asyncio.run(pipe.run_pipeline())
+
+    def test_sales_memory_list_deals_shape(self, monkeypatch):
+        monkeypatch.setenv("HUBSPOT_ACCESS_TOKEN", "t")
+        pipe = SalesMemoryPipeline(workspace_id="ws1")
+        pipe.memory_manager = Mock()
+        pipe.memory_manager.ingest_communication = Mock(return_value=True)
+        with patch("integrations.atom_sales_memory_pipeline.get_hubspot_service") as gf:
+            gf.return_value.get_deals = AsyncMock(return_value=[
+                {"id": "d1", "properties": {"dealname": "D", "amount": "1", "dealstage": "s"}}])
+            asyncio.run(pipe._ingest_hubspot())
+        pipe.memory_manager.ingest_communication.assert_called_once()

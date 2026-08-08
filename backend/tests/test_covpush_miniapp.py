@@ -587,7 +587,12 @@ class TestRunStatefulErrors:
         app, canvas_id, _ = _make_app(db_session)
         monkeypatch.setattr(svc, "get_miniapp_runtime", lambda: (_ for _ in ()).throw(RuntimeError("no firecracker")))
         res = await run_stateful(canvas_id)
-        assert not res["success"] and "no firecracker" in res["error"]
+        # Fails closed with a GENERIC message: the RuntimeError detail can
+        # carry env names/values + FS paths and must not reach the API/agent
+        # surface (R5 str(e)-leak class).
+        assert not res["success"]
+        assert "no firecracker" not in res["error"]
+        assert res["error"] == "Mini-app runtime unavailable"
 
     @pytest.mark.asyncio
     async def test_internal_error_generic_message(self, db_session, monkeypatch):
@@ -983,7 +988,10 @@ class TestLogicHistory:
         assert [h["version"] for h in hist] == [1, 2]
         assert hist[0]["preview"] == "source v1"
         res = revert_logic(app, db_session, 1, actor_id="u1")
-        assert res["version"] == 1 and res["source"] == "source v1"
+        # revert_logic writes a fresh checkpoint for the reverted source, so
+        # `version` is the new head (3) and `reverted_to` names the target.
+        assert res["version"] == 3 and res["reverted_to"] == 1
+        assert res["source"] == "source v1"
         logic = db_session.query(CanvasLogic).filter(CanvasLogic.canvas_id == canvas_id).first()
         assert logic.source == "source v1"
         hist = list_logic_history(app, db_session)

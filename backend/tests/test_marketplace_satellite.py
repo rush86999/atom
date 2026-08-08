@@ -185,32 +185,29 @@ class TestCanvasMarketplaceService:
     """Test canvas marketplace service."""
 
     @pytest.fixture
-    def mock_db(self):
-        """Create mock database session."""
-        return Mock(spec=Session)
-
-    @pytest.fixture
     def mock_saas_client(self):
         """Create mock SaaS client."""
-        client = Mock(spec=AtomAgentOSMarketplaceClient)
-        return client
+        return Mock(spec=AtomAgentOSMarketplaceClient)
 
-    def test_browse_components_success(self, mock_db, mock_saas_client):
+    def test_browse_components_success(self, db_session, mock_saas_client):
         """Test successful component browsing."""
-        mock_saas_client.fetch_components.return_value = {
+        mock_saas_client.fetch_components_sync.return_value = {
             "components": [
                 {"id": "comp1", "name": "Chart Component"}
             ],
             "total": 1
         }
-        
-        service = CanvasMarketplaceService(mock_db, mock_saas_client)
-        result = service.browse_components_sync()
-        
-        assert len(result) == 1
-        assert result[0]["name"] == "Chart Component"
 
-    def test_install_component_success(self, mock_db, mock_saas_client):
+        service = CanvasMarketplaceService(db_session, mock_saas_client)
+        result = service.browse_components(query="chart", category="charts")
+
+        assert len(result["components"]) == 1
+        assert result["components"][0]["name"] == "Chart Component"
+        assert result["total"] == 1
+        mock_saas_client.fetch_components_sync.assert_called_once_with(
+            query="chart", category="charts", page=1, page_size=20)
+
+    def test_install_component_success(self, db_session, mock_saas_client):
         """Test successful component installation."""
         mock_component = {
             "id": "comp1",
@@ -218,25 +215,37 @@ class TestCanvasMarketplaceService:
             "description": "A test component",
             "category": "charts",
             "component_type": "react",
-            "version": "1.0.0"
+            "version": "1.0.0",
+            "code": "<div>hello</div>",
+            "author_id": "author-1"
         }
-        
-        mock_saas_client.get_component_details.return_value = mock_component
-        mock_saas_client.install_component.return_value = {"success": True}
-        
-        service = CanvasMarketplaceService(mock_db, mock_saas_client)
-        result = service.install_component_sync("comp1", canvas_id="canvas1")
-        
-        assert result["success"] is True
-        assert result["component"]["name"] == "Test Component"
 
-    def test_install_component_not_found(self, mock_db, mock_saas_client):
+        mock_saas_client.get_component_details_sync.return_value = mock_component
+        mock_saas_client.install_component_sync.return_value = {"success": True}
+
+        service = CanvasMarketplaceService(db_session, mock_saas_client)
+        result = service.install_component("comp1", canvas_id="canvas1", tenant_id="tenant1")
+
+        assert result["success"] is True
+        assert result["component_name"] == "Test Component"
+        assert result["installation_id"] is not None
+
+        # Component and installation persisted locally
+        from core.models import CanvasComponent, ComponentInstallation
+        assert db_session.query(CanvasComponent).filter(
+            CanvasComponent.id == "comp1").first() is not None
+        assert db_session.query(ComponentInstallation).filter(
+            ComponentInstallation.component_id == "comp1",
+            ComponentInstallation.canvas_id == "canvas1",
+            ComponentInstallation.tenant_id == "tenant1").first() is not None
+
+    def test_install_component_not_found(self, db_session, mock_saas_client):
         """Test component installation when not found."""
-        mock_saas_client.get_component_details.return_value = None
-        
-        service = CanvasMarketplaceService(mock_db, mock_saas_client)
-        result = service.install_component_sync("invalid_id")
-        
+        mock_saas_client.get_component_details_sync.return_value = None
+
+        service = CanvasMarketplaceService(db_session, mock_saas_client)
+        result = service.install_component("invalid_id", canvas_id="canvas1", tenant_id="tenant1")
+
         assert result["success"] is False
         assert "not found" in result["error"]
 
@@ -245,55 +254,56 @@ class TestDomainMarketplaceService:
     """Test domain marketplace service."""
 
     @pytest.fixture
-    def mock_db(self):
-        """Create mock database session."""
-        return Mock(spec=Session)
-
-    @pytest.fixture
     def mock_saas_client(self):
         """Create mock SaaS client."""
-        client = Mock(spec=AtomAgentOSMarketplaceClient)
-        return client
+        return Mock(spec=AtomAgentOSMarketplaceClient)
 
-    def test_browse_domains_success(self, mock_db, mock_saas_client):
+    def test_browse_domains_success(self, db_session, mock_saas_client):
         """Test successful domain browsing."""
-        mock_saas_client.fetch_domains.return_value = {
+        mock_saas_client.fetch_domains_sync.return_value = {
             "domains": [
                 {"id": "domain1", "name": "Sales Domain"}
             ],
             "total": 1
         }
-        
-        service = DomainMarketplaceService(mock_db, mock_saas_client)
-        result = service.browse_domains_sync()
-        
+
+        service = DomainMarketplaceService(db_session, mock_saas_client)
+        result = service.browse_domains(query="sales")
+
         assert len(result["domains"]) == 1
         assert result["domains"][0]["name"] == "Sales Domain"
+        assert result["total"] == 1
 
-    def test_install_domain_success(self, mock_db, mock_saas_client):
+    def test_install_domain_success(self, db_session, mock_saas_client):
         """Test successful domain installation."""
         mock_domain = {
             "id": "domain1",
             "domain_name": "Sales Domain",
             "description": "Sales specialist domain"
         }
-        
-        mock_saas_client.get_domain_template.return_value = mock_domain
-        mock_saas_client.install_domain.return_value = {"success": True}
-        
-        service = DomainMarketplaceService(mock_db, mock_saas_client)
+
+        mock_saas_client.get_domain_template_sync.return_value = mock_domain
+        mock_saas_client.install_domain_sync.return_value = {"success": True}
+
+        service = DomainMarketplaceService(db_session, mock_saas_client)
         result = service.install_domain("domain1", tenant_id="tenant1")
-        
+
         assert result["success"] is True
         assert result["domain_name"] == "Sales Domain"
+        assert result["domain_id"] is not None
 
-    def test_install_domain_not_found(self, mock_db, mock_saas_client):
+        # Domain persisted locally
+        from core.models import SpecialistDomain
+        assert db_session.query(SpecialistDomain).filter(
+            SpecialistDomain.domain_name == "Sales Domain").first() is not None
+
+    def test_install_domain_not_found(self, db_session, mock_saas_client):
         """Test domain installation when template not found."""
-        mock_saas_client.get_domain_template.return_value = None
-        
-        service = DomainMarketplaceService(mock_db, mock_saas_client)
+        mock_saas_client.get_domain_template_sync.return_value = None
+
+        service = DomainMarketplaceService(db_session, mock_saas_client)
         result = service.install_domain("invalid_id", tenant_id="tenant1")
-        
+
         assert result["success"] is False
         assert "not found" in result["error"]
 

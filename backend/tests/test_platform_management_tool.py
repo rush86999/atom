@@ -38,8 +38,11 @@ def _run(coro):
 # Fixtures
 @pytest.fixture
 def db_session():
-    """Mock database session"""
+    """Mock database session (supports the context-manager protocol used by
+    the platform-management functions: ``with SessionLocal() as db:``)."""
     mock_db = Mock(spec=Session)
+    mock_db.__enter__ = Mock(return_value=mock_db)
+    mock_db.__exit__ = Mock(return_value=False)
     return mock_db
 
 
