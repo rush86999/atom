@@ -90,6 +90,13 @@ def get_moa_samples() -> int:
     return max(2, n)
 
 
+def is_moa_diversity_enabled() -> bool:
+    """Diversity-aware init (W3/P4a, arXiv 2601.19921): rotate per-sample
+    perspective overlays in MoA + self-consistency sampling. Default OFF
+    (shadow-first — zero behavior change until enabled)."""
+    return os.getenv("ATOM_MOA_DIVERSITY_ENABLED", "false").lower() in ("1", "true", "yes", "on")
+
+
 def is_parallel_tools_enabled() -> bool:
     """In-loop parallel tool execution (Workstream G). Default ON."""
     return _flag_default_true("ATOM_PARALLEL_TOOLS")

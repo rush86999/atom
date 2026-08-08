@@ -19,6 +19,7 @@ is never worse off than the original single-strategy behaviour.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Dict, Optional
 
 from core.orchestration.verification.base import (
@@ -125,8 +126,17 @@ class VerificationOrchestrator:
             result = replace(result, fallback_used=True, reason=f"strategy {strategy.value} raised: {exc}")
 
         # Universal fallback: any non-voting strategy that fails to pick
-        # a winner falls through to voting.
-        if result.winner is None and strategy != VerificationStrategy.VOTING:
+        # a winner falls through to voting. EXCEPTION (P4c): a REVIEW
+        # rejection (winner=None + details.accepted=False) is a deliberate
+        # re-delegation signal, not a failed pick — when the reviewer loop
+        # is enabled it must reach the conductor untouched. With the loop
+        # disabled the legacy fallback is preserved.
+        review_rejection = (
+            strategy == VerificationStrategy.REVIEW
+            and (result.details or {}).get("accepted") is False
+            and bool(os.getenv("ATOM_REVIEWER_LOOP_ENABLED", "false").lower() == "true")
+        )
+        if result.winner is None and strategy != VerificationStrategy.VOTING and not review_rejection:
             logger.info(
                 "Strategy %s produced no winner for step %s; falling back to voting",
                 strategy.value, getattr(step, "step_id", "?"),

@@ -86,7 +86,7 @@ async def test_D1_generate_structured_keeps_provider_family_within_task(_fake_in
     handler.byok_manager = MagicMock()
     handler.byok_manager.get_tenant_api_key = MagicMock(return_value=None)
     handler.analyze_query_complexity = MagicMock(return_value=MagicMock(value="standard"))
-    handler.get_ranked_providers = MagicMock(return_value=[("openai", "gpt-4o-mini")])
+    handler.get_ranked_providers = AsyncMock(return_value=[("openai", "gpt-4o-mini")])
     handler.get_context_window = MagicMock(return_value=8000)
     handler.truncate_to_context = MagicMock(side_effect=lambda p, *a, **k: p)
 

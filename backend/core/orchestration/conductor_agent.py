@@ -681,7 +681,7 @@ class ConductorAgent:
                         if not valid_results:
                             raise RuntimeError(f"All parallel branches failed for step {s.step_id}")
 
-                        # ── Domain-aware verification ────────────────────────
+                         # ── Domain-aware verification ────────────────────────
                         # The orchestrator resolves the step's domain
                         # (explicit tag or heuristic inference), picks the
                         # matching verifier, and falls back to voting if the
@@ -691,6 +691,89 @@ class ConductorAgent:
                         # per-key reconciliation algorithm byte for byte.
                         orchestrator = self._get_or_create_verification_orchestrator()
                         verification = await orchestrator.verify(valid_results, s, context)
+
+                        # ── P4c reviewer re-delegation loop ───────────────────
+                        # A REVIEW rejection (winner=None, accepted=False) is
+                        # NOT a failed pick — the reviewer is asking for the
+                        # originating specialist to try again with feedback.
+                        # Re-delegate up to MAX_REVIEWER_REDELEGATIONS times,
+                        # parking the workflow in WAITING for the duration;
+                        # flag-gated (ATOM_REVIEWER_LOOP_ENABLED, default off
+                        # → legacy voting fallback).
+                        from core.orchestration.reviewer_loop import (
+                            MAX_REVIEWER_REDELEGATIONS,
+                            attach_review_feedback,
+                            enter_review_waiting,
+                            get_review_loop_state_machine,
+                            is_review_rejection,
+                            resume_after_review,
+                            reviewer_loop_enabled,
+                        )
+
+                        attempts = 1 + MAX_REVIEWER_REDELEGATIONS
+                        parked = False
+                        for attempt in range(attempts):
+                            if (
+                                reviewer_loop_enabled()
+                                and attempt < MAX_REVIEWER_REDELEGATIONS
+                                and is_review_rejection(verification)
+                            ):
+                                feedback = (verification.details or {}).get("feedback", "")
+                                machine = get_review_loop_state_machine()
+                                if context.workflow_id:
+                                    enter_review_waiting(
+                                        machine, context.workflow_id,
+                                        context.execution_id, feedback,
+                                    )
+                                    parked = True
+                                attach_review_feedback(s, feedback)
+                                logger.info(
+                                    "REVIEWER LOOP: re-delegating step %s to "
+                                    "specialist with feedback: %s",
+                                    s.step_id, feedback[:200],
+                                )
+                                if self._is_stochastic_executor():
+                                    branch_tasks = [
+                                        asyncio.create_task(self._execute_step(s, context))
+                                        for _ in range(3)
+                                    ]
+                                    branch_results = await asyncio.gather(
+                                        *branch_tasks, return_exceptions=True
+                                    )
+                                else:
+                                    single = await self._execute_step(s, context)
+                                    if isinstance(single, dict) and str(
+                                        single.get("status", "completed")
+                                    ).lower() == "failed":
+                                        raise RuntimeError(str(
+                                            single.get("error", "step executor returned failed status")
+                                        ))
+                                    return single
+                                valid_results = [r for r in branch_results if not isinstance(r, Exception)]
+                                if not valid_results:
+                                    raise RuntimeError(
+                                        f"All parallel branches failed for step {s.step_id}"
+                                    )
+                                verification = await orchestrator.verify(
+                                    valid_results, s, context
+                                )
+                                continue
+                            break
+
+                        if is_review_rejection(verification):
+                            # Exhausted re-delegations: the reviewer still
+                            # rejects. Fail the step loudly with the feedback
+                            # rather than silently completing with None.
+                            raise RuntimeError(
+                                f"Review rejected after {MAX_REVIEWER_REDELEGATIONS} "
+                                f"re-delegations: "
+                                f"{(verification.details or {}).get('feedback', '')}"
+                            )
+                        if parked:
+                            resume_after_review(
+                                get_review_loop_state_machine(),
+                                context.workflow_id, context.execution_id,
+                            )
                         return verification.winner
 
                     async def track_consensus(s=step):

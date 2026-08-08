@@ -2852,8 +2852,13 @@ class BYOKHandler:
                     # --- Record Usage (Phase 6.6) ---
                     _structured_cost = None  # surfaced to the feedback call below
                     try:
-                        # Instructor attaches usage to the response object metadata
-                        usage = getattr(result, "_raw_response", {}).usage if hasattr(result, "_raw_response") else None
+                        # Instructor attaches usage to the response object metadata.
+                        # Never index into raw_response when it lacks `.usage`
+                        # (providers/mocks may omit it) — an AttributeError here
+                        # used to leave `usage` unbound and kill the whole
+                        # structured attempt with a confusing NameError.
+                        raw_response = getattr(result, "_raw_response", None)
+                        usage = getattr(raw_response, "usage", None) if raw_response is not None else None
                         if not usage and hasattr(result, "usage"):
                              usage = result.usage
 
@@ -3013,16 +3018,47 @@ class BYOKHandler:
             pass
         return str(sample)
 
-    def _build_moa_aggregator_prompt(self, prompt: str, samples: List[Any]) -> str:
+    @staticmethod
+    def _build_moa_aggregator_prompt(
+        prompt: str, samples: List[Any], agreement: Optional[float] = None
+    ) -> str:
         """Concatenate the original request + N candidate answers so the
-        aggregator can reconcile them into a single best structured answer."""
+        aggregator can reconcile them into a single best structured answer.
+
+        ``agreement`` (P4a confidence-modulated update): the consensus ratio
+        across the sample pool modulates the aggregation instruction — high
+        agreement → harmonize without inventing; low agreement → resolve the
+        contradictions explicitly. None (or default) → legacy instruction.
+        """
         parts = [
             "[MIXTURE-OF-AGENTS]: synthesize the single best final answer from "
             "the candidate answers below. Produce exactly one answer of the "
             "requested form.\n\n[USER REQUEST]:\n" + prompt,
         ]
+        if agreement is not None:
+            if agreement >= 0.75:
+                parts.insert(
+                    1,
+                    "[CONSENSUS]: the candidates agree strongly ("
+                    f"{agreement:.0%}). Harmonize them into one coherent "
+                    "answer WITHOUT introducing new claims or details.",
+                )
+            elif agreement < 0.5:
+                parts.insert(
+                    1,
+                    "[CONSENSUS]: the candidates disagree substantially ("
+                    f"{agreement:.0%}). Identify and resolve the contradictions "
+                    "explicitly; say which evidence you weighted and why.",
+                )
+            else:
+                parts.insert(
+                    1,
+                    f"[CONSENSUS]: candidates partially agree ({agreement:.0%}). "
+                    "Reconcile differences; prefer the majority view where "
+                    "evidence is ambiguous.",
+                )
         for i, sample in enumerate(samples, start=1):
-            parts.append(f"\n[CANDIDATE ANSWER {i}]:\n{self._render_sample(sample)}")
+            parts.append(f"\n[CANDIDATE ANSWER {i}]:\n{BYOKHandler._render_sample(sample)}")
         return "\n".join(parts)
 
     async def generate_structured_moa(
@@ -3054,18 +3090,26 @@ class BYOKHandler:
 
         Returns ``None`` only when every sample AND the aggregator failed.
         """
-        from core.hallucination_config import get_moa_samples
+        from core.hallucination_config import get_moa_samples, is_moa_diversity_enabled
         from core.llm.self_consistency_voter import SelfConsistencyVoter
 
         n = min(get_moa_samples(), len(options))
         sample_specs = options[:n]  # best-ranked first
 
-        async def _sample(pair):
+        # P4a (W3): diversity-aware init — per-sample perspective overlays
+        # (arXiv 2601.19921), disabled by default (kill-switch parity).
+        overlays = SelfConsistencyVoter.diversity_overlays(
+            n, enabled=is_moa_diversity_enabled()
+        )
+
+        async def _sample(pair, idx: int) -> Any:
             provider_id, model = pair
+            overlay = overlays[idx] if idx < len(overlays) else ""
+            sample_sys = f"{system_instruction}\n\n{overlay}" if overlay else system_instruction
             try:
                 return await self.generate_structured_response(
                     prompt=prompt,
-                    system_instruction=system_instruction,
+                    system_instruction=sample_sys,
                     response_model=response_model,
                     temperature=temperature,
                     task_type=task_type,
@@ -3080,12 +3124,26 @@ class BYOKHandler:
                 logger.warning(f"MoA sample failed for {provider_id}/{model}: {e}")
                 return None
 
-        samples = await asyncio.gather(*[_sample(p) for p in sample_specs])
+        samples = await asyncio.gather(*[_sample(p, i) for i, p in enumerate(sample_specs)])
         valid = [s for s in samples if s is not None]
         if not valid:
             return None
         if len(valid) == 1:
             return valid[0]
+
+        # P4a (W3): confidence-modulated update — the consensus ratio across
+        # the sample pool modulates the aggregation instruction (high
+        # agreement → harmonize, low → resolve contradictions explicitly).
+        agreement: Optional[float] = None
+        try:
+            hashes = [SelfConsistencyVoter._hash_sample(s) for s in valid]
+            agreement = max(hashes.count(h) for h in hashes) / len(valid)
+            logger.info(
+                f"MoA sample consensus: agreement={agreement:.2f} "
+                f"({len(valid)} valid samples)"
+            )
+        except Exception as e:
+            logger.debug(f"MoA agreement computation skipped: {e}")
 
         # Post-hoc irreversibility audit: if the consensus looks destructive,
         # surface it for observability. Callers already gate irreversible
@@ -3100,7 +3158,7 @@ class BYOKHandler:
             pass
 
         # Aggregator: reconcile candidate answers on the best-ranked provider.
-        aggregated_prompt = self._build_moa_aggregator_prompt(prompt, valid)
+        aggregated_prompt = self._build_moa_aggregator_prompt(prompt, valid, agreement=agreement)
         aggregator_result = await self.generate_structured_response(
             prompt=aggregated_prompt,
             system_instruction=system_instruction,

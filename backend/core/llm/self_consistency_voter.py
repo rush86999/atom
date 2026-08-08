@@ -209,11 +209,19 @@ class SelfConsistencyVoter:
         chain_id = kwargs.pop("chain_id", None)
         image_payload = kwargs.pop("image_payload", None)
 
-        async def _one(temp: float) -> T | None:
+        # P4a (W3): diversity-aware init — rotate a perspective overlay per
+        # sample so each sample approaches the problem differently
+        # (arXiv 2601.19921). Disabled by default (kill-switch parity).
+        from core.hallucination_config import is_moa_diversity_enabled
+        overlays = self.diversity_overlays(n, enabled=is_moa_diversity_enabled())
+
+        async def _one(temp: float, idx: int) -> T | None:
+            overlay = overlays[idx] if idx < len(overlays) else ""
+            sample_sys = f"{system_instruction}\n\n{overlay}" if overlay else system_instruction
             try:
                 return await self.handler.generate_structured_response(
                     prompt=prompt,
-                    system_instruction=system_instruction,
+                    system_instruction=sample_sys,
                     response_model=response_model,
                     temperature=temp,
                     max_tokens=max_tokens,
@@ -234,7 +242,7 @@ class SelfConsistencyVoter:
                 logger.warning(f"Self-consistency sample failed at temp={temp}: {exc}")
                 return None
 
-        samples = await asyncio.gather(*[_one(t) for t in temps])
+        samples = await asyncio.gather(*[_one(t, i) for i, t in enumerate(temps)])
         valid = [s for s in samples if s is not None]
         if not valid:
             return None
@@ -281,11 +289,18 @@ class SelfConsistencyVoter:
         chain_id = kwargs.pop("chain_id", None)
         image_payload = kwargs.pop("image_payload", None)
 
-        async def _one(temp: float) -> T | None:
+        # P4a (W3): diversity-aware init — same per-sample overlay mechanism
+        # as ``vote()`` (arXiv 2601.19921). Disabled by default.
+        from core.hallucination_config import is_moa_diversity_enabled
+        overlays = self.diversity_overlays(n, enabled=is_moa_diversity_enabled())
+
+        async def _one(temp: float, idx: int) -> T | None:
+            overlay = overlays[idx] if idx < len(overlays) else ""
+            sample_sys = f"{system_instruction}\n\n{overlay}" if overlay else system_instruction
             try:
                 return await self.handler.generate_structured_response(
                     prompt=prompt,
-                    system_instruction=system_instruction,
+                    system_instruction=sample_sys,
                     response_model=response_model,
                     temperature=temp,
                     max_tokens=max_tokens,
@@ -301,7 +316,7 @@ class SelfConsistencyVoter:
                 logger.warning(f"Self-consistency sample failed at temp={temp}: {exc}")
                 return None
 
-        samples = await asyncio.gather(*[_one(t) for t in temps])
+        samples = await asyncio.gather(*[_one(t, i) for i, t in enumerate(temps)])
         valid = [s for s in samples if s is not None]
 
         if not valid:
