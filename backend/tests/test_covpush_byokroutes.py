@@ -22,19 +22,14 @@ import json
 import os
 from datetime import datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import api.byok_routes as byok_routes
-from api.byok_routes import (
-    AIProviderConfig,
-    APIKey,
-    BYOKManager,
-    ProviderUsage,
-)
+from api.byok_routes import APIKey, BYOKManager
 from core.auth import get_current_user, get_current_tenant
 from core.database import get_db
 
