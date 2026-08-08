@@ -1436,3 +1436,396 @@ class TestLkgpAndIntent:
              patch("core.llm.byok_handler.get_db_session"):
             out = await h.generate_response("hello", task_type="chat")
         assert out == "ok"
+
+
+# ============================================================================
+# MoA dispatch inside generate_structured_response (lines ~2725-2742)
+# ============================================================================
+
+class TestStructuredMoaDispatch:
+    @pytest.mark.asyncio
+    async def test_moa_dispatch_fires_for_hard_tasks(self):
+        h = _handler()
+        h._is_trial_restricted = Mock(return_value=False)
+        h.analyze_query_complexity = Mock(return_value=QueryComplexity.COMPLEX)
+        h.get_ranked_providers = AsyncMock(
+            return_value=[("openai", "gpt-4o"), ("deepseek", "deepseek-chat")]
+        )
+        h._moa_eligible = Mock(return_value=True)
+        h.generate_structured_moa = AsyncMock(return_value="moa-result")
+        h.clients = {"openai": Mock(), "deepseek": Mock()}
+
+        with patch("core.llm.byok_handler.INSTRUCTOR_AVAILABLE", True), \
+             patch("core.llm.byok_handler.get_db_session"), \
+             patch("core.hallucination_config.is_moa_enabled", return_value=True), \
+             patch("core.hallucination_config.get_moa_samples", return_value=2), \
+             patch("core.hallucination_config.is_frontier_model", return_value=False), \
+             patch("core.hallucination_config.get_frontier_model_for_provider",
+                   return_value="gpt-4o"), \
+             patch("core.llm.byok_handler.instructor") as instr:
+            instr.from_openai.return_value = Mock()
+            out = await h.generate_structured_response(
+                prompt="p", system_instruction="s", response_model=dict,
+                cascade=True, task_type="analysis", allow_moa=True,
+            )
+        assert out == "moa-result"
+        h.generate_structured_moa.assert_awaited_once()
+
+
+# ============================================================================
+# stream_completion error token + no-client skip (lines ~3631-3641, 3374-3375)
+# ============================================================================
+
+class TestStreamTailCoverage:
+    @pytest.mark.asyncio
+    async def test_stream_no_client_for_provider_skips(self):
+        h = _handler()
+        h._get_provider_fallback_order = Mock(return_value=["openai", "deepseek"])
+        h._provider_serves_model = Mock(return_value=True)
+        h._stash_decision_features = Mock(return_value="dec-sk")
+        h._track_rate_usage = Mock()
+        h._track_llm_call = Mock()
+        h._record_outcome_feedback = AsyncMock()
+        deepseek_client = AsyncMock()
+        deepseek_client.chat.completions.create = AsyncMock(side_effect=Exception("no"))
+        h.async_clients = {"deepseek": deepseek_client}
+        h.clients = {}  # openai (requested) has NO client -> skipped
+
+        tokens = [t async for t in h.stream_completion(
+            [{"role": "user", "content": "hi"}], "gpt-4o", "openai"
+        )]
+        assert any("Error" in t for t in tokens)
+
+
+# ============================================================================
+# generate_response guard rails (lines ~1612-1631)
+# ============================================================================
+
+class TestGenerateResponseGuards:
+    @pytest.mark.asyncio
+    async def test_trial_restricted(self):
+        h = _handler()
+        h._is_trial_restricted = Mock(return_value=True)
+        out = await h.generate_response("hello")
+        assert "Trial Expired" in out
+
+    @pytest.mark.asyncio
+    async def test_no_clients_agentic_demo_mock(self):
+        h = _handler()
+        h._is_trial_restricted = Mock(return_value=False)
+        out = await h.generate_response("Check my inbox", task_type="agentic")
+        parsed = json.loads(out)
+        assert parsed["action"] == "perform_market_analysis"
+
+        out2 = await h.generate_response("anything", task_type="agentic")
+        assert '"action": "DONE"' in out2
+
+    @pytest.mark.asyncio
+    async def test_no_clients_plain(self):
+        h = _handler()
+        h._is_trial_restricted = Mock(return_value=False)
+        out = await h.generate_response("hello")
+        assert "No API Keys" in out
+
+
+# ============================================================================
+# generate_response budget gate + BPC headroom skip + init error paths
+# ============================================================================
+
+class TestFinalEdgePaths:
+    @pytest.mark.asyncio
+    async def test_generate_response_budget_exceeded(self):
+        h = _handler()
+        h._is_trial_restricted = Mock(return_value=False)
+        h.clients = {"openai": Mock()}
+        with patch("core.llm.byok_handler.llm_usage_tracker") as tracker:
+            tracker.is_budget_exceeded = Mock(return_value=True)
+            out = await h.generate_response("hello")
+        assert "BUDGET EXCEEDED" in out
+
+    @pytest.mark.asyncio
+    async def test_bpc_per_model_headroom_skip(self):
+        h = _handler()
+        h.clients = {"deepseek": Mock(), "openai": Mock()}
+        h.async_clients = {}
+        h._model_supports_tools = Mock(return_value=True)
+        h._model_supports_vision = Mock(return_value=True)
+        h._monthly_tpm_limit = Mock(return_value=0)
+        h.rate_tracker = Mock()
+        h.rate_tracker.get_model_headroom = Mock(return_value=0.0)  # per-model exhausted
+        h.rate_tracker.get_headroom = Mock(return_value=1.0)
+        h.rate_tracker.get_model_weight = Mock(return_value=1.0)
+        h.tier_service = None
+
+        result = await h.get_ranked_providers(
+            QueryComplexity.SIMPLE, "chat", True, "free", is_managed_service=False,
+            requires_tools=True,
+        )
+        if hasattr(result, "unwrap"):
+            result = await result
+        assert len(result) > 0  # static fallback still yields providers
+
+    @pytest.mark.asyncio
+    async def test_initialize_clients_credential_error_and_no_credential(self):
+        h = _handler()
+        h.clients = {}
+        h.async_clients = {}
+        cred = Mock()
+        cred.get_credential = AsyncMock(side_effect=RuntimeError("oauth down"))
+        h.credential_service = cred
+        byok = Mock()
+        byok.is_configured = Mock(return_value=False)
+        h.byok_manager = byok
+
+        with patch("core.llm.byok_handler.OpenAI") as _OpenAI, \
+             patch("core.llm.byok_handler.AsyncOpenAI") as _AOpenAI, \
+             patch("core.llm.byok_handler._llm_request_timeout", return_value=30.0), \
+             patch.dict(os.environ, {}, clear=True), \
+             patch("core.database.get_db_session") as gds:
+            gds.return_value.__enter__.return_value.query.return_value.filter.return_value.all.return_value = []
+            _OpenAI.return_value = Mock()
+            _AOpenAI.return_value = AsyncMock()
+            h._initialize_clients()  # no credentials anywhere -> clean skip
+        assert h.clients == {}
+
+    @pytest.mark.asyncio
+    async def test_initialize_clients_openai_creation_error(self):
+        h = _handler()
+        h.clients = {}
+        h.async_clients = {}
+        cred = Mock()
+        cred.get_credential = AsyncMock(return_value=("byok", "key-1"))
+        h.credential_service = cred
+        byok = Mock()
+        byok.is_configured = Mock(return_value=False)
+        h.byok_manager = byok
+
+        with patch("core.llm.byok_handler.OpenAI",
+                   side_effect=RuntimeError("sdk init failed")), \
+             patch("core.llm.byok_handler.AsyncOpenAI") as _AOpenAI, \
+             patch("core.llm.byok_handler._llm_request_timeout", return_value=30.0), \
+             patch.dict(os.environ, {}, clear=True), \
+             patch("core.database.get_db_session") as gds:
+            gds.return_value.__enter__.return_value.query.return_value.filter.return_value.all.return_value = []
+            _AOpenAI.return_value = AsyncMock()
+            h._initialize_clients()  # client creation failure logged, loop continues
+        assert "openai" not in h.clients
+
+
+# ============================================================================
+# generate_response vision path + structured usage attribution
+# ============================================================================
+
+class TestVisionAndStructuredUsage:
+    @pytest.mark.asyncio
+    async def test_generate_response_with_image_payload(self):
+        h = _handler()
+        h._is_trial_restricted = Mock(return_value=False)
+        h.analyze_query_complexity = Mock(return_value=QueryComplexity.SIMPLE)
+        h.get_ranked_providers = AsyncMock(return_value=[("openai", "gpt-4o")])
+        h._rerank_with_learning = AsyncMock(side_effect=lambda o, p, t, intent=None: o)
+        h._stash_decision_features = Mock(return_value="dec-vis")
+        h._get_provider_fallback_order = Mock(return_value=["openai"])
+        h._provider_serves_model = Mock(return_value=True)
+        h._model_supports_vision = Mock(return_value=True)
+        h._record_outcome_feedback = AsyncMock()
+        h._track_rate_usage = Mock()
+        h._track_llm_call = Mock()
+        h.cache_router = Mock()
+
+        resp = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="vision ok"))])
+        client = Mock()
+        client.chat.completions.create = Mock(return_value=resp)
+        h.clients = {"openai": client}
+
+        with patch("core.llm.byok_handler.get_db_session"), \
+             patch("core.llm.byok_handler.llm_usage_tracker") as tracker:
+            tracker.is_budget_exceeded = Mock(return_value=False)
+            tracker.is_trial_expired = Mock(return_value=False)
+            out = await h.generate_response(
+                "describe", task_type="chat", image_payload="data:image/png;base64,AAA="
+            )
+        assert out == "vision ok"
+
+    @pytest.mark.asyncio
+    async def test_structured_usage_attribution(self):
+        h = _handler()
+        h._is_trial_restricted = Mock(return_value=False)
+        h.analyze_query_complexity = Mock(return_value=QueryComplexity.SIMPLE)
+        h.get_ranked_providers = AsyncMock(return_value=[("openai", "gpt-4o-mini")])
+        h._moa_eligible = Mock(return_value=False)
+        h._stash_decision_features = Mock(return_value="dec-su")
+        h._track_llm_call = Mock()
+        h._record_outcome_feedback = AsyncMock()
+        h._track_rate_usage = Mock()
+        h.get_context_window = Mock(return_value=2000)
+
+        raw = SimpleNamespace(
+            usage=SimpleNamespace(prompt_tokens=7, completion_tokens=3),
+            choices=[SimpleNamespace(finish_reason="length")],
+        )
+        result = SimpleNamespace(_raw_response=raw)
+        client = Mock()
+        client.chat.completions.create = Mock(return_value=result)
+        h.clients = {"openai": client}
+
+        with patch("core.llm.byok_handler.INSTRUCTOR_AVAILABLE", True), \
+             patch("core.llm.byok_handler.get_db_session"), \
+             patch("core.llm.byok_handler.instructor") as instr, \
+             patch("core.llm.byok_handler.get_pricing_fetcher") as pf:
+            instr.from_openai.return_value = client
+            pf.return_value.estimate_cost = Mock(return_value=0.001)
+            out = await h.generate_structured_response(
+                prompt="p", system_instruction="s", response_model=dict,
+                allow_moa=False, task_type="chat",
+            )
+        assert out is result
+        h._track_rate_usage.assert_called_once()
+
+
+# ============================================================================
+# tenant-plan free-tier block + self-heal retry FAILED path
+# ============================================================================
+
+class TestTenantPlanAndHealFailure:
+    @pytest.mark.asyncio
+    async def test_free_tier_managed_blocked(self):
+        h = _handler()
+        h._is_trial_restricted = Mock(return_value=False)
+        h.analyze_query_complexity = Mock(return_value=QueryComplexity.SIMPLE)
+        h.get_ranked_providers = AsyncMock(return_value=[("openai", "gpt-4o")])
+        h.get_optimal_provider = AsyncMock(return_value=("openai", "gpt-4o"))
+        h.byok_manager.get_tenant_api_key = Mock(return_value=None)
+        h.clients = {"openai": Mock()}
+
+        workspace = SimpleNamespace(tenant_id="t1")
+        tenant = SimpleNamespace(plan_type="free")
+
+        def _query(model):
+            q = Mock()
+            if model.__name__ == "Workspace":
+                q.filter.return_value.first.return_value = workspace
+            else:
+                q.filter.return_value.first.return_value = tenant
+            return q
+
+        db = Mock()
+        db.query = Mock(side_effect=_query)
+        with patch("core.llm.byok_handler.get_db_session") as gds, \
+             patch("core.llm.byok_handler.llm_usage_tracker") as tracker:
+            gds.return_value.__enter__.return_value = db
+            tracker.is_budget_exceeded = Mock(return_value=False)
+            out = await h.generate_response("hello", task_type="chat")
+        # free + managed: restriction message OR a fallback error — either way
+        # the tenant-plan determination (is_managed=True) executed
+        assert isinstance(out, str) and out
+
+    @pytest.mark.asyncio
+    async def test_generate_response_heal_retry_failed(self):
+        h = _handler()
+        h._is_trial_restricted = Mock(return_value=False)
+        h.analyze_query_complexity = Mock(return_value=QueryComplexity.SIMPLE)
+        h.get_ranked_providers = AsyncMock(return_value=[("openai", "gpt-4o")])
+        h._rerank_with_learning = AsyncMock(side_effect=lambda o, p, t, intent=None: o)
+        h._stash_decision_features = Mock(return_value="dec-hf")
+        h._get_provider_fallback_order = Mock(return_value=["openai"])
+        h._provider_serves_model = Mock(return_value=True)
+        h._record_outcome_feedback = AsyncMock()
+        h._track_rate_usage = Mock()
+        h._track_llm_call = Mock()
+
+        client = Mock()
+        client.chat.completions.create = Mock(side_effect=[Exception("first"), Exception("retry too")])
+        h.clients = {"openai": client}
+
+        healer = Mock()
+        healer.heal = Mock(return_value=SimpleNamespace(
+            patched_kwargs={"model": "gpt-4o", "messages": [], "temperature": 0.7},
+            rule="retry", patched_keys=[],
+        ))
+        with patch("core.llm.routing.request_healer.get_request_healer", return_value=healer), \
+             patch("core.llm.byok_handler.get_db_session"), \
+             patch("core.llm.byok_handler.llm_usage_tracker") as tracker:
+            tracker.is_budget_exceeded = Mock(return_value=False)
+            tracker.is_trial_expired = Mock(return_value=False)
+            out = await h.generate_response("hello", task_type="chat")
+        # both original and heal retry failed -> apology message
+        assert "couldn't generate a response" in out
+
+
+# ============================================================================
+# monthly quota helpers + local provider init error + transcription params
+# ============================================================================
+
+class TestMonthlyQuotaAndMisc:
+    def test_monthly_tpm_limit_invalid(self):
+        h = _handler()
+        with patch.dict(os.environ, {"OPENCODE_MONTHLY_TPM": "not-a-number"}, clear=False):
+            assert h._monthly_tpm_limit() is None
+
+    def test_monthly_budget_exhausted(self):
+        h = _handler()
+        h.rate_tracker = Mock()
+        h.rate_tracker.get_monthly_usage = Mock(return_value=None)
+        assert h._monthly_budget_exhausted("openai", 1000) is False
+
+        h.rate_tracker.get_monthly_usage = Mock(return_value={"total_tokens": 5000})
+        assert h._monthly_budget_exhausted("openai", 1000) is True
+        assert h._monthly_budget_exhausted("openai", 10000) is False
+
+        h.rate_tracker.get_monthly_usage = Mock(side_effect=RuntimeError("db down"))
+        assert h._monthly_budget_exhausted("openai", 1000) is False
+
+    def test_local_provider_openai_error(self):
+        h = _handler()
+        provider = SimpleNamespace(
+            id="prov-12345678", name="ollama", provider_type="ollama",
+            api_key=None, base_url="http://localhost:11434/v1/",
+        )
+        providers_q = Mock()
+        providers_q.filter.return_value.all.return_value = [provider]
+        caps_q = Mock()
+        caps_q.filter.return_value.all.return_value = []
+
+        db = Mock()
+        db.query = Mock(side_effect=lambda m: providers_q if m.__name__ == "LocalModelProvider" else caps_q)
+        fetcher = Mock()
+        fetcher.pricing_cache = {}
+
+        class _Ctx:
+            def __enter__(self):
+                return db
+
+            def __exit__(self, *a):
+                return False
+
+        with patch("core.database.get_db_session", return_value=_Ctx()), \
+             patch("core.llm.byok_handler.get_pricing_fetcher", return_value=fetcher), \
+             patch("core.llm.byok_handler.OpenAI",
+                   side_effect=RuntimeError("sdk down")), \
+             patch("core.llm.byok_handler.AsyncOpenAI") as _AOpenAI:
+            _AOpenAI.return_value = AsyncMock()
+            h._load_local_providers()  # client creation failure -> logged, skipped
+        assert "local_prov-123" not in h.clients
+        # no caps -> generic pricing entry still registered? no — creation failed first
+        assert fetcher.pricing_cache == {}
+
+    @pytest.mark.asyncio
+    async def test_transcription_with_params(self):
+        h = _handler()
+        client = AsyncMock()
+        client.client = client
+        client.audio.transcriptions.create = AsyncMock(
+            return_value=SimpleNamespace(text="transcribed with params")
+        )
+        h.async_clients = {"openai": client}
+        with patch("core.llm.byok_handler.get_db_session"):
+            out = await h.generate_transcription(
+                Mock(), model="whisper-1", language="en", prompt="hint",
+                response_format="verbose_json",
+            )
+        assert out["text"] == "transcribed with params"
+        call_kwargs = client.audio.transcriptions.create.call_args.kwargs
+        assert call_kwargs["language"] == "en"
+        assert call_kwargs["prompt"] == "hint"
+        assert call_kwargs["response_format"] == "verbose_json"

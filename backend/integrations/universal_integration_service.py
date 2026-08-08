@@ -610,19 +610,23 @@ class UniversalIntegrationService:
             res = await slack_unified_service.make_request("GET", "search.messages", params={"query": query}, token=context.get("access_token"))
             return {"status": "success", "data": res}
         elif service == "google_chat":
-            from integrations.atom_google_chat_integration import google_chat_integration
-            return {"status": "success", "data": await google_chat_integration.search_entities(query)}
+            from integrations.atom_google_chat_integration import atom_google_chat_integration
+            return {"status": "success", "data": await atom_google_chat_integration.unified_search(query)}
         elif service == "telegram":
-            from integrations.atom_telegram_integration import telegram_integration
-            return {"status": "success", "data": await telegram_integration.search_entities(query)}
+            from integrations.atom_telegram_integration import atom_telegram_integration
+            return {"status": "success", "data": await atom_telegram_integration.perform_intelligent_search(
+                query, user_id=context.get("user_id") or 0)}
         elif service == "whatsapp":
-            from integrations.atom_whatsapp_integration import whatsapp_integration
-            return {"status": "success", "data": await whatsapp_integration.search_entities(query)}
+            from integrations.atom_whatsapp_integration import atom_whatsapp_integration
+            return {"status": "success", "data": await atom_whatsapp_integration.perform_intelligent_search(
+                query, user_id=context.get("user_id") or "default")}
         elif service == "gmail":
-            from integrations.gmail_service import gmail_service
+            from integrations.gmail_service import GmailService
+            gmail_service = GmailService()
             return {"status": "success", "data": gmail_service.search_messages(query)}
         elif service == "teams":
-            from integrations.teams_service import teams_service
+            from integrations.teams_service import TeamsService
+            teams_service = TeamsService()
             return {"status": "success", "data": teams_service.get_teams()}
         # Add more search handlers...
         return {"status": "success", "data": []}
@@ -873,7 +877,8 @@ class UniversalIntegrationService:
         server_prefix = context.get("server_prefix", params.get("server_prefix"))
 
         if service == "mailchimp":
-            from integrations.mailchimp_service import mailchimp_service
+            from integrations.mailchimp_service import MailchimpService
+            mailchimp_service = MailchimpService()
             if action in ("list", "get_campaigns"):
                 return {"status": "success", "data": await mailchimp_service.get_campaigns(access_token, server_prefix, limit=params.get("limit", 20))}
             elif action == "get_audiences":
@@ -890,12 +895,14 @@ class UniversalIntegrationService:
         """Search repositories/code across Dev platforms"""
         access_token = context.get("access_token")
         if service == "github":
-            from integrations.github_service import github_service
+            from integrations.github_service import GitHubService
+            github_service = GitHubService()
             # Generic repo search or issue search
             repos = github_service.get_user_repositories()
             return {"status": "success", "data": [r for r in repos if query.lower() in r.get("name", "").lower()]}
         elif service == "gitlab":
-            from integrations.gitlab_service import gitlab_service
+            from integrations.gitlab_service import GitLabService
+            gitlab_service = GitLabService()
             return {"status": "success", "data": await gitlab_service.search_projects(access_token, query)}
         return []
 
@@ -904,7 +911,8 @@ class UniversalIntegrationService:
         access_token = context.get("access_token")
         server_prefix = context.get("server_prefix")
         if service == "mailchimp":
-            from integrations.mailchimp_service import mailchimp_service
+            from integrations.mailchimp_service import MailchimpService
+            mailchimp_service = MailchimpService()
             campaigns = await mailchimp_service.get_campaigns(access_token, server_prefix)
             return {"status": "success", "data": [c for c in campaigns if query.lower() in c.get("settings", {}).get("subject_line", "").lower() or query.lower() in c.get("settings", {}).get("title", "").lower()]}
         return []
@@ -966,7 +974,8 @@ class UniversalIntegrationService:
             elif action == "create_lead":
                 return {"status": "success", "data": await crm.create_lead(params.get("data", params), token=access_token)}
         elif service == "zoho_mail":
-            from integrations.zoho_mail_service import zoho_mail_service
+            from integrations.zoho_mail_service import ZohoMailService
+            zoho_mail_service = ZohoMailService()
             if action == "list":
                 return {"status": "success", "data": await zoho_mail_service.get_recent_inbox(access_token)}
         elif service == "zoho_inventory":
@@ -974,9 +983,10 @@ class UniversalIntegrationService:
             if action == "list":
                 return {"status": "success", "data": await zoho_inventory_service.get_items(access_token)}
         elif service == "zoho_projects":
-            from integrations.zoho_projects_service import zoho_projects_service
+            from integrations.zoho_projects_service import ZohoProjectsService
+            zoho_projects_service = ZohoProjectsService()
             if action == "list":
-                return {"status": "success", "data": await zoho_projects_service.get_projects(access_token)}
+                return {"status": "success", "data": await zoho_projects_service.get_projects(access_token, params.get("portal_id") or "")}
         
         return {"status": "success", "message": f"Routed to {service} handler (default zoho)"}
 
@@ -1001,12 +1011,13 @@ class UniversalIntegrationService:
     async def _search_support(self, service: str, query: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """Search across Support platforms"""
         if service == "zendesk":
-            from integrations.zendesk_service import zendesk_service
+            from integrations.zendesk_service import ZendeskService
+            zendesk_service = ZendeskService()
             return {"status": "success", "data": await zendesk_service.get_tickets()}
         elif service == "freshdesk":
-            from integrations.freshdesk_service import get_freshdesk_service
-            fd = get_freshdesk_service()
-            if fd: return {"status": "success", "data": await fd.search_tickets(query)}
+            from integrations.freshdesk_service import FreshdeskService
+            fd = FreshdeskService()
+            return {"status": "success", "data": await fd.search_tickets(query)}
         elif service == "intercom":
             registry = context.get("registry")
             tenant_id = context.get("tenant_id", "system")

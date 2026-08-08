@@ -708,9 +708,9 @@ class CommunicationIngestionPipeline:
         or integrate with a webhook receiver that buffers messages.
         """
         try:
-            from integrations.atom_whatsapp_integration import whatsapp_integration_service
+            from integrations.atom_whatsapp_integration import atom_whatsapp_integration
 
-            messages = await whatsapp_integration_service.get_messages(
+            messages = await atom_whatsapp_integration.get_messages(
                 since=last_fetch,
                 limit=100
             )

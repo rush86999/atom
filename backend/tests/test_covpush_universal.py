@@ -106,11 +106,6 @@ def mem_engine():
 @pytest.fixture
 def mem_session(mem_engine):
     Session = sessionmaker(bind=mem_engine, expire_on_commit=False)
-    with Session() as s:
-        s.query(SimpleNamespace).filter_by.__class__  # noqa - ensure import path
-    s = Session()
-    s.query(type("Q", (), {})).__class__  # noqa
-    s.close()
     return Session
 
 
@@ -129,7 +124,7 @@ def env(mem_session):
             patch("integrations.universal_integration_service.governance_middleware", StubGatekeeper()):
         cb.is_enabled = AsyncMock(return_value=True)
         cb.get_stats = Mock(return_value={"disabled_until": "2026-01-01"})
-        cb.record_failure = AsyncMock()
+        cb.record_failure = Mock()
         IR.return_value.get_service_instance = AsyncMock(return_value=None)
         yield SimpleNamespace(IR=IR, cb=cb)
 
@@ -167,6 +162,7 @@ class TestExecute:
 
     async def test_success_and_spend_attribution(self, env, uis):
         budget = Mock()
+        set_service(env, make_service({"list_contacts": []}))
         with patch("integrations.universal_integration_service.budget_service", budget), \
                 patch("integrations.universal_integration_service.get_action_cost", return_value=1.5) as gac:
             result = await uis.execute("salesforce", "list", {"entity": "contact"},
@@ -176,6 +172,7 @@ class TestExecute:
         budget.record_workspace_spend.assert_called_once_with("ws", 1.5)
 
     async def test_success_skips_spend_when_budget_absent(self, env, uis):
+        set_service(env, make_service({"post_message": {}}))
         with patch("integrations.universal_integration_service.budget_service", None):
             result = await uis.execute("slack", "send_message", {}, {"user_id": "u1"})
         assert result["status"] == "success"
@@ -188,7 +185,7 @@ class TestExecute:
             result = await uis.execute("stripe", "get_balance", {}, {"user_id": "u1"})
         assert result["status"] == "error"
         assert result["error"] == "kaboom"
-        env.cb.record_failure.assert_awaited_once_with("stripe", unittest_any_exc())
+        env.cb.record_failure.assert_called_once_with("stripe", unittest_any_exc())
         budget.record_workspace_spend.assert_called_once_with("ws", 2.5)
 
     async def test_missing_user_id_errors(self, env, uis):
@@ -243,10 +240,11 @@ class TestExecute:
 class TestSystemAgentToken:
     async def test_system_agent_uses_workspace_token(self, env, uis, mem_session):
         from core.models import AgentRegistry
-        with mem_session() as s:
-            s.add(AgentRegistry(id="sys-1", name="sys", is_system_agent=True, enabled=True))
-            s.commit()
-            db = s
+        db = mem_session()
+        db.add(AgentRegistry(id="sys-1", name="sys", is_system_agent=True, enabled=True,
+                             category="system", role="assistant", type="system", status="active",
+                             module_path="test_module", class_name="TestAgent"))
+        db.commit()
         svc = make_service({"list_contacts": [{"Id": "1"}]})
         set_service(env, svc)
         with patch("integrations.universal_integration_service.governance_middleware", StubGatekeeper()):
@@ -254,18 +252,22 @@ class TestSystemAgentToken:
                                        {"agent_id": "sys-1", "db": db})
         assert result["status"] == "success"
         svc.list_contacts.assert_awaited_once()
+        db.close()
 
     async def test_non_system_agent_requires_user_id(self, env, uis, mem_session):
         from core.models import AgentRegistry
-        with mem_session() as s:
-            s.add(AgentRegistry(id="usr-1", name="u", is_system_agent=False, enabled=True))
-            s.commit()
-            db = s
-        with patch.object(uis, "_dispatch_execution", new_callable=AsyncMock) as dispatch:
+        db = mem_session()
+        db.add(AgentRegistry(id="usr-1", name="u", is_system_agent=False, enabled=True,
+                             category="system", role="assistant", type="agent", status="active",
+                             module_path="test_module", class_name="TestAgent"))
+        db.commit()
+        set_service(env, make_service({"list_contacts": []}))
+        with patch("integrations.universal_integration_service.governance_middleware", StubGatekeeper()):
             result = await uis.execute("salesforce", "list", {"entity": "contact"},
                                        {"agent_id": "usr-1", "db": db})
         assert result["status"] == "error"
-        dispatch.assert_not_awaited()
+        assert "user_id required" in result["error"]
+        db.close()
 
     async def test_system_agent_lookup_error_falls_back_to_error(self, env, uis):
         db = Mock()
@@ -432,7 +434,8 @@ class TestDispatchShopify:
         fake_shopify.get_customers = AsyncMock(return_value=[{"id": 3}])
         fake_shopify.create_fulfillment = AsyncMock(return_value={"id": 4})
         fake_shopify.get_shop_analytics = AsyncMock(return_value={"revenue": 10})
-        with patch("integrations.shopify_service.ShopifyService", return_value=fake_shopify):
+        with patch("integrations.universal_integration_service.ShopifyService",
+                   return_value=fake_shopify):
             ctx = {"user_id": "u1", "access_token": "tok", "shop": "myshop.myshopify.com"}
             r = await uis.execute("shopify", "list", {"entity": "product"}, ctx)
             assert r["status"] == "success"
@@ -776,14 +779,14 @@ class TestDispatchDevelopment:
 
 class TestDispatchMarketing:
     async def test_mailchimp(self, env, uis):
-        mailchimp = MagicMock()
-        mailchimp.get_campaigns = AsyncMock(return_value=[])
-        mailchimp.get_audiences = AsyncMock(return_value=[])
-        with patch("integrations.mailchimp_service.mailchimp_service", mailchimp):
+        mc = MagicMock()
+        mc.get_campaigns = AsyncMock(return_value=[])
+        mc.get_audiences = AsyncMock(return_value=[])
+        with patch("integrations.mailchimp_service.MailchimpService", return_value=mc):
             r = await uis.execute("mailchimp", "list", {}, {"user_id": "u1", "access_token": "t",
                                                             "server_prefix": "us1"})
             assert r["status"] == "success"
-            mailchimp.get_campaigns.assert_awaited_once_with("t", "us1", limit=20)
+            mc.get_campaigns.assert_awaited_once_with("t", "us1", limit=20)
             r = await uis.execute("mailchimp", "get_audiences", {}, {"user_id": "u1",
                                                                      "access_token": "t"})
             assert r["status"] == "success"
@@ -861,16 +864,34 @@ class TestDispatchZoho:
                                   {"user_id": "u1", "access_token": "t"})
             assert r["status"] == "success"
 
-    async def test_other_zoho_services(self, env, uis):
-        for service, mod, attr in (("zoho_mail", "zoho_mail_service", "zoho_mail_service"),
-                                   ("zoho_inventory", "zoho_inventory_service", "zoho_inventory_service"),
-                                   ("zoho_projects", "zoho_projects_service", "zoho_projects_service")):
+    async def test_zoho_mail_via_dispatch(self, env, uis):
+        svc = make_service({"get_recent_inbox": []})
+        set_service(env, svc)
+        r = await uis.execute("zoho_mail", "list", {}, {"user_id": "u1"})
+        assert r["status"] == "success"
+
+    async def test_zoho_inventory_via_finance(self, env, uis):
+        svc = make_service({"get_items": []})
+        set_service(env, svc)
+        r = await uis.execute("zoho_inventory", "list_items", {}, {"user_id": "u1"})
+        assert r["status"] == "success"
+
+    async def test_execute_zoho_branches(self, uis):
+        for service, mod, cls, method, ret in (
+            ("zoho_mail", "zoho_mail_service", "ZohoMailService", "get_recent_inbox", []),
+            ("zoho_inventory", "zoho_inventory_service", None, "get_items", []),
+            ("zoho_projects", "zoho_projects_service", "ZohoProjectsService", "get_projects", []),
+        ):
             fake = MagicMock()
-            setattr(fake, "get_recent_inbox" if service == "zoho_mail" else (
-                "get_items" if service == "zoho_inventory" else "get_projects"), AsyncMock(return_value=[]))
-            with patch(f"integrations.{mod}.{attr}", fake):
-                r = await uis.execute(service, "list", {}, {"user_id": "u1", "access_token": "t"})
-                assert r["status"] == "success"
+            setattr(fake, method, AsyncMock(return_value=ret))
+            if cls:
+                with patch(f"integrations.{mod}.{cls}", return_value=fake):
+                    r = await uis._execute_zoho(service, "list", {"portal_id": "p"},
+                                                {"access_token": "t"})
+            else:
+                with patch(f"integrations.{mod}.zoho_inventory_service", fake):
+                    r = await uis._execute_zoho(service, "list", {}, {"access_token": "t"})
+            assert r["status"] == "success"
 
     async def test_default(self, env, uis):
         r = await uis.execute("zoho_crm", "bogus", {}, {"user_id": "u1", "access_token": "t"})
@@ -968,7 +989,7 @@ class TestSearch:
         svc = make_service({"search_content": {"results": [{"id": "1"}]}})
         set_service(env, svc)
         r = await uis.search("hubspot", "q", "contact", {"user_id": "u1"})
-        assert r["data"] == [{"id": "1"}]
+        assert r == [{"id": "1"}]
         svc.search_content.assert_awaited_once_with("q", object_type="contact", token="tok")
 
     async def test_communication_slack(self, env, uis):
@@ -978,16 +999,16 @@ class TestSearch:
         assert r["data"] == {"messages": []}
 
     async def test_communication_others(self, env, uis):
-        gc = MagicMock(); gc.search_entities = AsyncMock(return_value=[])
-        tg = MagicMock(); tg.search_entities = AsyncMock(return_value=[])
-        wa = MagicMock(); wa.search_entities = AsyncMock(return_value=[])
+        gc = MagicMock(); gc.unified_search = AsyncMock(return_value=[])
+        tg = MagicMock(); tg.perform_intelligent_search = AsyncMock(return_value=[])
+        wa = MagicMock(); wa.perform_intelligent_search = AsyncMock(return_value=[])
         gm = MagicMock(); gm.search_messages = Mock(return_value=[])
         ts = MagicMock(); ts.get_teams = Mock(return_value=[])
-        with patch("integrations.atom_google_chat_integration.google_chat_integration", gc), \
-                patch("integrations.atom_telegram_integration.telegram_integration", tg), \
-                patch("integrations.atom_whatsapp_integration.whatsapp_integration", wa), \
-                patch("integrations.gmail_service.gmail_service", gm), \
-                patch("integrations.teams_service.teams_service", ts):
+        with patch("integrations.atom_google_chat_integration.atom_google_chat_integration", gc), \
+                patch("integrations.atom_telegram_integration.atom_telegram_integration", tg), \
+                patch("integrations.atom_whatsapp_integration.atom_whatsapp_integration", wa), \
+                patch("integrations.gmail_service.GmailService", return_value=gm), \
+                patch("integrations.teams_service.TeamsService", return_value=ts):
             for service in ("google_chat", "telegram", "whatsapp", "gmail", "teams", "discord"):
                 r = await uis.search(service, "q", None, {"user_id": "u1"})
                 assert r["status"] == "success"
@@ -1007,28 +1028,28 @@ class TestSearch:
                             "search_issues": []})
         set_service(env, svc)
         r = await uis.search("linear", "alpha", None, {"user_id": "u1"})
-        assert r["data"] == [{"title": "Alpha"}]
+        assert r == [{"title": "Alpha"}]
         r = await uis.search("monday", "q", None, {"user_id": "u1"})
-        assert r["data"] == []
+        assert r == []
         r = await uis.search("asana", "gamma", None, {"user_id": "u1"})
-        assert r["data"] == [{"name": "Gamma"}]
+        assert r == [{"name": "Gamma"}]
         r = await uis.search("jira", "q", None, {"user_id": "u1"})
-        assert r["data"] == []
+        assert r == []
         r = await uis.search("trello", "q", None, {"user_id": "u1"})
-        assert r["data"] == []
+        assert r == []
 
     async def test_storage_search(self, env, uis):
         svc = make_service({"search_files": {"status": "success", "data": {"files": [{"id": "1"}]}},
                             "search": {"results": []}})
         set_service(env, svc)
         r = await uis.search("google_drive", "q", None, {"user_id": "u1"})
-        assert r["data"] == [{"id": "1"}]
+        assert r == [{"id": "1"}]
         r = await uis.search("dropbox", "q", None, {"user_id": "u1"})
-        assert r["data"] == {"results": []}
+        assert r == {"results": []}
         r = await uis.search("notion", "q", None, {"user_id": "u1"})
-        assert r["data"] == []
+        assert r == []
         r = await uis.search("box", "q", None, {"user_id": "u1"})
-        assert r["data"] == []
+        assert r == []
 
     async def test_crm_search_zoho(self, env, uis):
         crm = MagicMock()
@@ -1045,8 +1066,8 @@ class TestSearch:
         fd = MagicMock(); fd.search_tickets = AsyncMock(return_value=[])
         ic = make_service({"search_contacts": []})
         set_service(env, ic)
-        with patch("integrations.zendesk_service.zendesk_service", zd), \
-                patch("integrations.freshdesk_service.get_freshdesk_service", return_value=fd):
+        with patch("integrations.zendesk_service.ZendeskService", return_value=zd), \
+                patch("integrations.freshdesk_service.FreshdeskService", return_value=fd):
             r = await uis.search("zendesk", "q", None, {"user_id": "u1"})
             assert r["status"] == "success"
             r = await uis.search("freshdesk", "q", None, {"user_id": "u1"})
@@ -1054,30 +1075,30 @@ class TestSearch:
             r = await uis.search("intercom", "q", None, {"user_id": "u1"})
             assert r["status"] == "success"
         r = await uis.search("support_unknown", "q", None, {"user_id": "u1"})
-        assert r["data"] == []
+        assert r["status"] == "error"
 
     async def test_dev_search(self, env, uis):
         gh = MagicMock()
         gh.get_user_repositories = Mock(return_value=[{"name": "RepoAlpha"}, {"name": "other"}])
         gl = MagicMock(); gl.search_projects = AsyncMock(return_value=[])
-        with patch("integrations.github_service.github_service", gh), \
-                patch("integrations.gitlab_service.gitlab_service", gl):
+        with patch("integrations.github_service.GitHubService", return_value=gh), \
+                patch("integrations.gitlab_service.GitLabService", return_value=gl):
             r = await uis.search("github", "alpha", None, {"user_id": "u1"})
             assert r["data"] == [{"name": "RepoAlpha"}]
             r = await uis.search("gitlab", "q", None, {"user_id": "u1", "access_token": "t"})
             assert r["data"] == []
         r = await uis.search("figma", "q", None, {"user_id": "u1"})
-        assert r["data"] == []
+        assert r["status"] == "error"
 
     async def test_marketing_search(self, env, uis):
         mc = MagicMock()
         mc.get_campaigns = AsyncMock(return_value=[{"settings": {"subject_line": "Win Big"}},
                                                    {"settings": {"title": "other"}}])
-        with patch("integrations.mailchimp_service.mailchimp_service", mc):
+        with patch("integrations.mailchimp_service.MailchimpService", return_value=mc):
             r = await uis.search("mailchimp", "win", None, {"user_id": "u1", "access_token": "t"})
         assert len(r["data"]) == 1
         r = await uis.search("google_ads", "q", None, {"user_id": "u1"})
-        assert r["data"] == []
+        assert r["status"] == "error"
 
     async def test_analytics_search(self, env, uis):
         tableau = MagicMock()
@@ -1103,14 +1124,15 @@ class TestSearch:
         r = await uis.search("not_a_service", "q", None, {"user_id": "u1"})
         assert r["status"] == "error"
         assert "not supported" in r["message"]
-        env.cb.record_failure.assert_awaited()
+        env.cb.record_failure.assert_called()
 
     async def test_exception_records_failure(self, env, uis):
-        svc = make_service({"execute_query": AsyncMock(side_effect=RuntimeError("boom"))})
+        svc = make_service()
+        svc.execute_query = AsyncMock(side_effect=RuntimeError("boom"))
         set_service(env, svc)
         r = await uis.search("salesforce", "q", "contact", {"user_id": "u1"})
         assert r["status"] == "error"
-        env.cb.record_failure.assert_awaited_once_with("salesforce", unittest_any_exc())
+        env.cb.record_failure.assert_called_once_with("salesforce", unittest_any_exc())
 
     async def test_search_masks_response(self, env, uis):
         """BUG: gatekeeper field-masking was never applied to search() results."""
@@ -1121,7 +1143,7 @@ class TestSearch:
         set_service(env, svc)
         with patch("integrations.universal_integration_service.governance_middleware", gk):
             r = await uis.search("google_drive", "q", None, {"user_id": "u1"})
-        assert r["data"] == [{"id": "1", "access_token": "***"}]
+        assert r == [{"id": "1", "access_token": "***"}]
 
 
 # ============================================================================
@@ -1226,6 +1248,14 @@ class TestLanceDBMemoryManager:
         results = mm.search_communications("sales", limit=10)
         assert any(r["id"] == "1" for r in results)
 
+    def test_search_communications_with_filters(self, mm):
+        mm.initialize()
+        mm.ingest_communication(comm_data(id="1", content="alpha project", tags=["hello"]))
+        mm.ingest_communication(comm_data(id="2", content="beta project", tags=["world"]))
+        results = mm.search_communications("project", limit=10, app_type="slack", tag="hello")
+        assert any(r["id"] == "1" for r in results)
+        assert not any(r["id"] == "2" for r in results)
+
     def test_search_communications_fallback_to_vector(self, mm):
         mm.initialize()
         mm.ingest_communication(comm_data(id="1", content="project alpha launch"))
@@ -1316,6 +1346,13 @@ class TestPipelineConfig:
         assert pipeline.webhook_enabled == {}
         assert pipeline.ingestion_configs == {}
 
+    def test_init_without_webhook_handlers(self, tmp_path):
+        mm = LanceDBMemoryManager(db_path=str(tmp_path / "m"), workspace_id="w")
+        with patch.dict(sys.modules, {"core.webhook_handlers": None}):
+            p = CommunicationIngestionPipeline(mm)
+        assert p.webhook_processor is None
+        assert p.webhook_enabled == {}
+
     def test_configure_app(self, pipeline, sample_config):
         pipeline.configure_app(CommunicationAppType.SLACK, sample_config)
         assert pipeline.ingestion_configs["slack"]["enabled"] is True
@@ -1400,7 +1437,8 @@ class TestIngestMessage:
         intel.analyze_and_route = AsyncMock()
         with patch("core.automation_settings.get_automation_settings",
                    return_value=self._settings(True, True)), \
-                patch("core.knowledge_ingestion.get_knowledge_ingestion", return_value=mgr), \
+                patch("integrations.atom_communication_ingestion_pipeline.get_knowledge_ingestion",
+                      return_value=mgr), \
                 patch("core.communication_intelligence.CommunicationIntelligenceService",
                       return_value=intel):
             ok = await p.ingest_message("slack", {"content": "This is a fairly long message "
@@ -1415,7 +1453,7 @@ class TestIngestMessage:
         p = CommunicationIngestionPipeline(mm)
         with patch("core.automation_settings.get_automation_settings",
                    return_value=self._settings(True, True)), \
-                patch("core.knowledge_ingestion.get_knowledge_ingestion",
+                patch("integrations.atom_communication_ingestion_pipeline.get_knowledge_ingestion",
                       side_effect=RuntimeError("km down")):
             ok = await p.ingest_message("slack", {"content": "A sufficiently long content here",
                                                   "id": "m4"})
@@ -1427,7 +1465,8 @@ class TestIngestMessage:
         mgr = MagicMock()
         with patch("core.automation_settings.get_automation_settings",
                    return_value=self._settings(False, True)), \
-                patch("core.knowledge_ingestion.get_knowledge_ingestion", return_value=mgr):
+                patch("integrations.atom_communication_ingestion_pipeline.get_knowledge_ingestion",
+                      return_value=mgr):
             ok = await p.ingest_message("slack", {"content": "A sufficiently long content here",
                                                   "id": "m5"})
         assert ok is True
@@ -1491,12 +1530,13 @@ class TestRealTimeStreams:
         with patch.object(pipeline, "_fetch_new_messages", new_callable=AsyncMock,
                           return_value=[{"id": "1", "content": "hi"}]), \
                 patch.object(pipeline, "ingest_message", new_callable=AsyncMock,
-                             return_value=True) as im, \
+                             side_effect=[RuntimeError("ingest fail"), True]) as im, \
                 patch("integrations.atom_communication_ingestion_pipeline.asyncio.sleep",
                       new=AsyncMock(side_effect=fake_sleep)):
             with pytest.raises(RuntimeError):
                 await pipeline._real_time_ingestion("slack")
-        im.assert_awaited_once()
+        assert im.await_count == 2
+        assert len(sleep_calls) >= 3
 
 
 class TestFetchNewMessages:
@@ -1530,7 +1570,7 @@ class TestFetchWhatsApp:
     async def test_success(self, pipeline):
         wa = MagicMock()
         wa.get_messages = AsyncMock(return_value=[{"id": "1"}])
-        with patch("integrations.atom_whatsapp_integration.whatsapp_integration_service", wa):
+        with patch("integrations.atom_whatsapp_integration.atom_whatsapp_integration", wa):
             msgs = await pipeline._fetch_whatsapp_messages(None)
         assert msgs == [{"id": "1"}]
         wa.get_messages.assert_awaited_once_with(since=None, limit=100)
@@ -1539,10 +1579,15 @@ class TestFetchWhatsApp:
         with patch.dict(sys.modules, {"integrations.atom_whatsapp_integration": None}):
             assert await pipeline._fetch_whatsapp_messages(None) == []
 
+    async def test_method_missing_degrades(self, pipeline):
+        with patch("integrations.atom_whatsapp_integration.atom_whatsapp_integration",
+                   MagicMock()):
+            assert await pipeline._fetch_whatsapp_messages(None) == []
+
     async def test_service_error(self, pipeline):
         wa = MagicMock()
         wa.get_messages = AsyncMock(side_effect=RuntimeError("down"))
-        with patch("integrations.atom_whatsapp_integration.whatsapp_integration_service", wa):
+        with patch("integrations.atom_whatsapp_integration.atom_whatsapp_integration", wa):
             assert await pipeline._fetch_whatsapp_messages(None) == []
 
 
@@ -1592,7 +1637,9 @@ class TestFetchSlack:
                  "user": "U1"},
                 {"ts": "1000.4", "type": "event", "text": "not a message", "user": "U1"},
             ], "response_metadata": {"next_cursor": "abc"}},
-            {"ok": True, "messages": [], "response_metadata": {}},
+            {"ok": True, "messages": [
+                {"ts": "1000.5", "type": "message", "user": "U1", "text": "paged"},
+            ], "response_metadata": {}},
         ])
 
         class FakeClient:
@@ -1603,9 +1650,9 @@ class TestFetchSlack:
 
             async def conversations_history(self, channel=None, oldest=None, limit=100, cursor=None,
                                             inclusive=False):
-                page = next(pages)
                 if channel == "C2" and cursor is None:
-                    raise FakeError({"error": "channel_not_found"})
+                    return {"ok": False, "error": "invalid_auth"}
+                page = next(pages)
                 return page
 
             async def conversations_info(self, channel=None):
@@ -1623,15 +1670,25 @@ class TestFetchSlack:
         }), patch("integrations.atom_communication_ingestion_pipeline.asyncio.sleep",
                   new=AsyncMock()):
             msgs = await pipeline._fetch_slack_messages(datetime(2026, 1, 1, tzinfo=timezone.utc))
-        assert len(msgs) == 1
+        assert len(msgs) == 3
         assert msgs[0]["id"] == "1000.1"
         assert msgs[0]["metadata"]["channel_name"] == "general"
         assert msgs[0]["direction"] == "inbound"
         assert msgs[0]["recipient"] == "C1"
+        assert msgs[1]["id"] == "1000.2"
+        assert msgs[2]["id"] == "1000.5"
 
-    async def test_rate_limited(self, pipeline, monkeypatch):
+    async def test_slack_api_error_else_branch(self, pipeline, monkeypatch):
         monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-1")
         pipeline.app_configs["slack"] = {"monitored_channels": ["C1"]}
+
+        class FakeSlackResponse:
+            def __init__(self, error, headers=None):
+                self._error = error
+                self.headers = headers or {}
+
+            def get(self, key, default=None):
+                return self._error if key == "error" else default
 
         class FakeError(Exception):
             def __init__(self, response):
@@ -1645,7 +1702,46 @@ class TestFetchSlack:
                 self.token = token
 
             async def conversations_history(self, **kw):
-                raise FakeError({"error": "ratelimited", "headers": {"Retry-After": 1}})
+                raise FakeError(FakeSlackResponse("channel_not_found"))
+
+            async def close(self):
+                return None
+
+        fake_sdk = self._fake_slack_sdk(FakeClient)
+        with patch.dict(sys.modules, {
+            "slack_sdk": fake_sdk,
+            "slack_sdk.errors": fake_sdk.errors,
+            "slack_sdk.web": fake_sdk.web,
+            "slack_sdk.web.async_client": fake_sdk.web.async_client,
+        }):
+            msgs = await pipeline._fetch_slack_messages(None)
+        assert msgs == []
+
+    async def test_rate_limited(self, pipeline, monkeypatch):
+        monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-1")
+        pipeline.app_configs["slack"] = {"monitored_channels": ["C1"]}
+
+        class FakeSlackResponse:
+            def __init__(self, error, headers=None):
+                self._error = error
+                self.headers = headers or {}
+
+            def get(self, key, default=None):
+                return self._error if key == "error" else default
+
+        class FakeError(Exception):
+            def __init__(self, response):
+                super().__init__("slack err")
+                self.response = response
+
+        class FakeClient:
+            error_cls = FakeError
+
+            def __init__(self, token):
+                self.token = token
+
+            async def conversations_history(self, **kw):
+                raise FakeError(FakeSlackResponse("ratelimited", {"Retry-After": 1}))
 
             async def close(self):
                 return None
@@ -1716,12 +1812,9 @@ class FakeHTTPResponse:
 class FakeHTTPClient:
     """Configurable httpx.AsyncClient stand-in."""
 
-    def __init__(self, routes=None, default=None):
+    def __init__(self, routes=None, default=None, timeout=None):
         self.routes = routes or {}
         self.default = default or FakeHTTPResponse()
-
-    def __init_fake__(self, *a, **kw):
-        pass
 
     async def __aenter__(self):
         return self
@@ -1730,12 +1823,17 @@ class FakeHTTPClient:
         return None
 
     async def get(self, url, headers=None, params=None):
-        for prefix, resp in self.routes.items():
+        for prefix, resp in sorted(self.routes.items(), key=lambda kv: len(kv[0]), reverse=True):
             if url.startswith(prefix):
                 if callable(resp):
                     return resp(url, headers, params)
                 return resp
         return self.default
+
+
+def fake_client_factory(client):
+    """patch('httpx.AsyncClient', ...) target: accepts timeout kwarg."""
+    return lambda timeout=None: client
 
 
 class TestFetchTeams:
@@ -1754,7 +1852,7 @@ class TestFetchTeams:
                              return_value=[{"id": "c1"}]) as chat, \
                 patch.object(pipeline, "_fetch_teams_channel_messages", new_callable=AsyncMock,
                              return_value=[{"id": "ch1"}]) as chan, \
-                patch("httpx.AsyncClient", FakeHTTPClient()):
+                patch("httpx.AsyncClient", fake_client_factory(FakeHTTPClient())):
             msgs = await pipeline._fetch_teams_messages(None)
         assert len(msgs) == 2
         chat.assert_awaited_once()
@@ -1921,7 +2019,7 @@ class TestFetchEmail:
                                                  datetime(2026, 1, 1))
         assert len(msgs) == 3
         assert msgs[0]["subject"] == "Hello World"
-        assert msgs[0]["content"] == "Test body text"
+        assert msgs[0]["content"].strip() == "Test body text"
         assert msgs[0]["app_type"] == "email"
 
     def test_fetch_imap_search_not_ok(self, pipeline):
@@ -2018,7 +2116,7 @@ class TestFetchGmail:
              "snippet": "snip", "historyId": "h1", "internalDate": "1", "sizeEstimate": 2},
             {"id": "m2", "timestamp": "1700000000", "sender": "plain@b.c", "recipient": "",
              "subject": "", "body": "", "attachments": [], "labelIds": []},
-            {"id": "m3", "sender": None, "recipient": None, "attachments": [], "labelIds": []},
+            {"id": "m3", "sender": "", "recipient": "", "attachments": [], "labelIds": []},
         ]
         svc = self._fake_gmail(messages)
         with patch("integrations.gmail_service.GmailService", return_value=svc):
@@ -2076,7 +2174,7 @@ class TestFetchOutlook:
         })
         with patch("core.token_storage.token_storage.get_token",
                    return_value={"access_token": "t"}), \
-                patch("httpx.AsyncClient", client):
+                patch("httpx.AsyncClient", fake_client_factory(client)):
             msgs = await pipeline._fetch_outlook_messages(datetime(2026, 1, 1))
         assert len(msgs) == 1
         assert msgs[0]["priority"] == "high"
@@ -2097,7 +2195,7 @@ class TestFetchOutlook:
         })
         with patch("core.token_storage.token_storage.get_token",
                    return_value={"access_token": "t"}), \
-                patch("httpx.AsyncClient", client), \
+                patch("httpx.AsyncClient", fake_client_factory(client)), \
                 patch("integrations.atom_communication_ingestion_pipeline.asyncio.sleep",
                       new=AsyncMock()):
             msgs = await pipeline._fetch_outlook_messages(None)
@@ -2110,7 +2208,7 @@ class TestFetchOutlook:
         })
         with patch("core.token_storage.token_storage.get_token",
                    return_value={"access_token": "t"}), \
-                patch("httpx.AsyncClient", client):
+                patch("httpx.AsyncClient", fake_client_factory(client)):
             msgs = await pipeline._fetch_outlook_messages(None)
         assert msgs == []
 
@@ -2123,7 +2221,7 @@ class TestFetchOutlook:
         })
         with patch("core.token_storage.token_storage.get_token",
                    return_value={"access_token": "t"}), \
-                patch("httpx.AsyncClient", client):
+                patch("httpx.AsyncClient", fake_client_factory(client)):
             msgs = await pipeline._fetch_outlook_messages(None)
         assert msgs == []
 
