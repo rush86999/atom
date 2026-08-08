@@ -293,6 +293,14 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | 2026-08-07 | 19 test suites (security/accounting/analytics/supervision/marketplace/oauth/config/debug) | FIXED | ~670 tests green; security verdicts SECURE (no gates fail open); auth suites leak LOG_LEVEL → config test now pins env (cross-suite pollution class) |
 | 2026-08-07 | Combined verification | GREEN | **530/531** then 96/96 after env-pin fix |
 
+### Resolved 2026-08-07 (R87 wave — pushed `e383c2b12`)
+| Date | Area | Status | Result |
+|---|---|---|---|
+| 2026-08-07 | FE entity+finance (10 suites / 107 tests, 77–98%) | TESTED/FIXED | MergeDialog conflict warning never rendered; TransactionsList create/export flows dead code; BudgetPlanner Add trigger missing onClick; shared Dialog returned null when closed → trigger unreachable |
+| 2026-08-07 | FE supervision/sales/shared/desktop (8 suites / 113 tests, 90–100%) | TESTED/FIXED | LiveMonitoringPanel stale-steps closure (never advanced) + JSON.parse(undefined) SSE crash; LeadManagement email-less crash; DesktopSecurityAudit findings normalization; satellite-controls missing React import + stop-failure status stuck 'running' |
+| 2026-08-07 | FE lib+pages (4 suites / 68 tests, 71–100%) | TESTED/FIXED | tokenEncryption retargeted to real module (100%); FactFilters Radix SelectItem empty-value page crash; jit-verification wrong fallback field; skills page missing React import; jest.config testMatch += pages/__tests__ |
+| 2026-08-07 | FE full suite + coverage | GREEN | **7,121 passed / 0 failed; 55.5% lines** (was 50.5% → +5.0pts) |
+
 ## Known remaining work (verified at last run — updated 2026-08-07)
 - `core/models.py` `OAuthToken` — server-side model; verify `api/oauth` routes don't use stale columns (Notion/Spotify moved to IntegrationToken; sweep remaining writers)
 - `tests/test_cognitive_tier_e2e.py` — 11 collection ERRORS remain after the survey-sweep alignment (23 pass / 11 error; the stale `CognitiveTierPreference` kwargs were fixed but 11 tests still fail at setup — next target)
