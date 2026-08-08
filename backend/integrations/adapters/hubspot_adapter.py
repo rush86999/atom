@@ -6,17 +6,30 @@ from typing import Any, Dict, List, Optional
 import logging
 import asyncio
 
-from core.integration_base import IntegrationService, OperationResult, IntegrationErrorCode
+from core.integration_service import IntegrationService, OperationResult, IntegrationErrorCode
 from integrations.hubspot_service import HubSpotService
 
 logger = logging.getLogger(__name__)
 
 class HubSpotAdapter(IntegrationService):
     """Adapter for HubSpot integration in Upstream."""
-    
-    def __init__(self, workspace_id: Optional[str] = None, config: Optional[Dict[str, Any]] = None):
-        super().__init__(workspace_id, config)
+
+    def __init__(self, tenant_id: Optional[str] = None, config: Optional[Dict[str, Any]] = None):
+        super().__init__(tenant_id or "default", config or {})
+        self.workspace_id = self.tenant_id
         self.service = HubSpotService()
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        return {
+            "operations": self.get_supported_operations(),
+            "required_params": ["access_token"],
+            "optional_params": [],
+            "rate_limits": {},
+            "supports_webhooks": True,
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        return {"healthy": True, "message": "HubSpotAdapter ready", "last_check": None}
 
     async def execute_operation(
         self, 

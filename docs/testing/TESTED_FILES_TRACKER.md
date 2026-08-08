@@ -338,6 +338,13 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | Frontend | **58.3%** lines (7,273 passed / 0 failures; 3 known full-run flakes pass in isolation) | 735 files | 2026-08-08 |
 | Backend | 54.0% (r80 full-ish); 32.8% chunked-scope (r84) | 158k stmts / ~1,015 files | 2026-08-07 |
 
+### Feature: Agent Radio lateral coordination (2026-08-08)
+| Area | Status | Result |
+|---|---|---|
+| `core/agent_radio/{radio_service,radio_server,radio_guard,radio_breaker,radio_adapter}` | GREEN | 41 tests green (`pytest tests/unit/agents/test_radio_{service,server,breaker}.py test_agent_radio_tool.py`); mypy clean (10 files). Memo: `agent_messages` is LIVE board-comment storage — radio uses `lateral_messages`/`agent_threads` only |
+| `tools/agent_radio_tool.py` + `core/action_registry.py` (radio.*) | GREEN | 4 actions registered (RPC export auto); tier gates (INTERN+/STUDENT+), registry-declared maturity |
+| `generic_agent.py` / `atom_meta_agent.py` passive drain hooks | GREEN | non-blocking `[RADIO INBOX]` injection per step; never raises |
+
 ### Resolved 2026-08-08 (R92 wave — pushed `15c6651b2` + `72d0c6c0e`)
 | Date | Area | Status | Result |
 |---|---|---|---|
@@ -1015,3 +1022,69 @@ Regression: `npx jest pages/__tests__ --ci --watchAll=false --maxWorkers=2` → 
 - mypy: 35 errors on the 4 sampled files — identical to HEAD baseline (0 new).
 - RED evidence: 36 bug tests failed pre-fix, all green post-fix.
 - Test-infra: `test_proactive_messaging_minimal.py` module-level `sys.modules['integrations.atom_whatsapp_integration'] = MagicMock()` (pre-existing pollution) — reload test skips when detected.
+
+---
+
+## Session 2026-08-08 — Round R90 (stale-test repair wave, 14 files)
+
+> Test-repair round: coverage waves landed fixes; stale suites asserted pre-fix
+> contracts / phantom APIs / broken fixtures. TDD used where fixes touched source.
+
+### Source fixed (RED→GREEN; suites in tests/integration/finance/)
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-08 | `core/financial_audit_service.py` | FIXED | `_create_audit_entry` (SQLAlchemy after_flush listener) constructed `FinancialAudit` with phantom kwargs (`action_type`/`changes`/`entry_hash`/`prev_hash`/…) → TypeError silently caught → **NO audit rows were ever created**; now writes real columns (`operation_type`, `table_name`, `record_id`, `hash_chain`, `previous_hash`; governance/request context folded into `audit_metadata`). `reconstruct_transaction` reads the same real columns |
+| 2026-08-08 | `core/hash_chain_integrity.py` | FIXED | `verify_chain`/`get_chain_status`/`recompute_hash` read phantom `entry_hash`/`prev_hash`/`action_type` → AttributeError on every verification; now reads `hash_chain`/`previous_hash`/`operation_type`. Also: aware-vs-naive timestamp round-trip (SQLite strips tz) made every hash mismatch → `compute_entry_hash` normalizes to naive wall-clock UTC so insert-time hash == verify-time hash |
+| 2026-08-08 | `integrations/slack_enhanced_service.py` | FIXED | 31 sites raised `SlackApiError(msg)` with the required `response` arg missing → every rate-limit/error path surfaced `TypeError: SlackApiError.__init__() missing 1 required positional argument: 'response'`; now `SlackApiError(msg, response=None)` |
+| 2026-08-08 | `tests/fixtures/e2e_scenarios.py` | FIXED | test-support fixture (consumed ONLY by tests): stale `FinancialAccount(user_id=, provider=)` / `FinancialAudit` phantom kwargs; now real columns + tenant FK; manual audit seqs continue after the (now-working) auto-audit listener via `_audit_seq_base()` (which flushes to materialize the deferred listener row — fixes a nondeterministic seq-1 collision) |
+
+### Test files repaired (stale → current API)
+| Date | File | Status | What was wrong / changed |
+|---|---|---|---|
+| 2026-08-08 | `tests/test_autonomous_supervisor.py` | FIXED | 1 failed + 12 errors → 13 passed. Fixture passed `agent_type=` (no such column; it's `type`) + `AgentProposal(proposed_action=, reasoning=)` (properties, not columns) + `AgentExecution(user_id=, input_data=)` (no such columns) + used file-DB `get_db()` (no tables) → switched to repo `db_session` fixture, real model kwargs, Tenant FK for proposals; running-execution monitor test now breaks after 1 event (stream never ends for "running"); completed/failed tests collect all events |
+| 2026-08-08 | `tests/integration/finance/test_sox_compliance.py` | FIXED | 6 failed → 6 passed. Stale `AgentRegistry(maturity=)`, `FinancialAudit`/`FinancialAccount` phantom kwargs; rewritten to current schema (operation_type/hash_chain/previous_hash/audit_metadata, tenant_id, updated_at, real hash-chain builds) |
+| 2026-08-08 | `tests/integration/finance/test_audit_trail_e2e.py` | FIXED | 10 failed → 18 passed (deterministic across 5+ runs). Same stale kwargs class; governance/hash assertions now read audit_metadata/hash_chain (helper chained real hashes) |
+| 2026-08-08 | `tests/test_marketplace_satellite.py` | FIXED | 6 failed → 20 passed. Phantom `browse_components_sync`/`install_component_sync`/`fetch_components`/`get_component_details` mock targets; rewritten to current `browse_components`/`install_component`/`browse_domains`/`install_domain` (+`_sync` client methods), real db_session + mocked SaaS client, real return contracts (`component_name`/`installation_id`) |
+| 2026-08-08 | `tests/test_covpush_endpoints2.py::TestChatDispatchTable` | FIXED | 1 failed → 7 passed. `GET_SILENT_STAKEHOLDERS` hit the real stakeholder engine (dev DB, no tables) → patched `core.stakeholder_engine.get_stakeholder_engine` (handler imports it locally) |
+| 2026-08-08 | `tests/test_covpush_miniapp.py::test_snapshot_history_and_revert` | FIXED | asserted `res["version"] == 1`; current `revert_logic` writes a fresh checkpoint (head=3) + returns `reverted_to` — assertion now `version==3 and reverted_to==1` |
+| 2026-08-08 | `tests/test_covpush_ingestion_lancedb.py::test_escape_like` | FIXED | expected pre-hardening output; current `_escape_like` also escapes `%`/`_` — expectation updated |
+| 2026-08-08 | `tests/test_slack_workflow_actions.py` | FIXED | 8 failed → 17 passed. Engine `_handle_*` results carry `method`/fields (no `ok` key); invite partial-failure uses per-user `SlackApiError`; user_ids conversion asserted via kwargs; rate-limit test now exercises the fixed SlackApiError raise |
+| 2026-08-08 | `tests/test_pdf_ocr_vision.py` | FIXED | 1 failed + 8 errors → 20 passed. `PDFOCRService(use_byok=)` no longer exists (BYOK probed internally); BYOK-init test now stubs `backend.core.byok_endpoints.get_byok_manager` via sys.modules |
+| 2026-08-08 | `tests/test_integration_implementations.py` | FIXED | 10 failed + 2 errors → 26 passed. Phantom patch targets (whatsapp_integration_service, pipeline.token_storage, pipeline.GmailService, oauth_user_context.ConnectionService) → real local-import targets (`atom_whatsapp_integration.atom_whatsapp_integration`, `core.token_storage.token_storage`, `gmail_service.GmailService`, `core.connection_service.ConnectionService`); singleton import names (`atom_enterprise_unified_service` etc.); AI search methods live on `search_manager`; phantom `TestSlackConfig` class removed (`integrations.slack_config` module no longer exists) |
+
+### Files deleted (fully superseded, with justification)
+| Date | File | Why |
+|---|---|---|
+| 2026-08-08 | `tests/core/integration/test_lancedb_handler_coverage_extend.py` | 16 failed / 70 passed vs REMOVED APIs (dual-vector `vector_fastembed`, `openai_client`, `_init_local_embedder`…); current API fully covered by `tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage` (145 tests) + `tests/test_bughunt_autodev_comms.py` (dual-vector config, get_embedding escaping, str(e) leak); zero importers |
+| 2026-08-08 | `tests/test_mobile_workflows.py` | 7 errors, `fixture 'client' not found` — depended on tests/integration/conftest.py fixture that never applies to a tests/ file (permanently broken as written); routes fully covered by `tests/test_bughunt_api_wave.py::TestMobileWorkflowsBugs` (7) + `tests/test_covpush_api_wave.py::TestMobileWorkflowsCoverage` (18) |
+
+### Verified green, no changes needed
+| Date | File | Evidence |
+|---|---|---|
+| 2026-08-08 | `tests/test_workflow_debugger_complete.py` | green standalone (53) AND co-collected with 10+ sibling suites (lancedb, browser_agent_ai, webhook_bridge, finance dir both orders, miniapp/autonomous, debugger family x4, email/proactive, unit+bughunt2, lancedb_handler). "Only green standalone" could not be reproduced after deleting the module-level `sys.modules['lancedb']` polluter (see deleted file above); intermittent breakage observed was from a concurrent in-progress git merge conflicting `core/models.py` (resolved by that process at 10:24) |
+| 2026-08-08 | `tests/test_covpush_autodev.py` + `tests/test_covpush_autodev2.py` | collect together in both orders (163 = 95+68) and standalone — `tool_mutations` double-registration not reproducible in current tree (single registration on core.database.Base via models_registration); no change needed |
+| 2026-08-08 | `tests/test_covpush_tools_c.py` | 74 passed — no stale assertions |
+
+### Regression / notes
+- All repaired suites re-verified after a concurrent agent's merge churn re-resolved `core/models.py` — no new failures from this round.
+- Pre-existing (NOT touched, out of scope): `tests/integration/finance/test_audit_api_endpoints.py` (7 failed/11 errors standalone), `tests/core/integration/test_integration_data_mapper_coverage.py` (13 failed), `tests/test_browser_agent_ai.py` (12 failed standalone), `tests/core/test_workflow_debugger_bughunt2.py::test_trace_stream_helpers` (1 failed standalone), `tests/test_lancedb_connectivity.py` (unresolved git merge conflict markers at stamp time).
+
+## Session 2026-08-08 — Platform Upgrade P0a (H4 base-class reconciliation)
+
+### Hazard resolved
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-08 | `core/integration_base.py` | DEAD | Two competing `IntegrationService` ABCs (H4): Base A (62 adopters, dict, `get_capabilities`/`health_check`) vs Base B (4 adapters, pydantic `OperationResult`, `get_supported_operations`). Notion wrapped under both. **Collapsed B→A:** `OperationResult` + B-only `IntegrationErrorCode` members (`INVALID_PARAMETERS, NOT_FOUND, API_ERROR, EXECUTION_EXCEPTION, LICENSE_RESTRICTED`) moved into Base A; 4 adapters (`asana/hubspot/notion/slack`) repointed + given `get_capabilities`/`health_check`; `integration_registry_v2.py` repointed (constructs with `tenant_id=`). Existing 62 services keep dict returns; new code uses `OperationResult`. |
+| 2026-08-08 | `integrations/adapters/notion_adapter.py` | FIXED | `NotionService(access_token=...)` ctor call — `NotionService.__init__` takes `(tenant_id, config)`, not `access_token`. Pre-existing latent bug (adapter was unreachable behind dead `integration_registry_v2` path); surfaced by the reconciliation test. Now `NotionService(tenant_id=, config=)`. |
+
+### Test suite added (GREEN at stamp time)
+| Date | Test file(s) | Count |
+|---|---|---|
+| 2026-08-08 | `tests/core/test_integration_base_reconciliation.py` | 13 passed |
+
+### P0b reachability audit (findings recorded in STANFORD_VIRTUAL_BIOTECH_PAPERCLIP.md)
+- `route_with_governance`: method `atom_meta_agent.py:2229` is callable; `:2630` is a broken flush-left module-level copy (binds `request→self`); zero non-test callers of either. P1a will wire `:2229` + delete `:2630`.
+- `fleet_scaler_service`: fake IDs (`:263`) + `parent_agent_id="system"` (`:270`) = FK violations into `agent_registry.id`. Verified dead (zero live callers). Dangling-ref/JOIN (SQLite, FKs off) + insert-crash (Postgres). Not used by the wired P1 route.
+
+### Regression / notes
+- Broader integration suite: `tests/core/integration/` + `tests/test_notion_service.py` = **89 passed** (excluding the pre-existing-broken `test_integration_data_mapper_coverage.py`, 13 failed — documented above as pre-existing, not a regression; verified against clean baseline via stash).

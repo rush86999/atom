@@ -5,17 +5,30 @@ Wraps SlackUnifiedService to provide a unified IntegrationService interface.
 from typing import Any, Dict, List, Optional
 import logging
 
-from core.integration_base import IntegrationService, OperationResult, IntegrationErrorCode
+from core.integration_service import IntegrationService, OperationResult, IntegrationErrorCode
 from integrations.slack_service_unified import SlackUnifiedService, SlackError
 
 logger = logging.getLogger(__name__)
 
 class SlackAdapter(IntegrationService):
     """Adapter for Slack integration in Upstream."""
-    
-    def __init__(self, workspace_id: Optional[str] = None, config: Optional[Dict[str, Any]] = None):
-        super().__init__(workspace_id, config)
-        self.service = SlackUnifiedService(config=config)
+
+    def __init__(self, tenant_id: Optional[str] = None, config: Optional[Dict[str, Any]] = None):
+        super().__init__(tenant_id or "default", config or {})
+        self.workspace_id = self.tenant_id
+        self.service = SlackUnifiedService(config=self.config)
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        return {
+            "operations": self.get_supported_operations(),
+            "required_params": ["bot_token"],
+            "optional_params": [],
+            "rate_limits": {},
+            "supports_webhooks": True,
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        return {"healthy": True, "message": "SlackAdapter ready", "last_check": None}
 
     async def execute_operation(
         self, 

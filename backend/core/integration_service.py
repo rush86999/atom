@@ -3,10 +3,15 @@ Base Integration Service
 Defines common interface for all integration services
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from sqlalchemy.orm import Session
 from enum import Enum
 import logging
+
+try:
+    from pydantic import BaseModel
+except ImportError:  # pragma: no cover - pydantic is a core dep; guard for safety
+    BaseModel = object  # type: ignore[assignment,misc]
 
 logger = logging.getLogger(__name__)
 
@@ -305,6 +310,32 @@ class IntegrationErrorCode(Enum):
     INTERNAL_ERROR = "INTERNAL_ERROR"
     UNKNOWN = "UNKNOWN"
 
+    # --- Merged from core/integration_base.py (H4 reconciliation) ---
+    # These members were exclusive to the now-deleted Base B enum and are
+    # referenced by the 4 upstream adapters (asana/hubspot/notion/slack).
+    INVALID_PARAMETERS = "INVALID_PARAMETERS"
+    NOT_FOUND = "NOT_FOUND"
+    API_ERROR = "API_ERROR"
+    EXECUTION_EXCEPTION = "EXECUTION_EXCEPTION"
+    LICENSE_RESTRICTED = "LICENSE_RESTRICTED"
+
+
+class OperationResult(BaseModel):
+    """Typed execution envelope for the upstream adapter layer.
+
+    Moved here from ``core/integration_base.py`` (H4 reconciliation) so the
+    4 adapters and ``integration_registry_v2`` keep a single typed envelope
+    without a competing base class. The 62 canonical services continue to
+    return plain ``Dict[str, Any]`` from ``execute_operation``; this model
+    is the contract for the adapter/registry boundary only.
+    """
+
+    success: bool
+    data: Optional[Dict[str, Any]] = None
+    error: Optional[IntegrationErrorCode] = None
+    message: Optional[str] = None
+    execution_time_ms: float = 0.0
+
 
 class IntegrationService(ABC):
     """
@@ -375,9 +406,12 @@ class IntegrationService(ABC):
         operation: str,
         parameters: Dict[str, Any],
         context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    ) -> Union[Dict[str, Any], OperationResult]:
         """
         Execute an integration operation with tenant context.
+
+        Legacy services return the dict envelope (success/result/error/details);
+        H4-reconciled adapters return the pydantic ``OperationResult`` envelope.
 
         Args:
             operation: Operation name (e.g., "send_message", "create_record")

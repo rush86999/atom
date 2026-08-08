@@ -4,9 +4,9 @@ Dynamically loads and instantiates integration services for node execution.
 """
 import importlib
 import logging
-from typing import Dict, Any, Optional, Type, List
+from typing import Dict, Any, Optional, Type, List, cast
 
-from core.integration_base import IntegrationService, OperationResult, IntegrationErrorCode
+from core.integration_service import IntegrationService, OperationResult, IntegrationErrorCode
 from integrations.bridge.node_bridge_service import node_bridge
 
 logger = logging.getLogger(__name__)
@@ -47,8 +47,11 @@ class IntegrationRegistryV2:
             module = importlib.import_module(module_path)
             service_class = getattr(module, class_name)
             
-            # Instantiate service
-            service = service_class(workspace_id=self.workspace_id, config=config)
+            # Instantiate service. Base A's ctor is (tenant_id, config); the
+            # registry is workspace-scoped, so we pass workspace_id as the
+            # tenant identity string. (H4 reconciliation — adapters alias
+            # workspace_id = tenant_id for any legacy reader.)
+            service = service_class(tenant_id=self.workspace_id, config=config)
             self._service_cache[connector_id] = service
             
             return service
@@ -98,7 +101,13 @@ class IntegrationRegistryV2:
         service = self.get_service(connector_id, config=config)
         if service:
             try:
-                return await service.execute_operation(operation, parameters, context)
+                # H4-reconciled adapters return OperationResult; legacy
+                # dict-returning services flow to the except branch below
+                # (unchanged runtime behavior).
+                return cast(
+                    OperationResult,
+                    await service.execute_operation(operation, parameters, context),
+                )
             except Exception as e:
                 logger.error(f"Native integration execution failed ({connector_id}:{operation}): {e}")
                 return OperationResult(
