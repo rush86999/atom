@@ -323,6 +323,21 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | Frontend | **55.5%** lines (7,121+ passed / 0 failed) | 735 files | 2026-08-07 |
 | Backend | 54.0% (r80 full-ish); 32.8% chunked-scope (r84) | 158k stmts / ~1,015 files | 2026-08-07 |
 
+### Resolved 2026-08-08 (R90-R91 wave — pushed `3232390d7` + `3e034a1aa`)
+| Date | Area | Status | Result |
+|---|---|---|---|
+| 2026-08-08 | Mobile services round 2 (18 suites / 860 tests) | TESTED/FIXED | workflowService+api **100%**; **4 real bugs**: clearToken left stale atom_access_token (resurrected after logout); biometric failure logs lost reason; offlineSync failed actions never retried (backoff was dead code — re-queued pending, MAX_SYNC_ATTEMPTS=5); workflowSync infinite retries + dead 20/workflow cache cap |
+| 2026-08-08 | Mobile screens round 2 (5 suites / 245 tests, 92–99%) | TESTED/FIXED | **3 real bugs**: CanvasViewerScreen NEVER rendered CanvasWebView (web canvases displayed nothing); NetInfo listener leak; AgentChatScreen messages wiped after fallback send; ChatTabScreen swipe-to-delete never wired |
+| 2026-08-08 | Mobile integration alignment | FIXED | offlineSyncNetwork backoff tests now advance fake timers + assert re-queue contract; ConversationListScreen flake (element-diff serialization) fixed via boolean compare; stale test_agent_chat_screen aligned to exact testIDs |
+| 2026-08-08 | Mobile full suite + coverage | GREEN | **3,843 passed / 115 suites; 87.5% lines** (was 81.6%) — **fully green, 0 failures** |
+
+## Coverage stamps (latest)
+| Surface | Coverage | Tests | Date |
+|---|---|---|---|
+| Mobile | **87.5%** lines (3,843 passed / 115 suites, 0 failures) | 7,365 stmts / 80 files | 2026-08-08 |
+| Frontend | **58.3%** lines (7,273 passed / 0 failures; 3 known full-run flakes pass in isolation) | 735 files | 2026-08-08 |
+| Backend | 54.0% (r80 full-ish); 32.8% chunked-scope (r84) | 158k stmts / ~1,015 files | 2026-08-07 |
+
 ## Known remaining work (verified at last run — updated 2026-08-08)
 - `core/models.py` `OAuthToken` — server-side model; verify `api/oauth` routes don't use stale columns (Notion/Spotify moved to IntegrationToken; sweep remaining writers)
 - `tests/test_cognitive_tier_e2e.py` — 11 collection ERRORS remain after the survey-sweep alignment (23 pass / 11 error; the stale `CognitiveTierPreference` kwargs were fixed but 11 tests still fail at setup — next target)
