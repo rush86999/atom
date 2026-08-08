@@ -38,7 +38,6 @@ async def create_new_skill(
         # Proactive Security Audit
         try:
             from atom_security.analyzers.llm import LLMAnalyzer
-            from atom_security.analyzers.static import StaticAnalyzer
 
             # Static Scan
             static_analyzer = StaticAnalyzer()

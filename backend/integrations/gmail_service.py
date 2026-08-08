@@ -19,6 +19,8 @@ try:
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
     from google_auth_oauthlib.flow import Flow
+    from googleapiclient.discovery import build
+    from googleapiclient.errors import HttpError
     GOOGLE_APIS_AVAILABLE = True
 except ImportError:
     GOOGLE_APIS_AVAILABLE = False
@@ -741,38 +743,9 @@ class GmailService(IntegrationService):
 
     # --- NATIVE HUB SYNC METHODS (PHASE 37) ---
 
-    async def fetch_recent_messages(self, user_id: str, max_results: int = 50, token: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Fetch recent Gmail messages and ingest them into the Communication Hub pipeline"""
-        from integrations.atom_communication_ingestion_pipeline import get_ingestion_pipeline
-        
-        try:
-            # We use the existing get_messages method but we need full details
-            messages_list = self.get_messages(max_results=max_results, token=token)
-            if not messages_list:
-                return []
-            
-            pipeline = get_ingestion_pipeline()
-            full_messages = []
-            
-            for msg_summary in messages_list:
-                msg = self.get_message_details(msg_summary['id'], token=token)
-                if msg:
-                    # Ingest into pipeline
-                    # Pipeline expects Dict[str, Any] which it then normalizes
-                    pipeline.ingest_message("gmail", msg)
-                    full_messages.append(msg)
-            
-            return full_messages
-        except Exception as e:
-            logger.error(f"Error in fetch_recent_messages: {e}")
-            return []
-
     async def sync_calendar_events(self, user_id: str, days_ahead: int = 7, token: Optional[str] = None):
         """Sync Google Calendar events and ingest them into the Calendar Hub pipeline"""
         try:
-            from core.database import SessionLocal
-            from core.collaboration_hub_service import CollaborationHubService
-            
             service = self._get_calendar_service(token)
             if not service:
                 logger.error("Failed to get Google Calendar service for sync")
@@ -787,9 +760,6 @@ class GmailService(IntegrationService):
             ).execute()
             events = events_result.get('items', [])
             
-            db = SessionLocal()
-            hub_service = CollaborationHubService(db)
-            
             from integrations.atom_communication_ingestion_pipeline import get_ingestion_pipeline
             pipeline = get_ingestion_pipeline()
             
@@ -797,44 +767,27 @@ class GmailService(IntegrationService):
                 start = event['start'].get('dateTime', event['start'].get('date'))
                 end = event['end'].get('dateTime', event['end'].get('date'))
                 
-                # Ingest into unified hub (Postgres)
-                hub_service.upsert_calendar_event(
-                    tenant_id=user_id, # Using user_id as tenant_id for now in this context
-                    provider="google_calendar",
-                    external_id=event['id'],
-                    data={
-                        "title": event.get('summary', 'No Title'),
-                        "description": event.get('description', ''),
-                        "location": event.get('location', ''),
-                        "start_time": datetime.fromisoformat(start.replace('Z', '+00:00')),
-                        "end_time": datetime.fromisoformat(end.replace('Z', '+00:00')),
-                        "is_all_day": 'date' in event['start'],
-                        "organizer": event.get('organizer', {}).get('email', ''),
-                        "attendees": event.get('attendees', []),
-                        "status": event.get('status', 'confirmed'),
-                        "metadata_json": event
-                    }
-                )
-                
                 # Ingest into memory pipeline (LanceDB)
                 try:
-                    pipeline.ingest_calendar_event("google_calendar", {
+                    await pipeline.ingest_message("google_calendar", {
                         "id": event['id'],
                         "title": event.get('summary', 'No Title'),
-                        "description": event.get('description', ''),
-                        "location": event.get('location', ''),
-                        "start_time": datetime.fromisoformat(start.replace('Z', '+00:00')),
-                        "end_time": datetime.fromisoformat(end.replace('Z', '+00:00')),
-                        "is_all_day": 'date' in event['start'],
-                        "organizer": event.get('organizer', {}).get('email', ''),
-                        "attendees": event.get('attendees', []),
-                        "metadata": event,
-                        "tenant_id": user_id
+                        "content": event.get('description', ''),
+                        "sender": event.get('organizer', {}).get('email', ''),
+                        "timestamp": start,
+                        "metadata": {
+                            "description": event.get('description', ''),
+                            "location": event.get('location', ''),
+                            "start_time": start,
+                            "end_time": end,
+                            "is_all_day": 'date' in event['start'],
+                            "attendees": event.get('attendees', []),
+                            "status": event.get('status', 'confirmed'),
+                            "tenant_id": user_id
+                        }
                     })
                 except Exception as ex:
                     logger.error(f"Memory ingestion failed for Google event {event['id']}: {ex}")
-                    
-            db.close()
         except Exception as e:
             logger.error(f"Error syncing Google Calendar events: {e}")
 
@@ -996,9 +949,9 @@ class GmailService(IntegrationService):
             elif "rate limit" in e_str or "quotalimit" in e_str or "429" in e_str:
                 error_code = IntegrationErrorCode.RATE_LIMIT
             elif "not found" in e_str or "404" in e_str:
-                error_code = IntegrationErrorCode.NOT_FOUND
+                error_code = IntegrationErrorCode.RESOURCE_NOT_FOUND
             elif "permission" in e_str or "forbidden" in e_str or "403" in e_str:
-                error_code = IntegrationErrorCode.FORBIDDEN
+                error_code = IntegrationErrorCode.PERMISSION_DENIED
                 
             return {
                 "success": False,
@@ -1012,7 +965,7 @@ class GmailService(IntegrationService):
         from integrations.atom_communication_ingestion_pipeline import get_ingestion_pipeline
         try:
             # Note: get_messages returns a list of parsed message dicts
-            messages = await self.get_messages(max_results=max_results, token=token)
+            messages = self.get_messages(max_results=max_results, token=token)
             pipeline = get_ingestion_pipeline()
             for msg in messages:
                 pipeline.ingest_message("google", msg)
@@ -1020,12 +973,6 @@ class GmailService(IntegrationService):
         except Exception as e:
             logger.error(f"Error in GmailService.fetch_recent_messages: {e}")
             return []
-
-    async def sync_calendar_events(self, user_id: str, days_ahead: int = 7, token: Optional[str] = None):
-        """Sync Google Calendar events and ingest into pipeline (hub_sync_service compatibility)"""
-        # Placeholder compatible with hub_sync_service
-        logger.info(f"GmailService.sync_calendar_events: Syncing for {user_id}")
-        return []
 
     async def get_attachment_metadata(self, user_id: str, message_id: str) -> List[Dict[str, Any]]:
         """Fetch attachment metadata for a message, normalized to standard schema"""

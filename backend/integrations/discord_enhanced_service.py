@@ -15,10 +15,34 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 import httpx
 import aiohttp
+from cryptography.fernet import Fernet
 from core.integration_service import IntegrationService
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+_JSON_COLUMNS = [
+    'roles', 'emojis', 'features', 'welcome_screen', 'stage_instances',
+    'stickers', 'guild_scheduled_events', 'scopes', 'integration_data',
+]
+
+_GUILD_COLUMNS = [
+    'guild_id', 'name', 'description', 'icon', 'icon_url', 'splash',
+    'discovery_splash', 'owner_id', 'owner_name', 'region', 'afk_channel_id',
+    'afk_timeout', 'embed_enabled', 'embed_channel_id', 'verification_level',
+    'default_message_notifications', 'explicit_content_filter', 'roles',
+    'emojis', 'features', 'mfa_level', 'application_id', 'widget_enabled',
+    'widget_channel_id', 'system_channel_id', 'system_channel_flags',
+    'rules_channel_id', 'max_members', 'vanity_url_code', 'description_hash',
+    'banner', 'premium_tier', 'premium_subscription_count', 'preferred_locale',
+    'public_updates_channel_id', 'max_video_channel_users',
+    'approximate_member_count', 'approximate_presence_count', 'welcome_screen',
+    'nsfw_level', 'stage_instances', 'stickers', 'guild_scheduled_events',
+    'is_bot', 'is_ready', 'created_at', 'last_modified_at', 'member_count',
+    'channel_count', 'voice_state_count', 'roles_count', 'emojis_count',
+    'features_count', 'is_connected', 'access_token', 'refresh_token',
+    'scopes', 'user_id', 'integration_data',
+]
 
 class DiscordEventType(Enum):
     """Discord event types"""
@@ -143,6 +167,8 @@ class DiscordGuild:
     guild_scheduled_events: List[Dict[str, Any]] = None
     is_bot: bool = True
     is_ready: bool = False
+    permissions: Optional[str] = None
+    is_active: bool = True
     created_at: datetime = None
     last_modified_at: Optional[str] = None
     member_count: int = 0
@@ -324,7 +350,6 @@ class DiscordMessage:
         self.is_pinned = self.pinned
         self.is_crossposted = self.type == 19  # Crosspost message
         self.is_command = self.type == 20  # Command message
-        self.is_bot = self.author is not None and self.author.get('bot', False)
         self.is_webhook = self.webhook_id is not None
         self.is_system = self.type == 24  # System message
         
@@ -596,8 +621,19 @@ class DiscordEnhancedService(IntegrationService):
     ) -> Dict[str, Any]:
         try:
             if operation == "send_message":
-                # implementation placeholder or call existing methods
-                return {"success": True, "result": "Message sent (placeholder)"}
+                result = await self.send_message(
+                    guild_id=parameters.get("guild_id"),
+                    channel_id=parameters.get("channel_id"),
+                    content=parameters.get("content", ""),
+                    embed=parameters.get("embed"),
+                    components=parameters.get("components"),
+                    tts=parameters.get("tts", False),
+                )
+                return {
+                    "success": result.get("ok", False),
+                    "result": result,
+                    "error": result.get("error"),
+                }
             return {"success": False, "error": f"Unknown operation: {operation}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -816,7 +852,11 @@ class DiscordEnhancedService(IntegrationService):
                     (guild_id,)
                 ).fetchone()
                 if result:
-                    return DiscordGuild(**result)
+                    row = dict(result)
+                    for col in _JSON_COLUMNS:
+                        if row.get(col):
+                            row[col] = json.loads(row[col])
+                    return DiscordGuild(**row)
             elif self.redis_client:
                 # Get from cache (development)
                 cached = self.redis_client.get(f"discord_guild:{guild_id}")
@@ -834,20 +874,9 @@ class DiscordEnhancedService(IntegrationService):
             if self.db:
                 # Save to database
                 self.db.execute(
-                    """INSERT OR REPLACE INTO discord_guilds 
-                       (guild_id, name, description, icon, icon_url, splash, discovery_splash,
-                        owner_id, owner_name, region, afk_channel_id, afk_timeout,
-                        embed_enabled, embed_channel_id, verification_level, default_message_notifications,
-                        explicit_content_filter, roles, emojis, features, mfa_level, application_id,
-                        widget_enabled, widget_channel_id, system_channel_id, system_channel_flags,
-                        rules_channel_id, max_members, vanity_url_code, description_hash, banner,
-                        premium_tier, premium_subscription_count, preferred_locale, public_updates_channel_id,
-                        max_video_channel_users, approximate_member_count, approximate_presence_count,
-                        welcome_screen, nsfw_level, stage_instances, stickers, guild_scheduled_events,
-                        is_bot, is_ready, created_at, last_modified_at, member_count, channel_count,
-                        voice_state_count, roles_count, emojis_count, features_count, is_connected,
-                        access_token, refresh_token, scopes, user_id, integration_data)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    f"""INSERT OR REPLACE INTO discord_guilds 
+                       ({', '.join(_GUILD_COLUMNS)})
+                       VALUES ({', '.join(['?'] * len(_GUILD_COLUMNS))})""",
                     (
                         guild.guild_id,
                         guild.name,
@@ -916,7 +945,7 @@ class DiscordEnhancedService(IntegrationService):
                 self.redis_client.setex(
                     f"discord_guild:{guild.guild_id}",
                     3600,  # 1 hour
-                    json.dumps(asdict(guild))
+                    json.dumps(asdict(guild), default=str)
                 )
             
             # Update connection status
@@ -940,7 +969,14 @@ class DiscordEnhancedService(IntegrationService):
                     result = self.db.execute(
                         "SELECT * FROM discord_guilds WHERE is_active = 1"
                     ).fetchall()
-                return [DiscordGuild(**row) for row in result]
+                guilds = []
+                for row in result:
+                    guild_dict = dict(row)
+                    for col in _JSON_COLUMNS:
+                        if guild_dict.get(col):
+                            guild_dict[col] = json.loads(guild_dict[col])
+                    guilds.append(DiscordGuild(**guild_dict))
+                return guilds
             else:
                 # Get from cache
                 keys = self.redis_client.keys("discord_guild:*")
@@ -1113,7 +1149,7 @@ class DiscordEnhancedService(IntegrationService):
                 self.redis_client.setex(
                     cache_key,
                     1800,  # 30 minutes
-                    json.dumps([asdict(m) for m in messages])
+                    json.dumps([asdict(m) for m in messages], default=str)
                 )
             
             return messages
@@ -1273,7 +1309,7 @@ class DiscordEnhancedService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="discord",
                         metric_key=key
                     ).first()
@@ -1283,7 +1319,7 @@ class DiscordEnhancedService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="discord",
                             metric_key=key,
                             value=float(value),

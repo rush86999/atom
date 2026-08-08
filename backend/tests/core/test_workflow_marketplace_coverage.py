@@ -87,6 +87,13 @@ def sample_advanced_template():
         "integrations": ["database", "api"],
         "complexity": "Advanced",
         "tags": ["pipeline", "test", "advanced"],
+        "workflow_data": {
+            "nodes": [
+                {"id": "step1", "type": "step", "config": {}},
+                {"id": "step2", "type": "step", "config": {}},
+            ],
+            "edges": [{"source": "step1", "target": "step2"}],
+        },
         "input_schema": [
             {
                 "name": "input_data",
@@ -116,6 +123,10 @@ def sample_advanced_template():
         "prerequisites": [],
         "use_cases": ["Testing"],
         "benefits": ["Fast", "Reliable"],
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "downloads": 0,
+        "rating": 5.0,
     }
 
 
@@ -133,6 +144,12 @@ def sample_industry_template():
         "complexity": "Intermediate",
         "industry": "healthcare",
         "compliance_requirements": ["HIPAA"],
+        "workflow_data": {
+            "nodes": [
+                {"id": "verify", "type": "step", "config": {}},
+            ],
+            "edges": [],
+        },
         "input_schema": [
             {
                 "name": "patient_id",
@@ -153,6 +170,10 @@ def sample_industry_template():
         "estimated_duration": 60,
         "use_cases": ["Patient verification"],
         "benefits": ["Compliant", "Secure"],
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "downloads": 0,
+        "rating": 5.0,
     }
 
 
@@ -970,11 +991,13 @@ class TestMarketplaceOperations:
         template_data = {
             "id": "test_auto_duration",
             "name": "Test",
+            "description": "Test template",
             "category": "Test",
             "author": "Test",
             "version": "1.0.0",
             "integrations": [],
             "complexity": "Beginner",
+            "input_schema": [],
             "steps": [
                 {"step_id": "step1", "estimated_duration": 30},
                 {"step_id": "step2", "estimated_duration": 60},
@@ -1034,6 +1057,7 @@ class TestMarketplaceOperations:
                 marketplace.create_workflow_from_advanced_template(
                     template_id="nonexistent",
                     workflow_name="Test",
+                    parameters={},
                 )
 
     def test_template_download_increment(self, temp_templates_dir, sample_template):

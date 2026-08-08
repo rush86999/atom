@@ -511,12 +511,11 @@ class TestWorkflowEngineCoverageFix:
             ]
         }
 
-        # Topological sort should handle or detect cycles
-        # Kahn's algorithm will not include all nodes if cycle exists
-        steps = engine._convert_nodes_to_steps(workflow)
-
-        # Should still return steps, but may not include all in cycle
-        assert isinstance(steps, list)
+        # Topological sort must REJECT cycles (deliberate engine behavior —
+        # previously a cycle silently produced a truncated step list; the
+        # cycle-detection fix raises ValueError so broken workflows fail loud).
+        with pytest.raises(ValueError):
+            engine._convert_nodes_to_steps(workflow)
 
     def test_duplicate_connection_handling(self):
         """Cover handling of duplicate connections"""
@@ -542,7 +541,6 @@ class TestWorkflowEngineCoverageFix:
 
         Note: Self-connections cause nodes to have in-degree > 0,
         which prevents topological sort from including them.
-        This is expected behavior.
         """
         engine = WorkflowEngine()
         workflow = {
@@ -554,11 +552,11 @@ class TestWorkflowEngineCoverageFix:
             ]
         }
 
-        steps = engine._convert_nodes_to_steps(workflow)
-
-        # Self-connections cause in-degree > 0, so node not included
-        # This is expected - topological sort requires in-degree = 0 to start
-        assert len(steps) == 0
+        # Self-connections are cycles and must be rejected loudly (updated:
+        # engine raises ValueError rather than silently returning a truncated
+        # step list — cycle detection bug fix).
+        with pytest.raises(ValueError):
+            engine._convert_nodes_to_steps(workflow)
 
 
 class TestWorkflowEngineCoverageFixAsync:

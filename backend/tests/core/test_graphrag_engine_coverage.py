@@ -34,16 +34,22 @@ def engine():
     return eng
 
 
+@contextmanager
 def _patch_session(session):
-    """Return a patcher that makes get_db_session yield `session`.
+    """Context manager that makes get_db_session yield `session`.
 
-    Patches BOTH core.graphrag_engine.get_db_session (module-level import)
-    and core.database.get_db_session (re-imported inside some methods)."""
+    Methods in graphrag_engine.py use BOTH the module-level import
+    (core.graphrag_engine.get_db_session, bound at line 20) AND a local
+    re-import (from core.database import get_db_session) inside
+    discover_failed_hypotheses_patterns. Patch both so every code path
+    uses the mock session."""
     @contextmanager
     def fake_session():
         yield session
 
-    return patch("core.database.get_db_session", fake_session)
+    with patch("core.database.get_db_session", fake_session), \
+         patch("core.graphrag_engine.get_db_session", fake_session):
+        yield
 
 
 def _set_records(sess, records):

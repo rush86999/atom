@@ -39,6 +39,9 @@ class _FakeSession:
 def hybrid_factory(monkeypatch):
     fake_memory = MagicMock()
     fake_graphrag = MagicMock()
+    # Bug-fix alignment: sync_integration_data awaits graphrag.ingest_document
+    # (it is a coroutine); the mock must be awaitable or every record errors.
+    fake_graphrag.ingest_document = AsyncMock(return_value=None)
     fake_llm = MagicMock()
     monkeypatch.setattr("core.lancedb_handler.get_lancedb_handler", lambda *a, **k: fake_memory)
     monkeypatch.setattr("core.graphrag_engine.GraphRAGEngine", lambda *a, **k: fake_graphrag)

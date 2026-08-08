@@ -502,6 +502,10 @@ class DocumentRenderer:
     @staticmethod
     def render_to_html(file_path: str) -> Dict[str, Any]:
         """Convert a document into an HTML string for previewing."""
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
         ext = Path(file_path).suffix.lower()
 
         if ext == ".docx":

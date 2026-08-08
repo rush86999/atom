@@ -418,10 +418,15 @@ class TestAdminSkillRoutesAuth:
         mock_skill_builder: MagicMock
     ):
         """Test that inactive admin cannot create skills."""
+        from fastapi import HTTPException
         from core.auth import get_current_user
 
         def override_get_current_user():
-            return inactive_admin_user  # Inactive super_admin
+            # Mirror core.auth.get_current_user: non-ACTIVE users are rejected
+            # with 401 before any role checks (R43)
+            if inactive_admin_user.status != "active":
+                raise HTTPException(status_code=401, detail="User not active")
+            return inactive_admin_user
 
         client.app.dependency_overrides[get_current_user] = override_get_current_user
 
@@ -444,7 +449,8 @@ class TestAdminSkillRoutesAuth:
         finally:
             client.app.dependency_overrides.clear()
 
-    def test_get_super_admin_dependency(
+    @pytest.mark.asyncio
+    async def test_get_super_admin_dependency(
         self,
         client: TestClient,
         super_admin_user: User,
@@ -454,12 +460,12 @@ class TestAdminSkillRoutesAuth:
         from core.admin_endpoints import get_super_admin
 
         # Test 1: super_admin role should pass
-        result = get_super_admin(current_user=super_admin_user)
+        result = await get_super_admin(current_user=super_admin_user)
         assert result == super_admin_user
 
         # Test 2: non-super_admin role should raise HTTPException
         with pytest.raises(Exception) as exc_info:
-            result = get_super_admin(current_user=regular_user)
+            await get_super_admin(current_user=regular_user)
         # Should raise HTTPException with 403 status
         assert exc_info.value.status_code == 403
 
@@ -504,7 +510,7 @@ class TestAdminSkillRoutesSecurity:
     ):
         """Test skill rejection for critical findings."""
         from atom_security.analyzers.static import StaticAnalyzer
-        from atom_security.models import Severity
+        from atom_security.core.models import Severity
 
         # Create mock finding with HIGH severity
         mock_finding = MagicMock()
@@ -531,7 +537,9 @@ class TestAdminSkillRoutesSecurity:
 
         assert response.status_code == 403
         data = response.json()
-        assert "security policy violations" in data["detail"].lower()
+        assert data["detail"]["error"]["code"] == "PERMISSION_DENIED"
+        assert "security policy violations" in data["detail"]["error"]["details"]["message"].lower()
+        assert len(data["detail"]["error"]["details"]["findings"]) == 1
 
     def test_security_scan_multiple_findings(
         self,
@@ -539,7 +547,7 @@ class TestAdminSkillRoutesSecurity:
         mock_static_analyzer: MagicMock
     ):
         """Test with multiple security findings of mixed severity."""
-        from atom_security.models import Severity
+        from atom_security.core.models import Severity
 
         # Create multiple findings with different severities
         low_finding = MagicMock()

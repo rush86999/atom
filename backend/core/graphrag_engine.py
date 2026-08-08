@@ -154,56 +154,6 @@ class GraphRAGEngine:
         # We escape them so users can search for literal % and _
         return pattern.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
 
-    def _sanitize_canonical_data(self, registry_entry: Dict, metadata: Dict) -> Dict:
-        """Filter metadata to only allow updatable fields defined in the registry."""
-        sanitized = {}
-        updatable = registry_entry.get("updatable_fields", [])
-        for field_name in updatable:
-            if field_name in metadata and metadata[field_name] is not None:
-                sanitized[field_name] = metadata[field_name]
-        return sanitized
-
-    def _resolve_canonical_entity(self, session: Session, workspace_id: str,
-                                 entity_type: str, name: str,
-                                 canonical_id: Optional[str] = None) -> Optional[Any]:
-        """Resolve a semantic node to a concrete database record."""
-        registry = self._get_registry_entry(entity_type)
-        if not registry:
-            return None
-
-        model = registry["model"]
-
-        # BUG FIX: Validate and sanitize input before using in queries
-        name = self._validate_search_input(name)
-
-        # 1. Match by ID if provided
-        if canonical_id:
-            return session.query(model).filter(model.id == canonical_id).first()
-
-        # 2. Match by Name/Search fields
-        display_field = registry.get("display_field", "name")
-        # BUG FIX: Escape LIKE special characters to prevent wildcard injection
-        escaped_name = self._escape_like_pattern(name)
-        # Try exact match on display field first
-        match = session.query(model).filter(
-            getattr(model, display_field).ilike(escaped_name)
-        ).first()
-
-        if match:
-            return match
-
-        # 3. Fuzzy match across search fields
-        for field_name in registry.get("search_fields", []):
-            # BUG FIX: Escape LIKE special characters to prevent wildcard injection
-            escaped_pattern = self._escape_like_pattern(name)
-            match = session.query(model).filter(
-                getattr(model, field_name).ilike(f"%{escaped_pattern}%")
-            ).first()
-            if match:
-                return match
-
-        return None
-
     def canonical_search(self, workspace_id: Optional[str] = None, tenant_id: Optional[str] = None,
                          entity_type: str = "unknown", query: str = "") -> List[Dict]:
         """Search for canonical records to anchor graph nodes."""
@@ -215,8 +165,10 @@ class GraphRAGEngine:
             return []
 
         model = registry["model"]
-        search_fields = registry.get("search_fields", ["name"])
-        display_field = registry.get("display_field", "name")
+        # Registry entries define the singular "search_field" key; fall back
+        # to it when the plural "search_fields" list is absent.
+        search_fields = registry.get("search_fields") or [registry.get("search_field", "name")]
+        display_field = registry.get("display_field") or registry.get("search_field", "name")
 
         # BUG FIX: Validate and sanitize input before using in queries
         query = self._validate_search_input(query)
@@ -227,7 +179,21 @@ class GraphRAGEngine:
                 from sqlalchemy import or_
                 # BUG FIX: Escape LIKE special characters to prevent wildcard injection
                 escaped_query = self._escape_like_pattern(query)
-                filters = [getattr(model, f_name).ilike(f"%{escaped_query}%") for f_name in search_fields]
+                # Some models define Python properties (e.g. User.name) that are
+                # not columns and cannot be used in .ilike() expressions; only
+                # include real column attributes.
+                filters = []
+                for f_name in search_fields:
+                    attr = getattr(model, f_name)
+                    if isinstance(attr, property):
+                        continue
+                    filters.append(attr.ilike(f"%{escaped_query}%"))
+                if not filters:
+                    attr = getattr(model, registry.get("search_field", "name"))
+                    if not isinstance(attr, property):
+                        filters.append(attr.ilike(f"%{escaped_query}%"))
+                if not filters:
+                    return []
 
                 # Check for tenant/workspace isolation if the model has a column for it
                 # In personal edition, some models might not have workspace_id but use other links

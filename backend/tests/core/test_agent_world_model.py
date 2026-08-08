@@ -262,14 +262,24 @@ class TestExperienceRecording:
 
     @pytest.mark.asyncio
     async def test_boost_experience_confidence(self, world_model_service):
-        """Test confidence boost (placeholder implementation)"""
+        """Test confidence boost of a found experience"""
+        world_model_service.db.search.return_value = [
+            {
+                "id": "exp_123",
+                "text": "Task: task\nInput: in\nOutcome: Success",
+                "source": "agent_a",
+                "metadata": {"confidence_score": 0.5}
+            }
+        ]
         result = await world_model_service.boost_experience_confidence(
             experience_id="exp_123",
             boost_amount=0.1
         )
 
-        # Current implementation is placeholder - returns True
         assert result is True
+        # confidence 0.5 + 0.1, clamped to [0,1]
+        added = world_model_service.db.add_document.call_args.kwargs["metadata"]
+        assert added["confidence_score"] == 0.6
 
     @pytest.mark.asyncio
     async def test_get_experience_statistics_success(self, world_model_service):
@@ -1041,7 +1051,8 @@ class TestErrorHandling:
             result = await world_model_service.recover_archived_session("conv_123")
 
             assert result["status"] == "failed"
-            assert "Database error" in result["error"]
+            # Generic message per no-str(e)-leak policy
+            assert result["error"] == "Session recovery failed"
 
 
 # ============================================================================

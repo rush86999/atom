@@ -438,7 +438,7 @@ class TrelloService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="trello",
                         metric_key=key
                     ).first()
@@ -448,7 +448,7 @@ class TrelloService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="trello",
                             metric_key=key,
                             value=float(value),

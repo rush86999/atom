@@ -131,7 +131,7 @@ class TestXSSPrevention:
     """Test XSS attempts are sanitized (OWASP A03:2021)."""
 
     @pytest.mark.parametrize("payload", XSS_PAYLOADS)
-    def test_xss_in_description_sanitized(self, client: TestClient, admin_token: str, payload):
+    def test_xss_in_description_sanitized(self, client: TestClient, admin_token: str, db_session: Session, payload):
         """
         Test XSS in agent description is sanitized.
         
@@ -144,7 +144,10 @@ class TestXSSPrevention:
         
         # Create agent with XSS in description via factory
         # This tests database-level sanitization
-        agent = AutonomousAgentFactory(description=payload)
+        # SECURITY: the factory must write through the test session — a
+        # separate connection would deadlock on the SQLite write lock held by
+        # the admin-user fixture's open transaction.
+        agent = AutonomousAgentFactory(description=payload, _session=db_session)
         
         # Verify the payload is stored as-is (database doesn't auto-sanitize)
         # But when retrieved via API, it should be escaped
@@ -242,9 +245,11 @@ class TestInputValidationWithPydantic:
 
         for email in malicious_emails:
             # Try to signup/create user with malicious email
-            response = client.post("/api/auth/signup", json={
+            response = client.post("/api/auth/register", json={
                 "email": email,
-                "password": "ValidPass123!"
+                "password": "ValidPass123!",
+                "first_name": "SQL",
+                "last_name": "Test"
             })
 
             # Should reject invalid emails
@@ -275,12 +280,12 @@ class TestInputValidationWithPydantic:
         long_string = "A" * 100000
 
         response = client.post(
-            "/api/agents",
+            "/api/agents/custom",
             json={"name": long_string, "category": "test"},
             headers={"Authorization": f"Bearer {admin_token}"}
         )
 
-        # Should reject or truncate
+        # Should reject or truncate (CustomAgentRequest caps name at 100 chars)
         assert response.status_code in [400, 422, 401, 403]
 
 
@@ -291,7 +296,7 @@ class TestContentTypeSecurity:
         """Test JSON endpoints reject non-JSON content."""
         # Send form data instead of JSON
         response = client.post(
-            "/api/agents",
+            "/api/agents/custom",
             data={"name": "test", "category": "test"},  # Form data, not JSON
             headers={"Authorization": f"Bearer {admin_token}", "Content-Type": "application/x-www-form-urlencoded"}
         )

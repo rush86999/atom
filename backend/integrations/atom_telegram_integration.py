@@ -31,6 +31,10 @@ atom_enterprise_security_service = None
 atom_enterprise_unified_service = None
 atom_workflow_automation_service = None
 ai_enhanced_service = None
+AIRequest = None
+AITaskType = None
+AIModelType = None
+AIServiceType = None
 
 try:
     from ai_enhanced_service import (
@@ -346,33 +350,6 @@ class AtomTelegramIntegration:
         except Exception as e:
             logger.error(f"Error getting intelligent channels: {e}")
             return []
-    
-    async def send_intelligent_message(self, channel_id: int, message: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Send intelligent message"""
-        try:
-            # Mock implementation - would use actual Telegram API
-            result = {
-                'success': True,
-                'channel_id': channel_id,
-                'message': message,
-                'timestamp': datetime.now(timezone.utc).isoformat(),
-                'platform': 'telegram',
-                'metadata': metadata or {}
-            }
-            
-            # Log message
-            if self.telegram_config['enable_enterprise_features']:
-                await self._log_message_event('message_sent', channel_id, result)
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Error sending intelligent message: {e}")
-            return {
-                'success': False,
-                'error': str(e),
-                'platform': 'telegram'
-            }
     
     async def perform_intelligent_search(self, query: str, user_id: int, workspace_id: int = None) -> List[Dict[str, Any]]:
         """Perform intelligent search"""
@@ -742,7 +719,7 @@ class AtomTelegramIntegration:
     async def _perform_ai_search(self, query: str, workspace_id: int = None) -> List[Dict[str, Any]]:
         """Perform AI-enhanced search"""
         try:
-            if not self.ai_service:
+            if not self.ai_service or AIRequest is None or AITaskType is None:
                 return []
             
             # Create AI request
@@ -1014,6 +991,7 @@ class AtomTelegramIntegration:
             data = callback_query.get("data", "")
             message = callback_query.get("message", {})
             from_user = callback_query.get("from", {})
+            user_id = from_user.get("id")
 
             logger.info(f"Received callback query {callback_id} with data: {data}")
 
@@ -1130,7 +1108,7 @@ class AtomTelegramIntegration:
             logger.info(f"Handling search callback: type={search_type}, query={query}, user={user_id}")
 
             # Route to specific search handlers
-            if search_type == "recent_messages":
+            if search_type == "recent":
                 await self._handle_search_recent_messages(callback_query_id, user_id)
             elif search_type == "communications":
                 await self._handle_search_communications(callback_query_id, query, user_id)
@@ -1453,9 +1431,9 @@ class AtomTelegramIntegration:
                 if self.lancedb_handler:
                     try:
                         # Search in communications table
-                        search_results = await self.lancedb_handler.semantic_search(
+                        search_results = self.lancedb_handler.search(
                             table_name="communications",
-                            query_text=query,
+                            query=query,
                             limit=10
                         )
 
@@ -1481,9 +1459,6 @@ class AtomTelegramIntegration:
                 results=results,
                 cache_time=300,
             )
-
-        except Exception as e:
-            logger.error(f"Error handling inline query: {e}")
 
         except Exception as e:
             logger.error(f"Error handling inline query: {e}")

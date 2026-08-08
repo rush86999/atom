@@ -18,13 +18,15 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
+# Configure logging (before optional-dependency guards: those may log)
+logger = logging.getLogger(__name__)
+
 # Optional ML libraries for advanced NLP features
 try:
     from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
     VADER_AVAILABLE = True
 except ImportError:
     VADER_AVAILABLE = False
-    logger = logging.getLogger(__name__)
     logger.info("VADER not available - using enhanced keyword-based sentiment analysis")
 
 try:
@@ -45,8 +47,6 @@ except ImportError:
 
 from core.llm_service import get_llm_service, LLMService
 from pydantic import BaseModel, Field
-
-logger = logging.getLogger(__name__)
 
 class LLMSentiment(BaseModel):
     score: float = Field(..., description="Sentiment score between -1 and 1")
@@ -273,6 +273,71 @@ class SlackAnalyticsEngine:
         except Exception as e:
             logger.error(f"Error getting insights for {metric}: {e}")
             return {}
+
+    async def _get_message_volume_insights(self, data: List[AnalyticsDataPoint]) -> Dict[str, Any]:
+        """Generate message volume insights"""
+        total = sum(float(point.value) for point in data)
+        avg = total / len(data) if data else 0
+        trends = self._calculate_trends([('message_volume', data)])
+        return {
+            'total_messages': total,
+            'avg_per_point': avg,
+            'trend': trends.get('message_volume_trend', 'stable')
+        }
+
+    async def _get_user_activity_insights(self, data: List[AnalyticsDataPoint]) -> Dict[str, Any]:
+        """Generate user activity insights"""
+        users = set()
+        total_activity = 0
+        for point in data:
+            user_id = point.dimensions.get('user_id')
+            if user_id:
+                users.add(user_id)
+            total_activity += float(point.value)
+        return {
+            'active_users': len(users),
+            'total_activity': total_activity,
+            'avg_activity': total_activity / len(data) if data else 0
+        }
+
+    async def _get_engagement_insights(self, data: List[AnalyticsDataPoint]) -> Dict[str, Any]:
+        """Generate engagement insights"""
+        total = sum(float(point.value) for point in data)
+        avg = total / len(data) if data else 0
+        trends = self._calculate_trends([('engagement', data)])
+        return {
+            'total_engagement': total,
+            'avg_engagement': avg,
+            'trend': trends.get('engagement_trend', 'stable')
+        }
+
+    async def _get_response_time_insights(self, data: List[AnalyticsDataPoint]) -> Dict[str, Any]:
+        """Generate response time insights"""
+        values = [float(point.value) for point in data]
+        avg = statistics.mean(values) if values else 0
+        best = min(values) if values else 0
+        worst = max(values) if values else 0
+        return {
+            'avg_response_time': avg,
+            'best_response_time': best,
+            'worst_response_time': worst
+        }
+
+    async def _get_sentiment_insights(self, data: List[AnalyticsDataPoint]) -> Dict[str, Any]:
+        """Generate sentiment insights"""
+        scores = [float(point.value) for point in data]
+        avg = statistics.mean(scores) if scores else 0
+        if avg >= 0.05:
+            label = 'positive'
+        elif avg <= -0.05:
+            label = 'negative'
+        else:
+            label = 'neutral'
+        return {
+            'avg_sentiment': avg,
+            'dominant_sentiment': label,
+            'sample_size': len(scores)
+        }
     
     async def generate_report(self, report_id: str) -> Dict[str, Any]:
         """Generate analytics report"""
@@ -454,15 +519,16 @@ class SlackAnalyticsEngine:
             
             for day in days:
                 day_data = {'day': day, 'hours': []}
-                
+                day_max = max(heatmap[day].values()) if heatmap[day].values() else 0
+
                 for hour in range(24):
                     value = heatmap[day][hour]
                     day_data['hours'].append({
                         'hour': hour,
                         'value': value,
-                        'normalized': min(value / max(heatmap[day].values()) if heatmap[day].values() else 1, 1)
+                        'normalized': min(value / day_max if day_max else 1, 1)
                     })
-                
+
                 heatmap_data.append(day_data)
             
             return {
@@ -626,8 +692,9 @@ class SlackAnalyticsEngine:
         for user_id, user_times in user_activity.items():
             for timestamp, items in user_times.items():
                 active_minutes = len(set(
-                    item['timestamp'].replace(second=0, microsecond=0)
+                    parsed.replace(second=0, microsecond=0)
                     for item in items
+                    if (parsed := self._parse_timestamp(item['timestamp'])) is not None
                 ))
                 
                 processed.append(AnalyticsDataPoint(
@@ -863,7 +930,7 @@ class SlackAnalyticsEngine:
         else:
             grouped = self._group_by_raw_timestamp(raw_data)
         
-        for timestamp, group in grouped:
+        for timestamp, group in grouped.items():
             # Count reactions
             reaction_counts = Counter()
             
@@ -898,7 +965,7 @@ class SlackAnalyticsEngine:
         else:
             grouped = self._group_by_raw_timestamp(raw_data)
         
-        for timestamp, group in grouped:
+        for timestamp, group in grouped.items():
             # Count files
             file_counts = Counter()
             total_file_size = 0
@@ -947,7 +1014,12 @@ class SlackAnalyticsEngine:
             cached = self.redis_client.get(f"analytics:{cache_key}")
             if cached:
                 data = json.loads(cached)
-                return [AnalyticsDataPoint(**point) for point in data]
+                points = []
+                for point in data:
+                    if isinstance(point.get('timestamp'), str):
+                        point['timestamp'] = datetime.fromisoformat(point['timestamp'])
+                    points.append(AnalyticsDataPoint(**point))
+                return points
         return None
     
     def _cache_analytics(self, cache_key: str, data: List[AnalyticsDataPoint]):
@@ -1226,7 +1298,7 @@ class SlackAnalyticsEngine:
                 topic_words.append({
                     'topic_id': topic_idx,
                     'words': top_words,
-                    'weights': [topic[i] for i in top_word_indices].tolist()
+                    'weights': [float(topic[i]) for i in top_word_indices]
                 })
 
             logger.info(f"LDA model trained successfully with perplexity: {perplexity:.2f}")

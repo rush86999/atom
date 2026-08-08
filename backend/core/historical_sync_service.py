@@ -139,6 +139,10 @@ JSON Schema:
             properties.update(extra_metadata)
         if e.get("canonical_type"):
             properties["canonical_type"] = e["canonical_type"]
+        try:
+            properties["confidence"] = float(e.get("confidence", 0.0))
+        except (TypeError, ValueError):
+            properties["confidence"] = 0.0
         entities.append(
             Entity(
                 id=str(uuid.uuid4()),
@@ -146,7 +150,6 @@ JSON Schema:
                 entity_type=e["type"],
                 description=e.get("description", ""),
                 properties=properties,
-                confidence=float(e.get("confidence", 0.0)),
             )
         )
 
@@ -180,8 +183,8 @@ def _log_job_event(db, job_id: str, tenant_id: str, event: str) -> None:
             .first()
         )
         if j:
-            data = j.checkpoint_data or {}
-            events = data.get("events", [])
+            data = dict(j.checkpoint_data or {})
+            events = list(data.get("events", []))
             events.append(f"[{datetime.now(timezone.utc).isoformat()}] {event}")
             data["events"] = events[-10:]
             j.checkpoint_data = data
@@ -294,7 +297,7 @@ class HistoricalSyncService:
             
             for res in valid_results:
                 if res["entities"] or res["relationships"]:
-                    shared_engine.ingestion_pipeline_batch(
+                    shared_engine.ingest_structured_data(
                         workspace_id=workspace_id,
                         entities=res["entities"],
                         relationships=res["relationships"]
@@ -312,7 +315,6 @@ class HistoricalSyncService:
 
         finally:
             shared_db.close()
-            shared_engine.close()
 
     @property
     def db(self) -> Session:
@@ -350,6 +352,7 @@ class HistoricalSyncService:
         end_date: Optional[datetime] = None,
         chunk_size: int = 100,
         scope: str = "personal",
+        use_worker_queue: bool = True,
     ) -> str:
         """Start a historical sync job."""
         if not end_date:

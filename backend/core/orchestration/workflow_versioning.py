@@ -25,6 +25,19 @@ from collections import defaultdict
 logger = logging.getLogger(__name__)
 
 
+def _semver_sort_key(version: str) -> Tuple[int, ...]:
+    """Parse a version string into a comparable tuple of ints.
+
+    Non-semantic versions (e.g. date-based, sequential per
+    ``versioning_scheme``) fall back to (0, 0, 0) instead of crashing the
+    sort with a ValueError.
+    """
+    try:
+        return tuple(int(x) for x in version.split("."))
+    except (ValueError, IndexError):
+        return (0, 0, 0)
+
+
 # ============================================================================
 # Enums and Configuration
 # ============================================================================
@@ -271,6 +284,11 @@ class WorkflowVersioning:
 
         workflow = self._workflows[workflow_id]
 
+        if version in workflow.versions:
+            raise ValueError(
+                f"Version {version} already exists for workflow {workflow_id}"
+            )
+
         version_id = f"{workflow_id}_v_{version.replace('.', '_')}"
 
         # Create version
@@ -331,7 +349,7 @@ class WorkflowVersioning:
             return []
 
         versions = list(self._workflows[workflow_id].versions.values())
-        versions.sort(key=lambda v: [int(x) for x in v.version.split(".")], reverse=True)
+        versions.sort(key=lambda v: _semver_sort_key(v.version), reverse=True)
         return versions
 
     def deprecate_version(
@@ -415,8 +433,8 @@ class WorkflowVersioning:
             steps.append("Update step configurations")
 
         # Check for new required parameters
-        from_params = set(from_ver.input_schema.get("properties", {}).keys())
-        to_params = set(to_ver.input_schema.get("properties", {}).keys())
+        from_params = set((from_ver.input_schema or {}).get("properties", {}).keys())
+        to_params = set((to_ver.input_schema or {}).get("properties", {}).keys())
 
         new_params = to_params - from_params
         if new_params:
@@ -461,6 +479,9 @@ class WorkflowVersioning:
 
             plan.status = "completed"
             plan.completed_at = datetime.now()
+
+            # A successful migration advances the workflow to the target version.
+            workflow.current_version = plan.to_version
 
             logger.info(f"Migration {migration_id} completed")
             return True
@@ -514,6 +535,7 @@ class WorkflowVersioning:
 
             if from_major != to_major:
                 return CompatibilityStatus.INCOMPATIBLE
+            return CompatibilityStatus.COMPATIBLE
         except (ValueError, IndexError):
             pass
 
@@ -530,7 +552,7 @@ class WorkflowVersioning:
             raise ValueError(f"Workflow {workflow_id} not found")
 
         current = workflow.current_version
-        parts = current.split(".")
+        parts = (current.split(".") + ["0", "0", "0"])[:3]
 
         if increment == VersionIncrement.MAJOR:
             new_version = f"{int(parts[0]) + 1}.0.0"

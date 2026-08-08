@@ -9,6 +9,7 @@ import uuid
 from core.agent_governance_service import AgentGovernanceService
 from core.agent_world_model import AgentExperience, WorldModelService
 from core.database import get_db_session
+from core.llm.byok_handler import QueryComplexity
 from core.llm_service import LLMService
 from core.models import AgentRegistry, AgentStatus, HITLActionStatus
 from core.react_models import ReActObservation, ReActStep, ToolCall
@@ -365,7 +366,14 @@ class GenericAgent:
                 logger.warning(f"Failed to generate self-critique: {ref_err}")
             
         # 3. TRACE Framework Metrics (Phase 6.6)
-        complexity = self.llm._get_handler().analyze_query_complexity(task_input)
+        # The handler may be unavailable (no LLM provider configured); the
+        # metrics block must never raise out of execute() — fall back to a
+        # neutral complexity so the execution still returns its result dict.
+        try:
+            complexity = self.llm._get_handler().analyze_query_complexity(task_input)
+        except Exception as e:
+            logger.warning(f"Complexity analysis failed, using fallback: {e}")
+            complexity = QueryComplexity.MODERATE
         
         # Heuristic for expected steps based on complexity
         # SIMPLE=1, MODERATE=3, COMPLEX=5, ADVANCED=8

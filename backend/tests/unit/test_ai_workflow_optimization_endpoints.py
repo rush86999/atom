@@ -98,16 +98,22 @@ class TestWorkflowAnalysis:
         assert "analysis" in data
         assert data["analysis"]["workflow_id"] == "workflow_test"
 
-    @patch('core.ai_workflow_optimization_endpoints.get_ai_workflow_optimizer')
-    def test_analyze_workflow_error(self, mock_get_optimizer, client, mock_optimizer):
+    def test_analyze_workflow_error(self, client, mock_optimizer):
         """Test error handling in workflow analysis"""
-        mock_get_optimizer.return_value = mock_optimizer
-        mock_optimizer.analyze_workflow = AsyncMock(side_effect=Exception("Analysis failed"))
+        from core.ai_workflow_optimization_endpoints import get_ai_workflow_optimizer
 
-        response = client.post(
-            "/api/v1/workflows/analyze",
-            json={"workflow_data": {"id": "test"}}
-        )
+        mock_optimizer.analyze_workflow = AsyncMock(side_effect=Exception("Analysis failed"))
+        # Depends() captured the original get_ai_workflow_optimizer at decoration
+        # time, so the mock must be injected via dependency_overrides
+        client.app.dependency_overrides[get_ai_workflow_optimizer] = lambda: mock_optimizer
+
+        try:
+            response = client.post(
+                "/api/v1/workflows/analyze",
+                json={"workflow_data": {"id": "test"}}
+            )
+        finally:
+            client.app.dependency_overrides.clear()
 
         assert response.status_code == 500
         assert "detail" in response.json()
@@ -345,35 +351,43 @@ class TestImplementation:
 class TestErrorHandling:
     """Tests for error handling"""
 
-    @patch('core.ai_workflow_optimization_endpoints.get_ai_workflow_optimizer')
-    def test_create_optimization_plan_error(self, mock_get_optimizer, client, mock_optimizer):
+    def test_create_optimization_plan_error(self, client, mock_optimizer):
         """Test error handling when creating optimization plan fails"""
-        mock_get_optimizer.return_value = mock_optimizer
-        mock_optimizer.optimize_workflow_plan = AsyncMock(side_effect=Exception("Plan creation failed"))
+        from core.ai_workflow_optimization_endpoints import get_ai_workflow_optimizer
 
-        response = client.post(
-            "/api/v1/workflows/optimization-plan",
-            json={
-                "workflow_data": {"id": "test"},
-                "optimization_goals": ["performance"]
-            }
-        )
+        mock_optimizer.optimize_workflow_plan = AsyncMock(side_effect=Exception("Plan creation failed"))
+        client.app.dependency_overrides[get_ai_workflow_optimizer] = lambda: mock_optimizer
+
+        try:
+            response = client.post(
+                "/api/v1/workflows/optimization-plan",
+                json={
+                    "workflow_data": {"id": "test"},
+                    "optimization_goals": ["performance"]
+                }
+            )
+        finally:
+            client.app.dependency_overrides.clear()
 
         assert response.status_code == 500
 
-    @patch('core.ai_workflow_optimization_endpoints.get_ai_workflow_optimizer')
-    def test_monitor_performance_error(self, mock_get_optimizer, client, mock_optimizer):
+    def test_monitor_performance_error(self, client, mock_optimizer):
         """Test error handling when performance monitoring fails"""
-        mock_get_optimizer.return_value = mock_optimizer
-        mock_optimizer.monitor_workflow_performance = AsyncMock(side_effect=Exception("Monitoring failed"))
+        from core.ai_workflow_optimization_endpoints import get_ai_workflow_optimizer
 
-        response = client.post(
-            "/api/v1/workflows/test_workflow/monitor",
-            json={
-                "workflow_id": "test_workflow",
-                "metrics": {}
-            }
-        )
+        mock_optimizer.monitor_workflow_performance = AsyncMock(side_effect=Exception("Monitoring failed"))
+        client.app.dependency_overrides[get_ai_workflow_optimizer] = lambda: mock_optimizer
+
+        try:
+            response = client.post(
+                "/api/v1/workflows/test_workflow/monitor",
+                json={
+                    "workflow_id": "test_workflow",
+                    "metrics": {}
+                }
+            )
+        finally:
+            client.app.dependency_overrides.clear()
 
         assert response.status_code == 500
 

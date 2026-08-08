@@ -19,6 +19,7 @@ from core.auth import (
 )
 from core.config import get_config
 from core.database import get_db
+from core.personal_scope import PERSONAL_TENANT_ID
 from core.security.auth_rate_limit import (
     AuthRateLimiter,
     login_rate_limit,
@@ -337,10 +338,11 @@ async def forgot_password(
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
     
-    # Save to DB
+    # Save to DB (SHA-256 digest at rest — DB read does not yield usable tokens)
     reset_token = PasswordResetToken(
         user_id=user.id,
-        token_hash=token_hash,
+        token=token_hash,
+        tenant_id=user.tenant_id or PERSONAL_TENANT_ID,
         expires_at=expires_at
     )
     db.add(reset_token)
@@ -368,8 +370,8 @@ async def verify_token(
     """Verify if a password reset token is valid and not expired."""
     token_hash = hashlib.sha256(request.token.encode()).hexdigest()
     reset_token = db.query(PasswordResetToken).filter(
-        PasswordResetToken.token_hash == token_hash,
-        PasswordResetToken.is_used == False,
+        PasswordResetToken.token == token_hash,
+        PasswordResetToken.used == False,
         PasswordResetToken.expires_at > datetime.now(timezone.utc)
     ).first()
     
@@ -387,8 +389,8 @@ async def reset_password(
     """Reset the user's password using a valid token."""
     token_hash = hashlib.sha256(request.token.encode()).hexdigest()
     reset_token = db.query(PasswordResetToken).filter(
-        PasswordResetToken.token_hash == token_hash,
-        PasswordResetToken.is_used == False,
+        PasswordResetToken.token == token_hash,
+        PasswordResetToken.used == False,
         PasswordResetToken.expires_at > datetime.now(timezone.utc)
     ).first()
     
@@ -401,7 +403,7 @@ async def reset_password(
     
     # Update password
     user.hashed_password = get_password_hash(request.password)
-    reset_token.is_used = True
+    reset_token.mark_as_used()
     db.commit()
     
     logger.info(f"Password reset successful for user {user.id}")

@@ -21,19 +21,30 @@ try:
     from atom_search_service import AtomSearchService
     from atom_workflow_service import AtomWorkflowService
     from google_chat_analytics_engine import google_chat_analytics_engine
-    from google_chat_enhanced_service import (
-        GoogleChatFile,
-        GoogleChatMessage,
-        GoogleChatSpace,
-        google_chat_enhanced_service,
-    )
 
     from core.models import UnifiedWorkspace
 except ImportError as e:
     logging.warning(f"Google Chat integration services not available: {e}")
-    google_chat_enhanced_service = None
     google_chat_analytics_engine = None
     UnifiedWorkspace = None
+
+try:
+    # The enhanced service module exports the CLASS, not an instance — build
+    # the module-level instance here (the prior phantom-name import silently
+    # degraded the whole integration to "simulated" mode).
+    from integrations.google_chat_enhanced_service import (
+        GoogleChatEventType,
+        GoogleChatFile,
+        GoogleChatMessage,
+        GoogleChatSpace,
+        GoogleChatEnhancedService,
+    )
+
+    google_chat_enhanced_service = GoogleChatEnhancedService()
+except ImportError as e:
+    logging.warning(f"Google Chat enhanced service not available: {e}")
+    google_chat_enhanced_service = None
+    GoogleChatEventType = None
     GoogleChatSpace = None
     GoogleChatMessage = None
     GoogleChatFile = None
@@ -152,7 +163,7 @@ class AtomGoogleChatIntegration:
         try:
             # Extract Google Chat workspace ID from unified workspace ID
             if workspace_id.startswith('google_chat_'):
-                google_chat_workspace_id = workspace_id[11:]  # Remove 'google_chat_' prefix
+                google_chat_workspace_id = workspace_id[12:]  # Remove 'google_chat_' prefix
             else:
                 return []
             
@@ -217,7 +228,7 @@ class AtomGoogleChatIntegration:
             
             # Check if this is a Google Chat channel
             if channel_id.startswith('google_chat_'):
-                google_chat_space_id = channel_id[11:]  # Remove 'google_chat_' prefix
+                google_chat_space_id = channel_id[12:]  # Remove 'google_chat_' prefix
                 
                 # Send Google Chat message with enhanced options
                 google_chat_result = await self.google_chat_service.send_message(
@@ -266,7 +277,7 @@ class AtomGoogleChatIntegration:
             
             # Check if this is a Google Chat channel
             if channel_id.startswith('google_chat_'):
-                google_chat_space_id = channel_id[11:]  # Remove 'google_chat_' prefix
+                google_chat_space_id = channel_id[12:]  # Remove 'google_chat_' prefix
                 
                 # Get Google Chat messages
                 google_chat_messages = await self.google_chat_service.get_space_messages(
@@ -346,7 +357,7 @@ class AtomGoogleChatIntegration:
             
             # Google Chat search
             if channel_id and channel_id.startswith('google_chat_'):
-                google_chat_space_id = channel_id[11:]  # Remove 'google_chat_' prefix
+                google_chat_space_id = channel_id[12:]  # Remove 'google_chat_' prefix
                 
                 google_chat_results = await self.google_chat_service.search_messages(
                     google_chat_space_id,
@@ -439,7 +450,7 @@ class AtomGoogleChatIntegration:
                 google_chat_analytics = await self.google_chat_analytics.get_analytics(
                     metric=metric,
                     time_range=time_range,
-                    workspace_id=workspace_id[11:] if workspace_id and workspace_id.startswith('google_chat_') else None,
+                    workspace_id=workspace_id[12:] if workspace_id and workspace_id.startswith('google_chat_') else None,
                     filters=options.get('filters', {})
                 )
             else:
@@ -1000,6 +1011,11 @@ class AtomGoogleChatIntegration:
             if not client_id or not client_secret:
                 raise ValueError("Google Chat OAuth credentials not configured")
 
+            if not state:
+                # Fail closed: without a state we cannot verify the callback
+                # belongs to a flow we started (OAuth CSRF / login CSRF).
+                raise ValueError("OAuth state missing - refusing to exchange code")
+
             if not redirect_uri:
                 redirect_uri = os.getenv("GOOGLE_CHAT_REDIRECT_URI", "http://localhost:8000/api/google-chat/oauth/callback")
 
@@ -1021,10 +1037,6 @@ class AtomGoogleChatIntegration:
                 )
                 response.raise_for_status()
                 token_data = response.json()
-
-            # Validate state if provided (should check against stored value)
-            if state:
-                logger.info(f"OAuth state validation: {state}")
 
             return {
                 "success": True,

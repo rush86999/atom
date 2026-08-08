@@ -715,7 +715,7 @@ class TestAgentWorldModelCoverage:
             mock_db.search.assert_called_once_with(
                 table_name="business_facts",
                 query="",
-                limit=100
+                limit=200  # default limit 100 * 2 (fetch extra for filtering)
             )
 
     @pytest.mark.asyncio
@@ -815,7 +815,7 @@ class TestAgentWorldModelCoverage:
             mock_db.search.assert_called_once_with(
                 table_name="business_facts",
                 query="",
-                limit=50
+                limit=100  # limit * 2 (fetch extra for filtering)
             )
 
     @pytest.mark.asyncio
@@ -1034,7 +1034,7 @@ class TestAgentWorldModelCoverage:
     async def test_archive_session_to_cold_storage_success(self):
         """Cover lines 560-604: Archive session successfully"""
         with patch("core.agent_world_model.get_lancedb_handler") as mock_get_handler, \
-             patch("core.agent_world_model.get_db_session") as mock_get_db:
+             patch("core.agent_world_model.SessionLocal") as mock_get_db:
 
             mock_db = self._create_mock_db()
             mock_db.workspace_id = "workspace-123"
@@ -1049,7 +1049,7 @@ class TestAgentWorldModelCoverage:
             mock_db_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = [
                 mock_message, mock_message
             ]
-            mock_get_db.return_value.__enter__.return_value = mock_db_session
+            mock_get_db.return_value = mock_db_session
 
             service = WorldModelService()
             result = await service.archive_session_to_cold_storage("conversation-123")
@@ -1066,7 +1066,7 @@ class TestAgentWorldModelCoverage:
     async def test_archive_session_no_messages(self):
         """Cover lines 572-574: Handle session with no messages"""
         with patch("core.agent_world_model.get_lancedb_handler") as mock_get_handler, \
-             patch("core.agent_world_model.get_db_session") as mock_get_db:
+             patch("core.agent_world_model.SessionLocal") as mock_get_db:
 
             mock_db = self._create_mock_db()
             mock_db.workspace_id = "workspace-123"
@@ -1074,7 +1074,7 @@ class TestAgentWorldModelCoverage:
 
             mock_db_session = MagicMock()
             mock_db_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
-            mock_get_db.return_value.__enter__.return_value = mock_db_session
+            mock_get_db.return_value = mock_db_session
 
             service = WorldModelService()
             result = await service.archive_session_to_cold_storage("conversation-empty")
@@ -1085,7 +1085,7 @@ class TestAgentWorldModelCoverage:
     async def test_archive_session_exception(self):
         """Cover lines 602-604: Handle exceptions during archival"""
         with patch("core.agent_world_model.get_lancedb_handler") as mock_get_handler, \
-             patch("core.agent_world_model.get_db_session") as mock_get_db:
+             patch("core.agent_world_model.SessionLocal") as mock_get_db:
 
             mock_db = self._create_mock_db()
             mock_db.workspace_id = "workspace-123"
@@ -1093,7 +1093,7 @@ class TestAgentWorldModelCoverage:
 
             mock_db_session = MagicMock()
             mock_db_session.query.side_effect = Exception("Database error")
-            mock_get_db.return_value.__enter__.return_value = mock_db_session
+            mock_get_db.return_value = mock_db_session
 
             service = WorldModelService()
             result = await service.archive_session_to_cold_storage("conversation-123")
@@ -1277,6 +1277,7 @@ class TestAgentWorldModelCoverage:
                     "text": "Task: task1\nInput: Test\nOutcome: Success\nLearnings: None",
                     "source": "agent_agent-1",
                     "created_at": datetime.now(timezone.utc).isoformat(),
+                    "score": 0.4,
                     "metadata": {
                         "agent_id": "agent-1",
                         "outcome": "Success",
@@ -1289,6 +1290,7 @@ class TestAgentWorldModelCoverage:
                     "text": "Task: task2\nInput: Test\nOutcome: Success\nLearnings: None",
                     "source": "agent_agent-1",
                     "created_at": datetime.now(timezone.utc).isoformat(),
+                    "score": 0.9,
                     "metadata": {
                         "agent_id": "agent-1",
                         "outcome": "Success",
@@ -1301,6 +1303,7 @@ class TestAgentWorldModelCoverage:
                     "text": "Task: task3\nInput: Test\nOutcome: Success\nLearnings: None",
                     "source": "agent_agent-1",
                     "created_at": datetime.now(timezone.utc).isoformat(),
+                    "score": 0.6,
                     "metadata": {
                         "agent_id": "agent-1",
                         "outcome": "Success",
@@ -1322,11 +1325,12 @@ class TestAgentWorldModelCoverage:
                 limit=5
             )
 
-            # Should be sorted by confidence descending
+            # Sorted by semantic similarity score descending (BUG-020: relevance,
+            # not confidence — the most relevant experiences surface first).
             assert len(result["experiences"]) == 3
-            assert result["experiences"][0].confidence_score == 0.95
-            assert result["experiences"][1].confidence_score == 0.8
-            assert result["experiences"][2].confidence_score == 0.7
+            assert result["experiences"][0].id == "exp-2"  # score 0.9
+            assert result["experiences"][1].id == "exp-3"  # score 0.6
+            assert result["experiences"][2].id == "exp-1"  # score 0.4
 
     @pytest.mark.asyncio
     async def test_recall_experiences_includes_business_facts(self):

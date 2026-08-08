@@ -299,12 +299,13 @@ class GoogleChatAnalyticsEngine:
             # Convert to data points
             data_points = []
             for row in result:
+                row_dict = dict(row)
                 data_point = GoogleChatAnalyticsDataPoint(
-                    timestamp=row['timestamp'],
+                    timestamp=row_dict['timestamp'],
                     metric=metric,
-                    value=row['value'],
-                    dimensions=row.get('dimensions', {}),
-                    metadata=row.get('metadata', {})
+                    value=row_dict['value'],
+                    dimensions=row_dict.get('dimensions', {}),
+                    metadata=row_dict.get('metadata', {})
                 )
                 data_points.append(data_point)
             
@@ -506,7 +507,7 @@ class GoogleChatAnalyticsEngine:
                 """
             
             # Replace dimension and metadata placeholders
-            sql = sql.replace('{{dimensions}}', "'{}'").replace('{{metadata}}', "'{}'")
+            sql = sql.replace('{dimensions}', "'{}'").replace('{metadata}', "'{}'")
             
             return {'sql': sql, 'params': params}
         
@@ -1297,7 +1298,7 @@ class GoogleChatAnalyticsEngine:
             result = await llm_service.generate_structured(
                 prompt=f"Analyze sentiment for this Google Chat content:\n\n{text}",
                 response_model=LLMSentiment,
-                system_prompt="Sentiment analyzer for Google Chat communications. Score: -1 to 1."
+                system_instruction="Sentiment analyzer for Google Chat communications. Score: -1 to 1."
             )
             return result.dict()
         except Exception as e:
@@ -1316,7 +1317,7 @@ class GoogleChatAnalyticsEngine:
             result = await llm_service.generate_structured(
                 prompt=f"Extract 3-5 topics from these Google Chat messages:\n\n{combined}",
                 response_model=LLMTopics,
-                system_prompt="Topic extractor for Google Chat communications."
+                system_instruction="Topic extractor for Google Chat communications."
             )
             return result.dict()
         except Exception as e:

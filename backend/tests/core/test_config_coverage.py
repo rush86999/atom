@@ -287,7 +287,9 @@ class TestSecurityConfigCoverage:
 
         config = SecurityConfig()
 
-        assert config.secret_key == "atom-secret-key-change-in-production"
+        # Bug 14 fix: production with no SECRET_KEY generates a random key
+        assert config.secret_key != "atom-secret-key-change-in-production"
+        assert len(config.secret_key) > 20
         assert config.jwt_expiration == 86400
         assert config.allow_dev_temp_users is False
         assert config.encryption_key is None
@@ -296,13 +298,13 @@ class TestSecurityConfigCoverage:
     def test_security_production_warning(self, monkeypatch, caplog):
         """Cover production security warning (lines 137-139)."""
         monkeypatch.setenv('ENVIRONMENT', 'production')
-        monkeypatch.setenv('SECRET_KEY', 'atom-secret-key-change-in-production')
+        monkeypatch.delenv('SECRET_KEY', raising=False)
 
         with caplog.at_level(logging.ERROR):
             config = SecurityConfig()
 
         # Should log critical warning about default secret key
-        assert any('CRITICAL' in record.message and 'default SECRET_KEY' in record.message
+        assert any('CRITICAL' in record.message and 'SECRET_KEY' in record.message
                    for record in caplog.records)
 
     def test_security_dev_key_generation(self, monkeypatch, caplog):
@@ -648,11 +650,15 @@ class TestATOMConfigCoverage:
     def test_validate_production_default_secret(self, monkeypatch):
         """Cover validation failure for default secret in production (lines 365-367)."""
         monkeypatch.setenv('ENVIRONMENT', 'production')
+        monkeypatch.delenv('SECRET_KEY', raising=False)
 
         config = ATOMConfig(
             database=DatabaseConfig(url="postgresql://localhost/test"),
-            security=SecurityConfig(secret_key="atom-secret-key-change-in-production")
+            security=SecurityConfig()
         )
+        # Bug 14 fix: __post_init__ replaces the default with a random key in
+        # production, so force the default back to cover the validate() branch
+        config.security.secret_key = "atom-secret-key-change-in-production"
 
         result = config.validate()
 
@@ -713,6 +719,9 @@ class TestConfigFileOperations:
         # Note: IntegrationConfig __post_init__ ALWAYS overwrites with env vars
         # So we need to set env vars to test file loading properly
         monkeypatch.setenv('GOOGLE_CLIENT_ID', 'test-id-from-file')
+        # SecurityConfig __post_init__ fails closed in production without a
+        # SECRET_KEY env var (Bug 14 fix), so mirror the file value in env
+        monkeypatch.setenv('SECRET_KEY', 'custom-secret')
 
         config_file = tmp_path / "config.json"
         config_data = {

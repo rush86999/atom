@@ -997,46 +997,72 @@ class WorkflowEngine:
         Resolve parameter values from state (inputs and previous outputs).
         Raises MissingInputError if a required variable is missing.
         """
-        resolved = {}
-        for key, value in parameters.items():
-            if isinstance(value, str):
-                # Check for variable substitution ${var}
-                matches = self.var_pattern.findall(value)
-                if matches:
-                    # A pure single reference ("${path}" exactly) preserves the
-                    # resolved value's type (e.g. an int output stays an int).
-                    if len(matches) == 1 and value == f"${{{matches[0]}}}":
-                        resolved_val = self._get_value_from_path(matches[0], state)
-                        if resolved_val is None:
-                            raise MissingInputError(
-                                f"Variable {matches[0]} not found", matches[0]
-                            )
-                        resolved[key] = resolved_val
-                    else:
-                        # Interpolate EVERY variable occurrence into the string,
-                        # preserving surrounding text (e.g. "Hello ${name}!").
-                        # Replacing the whole value with only the first variable
-                        # silently dropped prefixes/suffixes and later variables.
-                        interpolated = value
-                        for var_path in matches:
-                            resolved_val = self._get_value_from_path(var_path, state)
-                            if resolved_val is None:
-                                raise MissingInputError(
-                                    f"Variable {var_path} not found", var_path
-                                )
-                            if isinstance(resolved_val, str):
-                                replacement = resolved_val
-                            else:
-                                replacement = str(resolved_val)
-                            interpolated = interpolated.replace(
-                                f"${{{var_path}}}", replacement
-                            )
-                        resolved[key] = interpolated
-                else:
-                    resolved[key] = value
+        return {
+            key: self._resolve_parameter_value(value, state)
+            for key, value in parameters.items()
+        }
+
+    def _resolve_parameter_value(self, value: Any, state: Dict[str, Any]) -> Any:
+        """Resolve a single parameter value, recursing into nested dicts and
+        lists so ${...} references inside structured parameters (HTTP configs,
+        MCP arguments, arrays) are substituted too — previously they were
+        passed to integrations as literal strings."""
+        if isinstance(value, dict):
+            return {
+                k: self._resolve_parameter_value(v, state)
+                for k, v in value.items()
+            }
+        if isinstance(value, list):
+            return [self._resolve_parameter_value(v, state) for v in value]
+        if isinstance(value, str):
+            # Check for variable substitution ${var}
+            matches = self.var_pattern.findall(value)
+            if not matches:
+                return value
+            # A pure single reference ("${path}" exactly) preserves the
+            # resolved value's type (e.g. an int output stays an int).
+            if len(matches) == 1 and value == f"${{{matches[0]}}}":
+                resolved_val = self._get_value_from_path(matches[0], state)
+                if resolved_val is None and not self._path_exists(matches[0], state):
+                    raise MissingInputError(
+                        f"Variable {matches[0]} not found", matches[0]
+                    )
+                return resolved_val
+            # Interpolate EVERY variable occurrence into the string,
+            # preserving surrounding text (e.g. "Hello ${name}!").
+            # Replacing the whole value with only the first variable
+            # silently dropped prefixes/suffixes and later variables.
+            interpolated = value
+            for var_path in matches:
+                resolved_val = self._get_value_from_path(var_path, state)
+                if resolved_val is None and not self._path_exists(var_path, state):
+                    raise MissingInputError(
+                        f"Variable {var_path} not found", var_path
+                    )
+                interpolated = interpolated.replace(
+                    f"${{{var_path}}}", str(resolved_val)
+                )
+            return interpolated
+        return value
+
+    def _path_exists(self, path: str, state: Dict[str, Any]) -> bool:
+        """Check whether a dot-path exists in state — distinguishes a
+        legitimately-None output value from a genuinely missing variable, so a
+        None value does not pause the workflow with MissingInputError."""
+        parts = path.split(".")
+        root = parts[0]
+        if root == "input":
+            current = state.get("input_data", {})
+        else:
+            current = state.get("outputs", {}).get(root)
+        if current is None:
+            return False
+        for part in parts[1:]:
+            if isinstance(current, dict) and part in current:
+                current = current[part]
             else:
-                resolved[key] = value
-        return resolved
+                return False
+        return True
 
     def _get_value_from_path(self, path: str, state: Dict[str, Any]) -> Any:
         """
@@ -1079,7 +1105,7 @@ class WorkflowEngine:
             validate(instance=params, schema=input_schema)
         except ValidationError as e:
             raise SchemaValidationError(
-                f"Input validation failed for step {step['id']}: {e.message}",
+                f"Input validation failed for step {step.get('id', 'unknown')}: {e.message}",
                 schema_type="input",
                 errors=[e.message]
             )
@@ -1093,7 +1119,7 @@ class WorkflowEngine:
             validate(instance=output, schema=output_schema)
         except ValidationError as e:
             raise SchemaValidationError(
-                f"Output validation failed for step {step['id']}: {e.message}",
+                f"Output validation failed for step {step.get('id', 'unknown')}: {e.message}",
                 schema_type="output",
                 errors=[e.message]
             )

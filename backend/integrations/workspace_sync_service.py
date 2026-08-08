@@ -20,10 +20,6 @@ import logging
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
-from core.integration_service import IntegrationService
-
-# TODO: UnifiedWorkspace and WorkspaceSyncLog models need to be created
-# For now, we'll use placeholders to avoid import errors
 try:
     from core.models import UnifiedWorkspace, WorkspaceSyncLog
 except ImportError:
@@ -36,389 +32,6 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-class WorkspaceSyncService(IntegrationService):
-    """
-    Service for synchronizing workspaces across multiple communication platforms.
-
-    Migrated to IntegrationService pattern for Phase 208-06.
-
-    Usage:
-        service = WorkspaceSyncService(tenant_id="tenant123", config={"database": db})
-
-        # Create unified workspace
-        workspace = service.create_unified_workspace(
-            user_id="user123",
-            name="My Workspace",
-            slack_workspace_id="T123456"
-        )
-
-        # Execute sync operation
-        result = await service.execute_operation(
-            "sync_workspace",
-            {"workspace_id": workspace.id, "source": "slack"},
-            context={"tenant_id": "tenant123"}
-        )
-    """
-
-    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
-        if config is None:
-            config = {}
-        super().__init__(tenant_id=tenant_id, config=config)
-        self.db = config.get('database')
-
-    def get_capabilities(self) -> Dict[str, Any]:
-        """Return workspace sync capabilities"""
-        return {
-            "operations": [
-                {
-                    "id": "sync_workspace",
-                    "name": "Sync Workspace",
-                    "description": "Synchronize workspace data across platforms",
-                    "parameters": {
-                        "workspace_id": {
-                            "type": "string",
-                            "required": True,
-                            "description": "Unified workspace ID"
-                        },
-                        "source": {
-                            "type": "string",
-                            "required": False,
-                            "description": "Source platform (slack, discord, google_chat, teams)"
-                        }
-                    }
-                },
-                {
-                    "id": "list_syncs",
-                    "name": "List Syncs",
-                    "description": "List all sync operations for a workspace",
-                    "parameters": {
-                        "workspace_id": {
-                            "type": "string",
-                            "required": True,
-                            "description": "Unified workspace ID"
-                        }
-                    }
-                },
-                {
-                    "id": "get_sync_status",
-                    "name": "Get Sync Status",
-                    "description": "Get synchronization status for a workspace",
-                    "parameters": {
-                        "workspace_id": {
-                            "type": "string",
-                            "required": True,
-                            "description": "Unified workspace ID"
-                        }
-                    }
-                },
-                {
-                    "id": "cancel_sync",
-                    "name": "Cancel Sync",
-                    "description": "Cancel an active synchronization",
-                    "parameters": {
-                        "sync_id": {
-                            "type": "string",
-                            "required": True,
-                            "description": "Sync operation ID"
-                        }
-                    }
-                },
-                {
-                    "id": "invalidate_cache",
-                    "name": "Invalidate Cache",
-                    "description": "Clear per-tenant cache (MIG-10)"
-                }
-            ],
-            "required_params": ["database"],
-            "rate_limits": {
-                "requests_per_minute": 10,
-                "reason": "Heavy operations"
-            },
-            "supports_webhooks": False
-        }
-
-    def health_check(self) -> Dict[str, Any]:
-        """Check if workspace sync service is healthy"""
-        is_healthy = bool(self.db)
-
-        if is_healthy:
-            try:
-                # Test database connection
-                self.db.execute("SELECT 1")
-                return {
-                    "ok": True,
-                    "status": "healthy",
-                    "healthy": True,
-                    "service": "workspace_sync",
-                    "message": "Workspace sync service healthy",
-                    "database_connected": True,
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                }
-            except Exception as e:
-                logger.error(f"Workspace sync health check failed: {e}")
-                return {
-                    "ok": False,
-                    "status": "unhealthy",
-                    "healthy": False,
-                    "service": "workspace_sync",
-                    "error": str(e),
-                    "message": "Database connection failed",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                }
-
-        return {
-            "ok": False,
-            "status": "unhealthy",
-            "healthy": False,
-            "service": "workspace_sync",
-            "message": "Database not configured",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-
-    async def execute_operation(
-        self,
-        operation: str,
-        parameters: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Execute a workspace sync operation with tenant context.
-
-        Args:
-            operation: Operation name (sync_workspace, list_syncs, etc.)
-            parameters: Operation parameters
-            context: Tenant context (tenant_id, agent_id, etc.)
-
-        Returns:
-            Dict with success, result, or error
-        """
-        # Validate tenant_id from context (MIG-06: tenant isolation)
-        if context:
-            context_tenant_id = context.get('tenant_id')
-            if context_tenant_id and context_tenant_id != self.tenant_id:
-                logger.error(
-                    f"WorkspaceSync tenant ID mismatch: context={context_tenant_id}, "
-                    f"service={self.tenant_id}"
-                )
-                return {
-                    "success": False,
-                    "error": "Tenant ID validation failed",
-                    "error_code": "TENANT_MISMATCH"
-                }
-
-        try:
-            if operation == "sync_workspace":
-                return await self._sync_workspace(parameters)
-            elif operation == "list_syncs":
-                return self._list_syncs(parameters)
-            elif operation == "get_sync_status":
-                return self._get_sync_status(parameters)
-            elif operation == "cancel_sync":
-                return await self._cancel_sync(parameters)
-            elif operation == "invalidate_cache":
-                # MIG-10: Cache invalidation
-                return await self.invalidate_cache()
-            else:
-                return {
-                    "success": False,
-                    "error": f"Unknown operation: {operation}",
-                    "error_code": "OPERATION_NOT_FOUND"
-                }
-        except Exception as e:
-            logger.error(f"Error executing workspace sync operation {operation}: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "error_code": "INTERNAL_ERROR"
-            }
-
-    async def _sync_workspace(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Sync workspace across platforms"""
-        workspace_id = parameters.get('workspace_id')
-        if not workspace_id:
-            return {
-                "success": False,
-                "error": "Missing required parameter: workspace_id",
-                "error_code": "VALIDATION_ERROR"
-            }
-
-        try:
-            # Get workspace
-            workspace = self.db.query(UnifiedWorkspace).filter(
-                UnifiedWorkspace.id == workspace_id
-            ).first()
-
-            if not workspace:
-                return {
-                    "success": False,
-                    "error": f"Workspace {workspace_id} not found",
-                    "error_code": "NOT_FOUND"
-                }
-
-            # Trigger sync (placeholder - would call platform-specific sync)
-            logger.info(f"Syncing workspace {workspace_id} for tenant {self.tenant_id}")
-
-            return {
-                "success": True,
-                "result": {
-                    "workspace_id": workspace_id,
-                    "platform_count": workspace.platform_count,
-                    "synced": True
-                }
-            }
-        except Exception as e:
-            logger.error(f"Error syncing workspace {workspace_id}: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "error_code": "SYNC_ERROR"
-            }
-
-    def _list_syncs(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """List sync operations for a workspace"""
-        workspace_id = parameters.get('workspace_id')
-        if not workspace_id:
-            return {
-                "success": False,
-                "error": "Missing required parameter: workspace_id",
-                "error_code": "VALIDATION_ERROR"
-            }
-
-        try:
-            sync_logs = self.db.query(WorkspaceSyncLog).filter(
-                WorkspaceSyncLog.unified_workspace_id == workspace_id
-            ).order_by(WorkspaceSyncLog.started_at.desc()).limit(20).all()
-
-            return {
-                "success": True,
-                "result": {
-                    "workspace_id": workspace_id,
-                    "sync_count": len(sync_logs),
-                    "syncs": [
-                        {
-                            "id": log.id,
-                            "operation": log.operation,
-                            "status": log.status,
-                            "started_at": log.started_at.isoformat() if log.started_at else None
-                        }
-                        for log in sync_logs
-                    ]
-                }
-            }
-        except Exception as e:
-            logger.error(f"Error listing syncs for workspace {workspace_id}: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "error_code": "LIST_ERROR"
-            }
-
-    def _get_sync_status(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Get sync status for a workspace"""
-        workspace_id = parameters.get('workspace_id')
-        if not workspace_id:
-            return {
-                "success": False,
-                "error": "Missing required parameter: workspace_id",
-                "error_code": "VALIDATION_ERROR"
-            }
-
-        try:
-            return {
-                "success": True,
-                "result": self.get_workspace_sync_status(workspace_id)
-            }
-        except Exception as e:
-            logger.error(f"Error getting sync status for workspace {workspace_id}: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "error_code": "STATUS_ERROR"
-            }
-
-    async def _cancel_sync(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Cancel an active sync operation"""
-        sync_id = parameters.get('sync_id')
-        if not sync_id:
-            return {
-                "success": False,
-                "error": "Missing required parameter: sync_id",
-                "error_code": "VALIDATION_ERROR"
-            }
-
-        try:
-            # Update sync log to cancelled
-            sync_log = self.db.query(WorkspaceSyncLog).filter(
-                WorkspaceSyncLog.id == sync_id
-            ).first()
-
-            if not sync_log:
-                return {
-                    "success": False,
-                    "error": f"Sync log {sync_id} not found",
-                    "error_code": "NOT_FOUND"
-                }
-
-            sync_log.status = "cancelled"
-            sync_log.completed_at = datetime.now(timezone.utc)
-            self.db.commit()
-
-            return {
-                "success": True,
-                "result": {
-                    "sync_id": sync_id,
-                    "cancelled": True
-                }
-            }
-        except Exception as e:
-            logger.error(f"Error cancelling sync {sync_id}: {e}")
-            self.db.rollback()
-            return {
-                "success": False,
-                "error": str(e),
-                "error_code": "CANCEL_ERROR"
-            }
-
-    async def invalidate_cache(self) -> Dict[str, Any]:
-        """
-        Invalidate per-tenant cache (MIG-10).
-
-        Called when OAuth token is revoked to prevent cross-tenant data exposure.
-
-        Returns:
-            Dict with success status
-        """
-        try:
-            # Clear any cached workspace data for this tenant
-            cache_keys = [
-                f"workspace_sync:workspaces:{self.tenant_id}",
-                f"workspace_sync:status:{self.tenant_id}",
-                f"workspace_sync:logs:{self.tenant_id}",
-            ]
-
-            # TODO: Integrate with Redis cache invalidation
-            # redis_client = self.config.get('redis', {}).get('client')
-            # if redis_client:
-            #     for key in cache_keys:
-            #         redis_client.delete(key)
-
-            logger.info(f"Workspace sync cache invalidated for tenant {self.tenant_id}")
-            return {
-                "success": True,
-                "tenant_id": self.tenant_id,
-                "cache_keys_cleared": cache_keys,
-                "message": "Cache invalidated successfully"
-            }
-        except Exception as e:
-            logger.error(f"Error invalidating workspace sync cache: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "error_code": "CACHE_INVALIDATION_FAILED"
-            }
-
-
-# Legacy class below - will be removed after migration completes
 class ChangeType:
     """Types of workspace changes that trigger synchronization"""
     WORKSPACE_NAME_CHANGE = "name_change"
@@ -468,8 +81,32 @@ class WorkspaceSyncService:
         )
     """
 
+    # Platform name -> UnifiedWorkspace column mapping
+    _PLATFORM_COLUMNS = {
+        "slack": "slack_workspace_id",
+        "discord": "discord_guild_id",
+        "google_chat": "google_chat_space_id",
+        "teams": "teams_team_id",
+    }
+
     def __init__(self, db: Session):
         self.db = db
+
+    @classmethod
+    def _get_platform_id(cls, workspace: UnifiedWorkspace, platform: str) -> Optional[str]:
+        """Get the platform-specific workspace ID stored on a unified workspace."""
+        column = cls._PLATFORM_COLUMNS.get(platform)
+        if not column:
+            return None
+        return getattr(workspace, column)
+
+    @classmethod
+    def _set_platform_id(cls, workspace: UnifiedWorkspace, platform: str, platform_id: str) -> None:
+        """Store a platform-specific workspace ID on a unified workspace."""
+        column = cls._PLATFORM_COLUMNS.get(platform)
+        if not column:
+            raise ValueError(f"Unsupported platform: {platform}")
+        setattr(workspace, column, platform_id)
 
     def create_unified_workspace(
         self,
@@ -571,7 +208,7 @@ class WorkspaceSyncService:
                 raise ValueError(f"Unified workspace {workspace_id} not found")
 
             # Check if platform already exists
-            existing_id = workspace.get_platform_id(platform)
+            existing_id = self._get_platform_id(workspace, platform)
             if existing_id:
                 logger.warning(
                     f"Platform {platform} already exists for workspace {workspace_id} "
@@ -579,8 +216,14 @@ class WorkspaceSyncService:
                 )
 
             # Add platform
-            workspace.add_platform(platform, platform_id)
+            self._set_platform_id(workspace, platform, platform_id)
             workspace.updated_at = datetime.now(timezone.utc)
+            workspace.platform_count = sum([
+                bool(workspace.slack_workspace_id),
+                bool(workspace.discord_guild_id),
+                bool(workspace.google_chat_space_id),
+                bool(workspace.teams_team_id)
+            ])
 
             self.db.commit()
             self.db.refresh(workspace)
@@ -836,7 +479,7 @@ class WorkspaceSyncService:
         Returns:
             Result dict with success status
         """
-        platform_id = workspace.get_platform_id(target_platform)
+        platform_id = self._get_platform_id(workspace, target_platform)
 
         if not platform_id:
             logger.warning(f"No platform_id found for {target_platform} in workspace {workspace.id}")
@@ -908,7 +551,19 @@ class WorkspaceSyncService:
             log.error_message = error_message
 
             if log.started_at and completed_at:
-                duration_ms = int((completed_at - log.started_at).total_seconds() * 1000)
+                # SQLite (Personal Edition) returns naive datetimes — normalize
+                # both sides before subtracting (aware vs naive raises TypeError).
+                started = (
+                    log.started_at
+                    if log.started_at.tzinfo
+                    else log.started_at.replace(tzinfo=timezone.utc)
+                )
+                done = (
+                    completed_at
+                    if completed_at.tzinfo
+                    else completed_at.replace(tzinfo=timezone.utc)
+                )
+                duration_ms = int((done - started).total_seconds() * 1000)
                 log.duration_ms = duration_ms
 
     # ========================================================================
@@ -923,8 +578,12 @@ class WorkspaceSyncService:
     ) -> Dict[str, Any]:
         """Apply a change to Slack workspace."""
         try:
-            # Import Slack service
-            from integrations.slack_enhanced_service import slack_enhanced_service
+            # Import Slack service (the module exports the class, not an
+            # instance — a phantom-name import here always failed, leaving
+            # Slack propagation permanently "unavailable").
+            from integrations.slack_enhanced_service import SlackEnhancedService
+
+            slack_enhanced_service = SlackEnhancedService()
 
             if not slack_enhanced_service:
                 logger.warning("Slack enhanced service not available")

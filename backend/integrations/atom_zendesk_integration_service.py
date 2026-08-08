@@ -15,7 +15,7 @@ import json
 import logging
 import os
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 from urllib.parse import urlencode
 import aiohttp
 import httpx
@@ -220,8 +220,6 @@ class AtomZendeskIntegrationService:
         
         # Salesforce integration
         self.salesforce_integration = None
-        if self.zendesk_config['enable_salesforce_integration']:
-            self.salesforce_integration = self._initialize_salesforce_integration()
         
         # Enterprise integration (use safe defaults if optional services didn't import)
         self.enterprise_security = config.get('security_service') or globals().get('atom_enterprise_security_service')
@@ -301,6 +299,8 @@ class AtomZendeskIntegrationService:
             await self._test_zendesk_connection()
             
             # Initialize Salesforce integration
+            if self.zendesk_config['enable_salesforce_integration']:
+                await self._initialize_salesforce_integration()
             if self.salesforce_integration:
                 await self._initialize_salesforce_connection()
             
@@ -978,7 +978,187 @@ class AtomZendeskIntegrationService:
         except Exception as e:
             logger.error(f"Error getting agent workload: {e}")
             return 0
-    
+
+    async def _perform_security_check(self, ticket_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Perform security and compliance check on inbound ticket data"""
+        try:
+            if not self.enterprise_security:
+                return {'passed': True, 'reason': ''}
+            result = await self.enterprise_security.check(ticket_data)
+            if isinstance(result, dict) and not result.get('allowed', True):
+                return {'passed': False, 'reason': result.get('reason', 'Blocked by security policy')}
+            return {'passed': True, 'reason': ''}
+        except Exception as e:
+            logger.error(f"Security check failed: {e}")
+            return {'passed': True, 'reason': ''}
+
+    async def _sync_ticket_to_salesforce(self, ticket: Dict[str, Any]):
+        """Sync ticket data to Salesforce when the integration is available"""
+        try:
+            if not self.salesforce_integration:
+                return
+            sync = getattr(self.salesforce_integration, 'sync_ticket', None)
+            if sync:
+                await sync(ticket)
+        except Exception as e:
+            logger.error(f"Error syncing ticket to Salesforce: {e}")
+
+    async def _notify_platform_ticket_created(self, ticket: Dict[str, Any], platform: str):
+        """Notify platform about new ticket"""
+        try:
+            integration = self.platform_integrations.get(platform)
+            if integration:
+                message = f"[ ] New Ticket: {ticket.get('subject', '')}"
+                await integration.send_notification(
+                    user_id="support_team",
+                    message=message,
+                    metadata={'ticket_id': ticket.get('id'), 'source': 'zendesk'}
+                )
+        except Exception as e:
+            logger.error(f"Error notifying platform about ticket: {e}")
+
+    async def _notify_platform_ticket_updated(self, ticket: Dict[str, Any], platform: str):
+        """Notify platform about ticket update"""
+        try:
+            integration = self.platform_integrations.get(platform)
+            if integration:
+                message = f"Updated Ticket: {ticket.get('subject', '')}"
+                await integration.send_notification(
+                    user_id="support_team",
+                    message=message,
+                    metadata={'ticket_id': ticket.get('id'), 'source': 'zendesk'}
+                )
+        except Exception as e:
+            logger.error(f"Error notifying platform about ticket update: {e}")
+
+    async def _check_sla_compliance(self, ticket: Dict[str, Any]):
+        """Check SLA compliance for a ticket"""
+        try:
+            priority = ticket.get('priority', 'normal')
+            sla = self.sla_config.get(priority, self.sla_config['normal'])
+            self.analytics_metrics['average_response_time'] = float(sla['first_response'])
+        except Exception as e:
+            logger.error(f"Error checking SLA compliance: {e}")
+
+    async def _check_escalation(self, ticket: Dict[str, Any]):
+        """Check if ticket requires escalation"""
+        try:
+            priority = ticket.get('priority', 'normal')
+            if priority in ('urgent', 'high'):
+                self.analytics_metrics['escalation_rate'] = (
+                    cast(float, self.analytics_metrics['escalation_rate']) + 1.0)
+        except Exception as e:
+            logger.error(f"Error checking escalation: {e}")
+
+    async def _generate_response_time_analytics(self, tickets: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate response-time analytics from tickets"""
+        response_times = [t.get('response_time', 0) for t in tickets if t.get('response_time') is not None]
+        avg = sum(response_times) / len(response_times) if response_times else 0.0
+        return {
+            'average_response_time': avg,
+            'tickets_measured': len(response_times),
+            'insights': ['Response times within SLA'] if avg <= 240 else ['Response times exceeding SLA'],
+            'recommendations': ['Review staffing for faster responses'] if avg > 240 else []
+        }
+
+    async def _generate_resolution_time_analytics(self, tickets: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate resolution-time analytics from tickets"""
+        resolution_times = [t.get('resolution_time', 0) for t in tickets if t.get('resolution_time') is not None]
+        avg = sum(resolution_times) / len(resolution_times) if resolution_times else 0.0
+        return {
+            'average_resolution_time': avg,
+            'tickets_measured': len(resolution_times),
+            'insights': ['Resolution time stable'] if avg <= 1440 else ['Resolution time rising'],
+            'recommendations': []
+        }
+
+    async def _generate_satisfaction_analytics(self, tickets: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate customer satisfaction analytics from tickets"""
+        ratings = [t.get('satisfaction_rating') for t in tickets if t.get('satisfaction_rating')]
+        score = 0.0
+        for rating in ratings:
+            if rating is None:
+                continue
+            try:
+                score += float(rating)
+            except (TypeError, ValueError):
+                continue
+        avg = score / len(ratings) if ratings else 0.0
+        return {
+            'average_satisfaction': avg,
+            'ratings_count': len(ratings),
+            'insights': ['Satisfaction above target'] if avg >= 4.0 else [],
+            'recommendations': []
+        }
+
+    async def _generate_volume_analytics(self, tickets: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate ticket volume analytics"""
+        by_priority = Counter(t.get('priority', 'normal') for t in tickets)
+        by_type = Counter(t.get('type', 'question') for t in tickets)
+        return {
+            'total_tickets': len(tickets),
+            'tickets_by_priority': dict(by_priority),
+            'tickets_by_type': dict(by_type),
+            'insights': [f'{len(tickets)} tickets in period'] if tickets else ['No tickets in period'],
+            'recommendations': []
+        }
+
+    async def _generate_agent_performance_analytics(self, tickets: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate agent performance analytics"""
+        by_agent = Counter(t.get('assignee_id', 'unassigned') for t in tickets)
+        return {
+            'tickets_by_agent': dict(by_agent),
+            'agent_count': len(by_agent),
+            'insights': ['Agent workload balanced'] if by_agent else [],
+            'recommendations': []
+        }
+
+    async def _generate_escalation_analytics(self, tickets: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate escalation rate analytics"""
+        escalated = [t for t in tickets if t.get('escalated')]
+        rate = (len(escalated) / len(tickets)) * 100 if tickets else 0.0
+        return {
+            'escalation_rate': round(rate, 2),
+            'escalated_count': len(escalated),
+            'total_tickets': len(tickets),
+            'insights': ['Escalation rate above target'] if rate > 10 else ['Escalation rate normal'],
+            'recommendations': []
+        }
+
+    async def _generate_fcr_analytics(self, tickets: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate first-contact-resolution analytics"""
+        resolved_first = [t for t in tickets if t.get('resolved_first_contact')]
+        rate = (len(resolved_first) / len(tickets)) * 100 if tickets else 0.0
+        return {
+            'first_contact_resolution_rate': round(rate, 2),
+            'fcr_count': len(resolved_first),
+            'total_tickets': len(tickets),
+            'insights': ['FCR above target'] if rate >= 70 else ['FCR below target'],
+            'recommendations': ['Improve first-contact training'] if rate < 70 else []
+        }
+
+    async def _generate_ai_insights(self, analytics_data: Dict[str, Any], tickets: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate AI-powered insights for analytics data"""
+        try:
+            if not self.ai_service:
+                raise Exception("AI service not available")
+            ai_request = AIRequest(
+                request_id=f"analytics_insights_{int(time.time())}",
+                task_type=AITaskType.CONTENT_ANALYSIS,
+                model_type=AIModelType.GPT_4,
+                service_type=AIServiceType.OPENAI,
+                input_data={'analytics': analytics_data},
+                context={'platform': 'zendesk', 'task': 'analytics_insights'},
+                platform='zendesk'
+            )
+            ai_response = await self.ai_service.process_ai_request(ai_request)
+            if ai_response.ok and ai_response.output_data:
+                return cast(Dict[str, Any], ai_response.output_data)
+            return {'insights': [], 'recommendations': []}
+        except Exception as e:
+            logger.error(f"Error generating AI insights: {e}")
+            return {'insights': [], 'recommendations': []}
+
     async def get_service_status(self) -> Dict[str, Any]:
         """Get Zendesk Integration service status"""
         try:

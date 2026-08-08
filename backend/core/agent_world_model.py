@@ -68,7 +68,7 @@ class BusinessFact(BaseModel):
 
 class WorldModelService:
     def __init__(self, workspace_id: Optional[str] = None):
-        self.db = get_lancedb_handler(workspace_id)
+        self.db = get_lancedb_handler(workspace_id or "default")
         self.table_name = "agent_experience"
         self.facts_table_name = "business_facts"
         self._ensure_tables()

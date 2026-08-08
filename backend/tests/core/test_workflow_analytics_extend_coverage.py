@@ -629,3 +629,179 @@ class TestSingleton:
         e1 = get_analytics_engine()
         e2 = get_analytics_engine()
         assert e1 is e2
+
+
+# ---------------------------------------------------------------------------
+# Tracking methods (cover the track_* family directly so this file alone
+# exercises them rather than relying on the other coverage files)
+# ---------------------------------------------------------------------------
+class TestTrackingMethods:
+    def test_track_workflow_start(self, engine):
+        engine.track_workflow_start("wf", "exec-1", user_id="u1", tenant_id="t1")
+        assert len(engine.events_buffer) == 1
+        assert len(engine.metrics_buffer) == 1
+        assert engine.events_buffer[0].event_type == "workflow_started"
+
+    def test_track_workflow_start_with_metadata(self, engine):
+        engine.track_workflow_start("wf", "exec-1", metadata={"k": "v"})
+        assert engine.events_buffer[0].metadata == {"k": "v"}
+
+    def test_track_workflow_completion_success(self, engine):
+        engine.track_workflow_completion(
+            "wf", "exec-1", WorkflowStatus.COMPLETED, 250,
+            step_outputs={"s1": "out"}, user_id="u1",
+        )
+        # one completion event + duration metric + success counter
+        assert len(engine.events_buffer) == 1
+        assert len(engine.metrics_buffer) == 2
+
+    def test_track_workflow_completion_failure(self, engine):
+        engine.track_workflow_completion(
+            "wf", "exec-1", WorkflowStatus.FAILED, 100,
+            error_message="boom",
+        )
+        # completion event + duration metric + failed counter
+        names = [m.metric_name for m in engine.metrics_buffer]
+        assert "failed_executions" in names
+
+    def test_track_workflow_completion_no_step_outputs(self, engine):
+        engine.track_workflow_completion(
+            "wf", "exec-1", WorkflowStatus.COMPLETED, 50, step_outputs=None,
+        )
+        assert engine.events_buffer[0].metadata == {"step_count": 0}
+
+    def test_track_step_execution(self, engine):
+        engine.track_step_execution(
+            "wf", "exec-1", "step-1", "Step One", "step_started",
+            duration_ms=100, status="running", resource_id="res-1",
+        )
+        assert len(engine.events_buffer) == 1
+        assert len(engine.metrics_buffer) == 1
+        assert engine.metrics_buffer[0].metric_name == "step_duration_ms"
+
+    def test_track_step_execution_no_duration(self, engine):
+        engine.track_step_execution(
+            "wf", "exec-1", "step-1", "Step One", "step_started",
+            duration_ms=None,
+        )
+        assert len(engine.metrics_buffer) == 0  # no duration metric
+
+    def test_track_step_execution_with_error(self, engine):
+        engine.track_step_execution(
+            "wf", "exec-1", "step-1", "Step One", "step_failed",
+            duration_ms=50, error_message="step boom",
+        )
+        assert engine.events_buffer[0].error_message == "step boom"
+
+    def test_track_manual_override(self, engine):
+        engine.track_manual_override(
+            "wf", "exec-1", "task-1", "modified_deadline",
+            original_value="2024-01-01", new_value="2024-02-01",
+            user_id="u1",
+        )
+        # one override event + one manual_override_count metric
+        assert len(engine.events_buffer) == 1
+        assert any(m.metric_name == "manual_override_count" for m in engine.metrics_buffer)
+        assert engine.events_buffer[0].status == "OVERRIDDEN"
+
+    def test_track_resource_usage_all_metrics(self, engine):
+        engine.track_resource_usage(
+            "wf", cpu_usage=75.5, memory_usage=512,
+            step_id="s1", disk_io=1024, network_io=2048,
+        )
+        names = [m.metric_name for m in engine.metrics_buffer]
+        assert "cpu_usage_percent" in names
+        assert "memory_usage_mb" in names
+        assert "disk_io_bytes" in names
+        assert "network_io_bytes" in names
+
+    def test_track_resource_usage_no_optional(self, engine):
+        engine.track_resource_usage("wf", cpu_usage=10.0, memory_usage=100)
+        # only cpu + memory
+        assert len(engine.metrics_buffer) == 2
+
+    def test_track_user_activity(self, engine):
+        engine.track_user_activity("u1", "login", workflow_id="wf")
+        assert len(engine.metrics_buffer) == 1
+        assert engine.metrics_buffer[0].tags["action"] == "login"
+
+    def test_track_user_activity_no_workflow(self, engine):
+        engine.track_user_activity("u1", "logout")
+        assert engine.metrics_buffer[0].workflow_id == "system"
+
+    def test_track_metric_general(self, engine):
+        engine.track_metric(
+            "wf", "custom_metric", MetricType.GAUGE, 42.0,
+            tags={"env": "test"}, step_id="s1", step_name="Step",
+        )
+        assert engine.metrics_buffer[0].value == 42.0
+        assert engine.metrics_buffer[0].tags == {"env": "test"}
+
+
+# ---------------------------------------------------------------------------
+# get_system_overview
+# ---------------------------------------------------------------------------
+class TestSystemOverview:
+    def test_system_overview_empty(self, engine):
+        overview = engine.get_system_overview("24h")
+        assert overview["total_workflows"] == 0
+        assert overview["total_executions"] == 0
+        assert overview["success_rate"] == 0
+        assert overview["top_workflows"] == []
+        assert overview["recent_errors"] == []
+
+    def test_system_overview_with_data(self, engine):
+        conn = sqlite3.connect(str(engine.db_path))
+        _insert_event(conn, "wf1", "e1", "workflow_started")
+        _insert_event(conn, "wf1", "e1", "workflow_completed", status="completed", duration_ms=100)
+        conn.commit()
+        conn.close()
+        overview = engine.get_system_overview("24h")
+        assert overview["total_executions"] == 1
+        # 1 completed -> success_rate = 100%
+        assert overview["success_rate"] == 100.0
+        assert len(overview["top_workflows"]) == 1
+        assert overview["recent_errors"] == []
+
+
+# ---------------------------------------------------------------------------
+# create_alert kwargs form additional coverage
+# ---------------------------------------------------------------------------
+class TestCreateAlertKwargsForm:
+    def test_create_alert_with_step_id(self, engine):
+        alert = engine.create_alert(
+            name="n", description="d", severity=AlertSeverity.CRITICAL,
+            condition="c", threshold_value=5, metric_name="m",
+            workflow_id="wf", step_id="s1",
+            notification_channels=["email", "slack"],
+        )
+        assert alert.step_id == "s1"
+        assert alert.severity == AlertSeverity.CRITICAL
+
+    def test_create_alert_object_form_positional(self, engine):
+        alert = Alert(
+            alert_id="a-pos", name="n", description="d",
+            severity=AlertSeverity.LOW, condition="c", threshold_value=1.0,
+            metric_name="m",
+        )
+        result = engine.create_alert(alert)
+        assert result is alert
+        assert "a-pos" in engine.active_alerts
+
+    def test_create_alert_object_form_keyword(self, engine):
+        alert = Alert(
+            alert_id="a-kw", name="n", description="d",
+            severity=AlertSeverity.LOW, condition="c", threshold_value=1.0,
+            metric_name="m",
+        )
+        result = engine.create_alert(alert=alert)
+        assert result is alert
+
+    def test_create_alert_object_with_none_threshold(self, engine):
+        alert = Alert(
+            alert_id="a-none", name="n", description="d",
+            severity=AlertSeverity.LOW, condition="c", threshold_value=None,
+            metric_name="m", enabled=False,
+        )
+        result = engine.create_alert(alert)
+        assert result is alert

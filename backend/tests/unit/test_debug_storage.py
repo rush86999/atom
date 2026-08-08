@@ -15,7 +15,7 @@ Tests cover:
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, Any
 import json
@@ -127,7 +127,7 @@ def sample_state_snapshot():
     snapshot.operation_id = "op-789"
     snapshot.checkpoint_name = "pre_execution"
     snapshot.state_data = {"var1": "value1", "var2": 42}
-    snapshot.diff_from_previous = '{"var1": ["old_value", "value1"]}'
+    snapshot.snapshot_metadata = {"checkpoint_name": "pre_execution"}
     snapshot.snapshot_type = "checkpoint"
     snapshot.captured_at = datetime(2024, 1, 15, 10, 30, 0)
     return snapshot
@@ -684,8 +684,7 @@ class TestHelperMethods:
         assert result["id"] == "snapshot-123"
         assert result["component_type"] == "agent"
         assert result["component_id"] == "agent-456"
-        assert result["operation_id"] == "op-789"
-        assert result["checkpoint_name"] == "pre_execution"
+        assert result["snapshot_metadata"] == {"checkpoint_name": "pre_execution"}
         assert result["snapshot_type"] == "checkpoint"
 
     def test_parse_time_range_last_1h(self, debug_storage):
@@ -693,7 +692,7 @@ class TestHelperMethods:
         result = debug_storage._parse_time_range("last_1h")
 
         assert result is not None
-        expected = datetime.utcnow() - timedelta(hours=1)
+        expected = datetime.now(timezone.utc) - timedelta(hours=1)
         assert abs((result - expected).total_seconds()) < 5
 
     def test_parse_time_range_last_24h(self, debug_storage):
@@ -701,7 +700,7 @@ class TestHelperMethods:
         result = debug_storage._parse_time_range("last_24h")
 
         assert result is not None
-        expected = datetime.utcnow() - timedelta(hours=24)
+        expected = datetime.now(timezone.utc) - timedelta(hours=24)
         assert abs((result - expected).total_seconds()) < 5
 
     def test_parse_time_range_last_7d(self, debug_storage):
@@ -709,7 +708,7 @@ class TestHelperMethods:
         result = debug_storage._parse_time_range("last_7d")
 
         assert result is not None
-        expected = datetime.utcnow() - timedelta(days=7)
+        expected = datetime.now(timezone.utc) - timedelta(days=7)
         assert abs((result - expected).total_seconds()) < 5
 
     def test_parse_time_range_invalid(self, debug_storage):

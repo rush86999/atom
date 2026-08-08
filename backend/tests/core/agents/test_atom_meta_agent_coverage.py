@@ -412,7 +412,7 @@ class TestAtomMetaAgentTriggerHandlers:
             workspace_id="test-workspace"
         )
         assert result is not None
-        mock_agent_class.assert_called_once_with("test-workspace", mock_user)
+        mock_agent_class.assert_called_once_with("test-workspace", user=mock_user)
 
     def test_get_atom_agent_singleton(self):
         """Test get_atom_agent singleton function"""

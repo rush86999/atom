@@ -16,12 +16,24 @@ from typing import Dict, Any, List, Optional, Callable, AsyncGenerator
 from dataclasses import dataclass, asdict
 from enum import Enum
 import httpx
-import msal
 import jwt
 from cryptography.fernet import Fernet
-from azure.identity import DefaultAzureCredential
-from azure.mgmt.teams import TeamsClient
-from azure.graph import GraphServiceClient
+
+# Optional dependencies: the MS Graph SDK and MSAL are not part of the base
+# requirements, so the module must import and degrade gracefully without them.
+try:
+    import msal
+    MSAL_AVAILABLE = True
+except ImportError:
+    MSAL_AVAILABLE = False
+    msal = None  # type: ignore[assignment]
+
+try:
+    from msgraph import GraphServiceClient
+    GRAPH_SDK_AVAILABLE = True
+except ImportError:
+    GRAPH_SDK_AVAILABLE = False
+    GraphServiceClient = None  # type: ignore[assignment,misc]
 
 from core.integration_service import IntegrationService
 
@@ -130,7 +142,6 @@ class TeamsMessage:
     """Teams message model"""
     message_id: str
     text: str
-    html: Optional[str] = None
     user_id: str
     user_name: str
     user_email: str
@@ -138,6 +149,7 @@ class TeamsMessage:
     workspace_id: str
     tenant_id: str
     timestamp: str
+    html: Optional[str] = None
     thread_id: Optional[str] = None
     reply_to_id: Optional[str] = None
     message_type: str = "message"
@@ -298,15 +310,19 @@ class TeamsEnhancedService(IntegrationService):
         # MSAL application
         # Use tenant_id from IntegrationService base class
         msal_tenant_id = config.get('msal_tenant_id') or 'common'
-        self.msal_app = msal.ConfidentialClientApplication(
-            client_id=self.client_id,
-            client_credential=self.client_secret,
-            authority=f"https://login.microsoftonline.com/{msal_tenant_id}"
-        )
+        if msal is not None:
+            self.msal_app = msal.ConfidentialClientApplication(
+                client_id=self.client_id,
+                client_credential=self.client_secret,
+                authority=f"https://login.microsoftonline.com/{msal_tenant_id}"
+            )
+        else:
+            logger.warning("MSAL not installed - Teams OAuth disabled; service runs in degraded mode")
+            self.msal_app = None
         
         # Graph clients cache
-        self.graph_clients: Dict[str, GraphServiceClient] = {}
-        self.teams_clients: Dict[str, TeamsClient] = {}
+        self.graph_clients: Dict[str, Any] = {}
+        self.teams_clients: Dict[str, Any] = {}
         
         # Event handlers
         self.event_handlers: Dict[TeamsEventType, List[Callable]] = {
@@ -350,7 +366,7 @@ class TeamsEnhancedService(IntegrationService):
             return encrypted_token
         return self.cipher.decrypt(encrypted_token.encode()).decode()
     
-    def _get_graph_client(self, workspace_id: str) -> Optional[GraphServiceClient]:
+    def _get_graph_client(self, workspace_id: str) -> Optional[Any]:
         """Get or create Graph client for workspace"""
         try:
             if workspace_id not in self.graph_clients:
@@ -359,7 +375,10 @@ class TeamsEnhancedService(IntegrationService):
                 if not workspace or not workspace.access_token:
                     logger.error(f"No access token for workspace: {workspace_id}")
                     return None
-                
+                if GraphServiceClient is None:
+                    logger.error("MS Graph SDK not installed - cannot create Graph client")
+                    return None
+
                 token = self._decrypt_token(workspace.access_token)
                 
                 # Create Graph client with access token
@@ -405,7 +424,7 @@ class TeamsEnhancedService(IntegrationService):
                         created_at, created_by, tenant_id, internal_id, classification,
                         specialization, web_url, access_token, refresh_token, scopes,
                         last_sync, is_active, settings, member_count, channel_count)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         workspace.team_id,
                         workspace.name,
@@ -436,7 +455,7 @@ class TeamsEnhancedService(IntegrationService):
                 self.redis_client.setex(
                     f"teams_workspace:{workspace.team_id}",
                     3600,  # 1 hour
-                    json.dumps(asdict(workspace))
+                    json.dumps(asdict(workspace), default=str)
                 )
             
             # Update connection status
@@ -449,6 +468,8 @@ class TeamsEnhancedService(IntegrationService):
     def generate_oauth_url(self, state: str, user_id: str, scopes: List[str] = None) -> str:
         """Generate OAuth authorization URL"""
         try:
+            if self.msal_app is None:
+                raise RuntimeError("MSAL not available; Teams OAuth cannot be started")
             if not scopes:
                 scopes = self.required_scopes
             
@@ -469,6 +490,12 @@ class TeamsEnhancedService(IntegrationService):
     async def exchange_code_for_tokens(self, code: str, state: str) -> Dict[str, Any]:
         """Exchange authorization code for access tokens"""
         try:
+            if self.msal_app is None:
+                return {
+                    'ok': False,
+                    'error': 'MSAL not available',
+                    'message': 'Teams token exchange failed'
+                }
             # Acquire token by authorization code
             result = self.msal_app.acquire_token_by_authorization_code(
                 code=code,
@@ -638,7 +665,7 @@ class TeamsEnhancedService(IntegrationService):
                     name=channel_data.display_name,
                     display_name=channel_data.display_name,
                     description=channel_data.description,
-                    tenant_id=workspace_id,
+                    workspace_id=workspace_id,
                     channel_type=channel_data.membership_type,
                     email=channel_data.email,
                     web_url=channel_data.web_url,
@@ -668,7 +695,7 @@ class TeamsEnhancedService(IntegrationService):
                 self.redis_client.setex(
                     cache_key,
                     1800,  # 30 minutes
-                    json.dumps([asdict(c) for c in channels])
+                    json.dumps([asdict(c) for c in channels], default=str)
                 )
             
             return channels[:limit]
@@ -764,10 +791,13 @@ class TeamsEnhancedService(IntegrationService):
             query_params = {}
             if limit:
                 query_params['$top'] = limit
+            filter_parts = []
             if latest:
-                query_params['$filter'] = f"createdDateTime lt {latest}"
+                filter_parts.append(f"createdDateTime lt {latest}")
             if oldest:
-                query_params['$filter'] = f"createdDateTime gt {oldest}"
+                filter_parts.append(f"createdDateTime gt {oldest}")
+            if filter_parts:
+                query_params['$filter'] = ' and '.join(filter_parts)
             
             result = await client.teams[workspace_id].channels[channel_id].messages.get(**query_params)
             
@@ -785,6 +815,7 @@ class TeamsEnhancedService(IntegrationService):
                     user_name=getattr(msg_data, "from").additional_data.get('user', {}).get('displayName'),
                     user_email=getattr(msg_data, "from").additional_data.get('user', {}).get('emailAddress'),
                     channel_id=channel_id,
+                    workspace_id=workspace_id,
                     tenant_id=workspace_id,
                     timestamp=msg_data.created_datetime,
                     thread_id=msg_data.reply_to_id,
@@ -893,6 +924,7 @@ class TeamsEnhancedService(IntegrationService):
                             user_name=resource.get('from', {}).get('displayName'),
                             user_email=resource.get('from', {}).get('emailAddress'),
                             channel_id=resource.get('channelIdentity', {}).get('channelId'),
+                            workspace_id=workspace_id,
                             tenant_id=workspace_id,
                             timestamp=resource.get('createdDateTime'),
                             thread_id=resource.get('replyToId'),
@@ -911,7 +943,6 @@ class TeamsEnhancedService(IntegrationService):
                             edit_timestamp=resource.get('lastModifiedDateTime') if resource.get('lastModifiedDateTime') != resource.get('createdDateTime') else None,
                             channel_identity=resource.get('channelIdentity'),
                             participant_count=resource.get('participantCount', 0),
-                            metadata={'search_score': hit.get('score')}
                         )
                         messages.append(message)
                     
@@ -1102,7 +1133,7 @@ class TeamsEnhancedService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="microsoft_teams",
                         metric_key=key
                     ).first()
@@ -1112,7 +1143,7 @@ class TeamsEnhancedService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="microsoft_teams",
                             metric_key=key,
                             value=float(value),

@@ -254,10 +254,10 @@ class EpisodeService:
             EmbeddingService instance
         """
         if self._embedding_service is None:
-            # Lazy initialization - only create when first accessed
-            self._embedding_service = EmbeddingService(
-                tenant_api_key=self._tenant_api_key
-            )
+            # Lazy initialization - only create when first accessed.
+            # EmbeddingService no longer accepts a tenant_api_key (local
+            # FastEmbed is the default provider); passing one raises TypeError.
+            self._embedding_service = EmbeddingService()
         return self._embedding_service
 
     @embedding_service.setter
@@ -270,6 +270,29 @@ class EpisodeService:
         """
         self._embedding_service = value
 
+    def _get_embedding_dimension(self) -> int:
+        """Resolve the vector dimension for the current embedding service.
+
+        The real EmbeddingService has no ``get_embedding_dimension`` method
+        (removed when FastEmbed became the default provider); test mocks do
+        provide it. Prefer the method when present, otherwise derive a safe
+        default from the configured model/provider.
+        """
+        svc = self.embedding_service
+        getter = getattr(svc, "get_embedding_dimension", None)
+        if callable(getter):
+            try:
+                return int(getter())
+            except (TypeError, ValueError):
+                pass
+        model = str(getattr(svc, "model", "") or "").lower()
+        provider = str(getattr(svc, "provider", "") or "").lower()
+        if "1536" in model or "text-embedding-3" in model:
+            return 1536
+        if "1024" in model or "cohere" in provider:
+            return 1024
+        return 384  # FastEmbed default (BAAI/bge-small-en-v1.5)
+
     def _get_lancedb(self) -> Optional[LanceDBService]:
         """
         Get or initialize LanceDB service.
@@ -279,7 +302,7 @@ class EpisodeService:
         """
         if not self.lancedb:
             # Initialize LanceDB with correct vector dimension from embedding service
-            vector_dim = self.embedding_service.get_embedding_dimension()
+            vector_dim = self._get_embedding_dimension()
             self.lancedb = LanceDBService(vector_dim=vector_dim)
             if self.lancedb.connect():
                 self.lancedb.get_or_create_episodes_table()
@@ -1066,7 +1089,7 @@ class EpisodeService:
             except Exception as e:
                 logger.error(f"Failed to generate embedding for episode {episode_id}: {e}")
                 # Use zero embedding as fallback with correct dimension
-                vector_dim = self.embedding_service.get_embedding_dimension()
+                vector_dim = self._get_embedding_dimension()
                 embedding = [0.0] * vector_dim
 
             # Archive to LanceDB

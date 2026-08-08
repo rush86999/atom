@@ -6,8 +6,10 @@ Focus: OAuth context management, token refresh, validation, provider-specific fl
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from datetime import datetime, timedelta
+
+import core.oauth_handler as oauth_handler_module
 
 from core.oauth_user_context import (
     OAuthUserContext,
@@ -172,13 +174,19 @@ class TestTokenRetrieval:
             "expires_at": (datetime.now() + timedelta(hours=1)).isoformat()
         }
 
-        with patch("core.oauth_user_context.oauth_handler.refresh_token", return_value=new_token_data) as mock_refresh:
+        # OAuthUserContext._refresh_token resolves `oauth_handler` lazily via
+        # `from core.oauth_handler import oauth_handler`, so patch the attribute
+        # onto the core.oauth_handler module itself
+        mock_handler = Mock()
+        mock_handler.refresh_token = AsyncMock(return_value=new_token_data)
+        with patch.object(oauth_handler_module, "oauth_handler", mock_handler, create=True):
             token = await context.get_access_token()
 
             # Should have attempted refresh
-            mock_refresh.assert_called_once()
+            mock_handler.refresh_token.assert_called_once()
             # Token should be from new data or old if refresh failed
             assert token is not None
+            assert token == "new_access_token"
 
     @pytest.mark.asyncio
     async def test_get_access_token_exception_handling(
@@ -283,11 +291,16 @@ class TestTokenRefresh:
             "expires_at": (datetime.now() + timedelta(hours=1)).isoformat()
         }
 
-        with patch("api.oauth_handler.oauth_handler.refresh_token", return_value=new_token_data) as mock_refresh:
+        # OAuthUserContext._refresh_token resolves `oauth_handler` lazily via
+        # `from core.oauth_handler import oauth_handler`, so patch the attribute
+        # onto the core.oauth_handler module itself
+        mock_handler = Mock()
+        mock_handler.refresh_token = AsyncMock(return_value=new_token_data)
+        with patch.object(oauth_handler_module, "oauth_handler", mock_handler, create=True):
             result = await context._refresh_token(expired_connection)
 
             assert result["access_token"] == "new_access_token"
-            mock_refresh.assert_called_once()
+            mock_handler.refresh_token.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_refresh_token_no_refresh_token(
@@ -309,7 +322,9 @@ class TestTokenRefresh:
         context = OAuthUserContext(user_id="user123", provider="google")
 
         # Mock refresh to return None or empty
-        with patch("core.oauth_user_context.oauth_handler.refresh_token", return_value=None):
+        mock_handler = Mock()
+        mock_handler.refresh_token = AsyncMock(return_value=None)
+        with patch.object(oauth_handler_module, "oauth_handler", mock_handler, create=True):
             result = await context._refresh_token(expired_connection)
 
             # Should return original connection unchanged
@@ -322,7 +337,9 @@ class TestTokenRefresh:
         """Test exception handling in token refresh."""
         context = OAuthUserContext(user_id="user123", provider="google")
 
-        with patch("core.oauth_user_context.oauth_handler.refresh_token", side_effect=Exception("Refresh failed")):
+        mock_handler = Mock()
+        mock_handler.refresh_token = AsyncMock(side_effect=Exception("Refresh failed"))
+        with patch.object(oauth_handler_module, "oauth_handler", mock_handler, create=True):
             result = await context._refresh_token(expired_connection)
 
             # Should return original connection on error
@@ -441,7 +458,7 @@ class TestAccessValidation:
             mock_client_instance = MagicMock()
             mock_response = MagicMock()
             mock_response.status_code = 200
-            mock_client_instance.get.return_value = mock_response
+            mock_client_instance.get = AsyncMock(return_value=mock_response)
             mock_client_class.return_value.__aenter__.return_value = mock_client_instance
 
             result = await context.validate_access()
@@ -460,7 +477,7 @@ class TestAccessValidation:
             mock_client_instance = MagicMock()
             mock_response = MagicMock()
             mock_response.status_code = 401
-            mock_client_instance.get.return_value = mock_response
+            mock_client_instance.get = AsyncMock(return_value=mock_response)
             mock_client_class.return_value.__aenter__.return_value = mock_client_instance
 
             result = await context.validate_access()
@@ -490,7 +507,7 @@ class TestAccessValidation:
             mock_client_instance = MagicMock()
             mock_response = MagicMock()
             mock_response.status_code = 200
-            mock_client_instance.get.return_value = mock_response
+            mock_client_instance.get = AsyncMock(return_value=mock_response)
             mock_client_class.return_value.__aenter__.return_value = mock_client_instance
 
             result = await context.validate_access()
@@ -510,7 +527,7 @@ class TestAccessValidation:
             mock_client_instance = MagicMock()
             mock_response = MagicMock()
             mock_response.status_code = 401
-            mock_client_instance.get.return_value = mock_response
+            mock_client_instance.get = AsyncMock(return_value=mock_response)
             mock_client_class.return_value.__aenter__.return_value = mock_client_instance
 
             result = await context.validate_access()
@@ -528,7 +545,7 @@ class TestAccessValidation:
 
         with patch("slack_sdk.web.async_client.AsyncWebClient") as mock_web_client_class:
             mock_client_instance = MagicMock()
-            mock_client_instance.auth_test.return_value = {"ok": True}
+            mock_client_instance.auth_test = AsyncMock(return_value={"ok": True})
             mock_web_client_class.return_value = mock_client_instance
 
             result = await context.validate_access()

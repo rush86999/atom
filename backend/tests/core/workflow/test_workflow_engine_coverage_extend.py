@@ -667,10 +667,10 @@ class TestWorkflowEngineCoverageExtend:
             ]
         }
 
-        # Should handle gracefully (topological sort may not include all)
-        steps = engine._convert_nodes_to_steps(workflow)
-
-        assert isinstance(steps, list)
+        # Cycle detection must reject circular workflows loudly (updated:
+        # engine raises ValueError instead of silently truncating the list).
+        with pytest.raises(ValueError):
+            engine._convert_nodes_to_steps(workflow)
 
     def test_large_workflow_performance(self):
         """Cover handling of large workflow (50+ nodes)"""

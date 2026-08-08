@@ -181,8 +181,8 @@ class TestLiteLLMFetch:
 
             result = await pricing_fetcher.fetch_litellm_pricing()
 
-            # 4 from mock + 4 MiniMax fallback models (M3, M3-highspeed, M2.7, M2.7-highspeed)
-            assert len(result) == 8
+            # 4 from mock + 13 fallbacks (4 MiniMax, 4 GLM, 4 Kimi, 1 LUX)
+            assert len(result) == 17
             assert "gpt-4o" in result
             assert result["gpt-4o"]["input_cost_per_token"] == 0.000005
             assert result["gpt-4o"]["source"] == "litellm"
@@ -257,8 +257,9 @@ class TestOpenRouterFetch:
             mock_client_class.return_value.__aenter__.return_value = mock_client
             
             result = await pricing_fetcher.fetch_openrouter_pricing()
-            
-            assert len(result) == 2
+
+            # 2 from mock + 1 curated override (openrouter/owl-alpha)
+            assert len(result) == 3
             assert "openai/gpt-4o" in result
             assert result["openai/gpt-4o"]["input_cost_per_token"] == 0.000005
 
@@ -320,12 +321,12 @@ class TestRefreshPricing:
         
         with patch.object(pricing_fetcher, 'fetch_litellm_pricing', AsyncMock(return_value=litellm_data)):
             with patch.object(pricing_fetcher, 'fetch_openrouter_pricing', AsyncMock(return_value=openrouter_data)):
-                
-                await pricing_fetcher.refresh_pricing(force=True)
-                
-                assert "gpt-4o" in pricing_fetcher.pricing_cache
-                assert "claude-3-5-sonnet" in pricing_fetcher.pricing_cache
-                assert len(pricing_fetcher.pricing_cache) == 2
+                with patch.object(pricing_fetcher, 'fetch_opencode_pricing', AsyncMock(return_value={})):
+                    await pricing_fetcher.refresh_pricing(force=True)
+                    
+                    assert "gpt-4o" in pricing_fetcher.pricing_cache
+                    assert "claude-3-5-sonnet" in pricing_fetcher.pricing_cache
+                    assert len(pricing_fetcher.pricing_cache) == 2
 
     @pytest.mark.asyncio
     async def test_refresh_pricing_updates_timestamp(self, pricing_fetcher):

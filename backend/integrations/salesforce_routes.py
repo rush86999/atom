@@ -49,6 +49,8 @@ from integrations.integration_helpers import (
 
 from .auth_handler_salesforce import salesforce_auth_handler
 
+logger = logging.getLogger(__name__)
+
 # Create router
 # Auth Type: OAuth2
 router = APIRouter(prefix="/api/salesforce", tags=["salesforce"])

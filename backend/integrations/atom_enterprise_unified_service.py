@@ -197,6 +197,8 @@ class AtomEnterpriseUnifiedService:
         self.security_workflow_actions: Dict[str, SecurityWorkflowAction] = {}
         self.compliance_automations: Dict[str, ComplianceAutomation] = {}
         self.active_automations: Dict[str, Dict[str, Any]] = {}
+        self.active_workflows: Dict[str, Any] = {}
+        self.workflow_monitoring: Dict[str, Dict[str, Any]] = {}
         
         # Enterprise analytics
         self.enterprise_metrics = {
@@ -545,6 +547,7 @@ class AtomEnterpriseUnifiedService:
             automation_config = {
                 'automation_id': automation_id,
                 'workflow_id': workflow_result['workflow_id'],
+                'automation_type': 'security',
                 'threat_types': automation_data.get('threat_types', []),
                 'severity_levels': automation_data.get('severity_levels', ['high', 'critical']),
                 'response_automations': automation_data.get('response_automations', []),
@@ -792,14 +795,23 @@ class AtomEnterpriseUnifiedService:
             
             # Find relevant compliance automations
             relevant_automations = []
-            for automation_id, automation in self.compliance_automations.items():
-                if automation.compliance_standard.value == standard:
+            for _automation_id, automation in self.compliance_automations.items():
+                if getattr(automation.compliance_standard, "value", automation.compliance_standard) == standard:
                     relevant_automations.append(automation)
             
             # Execute relevant automations
             execution_results = []
             for automation in relevant_automations:
-                workflow_id = f"compliance_wf_{automation_id}"
+                # Map back to the enterprise workflow that backs this automation
+                # (created via create_compliance_automation -> create_enterprise_workflow).
+                workflow_id = next(
+                    (
+                        wf.workflow_id
+                        for wf in self.enterprise_workflows.values()
+                        if wf.metadata.get("automation_id") == automation.automation_id
+                    ),
+                    f"compliance_wf_{automation.automation_id}",
+                )
                 
                 # Create and execute workflow
                 execution_result = await self.execute_enterprise_workflow(
@@ -1302,12 +1314,12 @@ class AtomEnterpriseUnifiedService:
     async def _handle_security_alert(self, alert: Dict[str, Any], workflow: EnterpriseWorkflow, step: Dict[str, Any], user_id: str):
         """Handle security alert"""
         try:
-            logger.warning(f"Security alert triggered for workflow {workflow.id}: {alert}")
+            logger.warning(f"Security alert triggered for workflow {workflow.workflow_id}: {alert}")
             # Log the alert
-            if self.security_service:
+            if self.security_service and hasattr(self.security_service, 'log_security_alert'):
                 await self.security_service.log_security_alert(
                     alert=alert,
-                    workflow_id=workflow.id,
+                    workflow_id=workflow.workflow_id,
                     step_id=step.get("id"),
                     user_id=user_id
                 )
@@ -1315,10 +1327,10 @@ class AtomEnterpriseUnifiedService:
             severity = alert.get("severity", "medium")
             if severity == "high":
                 # Block workflow execution
-                await self._block_workflow_execution(workflow.id, reason="Security alert")
+                await self._block_workflow_execution(workflow.workflow_id, reason="Security alert")
             elif severity == "medium":
                 # Continue but with monitoring
-                await self._increase_workflow_monitoring(workflow.id)
+                await self._increase_workflow_monitoring(workflow.workflow_id)
             # Notify administrators
             await self._notify_security_team(alert, workflow, user_id)
         except Exception as e:
@@ -1327,12 +1339,12 @@ class AtomEnterpriseUnifiedService:
     async def _handle_compliance_violation(self, violation: Dict[str, Any], workflow: EnterpriseWorkflow, step: Dict[str, Any], user_id: str):
         """Handle compliance violation"""
         try:
-            logger.warning(f"Compliance violation detected for workflow {workflow.id}: {violation}")
+            logger.warning(f"Compliance violation detected for workflow {workflow.workflow_id}: {violation}")
             # Log the violation
-            if self.security_service:
+            if self.security_service and hasattr(self.security_service, 'log_compliance_violation'):
                 await self.security_service.log_compliance_violation(
                     violation=violation,
-                    workflow_id=workflow.id,
+                    workflow_id=workflow.workflow_id,
                     step_id=step.get("id"),
                     user_id=user_id
                 )
@@ -1340,10 +1352,10 @@ class AtomEnterpriseUnifiedService:
             severity = violation.get("severity", "medium")
             if severity == "high":
                 # Block workflow execution
-                await self._block_workflow_execution(workflow.id, reason="Compliance violation")
+                await self._block_workflow_execution(workflow.workflow_id, reason="Compliance violation")
             elif severity == "medium":
                 # Continue but with enhanced logging
-                await self._enable_compliance_logging(workflow.id)
+                await self._enable_compliance_logging(workflow.workflow_id)
             # Notify compliance team
             await self._notify_compliance_team(violation, workflow, user_id)
         except Exception as e:
@@ -1353,9 +1365,11 @@ class AtomEnterpriseUnifiedService:
         """Block workflow execution"""
         try:
             logger.warning(f"Blocking workflow {workflow_id} execution: {reason}")
-            # Update workflow status
+            # Update workflow status in whichever registry holds it
             if workflow_id in self.active_workflows:
                 self.active_workflows[workflow_id].status = "blocked"
+            if workflow_id in self.enterprise_workflows:
+                self.enterprise_workflows[workflow_id].status = "blocked"
             logger.info(f"Workflow {workflow_id} blocked successfully")
         except Exception as e:
             logger.error(f"Error blocking workflow: {e}")
@@ -1523,4 +1537,4 @@ _ai_integration = globals().get('atom_ai_integration')
 if _ai_integration:
     _enterprise_config['ai_integration'] = _ai_integration
 
-atom_enterprise_unified_service = AtomEnterpriseUnifiedService(_enterprise_config)
+atom_enterprise_unified_service = AtomEnterpriseUnifiedService(config=_enterprise_config)

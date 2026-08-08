@@ -103,6 +103,8 @@ async def create_debug_session(
         }
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error creating debug session: {e}")
         raise router.internal_error(
             message="Failed to create debug session",
@@ -138,6 +140,8 @@ async def get_debug_sessions(
         ]
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error getting debug sessions: {e}")
         raise router.internal_error(
             message="Failed to retrieve debug sessions",
@@ -162,6 +166,8 @@ async def pause_debug_session(
         return {"message": "Debug session paused", "session_id": session_id}
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error pausing debug session: {e}")
         raise router.internal_error(
             message="Failed to pause debug session",
@@ -186,6 +192,8 @@ async def resume_debug_session(
         return {"message": "Debug session resumed", "session_id": session_id}
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error resuming debug session: {e}")
         raise router.internal_error(
             message="Failed to resume debug session",
@@ -210,6 +218,8 @@ async def complete_debug_session(
         return {"message": "Debug session completed", "session_id": session_id}
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error completing debug session: {e}")
         raise router.internal_error(
             message="Failed to complete debug session",
@@ -257,6 +267,8 @@ async def add_breakpoint(
         }
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error adding breakpoint: {e}")
         raise router.internal_error(
             message="Failed to add breakpoint",
@@ -297,6 +309,8 @@ async def get_breakpoints(
         ]
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error getting breakpoints: {e}")
         raise router.internal_error(
             message="Failed to retrieve breakpoints",
@@ -321,6 +335,8 @@ async def remove_breakpoint(
         return {"message": "Breakpoint removed", "breakpoint_id": breakpoint_id}
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error removing breakpoint: {e}")
         raise router.internal_error(
             message="Failed to remove breakpoint",
@@ -349,6 +365,8 @@ async def toggle_breakpoint(
         }
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error toggling breakpoint: {e}")
         raise router.internal_error(
             message="Failed to toggle breakpoint",
@@ -391,6 +409,8 @@ async def step_execution(
         return result
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error controlling step execution: {e}")
         raise router.internal_error(
             message="Failed to control step execution",
@@ -433,6 +453,8 @@ async def create_trace(
         }
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error creating trace: {e}")
         raise router.internal_error(
             message="Failed to create execution trace",
@@ -463,6 +485,8 @@ async def complete_trace(
         return {"message": "Trace completed", "trace_id": trace_id}
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error completing trace: {e}")
         raise router.internal_error(
             message="Failed to complete execution trace",
@@ -505,6 +529,8 @@ async def get_execution_traces(
         ]
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error getting execution traces: {e}")
         raise router.internal_error(
             message="Failed to retrieve execution traces",
@@ -545,6 +571,8 @@ async def get_session_variables(
         ]
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error getting session variables: {e}")
         raise router.internal_error(
             message="Failed to retrieve session variables",
@@ -580,6 +608,8 @@ async def get_trace_variables(
         ]
 
     except Exception as e:
+        if e.__class__.__name__ == 'HTTPException':
+            raise
         logger.error(f"Error getting trace variables: {e}")
         raise router.internal_error(
             message="Failed to retrieve trace variables",

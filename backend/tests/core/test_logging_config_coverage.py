@@ -14,6 +14,7 @@ from pathlib import Path
 from core.logging_config import (
     setup_logging,
     get_logger,
+    get_correlation_id,
     ColoredFormatter,
     LogColors,
     bind_context,
@@ -256,17 +257,18 @@ class TestLogContext:
         """Test that bind_context ignores None values."""
         bind_context(
             correlation_id="corr-123",
+            user_id="existing-user",
+            request_id="req-123"
+        )
+        bind_context(
+            correlation_id="corr-123",
             user_id=None,  # Should be ignored
             request_id="req-123"
         )
 
         assert CORRELATION_ID.get() == "corr-123"
-        # USER_ID should not be set
-        try:
-            USER_ID.get()
-            assert False, "Should raise LookupError"
-        except LookupError:
-            pass  # Expected
+        # USER_ID should not be overwritten with None
+        assert USER_ID.get() == "existing-user"
 
     def test_get_context(self):
         """Test getting all context variables."""

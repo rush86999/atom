@@ -18,6 +18,7 @@ PARTIAL COVERAGE ACCEPTED:
 """
 
 import pytest
+from types import SimpleNamespace
 from unittest.mock import Mock, AsyncMock, patch, MagicMock, call
 from datetime import datetime
 import asyncio
@@ -841,6 +842,7 @@ class TestErrorRecoveryAndRetry:
     @patch('core.service_factory.ServiceFactory.get_llm_service')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
+    @patch.object(AtomMetaAgent, '_check_budget_before_react', new=AsyncMock(return_value={"allowed": True, "reason": "ok"}))
     @pytest.mark.asyncio
     async def test_execution_creation_error_handling(self, mock_session, mock_canvas, mock_llm, mock_mcp, mock_orchestrator, mock_world_model):
         """Cover execution creation error handling (lines 228-232)"""
@@ -853,30 +855,38 @@ class TestErrorRecoveryAndRetry:
         # Mock MCP tools
         mock_mcp.get_all_tools = AsyncMock(return_value=[])
 
-        # Mock WorldModel
-        mock_world_model_instance = MagicMock()
-        mock_world_model_instance.recall_experiences = AsyncMock(return_value={})
-        mock_world_model.return_value = mock_world_model_instance
+        # Mock NLU routing (avoids real LLM calls from ai.nlp_engine)
+        with patch('core.atom_meta_agent.NaturalLanguageEngine') as mock_nlu_cls:
+            mock_nlu = AsyncMock()
+            mock_nlu.classify_route = AsyncMock(return_value=SimpleNamespace(
+                category=SimpleNamespace(value="one_off"), reasoning="test"
+            ))
+            mock_nlu_cls.return_value = mock_nlu
 
-        # Mock BYOK LLM
-        mock_react_step = ReActStep(
-            thought="Done",
-            action=None,
-            final_answer="Complete"
-        )
-        mock_llm_instance = MagicMock()
-        mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
-        agent = AtomMetaAgent()
-        agent.llm = mock_llm_instance
+            # Mock WorldModel
+            mock_world_model_instance = MagicMock()
+            mock_world_model_instance.recall_experiences = AsyncMock(return_value={})
+            mock_world_model.return_value = mock_world_model_instance
 
-        # Mock _record_execution
-        agent._record_execution = AsyncMock()
+            # Mock BYOK LLM
+            mock_react_step = ReActStep(
+                thought="Done",
+                action=None,
+                final_answer="Complete"
+            )
+            mock_llm_instance = MagicMock()
+            mock_llm_instance.generate_structured_response = AsyncMock(return_value=mock_react_step)
+            agent = AtomMetaAgent()
+            agent.llm = mock_llm_instance
 
-        # Execution creation failure should be caught and logged, not raised
-        result = await agent.execute("test request")
-        assert result is not None
-        assert result["status"] == "success"
-        assert result["final_output"] == "Complete"
+            # Mock _record_execution
+            agent._record_execution = AsyncMock()
+
+            # Execution creation failure should be caught and logged, not raised
+            result = await agent.execute("test request")
+            assert result is not None
+            assert result["status"] == "success"
+            assert result["final_output"] == "Complete"
 
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')

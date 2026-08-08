@@ -443,7 +443,7 @@ class OutlookEnhancedService:
 
             response.raise_for_status()
 
-            if response.status == 204:  # No content
+            if response.status in (202, 204):  # No content (202 = sendMail Accepted)
                 return {"success": True}
 
             return await response.json()

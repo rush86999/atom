@@ -16,6 +16,7 @@ import asyncio
 import gzip
 import json
 import os
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -349,21 +350,25 @@ class HybridDebugStorage:
         self,
         component_type: str,
         component_id: str,
-        operation_id: str,
+        operation_id: Optional[str] = None,
         checkpoint_name: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Retrieve state snapshot from storage."""
+        """
+        Retrieve state snapshot from storage.
+
+        Args:
+            component_type: Component type (agent, workflow, system)
+            component_id: Component ID
+            operation_id: Legacy operation ID (no longer stored on the model)
+            checkpoint_name: Legacy checkpoint name (no longer stored on the model)
+        """
         try:
             query = self.db.query(DebugStateSnapshot).filter(
                 and_(
                     DebugStateSnapshot.component_type == component_type,
                     DebugStateSnapshot.component_id == component_id,
-                    DebugStateSnapshot.operation_id == operation_id,
                 )
             )
-
-            if checkpoint_name:
-                query = query.filter(DebugStateSnapshot.checkpoint_name == checkpoint_name)
 
             snapshot = query.order_by(DebugStateSnapshot.captured_at.desc()).first()
 
@@ -439,7 +444,7 @@ class HybridDebugStorage:
             # Clean up old archived files
             archive_cutoff = datetime.now(timezone.utc) - timedelta(days=90)
             for archive_file in self.archive_path.glob("*.json.gz"):
-                file_mtime = datetime.fromtimestamp(archive_file.stat().st_mtime)
+                file_mtime = datetime.fromtimestamp(archive_file.stat().st_mtime, tz=timezone.utc)
                 if file_mtime < archive_cutoff:
                     archive_file.unlink()
                     self.logger.info(f"Deleted old archive: {archive_file}")
@@ -614,11 +619,9 @@ class HybridDebugStorage:
             "id": snapshot.id,
             "component_type": snapshot.component_type,
             "component_id": snapshot.component_id,
-            "operation_id": snapshot.operation_id,
-            "checkpoint_name": snapshot.checkpoint_name,
-            "state_data": snapshot.state_data,
-            "diff_from_previous": snapshot.diff_from_previous,
             "snapshot_type": snapshot.snapshot_type,
+            "state_data": snapshot.state_data,
+            "snapshot_metadata": snapshot.snapshot_metadata,
             "captured_at": snapshot.captured_at.isoformat() if snapshot.captured_at else None,
         }
 

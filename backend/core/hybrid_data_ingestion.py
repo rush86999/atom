@@ -362,7 +362,10 @@ class HybridDataIngestionService:
                     
                     # Also ingest into GraphRAG for entity/relationship extraction
                     if self.graphrag:
-                        graphrag_result = self.graphrag.ingest_document(
+                        # ingest_document is a coroutine — must be awaited, or
+                        # the truthy coroutine crashes on .get() and every
+                        # record is recorded as an error.
+                        graphrag_result = await self.graphrag.ingest_document(
                             workspace_id=self.workspace_id,
                             doc_id=f"{integration_id}_{record.get('id', 'unknown')}",
                             text=text,

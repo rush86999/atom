@@ -59,16 +59,18 @@ class HubSpotService(IntegrationService):
         try:
             # Basic health check - verify service can be initialized
             return {
-                "healthy": True,
-                "message": "HubSpot service is healthy",
+                "ok": True,
+                "status": "healthy",
                 "service": "hubspot",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
+                "version": "1.0.0",
             }
         except Exception as e:
             return {
-                "healthy": False,
-                "message": str(e),
+                "ok": False,
+                "status": "unhealthy",
                 "service": "hubspot",
+                "error": str(e),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
@@ -656,7 +658,7 @@ class HubSpotService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="hubspot",
                         metric_key=key
                     ).first()
@@ -666,7 +668,7 @@ class HubSpotService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="hubspot",
                             metric_key=key,
                             value=float(value),

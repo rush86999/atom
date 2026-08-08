@@ -4,7 +4,7 @@ import logging
 import asyncio
 import aiohttp
 from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, asdict
 import urllib.parse
 from core.integration_service import IntegrationService
@@ -165,7 +165,6 @@ class OutlookService(IntegrationService):
         except Exception as e:
             logger.error(f"Error getting access token for user {user_id}: {e}")
             return None
-            return None
 
     def _is_token_expired(self, tokens: Dict[str, Any]) -> bool:
         """Check if access token is expired"""
@@ -174,8 +173,11 @@ class OutlookService(IntegrationService):
             return True
 
         try:
-            expires_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-            return datetime.now(timezone.utc).astimezone() >= expires_dt
+            if isinstance(expires_at, (int, float)):
+                expires_dt = datetime.fromtimestamp(expires_at, tz=timezone.utc)
+            else:
+                expires_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+            return datetime.now(timezone.utc) >= expires_dt
         except Exception:
             return True
 
@@ -247,8 +249,10 @@ class OutlookService(IntegrationService):
     async def _handle_response(self, response) -> Optional[Dict[str, Any]]:
         """Handle API response"""
         try:
-            if response.status == 200 or response.status == 201:
-                return await response.json()
+            if response.status in (200, 201, 202):
+                # 202 Accepted is the documented success response for
+                # POST /me/sendMail (no body is returned).
+                return await response.json() if response.status != 202 else {"success": True}
             elif response.status == 204:
                 return {"success": True}
             else:
@@ -525,8 +529,6 @@ class OutlookService(IntegrationService):
             if params:
                 query_string = "&".join([f"{k}={v}" for k, v in params.items()])
                 endpoint = f"/me/events?{query_string}"
-            else:
-                endpoint = "/me/events"
 
             result = await self._make_graph_request(user_id, endpoint, access_token=token)
 
@@ -631,8 +633,6 @@ class OutlookService(IntegrationService):
             if params:
                 query_string = "&".join([f"{k}={v}" for k, v in params.items()])
                 endpoint = f"/me/contacts?{query_string}"
-            else:
-                endpoint = "/me/contacts"
 
             result = await self._make_graph_request(user_id, endpoint, access_token=token)
 
@@ -713,8 +713,6 @@ class OutlookService(IntegrationService):
             if params:
                 query_string = "&".join([f"{k}={v}" for k, v in params.items()])
                 endpoint = f"/me/todo/lists/tasks/tasks?{query_string}"
-            else:
-                endpoint = "/me/todo/lists/tasks/tasks"
 
             result = await self._make_graph_request(user_id, endpoint, access_token=token)
 
@@ -1090,22 +1088,28 @@ class OutlookService(IntegrationService):
             for event in events:
                 # Normalize for pipeline
                 # Outlook events from get_calendar_events are dictionaries
+                start = event.get("start", {}).get("dateTime", "")
+                end = event.get("end", {}).get("dateTime", "")
                 normalized_event = {
                     "id": event.get("id"),
                     "title": event.get("subject", "No Title"),
-                    "description": event.get("bodyPreview"),
-                    "location": event.get("location", {}).get("displayName"),
-                    "start_time": datetime.fromisoformat(event["start"]["dateTime"].split('.')[0]),
-                    "end_time": datetime.fromisoformat(event["end"]["dateTime"].split('.')[0]),
-                    "attendees": [
-                        {"email": a["emailAddress"]["address"], "name": a["emailAddress"]["name"]} 
-                        for a in event.get("attendees", [])
-                    ],
-                    "organizer": event.get("organizer", {}).get("emailAddress", {}).get("address"),
-                    "metadata": event,
-                    "tenant_id": user_id
+                    "content": event.get("bodyPreview") or event.get("subject", "No Title"),
+                    "sender": event.get("organizer", {}).get("emailAddress", {}).get("address"),
+                    "timestamp": start,
+                    "metadata": {
+                        "description": event.get("bodyPreview"),
+                        "location": event.get("location", {}).get("displayName"),
+                        "start_time": start,
+                        "end_time": end,
+                        "attendees": [
+                            {"email": a["emailAddress"]["address"], "name": a["emailAddress"]["name"]}
+                            for a in event.get("attendees", [])
+                        ],
+                        "organizer": event.get("organizer", {}).get("emailAddress", {}).get("address"),
+                        "tenant_id": user_id
+                    }
                 }
-                pipeline.ingest_calendar_event("outlook_calendar", normalized_event)
+                await pipeline.ingest_message("outlook_calendar", normalized_event)
                 
             return events
         except Exception as e:

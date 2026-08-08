@@ -6,7 +6,7 @@ Provides AI-generated personalized learning plans with progress tracking.
 
 import logging
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Any, List, Optional
 from uuid import uuid4
 
 from fastapi import Depends, HTTPException, Request
@@ -22,6 +22,59 @@ from integrations.notion_service import NotionService
 
 router = BaseAPIRouter(prefix="/api/v1/learning", tags=["learning-plans"])
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Stub-model compatibility: core.models.LearningPlan is a stub (the Hive model
+# port dropped target_skill_level/milestones/assessment_criteria/notion_page_id
+# and made progress an Integer). The routes persist the full payload inside
+# the `modules` JSON column as a sidecar and keep the Integer `progress`
+# column as the aggregate 0-100 percentage. Legacy rows whose `modules` is a
+# plain list (pre-sidecar) decode gracefully.
+# ---------------------------------------------------------------------------
+
+def _encode_plan_payload(
+    modules: List[dict],
+    target_skill_level: str,
+    milestones: List[str],
+    assessment_criteria: List[str],
+    notion_page_id: Optional[str],
+    progress: dict,
+) -> dict:
+    """Encode the full plan payload for the `modules` JSON column."""
+    return {
+        "modules": modules,
+        "target_skill_level": target_skill_level,
+        "milestones": milestones,
+        "assessment_criteria": assessment_criteria,
+        "notion_page_id": notion_page_id,
+        "progress": progress,
+    }
+
+
+def _decode_plan_payload(modules_json: Any) -> dict:
+    """Decode the sidecar; plain-list legacy rows are wrapped with defaults.
+
+    Returns a shallow copy so callers can mutate (e.g. set notion_page_id)
+    without aliasing the ORM attribute's in-memory dict — mutating the same
+    object in place and reassigning it registers no SQLAlchemy change and the
+    UPDATE is silently skipped.
+    """
+    if isinstance(modules_json, dict) and isinstance(modules_json.get("modules"), list):
+        return dict(modules_json)
+    return {
+        "modules": modules_json or [],
+        "target_skill_level": "intermediate",
+        "milestones": [],
+        "assessment_criteria": [],
+        "notion_page_id": None,
+        "progress": {
+            "completed_modules": [],
+            "feedback_scores": {},
+            "time_spent": {},
+            "adjustments_made": [],
+        },
+    }
 
 
 # Request/Response Models
@@ -281,6 +334,12 @@ async def export_learning_plan_to_notion(
     try:
         notion = NotionService(access_token=notion_token)
 
+        # Stub-model compatibility: milestones/target level live in the
+        # modules sidecar, not as ORM columns.
+        payload = _decode_plan_payload(plan.modules)
+        milestones = payload.get("milestones") or []
+        target_level = payload.get("target_skill_level") or plan.current_skill_level
+
         # Create parent reference to database
         parent = {"type": "database_id", "database_id": plan.notion_database_id}
 
@@ -302,7 +361,7 @@ async def export_learning_plan_to_notion(
             },
             "Target Level": {
                 "select": {
-                    "name": plan.target_skill_level.capitalize()
+                    "name": target_level.capitalize()
                 }
             },
             "Duration (weeks)": {
@@ -319,7 +378,7 @@ async def export_learning_plan_to_notion(
         children = []
 
         # Add milestones section
-        if plan.milestones:
+        if milestones:
             children.append({
                 "object": "block",
                 "type": "heading_2",
@@ -327,7 +386,7 @@ async def export_learning_plan_to_notion(
                     "rich_text": [{"type": "text", "text": {"content": "🎯 Milestones"}}]
                 }
             })
-            for milestone in plan.milestones:
+            for milestone in milestones:
                 children.append({
                     "object": "block",
                     "type": "bulleted_list_item",
@@ -480,26 +539,36 @@ async def create_learning_plan(
 
         # Convert modules to dict for JSON storage
         modules_dict = [m.model_dump() for m in modules]
+        progress: dict = {
+            "completed_modules": [],
+            "feedback_scores": {},
+            "time_spent": {},
+            "adjustments_made": []
+        }
 
-        # Save to database
+        # Save to database — stub-model compatible: the full payload goes in
+        # the `modules` JSON column (sidecar); the Integer `progress` column
+        # holds the aggregate 0-100 percentage.
         learning_plan = LearningPlan(
             id=plan_id,
             user_id=current_user.id,
             topic=payload.topic,
             current_skill_level=payload.current_skill_level,
-            target_skill_level=target_level,
             duration_weeks=payload.duration_weeks,
-            modules=modules_dict,
-            milestones=milestones,
-            assessment_criteria=assessment_criteria,
-            progress={
-                "completed_modules": [],
-                "feedback_scores": {},
-                "time_spent": {},
-                "adjustments_made": []
-            },
+            modules=_encode_plan_payload(
+                modules=modules_dict,
+                target_skill_level=target_level,
+                milestones=milestones,
+                assessment_criteria=assessment_criteria,
+                notion_page_id=None,
+                progress=progress,
+            ),
+            learning_goals=payload.learning_goals,
+            time_commitment=payload.time_commitment,
+            preferred_format=payload.preferred_format,
+            progress=0,
+            status="active",
             notion_database_id=payload.notion_database_id,
-            notion_page_id=None
         )
 
         db.add(learning_plan)
@@ -536,8 +605,11 @@ async def create_learning_plan(
                 )
 
                 if notion_page_id:
-                    # Update the plan with the Notion page ID
-                    learning_plan.notion_page_id = notion_page_id
+                    # Update the plan with the Notion page ID (sidecar — the
+                    # ORM model has no notion_page_id column).
+                    plan_payload = _decode_plan_payload(learning_plan.modules)
+                    plan_payload["notion_page_id"] = notion_page_id
+                    learning_plan.modules = plan_payload
                     db.commit()
                     logger.info(f"Learning plan exported to Notion: page_id={notion_page_id}")
                 else:
@@ -595,21 +667,22 @@ async def get_learning_plan(
             detail="You do not have permission to access this learning plan"
         )
 
-    # Convert modules dict back to LearningModule objects
+    # Convert modules dict back to LearningModule objects (sidecar decode)
+    decoded = _decode_plan_payload(learning_plan.modules)
     modules = [
         LearningModule(**m) if isinstance(m, dict) else m
-        for m in learning_plan.modules
+        for m in decoded["modules"]
     ]
 
     return LearningPlanResponse(
         plan_id=learning_plan.id,
         topic=learning_plan.topic,
         current_skill_level=learning_plan.current_skill_level,
-        target_skill_level=learning_plan.target_skill_level,
+        target_skill_level=decoded["target_skill_level"],
         duration_weeks=learning_plan.duration_weeks,
         modules=modules,
-        milestones=learning_plan.milestones,
-        assessment_criteria=learning_plan.assessment_criteria,
+        milestones=decoded["milestones"],
+        assessment_criteria=decoded["assessment_criteria"],
         created_at=learning_plan.created_at
     )
 
@@ -641,11 +714,11 @@ async def list_learning_plans(
                 "plan_id": plan.id,
                 "topic": plan.topic,
                 "current_skill_level": plan.current_skill_level,
-                "target_skill_level": plan.target_skill_level,
+                "target_skill_level": _decode_plan_payload(plan.modules)["target_skill_level"],
                 "duration_weeks": plan.duration_weeks,
                 "created_at": plan.created_at,
                 "updated_at": plan.updated_at,
-                "progress": plan.progress
+                "progress": _decode_plan_payload(plan.modules).get("progress", {})
             }
             for plan in plans
         ],
@@ -693,9 +766,12 @@ async def update_plan_progress(
             detail="You do not have permission to modify this learning plan"
         )
 
-    # Initialize progress if needed
-    if not learning_plan.progress:
-        learning_plan.progress = {
+    # Initialize progress if needed (sidecar decode — the ORM model has no
+    # progress dict column)
+    decoded = _decode_plan_payload(learning_plan.modules)
+    progress = decoded["progress"]
+    if not isinstance(progress, dict):
+        progress = {
             "completed_modules": [],
             "feedback_scores": {},
             "time_spent": {},
@@ -705,11 +781,11 @@ async def update_plan_progress(
     # Record progress
     week_str = str(request.module_week)
 
-    if week_str not in learning_plan.progress["completed_modules"]:
-        learning_plan.progress["completed_modules"].append(week_str)
+    if week_str not in progress["completed_modules"]:
+        progress["completed_modules"].append(week_str)
 
-    learning_plan.progress["feedback_scores"][week_str] = request.feedback_score
-    learning_plan.progress["time_spent"][week_str] = request.time_spent_hours
+    progress["feedback_scores"][week_str] = request.feedback_score
+    progress["time_spent"][week_str] = request.time_spent_hours
 
     # Adaptive learning adjustments
     adjustments = []
@@ -722,7 +798,7 @@ async def update_plan_progress(
             "action": "Added review modules and extended time for similar topics"
         }
         adjustments.append(adjustment)
-        learning_plan.progress["adjustments_made"].append(adjustment)
+        progress["adjustments_made"].append(adjustment)
         logger.info(f"Adaptive adjustment triggered for plan {plan_id}: remediation")
 
     elif request.feedback_score > 4 and request.time_spent_hours < 2:  # Excellent feedback, quick completion
@@ -734,15 +810,27 @@ async def update_plan_progress(
             "action": "Consider advancing to more advanced topics"
         }
         adjustments.append(adjustment)
-        learning_plan.progress["adjustments_made"].append(adjustment)
+        progress["adjustments_made"].append(adjustment)
         logger.info(f"Adaptive adjustment triggered for plan {plan_id}: acceleration")
 
+    learning_plan.modules = _encode_plan_payload(
+        modules=decoded["modules"],
+        target_skill_level=decoded["target_skill_level"],
+        milestones=decoded["milestones"],
+        assessment_criteria=decoded["assessment_criteria"],
+        notion_page_id=decoded["notion_page_id"],
+        progress=progress,
+    )
+    completed = len(progress["completed_modules"])
+    learning_plan.progress = min(
+        100, round(100 * completed / max(learning_plan.duration_weeks, 1))
+    )
     db.commit()
 
     return {
         "success": True,
         "message": "Progress updated successfully",
-        "progress": learning_plan.progress,
+        "progress": progress,
         "adjustments": adjustments
     }
 

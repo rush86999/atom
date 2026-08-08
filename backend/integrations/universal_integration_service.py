@@ -1,9 +1,11 @@
 
 import logging
+import os
 from typing import Dict, Any, List, Optional
 from core.database import SessionLocal
 from integrations.salesforce_service import SalesforceService
 from integrations.hubspot_service import get_hubspot_service
+from integrations.shopify_service import ShopifyService
 from core.circuit_breaker import circuit_breaker
 # governance_middleware is optional — the module may not exist in all setups.
 try:
@@ -120,7 +122,10 @@ class UniversalIntegrationService:
                 # --- Spend Attribution (Phase 44) ---
                 if result.get("status") in ("success", "error"):
                     cost = get_action_cost(service, action)
-                    budget_service.record_workspace_spend(workspace_id, cost)
+                    # budget_service is optional (guarded import) — core/budget_service
+                    # does not exist in this repo, so never crash on it.
+                    if budget_service is not None:
+                        budget_service.record_workspace_spend(workspace_id, cost)
                     
                 return result
                 
@@ -130,7 +135,8 @@ class UniversalIntegrationService:
             
             # Record spend even on crash if it was a real attempt
             cost = get_action_cost(service, action)
-            budget_service.record_workspace_spend(workspace_id, cost)
+            if budget_service is not None:
+                budget_service.record_workspace_spend(workspace_id, cost)
             
             return {"status": "error", "error": str(e)}
 
@@ -177,9 +183,9 @@ class UniversalIntegrationService:
             raise ValueError("user_id required for non-system agents")
         
         if service == "salesforce":
-            return await self._execute_salesforce(action, params, user_id)
+            return await self._execute_salesforce(action, params, user_id, context)
         elif service == "hubspot":
-            return await self._execute_hubspot(action, params)
+            return await self._execute_hubspot(action, params, context)
         elif service == "shopify":
             return await self._execute_shopify(action, params, context)
         elif service in ("google_chat", "telegram", "whatsapp", "slack", "teams", "discord", "zoom"):
@@ -212,11 +218,6 @@ class UniversalIntegrationService:
             return await self._execute_generic_native(service, action, params, context)
         else:
             return await self._execute_activepieces(service, action, params, context)
-
-        # If we reached here without exception, and it's not a known error status
-        circuit_breaker.record_success(service)
-        return result
-
 
     async def search(self, service: str, query: str, entity_type: str = None, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
@@ -272,12 +273,6 @@ class UniversalIntegrationService:
             logger.error(f"Universal Search Failed ({service}): {e}")
             circuit_breaker.record_failure(service, e)
             return {"status": "error", "message": str(e)}
-
-        # Success - wrap in success dictionary if not already
-        circuit_breaker.record_success(service)
-        if isinstance(result, dict) and "status" in result:
-            return result
-        return {"status": "success", "data": result}
 
     # --- Salesforce Implementation ---
     async def _execute_salesforce(self, action: str, params: Dict[str, Any], user_id: str, context: Dict[str, Any] = None) -> Any:
@@ -414,7 +409,9 @@ class UniversalIntegrationService:
             elif entity == "deal":
                 return {"status": "success", "data": await hs_service.update_deal(obj_id, data, token=token)}
             else:
-                return await hs_service.update_object(entity + "s", obj_id, data, token=token)
+                # Wrap like the other branches — the raw service result may not
+                # carry a "status" key, which crashed execute()'s result.get().
+                return {"status": "success", "data": await hs_service.update_object(entity + "s", obj_id, data, token=token)}
         
         return {"status": "error", "message": f"Action {action} not implemented for HubSpot {entity}"}
 
@@ -473,11 +470,13 @@ class UniversalIntegrationService:
                 comm_service = slack_unified_service # Fallback
 
             if action == "send_message":
-                return await comm_service.post_message(
+                # Wrapped like the other branches — raw service results may
+                # lack a "status" key and crash execute()'s result.get().
+                return {"status": "success", "data": await comm_service.post_message(
                     token=token,
                     channel_id=params.get("channel") or params.get("channel_id"),
                     text=params.get("message") or params.get("content")
-                )
+                )}
             elif action == "list_channels":
                 return {"status": "success", "data": await comm_service.list_channels(token)}
             elif action == "search_messages":
@@ -572,7 +571,7 @@ class UniversalIntegrationService:
                  from datetime import datetime
                  start = datetime.fromisoformat(params.get("start_time").replace("Z", "+00:00"))
                  end = datetime.fromisoformat(params.get("end_time").replace("Z", "+00:00"))
-                 return await cal_service.check_conflicts(start, end, token=token)
+                 return {"status": "success", "data": await cal_service.check_conflicts(start, end, token=token)}
                  
         elif service == "outlook_calendar":
             if action == "list":
@@ -926,8 +925,7 @@ class UniversalIntegrationService:
                     to=params.get("to", []),
                     subject=params.get("subject"),
                     html_body=params.get("html_body"),
-                    text_body=params.get("text_body"),
-                    from_email=params.get("from_email")
+                    text_body=params.get("text_body")
                 )}
             elif action == "get_quota":
                 return {"status": "success", "data": await fin_service.get_send_quota(tenant_id)}

@@ -39,6 +39,9 @@ def client(db_session: Session):
         yield db_session
 
     def override_get_current_user():
+        if _current_test_user is None:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=401, detail="Not authenticated")
         return _current_test_user
 
     app.dependency_overrides[get_db] = override_get_db
@@ -84,7 +87,7 @@ def test_list_sessions_success(
 
     with patch('core.atom_agent_endpoints.get_chat_session_manager') as mock_mgr:
         mock_session_mgr = Mock()
-        mock_mgr.list_user_sessions.return_value = [
+        mock_session_mgr.list_user_sessions.return_value = [
             {"session_id": "sess1", "last_active": "2026-04-30T10:00:00Z", "metadata": {"title": "Test"}}
         ]
         mock_mgr.return_value = mock_session_mgr
@@ -422,10 +425,10 @@ def test_chat_stream_success(
     }
 
     # Mock all the complex dependencies
-    with patch('core.atom_agent_endpoints.AgentContextResolver') as mock_resolver, \
-         patch('core.atom_agent_endpoints.AgentGovernanceService') as mock_gov, \
+    with patch('core.agent_context_resolver.AgentContextResolver') as mock_resolver, \
+         patch('core.agent_governance_service.AgentGovernanceService') as mock_gov, \
          patch('core.atom_agent_endpoints.LLMService') as mock_llm, \
-         patch('core.atom_agent_endpoints.ws_manager') as mock_ws:
+         patch('core.websockets.manager') as mock_ws:
 
         # Setup mocks
         mock_agent = Mock()
@@ -468,8 +471,8 @@ def test_chat_stream_governance_blocked(
         "user_id": mock_user.id
     }
 
-    with patch('core.atom_agent_endpoints.AgentContextResolver') as mock_resolver, \
-         patch('core.atom_agent_endpoints.AgentGovernanceService') as mock_gov, \
+    with patch('core.agent_context_resolver.AgentContextResolver') as mock_resolver, \
+         patch('core.agent_governance_service.AgentGovernanceService') as mock_gov, \
          patch('os.getenv') as mock_getenv:
 
         mock_getenv.return_value = "true"
@@ -716,7 +719,7 @@ def test_chat_session_lifecycle(
     with patch('core.atom_agent_endpoints.get_chat_session_manager') as mock_sess_mgr2, \
          patch('core.atom_agent_endpoints.classify_intent_with_llm') as mock_classify, \
          patch('core.atom_agent_endpoints.handle_help_request') as mock_help:
-        mock_session_mgr2.get_session.return_value = {
+        mock_sess_mgr2.return_value.get_session.return_value = {
             "session_id": session_id,
             "user_id": mock_user.id
         }

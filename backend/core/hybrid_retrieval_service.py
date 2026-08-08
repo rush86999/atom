@@ -216,7 +216,7 @@ class HybridRetrievalService:
         # Create (query, episode_text) pairs for cross-encoder
         episode_map = {ep.id: ep for ep in episodes}
         pairs = [
-            (query, episode_map[ep_id].summary or episode_map[ep_id].content or "")
+            (query, episode_map[ep_id].task_description or "")
             for ep_id, _ in candidates
             if ep_id in episode_map
         ]

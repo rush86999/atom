@@ -61,6 +61,25 @@ except Exception:
     get_automation_settings = None
     logger.warning("get_automation_settings not importable — finance/CRM chat handlers degraded")
 
+# Finance/accounting handler dependencies. These were referenced inside
+# _handle_finance_request but never imported — every finance chat request
+# crashed with NameError before reaching the accounting services.
+try:
+    from accounting.assistant import AccountingAssistant
+    from accounting.workflows import CollectionAgent
+    from accounting.close_agent import CloseChecklistAgent
+    from accounting.tax_service import TaxService
+    from accounting.fpa_service import FPAService
+    from accounting.multi_entity import IntercompanyManager
+except Exception:
+    AccountingAssistant = None
+    CollectionAgent = None
+    CloseChecklistAgent = None
+    TaxService = None
+    FPAService = None
+    IntercompanyManager = None
+    logger.warning("Accounting service modules not importable — finance chat handlers degraded")
+
 from core.database import SessionLocal
 
 REGULATORY_DISCLAIMER = "\n\n---\n*Disclaimer: ATOM's financial features are powered by AI and intended for strategic guidance. This system is not a licensed CPA or tax advisor. All automated records should be reviewed by a qualified professional before filing.*"
@@ -1150,6 +1169,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "suggested_actions": ["Enable Accounting in Settings"]
             }
         try:
+            if AccountingAssistant is None:
+                return {
+                    "success": False,
+                    "message": "Accounting services are not available in this deployment.",
+                    "suggested_actions": ["Enable Accounting in Settings"]
+                }
             # Generate a DB session
             db = SessionLocal()
             try:
@@ -1213,7 +1238,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
     ) -> Dict[str, Any]:
         """Handle sales and CRM queries via SalesAssistant"""
-        if not get_automation_settings().is_sales_enabled():
+        if get_automation_settings is None or not get_automation_settings().is_sales_enabled():
             return {
                 "success": False,
                 "message": "AI Sales Automations are currently disabled in settings.",

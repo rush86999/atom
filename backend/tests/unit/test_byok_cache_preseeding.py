@@ -52,7 +52,12 @@ def app():
     """Create test FastAPI app with cache routes."""
     app = FastAPI()
     from api.admin.cache_routes import router
+    from core.admin_endpoints import get_super_admin
     app.include_router(router)
+    # The cache routes require super-admin auth; bypass it with a mock admin
+    admin_user = Mock()
+    admin_user.role = UserRole.SUPER_ADMIN
+    app.dependency_overrides[get_super_admin] = lambda: admin_user
     return app
 
 

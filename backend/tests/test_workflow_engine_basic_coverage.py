@@ -513,9 +513,10 @@ class TestWorkflowTypes:
             ]
         }
 
-        # The topological sort should handle this gracefully
-        steps = workflow_engine._convert_nodes_to_steps(circular_workflow)
-        assert isinstance(steps, list)
+        # Cycle detection must reject circular workflows loudly (updated:
+        # engine raises ValueError instead of silently truncating the list).
+        with pytest.raises(ValueError):
+            workflow_engine._convert_nodes_to_steps(circular_workflow)
 
 
 # ============================================================================

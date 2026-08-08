@@ -186,7 +186,7 @@ class TestWorkflowEngineCoverageSimple:
         params = {"result": "${step1.output}"}
         state = {
             "outputs": {
-                "step1": {"data": "test_result"}
+                "step1": {"output": {"data": "test_result"}}
             }
         }
         resolved = engine._resolve_parameters(params, state)
@@ -254,7 +254,7 @@ class TestWorkflowEngineCoverageSimple:
     # Test: condition evaluation
     def test_evaluate_condition_true(self, engine):
         """Evaluate condition that is true."""
-        condition = "{{outputs.step1.status == 'completed'}}"
+        condition = "${step1.status} == 'completed'"
         state = {"outputs": {"step1": {"status": "completed"}}}
         result = engine._evaluate_condition(condition, state)
         assert result == True
@@ -439,7 +439,7 @@ class TestWorkflowEngineCoverageSimple:
     # Test: condition evaluation with complex expressions
     def test_evaluate_complex_condition(self, engine):
         """Evaluate complex condition with multiple variables."""
-        condition = "{{outputs.step1.output.value > 10 and outputs.step2.output.enabled == true}}"
+        condition = "${step1.output.value} > 10 and ${step2.output.enabled}"
         state = {
             "outputs": {
                 "step1": {"output": {"value": 15}},
@@ -545,9 +545,9 @@ class TestWorkflowEngineCoverageSimple:
 
     # Test: condition evaluation with boolean values
     def test_evaluate_condition_boolean(self, engine):
-        """Evaluate condition with boolean literals."""
-        condition = "{{true}}"
-        state = {}
+        """Evaluate condition with boolean values."""
+        condition = "${step1.flag}"
+        state = {"outputs": {"step1": {"flag": True}}}
         result = engine._evaluate_condition(condition, state)
         assert result == True
 

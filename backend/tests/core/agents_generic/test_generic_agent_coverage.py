@@ -485,7 +485,7 @@ class TestAutomationCoverage:
     def test_feedback_service_init(self):
         """Test FeedbackService initialization"""
         from core.feedback_service import FeedbackService
-        service = FeedbackService()
+        service = FeedbackService(db=MagicMock())
         assert service is not None
 
     @pytest.mark.asyncio

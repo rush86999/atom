@@ -184,6 +184,7 @@ class TestAgentExecution:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         # generate_structured is async, so we need an async function
@@ -230,6 +231,7 @@ class TestAgentExecution:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         # Simulate slow LLM that times out
@@ -274,6 +276,7 @@ class TestAgentExecution:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         # Return actions without final answer to trigger max steps
@@ -322,6 +325,7 @@ class TestAgentExecution:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         async def mock_generate_done(*args, **kwargs):
@@ -376,6 +380,7 @@ class TestToolExecution:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         # First call returns action to navigate, second call returns final answer
@@ -433,6 +438,7 @@ class TestToolExecution:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         async def mock_generate_screenshot(*args, **kwargs):
@@ -487,6 +493,7 @@ class TestMemoryIntegration:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         async def mock_generate_exp(*args, **kwargs):
@@ -531,6 +538,7 @@ class TestMemoryIntegration:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         async def mock_generate_complete(*args, **kwargs):
@@ -579,6 +587,7 @@ class TestVisionCapabilities:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         # First call returns action to take screenshot
@@ -640,6 +649,7 @@ class TestReflectionAndCritique:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         mock_llm.generate_structured.side_effect = Exception("LLM failed")
@@ -689,6 +699,7 @@ class TestGraduationAndSkillPromotion:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         async def mock_generate_complete(*args, **kwargs):
@@ -743,6 +754,7 @@ class TestTRACEFrameworkMetrics:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         async def mock_generate_complete(*args, **kwargs):
@@ -787,6 +799,7 @@ class TestTRACEFrameworkMetrics:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         async def mock_generate_complete(*args, **kwargs):
@@ -835,6 +848,7 @@ class TestErrorHandling:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         async def mock_generate_none(*args, **kwargs):
@@ -879,6 +893,7 @@ class TestErrorHandling:
         async def mock_generate_critique(*args, **kwargs):
             return None
         mock_reflection.generate_critique = mock_generate_critique
+        mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
 
         mock_llm = AsyncMock()
         async def mock_generate_broken(*args, **kwargs):

@@ -295,12 +295,13 @@ class DiscordAnalyticsEngine:
             # Convert to data points
             data_points = []
             for row in result:
+                row_dict = dict(row)
                 data_point = DiscordAnalyticsDataPoint(
-                    timestamp=row['timestamp'],
+                    timestamp=row_dict['timestamp'],
                     metric=metric,
-                    value=row['value'],
-                    dimensions=row.get('dimensions', {}),
-                    metadata=row.get('metadata', {})
+                    value=row_dict['value'],
+                    dimensions=row_dict.get('dimensions', {}),
+                    metadata=row_dict.get('metadata', {})
                 )
                 data_points.append(data_point)
             
@@ -469,7 +470,7 @@ class DiscordAnalyticsEngine:
                 """
             
             # Replace dimension and metadata placeholders
-            sql = sql.replace('{{dimensions}}', "'{}'").replace('{{metadata}}', "'{}'")
+            sql = sql.replace('{dimensions}', "'{}'").replace('{metadata}', "'{}'")
             
             return {'sql': sql, 'params': params}
         
@@ -1362,7 +1363,7 @@ class DiscordAnalyticsEngine:
             result = await llm_service.generate_structured(
                 prompt=f"Analyze sentiment for this Discord content:\n\n{text}",
                 response_model=LLMSentiment,
-                system_prompt="Analyzer for Discord community sentiment. Score: -1 to 1."
+                system_instruction="Analyzer for Discord community sentiment. Score: -1 to 1."
             )
             return result.dict()
         except Exception as e:
@@ -1380,7 +1381,7 @@ class DiscordAnalyticsEngine:
             result = await llm_service.generate_structured(
                 prompt=f"Extract 3-5 topics from these Discord messages:\n\n{combined}",
                 response_model=LLMTopics,
-                system_prompt="Topic extractor for Discord communities."
+                system_instruction="Topic extractor for Discord communities."
             )
             return result.dict()
         except Exception as e:

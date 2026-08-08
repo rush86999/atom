@@ -248,6 +248,16 @@ class Microsoft365Service(IntegrationService):
             logger.error(f"Microsoft 365 get dynamics invoices failed: {e}")
             return {"status": "error", "message": f"Failed to get dynamics invoices: {str(e)}"}
 
+    async def get_service_status(self, access_token: str) -> Dict[str, Any]:
+        """Get Microsoft 365 service status for the authenticated user."""
+        try:
+            url = f"{self.base_url}/me?$select=id,displayName"
+            result = await self._make_graph_request("GET", url, access_token)
+            return result
+        except Exception as e:
+            logger.error(f"Microsoft 365 service status failed: {e}")
+            return {"status": "error", "message": f"Failed to get service status: {str(e)}"}
+
     async def _make_graph_request(self, method: str, url: str, token: str, json_data: Any = None) -> Dict[str, Any]:
         """Make an authenticated request to Microsoft Graph API."""
         import aiohttp

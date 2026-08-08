@@ -9,6 +9,7 @@ Tests for response model classes including:
 """
 
 import pytest
+pytest.importorskip("core.response_models", reason="core.response_models was deleted in dead-code cleanup (zero references)")
 from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field, ValidationError

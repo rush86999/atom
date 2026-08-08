@@ -27,6 +27,7 @@ Created: 2026-02-20
 
 import json
 import pytest
+from types import SimpleNamespace
 from unittest.mock import Mock, AsyncMock, MagicMock, patch
 from datetime import datetime
 from fastapi import FastAPI
@@ -35,7 +36,7 @@ from sqlalchemy.orm import Session
 
 # Import the router
 from core.atom_agent_endpoints import router, ChatRequest, ChatMessage
-from core.models import AgentRegistry, AgentExecution, Workspace
+from core.models import AgentRegistry, AgentExecution, Workspace, User
 
 
 # ========================================================================
@@ -47,6 +48,22 @@ def app():
     """Create test FastAPI app with atom_agent router"""
     app = FastAPI()
     app.include_router(router)
+
+    # Auth override (endpoints now require get_current_user; a fixed test user
+    # keeps these legacy API tests focused on handler behavior).
+    from core.auth import get_current_user
+
+    def _test_user():
+        return User(
+            id="test_user_001",
+            email="test_user_001@example.com",
+            first_name="Test",
+            last_name="User",
+            role="admin",
+            status="ACTIVE",
+        )
+
+    app.dependency_overrides[get_current_user] = _test_user
     return app
 
 
@@ -63,6 +80,9 @@ def mock_student_agent(db_session):
         id="student_agent_001",
         name="Student Agent",
         description="Learning agent",
+        category="agent",
+        module_path="test.module",
+        class_name="TestAgent",
         maturity_level="STUDENT",
         confidence_score=0.3,
         capabilities=[],
@@ -81,6 +101,9 @@ def mock_intern_agent(db_session):
         id="intern_agent_001",
         name="Intern Agent",
         description="Intern agent",
+        category="agent",
+        module_path="test.module",
+        class_name="TestAgent",
         maturity_level="INTERN",
         confidence_score=0.6,
         capabilities=["streaming", "presentation"],
@@ -99,6 +122,9 @@ def mock_supervised_agent(db_session):
         id="supervised_agent_001",
         name="Supervised Agent",
         description="Supervised agent",
+        category="agent",
+        module_path="test.module",
+        class_name="TestAgent",
         maturity_level="SUPERVISED",
         confidence_score=0.8,
         capabilities=["streaming", "presentation", "state_changes"],
@@ -117,7 +143,10 @@ def mock_autonomous_agent(db_session):
         id="autonomous_agent_001",
         name="Autonomous Agent",
         description="Fully autonomous agent",
-        maturity_level="AUTONOMOUS",
+        category="agent",
+        module_path="test.module",
+        class_name="TestAgent",
+        maturity_level="autonomous",
         confidence_score=0.95,
         capabilities=["streaming", "presentation", "state_changes", "deletions"],
         workspace_id="default"
@@ -185,21 +214,12 @@ def mock_context_manager():
 
 @pytest.fixture
 def mock_ai_service():
-    """Mock AI service"""
-    with patch('core.atom_agent_endpoints.ai_service') as mock:
-        mock.initialize_sessions = AsyncMock()
-        mock.call_openai_api = AsyncMock(return_value={
-            "success": True,
-            "response": '{"intent": "CREATE_WORKFLOW", "entities": {"description": "daily report workflow"}}'
-        })
-        mock.call_anthropic_api = AsyncMock(return_value={
-            "success": True,
-            "response": '{"intent": "CREATE_WORKFLOW", "entities": {"description": "daily report workflow"}}'
-        })
-        mock.call_deepseek_api = AsyncMock(return_value={
-            "success": True,
-            "response": '{"intent": "CREATE_WORKFLOW", "entities": {"description": "daily report workflow"}}'
-        })
+    """Mock LLM service (the old `ai_service` global was removed; intent
+    classification now runs through LLMService.generate)."""
+    with patch('core.atom_agent_endpoints.LLMService') as mock:
+        mock.return_value.generate = AsyncMock(return_value=(
+            '{"intent": "CREATE_WORKFLOW", "entities": {"description": "daily report workflow"}}'
+        ))
         yield mock
 
 
@@ -383,11 +403,11 @@ class TestIntentClassification:
         """Test CREATE_WORKFLOW intent classification"""
         from core.atom_agent_endpoints import classify_intent_with_llm
 
-        with patch('core.atom_agent_endpoints.ai_service') as mock_ai:
-            mock_ai.call_openai_api = AsyncMock(return_value={
-                "success": True,
-                "response": '{"intent": "CREATE_WORKFLOW", "entities": {"description": "test workflow"}}'
-            })
+        with patch('core.atom_agent_endpoints.LLMService') as mock_llm, \
+                patch('core.atom_agent_endpoints.get_knowledge_query_manager'):
+            mock_llm.return_value.generate = AsyncMock(return_value=(
+                '{"intent": "CREATE_WORKFLOW", "entities": {"description": "test workflow"}}'
+            ))
 
             result = await classify_intent_with_llm("Create a workflow for testing", [])
 
@@ -399,12 +419,11 @@ class TestIntentClassification:
         """Test LIST_WORKFLOWS intent classification"""
         from core.atom_agent_endpoints import classify_intent_with_llm
 
-        with patch('core.atom_agent_endpoints.ai_service') as mock_ai:
-            mock_ai.call_openai_api = AsyncMock()
-            mock_ai.call_openai_api.return_value = {
-                "success": True,
-                "response": '{"intent": "LIST_WORKFLOWS", "entities": {}}'
-            }
+        with patch('core.atom_agent_endpoints.LLMService') as mock_llm, \
+                patch('core.atom_agent_endpoints.get_knowledge_query_manager'):
+            mock_llm.return_value.generate = AsyncMock(return_value=(
+                '{"intent": "LIST_WORKFLOWS", "entities": {}}'
+            ))
 
             result = await classify_intent_with_llm("Show me all workflows", [])
 
@@ -415,11 +434,11 @@ class TestIntentClassification:
         """Test RUN_WORKFLOW intent classification"""
         from core.atom_agent_endpoints import classify_intent_with_llm
 
-        with patch('core.atom_agent_endpoints.ai_service') as mock_ai:
-            mock_ai.call_openai_api = AsyncMock(return_value={
-                "success": True,
-                "response": '{"intent": "RUN_WORKFLOW", "entities": {"workflow_ref": "daily report"}}'
-            })
+        with patch('core.atom_agent_endpoints.LLMService') as mock_llm, \
+                patch('core.atom_agent_endpoints.get_knowledge_query_manager'):
+            mock_llm.return_value.generate = AsyncMock(return_value=(
+                '{"intent": "RUN_WORKFLOW", "entities": {"workflow_ref": "daily report"}}'
+            ))
 
             result = await classify_intent_with_llm("Run the daily report workflow", [])
 
@@ -431,11 +450,11 @@ class TestIntentClassification:
         """Test SCHEDULE_WORKFLOW intent classification with time expression"""
         from core.atom_agent_endpoints import classify_intent_with_llm
 
-        with patch('core.atom_agent_endpoints.ai_service') as mock_ai:
-            mock_ai.call_openai_api = AsyncMock(return_value={
-                "success": True,
-                "response": '{"intent": "SCHEDULE_WORKFLOW", "entities": {"workflow_ref": "backup", "time_expression": "every day at 5pm"}}'
-            })
+        with patch('core.atom_agent_endpoints.LLMService') as mock_llm, \
+                patch('core.atom_agent_endpoints.get_knowledge_query_manager'):
+            mock_llm.return_value.generate = AsyncMock(return_value=(
+                '{"intent": "SCHEDULE_WORKFLOW", "entities": {"workflow_ref": "backup", "time_expression": "every day at 5pm"}}'
+            ))
 
             result = await classify_intent_with_llm("Schedule the backup workflow every day at 5pm", [])
 
@@ -447,14 +466,16 @@ class TestIntentClassification:
         """Test fallback intent classification when LLM fails"""
         from core.atom_agent_endpoints import classify_intent_with_llm
 
-        with patch('core.atom_agent_endpoints.ai_service') as mock_ai:
-            with patch('core.atom_agent_endpoints.get_byok_manager') as mock_byok:
-                mock_byok.return_value.get_optimal_provider.side_effect = Exception("BYOK error")
+        with patch('core.atom_agent_endpoints.LLMService') as mock_llm, \
+                patch('core.atom_agent_endpoints.get_knowledge_query_manager'):
+            mock_llm.return_value.generate = AsyncMock(
+                side_effect=Exception("LLM error")
+            )
 
-                result = await classify_intent_with_llm("create a workflow", [])
+            result = await classify_intent_with_llm("create a workflow", [])
 
-                # Should fall back to regex-based classification
-                assert result["intent"] == "CREATE_WORKFLOW"
+            # Should fall back to regex-based classification
+            assert result["intent"] == "CREATE_WORKFLOW"
 
     def test_fallback_intent_classification_workflow_keywords(self):
         """Test regex-based fallback for workflow intents"""
@@ -738,7 +759,7 @@ class TestWorkflowHandlers:
         ]
 
         with patch('core.atom_agent_endpoints.load_workflows', return_value=mock_workflows):
-            with patch('core.atom_agent_endpoints.parse_time_expression') as mock_parse:
+            with patch('core.time_expression_parser.parse_time_expression') as mock_parse:
                 mock_parse = AsyncMock()
                 mock_parse.return_value = {
                     "schedule_type": "cron",
@@ -934,6 +955,9 @@ class TestGovernanceIntegration:
         agent = AgentRegistry(
             id="student_test",
             name="Student Test",
+            category="agent",
+            module_path="test.module",
+            class_name="TestAgent",
             maturity_level="STUDENT",
             confidence_score=0.3,
             capabilities=[],
@@ -960,6 +984,9 @@ class TestGovernanceIntegration:
         agent = AgentRegistry(
             id="intern_test",
             name="Intern Test",
+            category="agent",
+            module_path="test.module",
+            class_name="TestAgent",
             maturity_level="INTERN",
             confidence_score=0.6,
             capabilities=["streaming"],
@@ -983,7 +1010,10 @@ class TestGovernanceIntegration:
         agent = AgentRegistry(
             id="autonomous_test",
             name="Autonomous Test",
-            maturity_level="AUTONOMOUS",
+            category="agent",
+            module_path="test.module",
+            class_name="TestAgent",
+            maturity_level="autonomous",
             confidence_score=0.95,
             capabilities=["streaming", "state_changes", "deletions"],
             workspace_id="default"
@@ -1008,7 +1038,10 @@ class TestGovernanceIntegration:
         agent = AgentRegistry(
             id="cache_test",
             name="Cache Test",
-            maturity_level="AUTONOMOUS",
+            category="agent",
+            module_path="test.module",
+            class_name="TestAgent",
+            maturity_level="autonomous",
             confidence_score=0.95,
             capabilities=["streaming"],
             workspace_id="default"
@@ -1070,7 +1103,7 @@ class TestHybridRetrievalEndpoints:
             ])
             mock_service_class.return_value = mock_service
 
-            response = client.post("/api/atom-agent/agents/agent_001/retrieve-hybrid", json={
+            response = client.post("/api/atom-agent/agents/agent_001/retrieve-hybrid", params={
                 "query": "test query",
                 "coarse_top_k": 100,
                 "rerank_top_k": 50,
@@ -1094,7 +1127,7 @@ class TestHybridRetrievalEndpoints:
             ])
             mock_service_class.return_value = mock_service
 
-            response = client.post("/api/atom-agent/agents/agent_001/retrieve-baseline", json={
+            response = client.post("/api/atom-agent/agents/agent_001/retrieve-baseline", params={
                 "query": "test query",
                 "top_k": 50
             })
@@ -1230,14 +1263,14 @@ class TestSystemAndSearchHandlers:
         """Test automation insights handler"""
         from core.atom_agent_endpoints import handle_automation_insights, ChatRequest
 
-        with patch('core.atom_agent_endpoints.get_insight_manager') as mock_insight:
+        with patch('core.automation_insight_manager.get_insight_manager') as mock_insight:
             mock_insight_mgr = Mock()
             mock_insight_mgr.generate_all_insights = Mock(return_value=[
                 {"workflow_id": "wf_001", "drift_score": 0.3}
             ])
             mock_insight.return_value = mock_insight_mgr
 
-        with patch('core.atom_agent_endpoints.get_behavior_analyzer') as mock_behavior:
+        with patch('core.behavior_analyzer.get_behavior_analyzer') as mock_behavior:
             mock_analyzer = Mock()
             mock_analyzer.detect_patterns = Mock(return_value=[])
             mock_behavior.return_value = mock_analyzer
@@ -1472,7 +1505,7 @@ class TestAdditionalHandlerCoverage:
         """Test goal status handler"""
         from core.atom_agent_endpoints import handle_goal_status, ChatRequest
 
-        with patch('core.atom_agent_endpoints.goal_engine') as mock_goal:
+        with patch('core.goal_engine.goal_engine') as mock_goal:
             request = ChatRequest(message="Goal status", user_id="test_user")
             result = await handle_goal_status(request, {})
 
@@ -1610,17 +1643,17 @@ class TestStreamingEndpointCoverage:
         from core.atom_agent_endpoints import chat_stream_agent, ChatRequest
 
         # Mock all dependencies
-        with patch('core.atom_agent_endpoints.AgentContextResolver') as mock_resolver:
+        with patch('core.agent_context_resolver.AgentContextResolver') as mock_resolver:
             mock_resolver.return_value.resolve_agent_for_request = AsyncMock(return_value=(None, None))
 
-        with patch('core.atom_agent_endpoints.AgentGovernanceService') as mock_gov:
+        with patch('core.agent_governance_service.AgentGovernanceService') as mock_gov:
             mock_gov.return_value.can_perform_action = Mock(return_value={"allowed": True})
 
-        with patch('core.atom_agent_endpoints.get_db_session') as mock_db:
+        with patch('core.database.get_db_session') as mock_db:
             mock_db.return_value.__enter__ = Mock(return_value=Mock())
             mock_db.return_value.__exit__ = Mock(return_value=False)
 
-        with patch('core.atom_agent_endpoints.BYOKHandler') as mock_byok:
+        with patch('core.atom_agent_endpoints.LLMService') as mock_byok:
             mock_handler = Mock()
             mock_handler.analyze_query_complexity = Mock(return_value="low")
             mock_handler.get_optimal_provider = Mock(return_value=("openai", "gpt-3.5-turbo"))
@@ -1635,10 +1668,10 @@ class TestStreamingEndpointCoverage:
         with patch('core.atom_agent_endpoints.SystemIntelligenceService') as mock_intel:
             mock_intel.return_value.get_aggregated_context = Mock(return_value="System: OK")
 
-        with patch('core.atom_agent_endpoints.ws_manager') as mock_ws:
+        with patch('core.websockets.manager') as mock_ws:
             mock_ws.broadcast = AsyncMock()
 
-            with patch('core.atom_agent_endpoints.AgentExecution') as mock_agent_exec:
+            with patch('core.models.AgentExecution') as mock_agent_exec:
                 # Test the endpoint structure
                 request = ChatRequest(
                     message="Test stream",
@@ -1713,24 +1746,27 @@ class TestStreamingEndpointComprehensive:
 
         mock_agent = AgentRegistry(
             id="test_agent_001",
+            category="agent",
+            module_path="test.module",
+            class_name="TestAgent",
             name="Test Agent",
-            maturity_level="AUTONOMOUS",
+            maturity_level="autonomous",
             confidence_score=0.95,
             capabilities=["streaming"],
             workspace_id="default"
         )
 
-        with patch('core.atom_agent_endpoints.AgentContextResolver') as mock_resolver_class:
+        with patch('core.agent_context_resolver.AgentContextResolver') as mock_resolver_class:
             mock_resolver = Mock()
             mock_resolver.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {"context": "test"}))
             mock_resolver_class.return_value = mock_resolver
 
-        with patch('core.atom_agent_endpoints.AgentGovernanceService') as mock_gov_class:
+        with patch('core.agent_governance_service.AgentGovernanceService') as mock_gov_class:
             mock_gov = Mock()
             mock_gov.can_perform_action = Mock(return_value={"allowed": True, "reason": ""})
             mock_gov_class.return_value = mock_gov
 
-        with patch('core.atom_agent_endpoints.get_db_session') as mock_db:
+        with patch('core.database.get_db_session') as mock_db:
             mock_db_session = Mock()
             mock_db.add = Mock()
             mock_db.commit = Mock()
@@ -1740,7 +1776,7 @@ class TestStreamingEndpointComprehensive:
             mock_db.__exit__ = Mock(return_value=False)
             mock_db.return_value = mock_db
 
-        with patch('core.atom_agent_endpoints.BYOKHandler') as mock_byok_class:
+        with patch('core.atom_agent_endpoints.LLMService') as mock_byok_class:
             mock_byok = Mock()
             mock_byok.analyze_query_complexity = Mock(return_value="low")
             mock_byok.get_optimal_provider = Mock(return_value=("openai", "gpt-3.5-turbo"))
@@ -1763,13 +1799,13 @@ class TestStreamingEndpointComprehensive:
             mock_intel.get_aggregated_context = Mock(return_value="System OK")
             mock_intel_class.return_value = mock_intel
 
-        with patch('core.atom_agent_endpoints.ws_manager') as mock_ws:
+        with patch('core.websockets.manager') as mock_ws:
             mock_ws.broadcast = AsyncMock()
             mock_ws.STREAMING_UPDATE = "streaming:update"
             mock_ws.STREAMING_COMPLETE = "streaming:complete"
             mock_ws.STREAMING_ERROR = "streaming:error"
 
-            with patch('core.atom_agent_endpoints.AgentExecution') as mock_agent_exec:
+            with patch('core.models.AgentExecution') as mock_agent_exec:
                 mock_agent_exec_instance = Mock()
                 mock_agent_exec_instance.id = "exec_001"
                 mock_agent_exec.return_value = mock_agent_exec_instance
@@ -1782,7 +1818,9 @@ class TestStreamingEndpointComprehensive:
                 )
 
                 try:
-                    result = await chat_stream_agent(request)
+                    result = await chat_stream_agent(
+                        request, current_user=SimpleNamespace(id="test_user")
+                    )
 
                     # Verify response structure
                     assert result is not None
@@ -1807,17 +1845,17 @@ class TestStreamingEndpointComprehensive:
         mock_agent.id = "student_agent"
         mock_agent.name = "Student Agent"
 
-        with patch('core.atom_agent_endpoints.AgentContextResolver') as mock_resolver_class:
+        with patch('core.agent_context_resolver.AgentContextResolver') as mock_resolver_class:
             mock_resolver = Mock()
             mock_resolver.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
             mock_resolver_class.return_value = mock_resolver
 
-        with patch('core.atom_agent_endpoints.AgentGovernanceService') as mock_gov_class:
+        with patch('core.agent_governance_service.AgentGovernanceService') as mock_gov_class:
             mock_gov = Mock()
             mock_gov.can_perform_action = Mock(return_value={"allowed": False, "reason": "Student agents cannot stream"})
             mock_gov_class.return_value = mock_gov
 
-        with patch('core.atom_agent_endpoints.get_db_session') as mock_db:
+        with patch('core.database.get_db_session') as mock_db:
             mock_db_session = Mock()
             mock_db.__enter__ = Mock(return_value=mock_db_session)
             mock_db.__exit__ = Mock(return_value=False)
@@ -1836,7 +1874,9 @@ class TestStreamingEndpointComprehensive:
         os.environ["STREAMING_GOVERNANCE_ENABLED"] = "true"
 
         try:
-            result = await chat_stream_agent(request)
+            result = await chat_stream_agent(
+                request, current_user=SimpleNamespace(id="test_user")
+            )
 
             # Should return error response
             assert result["success"] is False
@@ -1944,8 +1984,7 @@ class TestWorkflowHandlerComprehensive:
         ]
 
         with patch('core.atom_agent_endpoints.load_workflows', return_value=mock_workflows):
-            with patch('core.atom_agent_endpoints.parse_time_expression') as mock_parse:
-                mock_parse = AsyncMock()
+            with patch('core.time_expression_parser.parse_time_expression') as mock_parse:
                 mock_parse.return_value = None  # Parse failure
 
                 request = ChatRequest(message="Schedule test", user_id="test_user")
@@ -2090,7 +2129,7 @@ class TestSystemSearchHandlerComprehensive:
         from core.atom_agent_endpoints import handle_platform_search, ChatRequest
 
         with patch('core.atom_agent_endpoints.unified_hybrid_search') as mock_search:
-            mock_search = AsyncMock(side_effect=Exception("Search failed"))
+            mock_search.side_effect = Exception("Search failed")
 
             request = ChatRequest(message="Search error", user_id="test_user")
             result = await handle_platform_search(request, {"query": "test"})
@@ -2118,44 +2157,48 @@ class TestSystemSearchHandlerComprehensive:
         """Test CRM query handler"""
         from core.atom_agent_endpoints import handle_crm_intent, ChatRequest
 
-        with patch('core.atom_agent_endpoints.SalesAssistant') as mock_sales_class:
+        # NOTE: both patch contexts must be NESTED — the handler runs inside
+        # them; sibling with-blocks exited the SalesAssistant patch before the
+        # call, so the REAL SalesAssistant executed against the mock db and the
+        # test always failed.
+        with patch('sales.assistant.SalesAssistant') as mock_sales_class:
             mock_sales = Mock()
             mock_sales.answer_sales_query = AsyncMock(return_value="Found 5 leads")
             mock_sales_class.return_value = mock_sales
 
-        with patch('core.atom_agent_endpoints.get_db_session') as mock_db:
-            mock_db_session = Mock()
-            mock_db.__enter__ = Mock(return_value=mock_db_session)
-            mock_db.__exit__ = Mock(return_value=False)
-            mock_db.return_value = mock_db
+            with patch('core.database.get_db_session') as mock_db:
+                mock_db_session = Mock()
+                mock_db.__enter__ = Mock(return_value=mock_db_session)
+                mock_db.__exit__ = Mock(return_value=False)
+                mock_db.return_value = mock_db
 
-            request = ChatRequest(message="Show me leads", user_id="test_user")
-            result = await handle_crm_intent(request, {})
+                request = ChatRequest(message="Show me leads", user_id="test_user")
+                result = await handle_crm_intent(request, {})
 
-            assert result["success"] is True
-            assert "leads" in result["response"]["message"].lower() or "sales" in result["response"]["message"].lower()
+                assert result["success"] is True
+                assert "leads" in result["response"]["message"].lower() or "sales" in result["response"]["message"].lower()
 
     @pytest.mark.asyncio
     async def test_handle_crm_query_error(self):
         """Test CRM query with error"""
         from core.atom_agent_endpoints import handle_crm_intent, ChatRequest
 
-        with patch('core.atom_agent_endpoints.SalesAssistant') as mock_sales_class:
+        with patch('sales.assistant.SalesAssistant') as mock_sales_class:
             mock_sales = Mock()
             mock_sales.answer_sales_query = AsyncMock(side_effect=Exception("CRM failed"))
             mock_sales_class.return_value = mock_sales
 
-        with patch('core.atom_agent_endpoints.get_db_session') as mock_db:
-            mock_db_session = Mock()
-            mock_db.__enter__ = Mock(return_value=mock_db_session)
-            mock_db.__exit__ = Mock(return_value=Exception("DB error"))
-            mock_db.return_value = mock_db
+            with patch('core.database.get_db_session') as mock_db:
+                mock_db_session = Mock()
+                mock_db.__enter__ = Mock(return_value=mock_db_session)
+                mock_db.__exit__ = Mock(return_value=False)
+                mock_db.return_value = mock_db
 
-            request = ChatRequest(message="Show me leads", user_id="test_user")
-            result = await handle_crm_intent(request, {})
+                request = ChatRequest(message="Show me leads", user_id="test_user")
+                result = await handle_crm_intent(request, {})
 
-            assert result["success"] is False
-            assert "failed" in result.get("error", "").lower()
+                assert result["success"] is False
+                assert "failed" in result.get("error", "").lower()
 
 
 # ========================================================================
@@ -2170,7 +2213,7 @@ class TestAdditionalHandlersForCoverage:
         """Test silent stakeholders handler with results"""
         from core.atom_agent_endpoints import handle_silent_stakeholders, ChatRequest
 
-        with patch('core.atom_agent_endpoints.get_stakeholder_engine') as mock_stake_class:
+        with patch('core.stakeholder_engine.get_stakeholder_engine') as mock_stake_class:
             mock_engine = Mock()
             mock_engine.identify_silent_stakeholders = AsyncMock(return_value=[
                 {"name": "John Doe", "email": "john@example.com", "days_since": 10}
@@ -2188,7 +2231,7 @@ class TestAdditionalHandlersForCoverage:
         """Test silent stakeholders handler with no results"""
         from core.atom_agent_endpoints import handle_silent_stakeholders, ChatRequest
 
-        with patch('core.atom_agent_endpoints.get_stakeholder_engine') as mock_stake_class:
+        with patch('core.stakeholder_engine.get_stakeholder_engine') as mock_stake_class:
             mock_engine = Mock()
             mock_engine.identify_silent_stakeholders = AsyncMock(return_value=[])
             mock_stake_class.return_value = mock_engine
@@ -2204,8 +2247,10 @@ class TestAdditionalHandlersForCoverage:
         """Test follow up emails handler"""
         from core.atom_agent_endpoints import handle_follow_up_emails, ChatRequest
 
-        with patch('core.atom_agent_endpoints.template_manager') as mock_tm:
-            mock_tm.get_template = Mock(return_value=Mock(id="email_followup"))
+        # handler instantiates WorkflowTemplateManager() when the module has no
+        # template_manager global — patch the class seam instead
+        with patch('core.workflow_template_system.WorkflowTemplateManager') as mock_tm:
+            mock_tm.return_value.get_template = Mock(return_value=Mock(id="email_followup"))
 
             request = ChatRequest(message="Follow up with leads", user_id="test_user")
             result = await handle_follow_up_emails(request, {})
@@ -2218,8 +2263,8 @@ class TestAdditionalHandlersForCoverage:
         """Test follow up emails when template is missing"""
         from core.atom_agent_endpoints import handle_follow_up_emails, ChatRequest
 
-        with patch('core.atom_agent_endpoints.template_manager') as mock_tm:
-            mock_tm.get_template = Mock(return_value=None)
+        with patch('core.workflow_template_system.WorkflowTemplateManager') as mock_tm:
+            mock_tm.return_value.get_template = Mock(return_value=None)
 
             request = ChatRequest(message="Follow up with leads", user_id="test_user")
             result = await handle_follow_up_emails(request, {})
@@ -2289,7 +2334,7 @@ class TestHybridRetrievalEndpointsComprehensive:
             mock_service.retrieve_semantic_hybrid = AsyncMock(side_effect=Exception("Retrieval failed"))
             mock_service_class.return_value = mock_service
 
-            response = client.post("/api/atom-agent/agents/agent_001/retrieve-hybrid", json={
+            response = client.post("/api/atom-agent/agents/agent_001/retrieve-hybrid", params={
                 "query": "test query",
                 "coarse_top_k": 100,
                 "rerank_top_k": 50,
@@ -2309,7 +2354,7 @@ class TestHybridRetrievalEndpointsComprehensive:
             mock_service.retrieve_semantic_baseline = AsyncMock(side_effect=Exception("Retrieval failed"))
             mock_service_class.return_value = mock_service
 
-            response = client.post("/api/atom-agent/agents/agent_001/retrieve-baseline", json={
+            response = client.post("/api/atom-agent/agents/agent_001/retrieve-baseline", params={
                 "query": "test query",
                 "top_k": 50
             })
@@ -2331,7 +2376,7 @@ class TestHybridRetrievalEndpointsComprehensive:
             ])
             mock_service_class.return_value = mock_service
 
-            response = client.post("/api/atom-agent/agents/agent_001/retrieve-hybrid", json={
+            response = client.post("/api/atom-agent/agents/agent_001/retrieve-hybrid", params={
                 "query": "custom query",
                 "coarse_top_k": 200,
                 "rerank_top_k": 100,
@@ -2355,7 +2400,7 @@ class TestHybridRetrievalEndpointsComprehensive:
             ])
             mock_service_class.return_value = mock_service
 
-            response = client.post("/api/atom-agent/agents/agent_001/retrieve-hybrid", json={
+            response = client.post("/api/atom-agent/agents/agent_001/retrieve-hybrid", params={
                 "query": "test query",
                 "coarse_top_k": 100,
                 "rerank_top_k": 50,
@@ -2379,7 +2424,7 @@ class TestHybridRetrievalEndpointsComprehensive:
             ])
             mock_service_class.return_value = mock_service
 
-            response = client.post("/api/atom-agent/agents/agent_001/retrieve-baseline", json={
+            response = client.post("/api/atom-agent/agents/agent_001/retrieve-baseline", params={
                 "query": "test query",
                 "top_k": 100
             })

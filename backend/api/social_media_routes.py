@@ -523,6 +523,7 @@ async def create_social_post(
 
             # Create history record
             history = SocialPostHistory(
+                post_id=post_id,
                 user_id=current_user.id,
                 content=payload.text,
                 platforms=payload.platforms,

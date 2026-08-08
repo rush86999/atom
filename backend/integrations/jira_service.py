@@ -3,6 +3,7 @@ Jira Service for ATOM Platform
 Provides comprehensive Jira integration functionality
 """
 
+import asyncio
 import json
 import logging
 import os

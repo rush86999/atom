@@ -158,13 +158,13 @@ class ColoredFormatter(logging.Formatter):
 
         # Add context variables (correlation_id, user_id, request_id)
         if self.show_context:
-            correlation_id = CORRELATION_ID.get()
+            correlation_id = CORRELATION_ID.get("")
             if correlation_id:
                 # Show last 8 characters for readability
                 short_id = correlation_id[-8:] if len(correlation_id) > 8 else correlation_id
                 parts.append(f"[{LogColors.CYAN}{short_id}{LogColors.RESET}]")
 
-            user_id = USER_ID.get()
+            user_id = USER_ID.get("")
             if user_id:
                 parts.append(f"[user:{user_id[:8]}]")
 
@@ -421,7 +421,7 @@ def get_correlation_id() -> str:
     Returns:
         Correlation ID string (empty if not set)
     """
-    return CORRELATION_ID.get()
+    return CORRELATION_ID.get("")
 
 
 # ============================================================================

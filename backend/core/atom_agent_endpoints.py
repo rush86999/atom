@@ -1389,7 +1389,14 @@ async def execute_generated_workflow(
 ):
     """Execute a workflow generated via chat."""
     workflows = load_workflows()
-    workflow = next((w for w in workflows if w['id'] == request.workflow_id), None)
+    # Persisted workflows carry the alternate "workflow_id" key (workflows.json
+    # has no "id"); normalize so lookups never KeyError.
+    workflow = next(
+        (w for w in workflows
+         if w.get("id") == request.workflow_id
+         or w.get("workflow_id") == request.workflow_id),
+        None,
+    )
     if not workflow:
         return {"success": False, "error": "Workflow not found"}
 
@@ -1490,7 +1497,10 @@ async def handle_automation_insights(request: ChatRequest) -> Dict[str, Any]:
         
         # 1. Get Drift Insights
         insights = insight_manager.generate_all_insights(request.user_id)
-        critical_drift = [i for i in insights if i["drift_score"] > 0.7]
+        # The service returns {"drift_insights": [...], "summary": {...}}; treat
+        # a bare list defensively for backward compatibility.
+        drift_list = insights.get("drift_insights", []) if isinstance(insights, dict) else (insights or [])
+        critical_drift = [i for i in drift_list if i["drift_score"] > 0.7]
         
         # 2. Get Behavioral Patterns
         patterns = behavior_analyzer.detect_patterns(request.user_id)
@@ -1806,7 +1816,6 @@ async def chat_stream_agent(
                 # Resolve agent for this request
                 agent, resolution_context = await resolver.resolve_agent_for_request(
                     user_id=request.user_id,
-                    workspace_id=ws_id,
                     session_id=request.session_id,
                     requested_agent_id=request.agent_id,
                     action_type="stream_chat"
@@ -2097,6 +2106,7 @@ async def retrieve_hybrid(
     coarse_top_k: int = 100,
     rerank_top_k: int = 50,
     use_reranking: bool = True,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -2158,6 +2168,7 @@ async def retrieve_baseline(
     agent_id: str,
     query: str,
     top_k: int = 50,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """

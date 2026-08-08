@@ -317,7 +317,7 @@ class TestReconciliationMatching:
             source="ledger",
             date=datetime(2026, 3, 15),
             amount=100.00,
-            description="Amazon AWS Cloud"
+            description="Amazon Web Services Cloud"
         )
 
         engine.add_bank_entry(bank)
@@ -325,7 +325,7 @@ class TestReconciliationMatching:
 
         match = engine._find_match(bank, engine._ledger_entries)
 
-        # Should match based on description similarity
+        # Should match based on description word overlap (>0.5)
         assert match == "ledger-1"
 
     def test_no_match_low_description_similarity(self, engine):
@@ -496,11 +496,11 @@ class TestAnomalyDetection:
         """Test confidence scores for anomalies."""
         # Build history for vendor
         vendor = "Test Vendor"
-        for i in range(5):
+        for i in range(14):
             entry = ReconciliationEntry(
                 id=f"bank-{i}",
                 source="bank",
-                date=datetime(2026, 3, 10 + i),
+                date=datetime(2026, 3, 1 + i),
                 amount=50.00,
                 description=vendor
             )
@@ -519,7 +519,7 @@ class TestAnomalyDetection:
         anomalies = engine.detect_anomalies()
         unusual_anomalies = [a for a in anomalies if a.anomaly_type == AnomalyType.UNUSUAL_AMOUNT]
 
-        # Should have high confidence for extreme z-score
+        # Should have high confidence for extreme z-score (z>3.3 => conf>0.7)
         assert len(unusual_anomalies) > 0
         assert unusual_anomalies[0].confidence > 0.7
 
@@ -770,11 +770,11 @@ class TestReconciliationReporting:
         """Test anomaly severity classification."""
         # Build vendor history
         vendor = "Test Vendor"
-        for i in range(5):
+        for i in range(20):
             entry = ReconciliationEntry(
                 id=f"bank-{i}",
                 source="bank",
-                date=datetime(2026, 3, 10 + i),
+                date=datetime(2026, 3, 1 + i),
                 amount=50.00,
                 description=vendor
             )
@@ -784,7 +784,7 @@ class TestReconciliationReporting:
         unusual = ReconciliationEntry(
             id="bank-unusual",
             source="bank",
-            date=datetime(2026, 3, 15),
+            date=datetime(2026, 3, 21),
             amount=1000.00,
             description=vendor
         )

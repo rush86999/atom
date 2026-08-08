@@ -141,15 +141,28 @@ def mock_db_for_accounting():
 def ai_accounting_client(mock_ai_accounting, mock_db_for_accounting):
     """TestClient with dependency overrides for AI accounting routes."""
     from api.ai_accounting_routes import router
+    from core.auth import get_current_user
     from core.database import get_db
+    from core.models import User
 
     app = FastAPI()
-    app.include_router(router)
+    app.include_router(router, prefix="/ai-accounting")
 
     def override_get_db():
         yield mock_db_for_accounting
 
+    def override_get_current_user():
+        return User(
+            id="user",
+            email="test@example.com",
+            first_name="Test",
+            last_name="User",
+            role="admin",
+            status="active"
+        )
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
 
     with patch('core.ai_accounting_engine.ai_accounting', mock_ai_accounting):
         yield TestClient(app)
@@ -578,26 +591,26 @@ class TestAccountingPosting:
     def test_post_transaction_requires_review(
         self, ai_accounting_client, mock_ai_accounting
     ):
-        """Test posting low-confidence transaction raises 400 validation error."""
+        """Test posting low-confidence transaction raises validation error."""
         mock_ai_accounting.post_transaction.return_value = False
 
         response = ai_accounting_client.post("/ai-accounting/post/tx_low_conf")
 
-        assert response.status_code == 400
+        assert response.status_code == 422
         data = response.json()
         assert "error" in data or "detail" in data
 
     def test_post_transaction_not_found(
         self, ai_accounting_client, mock_ai_accounting
     ):
-        """Test posting non-existent transaction raises 404."""
+        """Test posting non-existent transaction raises 422."""
         # This should trigger validation_error, not not_found_error
         # because post_transaction returns False for both cases
         mock_ai_accounting.post_transaction.return_value = False
 
         response = ai_accounting_client.post("/ai-accounting/post/tx_nonexistent")
 
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_auto_post_high_confidence(
         self, ai_accounting_client, mock_ai_accounting

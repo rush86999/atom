@@ -394,7 +394,7 @@ class SlackEnhancedService(IntegrationService):
                         domain=stored_token.get("team", {}).get("domain", ""),
                         url=f"https://{stored_token.get('team', {}).get('domain', '')}.slack.com",
                         access_token=stored_token.get("access_token"),
-                        bot_token=stored_token.get("bot_user_id"),
+                        bot_id=stored_token.get("bot_user_id"),
                         user_id=stored_token.get("authed_user", {}).get("id"),
                         scopes=stored_token.get("scope", "").split(","),
                         is_active=True
@@ -414,7 +414,7 @@ class SlackEnhancedService(IntegrationService):
                        (team_id, team_name, domain, url, icon_url, enterprise_id, 
                         enterprise_name, access_token, bot_token, user_id, bot_id, 
                         scopes, created_at, last_sync, is_active, settings)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         workspace.team_id,
                         workspace.team_name,
@@ -509,7 +509,8 @@ class SlackEnhancedService(IntegrationService):
                     enterprise_id=enterprise.get('id'),
                     enterprise_name=enterprise.get('name'),
                     access_token=data.get('access_token'),
-                    bot_token=data.get('bot_user_id'),  # This needs to be extracted properly
+                    bot_token=data.get('access_token'),
+                    bot_id=data.get('bot_user_id'),
                     user_id=authed_user.get('id'),
                     scopes=data.get('scope', '').split(','),
                     settings={}
@@ -697,7 +698,7 @@ class SlackEnhancedService(IntegrationService):
                 self.redis_client.setex(
                     cache_key,
                     1800,  # 30 minutes
-                    json.dumps([asdict(c) for c in channels])
+                    json.dumps([asdict(c) for c in channels], default=str)
                 )
             
             return channels
@@ -1372,7 +1373,7 @@ class SlackEnhancedService(IntegrationService):
         
         try:
             cache_key = f"file:{workspace_id}:{slack_file.file_id}"
-            await self.redis_client.setex(cache_key, 7200, json.dumps(asdict(slack_file)))
+            await self.redis_client.setex(cache_key, 7200, json.dumps(asdict(slack_file), default=str))
         except Exception as e:
             logger.error(f"Error caching file: {e}")
     
@@ -1479,7 +1480,7 @@ class SlackEnhancedService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="slack",
                         metric_key=key
                     ).first()
@@ -1489,7 +1490,7 @@ class SlackEnhancedService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="slack",
                             metric_key=key,
                             value=value,
@@ -1516,7 +1517,7 @@ class SlackEnhancedService(IntegrationService):
         # Triggered via slack_memory_ingestion or similar
         
         # Pipeline 2: Postgres Cache
-        cache_result = await self.sync_to_postgres_cache(workspace_id, team_id)
+        cache_result = await self.sync_to_postgres_cache(workspace_id)
         
         return {
             "success": True,
@@ -1661,19 +1662,6 @@ class SlackEnhancedService(IntegrationService):
                 "complexity": 3  # EXECUTE level
             }
         ]
-
-    def get_capabilities(self) -> Dict[str, Any]:
-        return {
-            "operations": self.get_operations(),
-            "supports_webhooks": True
-        }
-
-    async def health_check(self) -> Dict[str, Any]:
-        return {
-            "healthy": True,
-            "message": "Slack Enhanced Service is fully operational",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
 
     async def close(self):
         """Close all connections and cleanup"""

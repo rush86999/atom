@@ -88,7 +88,7 @@ async def list_canvas_types(
     )
 
     if not check.get("allowed", True):
-        return router.error_response(
+        raise router.error_response(
             error_code="GOVERNANCE_DENIED",
             message=check.get("reason"),
             status_code=403
@@ -345,6 +345,8 @@ async def get_canvas_history(
                 for a in audits
             ]
         return {"success": True, "canvas_id": canvas_id, "history": history, "count": len(history)}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Canvas audit history failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to retrieve audit history")
@@ -509,12 +511,14 @@ async def submit_canvas(
         with get_db_session() as db:
             audit = CanvasAudit(
                 canvas_id=request.canvas_id,
+                tenant_id=getattr(current_user, "tenant_id", None) or "default",
                 canvas_type="form",
                 action_type="submit",
                 user_id=str(current_user.id) if current_user else "system",
+                agent_id=request.agent_id if hasattr(request, "agent_id") else None,
                 details_json={
-                    "form_data": request.data if hasattr(request, 'data') else {},
-                    "agent_id": request.agent_id if hasattr(request, 'agent_id') else None,
+                    "form_data": request.form_data,
+                    "agent_id": request.agent_id if hasattr(request, "agent_id") else None,
                     "submitted_at": datetime.now(timezone.utc).isoformat(),
                 },
             )
@@ -757,7 +761,13 @@ async def put_canvas_logic(
 
     svc = CanvasLogicService(db)
     if body.agent_id:
-        svc.check_governance(body.agent_id)
+        try:
+            svc.check_governance(body.agent_id)
+        except PermissionError:
+            raise HTTPException(
+                status_code=403,
+                detail="Canvas logic requires an AUTONOMOUS agent"
+            )
     saved = svc.save_logic(
         canvas_id=canvas_id,
         source=body.source,
@@ -792,6 +802,12 @@ async def run_canvas_logic(
     from core.canvas_logic_service import CanvasLogicService
     svc = CanvasLogicService(db)
     if body.agent_id:
-        svc.check_governance(body.agent_id)
+        try:
+            svc.check_governance(body.agent_id)
+        except PermissionError:
+            raise HTTPException(
+                status_code=403,
+                detail="Canvas logic requires an AUTONOMOUS agent"
+            )
     result = await svc.run(canvas_id, inputs=body.inputs, agent_id=body.agent_id)
     return {"success": result.get("success", True), "data": result}

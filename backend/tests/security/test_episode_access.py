@@ -2,206 +2,216 @@
 Episode access control security tests (SECU-07).
 
 Tests cover:
-- Multi-tenant isolation
-- User can only access own episodes
-- Episode filtering respects boundaries
-- Access logging for denied attempts
+- Agent-scoped isolation (episodes belong to agents, not users — the
+  AgentEpisode model has no user_id column; user scoping happens via the
+  ChatSession join in temporal retrieval)
+- Authentication required on every episode endpoint
+- Retrieval never leaks episodes outside their agent scope
+- Access logging for granted/denied attempts
+- Feedback submission auth + ownership posture
+
+NOTE: The episode API router (api/episode_routes.py) is not mounted on the
+main app; like the round-39 auth-sweep suite, these tests mount the router on
+a fresh FastAPI app with the test DB override.
 """
+from datetime import datetime, timedelta
+
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from tests.factories.user_factory import UserFactory, AdminUserFactory
+
+from tests.factories.user_factory import UserFactory
+from tests.factories.agent_factory import AgentFactory, InternAgentFactory
 from tests.factories.episode_factory import EpisodeFactory
-from core.models import Episode, EpisodeAccessLog, UserRole
+from core.database import get_db
+from core.models import AgentEpisode, AgentFeedback, AgentStatus, EpisodeAccessLog
+from core.security_dependencies import get_current_user
+
+
+@pytest.fixture
+def ep_client(db_session: Session):
+    """TestClient with api/episode_routes.router mounted + test DB override."""
+    from api.episode_routes import router
+
+    app = FastAPI()
+    app.include_router(router)
+
+    def _override_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = _override_db
+    with TestClient(app, raise_server_exceptions=False) as test_client:
+        test_client.app = app
+        yield test_client
+
+
+def _auth(client, user):
+    """Authenticate subsequent requests as the given user."""
+    client.app.dependency_overrides[get_current_user] = lambda: user
+
+
+def _make_episode(db_session, agent_id, episode_id, **overrides):
+    fields = dict(
+        id=episode_id,
+        agent_id=agent_id,
+        tenant_id="default",
+        started_at=datetime.utcnow() - timedelta(hours=1),
+        status="active",
+    )
+    fields.update(overrides)
+    return EpisodeFactory(_session=db_session, **fields)
 
 
 class TestEpisodeMultiTenantIsolation:
-    """Test episode multi-tenant isolation."""
+    """Test episode isolation: episodes are agent-scoped, not user-scoped."""
 
-    def test_user_can_only_access_own_episodes(self, client: TestClient, db_session: Session):
-        """Test users cannot access episodes from other users."""
-        # Create two users with episodes
+    def test_user_can_only_access_own_episodes(self, db_session: Session, ep_client):
+        """Test episodes cannot be retrieved outside their agent scope."""
         user1 = UserFactory(id="user_1", email="user1@example.com", _session=db_session)
         user2 = UserFactory(id="user_2", email="user2@example.com", _session=db_session)
+        agent1 = AgentFactory(id="agent_1", _session=db_session)
+        agent2 = AgentFactory(id="agent_2", _session=db_session)
 
-        episode1 = EpisodeFactory(id="ep_1", user_id=user1.id, _session=db_session)
-        episode2 = EpisodeFactory(id="ep_2", user_id=user2.id, _session=db_session)
-
-        db_session.add_all([user1, user2, episode1, episode2])
+        ep1 = _make_episode(db_session, agent1.id, "ep_1")
+        ep2 = _make_episode(db_session, agent2.id, "ep_2")
+        db_session.add_all([user1, user2, agent1, agent2, ep1, ep2])
         db_session.commit()
 
-        # User1 tries to access User2's episode
-        from tests.security.conftest import create_test_token
-        response = client.get(
-            f"/api/episodes/retrieve/{episode2.id}",
-            headers={"Authorization": f"Bearer {create_test_token(user1.id)}"}
-        )
+        _auth(ep_client, user1)
 
-        # Episode retrieval endpoint might not enforce user isolation yet
-        # This test documents current behavior
-        # In production, this should return 403 or 404
-        assert response.status_code in [200, 403, 404, 500]
+        # Correct agent scope -> episode returned
+        ok = ep_client.get(f"/api/episodes/retrieve/{ep1.id}?agent_id={agent1.id}")
+        assert ok.status_code == 200
+        assert ok.json().get("episode", {}).get("id") == ep1.id
 
-        # If 200 returned, check if data is actually accessible (security issue)
-        if response.status_code == 200:
-            # Document this as a security concern
-            # TODO: Implement user isolation in episode retrieval
-            pass
+        # Wrong agent scope -> no episode data leaked
+        denied = ep_client.get(f"/api/episodes/retrieve/{ep2.id}?agent_id={agent1.id}")
+        assert denied.status_code == 200
+        assert "episode" not in denied.json()
+        assert denied.json().get("error") == "Episode not found"
 
-    def test_episode_list_returns_only_user_episodes(self, client: TestClient, db_session: Session):
-        """Test episode list endpoint only returns user's own episodes."""
-        # Create multiple users with episodes
+    def test_episode_list_returns_only_user_episodes(self, db_session: Session, ep_client):
+        """Test episode list is scoped to the requested agent."""
         user1 = UserFactory(id="list_user_1", _session=db_session)
         user2 = UserFactory(id="list_user_2", _session=db_session)
+        agent1 = AgentFactory(id="list_agent_1", _session=db_session)
+        agent2 = AgentFactory(id="list_agent_2", _session=db_session)
 
-        episodes_user1 = EpisodeFactory.create_batch(5, user_id=user1.id, _session=db_session)
-        episodes_user2 = EpisodeFactory.create_batch(3, user_id=user2.id, _session=db_session)
-
-        db_session.add_all([user1, user2] + episodes_user1 + episodes_user2)
+        episodes_user1 = [_make_episode(db_session, agent1.id, f"list_ep_u1_{i}") for i in range(5)]
+        episodes_user2 = [_make_episode(db_session, agent2.id, f"list_ep_u2_{i}") for i in range(3)]
+        db_session.add_all([user1, user2, agent1, agent2] + episodes_user1 + episodes_user2)
         db_session.commit()
 
-        # User1 lists episodes
-        from tests.security.conftest import create_test_token
-        response = client.get(
-            f"/api/episodes/{user1.id}/list",
-            headers={"Authorization": f"Bearer {create_test_token(user1.id)}"}
-        )
+        _auth(ep_client, user1)
+        response = ep_client.get(f"/api/episodes/{agent1.id}/list")
+        assert response.status_code == 200
 
-        # Episode list by agent_id, not user_id
-        # This test checks if endpoint respects agent ownership
-        assert response.status_code in [200, 403, 404, 500]
+        episodes = response.json().get("data", [])
+        assert len(episodes) == 5
+        assert all(e["id"].startswith("list_ep_u1_") for e in episodes)
 
-        if response.status_code == 200:
-            data = response.json()
-            episodes = data.get("data", [])
-
-            # Document current behavior - filtering by agent_id only
-            # TODO: Add user_id filtering to episode list endpoint
-
-    def test_episode_creation_assigns_correct_user(self, client: TestClient, db_session: Session):
-        """Test episode creation assigns correct user ownership."""
-        # Note: Episode creation requires session_id and agent_id
-        # This test verifies ownership assignment
-
+    def test_episode_creation_assigns_correct_user(self, db_session: Session, ep_client):
+        """Test episodes record their owning agent + tenant."""
         user = UserFactory(id="creator_user", _session=db_session)
-        db_session.add(user)
+        agent = AgentFactory(id="creator_agent", _session=db_session)
+        db_session.add_all([user, agent])
         db_session.commit()
 
-        # Create episode directly (bypassing API for testing)
-        episode = EpisodeFactory(
-            id="test_episode_created",
-            user_id=user.id,
-            _session=db_session
-        )
+        episode = _make_episode(db_session, agent.id, "test_episode_created")
         db_session.add(episode)
         db_session.commit()
 
-        # Verify ownership
-        created_episode = db_session.query(Episode).filter(
-            Episode.id == episode.id
+        created_episode = db_session.query(AgentEpisode).filter(
+            AgentEpisode.id == episode.id
         ).first()
 
         assert created_episode is not None
-        assert created_episode.user_id == user.id
+        assert created_episode.agent_id == agent.id
+        assert created_episode.tenant_id == "default"
 
-    def test_cannot_modify_other_user_episode(self, client: TestClient, db_session: Session):
-        """Test users cannot modify other users' episodes."""
+    def test_cannot_modify_other_user_episode(self, db_session: Session, ep_client):
+        """Test there is no episode update surface (PUT is not implemented)."""
         user1 = UserFactory(id="modifier_1", _session=db_session)
         user2 = UserFactory(id="modifier_2", _session=db_session)
+        agent1 = AgentFactory(id="modifier_agent_1", _session=db_session)
 
-        episode = EpisodeFactory(id="modify_target_ep", user_id=user1.id, _session=db_session)
-        db_session.add_all([user1, user2, episode])
+        episode = _make_episode(db_session, agent1.id, "modify_target_ep")
+        db_session.add_all([user1, user2, agent1, episode])
         db_session.commit()
 
-        # Note: Episode update endpoint may not exist
-        # This test documents expected behavior
-        from tests.security.conftest import create_test_token
-
-        # Try to update episode title
-        response = client.put(
+        _auth(ep_client, user2)
+        response = ep_client.put(
             f"/api/episodes/{episode.id}",
             json={"title": "Modified Title"},
-            headers={"Authorization": f"Bearer {create_test_token(user2.id)}"}
         )
 
-        # Endpoint might not be implemented
-        assert response.status_code in [200, 403, 404, 405, 500]
+        # No modification endpoint exists — the episode is untouched
+        assert response.status_code == 404
+        db_session.expire_all()
+        assert db_session.query(AgentEpisode).filter(
+            AgentEpisode.id == episode.id
+        ).first().task_description == episode.task_description
 
-        if response.status_code == 200:
-            # Document this as a security concern if update succeeded
-            # TODO: Implement user ownership check for episode updates
-            pass
-
-    def test_cannot_delete_other_user_episode(self, client: TestClient, db_session: Session):
-        """Test users cannot delete other users' episodes."""
+    def test_cannot_delete_other_user_episode(self, db_session: Session, ep_client):
+        """Test there is no episode delete surface (DELETE is not implemented)."""
         user1 = UserFactory(id="deleter_1", _session=db_session)
         user2 = UserFactory(id="deleter_2", _session=db_session)
+        agent1 = AgentFactory(id="deleter_agent_1", _session=db_session)
 
-        episode = EpisodeFactory(id="delete_target_ep", user_id=user1.id, _session=db_session)
-        db_session.add_all([user1, user2, episode])
+        episode = _make_episode(db_session, agent1.id, "delete_target_ep")
+        db_session.add_all([user1, user2, agent1, episode])
         db_session.commit()
 
-        from tests.security.conftest import create_test_token
-        response = client.delete(
-            f"/api/episodes/{episode.id}",
-            headers={"Authorization": f"Bearer {create_test_token(user2.id)}"}
-        )
+        _auth(ep_client, user2)
+        response = ep_client.delete(f"/api/episodes/{episode.id}")
 
-        # Delete endpoint might not be implemented
-        assert response.status_code in [200, 204, 403, 404, 405, 500]
-
-        # Verify episode still exists if deletion failed
-        if response.status_code in [403, 404, 405]:
-            episode_still_exists = db_session.query(Episode).filter(
-                Episode.id == episode.id
-            ).first()
-            assert episode_still_exists is not None
+        assert response.status_code == 404
+        assert db_session.query(AgentEpisode).filter(
+            AgentEpisode.id == episode.id
+        ).first() is not None
 
 
 class TestEpisodeAccessLogging:
     """Test episode access logging."""
 
-    def test_access_denied_creates_log_entry(self, client: TestClient, db_session: Session):
-        """Test denied access creates EpisodeAccessLog entry."""
+    def test_access_denied_creates_log_entry(self, db_session: Session, ep_client):
+        """Test governance-denied retrieval creates an EpisodeAccessLog entry."""
         user1 = UserFactory(id="logger_1", _session=db_session)
-        user2 = UserFactory(id="logger_2", _session=db_session)
-
-        episode = EpisodeFactory(id="log_target_ep", user_id=user1.id, _session=db_session)
-        db_session.add_all([user1, user2, episode])
+        # Paused agent: governance blocks retrieval
+        agent = AgentFactory(id="logger_agent", status=AgentStatus.PAUSED.value, _session=db_session)
+        db_session.add_all([user1, agent])
         db_session.commit()
 
-        # Clear any existing logs
+        # Clear any existing logs for this agent
         db_session.query(EpisodeAccessLog).filter(
-            EpisodeAccessLog.episode_id == episode.id
+            EpisodeAccessLog.accessed_by_agent == agent.id
         ).delete()
         db_session.commit()
 
-        from tests.security.conftest import create_test_token
-        response = client.get(
-            f"/api/episodes/retrieve/{episode.id}",
-            headers={"Authorization": f"Bearer {create_test_token(user2.id)}"}
+        _auth(ep_client, user1)
+        response = ep_client.post(
+            "/api/episodes/retrieve/temporal",
+            json={"agent_id": agent.id, "time_range": "7d", "limit": 10},
         )
 
-        # Check if access log was created
-        # Note: Logging might not be implemented for all scenarios
+        # Governance denied the retrieval and logged the denial
+        assert response.status_code == 200
+        assert response.json()["governance_check"]["allowed"] is False
+
         access_log = db_session.query(EpisodeAccessLog).filter(
-            EpisodeAccessLog.episode_id == episode.id,
-            EpisodeAccessLog.accessed_by == user2.id
+            EpisodeAccessLog.accessed_by_agent == agent.id
         ).first()
+        assert access_log is not None
+        assert access_log.access_type == "temporal"
+        assert access_log.governance_check_passed is False
 
-        # Document whether logging is implemented
-        if access_log:
-            # Check if denial was logged
-            assert access_log.access_denied == True or response.status_code in [403, 404]
-        else:
-            # TODO: Implement access logging for denied access attempts
-            pass
-
-    def test_successful_access_creates_log_entry(self, client: TestClient, db_session: Session):
-        """Test successful access creates EpisodeAccessLog entry."""
+    def test_successful_access_creates_log_entry(self, db_session: Session, ep_client):
+        """Test successful retrieval creates an EpisodeAccessLog entry."""
         user = UserFactory(id="access_logger", _session=db_session)
-        episode = EpisodeFactory(id="access_target_ep", user_id=user.id, _session=db_session)
-        db_session.add_all([user, episode])
+        agent = InternAgentFactory(id="access_logger_agent", _session=db_session)
+        episode = _make_episode(db_session, agent.id, "access_target_ep")
+        db_session.add_all([user, agent, episode])
         db_session.commit()
 
         # Clear existing logs
@@ -210,372 +220,298 @@ class TestEpisodeAccessLogging:
         ).delete()
         db_session.commit()
 
-        from tests.security.conftest import create_test_token
-        response = client.get(
-            f"/api/episodes/retrieve/{episode.id}",
-            headers={"Authorization": f"Bearer {create_test_token(user.id)}"}
+        _auth(ep_client, user)
+        response = ep_client.get(
+            f"/api/episodes/retrieve/{episode.id}?agent_id={agent.id}",
         )
 
-        if response.status_code == 200:
-            # Check if access log was created
-            access_log = db_session.query(EpisodeAccessLog).filter(
-                EpisodeAccessLog.episode_id == episode.id,
-                EpisodeAccessLog.accessed_by == user.id
-            ).first()
+        assert response.status_code == 200
 
-            if access_log:
-                assert access_log.access_denied == False
-            else:
-                # TODO: Implement access logging for successful access
-                pass
+        access_log = db_session.query(EpisodeAccessLog).filter(
+            EpisodeAccessLog.episode_id == episode.id
+        ).first()
+        assert access_log is not None
+        assert access_log.accessed_by_agent == agent.id
+        assert access_log.access_type == "sequential"
+        assert access_log.governance_check_passed is True
 
 
 class TestAdminAccessControl:
     """Test admin access to episodes."""
 
-    def test_admin_can_access_any_episode(self, client: TestClient, db_session: Session):
-        """Test admins can access episodes from any user."""
-        # Create admin user
-        admin = UserFactory(
-            id="ep_admin",
-            role=UserRole.SUPER_ADMIN.value,
-            _session=db_session
-        )
-        regular_user = UserFactory(id="ep_regular", _session=db_session)
+    def test_admin_can_access_any_episode(self, db_session: Session, ep_client):
+        """Test admins can retrieve episodes of any agent."""
+        from tests.factories.user_factory import AdminUserFactory
+        from core.models import UserRole
 
-        episode = EpisodeFactory(id="admin_target_ep", user_id=regular_user.id, _session=db_session)
-        db_session.add_all([admin, regular_user, episode])
+        admin = AdminUserFactory(id="ep_admin", _session=db_session)
+        regular_user = UserFactory(id="ep_regular", _session=db_session)
+        agent = AgentFactory(id="admin_target_agent", _session=db_session)
+
+        episode = _make_episode(db_session, agent.id, "admin_target_ep")
+        db_session.add_all([admin, regular_user, agent, episode])
         db_session.commit()
 
-        from tests.security.conftest import create_test_token
-        response = client.get(
-            f"/api/episodes/retrieve/{episode.id}",
-            headers={"Authorization": f"Bearer {create_test_token(admin.id)}"}
+        _auth(ep_client, admin)
+        response = ep_client.get(
+            f"/api/episodes/retrieve/{episode.id}?agent_id={agent.id}",
         )
 
-        # Admin should have access or endpoint may not implement role-based access
-        assert response.status_code in [200, 403, 404, 500]
+        assert response.status_code == 200
+        assert response.json()["episode"]["id"] == episode.id
 
-        # Document if admin access is not implemented
-        if response.status_code in [403, 404]:
-            # TODO: Implement admin override for episode access
-            pass
+    def test_admin_can_list_all_episodes(self, db_session: Session, ep_client):
+        """Test admins can list episodes of any agent."""
+        from tests.factories.user_factory import AdminUserFactory
 
-    def test_admin_can_list_all_episodes(self, client: TestClient, db_session: Session):
-        """Test admins can list episodes from all users."""
-        admin = UserFactory(
-            id="list_admin",
-            role=UserRole.SUPER_ADMIN.value,
-            _session=db_session
-        )
+        admin = AdminUserFactory(id="list_admin", _session=db_session)
         user1 = UserFactory(id="list_u1", _session=db_session)
         user2 = UserFactory(id="list_u2", _session=db_session)
+        agent1 = AgentFactory(id="admin_list_agent_1", _session=db_session)
+        agent2 = AgentFactory(id="admin_list_agent_2", _session=db_session)
 
-        episodes1 = EpisodeFactory.create_batch(3, user_id=user1.id, _session=db_session)
-        episodes2 = EpisodeFactory.create_batch(3, user_id=user2.id, _session=db_session)
-
-        db_session.add_all([admin, user1, user2] + episodes1 + episodes2)
+        episodes1 = [_make_episode(db_session, agent1.id, f"admin_list_ep1_{i}") for i in range(3)]
+        episodes2 = [_make_episode(db_session, agent2.id, f"admin_list_ep2_{i}") for i in range(3)]
+        db_session.add_all([admin, user1, user2, agent1, agent2] + episodes1 + episodes2)
         db_session.commit()
 
-        from tests.security.conftest import create_test_token
-        response = client.get(
-            "/api/episodes?include_all=true",
-            headers={"Authorization": f"Bearer {create_test_token(admin.id)}"}
-        )
-
-        # Admin list endpoint might not be implemented
-        assert response.status_code in [200, 403, 404, 500]
-
-        if response.status_code == 200:
-            data = response.json()
-            # Check if admin can see all episodes
-            # TODO: Implement admin-level episode listing with include_all parameter
+        _auth(ep_client, admin)
+        response = ep_client.get(f"/api/episodes/{agent1.id}/list")
+        assert response.status_code == 200
+        assert len(response.json().get("data", [])) == 3
 
 
 class TestEpisodeSearchIsolation:
-    """Test episode search respects user boundaries."""
+    """Test episode search/retrieval respects agent boundaries."""
 
-    def test_search_only_returns_user_episodes(self, client: TestClient, db_session: Session):
-        """Test episode search only returns user's own episodes."""
+    def test_search_only_returns_user_episodes(self, db_session: Session, ep_client):
+        """Test temporal retrieval only returns episodes of the requested agent."""
         user1 = UserFactory(id="search_u1", _session=db_session)
         user2 = UserFactory(id="search_u2", _session=db_session)
+        agent1 = InternAgentFactory(id="search_agent_1", _session=db_session)
+        agent2 = InternAgentFactory(id="search_agent_2", _session=db_session)
 
-        ep1 = EpisodeFactory(
-            id="search_ep1",
-            user_id=user1.id,
-            title="Shared Keyword",
-            _session=db_session
+        ep1 = _make_episode(
+            db_session, agent1.id, "search_ep1", task_description="Shared Keyword"
         )
-        ep2 = EpisodeFactory(
-            id="search_ep2",
-            user_id=user2.id,
-            title="Shared Keyword",
-            _session=db_session
+        ep2 = _make_episode(
+            db_session, agent2.id, "search_ep2", task_description="Shared Keyword"
         )
-
-        db_session.add_all([user1, user2, ep1, ep2])
+        db_session.add_all([user1, user2, agent1, agent2, ep1, ep2])
         db_session.commit()
 
-        from tests.security.conftest import create_test_token
-
-        # Search endpoint may not exist or may not filter by user
-        response = client.get(
-            "/api/episodes/search?q=Shared%20Keyword",
-            headers={"Authorization": f"Bearer {create_test_token(user1.id)}"}
+        _auth(ep_client, user1)
+        response = ep_client.post(
+            "/api/episodes/retrieve/temporal",
+            json={"agent_id": agent1.id, "time_range": "7d", "limit": 10},
         )
 
-        # Search might not be implemented
-        assert response.status_code in [200, 404, 500]
-
-        if response.status_code == 200:
-            data = response.json()
-            # Check if search respects user boundaries
-            # TODO: Implement user-scoped episode search
+        assert response.status_code == 200
+        episodes = response.json().get("episodes", [])
+        assert all(e["id"] == "search_ep1" for e in episodes)
+        assert not any(e["id"] == "search_ep2" for e in episodes)
 
 
 class TestEpisodeFeedbackAccess:
     """Test episode feedback access control."""
 
-    def test_feedback_submission_requires_authentication(self, client: TestClient, db_session: Session):
+    def test_feedback_submission_requires_authentication(self, db_session: Session, ep_client):
         """Test feedback submission requires valid authentication."""
         user = UserFactory(id="feedback_user", _session=db_session)
-        episode = EpisodeFactory(id="feedback_ep", user_id=user.id, _session=db_session)
-        db_session.add_all([user, episode])
+        agent = AgentFactory(id="feedback_agent", _session=db_session)
+        episode = _make_episode(db_session, agent.id, "feedback_ep")
+        db_session.add_all([user, agent, episode])
         db_session.commit()
 
-        # Try to submit feedback without authentication
-        response = client.post(
+        # No authentication header
+        response = ep_client.post(
             f"/api/episodes/{episode.id}/feedback/submit",
-            json={
-                "feedback_type": "thumbs_up",
-                "rating": 5
-            }
+            json={"feedback_type": "thumbs_up", "rating": 5},
         )
 
-        # Should require authentication
-        assert response.status_code in [401, 403, 500]
+        assert response.status_code == 401
 
-    def test_feedback_submission_accessible_to_owner(self, client: TestClient, db_session: Session):
-        """Test episode owner can submit feedback."""
+    def test_feedback_submission_accessible_to_owner(self, db_session: Session, ep_client):
+        """Test authenticated users can submit feedback on an episode."""
         user = UserFactory(id="owner_feedback", _session=db_session)
-        episode = EpisodeFactory(id="owner_feedback_ep", user_id=user.id, _session=db_session)
-        db_session.add_all([user, episode])
+        agent = AgentFactory(id="owner_feedback_agent", _session=db_session)
+        episode = _make_episode(db_session, agent.id, "owner_feedback_ep")
+        db_session.add_all([user, agent, episode])
         db_session.commit()
 
-        from tests.security.conftest import create_test_token
-        response = client.post(
+        _auth(ep_client, user)
+        response = ep_client.post(
             f"/api/episodes/{episode.id}/feedback/submit",
             json={
                 "feedback_type": "rating",
                 "rating": 5,
-                "corrections": "Great work"
+                "corrections": "Great work",
             },
-            headers={"Authorization": f"Bearer {create_test_token(user.id)}"}
         )
 
-        # Feedback submission should work or not be implemented
-        assert response.status_code in [200, 201, 404, 500]
+        assert response.status_code == 200
+        assert response.json()["data"]["feedback_id"] is not None
 
-    def test_non_owner_cannot_submit_feedback(self, client: TestClient, db_session: Session):
-        """Test non-owners cannot submit feedback to others' episodes."""
+        feedback = db_session.query(AgentFeedback).filter(
+            AgentFeedback.user_id == user.id
+        ).first()
+        assert feedback is not None
+        assert feedback.agent_id == agent.id
+
+    def test_non_owner_cannot_submit_feedback(self, db_session: Session, ep_client):
+        """Test feedback submission posture for non-owners.
+
+        DOCUMENTED GAP: AgentEpisode has no user ownership column, so the
+        feedback endpoint cannot (and does not) enforce user-level ownership.
+        Any authenticated user can attach feedback to any episode. Enforcing
+        ownership requires adding user scoping to the episode model (schema
+        change, out of scope). This test pins the current behavior so the gap
+        stays visible.
+        """
         owner = UserFactory(id="feedback_owner", _session=db_session)
         other = UserFactory(id="feedback_other", _session=db_session)
-        episode = EpisodeFactory(id="feedback_restricted_ep", user_id=owner.id, _session=db_session)
-        db_session.add_all([owner, other, episode])
+        agent = AgentFactory(id="feedback_restricted_agent", _session=db_session)
+        episode = _make_episode(db_session, agent.id, "feedback_restricted_ep")
+        db_session.add_all([owner, other, agent, episode])
         db_session.commit()
 
-        from tests.security.conftest import create_test_token
-        response = client.post(
+        _auth(ep_client, other)
+        response = ep_client.post(
             f"/api/episodes/{episode.id}/feedback/submit",
-            json={
-                "feedback_type": "thumbs_down",
-                "corrections": "Needs improvement"
-            },
-            headers={"Authorization": f"Bearer {create_test_token(other.id)}"}
+            json={"feedback_type": "thumbs_down", "corrections": "Needs improvement"},
         )
 
-        # Should deny access or not be implemented
-        assert response.status_code in [200, 403, 404, 500]
-
-        if response.status_code == 200:
-            # Document this as a security concern
-            # TODO: Implement ownership check for feedback submission
-            pass
+        # Current behavior: accepted (documented gap — no user ownership on episodes)
+        assert response.status_code in [200, 403, 404]
 
 
 class TestEpisodeConsolidationAccess:
     """Test episode consolidation access control."""
 
-    def test_consolidation_requires_ownership(self, client: TestClient, db_session: Session):
-        """Test episode consolidation requires ownership."""
+    def test_consolidation_requires_ownership(self, db_session: Session, ep_client):
+        """Test consolidation is agent-scoped and requires authentication."""
         user1 = UserFactory(id="consolidate_u1", _session=db_session)
         user2 = UserFactory(id="consolidate_u2", _session=db_session)
+        agent = InternAgentFactory(id="consolidate_agent", _session=db_session)
 
-        episodes = EpisodeFactory.create_batch(
-            3,
-            user_id=user1.id,
-            status="active",
-            _session=db_session
-        )
-        db_session.add_all([user1, user2] + episodes)
+        episodes = [
+            _make_episode(db_session, agent.id, f"consolidate_ep_{i}", status="active")
+            for i in range(3)
+        ]
+        db_session.add_all([user1, user2, agent] + episodes)
         db_session.commit()
 
-        from tests.security.conftest import create_test_token
-        response = client.post(
-            "/api/episodes/consolidate",
-            json={
-                "episode_ids": [ep.id for ep in episodes],
-                "consolidated_title": "Consolidated Episode"
-            },
-            headers={"Authorization": f"Bearer {create_test_token(user2.id)}"}
-        )
+        # Unauthenticated -> rejected
+        anon = ep_client.post(f"/api/episodes/lifecycle/consolidate?agent_id={agent.id}")
+        assert anon.status_code == 401
 
-        # Should deny access or not be implemented
-        assert response.status_code in [200, 403, 404, 500]
-
-        if response.status_code == 200:
-            # Document if ownership check is missing
-            # TODO: Implement ownership validation for consolidation
-            pass
+        # Authenticated -> runs agent-scoped consolidation
+        _auth(ep_client, user2)
+        response = ep_client.post(f"/api/episodes/lifecycle/consolidate?agent_id={agent.id}")
+        assert response.status_code == 200
+        assert "consolidated" in response.json()
 
 
 class TestSharedEpisodes:
-    """Test shared episode functionality (if implemented)."""
+    """Test shared episode functionality (not implemented)."""
 
-    def test_shared_episode_accessible_by_recipient(self, client: TestClient, db_session: Session):
-        """Test shared episodes are accessible by recipient users."""
+    def test_shared_episode_accessible_by_recipient(self, db_session: Session, ep_client):
+        """Test there is no cross-user share surface (share endpoint does not exist)."""
         owner = UserFactory(id="share_owner", _session=db_session)
         recipient = UserFactory(id="share_recipient", _session=db_session)
+        agent = AgentFactory(id="share_agent", _session=db_session)
 
-        episode = EpisodeFactory(id="shared_ep", user_id=owner.id, _session=db_session)
-        db_session.add_all([owner, recipient, episode])
+        episode = _make_episode(db_session, agent.id, "shared_ep")
+        db_session.add_all([owner, recipient, agent, episode])
         db_session.commit()
 
-        from tests.security.conftest import create_test_token
-
-        # Share episode with recipient
-        share_response = client.post(
+        _auth(ep_client, owner)
+        share_response = ep_client.post(
             f"/api/episodes/{episode.id}/share",
             json={"user_ids": [recipient.id]},
-            headers={"Authorization": f"Bearer {create_test_token(owner.id)}"}
         )
 
-        # Share endpoint may not be implemented
-        if share_response.status_code in [200, 201]:
-            # Recipient should now have access
-            response = client.get(
-                f"/api/episodes/retrieve/{episode.id}",
-                headers={"Authorization": f"Bearer {create_test_token(recipient.id)}"}
-            )
+        # Sharing is not implemented — episodes are agent-scoped, not user-scoped
+        assert share_response.status_code == 404
 
-            assert response.status_code in [200, 403, 404]
-        else:
-            # Share functionality not implemented
-            assert share_response.status_code in [404, 500]
-
-    def test_unshared_episode_not_accessible(self, client: TestClient, db_session: Session):
-        """Test unshared episode is not accessible to other users."""
+    def test_unshared_episode_not_accessible(self, db_session: Session, ep_client):
+        """Test episodes are only retrievable within their agent scope."""
         owner = UserFactory(id="unshared_owner", _session=db_session)
         other = UserFactory(id="unshared_other", _session=db_session)
+        agent = AgentFactory(id="unshared_agent", _session=db_session)
 
-        episode = EpisodeFactory(id="unshared_ep", user_id=owner.id, _session=db_session)
-        db_session.add_all([owner, other, episode])
+        episode = _make_episode(db_session, agent.id, "unshared_ep")
+        db_session.add_all([owner, other, agent, episode])
         db_session.commit()
 
-        from tests.security.conftest import create_test_token
-        response = client.get(
-            f"/api/episodes/retrieve/{episode.id}",
-            headers={"Authorization": f"Bearer {create_test_token(other.id)}"}
-        )
+        _auth(ep_client, other)
+        # Wrong agent scope -> no data leaked
+        wrong_scope = ep_client.get(f"/api/episodes/retrieve/{episode.id}?agent_id=someone-else")
+        assert wrong_scope.status_code == 200
+        assert "episode" not in wrong_scope.json()
 
-        # Should deny access to unshared episode
-        # Note: This depends on whether user isolation is implemented
-        assert response.status_code in [200, 403, 404, 500]
+        # Correct agent scope (any authenticated user with the agent id)
+        right_scope = ep_client.get(f"/api/episodes/retrieve/{episode.id}?agent_id={agent.id}")
+        assert right_scope.status_code == 200
+        assert right_scope.json()["episode"]["id"] == episode.id
 
 
 class TestEpisodeRetrievalModesAccess:
     """Test access control for different episode retrieval modes."""
 
-    def test_temporal_retrieval_respects_user_boundaries(self, client: TestClient, db_session: Session):
-        """Test temporal retrieval only returns user's episodes."""
-        import uuid
+    def test_temporal_retrieval_respects_user_boundaries(self, db_session: Session, ep_client):
+        """Test temporal retrieval only returns episodes of the requested agent."""
         user1 = UserFactory(id="temporal_u1", _session=db_session)
         user2 = UserFactory(id="temporal_u2", _session=db_session)
-        agent = str(uuid.uuid4())
+        agent1 = InternAgentFactory(id="temporal_agent_1", _session=db_session)
+        agent2 = InternAgentFactory(id="temporal_agent_2", _session=db_session)
 
-        # Create episodes for both users with same agent
-        ep1 = EpisodeFactory(
-            id="temporal_ep1",
-            user_id=user1.id,
-            agent_id=agent,
-            _session=db_session
-        )
-        ep2 = EpisodeFactory(
-            id="temporal_ep2",
-            user_id=user2.id,
-            agent_id=agent,
-            _session=db_session
-        )
-        db_session.add_all([user1, user2, ep1, ep2])
+        ep1 = _make_episode(db_session, agent1.id, "temporal_ep1")
+        ep2 = _make_episode(db_session, agent2.id, "temporal_ep2")
+        db_session.add_all([user1, user2, agent1, agent2, ep1, ep2])
         db_session.commit()
 
-        from tests.security.conftest import create_test_token
-        response = client.post(
+        _auth(ep_client, user1)
+        response = ep_client.post(
             "/api/episodes/retrieve/temporal",
-            json={
-                "agent_id": agent,
-                "time_range": "7d",
-                "limit": 10
-            },
-            headers={"Authorization": f"Bearer {create_test_token(user1.id)}"}
+            json={"agent_id": agent1.id, "time_range": "7d", "limit": 10},
         )
 
-        # Temporal retrieval might not filter by user_id
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code == 200
+        episodes = response.json().get("episodes", [])
+        assert all(e["id"] == "temporal_ep1" for e in episodes)
+        assert not any(e["id"] == "temporal_ep2" for e in episodes)
 
-        if response.status_code == 200:
-            data = response.json()
-            # TODO: Implement user_id filtering in temporal retrieval
-
-    def test_semantic_retrieval_respects_user_boundaries(self, client: TestClient, db_session: Session):
-        """Test semantic retrieval only returns user's episodes."""
-        import uuid
-
+    def test_semantic_retrieval_respects_user_boundaries(self, db_session: Session, ep_client):
+        """Test semantic retrieval is agent-scoped and requires auth."""
         user1 = UserFactory(id="semantic_u1", _session=db_session)
         user2 = UserFactory(id="semantic_u2", _session=db_session)
-        agent = str(uuid.uuid4())
+        agent1 = InternAgentFactory(id="semantic_agent_1", _session=db_session)
+        agent2 = InternAgentFactory(id="semantic_agent_2", _session=db_session)
 
-        ep1 = EpisodeFactory(
-            id="semantic_ep1",
-            user_id=user1.id,
-            agent_id=agent,
-            summary="Machine learning project",
-            _session=db_session
+        ep1 = _make_episode(
+            db_session, agent1.id, "semantic_ep1", task_description="Machine learning project"
         )
-        ep2 = EpisodeFactory(
-            id="semantic_ep2",
-            user_id=user2.id,
-            agent_id=agent,
-            summary="Machine learning project",
-            _session=db_session
+        ep2 = _make_episode(
+            db_session, agent2.id, "semantic_ep2", task_description="Machine learning project"
         )
-        db_session.add_all([user1, user2, ep1, ep2])
+        db_session.add_all([user1, user2, agent1, agent2, ep1, ep2])
         db_session.commit()
 
-        from tests.security.conftest import create_test_token
-        response = client.post(
+        # Unauthenticated -> rejected
+        anon = ep_client.post(
             "/api/episodes/retrieve/semantic",
-            json={
-                "agent_id": agent,
-                "query": "machine learning",
-                "limit": 10
-            },
-            headers={"Authorization": f"Bearer {create_test_token(user1.id)}"}
+            json={"agent_id": agent1.id, "query": "machine learning", "limit": 10},
+        )
+        assert anon.status_code == 401
+
+        _auth(ep_client, user1)
+        response = ep_client.post(
+            "/api/episodes/retrieve/semantic",
+            json={"agent_id": agent1.id, "query": "machine learning", "limit": 10},
         )
 
-        # Semantic retrieval might not filter by user_id
-        assert response.status_code in [200, 404, 500]
-
-        if response.status_code == 200:
-            # TODO: Implement user_id filtering in semantic retrieval
-            pass
+        assert response.status_code == 200
+        # LanceDB may be empty in tests; whatever is returned must be agent1's
+        episodes = response.json().get("episodes", [])
+        assert all(e["id"] == "semantic_ep1" for e in episodes)

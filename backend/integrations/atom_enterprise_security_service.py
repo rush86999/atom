@@ -1045,6 +1045,22 @@ class AtomEnterpriseSecurityService:
             result='success',
             metadata={'user_id': user_id}
         )
+
+    async def _quarantine_resource(self, resource_id: str):
+        """Quarantine a resource"""
+        if not hasattr(self, 'quarantined_resources'):
+            self.quarantined_resources = {}
+        self.quarantined_resources[resource_id] = datetime.now(timezone.utc)
+
+        # Log security event
+        await self._log_security_audit(
+            event_type=AuditEventType.SECURITY_ALERT,
+            user_id='security_system',
+            resource='resource_quarantine',
+            action='quarantine',
+            result='success',
+            metadata={'resource_id': resource_id}
+        )
     
     async def _log_security_audit(self, event_type: AuditEventType, user_id: str,
                                resource: str, action: str, result: str,
@@ -1307,7 +1323,7 @@ class AtomEnterpriseSecurityService:
         logger.info("Enterprise Security Service closed")
 
 # Global enterprise security service instance
-atom_enterprise_security_service = AtomEnterpriseSecurityService({
+atom_enterprise_security_service = AtomEnterpriseSecurityService(config={
     'database': None,  # Would be actual database connection
     'cache': None,  # Would be actual cache client
     'ai_service': globals().get('ai_enhanced_service'),

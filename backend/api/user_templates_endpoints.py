@@ -204,6 +204,18 @@ async def create_user_template(
         # Create template record — ownership always comes from the token;
         # constructor uses the REAL model columns (previously phantom kwargs
         # like template_id/complexity/tags raised TypeError on every create).
+        # steps_schema/inputs_schema are pydantic models — dump them to plain
+        # dicts (the JSON columns cannot serialize pydantic objects).
+        steps = (
+            [s.model_dump() for s in request.steps_schema]
+            if request.steps_schema
+            else (request.template_json or [])
+        )
+        input_schema = (
+            [s.model_dump() for s in request.inputs_schema]
+            if request.inputs_schema
+            else None
+        )
         template = WorkflowTemplate(
             id=template_id,
             name=request.name,
@@ -211,8 +223,8 @@ async def create_user_template(
             category=request.category,
             icon="default",
             author_id=current_user.id,
-            steps=request.steps_schema or request.template_json or [],
-            input_schema=request.inputs_schema or None,
+            steps=steps,
+            input_schema=input_schema,
             is_public=request.is_public,
             version="1.0.0",
             created_at=datetime.now(),
@@ -229,7 +241,7 @@ async def create_user_template(
             version_number=1,
             name=request.name,
             description=request.description,
-            steps=request.steps_schema or None,
+            steps=[s.model_dump() for s in request.steps_schema] if request.steps_schema else None,
             created_by=current_user.id,
             change_summary="Initial version",
             created_at=datetime.now()
@@ -346,18 +358,23 @@ async def get_user_template_statistics(
         most_used_template = None
         if most_used and most_used.usage_count > 0:
             most_used_template = {
-                "template_id": most_used.template_id,
+                "template_id": most_used.id,
                 "name": most_used.name,
                 "usage_count": most_used.usage_count,
                 "rating": most_used.rating
             }
 
-        # Get recent templates (last 5)
-        recent_templates = sorted(
-            templates,
-            key=lambda t: t.created_at,
-            reverse=True
-        )[:5]
+        # Get recent templates (last 5) — mapped to the API contract; raw ORM
+        # objects fail TemplateStatisticsResponse validation (missing
+        # template_id/complexity/tags/... fields).
+        recent_templates = [
+            _template_to_response(t)
+            for t in sorted(
+                templates,
+                key=lambda t: t.created_at,
+                reverse=True
+            )[:5]
+        ]
 
         return TemplateStatisticsResponse(
             total_templates=total_templates,

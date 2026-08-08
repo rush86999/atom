@@ -351,7 +351,9 @@ class TestSupervisionLifecycle:
         assert session.agent_id == mock_agent.id
         assert session.agent_name == mock_agent.name
         assert session.status == SupervisionStatus.RUNNING.value
-        assert session.intervention_count == 0
+        # intervention_count is a DB-column default; it is only populated on
+        # flush/refresh, so with a mocked DB session it stays None
+        assert (session.intervention_count or 0) == 0
 
     def test_start_supervision_rejects_student_agents(
         self, supervision_service, db_session
@@ -378,9 +380,12 @@ class TestSupervisionLifecycle:
         self, supervision_service, db_session, mock_session
     ):
         """Test getting active sessions returns list"""
-        # Setup mock query
+        # Self-referential query mock (filter/order_by/limit return the query)
         mock_query = Mock()
-        mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_session]
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = [mock_session]
         db_session.query.return_value = mock_query
 
         # Execute
@@ -394,6 +399,7 @@ class TestSupervisionLifecycle:
         assert mock_query.filter.called
         assert mock_query.order_by.called
         assert mock_query.limit.called
+        assert sessions == [mock_session]
 
     def test_get_active_sessions_filters_by_workspace(
         self, supervision_service, db_session, mock_session
@@ -432,9 +438,12 @@ class TestSupervisionLifecycle:
         self, supervision_service, db_session, mock_session
     ):
         """Test getting supervision history returns list"""
-        # Setup mock query
+        # Self-referential query mock (filter/order_by/limit return the query)
         mock_query = Mock()
-        mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_session]
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = [mock_session]
         db_session.query.return_value = mock_query
 
         # Execute
@@ -447,6 +456,7 @@ class TestSupervisionLifecycle:
         assert db_session.query.called
         assert mock_query.filter.called
         assert mock_query.order_by.called
+        assert len(history) == 1
 
 
 # ========================================================================
@@ -596,16 +606,23 @@ class TestMonitoring:
         mock_query.filter.return_value.order_by.return_value.first.return_value = None
         db.query.return_value = mock_query
 
-        # Execute monitoring (should timeout after 30 minutes)
-        # For testing, we'll break early
+        # Transition the session to COMPLETED on the second poll so the
+        # generator terminates (avoids the real 30-minute max-duration wait)
+        statuses = iter([SupervisionStatus.RUNNING.value, SupervisionStatus.COMPLETED.value])
+        def refresh_side_effect(obj):
+            try:
+                obj.status = next(statuses)
+            except StopIteration:
+                pass
+        db.refresh.side_effect = refresh_side_effect
+
+        # Execute monitoring (should stop when the session is no longer running)
         events = []
         async for event in supervision_service.monitor_agent_execution(mock_session, db):
             events.append(event)
-            if len(events) >= 1:  # Break after first event to avoid 30-minute wait
-                break
 
-        # Verify monitoring started
-        assert len(events) >= 0
+        # No events: execution is None and the loop exits on session completion
+        assert len(events) == 0
 
     @pytest.mark.asyncio
     async def test_monitor_execution_logs_agent_actions(
@@ -957,8 +974,18 @@ class TestWebSocketCommunication:
         mock_session.supervisor_id = "autonomous_supervisor_123"
         mock_session.trigger_context = {"user_id": "user_123"}
 
-        # Execute (should not raise exception)
-        await supervision_service.monitor_with_autonomous_fallback(mock_session)
+        # AutonomousSupervisorService is imported lazily inside
+        # monitor_with_autonomous_fallback, so patch it at its home module
+        with patch("core.autonomous_supervisor_service.AutonomousSupervisorService") as mock_autonomous:
+            mock_service = Mock()
+            async def empty_event_gen():
+                return
+                yield  # pragma: no cover
+            mock_service.monitor_execution.return_value = empty_event_gen()
+            mock_autonomous.return_value = mock_service
+
+            # Execute (should not raise exception)
+            await supervision_service.monitor_with_autonomous_fallback(mock_session)
 
         # Verify no exception raised
         assert True
@@ -1310,7 +1337,7 @@ class TestAutonomousSupervisorFallback:
         db_session.query.return_value = mock_query
 
         # Mock user activity service
-        with patch('core.supervision_service.UserActivityService') as mock_user_activity:
+        with patch('core.user_activity_service.UserActivityService') as mock_user_activity:
             mock_activity_service = AsyncMock()
             mock_activity_service.get_user_state.return_value = "online"
             mock_user_activity.return_value = mock_activity_service
@@ -1337,19 +1364,19 @@ class TestAutonomousSupervisorFallback:
         db_session.query.return_value = mock_query
 
         # Mock user activity service (user offline)
-        with patch('core.supervision_service.UserActivityService') as mock_user_activity:
+        with patch('core.user_activity_service.UserActivityService') as mock_user_activity:
             mock_activity_service = AsyncMock()
             mock_activity_service.get_user_state.return_value = "offline"
             mock_user_activity.return_value = mock_activity_service
 
             # Mock autonomous supervisor service (no autonomous supervisor found)
-            with patch('core.supervision_service.AutonomousSupervisorService') as mock_autonomous:
+            with patch('core.autonomous_supervisor_service.AutonomousSupervisorService') as mock_autonomous:
                 mock_auto_service = AsyncMock()
                 mock_auto_service.find_autonomous_supervisor.return_value = None
                 mock_autonomous.return_value = mock_auto_service
 
                 # Mock queue service
-                with patch('core.supervision_service.SupervisedQueueService') as mock_queue:
+                with patch('core.supervised_queue_service.SupervisedQueueService') as mock_queue:
                     mock_queue_service = AsyncMock()
                     mock_queue.return_value = mock_queue_service
 
@@ -1372,7 +1399,7 @@ class TestAutonomousSupervisorFallback:
         mock_session.trigger_context = {"user_id": "user_123"}
 
         # Mock autonomous supervisor service
-        with patch('core.supervision_service.AutonomousSupervisorService') as mock_autonomous:
+        with patch('core.autonomous_supervisor_service.AutonomousSupervisorService') as mock_autonomous:
             mock_auto_service = Mock()
             mock_auto_service.monitor_execution.return_value = self._mock_event_generator()
             mock_autonomous.return_value = mock_auto_service
@@ -1422,15 +1449,23 @@ class TestEdgeCases:
         mock_query.filter.return_value.order_by.return_value.first.return_value = None
         db.query.return_value = mock_query
 
+        # Transition the session to COMPLETED on the second poll so the
+        # generator terminates (avoids the real 30-minute max-duration wait)
+        statuses = iter([SupervisionStatus.RUNNING.value, SupervisionStatus.COMPLETED.value])
+        def refresh_side_effect(obj):
+            try:
+                obj.status = next(statuses)
+            except StopIteration:
+                pass
+        db.refresh.side_effect = refresh_side_effect
+
         # Execute monitoring (should handle gracefully)
         events = []
         async for event in supervision_service.monitor_agent_execution(mock_session, db):
             events.append(event)
-            if len(events) >= 1:
-                break
 
-        # Verify no crash
-        assert True
+        # Verify no crash and no events (no execution to report)
+        assert len(events) == 0
 
     @pytest.mark.asyncio
     async def test_monitor_execution_handles_database_errors(
@@ -1543,9 +1578,12 @@ class TestEdgeCases:
         self, supervision_service, db_session, mock_session
     ):
         """Test supervision history is ordered by start time (newest first)"""
-        # Mock query
+        # Self-referential query mock (filter/order_by/limit return the query)
         mock_query = Mock()
-        mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_session]
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = [mock_session]
         db_session.query.return_value = mock_query
 
         # Execute
@@ -1557,3 +1595,5 @@ class TestEdgeCases:
         # Verify order_by called with started_at descending
         assert mock_query.filter.called
         assert mock_query.order_by.called
+        assert len(history) == 1
+        assert history[0]["session_id"] == "session_123"

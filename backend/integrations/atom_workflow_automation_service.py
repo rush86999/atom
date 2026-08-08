@@ -72,15 +72,30 @@ try:
     )
 except ImportError:
     logger.debug("atom_enterprise_security_service not available")
-    atom_enterprise_security_service = None
-    AuditEventType = None
-    ComplianceReport = None
-    ComplianceStandard = None
-    SecurityAudit = None
-    SecurityLevel = None
-    SecurityPolicy = None
-    ThreatDetection = None
-    ThreatType = None
+    # Bare-name import only resolves when integrations/ is on sys.path; fall
+    # back to the package-qualified import so enums stay live.
+    try:
+        from integrations.atom_enterprise_security_service import (
+            AuditEventType,
+            ComplianceReport,
+            ComplianceStandard,
+            SecurityAudit,
+            SecurityLevel,
+            SecurityPolicy,
+            ThreatDetection,
+            ThreatType,
+            atom_enterprise_security_service,
+        )
+    except ImportError:
+        atom_enterprise_security_service = None
+        AuditEventType = None
+        ComplianceReport = None
+        ComplianceStandard = None
+        SecurityAudit = None
+        SecurityLevel = None
+        SecurityPolicy = None
+        ThreatDetection = None
+        ThreatType = None
 
 try:
     from atom_enterprise_unified_service import (
@@ -95,14 +110,28 @@ try:
     )
 except ImportError:
     logger.debug("atom_enterprise_unified_service not available")
-    atom_enterprise_unified_service = None
-    AutomationTriggerType = None
-    ComplianceAutomation = None
-    ComplianceWorkflowType = None
-    EnterpriseServiceType = None
-    EnterpriseWorkflow = None
-    SecurityWorkflowAction = None
-    WorkflowSecurityLevel = None
+    # The bare-name import only resolves when integrations/ is on sys.path;
+    # fall back to the package-qualified import so enums stay live.
+    try:
+        from integrations.atom_enterprise_unified_service import (
+            AutomationTriggerType,
+            ComplianceAutomation,
+            ComplianceWorkflowType,
+            EnterpriseServiceType,
+            EnterpriseWorkflow,
+            SecurityWorkflowAction,
+            WorkflowSecurityLevel,
+            atom_enterprise_unified_service,
+        )
+    except ImportError:
+        atom_enterprise_unified_service = None
+        AutomationTriggerType = None
+        ComplianceAutomation = None
+        ComplianceWorkflowType = None
+        EnterpriseServiceType = None
+        EnterpriseWorkflow = None
+        SecurityWorkflowAction = None
+        WorkflowSecurityLevel = None
 
 try:
     from atom_google_chat_integration import atom_google_chat_integration
@@ -284,6 +313,7 @@ class AtomWorkflowAutomationService:
         self.config = config
         self.db = config.get('database')
         self.cache = config.get('cache')
+        self.workspace_id = config.get('workspace_id') or tenant_id
         
         # Enterprise services
         self.security_service = config.get('security_service') or atom_enterprise_security_service
@@ -581,7 +611,8 @@ class AtomWorkflowAutomationService:
                                     'reason': decision.reason,
                                     'routing_decision': decision.routing_decision.value
                                 }
-                                self.db.commit()
+                                if self.db:
+                                    self.db.commit()
                                 logger.warning(
                                     f"Workflow automation {automation_id} action blocked: {decision.reason}"
                                 )
@@ -1384,8 +1415,20 @@ class AtomWorkflowAutomationService:
                 }
             # Execute compliance check using security service
             if self.security_service:
+                # ComplianceStandard uses lowercase values; coerce case-insensitively.
+                try:
+                    _standard = (
+                        ComplianceStandard(standard.lower())
+                        if isinstance(standard, str)
+                        else standard
+                    )
+                except (ValueError, AttributeError):
+                    return {
+                        'success': False,
+                        'error': f"Invalid compliance standard: {standard}"
+                    }
                 compliance_report = await self.security_service.check_compliance(
-                    ComplianceStandard(standard),
+                    _standard,
                     trigger_context.get('period', 'immediate')
                 )
                 return {
@@ -1574,7 +1617,7 @@ class AtomWorkflowAutomationService:
                 'compliance_violation_handling': {
                     'name': 'Compliance Violation Handling',
                     'description': 'Handle compliance violations automatically',
-                    'type': WorkflowAutomationType.COMPLIANCEANCE.value,
+                    'type': WorkflowAutomationType.COMPLIANCE.value,
                     'conditions': [
                         {
                             'type': AutomationConditionType.COMPLIANCE_VIOLATION.value,
@@ -1694,24 +1737,28 @@ class AtomWorkflowAutomationService:
                     automation_id=row[0],
                     name=row[1],
                     description=row[2],
-                    type=row[3],
+                    automation_type=WorkflowAutomationType(row[3]),
                     conditions=json.loads(row[4]) if row[4] else [],
                     actions=json.loads(row[5]) if row[5] else [],
-                    priority=row[6],
+                    priority=AutomationPriority(row[6]),
                     status=AutomationStatus(row[7]),
                     enabled=row[8],
                     created_by=row[9],
                     created_at=datetime.fromisoformat(row[10]) if row[10] else datetime.now(timezone.utc),
                     updated_at=datetime.fromisoformat(row[11]) if row[11] else datetime.now(timezone.utc),
                     schedule=row[12],
-                    next_run=datetime.fromisoformat(row[13]) if row[13] else None,
-                    last_run=datetime.fromisoformat(row[14]) if row[14] else None,
+                    last_executed=datetime.fromisoformat(row[14]) if row[14] else None,
                     execution_count=row[15] or 0,
                     success_count=row[16] or 0,
                     failure_count=row[17] or 0,
-                    last_execution_status=row[18],
-                    metadata=json.loads(row[19]) if row[19] else {}
+                    timeout=3600,
+                    retry_policy={},
+                    notification_rules=[],
+                    metadata=json.loads(row[19]) if row[19] else {},
+                    audit_trail=[]
                 )
+                automation.next_run = datetime.fromisoformat(row[13]) if row[13] else None
+                automation.last_execution_status = row[18]
                 self.automations[automation.automation_id] = automation
                 # Schedule automation if it has a schedule and is enabled
                 if automation.enabled and automation.schedule and automation.next_run:
@@ -1849,7 +1896,7 @@ class AtomWorkflowAutomationService:
                 )
                 # Check for failed automations
                 for automation_id, automation in self.automations.items():
-                    if automation.last_execution_status == 'failed':
+                    if getattr(automation, 'last_execution_status', None) == 'failed':
                         # Check if failure rate is high
                         if automation.execution_count > 0:
                             failure_rate = automation.failure_count / automation.execution_count
@@ -1871,7 +1918,7 @@ class AtomWorkflowAutomationService:
                     # This is a simplified implementation - use a proper cron library in production
                     from datetime import timedelta
                     # For now, just schedule for next day at same time
-                    if automation.next_run:
+                    if getattr(automation, 'next_run', None):
                         next_run = automation.next_run + timedelta(days=1)
                     else:
                         next_run = datetime.now(timezone.utc) + timedelta(days=1)
@@ -2055,11 +2102,12 @@ class AtomWorkflowAutomationService:
             if not notification_rules:
                 # Default notification behavior
                 if execution.status == AutomationStatus.FAILED:
-                    await self._notify_via_slack(
+                    await self._notify_slack(
                         message=f"Automation {automation.name} failed: {execution.error}",
-                        urgency='high'
+                        urgency='high',
+                        context={}
                     )
-                return
+                return True
             # Process each notification rule
             for rule in notification_rules:
                 should_notify = False
@@ -2076,11 +2124,11 @@ class AtomWorkflowAutomationService:
                     # Send to each channel
                     for channel in channels:
                         if channel.startswith('slack:'):
-                            await self._notify_via_slack(message, urgency)
+                            await self._notify_slack(message, urgency, {})
                         elif channel.startswith('email:'):
-                            await self._notify_via_email(message, urgency)
+                            await self._notify_email(message, urgency, {})
                         elif channel.startswith('teams:'):
-                            await self._notify_via_teams(message, urgency)
+                            await self._notify_teams(message, urgency, {})
             logger.info(f"Sent notifications for automation {automation.automation_id}")
             return True
         except Exception as e:
@@ -2100,7 +2148,7 @@ class AtomWorkflowAutomationService:
             self.automation_metrics['success_rate'] = successful_executions / total_executions
         
         # Update average execution time
-        if execution.execution_time > 0:
+        if execution.execution_time > 0 and total_executions > 0:
             self.automation_metrics['average_execution_time'] = (
                 (self.automation_metrics['average_execution_time'] * (total_executions - 1) + execution.execution_time)
                 / total_executions
@@ -2179,7 +2227,7 @@ class AtomWorkflowAutomationService:
 # Global workflow automation service instance
 # Initialize with None values - will be configured when dependencies are available
 try:
-    atom_workflow_automation_service = AtomWorkflowAutomationService({
+    atom_workflow_automation_service = AtomWorkflowAutomationService(config={
         'database': None,  # Would be actual database connection
         'cache': None,  # Would be actual cache client
         'security_service': atom_enterprise_security_service if 'atom_enterprise_security_service' in globals() else None,

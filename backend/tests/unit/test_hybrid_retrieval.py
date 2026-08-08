@@ -43,9 +43,7 @@ class TestHybridRetrievalService:
         for i in range(100):
             episode = EpisodeFactory(
                 agent_id=agent.id,
-                summary=f"Test episode {i} about topic {i % 10}",
-                title=f"Episode {i}",
-                description=f"Detailed description for episode {i} " * 5
+                task_description=f"Test episode {i} about topic {i % 10}"
             )
             episodes.append(episode)
 
@@ -165,20 +163,23 @@ class TestHybridRetrievalService:
             with patch.object(service, '_rerank_cross_encoder', new=AsyncMock()) as mock_rerank:
                 mock_rerank.side_effect = Exception("Reranking failed")
 
-                results = await service.retrieve_semantic_hybrid(
-                    agent_id=agent.id,
-                    query="test query",
-                    coarse_top_k=50,
-                    rerank_top_k=20,
-                    use_reranking=True
-                )
+                # Ensure reranker is considered available so the rerank path
+                # (and its failure fallback) is actually exercised
+                with patch.object(service, '_get_reranker_model', new=AsyncMock(return_value=object())):
+                    results = await service.retrieve_semantic_hybrid(
+                        agent_id=agent.id,
+                        query="test query",
+                        coarse_top_k=50,
+                        rerank_top_k=20,
+                        use_reranking=True
+                    )
 
-                # Assertions
-                assert len(results) > 0, "Should fallback to coarse results"
+                    # Assertions
+                    assert len(results) > 0, "Should fallback to coarse results"
 
-                # All results should be tagged as coarse_fallback
-                for ep_id, score, stage in results:
-                    assert stage == "coarse_fallback"
+                    # All results should be tagged as coarse_fallback
+                    for ep_id, score, stage in results:
+                        assert stage == "coarse_fallback"
 
     @pytest.mark.asyncio
     async def test_reranker_lazy_loading(self, service):
@@ -314,9 +315,7 @@ class TestCrossEncoderReranking:
         episodes = [
             EpisodeFactory(
                 agent_id=agent.id,
-                summary=f"Episode {i} about specific topic with detailed content",
-                description=f"Detailed content {i} " * 20,
-                title=f"Episode {i}"
+                task_description=f"Episode {i} about specific topic with detailed content"
             )
             for i in range(50)
         ]
@@ -328,30 +327,32 @@ class TestCrossEncoderReranking:
 
         episode_ids = [ep.id for ep in episodes]
 
-        # Mock the sentence_transformers.cross_encoder module import
+        # Mock the cross-encoder model directly on the service instance
+        # (sentence_transformers cannot be imported in this environment because
+        # torch's native libraries fail to load, so patch the attribute instead)
         mock_model = Mock()
         mock_model.predict = Mock(return_value=[0.9 - (i * 0.01) for i in range(50)])
+        embedding_service._cross_encoder = mock_model
 
-        with patch('sentence_transformers.CrossEncoder', return_value=mock_model):
-            # Rerank
-            results = await embedding_service.rerank_cross_encoder(
-                query="specific topic",
-                episode_ids=episode_ids,
-                agent_id=agent.id,
-                db=db
-            )
+        # Rerank
+        results = await embedding_service.rerank_cross_encoder(
+            query="specific topic",
+            episode_ids=episode_ids,
+            agent_id=agent.id,
+            db=db
+        )
 
-            # Assertions
-            assert len(results) > 0
-            assert len(results) <= 50
+        # Assertions
+        assert len(results) > 0
+        assert len(results) <= 50
 
-            # Scores should be in [0, 1]
-            for ep_id, score in results:
-                assert 0.0 <= score <= 1.0, f"Score should be in [0, 1], got {score}"
+        # Scores should be in [0, 1]
+        for ep_id, score in results:
+            assert 0.0 <= score <= 1.0, f"Score should be in [0, 1], got {score}"
 
-            # Results should be sorted by score (descending)
-            scores = [score for _, score in results]
-            assert scores == sorted(scores, reverse=True), "Results should be sorted by score"
+        # Results should be sorted by score (descending)
+        scores = [score for _, score in results]
+        assert scores == sorted(scores, reverse=True), "Results should be sorted by score"
 
     @pytest.mark.asyncio
     async def test_reranking_performance_mocked(self, embedding_service, db):
@@ -363,20 +364,22 @@ class TestCrossEncoderReranking:
 
         episode_ids = [ep.id for ep in episodes]
 
-        # Mock the sentence_transformers.cross_encoder module import
+        # Mock the cross-encoder model directly on the service instance
+        # (sentence_transformers cannot be imported in this environment because
+        # torch's native libraries fail to load, so patch the attribute instead)
         mock_model = Mock()
         mock_model.predict = Mock(return_value=[0.8] * 50)
+        embedding_service._cross_encoder = mock_model
 
-        with patch('sentence_transformers.CrossEncoder', return_value=mock_model):
-            # Measure reranking time
-            start = datetime.utcnow()
-            results = await embedding_service.rerank_cross_encoder(
-                query="test query",
-                episode_ids=episode_ids,
-                agent_id=agent.id,
-                db=db
-            )
-            duration_ms = (datetime.utcnow() - start).total_seconds() * 1000
+        # Measure reranking time
+        start = datetime.utcnow()
+        results = await embedding_service.rerank_cross_encoder(
+            query="test query",
+            episode_ids=episode_ids,
+            agent_id=agent.id,
+            db=db
+        )
+        duration_ms = (datetime.utcnow() - start).total_seconds() * 1000
 
-            # Assertions (mocked version should be very fast)
-            assert duration_ms < 150, f"Reranking should be <150ms, got {duration_ms}ms"
+        # Assertions (mocked version should be very fast)
+        assert duration_ms < 150, f"Reranking should be <150ms, got {duration_ms}ms"

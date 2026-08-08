@@ -115,7 +115,7 @@ async def create_episode(
     return router.success_response(
         data={
             "episode_id": episode.id,
-            "title": episode.title,
+            "title": episode.task_description,
             "status": episode.status
         },
         message="Episode created successfully"
@@ -207,7 +207,7 @@ async def list_episodes(
         data=[
             {
                 "id": e.id,
-                "title": e.title,
+                "title": e.task_description or "Episode",
                 "status": e.status,
                 "started_at": e.started_at.isoformat() if e.started_at else None,
                 "importance_score": e.importance_score,
@@ -457,21 +457,26 @@ async def submit_episode_feedback(
             status_code=404
         )
 
-    # Create feedback record
+    # Create feedback record (AgentFeedback is linked to the episode via the
+    # episode's feedback_ids list; the model has no episode_id column).
     feedback = AgentFeedback(
         agent_id=episode.agent_id,
         user_id=current_user.id,
-        episode_id=episode_id,
+        tenant_id=episode.tenant_id,
         feedback_type=request.feedback_type,
         rating=request.rating,
+        original_output=episode.task_description or "",
         user_correction=request.corrections or "",
         thumbs_up_down=(request.feedback_type == "thumbs_up") if request.feedback_type in ["thumbs_up", "thumbs_down"] else None
     )
     db.add(feedback)
+    db.flush()  # Ensure the new feedback is visible to the aggregate query below
 
-    # Update episode aggregate score
+    # Update episode aggregate score. AgentFeedback has no episode_id column —
+    # the linkage is the episode's feedback_ids list, so scope by that.
+    linked_ids = list(episode.feedback_ids or []) + [feedback.id]
     all_feedback = db.query(AgentFeedback).filter(
-        AgentFeedback.episode_id == episode_id
+        AgentFeedback.id.in_(linked_ids)
     ).all()
 
     # Recalculate aggregate score
@@ -562,7 +567,7 @@ async def get_feedback_weighted_episodes(
             "episodes": [
                 {
                     "id": e.id,
-                    "title": e.title,
+                    "title": e.task_description or "Episode",
                     "aggregate_feedback_score": e.aggregate_feedback_score,
                     "canvas_action_count": e.canvas_action_count,
                     "started_at": e.started_at.isoformat() if e.started_at else None

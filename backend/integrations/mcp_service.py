@@ -897,6 +897,7 @@ class MCPService(IntegrationService):
         from core.integration_registry import IntegrationRegistry
 
         # Use provided db or create new session
+        created_db = db is None
         if not db:
             db = SessionLocal()
 
@@ -983,8 +984,8 @@ class MCPService(IntegrationService):
             return registered_tools
 
         finally:
-            # Close session if we created it
-            if not db:
+            # Close session only if we created it (never the caller's)
+            if created_db and db is not None:
                 db.close()
 
     async def execute_integration_tool(
@@ -1042,23 +1043,25 @@ class MCPService(IntegrationService):
             }
 
         try:
-            # Import EntitySkillExecutor
-            from core.entity_skill_executor import get_entity_skill_executor
+            # Delegate to the real UniversalIntegrationService. The former
+            # `core.entity_skill_executor` import was a phantom module (never
+            # existed in the repo), so every call returned
+            # {'status': 'error', 'error': 'No module named ...'}.
+            from integrations.universal_integration_service import UniversalIntegrationService
+            executor = UniversalIntegrationService()
 
-            # Get executor instance
-            if not db:
-                executor = get_entity_skill_executor()
-            else:
-                executor = get_entity_skill_executor(db=db)
-
-            # Delegate to EntitySkillExecutor for governance enforcement
-            result = await executor.execute_integration_skill(
-                tenant_id=tenant_id,
-                agent_id=agent_id,
-                connector_id=connector_id,
-                operation_name=operation_name,
-                arguments=arguments,
-                workspace_id=workspace_id
+            # Delegate to UniversalIntegrationService for execution
+            result = await executor.execute(
+                connector_id,
+                operation_name,
+                arguments,
+                context={
+                    "user_id": context.get("user_id"),
+                    "tenant_id": tenant_id,
+                    "workspace_id": workspace_id,
+                    "agent_id": agent_id,
+                    "registry": context.get("registry"),
+                },
             )
 
             return result
@@ -1940,31 +1943,6 @@ class MCPService(IntegrationService):
                      return await cloud_browser.download_file(session_id, url, filename, context)
                  return "Error: browser_download_file is only available in cloud mode."
 
-            elif tool_name == "trigger_workflow":
-                from advanced_workflow_orchestrator import get_orchestrator
-                from core.workflow_security import (
-                    has_critical_step,
-                    resolve_orchestrator_steps,
-                )
-                orchestrator = get_orchestrator()
-                wf_id = arguments.get("workflow_id")
-                input_data = arguments.get("input_data", {})
-                if not wf_id: return {"error": "workflow_id is required"}
-                # R69 defense-in-depth: same fail-closed gate as the other
-                # trigger_workflow branch.
-                _steps = resolve_orchestrator_steps(orchestrator, wf_id)
-                if _steps is None or has_critical_step(_steps):
-                    return {
-                        "error": "Workflow has critical MCP actions or could not be resolved; execution refused."
-                    }
-                context = await orchestrator.execute_workflow(wf_id, input_data)
-                return {
-                    "status": context.status.value,
-                    "execution_id": context.workflow_id,
-                    "result": context.results,
-                    "error": context.error_message
-                }
-
             # --- CRM & Sales ---
             elif tool_name == "search_contacts":
                 from integrations.universal_integration_service import UniversalIntegrationService
@@ -2296,13 +2274,6 @@ class MCPService(IntegrationService):
                             continue
                     return results
 
-            elif tool_name == "finance_close_check":
-                from accounting.close_agent import CloseChecklistAgent
-                from core.database import SessionLocal
-                with SessionLocal() as db:
-                    agent = CloseChecklistAgent(db)
-                    return await agent.run_close_check(context.get("workspace_id", "default"), arguments.get("period", datetime.now(timezone.utc).strftime("%Y-%m")))
-
             # --- Specialty Tools ---
             elif tool_name == "get_inventory_levels":
                 from core.connection_service import ConnectionService
@@ -2518,7 +2489,7 @@ class MCPService(IntegrationService):
                     doc_id=doc_id,
                     source=source,
                     user_id=user_id,
-                    tenant_id=workspace_id
+                    workspace_id=workspace_id
                 )
                 return {"success": True, "stats": result}
 
@@ -2579,7 +2550,7 @@ class MCPService(IntegrationService):
                     doc_id=doc_id,
                     source=source,
                     user_id=user_id,
-                    tenant_id=workspace_id
+                    workspace_id=workspace_id
                 )
                 
                 return {
@@ -2730,60 +2701,6 @@ class MCPService(IntegrationService):
                 
                 return results
 
-
-            # --- WhatsApp Business Tools (Agent Communication) ---
-            elif tool_name == "whatsapp_send_message":
-                """Send a WhatsApp message to a recipient. Requires connected WhatsApp Business."""
-                from core.connection_service import ConnectionService
-                conn_service = ConnectionService()
-                user_id = context.get("user_id", "default_user")
-                
-                # Get WhatsApp connection for this user
-                connections = await conn_service.list_connections(user_id=user_id)
-                whatsapp_conn = next((c for c in connections if c.integration_id == "whatsapp"), None)
-                
-                if not whatsapp_conn:
-                    return {"error": "WhatsApp Business not connected. Please connect via /integrations."}
-                
-                # Get credentials from connection
-                creds = whatsapp_conn.credentials or {}
-                access_token = creds.get("access_token")
-                phone_number_id = creds.get("phone_number_id")
-                
-                if not access_token or not phone_number_id:
-                    return {"error": "WhatsApp credentials incomplete. Please reconnect WhatsApp."}
-                
-                # Send message via WhatsApp Cloud API
-                to_number = arguments.get("to")
-                message_text = arguments.get("message")
-                
-                if not to_number or not message_text:
-                    return {"error": "Both 'to' (phone number) and 'message' are required."}
-                
-                try:
-                    async with httpx.AsyncClient() as client:
-                        response = await client.post(
-                            f"https://graph.facebook.com/v18.0/{phone_number_id}/messages",
-                            headers={
-                                "Authorization": f"Bearer {access_token}",
-                                "Content-Type": "application/json"
-                            },
-                            json={
-                                "messaging_product": "whatsapp",
-                                "recipient_type": "individual",
-                                "to": to_number,
-                                "type": "text",
-                                "text": {"body": message_text}
-                            }
-                        )
-                        
-                        if response.status_code == 200:
-                            result = response.json()
-                            return {"success": True, "message_id": result.get("messages", [{}])[0].get("id")}
-                        else:
-                            return {"error": f"WhatsApp API error: {response.text}"}
-                except Exception as e:
-                    return {"error": f"Failed to send WhatsApp message: {str(e)}"}
 
             elif tool_name == "whatsapp_send_template":
                 """Send a WhatsApp template message. Useful for marketing and notifications."""

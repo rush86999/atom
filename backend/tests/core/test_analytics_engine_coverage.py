@@ -20,6 +20,19 @@ from core.analytics_engine import (
 )
 
 
+def redirect_analytics_join(temp_data_dir):
+    """Patch os.path.join so the engine's default data dir maps to temp_data_dir
+    while file joins inside that dir remain real paths."""
+    real_join = os.path.join
+
+    def fake_join(*args):
+        if args and args[-1] == "analytics_data":
+            return temp_data_dir
+        return real_join(*args)
+
+    return patch('core.analytics_engine.os.path.join', side_effect=fake_join)
+
+
 # ========================================================================
 # Fixtures
 # ========================================================================
@@ -109,7 +122,7 @@ class TestAnalyticsEngine:
                 }
             }, f)
 
-        with patch('core.analytics_engine.os.path.join', return_value=temp_data_dir):
+        with redirect_analytics_join(temp_data_dir):
             engine = AnalyticsEngine()
             assert "wf-001" in engine.workflow_metrics
             assert engine.workflow_metrics["wf-001"].execution_count == 10
@@ -128,7 +141,7 @@ class TestAnalyticsEngine:
                 }
             }, f)
 
-        with patch('core.analytics_engine.os.path.join', return_value=temp_data_dir):
+        with redirect_analytics_join(temp_data_dir):
             engine = AnalyticsEngine()
             assert "slack" in engine.integration_metrics
             assert engine.integration_metrics["slack"].call_count == 100
@@ -222,7 +235,7 @@ class TestAnalyticsQueries:
 
     def test_track_workflow_execution_saves_to_disk(self, reset_analytics_engine, temp_data_dir):
         """Test that workflow tracking saves to disk."""
-        with patch('core.analytics_engine.os.path.join', return_value=temp_data_dir):
+        with redirect_analytics_join(temp_data_dir):
             engine = AnalyticsEngine()
             engine.track_workflow_execution("wf-001", True, 10.0, 50.0, 100.0)
 
@@ -283,19 +296,19 @@ class TestAnalyticsQueries:
 
     def test_track_integration_calculates_status_partial(self, reset_analytics_engine, temp_data_dir):
         """Test that integration status is PARTIAL with some errors."""
-        with patch('core.analytics_engine.os.path.join', return_value=temp_data_dir):
+        with redirect_analytics_join(temp_data_dir):
             engine = AnalyticsEngine()
 
-            # 10 calls, 1 error
-            for i in range(10):
-                engine.track_integration_call("slack", i == 0, 100.0)
+            # 20 calls, 1 error (5% error rate)
+            for i in range(20):
+                engine.track_integration_call("slack", i != 0, 100.0)
 
             metric = engine.integration_metrics["slack"]
             assert metric.status == "PARTIAL"
 
     def test_track_integration_calculates_status_error(self, reset_analytics_engine, temp_data_dir):
         """Test that integration status is ERROR with high error rate."""
-        with patch('core.analytics_engine.os.path.join', return_value=temp_data_dir):
+        with redirect_analytics_join(temp_data_dir):
             engine = AnalyticsEngine()
 
             # 10 calls, 5 errors (50% error rate)
@@ -307,7 +320,7 @@ class TestAnalyticsQueries:
 
     def test_track_integration_saves_to_disk(self, reset_analytics_engine, temp_data_dir):
         """Test that integration tracking saves to disk."""
-        with patch('core.analytics_engine.os.path.join', return_value=temp_data_dir):
+        with redirect_analytics_join(temp_data_dir):
             engine = AnalyticsEngine()
             engine.track_integration_call("slack", True, 150.0)
 
@@ -675,7 +688,7 @@ class TestAnalyticsErrors:
 
     def test_metrics_persist_across_instances(self, reset_analytics_engine, temp_data_dir):
         """Test that metrics persist across engine instances."""
-        with patch('core.analytics_engine.os.path.join', return_value=temp_data_dir):
+        with redirect_analytics_join(temp_data_dir):
             # First instance
             engine1 = AnalyticsEngine()
             engine1.track_workflow_execution("wf-001", True, 10.0, 50.0, 100.0)

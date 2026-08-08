@@ -19,12 +19,10 @@ os.environ["TESTING"] = "1"
 import pytest
 from datetime import timedelta, datetime
 from sqlalchemy.orm import Session
-from core.models import User, RevokedToken, ActiveToken
+from core.models import User, ActiveToken
 from core.auth import (
     get_password_hash,
-    verify_password,
     create_access_token,
-    create_mobile_token,
     SECRET_KEY,
     ALGORITHM
 )
@@ -40,7 +38,7 @@ class TestJWTTokenRefresh:
     """Test JWT token refresh flow"""
 
     def test_refresh_with_valid_token(self, client, db_session: Session):
-        """Test token refresh with valid refresh token"""
+        """Test token refresh with valid access token"""
         user = User(
             email="refresh@example.com",
             hashed_password=get_password_hash("SecurePass123!"),
@@ -51,19 +49,19 @@ class TestJWTTokenRefresh:
         db_session.add(user)
         db_session.commit()
 
-        # Create mobile-style tokens (includes refresh token)
-        tokens = create_mobile_token(user, device_id="test_device")
-        refresh_token = tokens["refresh_token"]
+        # POST /api/auth/refresh requires the access token in the Authorization
+        # header and issues a fresh access token.
+        access_token = create_access_token(data={"sub": str(user.id)})
 
-        # Try to refresh (note: current implementation may not have refresh endpoint)
         response = client.post(
             "/api/auth/refresh",
-            json={"refresh_token": refresh_token}
+            headers={"Authorization": f"Bearer {access_token}"}
         )
 
-        # Current behavior - documents what exists
-        # May return 404 if endpoint not implemented
-        assert response.status_code in [200, 404]
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert data["access_token"] != access_token
 
     def test_refresh_with_expired_token(self, client, db_session: Session):
         """Test token refresh fails with expired refresh token"""
@@ -317,14 +315,16 @@ class TestPasswordReset:
         db_session.add(user)
         db_session.commit()
 
-        # Create reset token manually
+        # Create reset token manually. The token column stores the SHA-256
+        # digest of the raw token (same as the /forgot-password endpoint).
         token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
 
         from core.models import PasswordResetToken
         reset_token = PasswordResetToken(
             user_id=str(user.id),
-            token_hash=token_hash,
+            token=token_hash,
+            tenant_id="default",
             expires_at=datetime.utcnow() + timedelta(hours=1)
         )
         db_session.add(reset_token)
@@ -363,7 +363,8 @@ class TestPasswordReset:
         from core.models import PasswordResetToken
         reset_token = PasswordResetToken(
             user_id=str(user.id),
-            token_hash=token_hash,
+            token=token_hash,
+            tenant_id="default",
             expires_at=datetime.utcnow() - timedelta(hours=1)  # Expired
         )
         db_session.add(reset_token)
