@@ -76,7 +76,7 @@ class AuditTrailValidator:
         if end_time:
             query = query.filter(FinancialAudit.timestamp <= end_time)
         if model_name:
-            query = query.filter(FinancialAudit.action_type == model_name)
+            query = query.filter(FinancialAudit.operation_type == model_name)
 
         audits = query.all()
         total_audits = len(audits)
@@ -246,13 +246,16 @@ class AuditTrailValidator:
         success_count = 0
 
         for audit in audits:
-            action = audit.action_type or 'unknown'
+            action = audit.operation_type or 'unknown'
             maturity = audit.agent_maturity or 'unknown'
 
             by_action[action] = by_action.get(action, 0) + 1
             by_maturity[maturity] = by_maturity.get(maturity, 0) + 1
-            if audit.success:
-                success_count += 1
+            # BUG-086 (follow-up): FinancialAudit has no `success` column.
+            # Every row that reached the audit trail represents a financial
+            # operation that was successfully persisted (failures are not
+            # audited), so it counts toward success_rate.
+            success_count += 1
 
         return {
             'total_audits': len(audits),

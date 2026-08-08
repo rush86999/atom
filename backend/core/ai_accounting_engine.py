@@ -459,8 +459,12 @@ class AIAccountingEngine:
         risk_level = "low"
         analysis = "Scenario analyzed based on requested parameters."
         
-        # Try to extract a number ($10k, 5000)
-        num_match = re.search(r'\$?(\d+)[k,]*', description)
+        # Try to extract a number ($10k, $5,000, 5000).
+        # Capture the full comma-separated digit run (e.g. "10,000") so
+        # thousands separators are not silently truncated. The original
+        # r'\$?(\d+)[k,]*' stopped at the first comma, parsing "$10,000"
+        # as 10 — a 1000x under-estimate of impact.
+        num_match = re.search(r'\$?(\d[\d,]*)(?:\s*k)?\b', description)
         val = 0
         if num_match:
             val = int(num_match.group(1).replace(',', ''))

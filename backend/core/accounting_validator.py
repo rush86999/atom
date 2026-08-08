@@ -5,7 +5,7 @@ Ensures accounting invariants using exact Decimal arithmetic.
 Per GAAP/IFRS: debits must equal credits exactly - no epsilon tolerance.
 """
 
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from enum import Enum
 from typing import List, Dict, Any, Optional
 
@@ -84,8 +84,14 @@ def validate_double_entry(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
                 Decimal('0.00')
             )
 
-        # Round to 2 decimal places (cents)
-        amount = amount.quantize(Decimal('0.00'))
+        # Round to 2 decimal places (cents) using HALF_UP.
+        # Commercial/GAAP money rounding uses ROUND_HALF_UP, not Python's
+        # default ROUND_HALF_EVEN (banker's rounding). HALF_EVEN silently
+        # drops half-cents and can produce false imbalance verdicts when
+        # multiple sub-cent legs each round the same way (e.g. two $0.005
+        # debits + one $0.01 credit is a balanced journal that HALF_EVEN
+        # wrongly rejects because each $0.005 debit rounds to $0.00).
+        amount = amount.quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
 
         entry_type = entry["type"]
         if isinstance(entry_type, str):

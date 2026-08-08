@@ -101,7 +101,10 @@ class ReconciliationEngine:
         
         # Match bank entries to ledger
         for bank_id, bank_entry in self._bank_entries.items():
-            if bank_entry.status == ReconciliationStatus.MATCHED:
+            # Skip entries already in a terminal reconciliation state.
+            # MATCHED and DISCREPANCY are both terminal — re-running
+            # reconcile() must not re-process them (idempotency).
+            if bank_entry.status in (ReconciliationStatus.MATCHED, ReconciliationStatus.DISCREPANCY):
                 continue
             
             match = self._find_match(bank_entry, self._ledger_entries)
@@ -115,6 +118,11 @@ class ReconciliationEngine:
                     bank_entry.status = ReconciliationStatus.DISCREPANCY
                     bank_entry.matched_with = match
                     bank_entry.discrepancy_amount = diff
+                    # Mark the ledger side terminal too so it is not
+                    # reported as unmatched_ledger / re-processed.
+                    ledger_entry.status = ReconciliationStatus.DISCREPANCY
+                    ledger_entry.matched_with = bank_id
+                    ledger_entry.discrepancy_amount = diff
                     discrepancies.append({
                         "bank_id": bank_id,
                         "ledger_id": match,
@@ -166,6 +174,13 @@ class ReconciliationEngine:
     
     def _description_similarity(self, desc1: str, desc2: str) -> float:
         """Simple word overlap similarity"""
+        # Guard against None / non-string descriptions. A ReconciliationEntry's
+        # description has no validator forbidding None, so a single malformed
+        # entry must not crash the entire reconciliation run.
+        if not desc1 or not isinstance(desc1, str):
+            return 0.0
+        if not desc2 or not isinstance(desc2, str):
+            return 0.0
         words1 = set(desc1.lower().split())
         words2 = set(desc2.lower().split())
         if not words1 or not words2:
@@ -178,24 +193,31 @@ class ReconciliationEngine:
     def detect_anomalies(self) -> List[Anomaly]:
         """Run anomaly detection on all entries"""
         new_anomalies = []
-        
+
         # Detect unusual amounts
         new_anomalies.extend(self._detect_unusual_amounts())
-        
+
         # Detect duplicates
         new_anomalies.extend(self._detect_duplicates())
-        
+
         # Detect missing transactions
         new_anomalies.extend(self._detect_missing())
-        
-        self._anomalies.extend(new_anomalies)
-        return new_anomalies
+
+        # Idempotency: only store anomalies we haven't already recorded.
+        # Each anomaly carries a deterministic id derived from the entry id(s),
+        # so re-running detection on an unchanged data set must not duplicate.
+        existing_ids = {a.id for a in self._anomalies}
+        truly_new = [a for a in new_anomalies if a.id not in existing_ids]
+        self._anomalies.extend(truly_new)
+        return truly_new
     
     def _detect_unusual_amounts(self) -> List[Anomaly]:
         """Flag transactions with unusual amounts for their vendor"""
         anomalies = []
         
         for entry_id, entry in self._bank_entries.items():
+            if not entry.description or not isinstance(entry.description, str):
+                continue
             vendor = entry.description.lower()
             if vendor not in self._vendor_history:
                 continue
@@ -279,6 +301,11 @@ class ReconciliationEngine:
     
     def _update_vendor_history(self, vendor: str, amount: float):
         """Track vendor spending patterns"""
+        # Guard against None / non-string descriptions — a malformed entry
+        # must not crash vendor-history tracking (which fires on every
+        # add_bank_entry call).
+        if not vendor or not isinstance(vendor, str):
+            return
         vendor_key = vendor.lower()
         if vendor_key not in self._vendor_history:
             self._vendor_history[vendor_key] = []
