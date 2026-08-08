@@ -30,6 +30,37 @@ from core.policy_search_service import PGPolicySearchService
 
 logger = logging.getLogger(__name__)
 
+
+def _max_nesting_depth(links: List[Any], root_agent_id: str) -> int:
+    """Compute the maximum NESTING DEPTH of a delegation ChainLink tree.
+
+    A flat chain (root → sib1, root → sib2, root → sib3) has depth 1.
+    A nested chain (root → a → b → c) has depth 3. This is what
+    ``DelegationChain.max_depth`` should gate — NOT the total link count
+    (P1c / R1 fix; previously ``len(chain.links)``).
+    """
+    if not links:
+        return 0
+    # Build child map: parent_id -> [child_ids]
+    children: Dict[str, List[str]] = {}
+    for link in links:
+        parent = getattr(link, "parent_agent_id", None)
+        child = getattr(link, "child_agent_id", None)
+        if parent and child:
+            children.setdefault(parent, []).append(child)
+
+    def _depth(node: str, seen: set) -> int:
+        if node in seen:  # cycle guard
+            return 0
+        seen = seen | {node}
+        kids = children.get(node, [])
+        if not kids:
+            return 0
+        return 1 + max(_depth(k, seen) for k in kids)
+
+    return _depth(root_agent_id, set())
+
+
 # ---------------------------------------------------------------------------
 # Arbor code-quality gate helper
 # ---------------------------------------------------------------------------
@@ -577,12 +608,21 @@ class AgentGovernanceService:
                     }
 
         # NEW Phase 10: Fleet-wide recursion guardrails
+        # P1c (R1) fix: the previous check ``len(chain.links) >= chain.max_depth``
+        # gated on TOTAL link count, not nesting depth — so a flat chain of 3
+        # siblings tripped the same limit as a 3-deep nested chain. Now compute
+        # the maximum NESTING DEPTH across the ChainLink tree and gate on that.
         if chain_id:
-            from core.models import DelegationChain
+            from core.models import DelegationChain, ChainLink
             chain = self.db.query(DelegationChain).filter(DelegationChain.id == chain_id).first()
             if chain:
-                if len(chain.links) >= chain.max_depth:
-                    logger.warning(f"Recursion depth limit reached (chain: {chain_id}). Blocking recruitment.")
+                links = self.db.query(ChainLink).filter(ChainLink.chain_id == chain_id).all()
+                current_depth = _max_nesting_depth(links, chain.root_agent_id)
+                if current_depth >= chain.max_depth:
+                    logger.warning(
+                        f"Recursion depth limit reached (chain: {chain_id}, "
+                        f"depth={current_depth}, max={chain.max_depth}). Blocking recruitment."
+                    )
                     return {
                         "allowed": False,
                         "reason": f"Fleet recursion depth limit ({chain.max_depth}) reached.",

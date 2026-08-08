@@ -999,6 +999,9 @@ class AgentExecution(Base):
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
     chain_id = Column(String, ForeignKey("delegation_chains.id"), nullable=True, index=True) # Phase 10
+    # Lateral messaging: the coordination thread this execution participates in
+    # (AgentRadio-style peer-to-peer channel; auto-attached for fleet members).
+    thread_id = Column(String, ForeignKey("agent_threads.id", ondelete="SET NULL"), nullable=True, index=True)
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
 
     status = Column(String, default=ExecutionStatus.RUNNING.value, index=True)
@@ -1446,6 +1449,12 @@ class AgentRegistry(Base):
     enabled = Column(Boolean, default=True)  # Whether agent is available for supervision tasks
     diversity_profile = Column(JSONColumn, default={})  # Strategy traits (e.g., risk_profile, focus)
 
+    # Division hierarchy (P1c): division leads are REAL AgentRegistry rows;
+    # specialty scopes the agent within its division.
+    division_id = Column(String, ForeignKey("agent_divisions.id", ondelete="SET NULL"), nullable=True, index=True)
+    parent_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="SET NULL"), nullable=True, index=True)
+    specialty = Column(String, nullable=True)  # Domain specialty (e.g., "finance", "sales")
+
     @property
     def maturity_level(self):
         return self.status
@@ -1756,6 +1765,30 @@ class AgentHandoff(Base):
     tenant = relationship("Tenant", backref="agent_handoffs")
 
 
+class Division(Base):
+    """P1c (W4): a division in the CSO→division→specialist hierarchy.
+
+    Mirrors the Virtual Biotech org structure (Target ID, Modality Selection,
+    etc.). ``lead_agent_id`` is the division head (an AgentRegistry row);
+    ``parent_id`` allows nested divisions. Specialists are grouped via
+    ``AgentRegistry.division_id``.
+    """
+    __tablename__ = "agent_divisions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String, nullable=False)  # e.g. "Target Discovery"
+    lead_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="SET NULL"), nullable=True)
+    parent_id = Column(String, ForeignKey("agent_divisions.id", ondelete="SET NULL"), nullable=True)
+    domain = Column(String, nullable=False)  # canonical specialty domain
+    metadata_json = Column(JSONColumn, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    lead = relationship("AgentRegistry", foreign_keys=[lead_agent_id])
+    parent = relationship("Division", remote_side=[id], backref="children")
+
+
 class DelegationChain(Base):
     """
     Tracks complete delegation chains for audit and debugging.
@@ -1848,6 +1881,73 @@ class ChainLink(Base):
     chain = relationship("DelegationChain", back_populates="links")
     parent_agent = relationship("AgentRegistry", foreign_keys=[parent_agent_id], backref="delegations_as_parent")
     child_agent = relationship("AgentRegistry", foreign_keys=[child_agent_id], backref="delegations_as_child")
+
+
+class AgentThread(Base):
+    """
+    A lateral (peer-to-peer) coordination channel between agents.
+
+    Modeled on the AgentRadio protocol: a fixed team of agents shares a thread
+    and exchanges directed @mentions to self-organize in real time, without a
+    top-down orchestrator assigning subtasks. A thread is typically scoped to a
+    DelegationChain (one thread per recruited fleet) but may also be standalone.
+
+    See docs/agents/lateral-messaging.md for the protocol and philosophy.
+    """
+    __tablename__ = "agent_threads"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    # Optional fleet scope — auto-created per DelegationChain during recruitment.
+    chain_id = Column(String, ForeignKey("delegation_chains.id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String(255), nullable=False)
+    created_by_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # Thread lifecycle
+    status = Column(String(50), nullable=False, default="open")  # open, closed
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Member roster + extensible per-thread state
+    member_agent_ids = Column(JSONColumn, nullable=True)  # list[str]
+    metadata_json = Column(JSONColumn, nullable=True)
+
+    # Relationships
+    messages = relationship("LateralMessage", back_populates="thread", cascade="all, delete-orphan",
+                            order_by="LateralMessage.created_at")
+
+
+class LateralMessage(Base):
+    """
+    A single directed message between agents on an AgentThread.
+
+    May be addressed to a specific agent (to_agent_id) or broadcast to the
+    thread (to_agent_id IS NULL). `mentions` carries the list of agent IDs that
+    were @mentioned in the content — `wait_for_mention` blocks until a message
+    mentioning the calling agent arrives.
+
+    Note: distinct from the pre-existing ``AgentMessage`` model (table
+    ``agent_messages``), which carries task-coordination RPC between agents.
+    Lateral messages are the AgentRadio-style peer chat on a thread.
+    """
+    __tablename__ = "lateral_messages"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    thread_id = Column(String, ForeignKey("agent_threads.id", ondelete="CASCADE"), nullable=False, index=True)
+    from_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="SET NULL"), nullable=True, index=True)
+    to_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    content = Column(Text, nullable=False)
+    mentions = Column(JSONColumn, nullable=True)  # list[str] of @mentioned agent IDs
+
+    delivered = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    metadata_json = Column(JSONColumn, nullable=True)
+
+    # Relationships
+    thread = relationship("AgentThread", back_populates="messages")
+    from_agent = relationship("AgentRegistry", foreign_keys=[from_agent_id])
+    to_agent = relationship("AgentRegistry", foreign_keys=[to_agent_id])
 
 
 class FleetPerformanceMetric(Base):

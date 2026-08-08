@@ -258,15 +258,26 @@ class TestCanPerformActionBranches:
 
     def test_recursion_depth_limit_blocks(self, governance_service, mock_db):
         a = _agent(status=AgentStatus.AUTONOMOUS.value)
-        # Use a MagicMock for the chain — DelegationChain.links is a SQLAlchemy
-        # relationship that can't be set on a detached instance.
+        # P1c: the depth check now walks the ChainLink tree (nesting depth),
+        # not len(chain.links). Seed a depth-3 nested tree: root→a→b→c.
+        from core.models import ChainLink
         chain = MagicMock()
         chain.max_depth = 3
-        chain.links = ["a", "b", "c"]  # len 3 >= max_depth 3 -> blocked
+        chain.root_agent_id = "root"
+        nested_links = [
+            MagicMock(parent_agent_id="root", child_agent_id="a"),
+            MagicMock(parent_agent_id="a", child_agent_id="b"),
+            MagicMock(parent_agent_id="b", child_agent_id="c"),
+        ]
 
         def _query(model):
             q = MagicMock()
-            q.filter.return_value.first.return_value = chain if model is DelegationChain else a
+            if model is DelegationChain:
+                q.filter.return_value.first.return_value = chain
+            elif model is ChainLink:
+                q.filter.return_value.all.return_value = nested_links  # depth walk
+            else:
+                q.filter.return_value.first.return_value = a
             return q
 
         mock_db.query.side_effect = _query
@@ -278,13 +289,24 @@ class TestCanPerformActionBranches:
 
     def test_recursion_below_limit_allows(self, governance_service, mock_db):
         a = _agent(status=AgentStatus.AUTONOMOUS.value)
+        # P1c: depth-2 tree (root→a→b) under max_depth=5 → allowed.
+        from core.models import ChainLink
         chain = MagicMock()
         chain.max_depth = 5
-        chain.links = ["a", "b"]  # len 2 < max_depth 5 -> allowed
+        chain.root_agent_id = "root"
+        shallow_links = [
+            MagicMock(parent_agent_id="root", child_agent_id="a"),
+            MagicMock(parent_agent_id="a", child_agent_id="b"),
+        ]
 
         def _query(model):
             q = MagicMock()
-            q.filter.return_value.first.return_value = chain if model is DelegationChain else a
+            if model is DelegationChain:
+                q.filter.return_value.first.return_value = chain
+            elif model is ChainLink:
+                q.filter.return_value.all.return_value = shallow_links
+            else:
+                q.filter.return_value.first.return_value = a
             return q
 
         mock_db.query.side_effect = _query
