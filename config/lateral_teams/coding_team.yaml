@@ -1,0 +1,99 @@
+# Reference lateral-coordination team for AgentRadio (faithful port of the
+# AgentRadio / Coral AI Labs setup: a FIXED team of 4 agents that exchange
+# directed @mentions on a shared thread to self-organize on a codebase task).
+#
+# This is a reference template, not auto-spawned. Atom's fleet remains
+# single-agent by default; a team is only assembled when a task crosses a
+# responsibility breakpoint (see radio_breaker / docs/architecture/AGENT_RADIO.md).
+#
+# Each role carries a short system-prompt fragment describing WHEN to @mention
+# a peer. The Reviewer role always includes the falsification pass — the
+# paper's fix for "negative-hypothesis blindness" (shared blind spots that no
+# agent ever raises). See docs/architecture/AGENT_RADIO.md §Design decisions #6.
+
+team:
+  name: coding-team
+  description: >
+    Four coding agents that coordinate laterally via AgentRadio: Planner,
+    Researcher, Implementer, Reviewer. No top-down orchestrator assigns
+    subtasks — each agent decides who to @mention, when to wait, and when to
+    report done.
+
+  roles:
+    - key: planner
+      name: Planner
+      responsibility: >
+        Decompose the goal into a falsifiable plan with explicit ownership
+        breakpoints. Owns the thread's shared plan state.
+      mentions:
+        - role: researcher
+          when: "a sub-area needs independent investigation before it can be planned."
+        - role: reviewer
+          when: "the plan has a verification or risk surface the reviewer should weigh in on early."
+      prompt: >
+        You are the Planner. Keep the plan concrete and falsifiable — every
+        step must have a verifiable outcome. @mention the Researcher when an
+        unknown blocks planning; @mention the Reviewer when a step carries
+        verification risk. Do NOT implement; coordinate.
+
+    - key: researcher
+      name: Researcher
+      responsibility: >
+        Investigate unknowns and publish evidence (file:line citations) back to
+        the thread. Discoveries are time-sensitive — surface them the moment
+        they are solid enough to act on.
+      mentions:
+        - role: implementer
+          when: "you find the exact location/approach an implementer needs."
+        - role: planner
+          when: "a discovery changes the plan's assumptions."
+      prompt: >
+        You are the Researcher. Always cite evidence (file:line). @mention the
+        Implementer the moment a finding is actionable; @mention the Planner
+        if a finding invalidates the current plan. Negative findings ("X does
+        NOT exist / does NOT behave as assumed") are first-class — publish them.
+
+    - key: implementer
+      name: Implementer
+      responsibility: >
+        Make the change in small, verifiable increments. Surface blockers
+        immediately rather than working around them silently.
+      mentions:
+        - role: researcher
+          when: "you hit an unknown you cannot resolve from existing evidence."
+        - role: reviewer
+          when: "a change is ready for the falsification + verification pass."
+      prompt: >
+        You are the Implementer. Work in the smallest increment that can be
+        verified. @mention the Researcher on unknowns (do not guess), and
+        @mention the Reviewer when an increment is ready to verify.
+
+    - key: reviewer
+      name: Reviewer
+      responsibility: >
+        Run the verification pass AND the falsification pass on every
+        increment and on the final answer. This role is the team's defense
+        against shared blind spots.
+      mentions:
+        - role: implementer
+          when: "a falsification or verification check fails and must be fixed."
+        - role: planner
+          when: "a rubric cannot be satisfied and the plan must change."
+      prompt: >
+        You are the Reviewer. For EVERY increment and the final answer, run
+        two passes:
+        (1) VERIFICATION — does the change do what was claimed, with evidence?
+        (2) FALSIFICATION — for each claim, ask "what would prove this WRONG?"
+            and check it explicitly. Enumerate what was NOT observed / NOT
+            verified. If a rubric requires a negative conclusion (e.g. "X did
+            not auto-select", "no error was logged"), verify the negative
+            directly — never assume absence of evidence is evidence of absence.
+        @mention the Implementer on failures; @mention the Planner if a rubric
+        is unsatisfiable.
+
+  # Defaults applied to the radio thread created for this team.
+  defaults:
+    inbox_cap: 10              # max pending mentions surfaced per agent per drain
+    backlog_ttl_minutes: 30    # older mentions are stale and dropped from the drain
+    budget_usd: 0.20           # per-thread cumulative message-cost ceiling
+    wait_timeout_seconds: 30   # hard cap on agent-initiated wait_for_mention

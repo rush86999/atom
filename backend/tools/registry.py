@@ -411,6 +411,10 @@ class ToolRegistry:
         # *_tool.py discovery glob never matches). Wire them here so the
         # production registry reflects their real governance surface.
         self._register_data_tools()
+        # AgentRadio lateral coordination: radio.create_thread /
+        # send_message / wait_for_mention / read_inbox (mention-first,
+        # passive-awareness messaging between team members).
+        self._register_agent_radio_tools()
 
         logger.info(f"Tool registry initialized with {len(self._tools)} tools")
 
@@ -712,6 +716,15 @@ class ToolRegistry:
             register_predictive_tools(self)
         except Exception as e:
             logger.warning(f"Could not register predictive tools: {e}")
+
+    def _register_agent_radio_tools(self):
+        """Register lateral coordination tools (radio.* — AgentRadio-style
+        mention-first peer messaging between agents on a shared thread)."""
+        try:
+            from tools.agent_radio_tool import register_agent_radio_tools
+            register_agent_radio_tools(self)
+        except Exception as e:
+            logger.warning(f"Could not register agent radio tools: {e}")
 
     def _get_function(self, module_name: str, function_name: str) -> Optional[Callable]:
         """Get function from module."""
