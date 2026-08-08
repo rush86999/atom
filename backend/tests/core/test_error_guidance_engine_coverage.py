@@ -275,6 +275,15 @@ class TestGetSuggestedResolution:
         ]
         assert engine.get_suggested_resolution("permission_denied") == 1
 
+    def test_with_history_resolution_not_in_template_falls_back_to_zero(self, engine):
+        # Historical resolution name doesn't match any current template title
+        # (e.g. template changed between releases) → fall back to index 0.
+        engine.db.rows = [
+            _resolution(resolution_attempted="Legacy Resolution Name"),
+            _resolution(resolution_attempted="Legacy Resolution Name"),
+        ]
+        assert engine.get_suggested_resolution("permission_denied") == 0
+
 
 # ===========================================================================
 # present_error (async)

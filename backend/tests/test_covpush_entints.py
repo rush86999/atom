@@ -743,7 +743,7 @@ class TestUnifiedInitialize:
 
     async def test_initialize_enterprise_services_without_deps(self):
         mod = _mod("atom_enterprise_unified_service")
-        with patch.object(mod, "atom_enterprise_security_service", None):
+        with patch.object(mod, "atom_enterprise_security_service", None, create=True):
             service = mod.AtomEnterpriseUnifiedService()
             await service._initialize_enterprise_services()
             assert service.security_service is not None
@@ -1303,7 +1303,7 @@ class TestUnifiedAutomations:
 
     async def test_log_enterprise_event_without_security_service(self):
         mod = _mod("atom_enterprise_unified_service")
-        with patch.object(mod, "atom_enterprise_security_service", None):
+        with patch.object(mod, "atom_enterprise_security_service", None, create=True):
             service = mod.AtomEnterpriseUnifiedService()
             await service._log_enterprise_event("created", "u1", "r", "create", "success")
 

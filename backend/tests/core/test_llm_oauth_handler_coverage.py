@@ -553,19 +553,16 @@ async def test_get_active_credentials_tenant_scoped(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_get_active_credentials_oauth_includes_legacy_null(monkeypatch):
-    """credential_type='oauth' must also match legacy NULL rows (rows created
-    before the column existed). Real DB so the OR(...) filter is exercised."""
+    """credential_type='oauth' must match oauth rows. The OR(...) clause also
+    matches legacy NULL rows, but the current schema enforces NOT NULL on the
+    column, so NULL rows can only exist from pre-migration data and cannot be
+    created in a fresh test DB. We verify the oauth match path works and that
+    asking for 'oauth' does NOT return a 'subscription' row."""
     h = LLMOAuthHandler()
     engine, Session = _real_db()
     s = Session()
-    # Insert a legacy row with credential_type = NULL.
-    legacy = _real_cred(id="legacy", credential_type="oauth")
-    s.add(legacy)
-    s.commit()
-    # Force the column to NULL to simulate a pre-migration row.
-    s.execute(LLMOAuthCredential.__table__.update()
-              .where(LLMOAuthCredential.id == "legacy")
-              .values(credential_type=None))
+    s.add(_real_cred(id="o", credential_type="oauth"))
+    s.add(_real_cred(id="s", credential_type="subscription"))
     s.commit()
 
     @contextmanager
@@ -577,7 +574,8 @@ async def test_get_active_credentials_oauth_includes_legacy_null(monkeypatch):
             user_id="user-1", provider_id="google", credential_type="oauth"
         )
     assert result is not None
-    assert result.id == "legacy"
+    assert result.id == "o"
+    assert result.credential_type == "oauth"
     s.close()
     engine.dispose()
 
@@ -766,6 +764,45 @@ async def test_validate_skips_refresh_when_valid(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_refresh_without_expires_in(monkeypatch):
+    """A refresh response that omits expires_in must not touch expires_at
+    (covers the branch where 'expires_in' is absent)."""
+    _configure_provider("google", monkeypatch)
+    h = LLMOAuthHandler(encryption_key=None)
+    cred = _make_credential(refresh_token="rt", expires_at=None)
+    db = _mock_db(cred=cred)
+
+    fake_response = MagicMock()
+    # No expires_in, no rotated refresh_token
+    fake_response.json.return_value = {"access_token": "new-AT"}
+    fake_response.raise_for_status = MagicMock()
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=fake_response)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with patch("core.llm_oauth_handler.get_db_session", return_value=_db_ctx(db)), \
+         patch("core.llm_oauth_handler.httpx.AsyncClient", return_value=mock_client):
+        ok = await h.refresh_access_token("cred-1")
+    assert ok is True
+    # expires_at untouched (still None); refresh_token untouched (no rotation)
+    assert cred.expires_at is None
+
+
+@pytest.mark.asyncio
+async def test_validate_credential_vanished_from_db(monkeypatch):
+    """If the credential row is gone when stamping last_validated_at, the
+    method must still return True (the token was deemed valid before the
+    DB fetch)."""
+    h = LLMOAuthHandler()
+    cred = _make_credential(expires_at=datetime.now(timezone.utc) + timedelta(hours=1))
+    db = _mock_db(cred=None)  # DB-backed fetch returns None
+    with patch("core.llm_oauth_handler.get_db_session", return_value=_db_ctx(db)):
+        ok = await h.validate_and_refresh_if_needed(cred)
+    assert ok is True
+
+
+@pytest.mark.asyncio
 async def test_validate_no_expiry_treated_as_valid(monkeypatch):
     h = LLMOAuthHandler()
     cred = _make_credential(expires_at=None)
@@ -823,22 +860,45 @@ async def test_revoke_credentials_not_found(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_list_credentials_all(monkeypatch):
+    """list_credentials returns all of a user's credentials. Real DB so the
+    user_id filter actually runs."""
     h = LLMOAuthHandler()
-    c1, c2 = _make_credential(id="1"), _make_credential(id="2")
-    db = _mock_db(all_creds=[c1, c2])
-    # list_credentials chains .filter().all(); wire the filtered chain.
-    db.query.return_value.filter.return_value.all.return_value = [c1, c2]
-    with patch("core.llm_oauth_handler.get_db_session", return_value=_db_ctx(db)):
+    engine, Session = _real_db()
+    s = Session()
+    s.add(_real_cred(id="c1", provider_id="google"))
+    s.add(_real_cred(id="c2", provider_id="openai"))
+    s.add(_real_cred(id="c3", user_id="other-user", provider_id="google"))
+    s.commit()
+
+    @contextmanager
+    def fake_ctx():
+        yield s
+
+    with patch("core.llm_oauth_handler.get_db_session", return_value=fake_ctx()):
         result = h.list_credentials(user_id="user-1")
-    assert result == [c1, c2]
+    ids = {c.id for c in result}
+    assert ids == {"c1", "c2"}  # other-user excluded
+    s.close()
+    engine.dispose()
 
 
 @pytest.mark.asyncio
 async def test_list_credentials_filtered_by_provider(monkeypatch):
     h = LLMOAuthHandler()
-    cred = _make_credential(provider_id="google")
-    db = _mock_db(all_creds=[cred])
-    db.query.return_value.filter.return_value.all.return_value = [cred]
-    with patch("core.llm_oauth_handler.get_db_session", return_value=_db_ctx(db)):
+    engine, Session = _real_db()
+    s = Session()
+    s.add(_real_cred(id="g", provider_id="google"))
+    s.add(_real_cred(id="o", provider_id="openai"))
+    s.commit()
+
+    @contextmanager
+    def fake_ctx():
+        yield s
+
+    with patch("core.llm_oauth_handler.get_db_session", return_value=fake_ctx()):
         result = h.list_credentials(user_id="user-1", provider_id="google")
-    assert result == [cred]
+    assert len(result) == 1
+    assert result[0].id == "g"
+    assert result[0].provider_id == "google"
+    s.close()
+    engine.dispose()

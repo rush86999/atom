@@ -305,7 +305,15 @@ class ConditionMonitoringService:
 
                 # Check if should throttle (prevent alert spam)
                 if monitor.last_alert_sent_at:
-                    time_since_last_alert = (now - monitor.last_alert_sent_at).total_seconds()
+                    # Normalize a naive timestamp to UTC before subtracting.
+                    # ``now`` is timezone-aware (UTC); subtracting a naive
+                    # datetime raises TypeError, which the broad ``except``
+                    # below would swallow and silently skip this monitor's
+                    # condition check (i.e. silently disable monitoring for it).
+                    last_sent = monitor.last_alert_sent_at
+                    if last_sent.tzinfo is None:
+                        last_sent = last_sent.replace(tzinfo=timezone.utc)
+                    time_since_last_alert = (now - last_sent).total_seconds()
                     throttle_seconds = monitor.throttle_minutes * 60
 
                     if time_since_last_alert < throttle_seconds:

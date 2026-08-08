@@ -65,18 +65,21 @@ class _FakeModelMeta(type):
     work without a real SQLAlchemy schema."""
 
     def __getattr__(cls, name):
-        # Only intercept column-like accesses; dunders/dunder-methods resolve
-        # normally via type.
         return _Column()
 
 
 class _FakeModel(metaclass=_FakeModelMeta):
     """A stand-in model class. Instantiation captures constructor kwargs as
-    attributes so test assertions can read them back."""
+    attributes; any other attribute access returns ``None`` (matching how a
+    real ORM row exposes unset/DB-generated columns as None before refresh)."""
 
     def __init__(self, **kwargs):
+        # Use object.__setattr__ to bypass any instance __setattr__ recursion.
         for k, v in kwargs.items():
-            setattr(self, k, v)
+            object.__setattr__(self, k, v)
+
+    def __getattr__(self, name):  # only called when normal lookup fails
+        return None
 
 
 @pytest.fixture(autouse=True)
@@ -284,6 +287,17 @@ class TestMonitorMutations:
         assert m.name == "keep"
         db.commit.assert_called_once()
 
+    def test_update_alert_template_and_platforms(self):
+        m = _make_monitor(alert_template="old", platforms=[{"platform": "slack"}])
+        db = self._db_with_monitor(m)
+        _svc(db).update_monitor(
+            "m1", alert_template="new template",
+            platforms=[{"platform": "teams", "recipient_id": "T1"}],
+        )
+        assert m.alert_template == "new template"
+        assert m.platforms == [{"platform": "teams", "recipient_id": "T1"}]
+        db.commit.assert_called_once()
+
     def test_pause_not_found(self):
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = None
@@ -327,10 +341,12 @@ class TestMonitorMutations:
 class TestMonitorQueries:
     def test_get_monitors_with_filters(self):
         q = MagicMock()
-        # Service chains: .filter().filter().filter().order_by().limit().all()
-        leaf = MagicMock()
-        leaf.all.return_value = ["m1", "m2"]
-        q.filter.return_value.filter.return_value.filter.return_value.order_by.return_value.limit.return_value = leaf
+        # Self-referential chain so any number of .filter()/.order_by()/.limit()
+        # calls resolve back to q, and q.all() yields the configured result.
+        q.filter.return_value = q
+        q.order_by.return_value = q
+        q.limit.return_value = q
+        q.all.return_value = ["m1", "m2"]
         db = MagicMock()
         db.query.return_value = q
         s = _svc(db)
@@ -360,10 +376,10 @@ class TestMonitorQueries:
 
     def test_get_alerts_with_filters(self):
         q = MagicMock()
-        # Service chains: .filter().filter().order_by().limit().all()
-        leaf = MagicMock()
-        leaf.all.return_value = ["a1"]
-        q.filter.return_value.filter.return_value.order_by.return_value.limit.return_value = leaf
+        q.filter.return_value = q
+        q.order_by.return_value = q
+        q.limit.return_value = q
+        q.all.return_value = ["a1"]
         db = MagicMock()
         db.query.return_value = q
         out = _svc(db).get_alerts(monitor_id="m1", status="pending", limit=5)
@@ -695,7 +711,12 @@ class TestGetMetrics:
         db = MagicMock()
         # The method issues 5 count() scalars in order:
         # total_monitors, active_monitors, total_alerts, pending_alerts, recent_alerts
-        db.query.return_value.scalar.side_effect = [10, 4, 25, 3, 2]
+        # Some include a .filter(...) before .scalar(); make the chain
+        # self-referential so every call resolves to the same scalar mock.
+        q = MagicMock()
+        q.filter.return_value = q
+        q.scalar.side_effect = [10, 4, 25, 3, 2]
+        db.query.return_value = q
         s = _svc(db)
         out = s.get_metrics()
         assert out["total_monitors"] == 10

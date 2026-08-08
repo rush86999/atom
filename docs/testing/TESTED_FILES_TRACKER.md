@@ -310,6 +310,19 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | 2026-08-08 | Mobile full suite + coverage | GREEN | **3,558 passed / 106 suites; 77.1% lines** (was 61.7%) |
 | 2026-08-08 | FE full suite | GREEN | 7,121+ passed / 0 failed; 55.5% lines |
 
+### Resolved 2026-08-08 (R89 wave — pushed `05922ff41`)
+| Date | Area | Status | Result |
+|---|---|---|---|
+| 2026-08-08 | Mobile workflow/device/chat screens (11 suites / 219 tests) | TESTED/FIXED | ExecutionProgressScreen missing TouchableOpacity import (crash on running execution) + stale polling closure; WorkflowDetailScreen refreshControl plain-object iOS crash; ConversationListScreen unhandled bulk-delete rejection; screens 3–58% → 88–100%; canvasSyncService 63→88% |
+| 2026-08-08 | Mobile full suite + coverage | GREEN | **3,665 passed / 113 suites; 81.6% lines** (was 77.1%) — **80%+ threshold crossed** |
+
+## Coverage stamps (latest)
+| Surface | Coverage | Tests | Date |
+|---|---|---|---|
+| Mobile | **81.6%** lines (3,665 passed / 113 suites) | 7,346 stmts / 80 files | 2026-08-08 |
+| Frontend | **55.5%** lines (7,121+ passed / 0 failed) | 735 files | 2026-08-07 |
+| Backend | 54.0% (r80 full-ish); 32.8% chunked-scope (r84) | 158k stmts / ~1,015 files | 2026-08-07 |
+
 ## Known remaining work (verified at last run — updated 2026-08-08)
 - `core/models.py` `OAuthToken` — server-side model; verify `api/oauth` routes don't use stale columns (Notion/Spotify moved to IntegrationToken; sweep remaining writers)
 - `tests/test_cognitive_tier_e2e.py` — 11 collection ERRORS remain after the survey-sweep alignment (23 pass / 11 error; the stale `CognitiveTierPreference` kwargs were fixed but 11 tests still fail at setup — next target)
