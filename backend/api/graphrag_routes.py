@@ -93,6 +93,9 @@ async def add_entity(workspace_id: str, request: AddEntityRequest, current_user:
 @router.get("/canonical-search")
 async def canonical_search(workspace_id: str, type: str, q: str, current_user: User = Depends(get_current_user)):
     """Search for existing DB records to anchor graph nodes"""
+    from fastapi import HTTPException
+    if len(q) > 500:
+        raise HTTPException(status_code=422, detail="Search query too long (max 500 chars)")
     from core.graphrag_engine import graphrag_engine
     
     results = graphrag_engine.canonical_search(workspace_id, type, q)

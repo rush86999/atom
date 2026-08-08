@@ -1652,7 +1652,6 @@ class MCPService(IntegrationService):
                                         "id": data.get("workflow_id"),
                                         "name": data.get("name"),
                                         "description": data.get("description"),
-                                        "description": data.get("description"),
                                         "trigger": data.get("trigger")
                                     })
                             except Exception as e:
