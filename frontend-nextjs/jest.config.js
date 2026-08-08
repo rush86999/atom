@@ -130,7 +130,9 @@ module.exports = {
   },
   moduleFileExtensions: ["ts", "tsx", "js", "jsx"],
   transformIgnorePatterns: [
-    "node_modules/(?!(chakra-ui|@chakra-ui|@emotion|@mui|@tauri-apps|got|msw|@mswjs|@mswjs/interceptors|axios))"
+    // jose ships ESM-only (next-auth dep tree); transform next-auth + jose so
+    // next-auth-importing tests (pages/api/meeting_attendance_status) collect.
+    "node_modules/(?!(chakra-ui|@chakra-ui|@emotion|@mui|@tauri-apps|got|msw|@mswjs|@mswjs/interceptors|axios|jose|next-auth))"
   ],
 
   // Performance optimizations (Phase 134-11)

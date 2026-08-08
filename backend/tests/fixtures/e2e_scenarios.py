@@ -50,6 +50,10 @@ def _audit_seq_base(db_session, account_id: str) -> int:
     after the listener's entries to avoid sequence collisions.
     """
     from core.models import FinancialAudit
+    # The audit event listener adds its row during after_flush, but the
+    # INSERT can be deferred past the flush() call; force it out so the
+    # numbering below never collides with the listener's auto-audit.
+    db_session.flush()
     last = db_session.query(FinancialAudit).filter(
         FinancialAudit.account_id == account_id
     ).order_by(FinancialAudit.sequence_number.desc()).first()
