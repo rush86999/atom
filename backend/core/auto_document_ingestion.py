@@ -431,6 +431,13 @@ class AutoDocumentIngestionService:
 
         if self.memory_handler:
             try:
+                # Join-key bridge (hybrid search, Step 1): the file-ingest path
+                # creates no PG IngestedDocument row, so vector hits from here
+                # can't resolve to documents.cat. Stamp a stable doc_id +
+                # source_type:"file" so the hybrid service can flag these as
+                # bridged:false (no PG row) rather than silently returning
+                # unresolvable hits.
+                _file_doc_id = f"file_{datetime.now(timezone.utc).timestamp()}"
                 success = self.memory_handler.add_document(
                     table_name="documents",
                     text=text,
@@ -441,9 +448,12 @@ class AutoDocumentIngestionService:
                         "file_size": len(content),
                         "integration_id": source,
                         "ingested_at": datetime.now(timezone.utc).isoformat(),
+                        "pg_document_id": _file_doc_id,
+                        "source_type": "file",
                     },
                     user_id=user_id,
                     extract_knowledge=True,
+                    doc_id=_file_doc_id,
                 )
                 if success:
                     chars_ingested = len(text)
@@ -569,6 +579,12 @@ class AutoDocumentIngestionService:
 
                         source_modified = file_info.get("modified_at")
                         content_hash = hash_text(text)
+                        # Join-key bridge (hybrid search, Step 1): generate the PG
+                        # row id BEFORE the LanceDB write and pass it as doc_id so
+                        # the LanceDB documents row id equals the IngestedDocument
+                        # id. Vector hits then resolve directly to
+                        # documents.cat("knowledge/documents/<id>") paths.
+                        new_id = f"doc_{datetime.now(timezone.utc).timestamp()}"
                         # Source URL: best-effort canonical locator from the
                         # integration-provided metadata.
                         source_url = (
@@ -593,9 +609,12 @@ class AutoDocumentIngestionService:
                                 "source_url": source_url,
                                 "source_content_hash": content_hash,
                                 "freshness_status": "fresh",
+                                "pg_document_id": new_id,
+                                "source_type": "ingested",
                             },
                             user_id="system",
                             extract_knowledge=True,
+                            doc_id=new_id,
                             # Freshness columns as TOP-LEVEL filterable columns
                             # (not buried in the metadata JSON blob — see the
                             # warning in lancedb_handler.py add_document).
@@ -611,7 +630,6 @@ class AutoDocumentIngestionService:
                         if success:
                             # Record ingestion (in-memory cache + DB for
                             # cross-run freshness tracking).
-                            new_id = f"doc_{datetime.now(timezone.utc).timestamp()}"
                             self.ingested_docs[external_id] = IngestedDocument(
                                 id=new_id,
                                 file_name=file_info.get("name", ""),

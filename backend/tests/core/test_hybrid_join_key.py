@@ -95,7 +95,7 @@ async def test_api_ingest_document_passes_doc_id_to_lancedb():
     doc_id = str(uuid4())
     with (
         patch.object(doc_routes, "get_lancedb_handler", return_value=FakeHandler()),
-        patch.object(doc_routes, "uuid4", return_value=doc_id),
+        patch("uuid.uuid4", return_value=doc_id),
     ):
         # Route is async + requires request/current_user; call the inner body via
         # a lightweight stand-in to assert the doc_id param flows through.
@@ -115,3 +115,30 @@ async def test_api_ingest_document_passes_doc_id_to_lancedb():
     assert kwargs["doc_id"] == doc_id, "API ingest must pass doc_id into LanceDB"
     assert kwargs["metadata"].get("doc_id") == doc_id
     assert resp.id == doc_id
+
+
+def test_file_ingest_path_stamps_source_type_and_doc_id():
+    """The file-ingest path (no PG row) must stamp source_type:'file' + a doc_id.
+
+    Without this, file-ingested vector hits are unbridged and silently
+    unresolvable by documents.cat (no PG row to resolve against). Stamping
+    source_type:'file' lets the hybrid service flag them as bridged:false.
+    """
+    import re
+    src = open("core/auto_document_ingestion.py").read()
+    # The file-ingest add_document call: source=f"{source}:{file_name}", no external_id.
+    file_block = re.search(
+        r'success = self\.memory_handler\.add_document\(\s*'
+        r'table_name="documents",\s*'
+        r'text=text,\s*'
+        r'source=f"\{source\}:\{file_name\}"',
+        src, re.DOTALL,
+    )
+    assert file_block, "could not locate the file-ingest add_document call"
+    window = src[file_block.start():file_block.start() + 900]
+    assert '"source_type": "file"' in window, (
+        "file-ingest path must stamp source_type:'file' so hybrid search flags bridged:false"
+    )
+    assert "doc_id=" in window, (
+        "file-ingest path must pass doc_id= (stable id) so the LanceDB row is join-key-stamped"
+    )
