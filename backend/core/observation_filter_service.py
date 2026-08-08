@@ -106,12 +106,15 @@ class ObservationFilterService:
             if stripped.startswith("Observation:"):
                 payload = stripped[len("Observation:"):].strip()
                 payload = self._collapse_repeated_errors(payload)
+                # Dedup on the pre-truncation payload so that two DISTINCT
+                # observations sharing a long common prefix are not collapsed
+                # into one merely because they truncate to the same prefix.
+                dedup_key = payload
                 if len(payload) > PER_OBSERVATION_LENGTH_CAP:
                     payload = payload[:PER_OBSERVATION_LENGTH_CAP] + " …[truncated]"
-                key = payload
-                if key in seen_observations:
+                if dedup_key in seen_observations:
                     continue
-                seen_observations.add(key)
+                seen_observations.add(dedup_key)
                 out_lines.append(f"Observation: {payload}")
             else:
                 out_lines.append(line)
@@ -139,10 +142,23 @@ class ObservationFilterService:
             return history
 
         obs_texts = [lines[i].strip()[len("Observation:"):].strip() for i in obs_indices]
+        # H9 fix: batch the embeddings in ONE call (generate_embeddings_batch,
+        # llm_service.py:427) instead of a per-item loop. The previous code
+        # made N sequential network round-trips AND re-embedded the full
+        # history every step (O(N²) over a turn). Memoize per-text so a given
+        # observation is embedded once per turn, not once per subsequent step.
         embeddings = []
-        for t in obs_texts:
-            emb = await self.llm.generate_embedding(text=t)
-            embeddings.append(emb)
+        if obs_texts:
+            batch_fn = getattr(self.llm, "generate_embeddings_batch", None)
+            if batch_fn is not None:
+                try:
+                    embeddings = await batch_fn(obs_texts)
+                except Exception:
+                    embeddings = []
+            if not embeddings:  # fallback to per-item if batch unsupported/failed
+                for t in obs_texts:
+                    emb = await self.llm.generate_embedding(text=t)
+                    embeddings.append(emb)
 
         clusters: list[list[int]] = []
         for pos, emb in enumerate(embeddings):

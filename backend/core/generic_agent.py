@@ -39,8 +39,12 @@ except Exception:  # pragma: no cover - defensive
     OBSERVATION_FILTER_ENABLED = False
 
     class ObservationFilterService:  # type: ignore[no-redef]
-        async def filter_history(self, *a, **kw):
-            return "", {}
+        async def filter_history(self, execution_history="", *a, **kw):
+            # H8 fix: return the history unchanged + a no-savings metric, NOT
+            # ("", {}) which would silently wipe the agent's ReAct transcript.
+            return execution_history, {"savings_tokens": 0, "original_tokens": 0,
+                                       "filtered_tokens": 0, "embedding_pass": False,
+                                       "enabled": False}
 
 class GenericAgent:
     """
@@ -147,6 +151,24 @@ class GenericAgent:
 
                 while current_step < max_steps:
                     current_step += 1
+
+                    # AgentRadio — passive awareness (never raises, sub-ms):
+                    # absorb @mentions from the team's lateral thread into
+                    # the execution history before the next plan step. The
+                    # agent keeps working; it is never forced to block.
+                    try:
+                        if context and context.get("radio_thread_id"):
+                            from core.agent_radio.radio_service import (
+                                inbox_drain_text,
+                            )
+
+                            _inbox = inbox_drain_text(
+                                self.id, str(context["radio_thread_id"])
+                            )
+                            if _inbox:
+                                execution_history += _inbox
+                    except Exception:
+                        pass  # the drain must never break the agent loop
 
                     # Spend gate: check the tenant budget BEFORE the expensive
                     # LLM call. When denied, halt the loop cleanly with a

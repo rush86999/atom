@@ -76,7 +76,11 @@ class VotingVerifier(Verifier):
 
         majority_winner = self._match_winner(candidates, formatted, majority_str)
 
-        if majority_count >= 2 or len(candidates) == 1:
+        # H6 fix: a true ≥2/3 majority ratio, not a hardcoded count of 2.
+        # The previous `>= 2` only equaled 2/3 by accident at N=3; at N=5 a
+        # 2/5 minority (40%) would have won. A single candidate always passes.
+        threshold = max(2, (2 * len(candidates) + 2) // 3)  # ceil(2N/3), min 2
+        if majority_count >= threshold or len(candidates) == 1:
             agreement = majority_count / len(candidates) if candidates else 0.0
             return VerificationResult(
                 winner=majority_winner,
