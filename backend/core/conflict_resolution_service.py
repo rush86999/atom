@@ -107,14 +107,18 @@ class ConflictResolutionService:
         Returns:
             Severity level string
         """
-        # Check critical fields first
+        # Check critical fields first.
+        # Any difference on a critical field (code/command/local_files) is
+        # CRITICAL — including one-sided changes where the field exists on one
+        # side but is absent on the other (e.g. local adds `code` that remote
+        # lacks). When both values are None they are equal, so a plain
+        # inequality check correctly covers every case.
         critical_fields = ['code', 'command', 'local_files']
         for field in critical_fields:
             local_val = local_skill.get(field)
             remote_val = remote_skill.get(field)
             if local_val != remote_val:
-                if local_val is not None and remote_val is not None:
-                    return "CRITICAL"
+                return "CRITICAL"
 
         # Check high-severity fields
         high_fields = ['version', 'python_packages', 'npm_packages']

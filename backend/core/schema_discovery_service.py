@@ -344,13 +344,29 @@ class SchemaDiscoveryService:
         if email_count / len(examples) >= 0.8:
             return {"format": "email"}
 
-        # Check for date-time format
-        date_indicators = ["2026-", "T", "-", ":", "Z"]
-        date_count = 0
-        for example in examples:
-            if isinstance(example, str):
-                if any(indicator in example for indicator in date_indicators):
-                    date_count += 1
+        # Check for date-time format.
+        # NOTE: do NOT use permissive substring matching (e.g. bare "-", "T",
+        # ":", "Z") — those match almost any hyphenated identifier or clock
+        # time and produce widespread false positives (product codes, slugs).
+        # Instead, require the value to actually parse as an ISO-8601
+        # timestamp.
+        from datetime import datetime as _dt
+
+        def _is_iso_datetime(value: str) -> bool:
+            if not isinstance(value, str) or len(value) < 8:
+                return False
+            candidate = value.strip()
+            # datetime.fromisoformat didn't accept a trailing "Z" until 3.11;
+            # normalize it to "+00:00" so both spellings parse.
+            if candidate.endswith("Z"):
+                candidate = candidate[:-1] + "+00:00"
+            try:
+                _dt.fromisoformat(candidate)
+                return True
+            except ValueError:
+                return False
+
+        date_count = sum(1 for ex in examples if _is_iso_datetime(ex))
 
         if date_count / len(examples) >= 0.5:
             return {"format": "date-time"}

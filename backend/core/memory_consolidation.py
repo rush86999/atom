@@ -221,9 +221,13 @@ class MemoryConsolidationService:
             now = datetime.now(timezone.utc)
             for memory in memories:
                 new_score = 0.5 # Base score
-                
-                # Access count boost (diminishing returns)
-                access_boost = min(0.3, memory.access_count * 0.01)
+
+                # Access count boost (diminishing returns).
+                # access_count is nullable on the model (no nullable=False), so
+                # legacy/imported rows can carry NULL — treat that as 0 accesses
+                # instead of crashing the whole pass with None * 0.01.
+                access_count = memory.access_count or 0
+                access_boost = min(0.3, access_count * 0.01)
                 new_score += access_boost
 
                 # Recency boost

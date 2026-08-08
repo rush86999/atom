@@ -522,6 +522,35 @@ JSON Schema:
         }
         if normalized in PLURAL_TO_SINGULAR:
             normalized = PLURAL_TO_SINGULAR[normalized]
+        # Words that are already singular even though they end in 's'. These
+        # must NOT be passed through the generic plural-stripping rules below,
+        # which would corrupt them (e.g. "series" -> "serie").
+        elif normalized in {
+            "series",
+            "species",
+            "analysis",
+            "crisis",
+            "thesis",
+            "basis",
+            "status",
+            "news",
+            "lens",
+            "boss",
+            "gas",
+            "bus",
+            "this",
+            "atlas",
+            "trellis",
+        }:
+            pass  # leave unchanged
+        # "-ies" plurals: country->countries, query->queries, category->categories.
+        # These must be reduced to "-y" (NOT just have the trailing 's' stripped,
+        # which yields the malformed "countrie"/"querie"). Require a stem of at
+        # least 2 chars so short tokens aren't mangled.
+        elif normalized.endswith("ies") and len(normalized) > 4:
+            stem = normalized[:-3]
+            if len(stem) >= 2:  # "stories"->"story"; guard tiny stems
+                normalized = stem + "y"
         # Generic -s plural: strip trailing 's' if word is long enough
         elif normalized.endswith("s") and len(normalized) > 4 and not normalized.endswith("ss"):
             # Only strip if it looks like a plural (not words like "status", "address")
