@@ -653,13 +653,20 @@ class ABTestingService:
             avg_a = metrics_a.get("average_metric_value", 0)
             avg_b = metrics_b.get("average_metric_value", 0)
 
-            # For metrics like response_time, lower is better
-            if primary_metric in ["response_time", "error_rate"]:
-                winner = "A" if avg_a < avg_b else "B"
-            else:
-                winner = "B" if avg_b > avg_a else "A"
-
-            # Simplified p-value
+            # Simplified p-value: identical averages are not significant.
             p_value = 0.05 if avg_a != avg_b else 0.5
+
+            # Determine winner based on significance AND direction. The success-
+            # rate branch above guards with ``p_value < alpha``; the numerical
+            # branch must do the same so that a tie (avg_a == avg_b, p_value=0.5)
+            # or any non-significant difference is reported as inconclusive
+            # rather than arbitrarily awarding the win to one variant.
+            if p_value < alpha and avg_a != avg_b:
+                if primary_metric in ["response_time", "error_rate"]:
+                    winner = "A" if avg_a < avg_b else "B"
+                else:
+                    winner = "B" if avg_b > avg_a else "A"
+            else:
+                winner = "inconclusive"
 
             return p_value, winner

@@ -746,24 +746,25 @@ class BYOKManager:
         self.api_keys[key_id] = api_key_obj
         self._save_configuration()
 
-        # 2. Sync with tenant_settings table for frontend compatibility
+        # 2. Sync with tenant_settings table for frontend compatibility.
+        # R81: store the Fernet-encrypted value, not the plaintext — the
+        # tenant_settings table previously held raw credentials at rest.
         if db:
             setting_key = f"{provider_id.upper()}_API_KEY"
             setting = db.query(TenantSetting).filter(
                 TenantSetting.tenant_id == tenant_id,
                 TenantSetting.setting_key == setting_key
             ).first()
-            
+
+            encrypted_value = self.encrypt_api_key(api_key)
             if setting:
-                setting.setting_value = api_key # Masked or encrypted? Frontend mixin assumes plaintext but we should ideally encrypt.
-                # For now, aligned with frontend mixin which reads plaintext. 
-                # Note: encryption at rest is handled by RDS/Volume or better by app-level encryption.
+                setting.setting_value = encrypted_value
                 setting.updated_at = datetime.now()
             else:
                 new_setting = TenantSetting(
                     tenant_id=tenant_id,
                     setting_key=setting_key,
-                    setting_value=api_key,
+                    setting_value=encrypted_value,
                     created_at=datetime.now(),
                     updated_at=datetime.now()
                 )
@@ -790,7 +791,12 @@ class BYOKManager:
                 TenantSetting.setting_key == setting_key
             ).first()
             if setting and setting.setting_value:
-                return setting.setting_value
+                try:
+                    return self.decrypt_api_key(setting.setting_value)
+                except Exception:
+                    # Legacy rows written before R81 hold plaintext — keep
+                    # them readable instead of bricking stored credentials.
+                    return setting.setting_value
 
         # 2. Fallback to BYOKManager storage
         key_id = f"tenant_{tenant_id}_{provider_id}_{key_name}_{environment}"
@@ -830,7 +836,7 @@ router = APIRouter()
 # API Endpoints
 
 @router.get("/api/v1/byok/health")
-async def byok_health_check(current_user: User = Depends(get_current_user)):
+async def byok_health(current_user: User = Depends(get_current_user)):
     """Health check for BYOK system"""
     return ApiResponse(success=True, data={
         "status": "healthy",
@@ -839,30 +845,55 @@ async def byok_health_check(current_user: User = Depends(get_current_user)):
     })
 
 @router.get("/api/ai/keys")
-async def get_api_keys(current_user: User = Depends(get_current_user)):
+async def get_api_keys(
+    current_user: User = Depends(get_current_user),
+    byok_manager: BYOKManager = Depends(get_byok_manager),
+):
     """Get all configured API keys (masked)"""
+    keys = []
+    for key_id, key_obj in byok_manager.api_keys.items():
+        masked = None
+        try:
+            plain = byok_manager.decrypt_api_key(key_obj.encrypted_key)
+            masked = f"{plain[:4]}...{plain[-4:]}" if len(plain) >= 8 else "***"
+        except Exception:
+            masked = f"{key_obj.key_hash[:4]}...{key_obj.key_hash[-4:]}"
+        keys.append({
+            "provider": key_obj.provider_id,
+            "key_id": key_id,
+            "key_name": key_obj.key_name,
+            "environment": key_obj.environment,
+            "masked_key": masked,
+            "status": "active" if key_obj.is_active else "inactive",
+        })
     return ApiResponse(success=True, data={
-        "keys": [
-            {"provider": "openai", "masked_key": "sk-...1234", "status": "active"},
-            {"provider": "anthropic", "masked_key": "sk-...5678", "status": "active"},
-            {"provider": "deepseek", "masked_key": "ds-...9012", "status": "active"}
-        ],
-        "count": 3
+        "keys": keys,
+        "count": len(keys)
     })
 
 @router.post("/api/ai/keys")
-async def add_api_key(key_data: Dict[str, str], current_user: User = Depends(get_current_user)):
+async def add_api_key(
+    key_data: Dict[str, str],
+    current_user: User = Depends(get_current_user),
+    byok_manager: BYOKManager = Depends(get_byok_manager),
+):
     """Add a new API key"""
     provider = key_data.get("provider")
     key = key_data.get("key")
-    
+
     if not provider or not key:
         raise HTTPException(status_code=400, detail="Provider and key are required")
-        
+
+    if provider not in byok_manager.providers:
+        raise HTTPException(status_code=400, detail=f"Provider {provider} not found")
+
+    key_id = byok_manager.store_api_key(provider, key)
+
     return ApiResponse(success=True, data={
         "status": "success",
         "message": f"API key for {provider} added successfully",
         "provider": provider,
+        "key_id": key_id,
         "masked_key": f"{key[:4]}...{key[-4:]}"
     })
 
@@ -1094,7 +1125,7 @@ async def get_usage_stats(
         
         if tenant_id:
             if tenant_id not in stats:
-                return {"total_providers": 0, "usage_stats": {}}
+                return ApiResponse(success=True, data={"total_providers": 0, "usage_stats": {}})
             tenant_stats = stats[tenant_id]
             if provider_id:
                 if provider_id not in tenant_stats:
@@ -1345,7 +1376,7 @@ async def byok_health_check(current_user: User = Depends(get_current_user), byok
 @router.get("/api/v1/byok/health")
 async def byok_health_v1(current_user: User = Depends(get_current_user), byok_manager: BYOKManager = Depends(get_byok_manager)):
     """Health check endpoint for BYOK system (v1 API compatibility)"""
-    return await byok_health_check(byok_manager)
+    return await byok_health_check(current_user=current_user, byok_manager=byok_manager)
 
 
 # Dynamic Pricing Endpoints

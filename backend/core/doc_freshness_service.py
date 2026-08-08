@@ -354,8 +354,8 @@ class DocFreshnessService:
 
     def mark_stale(self, doc: IngestedDocument, *, reason: str = "source_changed") -> None:
         """Record that a doc's source has changed, ahead of re-ingest."""
-        if doc.freshness_status == "removed":
-            return  # don't resurrect removed docs
+        if doc.freshness_status in {"removed", "superseded"}:
+            return  # don't resurrect terminal docs
         doc.freshness_status = "stale"
         try:
             self.session.commit()

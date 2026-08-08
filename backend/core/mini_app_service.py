@@ -1671,7 +1671,7 @@ def revert_logic(
         source=source,
         created_by=actor_id,
     )
-    record_logic_snapshot(
+    snapshot = record_logic_snapshot(
         db,
         canvas_id=app.blueprint_canvas_id,
         tenant_id=app.tenant_id,
@@ -1679,7 +1679,16 @@ def revert_logic(
         source=source,
         actor_id=actor_id,
     )
-    return {"success": True, "app_id": app.id, "version": version, "source": source}
+    # ``version`` is the NEW checkpoint just written (the current head),
+    # not the reverted-to target — otherwise callers report a stale version
+    # after a revert (the newest checkpoint is what counts as "current").
+    return {
+        "success": True,
+        "app_id": app.id,
+        "version": snapshot["version"],
+        "reverted_to": version,
+        "source": source,
+    }
 
 
 # ---------------------------------------------------------------------------

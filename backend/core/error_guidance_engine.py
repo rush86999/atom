@@ -276,7 +276,20 @@ class ErrorGuidanceEngine:
 
         # Return most successful resolution
         if resolution_counts:
-            return max(resolution_counts, key=resolution_counts.get)
+            best_resolution = max(resolution_counts, key=resolution_counts.get)
+            # Map the historically-successful resolution name back to its
+            # 0-based index in the template so callers receive an int index
+            # (this method is documented to return an index, and present_error
+            # broadcasts it as ``suggested_resolution``).
+            template_resolutions = self.ERROR_RESOLUTIONS.get(
+                error_type, {}
+            ).get("resolutions", [])
+            for idx, tmpl in enumerate(template_resolutions):
+                if tmpl.get("title") == best_resolution:
+                    return idx
+            # Resolution not present in the template (historical data from a
+            # prior template version, etc.) — fall back to first index.
+            return 0
 
         return 0
 

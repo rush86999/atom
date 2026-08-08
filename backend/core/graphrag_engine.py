@@ -30,12 +30,28 @@ logger = logging.getLogger(__name__)
 
 # Automation Integration (Optional check for upstream)
 try:
-    from advanced_workflow_orchestrator import orchestrator
-    from core.atom_meta_agent import handle_data_event_trigger
+    from advanced_workflow_orchestrator import get_orchestrator
     AUTOMATION_AVAILABLE = True
 except ImportError:
     AUTOMATION_AVAILABLE = False
     logger.warning("Workflow automation integration unavailable")
+
+orchestrator: Optional[Any] = None
+
+
+def _get_workflow_orchestrator() -> Any:
+    """Lazily resolve the workflow orchestrator singleton.
+
+    The old `from advanced_workflow_orchestrator import orchestrator` could
+    never succeed (that module exports get_orchestrator, not a bare name),
+    so the ImportError was silently swallowed and AUTOMATION_AVAILABLE stayed
+    False — graph_entity_upsert events never fired. Resolution is deferred to
+    call time because the constructor touches the database.
+    """
+    global orchestrator
+    if orchestrator is None:
+        orchestrator = get_orchestrator()
+    return orchestrator
 
 # ==================== CONFIGURATION ====================
 
@@ -555,7 +571,7 @@ class GraphRAGEngine:
                 # GC'd before the event fires.
                 if AUTOMATION_AVAILABLE:
                     try:
-                        _t = asyncio.create_task(orchestrator.trigger_event("graph_entity_upsert", {
+                        _t = asyncio.create_task(_get_workflow_orchestrator().trigger_event("graph_entity_upsert", {
                             "entity_type": entity.entity_type,
                             "entity_id": entity.id,
                             "name": entity.name,

@@ -69,7 +69,7 @@ async function deleteUserTokensInternal(
       );
       // Even if 0 rows affected (e.g., tokens already deleted), consider it a success for the flow.
       // If an actual error occurred during DB operation, it would be caught in the catch block.
-      if (response.delete_user_tokens.affected_rows === 0) {
+      if (response?.delete_user_tokens?.affected_rows === 0) {
         console.log(
           `DISCONNECT: No tokens found to delete for user ${userId}, service ${serviceName}. Considered successful.`,
         );

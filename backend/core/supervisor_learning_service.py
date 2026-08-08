@@ -193,6 +193,18 @@ class SupervisorLearningService:
             sorted_perfs = sorted(performances, key=lambda p: p.confidence_score, reverse=True)
         elif metric == "average_rating":
             sorted_perfs = sorted(performances, key=lambda p: p.average_rating or 0, reverse=True)
+        elif metric == "success_rate":
+            # Rank by intervention success rate (successful / total). Supervisors
+            # with no interventions default to 0 so they sort below those with a
+            # track record. Previously ``success_rate`` was documented as a valid
+            # metric but had no branch, so it fell into ``else`` and returned
+            # performers in arbitrary DB order.
+            def _success_rate(p):
+                successful = (p.successful_interventions or 0)
+                failed = (p.failed_interventions or 0)
+                total = successful + failed
+                return successful / total if total > 0 else 0.0
+            sorted_perfs = sorted(performances, key=_success_rate, reverse=True)
         elif metric == "total_sessions":
             sorted_perfs = sorted(performances, key=lambda p: p.total_sessions_supervised, reverse=True)
         else:

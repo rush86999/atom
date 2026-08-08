@@ -3,6 +3,7 @@ Enterprise Security and Audit Logging System
 Advanced security controls, audit logging, compliance monitoring, and threat detection
 """
 
+import logging
 from datetime import datetime, timedelta
 from enum import Enum
 from ipaddress import ip_address
@@ -11,6 +12,8 @@ import threading
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, validator
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -258,6 +261,8 @@ class EnterpriseSecurity:
         return True
 
     def create_security_alert(
+        self,
+        alert_type: str,
         severity: SecurityLevel,
         description: str,
         affected_users: List[str] = None,

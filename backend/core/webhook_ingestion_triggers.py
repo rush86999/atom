@@ -332,6 +332,12 @@ class WebhookIngestionQueue:
         if not self.redis_client:
             return []
 
+        # Guard against limit <= 0: ``lrange(key, 0, -1)`` returns the ENTIRE
+        # list in Redis, so a naive ``limit - 1`` would hand back every queued
+        # job when the caller asked for none (off-by-one).
+        if limit <= 0:
+            return []
+
         try:
             # Get job JSONs from queue (without removing)
             job_jsons = self.redis_client.lrange(self.queue_key, 0, limit - 1)

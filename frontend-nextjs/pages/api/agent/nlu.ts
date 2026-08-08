@@ -244,7 +244,7 @@ export default async function handler(
     if (!message || typeof message !== "string") {
       return res.status(400).json({
         message: "Message is required and must be a string",
-        user: session.user.email,
+        user: session?.user?.email,
       });
     }
 

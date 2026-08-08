@@ -403,6 +403,16 @@ class CustomComponentsService:
         if component.created_by != user_id:
             return {"error": "Access denied: Not component owner"}
 
+        # Reject rename to an existing name (CustomComponent.name is unique).
+        # Mirrors the duplicate check in create_component; without it a rename
+        # collision would leak a raw IntegrityError (HTTP 500).
+        if name and name != component.name:
+            existing = self.db.query(CustomComponent).filter(
+                CustomComponent.name == name
+            ).first()
+            if existing:
+                raise ValueError(f"Component '{name}' already exists")
+
         # Security checks for JS
         if js_content is not None and js_content != component.js_content:
             self._check_governance_for_js(agent_id)
@@ -721,9 +731,18 @@ class CustomComponentsService:
         # Calculate stats
         total_renders = len(usage_records)
         successful_renders = sum(1 for u in usage_records if not (u.execution_context or {}).get("error_message"))
-        avg_rendering_time = sum(
-            (u.execution_context or {}).get("rendering_time_ms") for u in usage_records if (u.execution_context or {}).get("rendering_time_ms")
-        ) / successful_renders if successful_renders > 0 else 0
+        # Average rendering time is over the records that actually carry a
+        # timing value — a failed render can still have a measured time, and
+        # a successful render may omit it. Previously this divided the (mixed)
+        # sum by successful_renders, miscomputing the average whenever the two
+        # populations differed and silently discarding timing data when no
+        # render succeeded.
+        timed = [
+            (u.execution_context or {}).get("rendering_time_ms")
+            for u in usage_records
+            if (u.execution_context or {}).get("rendering_time_ms") is not None
+        ]
+        avg_rendering_time = sum(timed) / len(timed) if timed else 0
 
         # Top canvases
         canvas_usage = {}
