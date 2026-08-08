@@ -1,9 +1,22 @@
+"""Coverage-push part 3: teams_enhanced_service and chat_orchestrator.
 """
-Coverage-push part 3: teams_enhanced_service and chat_orchestrator.
-"""
+# Some legacy test files permanently replace integration modules in sys.modules
+# with MagicMock at import time (e.g. test_scheduled_messaging_minimal,
+# test_condition_monitoring_minimal, test_alert_service). Restore the REAL
+# modules before this file binds its imports so tests run against the source.
+import sys as _sys
+from unittest.mock import MagicMock as _MagicMock
+for _name in ("integrations.teams_enhanced_service", "integrations.slack_enhanced_service"):
+    if isinstance(_sys.modules.get(_name), _MagicMock):
+        _sys.modules.pop(_name, None)
+del _sys, _MagicMock, _name
+
 import asyncio
+import importlib
 import json
 import sqlite3
+import subprocess
+import sys
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -15,7 +28,12 @@ BACKEND = "/Users/rushiparikh/projects/atom/backend"
 
 
 def _teams_module():
-    import importlib
+    """Lazily import the REAL teams_enhanced_service (module was unimportable
+    before the phantom-import fix; also immune to legacy sys.modules pollution)."""
+    import sys as _sys
+    from unittest.mock import MagicMock as _MM
+    if isinstance(_sys.modules.get("integrations.teams_enhanced_service"), _MM):
+        _sys.modules.pop("integrations.teams_enhanced_service", None)
     return importlib.import_module("integrations.teams_enhanced_service")
 
 
@@ -1022,17 +1040,15 @@ class TestOrchestratorHandlers:
 
     async def test_workflow_handler(self):
         orch = make_orchestrator()
+        engine = MagicMock()
+        engine.execute_workflow_definition = AsyncMock()
         with patch.object(co, "load_workflows", return_value=[
             {"name": "Daily Report", "workflow_id": "wf1"},
-        ]):
+        ]), patch.object(co, "AutomationEngine", return_value=engine):
             result = await orch._handle_workflow_request("list workflows", {}, {}, None)
             assert result["success"] is True
             assert "Daily Report" in result["message"]
-            result2 = await orch._handle_workflow_request("run daily", {}, {}, None)
-            engine = MagicMock()
-            engine.execute_workflow_definition = AsyncMock()
-            with patch("ai.automation_engine.AutomationEngine", return_value=engine):
-                result2 = await orch._handle_workflow_request("run daily report", {}, {}, None)
+            result2 = await orch._handle_workflow_request("run daily report", {}, {}, None)
             assert result2["success"] is True
             result3 = await orch._handle_workflow_request("run missing", {}, {}, None)
             assert result3["success"] is False
@@ -1143,3 +1159,211 @@ class TestOrchestratorHandlers:
         with patch("core.atom_meta_agent.get_atom_agent", side_effect=RuntimeError("boom")):
             result3 = await orch._handle_agent_request("complex", {}, {"id": "s1"}, None)
         assert result3["status"] == "error"
+
+
+class TestOrchestratorRemaining:
+    async def test_process_message_dedup_and_lkgp(self):
+        orch = make_orchestrator()
+        orch._get_qwen_response = AsyncMock(return_value={
+            "content": "ai answer", "model": "auto", "provider": "p",
+        })
+        orch._analyze_intent = AsyncMock(return_value={
+            "primary_intent": co.ChatIntent.SEARCH_REQUEST, "confidence": 0.9,
+        })
+        orch._route_to_features = AsyncMock(return_value={
+            co.FeatureType.SEARCH: {
+                "success": True, "data": {"results": [1]},
+                "suggested_actions": ["a1", "a2", "a3", "a4", "a5", "a6"],
+            },
+        })
+        session = {
+            "id": "s1", "user_id": "u1", "history": [
+                {"message": "hi", "response": {"message": "hello"}},
+            ],
+            "last_known_good_model": "m1", "last_known_good_provider": "p1",
+        }
+        orch.conversation_sessions["s1"] = session
+        dedup_idx = MagicMock()
+        dedup_idx.deduplicate.return_value = ("[ref1]", None)
+        with patch("core.llm.compression.SESSION_DEDUP_ENABLED", True, create=True), \
+             patch("core.llm.compression.session_dedup.get_or_create_dedup_index",
+                   return_value=dedup_idx) as gdi:
+            result = await orch.process_chat_message("u1", "hi", "s1")
+        assert result["success"] is True
+        gdi.assert_called()
+        # model "auto" must NOT be stored as LKGP
+        assert "last_known_good_model" not in session or session["last_known_good_model"] == "m1"
+
+    async def test_process_message_dedup_error_path(self):
+        orch = make_orchestrator()
+        orch._get_qwen_response = AsyncMock(return_value=None)
+        orch._analyze_intent = AsyncMock(return_value={
+            "primary_intent": co.ChatIntent.SEARCH_REQUEST, "confidence": 0.6,
+        })
+        orch._route_to_features = AsyncMock(return_value={})
+        orch._generate_main_message = MagicMock(return_value="tmpl")
+        with patch("core.llm.compression.SESSION_DEDUP_ENABLED", True, create=True), \
+             patch("core.llm.compression.session_dedup.get_or_create_dedup_index",
+                   side_effect=RuntimeError("dedup boom")):
+            result = await orch.process_chat_message("u1", "hi", "s1")
+        assert result["success"] is True
+
+    async def test_process_message_lkgp_stored(self):
+        orch = make_orchestrator()
+        orch._get_qwen_response = AsyncMock(return_value={
+            "content": "ai answer", "model": "gpt-4", "provider": "openai",
+        })
+        orch._analyze_intent = AsyncMock(return_value={
+            "primary_intent": co.ChatIntent.SEARCH_REQUEST, "confidence": 0.9,
+        })
+        orch._route_to_features = AsyncMock(return_value={})
+        result = await orch.process_chat_message("u1", "hi", "s1")
+        assert result["success"] is True
+        session = orch.conversation_sessions["s1"]
+        assert session["last_known_good_model"] == "gpt-4"
+
+    async def test_task_handler_long_title_and_failures(self):
+        orch = make_orchestrator()
+        orch.ai_engines = {}
+        result = await orch._handle_task_request("please create a task: " + "x" * 60, {}, {}, None)
+        assert result["success"] is True
+        result2 = await orch._handle_task_request("create task", {}, {}, None)
+        assert result2["success"] is True
+        with patch("core.unified_task_endpoints.create_task",
+                   new=AsyncMock(return_value={"success": False})):
+            result3 = await orch._handle_task_request("please create a task to buy milk", {}, {}, None)
+        assert result3["success"] is False
+
+    async def test_workflow_run_by_ids_and_failure(self):
+        orch = make_orchestrator()
+        workflows = [
+            {"name": "Daily Report", "workflow_id": "wf1"},
+            {"name": "Nightly", "id": "wf2"},
+        ]
+        engine = MagicMock()
+        engine.execute_workflow_definition = AsyncMock()
+        with patch.object(co, "load_workflows", return_value=workflows), \
+             patch.object(co, "AutomationEngine", return_value=engine):
+            result = await orch._handle_workflow_request("run wf1", {}, {}, None)
+            assert result["success"] is True
+            result2 = await orch._handle_workflow_request("run wf2", {}, {}, None)
+            assert result2["success"] is True
+            engine.execute_workflow_definition = AsyncMock(side_effect=RuntimeError("boom"))
+            result3 = await orch._handle_workflow_request("run wf1", {}, {}, None)
+            assert result3["success"] is False
+
+    async def test_automation_agent_not_in_registry(self):
+        orch = make_orchestrator()
+        with patch.object(co, "execute_agent_task", new=AsyncMock()), \
+             patch.dict(co.AGENTS, {}, clear=True):
+            result = await orch._handle_automation_request("run payroll", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+        assert "not found" in result["message"]
+
+    async def test_finance_remaining_intents(self):
+        settings = MagicMock()
+        settings.is_accounting_enabled.return_value = True
+        db = MagicMock()
+        db.__enter__ = MagicMock(return_value=db)
+        db.__exit__ = MagicMock(return_value=False)
+        scenarios = {
+            "check_close_readiness": {"params": {"period": "2026-08"}},
+            "get_tax_estimate": {},
+            "get_cash_forecast": {},
+            "run_scenario": {"params": {"scenarios": [{"name": "s"}]}},
+            "get_intercompany_report": {},
+        }
+        for intent, params in scenarios.items():
+            assistant = MagicMock()
+            assistant.process_query = AsyncMock(return_value={"intent": intent, **params, "answer": "base"})
+            with patch.object(co, "get_automation_settings", return_value=settings), \
+                 patch.object(co, "AccountingAssistant", return_value=assistant), \
+                 patch.object(co, "CloseChecklistAgent") as cc, \
+                 patch.object(co, "TaxService") as ts, \
+                 patch.object(co, "FPAService") as fpa, \
+                 patch.object(co, "IntercompanyManager") as ic, \
+                 patch.object(co, "SessionLocal", return_value=db):
+                cc.return_value.run_close_check = AsyncMock(return_value={})
+                ts.return_value.estimate_tax_liability.return_value = {}
+                fpa.return_value.get_13_week_forecast.return_value = {}
+                fpa.return_value.run_scenario.return_value = {}
+                ic.return_value.generate_elimination_report.return_value = {}
+                orch = co.ChatOrchestrator()
+                orch.ai_engines = {}
+                result = await orch._handle_finance_request(
+                    "q", {}, {"id": "s1"}, {"workspace_id": "w1"}
+                )
+            assert result["success"] is True, intent
+            assert co.REGULATORY_DISCLAIMER in result["message"]
+
+    async def test_finance_accounting_unavailable(self):
+        settings = MagicMock()
+        settings.is_accounting_enabled.return_value = True
+        with patch.object(co, "get_automation_settings", return_value=settings), \
+             patch.object(co, "AccountingAssistant", None):
+            orch = co.ChatOrchestrator()
+            orch.ai_engines = {}
+            result = await orch._handle_finance_request(
+                "q", {}, {"id": "s1"}, {"workspace_id": "w1"}
+            )
+        assert result["success"] is False
+
+    async def test_business_health_capex(self):
+        orch = make_orchestrator()
+        service = MagicMock()
+        service.simulate_decision = AsyncMock(return_value={"prediction": "p"})
+        with patch("core.business_health_service.business_health_service", service):
+            result = await orch._handle_business_health_request(
+                "simulate buying equipment", {}, {}, {"workspace_id": "w1"}
+            )
+        assert result["success"] is True
+        args = service.simulate_decision.call_args[0]
+        assert args[1] == "CAPEX"
+
+    async def test_update_session_row_backfill(self):
+        orch = make_orchestrator()
+        session = {"id": "s1", "user_id": "u1", "channel_id": "ch1", "thread_id": "th1", "history": []}
+        db = MagicMock()
+        row = MagicMock()
+        row.channel_id = None
+        row.thread_id = None
+        db.query.return_value.filter.return_value.first.return_value = row
+        ctx = MagicMock()
+        ctx.__enter__ = MagicMock(return_value=db)
+        ctx.__exit__ = MagicMock(return_value=False)
+        with patch("core.database.get_db_session", return_value=ctx), \
+             patch("core.llm.compression.SESSION_DEDUP_ENABLED", True, create=True), \
+             patch("core.llm.compression.session_dedup.get_or_create_dedup_index",
+                   return_value=MagicMock()):
+            orch._update_session(session, "hi", {"message": "hello"}, {"x": 1})
+        assert row.channel_id == "ch1"
+        assert row.thread_id == "th1"
+
+    async def test_import_guards_subprocess(self):
+        code = (
+            "import sys, builtins, importlib\n"
+            "_orig = builtins.__import__\n"
+            "def _blocked(names):\n"
+            "    def _inner(name, *a, **k):\n"
+            "        if name in names or any(name.startswith(n + '.') for n in names):\n"
+            "            raise ImportError('blocked ' + name)\n"
+            "        return _orig(name, *a, **k)\n"
+            "    return _inner\n"
+            "mod = importlib.import_module('integrations.chat_orchestrator')\n"
+            "builtins.__import__ = _blocked(['core.llm_service'])\n"
+            "importlib.reload(mod)\n"
+            "assert mod.LLM_SERVICE_AVAILABLE is False\n"
+            "builtins.__import__ = _blocked(['api.agent_routes'])\n"
+            "importlib.reload(mod)\n"
+            "assert mod.execute_agent_task is None\n"
+            "builtins.__import__ = _blocked(['core.automation_settings'])\n"
+            "importlib.reload(mod)\n"
+            "assert mod.get_automation_settings is None\n"
+            "print('GUARDS_OK')\n"
+        )
+        proc = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=BACKEND, capture_output=True, text=True,
+            env={"PYTHONPATH": BACKEND, "PATH": "/usr/bin:/bin:/usr/local/bin"},
+        )
+        assert "GUARDS_OK" in proc.stdout, f"guards failed: {proc.stderr[-2000:]}"

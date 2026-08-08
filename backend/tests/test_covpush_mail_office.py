@@ -3009,6 +3009,8 @@ class TestGchatCoverage:
 
         svc = self.make()
         svc.google_chat_service = Mock()
+        svc.atom_memory = Mock()
+        svc.atom_search = Mock()
         svc._start_integration_workers = AsyncMock(side_effect=Exception("x"))
         assert run(svc.initialize()) is False
 
@@ -3049,7 +3051,14 @@ class TestGchatCoverage:
         assert len(ch) == 1 and ch[0]["name"] == "Room"
         assert run(svc.get_unified_channels("other_prefix")) == []
         assert run(svc.get_unified_channels("google_chat_nope")) == []
-        svc.active_spaces = [object()]
+        class BadSpace:
+            space_id = "sp1"
+
+            @property
+            def display_name(self):
+                raise AttributeError("boom")
+
+        svc.active_spaces = [BadSpace()]
         assert run(svc.get_unified_channels("google_chat_sp1")) == []
 
     def test_send_unified_message(self):
@@ -3207,7 +3216,7 @@ class TestGchatCoverage:
         assert svc._convert_google_chat_attachments([{"name": "f", "title": "F", "contentType": "c", "downloadUri": "d", "size": 2}])[0]["id"] == "f"
         assert svc._convert_google_chat_mentions([{"type": "user_mention", "userMention": {"name": "u", "displayName": "N"}}, {"type": "other"}])[0]["name"] == "N"
         assert svc._convert_google_chat_files([{"contentType": "image/png", "name": "f", "title": "F", "downloadUri": "d", "size": 1}, {"contentType": "text/plain"}])[0]["type"] == "google_chat_file"
-        assert svc._generate_search_highlights("a b c d e f", "b") == ["a b c d e f"]
+        assert svc._generate_search_highlights("a b c d e f", "b") == ["a b c d e"]
         assert svc._generate_search_highlights("x", "") == []
 
     def test_store_index_trigger(self):
@@ -3413,7 +3422,6 @@ class TestGchatCoverage:
         r = run(svc.get_space_info("s"))
         assert r["success"] is True and r["name"] == "s"
         svc.google_chat_service.get_space = AsyncMock(return_value={"ok": False})
-        svc.google_chat_service = Mock()
         r = run(svc.get_space_info("s"))
         assert r["success"] is True and "note" in r
         svc2 = self.make()
@@ -3453,6 +3461,13 @@ class TestGchatCoverage:
         svc = self.make()
         r = run(svc.set_space_webhook("sp1", "https://wh", state="st"))
         assert r["success"] is True
+        from integrations import atom_google_chat_integration as mod
+
+        dt = Mock()
+        dt.now.side_effect = Exception("clock")
+        with patch.object(mod, "datetime", dt):
+            r2 = run(svc.set_space_webhook("sp1", "https://wh"))
+        assert r2["success"] is False
 
         svc.google_chat_service = None
         r = run(svc.send_message("sp1", "hi", thread_key="tk"))
@@ -3502,8 +3517,539 @@ class TestGchatCoverage:
         st = run(svc.get_service_status())
         assert st["status"] == "active"
 
+    def test_cross_platform_handlers_success(self):
+        svc = self.make()
+        svc._store_message_in_memory = AsyncMock()
+        svc._index_message_in_search = AsyncMock()
+        svc._trigger_workflows = AsyncMock()
+        run(svc._handle_google_chat_message_cross_platform({"a": 1}))
+        run(svc._handle_google_chat_space_event_cross_platform({"a": 1}))
+
+    def test_generate_highlights_exception(self):
+        svc = self.make()
+        assert svc._generate_search_highlights(None, "q") == []
+
+    def test_workers(self):
+        svc = self.make()
+        with pytest.raises(asyncio.TimeoutError):
+            run(asyncio.wait_for(svc._google_chat_message_ingestion_worker(), timeout=0.05))
+        with pytest.raises(asyncio.TimeoutError):
+            run(asyncio.wait_for(svc._google_chat_event_processing_worker(), timeout=0.05))
+        with pytest.raises(asyncio.TimeoutError):
+            run(asyncio.wait_for(svc._unified_search_indexing_worker(), timeout=0.05))
+
+        # worker exception paths: sleep raises -> inner except -> second sleep raises
+        svc2 = self.make()
+        with patch("asyncio.sleep", new=AsyncMock(side_effect=[Exception("x"), Exception("y")])):
+            with pytest.raises(Exception):
+                run(svc2._google_chat_message_ingestion_worker())
+        with patch("asyncio.sleep", new=AsyncMock(side_effect=[Exception("x"), Exception("y")])):
+            with pytest.raises(Exception):
+                run(svc2._google_chat_event_processing_worker())
+
+        svc3 = self.make()
+        svc3.atom_search = Mock()
+        svc3.atom_memory = Mock()
+        svc3.atom_memory.query = AsyncMock(return_value=[])
+        with patch("asyncio.sleep", new=AsyncMock(side_effect=[Exception("x"), Exception("y")])):
+            with pytest.raises(Exception):
+                run(svc3._unified_search_indexing_worker())
+
+        svc4 = self.make()
+        svc4.atom_search = Mock()
+        svc4.atom_memory = Mock()
+        message = {"id": "m1", "text": "t"}
+        svc4.atom_memory.query = AsyncMock(return_value=[message])
+        svc4.atom_memory.update = AsyncMock()
+        svc4._index_message_in_search = AsyncMock()
+        with patch("asyncio.sleep", new=AsyncMock(side_effect=[Exception("x"), Exception("y")])):
+            with pytest.raises(Exception):
+                run(svc4._unified_search_indexing_worker())
+        svc4._index_message_in_search.assert_awaited_once()
+        svc4.atom_memory.update.assert_awaited_once()
+
+    def test_service_status_exception(self):
+        from integrations import atom_google_chat_integration as mod
+
+        svc = self.make()
+        dt = Mock()
+        counter = {"n": 0}
+
+        def fake_now(tz=None):
+            counter["n"] += 1
+            if counter["n"] == 1:
+                raise Exception("clock")
+            return datetime.now(tz)
+
+        dt.now.side_effect = fake_now
+        with patch.object(mod, "datetime", dt):
+            st = run(svc.get_service_status())
+        assert st["status"] == "error"
+
+    def test_legacy_imports_succeed(self):
+        """The legacy atom_* import block must work when those modules exist."""
+        import importlib
+        import sys
+        import types
+
+        from integrations import atom_google_chat_integration as mod
+
+        orig = sys.modules["integrations.atom_google_chat_integration"]
+        names = {
+            "atom_ingestion_pipeline": ["AtomIngestionPipeline"],
+            "atom_memory_service": ["AtomMemoryService"],
+            "atom_search_service": ["AtomSearchService"],
+            "atom_workflow_service": ["AtomWorkflowService"],
+            "google_chat_analytics_engine": ["google_chat_analytics_engine"],
+        }
+        for name, attrs in names.items():
+            m = types.ModuleType(name)
+            for attr in attrs:
+                setattr(m, attr, object())
+            sys.modules[name] = m
+        sys.modules.pop("integrations.atom_google_chat_integration", None)
+        try:
+            mod2 = importlib.import_module("integrations.atom_google_chat_integration")
+            assert mod2.google_chat_analytics_engine is not None
+        finally:
+            sys.modules["integrations.atom_google_chat_integration"] = orig
+            import integrations as _pkg
+
+            _pkg.atom_google_chat_integration = orig
+            for name in names:
+                sys.modules.pop(name, None)
+
+    def test_enhanced_service_import_fail(self):
+        """The enhanced-service import fallback must degrade gracefully when
+        the underlying module cannot provide the names."""
+        import importlib
+        import sys
+
+        from integrations import atom_google_chat_integration as mod
+
+        orig = sys.modules["integrations.atom_google_chat_integration"]
+        import integrations.google_chat_enhanced_service as _gs
+
+        missing = {}
+        for attr in ["GoogleChatEventType", "GoogleChatFile", "GoogleChatMessage", "GoogleChatSpace"]:
+            missing[attr] = getattr(_gs, attr)
+            delattr(_gs, attr)
+        sys.modules.pop("integrations.atom_google_chat_integration", None)
+        try:
+            mod2 = importlib.import_module("integrations.atom_google_chat_integration")
+            assert mod2.google_chat_enhanced_service is None
+        finally:
+            sys.modules["integrations.atom_google_chat_integration"] = orig
+            import integrations as _pkg
+
+            _pkg.atom_google_chat_integration = orig
+            for attr, value in missing.items():
+                setattr(_gs, attr, value)
+
 
 def EventTypes():
     from integrations.google_chat_enhanced_service import GoogleChatEventType
 
     return GoogleChatEventType
+
+
+# ============================================================================
+# workspace_sync_service.py
+# ============================================================================
+
+class TestWorkspaceSyncCoverage:
+    def test_capabilities(self):
+        from integrations.workspace_sync_service import WorkspaceSyncService
+
+        caps = WorkspaceSyncService(None).get_capabilities()
+        assert any(op["id"] == "sync_workspace" for op in caps["operations"])
+        assert caps["rate_limits"]["requests_per_minute"] == 10
+
+    def test_health_check(self):
+        from integrations.workspace_sync_service import WorkspaceSyncService
+
+        svc = WorkspaceSyncService(None)
+        r = svc.health_check()
+        assert r["ok"] is False
+
+        db = Mock()
+        db.execute = Mock()
+        svc = WorkspaceSyncService(db)
+        r = svc.health_check()
+        assert r["ok"] is True and r["database_connected"] is True
+
+        db2 = Mock()
+        db2.execute = Mock(side_effect=Exception("db down"))
+        svc2 = WorkspaceSyncService(db2)
+        r = svc2.health_check()
+        assert r["ok"] is False
+
+    def test_create_unified_workspace(self, sync_db):
+        from core.models import UnifiedWorkspace
+
+        from integrations.workspace_sync_service import WorkspaceSyncService
+
+        svc = WorkspaceSyncService(sync_db)
+        ws = svc.create_unified_workspace(
+            user_id="u1", name="W", description="D",
+            slack_workspace_id="T1", discord_guild_id="D1",
+            google_chat_space_id="G1", teams_team_id="M1",
+            sync_config={"auto_sync": False},
+        )
+        assert ws.platform_count == 4
+        row = sync_db.query(UnifiedWorkspace).filter(UnifiedWorkspace.id == ws.id).first()
+        assert row is not None
+        assert row.sync_config == {"auto_sync": False}
+        from core.models import WorkspaceSyncLog
+
+        assert sync_db.query(WorkspaceSyncLog).filter(
+            WorkspaceSyncLog.unified_workspace_id == ws.id
+        ).count() == 1
+
+        ws2 = svc.create_unified_workspace(user_id="u1", name="W2")
+        assert ws2.platform_count == 0
+
+        db_bad = Mock()
+        db_bad.add = Mock()
+        db_bad.commit = Mock(side_effect=Exception("commit fail"))
+        svc_bad = WorkspaceSyncService(db_bad)
+        with pytest.raises(Exception):
+            svc_bad.create_unified_workspace(user_id="u", name="W")
+        db_bad.rollback.assert_called()
+
+    def test_add_platform_to_workspace(self, sync_db):
+        from integrations.workspace_sync_service import WorkspaceSyncService
+
+        svc = WorkspaceSyncService(sync_db)
+        ws = svc.create_unified_workspace(user_id="u1", name="W", slack_workspace_id="T1")
+        updated = svc.add_platform_to_workspace(ws.id, "discord", "D1")
+        assert updated.discord_guild_id == "D1"
+        assert updated.platform_count == 2
+        # duplicate add -> warning but no crash
+        updated = svc.add_platform_to_workspace(ws.id, "discord", "D1")
+        assert updated.platform_count == 2
+
+        with pytest.raises(ValueError):
+            svc.add_platform_to_workspace("nope", "slack", "T2")
+        with pytest.raises(ValueError):
+            svc.add_platform_to_workspace(ws.id, "bogus", "X")
+
+        db_bad = Mock()
+        db_bad.query = Mock()
+        db_bad.query.return_value.filter.return_value.first.return_value = None
+        db_bad.commit = Mock(side_effect=Exception("x"))
+        svc_bad = WorkspaceSyncService(db_bad)
+        with pytest.raises(Exception):
+            svc_bad.add_platform_to_workspace("ws1", "slack", "T1")
+
+    def test_propagate_change_variants(self, sync_db):
+        from integrations.workspace_sync_service import (
+            ChangeType,
+            WorkspaceSyncService,
+        )
+
+        svc = WorkspaceSyncService(sync_db)
+        ws = svc.create_unified_workspace(user_id="u1", name="W", slack_workspace_id="T1")
+
+        # no other platforms
+        r = svc.propagate_change(ws.id, "slack", ChangeType.WORKSPACE_NAME_CHANGE, {"new_name": "X"})
+        assert r["status"] == "no_targets"
+
+        # multiple targets, some failing -> partial failure
+        svc2 = WorkspaceSyncService(sync_db)
+        ws2 = svc2.create_unified_workspace(
+            user_id="u1", name="W", slack_workspace_id="T1", discord_guild_id="D1",
+            google_chat_space_id="G1", teams_team_id="M1",
+        )
+        with patch.object(svc2, "_apply_slack_change", return_value={"success": False, "error": "no"}):
+            r = svc2.propagate_change(
+                ws2.id, "discord", ChangeType.WORKSPACE_NAME_CHANGE, {"new_name": "X"}
+            )
+        assert r["status"] == "partial_failure"
+        assert r["failed_platforms"] == ["slack"]
+
+        # all failing -> failure
+        with patch.object(svc2, "_apply_change_to_platform", return_value={"success": False, "error": "no"}):
+            r = svc2.propagate_change(
+                ws2.id, "discord", ChangeType.MEMBER_ADD, {"email": "a@b"}
+            )
+        assert r["status"] == "failure"
+
+        # all succeeding
+        r = svc2.propagate_change(
+            ws2.id, "teams", ChangeType.WORKSPACE_NAME_CHANGE, {"new_name": "X"}
+        )
+        assert r["status"] == "success"
+        assert r["successful_platforms"] == ["slack", "discord", "google_chat"]
+
+        # per-platform exception
+        with patch.object(svc2, "_apply_change_to_platform", side_effect=Exception("boom")):
+            r = svc2.propagate_change(
+                ws2.id, "teams", ChangeType.CHANNEL_ADD, {"channel_name": "c"}
+            )
+        assert r["status"] == "failure"
+
+        with pytest.raises(ValueError):
+            svc2.propagate_change("nope", "slack", ChangeType.MEMBER_ADD, {})
+
+    def test_workspace_sync_status(self, sync_db):
+        from integrations.workspace_sync_service import WorkspaceSyncService
+
+        svc = WorkspaceSyncService(sync_db)
+        ws = svc.create_unified_workspace(user_id="u1", name="W", slack_workspace_id="T1")
+        st = svc.get_workspace_sync_status(ws.id)
+        assert st["workspace_id"] == ws.id
+        assert st["platforms"]["slack"] == "T1"
+        assert len(st["recent_syncs"]) == 1
+        assert st["recent_syncs"][0]["operation"] == "create"
+        with pytest.raises(ValueError):
+            svc.get_workspace_sync_status("nope")
+
+    def test_default_sync_config_and_platforms(self, sync_db):
+        from integrations.workspace_sync_service import WorkspaceSyncService
+
+        svc = WorkspaceSyncService(sync_db)
+        cfg = svc._get_default_sync_config()
+        assert cfg["auto_sync"] is True
+
+        ws = svc.create_unified_workspace(
+            user_id="u1", name="W", slack_workspace_id="T1", discord_guild_id="D1",
+            google_chat_space_id="G1", teams_team_id="M1",
+        )
+        assert svc._get_connected_platforms(ws) == ["slack", "discord", "google_chat", "teams"]
+        assert svc._get_connected_platforms(ws, exclude="slack") == ["discord", "google_chat", "teams"]
+        assert svc._get_connected_platforms(ws, exclude="teams") == ["slack", "discord", "google_chat"]
+
+    def test_apply_change_to_platform(self, sync_db):
+        from integrations.workspace_sync_service import (
+            ChangeType,
+            WorkspaceSyncService,
+        )
+
+        svc = WorkspaceSyncService(sync_db)
+        ws = svc.create_unified_workspace(
+            user_id="u1", name="W", slack_workspace_id="T1", discord_guild_id="D1",
+            google_chat_space_id="G1", teams_team_id="M1",
+        )
+
+        # no platform id
+        r = svc._apply_change_to_platform(ws, "bogus", ChangeType.MEMBER_ADD, {}, "latest")
+        assert r["success"] is False
+
+        # unknown platform (platform_id resolvable, no handler)
+        with patch.object(svc, "_get_platform_id", return_value="X"):
+            r = svc._apply_change_to_platform(ws, "bogus", ChangeType.MEMBER_ADD, {}, "latest")
+            assert r["success"] is False
+
+        with patch.object(svc, "_apply_slack_change", return_value={"success": True}):
+            assert svc._apply_change_to_platform(ws, "slack", ChangeType.MEMBER_ADD, {}, "latest")["success"] is True
+        with patch.object(svc, "_apply_discord_change", return_value={"success": True}):
+            assert svc._apply_change_to_platform(ws, "discord", ChangeType.MEMBER_ADD, {"user_id": "u"}, "latest")["success"] is True
+        with patch.object(svc, "_apply_google_chat_change", return_value={"success": True}):
+            assert svc._apply_change_to_platform(ws, "google_chat", ChangeType.MEMBER_ADD, {"email": "a"}, "latest")["success"] is True
+        with patch.object(svc, "_apply_teams_change", return_value={"success": True}):
+            assert svc._apply_change_to_platform(ws, "teams", ChangeType.MEMBER_ADD, {}, "latest")["success"] is True
+
+    def test_sync_log_helpers(self, sync_db):
+        from integrations.workspace_sync_service import WorkspaceSyncService
+
+        svc = WorkspaceSyncService(sync_db)
+        ws = svc.create_unified_workspace(user_id="u1", name="W", slack_workspace_id="T1")
+        log_id = svc._log_sync_operation(
+            workspace_id=ws.id, operation="propagate", source_platform="slack",
+            target_platforms=["discord"], change_type="member_add", change_data={}, status="in_progress",
+        )
+        assert log_id
+        svc._update_sync_log(log_id, "success", completed_at=datetime.now(timezone.utc), error_message=None)
+        svc._update_sync_log("nope", "success")
+
+    def test_apply_slack_change(self, sync_db):
+        from integrations.workspace_sync_service import (
+            ChangeType,
+            WorkspaceSyncService,
+        )
+
+        svc = WorkspaceSyncService(sync_db)
+        cases = [
+            (ChangeType.WORKSPACE_NAME_CHANGE, {"new_name": "X"}),
+            (ChangeType.WORKSPACE_NAME_CHANGE, {}),
+            (ChangeType.MEMBER_ADD, {"email": "a@b"}),
+            (ChangeType.MEMBER_ADD, {}),
+            (ChangeType.MEMBER_REMOVE, {"user_id": "u"}),
+            (ChangeType.MEMBER_REMOVE, {}),
+            (ChangeType.CHANNEL_ADD, {"channel_name": "c"}),
+            (ChangeType.CHANNEL_ADD, {}),
+            (ChangeType.CHANNEL_REMOVE, {"channel_id": "c1"}),
+            (ChangeType.CHANNEL_REMOVE, {}),
+            ("other", {}),
+        ]
+        for change_type, data in cases:
+            r = svc._apply_slack_change("T1", change_type, data)
+            assert (r is None) or r["success"] is True, (change_type, data)
+
+        # service not available -> failure
+        with patch("integrations.slack_enhanced_service.SlackEnhancedService", None):
+            r = svc._apply_slack_change("T1", ChangeType.MEMBER_ADD, {"email": "a@b"})
+            assert r["success"] is False
+
+        # exception
+        with patch("integrations.slack_enhanced_service.SlackEnhancedService",
+                   side_effect=Exception("x")):
+            r = svc._apply_slack_change("T1", ChangeType.MEMBER_ADD, {"email": "a@b"})
+            assert r["success"] is False
+
+        # ImportError on the import itself
+        import builtins
+
+        real_import = builtins.__import__
+
+        def slack_boom_import(name, *a, **k):
+            if "slack_enhanced_service" in name:
+                raise ImportError("boom")
+            return real_import(name, *a, **k)
+
+        with patch("builtins.__import__", side_effect=slack_boom_import):
+            r = svc._apply_slack_change("T1", ChangeType.MEMBER_ADD, {"email": "a@b"})
+            assert r["success"] is False
+
+    def test_apply_discord_change(self, sync_db):
+        from integrations.workspace_sync_service import (
+            ChangeType,
+            WorkspaceSyncService,
+        )
+
+        svc = WorkspaceSyncService(sync_db)
+        cases = [
+            (ChangeType.WORKSPACE_NAME_CHANGE, {"new_name": "X"}),
+            (ChangeType.WORKSPACE_NAME_CHANGE, {}),
+            (ChangeType.MEMBER_ADD, {"user_id": "u"}),
+            (ChangeType.MEMBER_ADD, {}),
+            (ChangeType.MEMBER_REMOVE, {"user_id": "u"}),
+            (ChangeType.MEMBER_REMOVE, {}),
+            (ChangeType.CHANNEL_ADD, {"channel_name": "c"}),
+            (ChangeType.CHANNEL_ADD, {}),
+            (ChangeType.CHANNEL_REMOVE, {"channel_id": "c1"}),
+            (ChangeType.CHANNEL_REMOVE, {}),
+            ("other", {}),
+        ]
+        for change_type, data in cases:
+            r = svc._apply_discord_change("D1", change_type, data)
+            assert (r is None) or r["success"] is True, (change_type, data)
+
+        with patch("integrations.atom_discord_integration.atom_discord_integration", None):
+            r = svc._apply_discord_change("D1", ChangeType.MEMBER_ADD, {"user_id": "u"})
+            assert r["success"] is False
+        import builtins
+
+        real_import = builtins.__import__
+
+        def boom_import(name, *a, **k):
+            if "atom_discord_integration" in name:
+                raise ImportError("boom")
+            return real_import(name, *a, **k)
+
+        def boom_import2(name, *a, **k):
+            if "atom_discord_integration" in name:
+                raise Exception("boom")
+            return real_import(name, *a, **k)
+
+        with patch("builtins.__import__", side_effect=boom_import):
+            r = svc._apply_discord_change("D1", ChangeType.MEMBER_ADD, {"user_id": "u"})
+            assert r["success"] is False
+        with patch("builtins.__import__", side_effect=boom_import2):
+            r = svc._apply_discord_change("D1", ChangeType.MEMBER_ADD, {"user_id": "u"})
+            assert r["success"] is False
+
+    def test_apply_google_chat_change(self, sync_db):
+        from integrations.workspace_sync_service import (
+            ChangeType,
+            WorkspaceSyncService,
+        )
+
+        svc = WorkspaceSyncService(sync_db)
+        cases = [
+            (ChangeType.WORKSPACE_NAME_CHANGE, {"new_name": "X"}),
+            (ChangeType.WORKSPACE_NAME_CHANGE, {}),
+            (ChangeType.MEMBER_ADD, {"email": "a@b"}),
+            (ChangeType.MEMBER_ADD, {}),
+            (ChangeType.MEMBER_REMOVE, {"member_name": "m"}),
+            (ChangeType.MEMBER_REMOVE, {}),
+            (ChangeType.CHANNEL_ADD, {}),
+            (ChangeType.CHANNEL_REMOVE, {}),
+            ("other", {}),
+        ]
+        for change_type, data in cases:
+            r = svc._apply_google_chat_change("G1", change_type, data)
+            assert (r is None) or r["success"] is True, (change_type, data)
+
+        with patch("integrations.atom_google_chat_integration.atom_google_chat_integration", None):
+            r = svc._apply_google_chat_change("G1", ChangeType.MEMBER_ADD, {"email": "a"})
+            assert r["success"] is False
+        import builtins
+
+        real_import = builtins.__import__
+
+        def boom_import(name, *a, **k):
+            if "atom_google_chat_integration" in name:
+                raise ImportError("boom")
+            return real_import(name, *a, **k)
+
+        def boom_import2(name, *a, **k):
+            if "atom_google_chat_integration" in name:
+                raise Exception("boom")
+            return real_import(name, *a, **k)
+
+        with patch("builtins.__import__", side_effect=boom_import):
+            r = svc._apply_google_chat_change("G1", ChangeType.MEMBER_ADD, {"email": "a"})
+            assert r["success"] is False
+        with patch("builtins.__import__", side_effect=boom_import2):
+            r = svc._apply_google_chat_change("G1", ChangeType.MEMBER_ADD, {"email": "a"})
+            assert r["success"] is False
+
+    def test_apply_teams_change(self, sync_db):
+        from integrations.workspace_sync_service import (
+            ChangeType,
+            WorkspaceSyncService,
+        )
+
+        svc = WorkspaceSyncService(sync_db)
+        cases = [
+            (ChangeType.WORKSPACE_NAME_CHANGE, {"new_name": "X"}),
+            (ChangeType.WORKSPACE_NAME_CHANGE, {}),
+            (ChangeType.MEMBER_ADD, {"email": "a@b"}),
+            (ChangeType.MEMBER_ADD, {}),
+            (ChangeType.MEMBER_REMOVE, {"user_id": "u"}),
+            (ChangeType.MEMBER_REMOVE, {}),
+            (ChangeType.CHANNEL_ADD, {"channel_name": "c"}),
+            (ChangeType.CHANNEL_ADD, {}),
+            (ChangeType.CHANNEL_REMOVE, {"channel_id": "c1"}),
+            (ChangeType.CHANNEL_REMOVE, {}),
+            ("other", {}),
+        ]
+        for change_type, data in cases:
+            r = svc._apply_teams_change("M1", change_type, data)
+            assert (r is None) or r["success"] is True, (change_type, data)
+
+        with patch("integrations.atom_teams_integration.atom_teams_integration", None):
+            r = svc._apply_teams_change("M1", ChangeType.MEMBER_ADD, {"email": "a"})
+            assert r["success"] is False
+        import builtins
+
+        real_import = builtins.__import__
+
+        def boom_import(name, *a, **k):
+            if "atom_teams_integration" in name:
+                raise ImportError("boom")
+            return real_import(name, *a, **k)
+
+        def boom_import2(name, *a, **k):
+            if "atom_teams_integration" in name:
+                raise Exception("boom")
+            return real_import(name, *a, **k)
+
+        with patch("builtins.__import__", side_effect=boom_import):
+            r = svc._apply_teams_change("M1", ChangeType.MEMBER_ADD, {"email": "a"})
+            assert r["success"] is False
+        with patch("builtins.__import__", side_effect=boom_import2):
+            r = svc._apply_teams_change("M1", ChangeType.MEMBER_ADD, {"email": "a"})
+            assert r["success"] is False

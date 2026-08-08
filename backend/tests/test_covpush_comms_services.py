@@ -1,6 +1,4 @@
-"""
-Coverage-push tests for comms integration services (R84 wave).
-
+"""Coverage-push tests for comms integration services (R84 wave).
 Drives line coverage of:
   integrations/slack_enhanced_service.py
   integrations/slack_analytics_engine.py
@@ -9,10 +7,21 @@ Drives line coverage of:
   integrations/google_chat_analytics_engine.py
   integrations/teams_enhanced_service.py
   integrations/chat_orchestrator.py
-
 All network/DB/LLM calls are mocked.
 """
+# Some legacy test files permanently replace integration modules in sys.modules
+# with MagicMock at import time (e.g. test_scheduled_messaging_minimal,
+# test_condition_monitoring_minimal, test_alert_service). Restore the REAL
+# modules before this file binds its imports so tests run against the source.
+import sys as _sys
+from unittest.mock import MagicMock as _MagicMock
+for _name in ("integrations.teams_enhanced_service", "integrations.slack_enhanced_service"):
+    if isinstance(_sys.modules.get(_name), _MagicMock):
+        _sys.modules.pop(_name, None)
+del _sys, _MagicMock, _name
+
 import asyncio
+import importlib
 import json
 import os
 import re
@@ -73,7 +82,12 @@ BACKEND = "/Users/rushiparikh/projects/atom/backend"
 
 
 def _teams_module():
-    import importlib
+    """Lazily import the REAL teams_enhanced_service (module was unimportable
+    before the phantom-import fix; also immune to legacy sys.modules pollution)."""
+    import sys as _sys
+    from unittest.mock import MagicMock as _MM
+    if isinstance(_sys.modules.get("integrations.teams_enhanced_service"), _MM):
+        _sys.modules.pop("integrations.teams_enhanced_service", None)
     return importlib.import_module("integrations.teams_enhanced_service")
 
 

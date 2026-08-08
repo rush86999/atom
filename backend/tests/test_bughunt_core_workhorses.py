@@ -232,6 +232,45 @@ class TestWorldModelServiceInit:
 
 
 # ============================================================================
+# byok_handler
+# ============================================================================
+
+class TestProviderComparisonFallback:
+    """get_provider_comparison returns {} when the pricing fetcher yields no
+    data (all-zero costs in the cache) — the static fallback only fired on
+    exceptions, so the pricing UI got an empty comparison."""
+
+    def test_empty_dynamic_data_uses_static_fallback(self):
+        from core.llm.byok_handler import BYOKHandler
+        handler = BYOKHandler.__new__(BYOKHandler)
+
+        with patch("core.llm.byok_handler.get_pricing_fetcher") as fetcher_cls:
+            fetcher = Mock()
+            fetcher.compare_providers.return_value = {}
+            fetcher_cls.return_value = fetcher
+
+            comparison = handler.get_provider_comparison()
+
+        assert isinstance(comparison, dict)
+        assert len(comparison) > 0, "empty comparison must fall back to static table"
+        assert "openai" in comparison
+        assert "deepseek" in comparison
+
+    def test_populated_dynamic_data_wins(self):
+        from core.llm.byok_handler import BYOKHandler
+        handler = BYOKHandler.__new__(BYOKHandler)
+
+        with patch("core.llm.byok_handler.get_pricing_fetcher") as fetcher_cls:
+            fetcher = Mock()
+            fetcher.compare_providers.return_value = {"openai": {"avg_cost_per_token": 0.00003}}
+            fetcher_cls.return_value = fetcher
+
+            comparison = handler.get_provider_comparison()
+
+        assert comparison == {"openai": {"avg_cost_per_token": 0.00003}}
+
+
+# ============================================================================
 # workflow_engine
 # ============================================================================
 

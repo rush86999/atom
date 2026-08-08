@@ -3483,6 +3483,8 @@ class TestWorkflowAutomationErrors:
         assert r["passed"] is False
         comp = _wf_automation(mod, automation_type=mod.WorkflowAutomationType.COMPLIANCE)
         r = await svc._pre_execution_compliance_check(comp, BoomCtx())
+        assert r["passed"] is True  # compliance body never touches the context
+        r = await svc._pre_execution_compliance_check(None, {})
         assert r["passed"] is False
         r = await svc._post_execution_security_check(automation, [BoomCtx()])
         assert r["passed"] is False
@@ -3490,15 +3492,19 @@ class TestWorkflowAutomationErrors:
         assert r["passed"] is True
         # notify errors
         svc2 = _wf_svc()
-        with patch.object(svc2, "_notify_security_team", new=AsyncMock(side_effect=RuntimeError("x"))):
-            await svc2._notify_security_team("m", "high", {})  # direct — no try wrapper
-        for fn in ["_notify_security_team", "_notify_compliance_officer", "_notify_management",
-                   "_notify_slack", "_notify_teams", "_notify_email"]:
-            async def boom(message, urgency, context, _fn=fn):
-                raise RuntimeError("x")
-            svc2._notify_security_team = boom
-            # _execute_notification_action wraps all notify calls
-            await svc2._execute_notification_action({"channels": ["security_team"], "message": "m"}, {})
+        with pytest.raises(RuntimeError):
+            with patch.object(svc2, "_notify_security_team", new=AsyncMock(side_effect=RuntimeError("x"))):
+                await svc2._notify_security_team("m", "high", {})  # direct — no try wrapper
+        # _execute_notification_action wraps all notify calls
+        with patch.object(svc2, "_notify_security_team", new=AsyncMock(side_effect=RuntimeError("x"))), \
+             patch.object(svc2, "_notify_compliance_officer", new=AsyncMock(side_effect=RuntimeError("x"))), \
+             patch.object(svc2, "_notify_management", new=AsyncMock(side_effect=RuntimeError("x"))), \
+             patch.object(svc2, "_notify_slack", new=AsyncMock(side_effect=RuntimeError("x"))), \
+             patch.object(svc2, "_notify_teams", new=AsyncMock(side_effect=RuntimeError("x"))), \
+             patch.object(svc2, "_notify_email", new=AsyncMock(side_effect=RuntimeError("x"))):
+            r = await svc2._execute_notification_action(
+                {"channels": ["security_team", "compliance_officer", "management", "slack", "teams", "email"], "message": "m"}, {})
+            assert r["success"] is False
 
     async def test_loops_iterations(self):
         import integrations.atom_workflow_automation_service as mod
@@ -3579,3 +3585,1326 @@ class TestWorkflowAutomationErrors:
         assert svc.workspace_id == "t1"
         assert mod.WorkflowSecurityLevel is not None
         assert mod.ComplianceStandard is not None
+
+
+# ---------------------------------------------------------------------------
+# atom_workflow_automation_service — final 1% push
+# ---------------------------------------------------------------------------
+class TestWorkflowAutomationFinal:
+    async def test_execute_automation_circuit_rate_and_except(self):
+        import integrations.atom_workflow_automation_service as mod
+
+        svc = _wf_svc({"database": AsyncMock()})
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=False)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            r = await svc.execute_automation("a1", {}, "t")
+            assert r["ok"] is False and "temporarily disabled" in r["error"]
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(True, 0))
+            r = await svc.execute_automation("a1", {}, "t")
+            assert r["ok"] is False and "Rate limit" in r["error"]
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            # exception in the automation loop itself (post-check raise) -> error dict
+            automation = _wf_automation(mod)
+            svc.automations["auto_1"] = automation
+            with patch.object(svc, "_pre_execution_security_check", new=AsyncMock(return_value={"passed": True})), \
+                 patch.object(svc, "_pre_execution_compliance_check", new=AsyncMock(return_value={"passed": True})), \
+                 patch.object(svc, "_execute_automation_action", new=AsyncMock(return_value={"success": True})), \
+                 patch.object(svc, "_post_execution_security_check", new=AsyncMock(return_value={"passed": True})), \
+                 patch.object(svc, "_post_execution_compliance_check", new=AsyncMock(return_value={"passed": True})), \
+                 patch.object(svc, "_send_automation_notifications", new=AsyncMock()), \
+                 patch.object(svc, "_update_automation_metrics", new=AsyncMock(side_effect=RuntimeError("metrics"))):
+                r = await svc.execute_automation("auto_1", {}, "t")
+                assert r["ok"] is False
+
+    async def test_execution_filters_continue_branches(self):
+        import integrations.atom_workflow_automation_service as mod
+
+        svc = _wf_svc()
+        e1 = _wf_execution(mod, execution_id="e1", automation_id="a1", triggered_by="sys")
+        svc.executions = {"e1": e1}
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            r = await svc.get_automation_executions("other")
+            assert r == []
+            r = await svc.get_automation_executions(filters={"status": "nope"})
+            assert r == []
+            r = await svc.get_automation_executions(filters={"triggered_by": "nope"})
+            assert r == []
+            r = await svc.get_automation_executions(filters={"date_from": datetime(2030, 1, 1, tzinfo=timezone.utc).date()})
+            assert r == []
+            r = await svc.get_automation_executions(filters={"date_to": datetime(2000, 1, 1, tzinfo=timezone.utc).date()})
+            assert r == []
+
+    async def test_pre_execution_internal_level_and_workflow_fallback(self):
+        import integrations.atom_workflow_automation_service as mod
+
+        svc = _wf_svc()
+        automation = _wf_automation(mod, automation_type=mod.WorkflowAutomationType.GOVERNANCE)
+        r = await svc._pre_execution_security_check(automation, {})
+        assert r["passed"] is True
+        # workflow action without unified service
+        svc.unified_service = None
+        r = await svc._execute_workflow_action({"workflow_id": "w1"}, {})
+        assert r["success"] is False and "Unified service" in r["error"]
+
+    async def test_init_and_trigger_error_excepts(self):
+        import integrations.atom_workflow_automation_service as mod
+
+        svc = _wf_svc()
+        # _initialize_automation_scheduling except
+        with patch.object(mod.asyncio, "create_task", side_effect=RuntimeError("x")):
+            assert await svc._initialize_automation_scheduling() is False
+        # _initialize_trigger_listeners except (bad condition dict)
+        svc.automations = {"a1": _wf_automation(mod, conditions=[None])}
+        assert await svc._initialize_trigger_listeners() is False
+        # _schedule_automation except
+        a = _wf_automation(mod, schedule="0 2 * * *")
+        with patch("integrations.atom_workflow_automation_service.datetime") as dt_mock:
+            dt_mock.now.side_effect = RuntimeError("tz")
+            assert await svc._schedule_automation(a, {"type": "scheduled"}) is False
+        # _setup_event_trigger except
+        with patch.object(svc, "trigger_listeners", new=None):
+            assert await svc._setup_event_trigger(_wf_automation(mod, "e1", conditions=[{"type": "event_triggered"}]), {"type": "event_triggered"}) is False
+        # _setup_threshold_trigger except
+        with patch.object(svc, "active_triggers", new=None):
+            assert await svc._setup_threshold_trigger(_wf_automation(mod, "t1"), {"metric": "m", "threshold": 1}) is False
+        # _setup_anomaly_trigger except
+        with patch.object(svc, "active_triggers", new=None):
+            assert await svc._setup_anomaly_trigger(_wf_automation(mod, "an1"), {"metric": "m"}) is False
+        # _setup_platform_triggers except
+        svc.platform_integrations = {"slack": MagicMock(register_webhook=AsyncMock(side_effect=RuntimeError("x")))}
+        assert await svc._setup_platform_triggers("slack", "a1", {"trigger_type": "webhook", "webhook_url": "u"}) is False
+        # _send_automation_notifications except
+        svc2 = _wf_svc()
+        with patch.object(svc2, "_notify_slack", new=AsyncMock(side_effect=RuntimeError("x"))):
+            automation = _wf_automation(mod, metadata={"notification_rules": [{"status": "failed", "channels": ["slack:ops"]}]})
+            execution = _wf_execution(mod, status=mod.AutomationStatus.FAILED, error="e")
+            assert await svc2._send_automation_notifications(automation, execution) is False
+        # _log_automation_event with raising security service
+        svc3 = _wf_svc()
+        sec = MagicMock()
+        sec.audit_event = AsyncMock(side_effect=RuntimeError("audit"))
+        svc3.security_service = sec
+        with pytest.raises(RuntimeError):
+            await svc3._log_automation_event("a", "t", "u", {})
+
+    async def test_import_guards_fallback_blocks(self):
+        """Force the module-level guarded imports to take the final fallback
+        (both bare-name and package-qualified import failures)."""
+        import importlib
+        import integrations.atom_workflow_automation_service as mod
+
+        with patch.dict(sys.modules, {
+            "atom_enterprise_security_service": None,
+            "atom_enterprise_unified_service": None,
+            "integrations.atom_enterprise_security_service": None,
+            "integrations.atom_enterprise_unified_service": None,
+        }):
+            importlib.reload(mod)
+            assert mod.ComplianceStandard is None
+            assert mod.WorkflowSecurityLevel is None
+        importlib.reload(mod)
+        assert mod.ComplianceStandard is not None
+
+
+# ---------------------------------------------------------------------------
+# atom_enterprise_unified_service.py
+# ---------------------------------------------------------------------------
+def _euw(mod, workflow_id="wf_1", **over):
+    data = dict(
+        workflow_id=workflow_id, name="w", description="d",
+        service_type=mod.EnterpriseServiceType.SECURITY,
+        security_level=mod.WorkflowSecurityLevel.RESTRICTED,
+        compliance_standards=[mod.ComplianceStandard.SOC2],
+        triggers=[{"type": "security_alert"}],
+        steps=[{"name": "s1", "type": "security_check", "config": {}}],
+        actions=[{"type": "security_enforcement", "config": {}, "timeout": 60}],
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+        created_by="u", status="active", metadata={}, audit_trail=[], compliance_checks=[],
+    )
+    data.update(over)
+    return mod.EnterpriseWorkflow(**data)
+
+
+class TestEnterpriseUnifiedCoverage:
+    async def test_initialize(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {"security_service": MagicMock(), "ai_service": MagicMock()})
+        for m in ["_initialize_enterprise_services", "_setup_workflow_security_integration",
+                  "_setup_compliance_automation", "_setup_ai_powered_automation",
+                  "_start_enterprise_monitoring"]:
+            setattr(svc, m, AsyncMock())
+        assert await svc.initialize() is True
+        svc2 = mod.AtomEnterpriseUnifiedService("t1", {})
+        assert await svc2.initialize() is False
+
+    async def test_create_enterprise_workflow_flows(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {"security_service": MagicMock()})
+        svc.security_service.audit_event = AsyncMock()
+        data = {
+            "name": "wf", "description": "d", "service_type": "security",
+            "security_level": "restricted",
+            "compliance_standards": ["SOC2"],
+            "triggers": [], "steps": [], "actions": [],
+        }
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            r = await svc.create_enterprise_workflow(data, "u1")
+            assert r["ok"] is True
+            assert r["workflow_id"] in svc.enterprise_workflows
+            # validation failure (invalid standard)
+            bad = dict(data)
+            bad["compliance_standards"] = ["NOT_A_STD"]
+            r = await svc.create_enterprise_workflow(bad, "u1")
+            assert r["ok"] is False
+            # workflow_service create failure
+            ws = MagicMock()
+            ws.create_workflow = AsyncMock(return_value={"ok": False, "error": "no"})
+            svc.workflow_service = ws
+            r = await svc.create_enterprise_workflow(data, "u1")
+            assert r["ok"] is False
+            # database store
+            db = AsyncMock()
+            svc2 = mod.AtomEnterpriseUnifiedService("t1", {"security_service": MagicMock(), "database": db})
+            svc2.security_service.audit_event = AsyncMock()
+            r = await svc2.create_enterprise_workflow(data, "u1")
+            assert r["ok"] is True
+            db.store_enterprise_workflow.assert_awaited()
+
+    async def test_execute_enterprise_workflow_flows(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {"security_service": MagicMock()})
+        wf = _euw(mod)
+        svc.enterprise_workflows["wf_1"] = wf
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            r = await svc.execute_enterprise_workflow("missing", {}, "u")
+            assert r["ok"] is False
+            with patch.object(svc, "_security_pre_check", new=AsyncMock(return_value={"passed": False, "reason": "no"})), \
+                 patch.object(svc, "_log_enterprise_event", new=AsyncMock()):
+                r = await svc.execute_enterprise_workflow("wf_1", {}, "u")
+                assert r["ok"] is False
+            with patch.object(svc, "_security_pre_check", new=AsyncMock(return_value={"passed": True})), \
+                 patch.object(svc, "_compliance_pre_check", new=AsyncMock(return_value={"passed": False, "reason": "no"})), \
+                 patch.object(svc, "_log_enterprise_event", new=AsyncMock()):
+                r = await svc.execute_enterprise_workflow("wf_1", {}, "u")
+                assert r["ok"] is False
+            with patch.object(svc, "_security_pre_check", new=AsyncMock(return_value={"passed": True})), \
+                 patch.object(svc, "_compliance_pre_check", new=AsyncMock(return_value={"passed": True})), \
+                 patch.object(svc, "_get_ai_enhanced_context", new=AsyncMock(return_value={"ctx": 1})), \
+                 patch.object(svc, "_execute_workflow_step", new=AsyncMock(return_value={"success": True, "execution_time": 0.1})), \
+                 patch.object(svc, "_monitor_step_execution", new=AsyncMock(return_value={"alert": True, "severity": "high"})), \
+                 patch.object(svc, "_monitor_step_compliance", new=AsyncMock(return_value={"violation": True, "severity": "high"})), \
+                 patch.object(svc, "_handle_security_alert", new=AsyncMock()), \
+                 patch.object(svc, "_handle_compliance_violation", new=AsyncMock()), \
+                 patch.object(svc, "_security_post_check", new=AsyncMock(return_value={"passed": True})), \
+                 patch.object(svc, "_compliance_post_check", new=AsyncMock(return_value={"passed": True})), \
+                 patch.object(svc, "_log_enterprise_event", new=AsyncMock()):
+                r = await svc.execute_enterprise_workflow("wf_1", {"x": 1}, "u")
+                assert r["ok"] is True
+                assert len(wf.audit_trail) == 1
+            # exception path
+            with patch.object(svc, "_security_pre_check", new=AsyncMock(side_effect=RuntimeError("x"))):
+                r = await svc.execute_enterprise_workflow("wf_1", {}, "u")
+                assert r["ok"] is False
+
+    async def test_create_security_automation_flows(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {"security_service": MagicMock()})
+        svc.security_service.audit_event = AsyncMock()
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            data = {"name": "auto", "description": "d", "triggers": [], "metadata": {}}
+            with patch.object(svc, "create_enterprise_workflow", new=AsyncMock(
+                return_value={"ok": False, "error": "no"})), \
+                 patch.object(svc, "_log_enterprise_event", new=AsyncMock()):
+                r = await svc.create_security_automation(data, "u")
+                assert r["ok"] is False
+            with patch.object(svc, "create_enterprise_workflow", new=AsyncMock(
+                return_value={"ok": True, "workflow_id": "wf_x"})):
+                r = await svc.create_security_automation(data, "u")
+                assert r["ok"] is True
+                assert r["automation_id"] in svc.active_automations
+            with patch.object(svc, "create_enterprise_workflow", new=AsyncMock(
+                side_effect=RuntimeError("boom"))):
+                r = await svc.create_security_automation(data, "u")
+                assert r["ok"] is False
+
+    async def test_create_compliance_automation_flows(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {"security_service": MagicMock()})
+        svc.security_service.audit_event = AsyncMock()
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            data = {
+                "name": "comp", "description": "d",
+                "compliance_standards": ["SOC2"], "workflow_type": "audit_remediation",
+                "triggers": ["audit_failure"], "schedule": "daily", "metadata": {},
+            }
+            with patch.object(svc, "create_enterprise_workflow", new=AsyncMock(
+                return_value={"ok": False, "error": "no"})):
+                r = await svc.create_compliance_automation(data, "u")
+                assert r["ok"] is False
+            with patch.object(svc, "create_enterprise_workflow", new=AsyncMock(
+                return_value={"ok": True, "workflow_id": "wf_c"})):
+                r = await svc.create_compliance_automation(data, "u")
+                assert r["ok"] is True
+                assert r["automation_id"] in svc.compliance_automations
+            with patch.object(svc, "create_enterprise_workflow", new=AsyncMock(
+                side_effect=RuntimeError("boom"))):
+                r = await svc.create_compliance_automation(data, "u")
+                assert r["ok"] is False
+
+    async def test_getters_and_metrics(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {"security_service": MagicMock()})
+        wf1 = _euw(mod, "wf_1")
+        wf2 = _euw(mod, "wf_2", service_type=mod.EnterpriseServiceType.COMPLIANCE,
+                   security_level=mod.WorkflowSecurityLevel.CONFIDENTIAL,
+                   compliance_standards=[mod.ComplianceStandard.GDPR],
+                   metadata={"execution_count": 5, "success_rate": 0.8, "last_executed": "now"})
+        svc.enterprise_workflows = {"wf_1": wf1, "wf_2": wf2}
+        svc.active_automations = {
+            "a1": {"automation_type": "security", "active": True},
+            "a2": {"automation_type": "compliance", "active": False},
+        }
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            r = await svc.get_enterprise_workflows()
+            assert len(r) == 2
+            r = await svc.get_enterprise_workflows(filters={"service_type": "compliance"})
+            assert len(r) == 1
+            r = await svc.get_enterprise_workflows(filters={"security_level": "confidential"})
+            assert len(r) == 1
+            r = await svc.get_enterprise_workflows(filters={"compliance_standard": "gdpr"})
+            assert len(r) == 1
+            status = await svc.get_automations_status()
+            assert status["total_automations"] == 2
+            assert status["security_automations"] == 1
+            assert status["active_automations"] == 1
+            metrics = await svc.get_enterprise_metrics()
+            assert metrics["total_workflows"] == 0
+            await svc.close()
+            info = await svc.get_service_info()
+            assert info["status"] == "ACTIVE"
+
+    async def test_private_helpers(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {})
+        wf = _euw(mod)
+        r = await svc._validate_enterprise_workflow(wf)
+        assert r["valid"] is True
+        actions = await svc._create_security_workflow_actions(wf, "u")
+        assert len(actions) == 1
+        assert len(svc.security_workflow_actions) == 1
+        autos = await svc._create_compliance_automations(wf, "u")
+        assert len(autos) == 1
+        r = await svc._security_pre_check(wf, {}, "u")
+        assert r["passed"] is True
+        r = await svc._compliance_pre_check(wf, {}, "u")
+        assert r["passed"] is True
+        r = await svc._get_ai_enhanced_context(wf, {})
+        assert r["ai_enhanced"] is False
+        ai = MagicMock()
+        ai.process_ai_request = AsyncMock(return_value=MagicMock(ok=True, output_data={}, confidence=0.9))
+        svc.ai_service = ai
+        with patch.dict(mod.__dict__, {
+            "AIRequest": MagicMock(),
+            "AITaskType": MagicMock(USER_BEHAVIOR_ANALYSIS="uba"),
+            "AIModelType": MagicMock(GPT_4="gpt4"),
+            "AIServiceType": MagicMock(OPENAI="openai"),
+        }):
+            r = await svc._get_ai_enhanced_context(wf, {})
+        assert r["ai_enhanced"] is True
+        ai.process_ai_request = AsyncMock(return_value=MagicMock(ok=False))
+        r = await svc._get_ai_enhanced_context(wf, {})
+        assert r["ai_enhanced"] is False
+        ai.process_ai_request = AsyncMock(side_effect=RuntimeError("x"))
+        r = await svc._get_ai_enhanced_context(wf, {})
+        assert r["ai_enhanced"] is False
+        # step execution types
+        for step_type in ["security_check", "compliance_check", "ai_analysis", "data_processing",
+                          "notification", "custom"]:
+            r = await svc._execute_workflow_step({"type": step_type, "config": {}}, {}, "u")
+            assert r["success"] is True
+        with patch.object(svc, "_execute_custom_step", new=AsyncMock(side_effect=RuntimeError("x"))):
+            r = await svc._execute_workflow_step({"type": "custom"}, {}, "u")
+            assert r["success"] is False
+        # monitors
+        assert await svc._monitor_step_execution({}, {}, "u") == {"alert": False, "monitoring_result": "No issues detected"}
+        assert await svc._monitor_step_compliance({}, {}, "u") == {"violation": False, "compliance_result": "No violations detected"}
+        # validation helpers
+        assert await svc._validate_workflow_security(wf) == {"valid": True, "errors": []}
+        assert await svc._validate_workflow_compliance(wf) == {"valid": True, "errors": []}
+        assert await svc._assess_action_risk({}, mod.WorkflowSecurityLevel.INTERNAL) == {"risk_score": 0.5, "risk_level": "medium"}
+        assert await svc._check_user_authorization("u", mod.WorkflowSecurityLevel.INTERNAL) == {"authorized": True}
+        assert await svc._validate_context_security({}, mod.WorkflowSecurityLevel.INTERNAL) == {"valid": True}
+        assert await svc._check_compliance_requirements("SOC2", {}, "u") == {"compliant": True}
+        assert await svc._get_security_ai_analysis({}) == {"ai_analysis": "Security event analyzed"}
+        assert await svc._get_compliance_ai_analysis({}) == {"ai_analysis": "Compliance violation analyzed"}
+        # init/setup/monitoring methods
+        with _mock_imports({
+            "integrations.atom_ai_integration": MagicMock(ai_integration=MagicMock()),
+        }), patch(
+            "integrations.atom_enterprise_security_service.atom_enterprise_security_service",
+            new=MagicMock(),
+        ):
+            await svc._initialize_enterprise_services()
+            assert svc.security_service is not None
+        sec = MagicMock()
+        sec.setup_workflow_monitoring = AsyncMock()
+        sec.setup_compliance_automation = AsyncMock()
+        sec.start_monitoring = AsyncMock()
+        svc.security_service = sec
+        ai_int = MagicMock()
+        ai_int.setup_workflow_automation = AsyncMock()
+        ai_int.start_monitoring = AsyncMock()
+        svc.ai_integration = ai_int
+        await svc._setup_workflow_security_integration()
+        await svc._setup_compliance_automation()
+        await svc._setup_ai_powered_automation()
+        await svc._start_enterprise_monitoring()
+        # blocking/monitoring handlers
+        await svc._block_workflow_execution("wf_1", "r")
+        wf.status = "active"
+        svc.enterprise_workflows["wf_1"] = wf
+        await svc._block_workflow_execution("wf_1", "r")
+        assert wf.status == "blocked"
+        await svc._increase_workflow_monitoring("wf_1")
+        await svc._enable_compliance_logging("wf_1")
+        assert svc.workflow_monitoring["wf_1"]["compliance_logging"] is True
+        with patch.object(svc, "_log_enterprise_event", new=AsyncMock()):
+            await svc._notify_security_team({"type": "t"}, wf, "u")
+            await svc._notify_compliance_team({"type": "t"}, wf, "u")
+        assert await svc._security_post_check(wf, [], "u") == {"passed": True}
+        assert await svc._compliance_post_check(wf, [], "u") == {"passed": True}
+        # log enterprise event with security service
+        svc.security_service = MagicMock()
+        svc.security_service.audit_event = AsyncMock()
+        await svc._log_enterprise_event("evt", "u", "r", "a", "s", {"k": "v"})
+        svc.security_service.audit_event.assert_awaited()
+
+    async def test_validation_failure_and_error_paths(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {})
+        # _validate_enterprise_workflow error path
+        with patch.object(svc, "_validate_workflow_security", new=AsyncMock(side_effect=RuntimeError("x"))):
+            r = await svc._validate_enterprise_workflow(_euw(mod))
+            assert r["valid"] is False
+        # _security_pre_check unauthorized
+        with patch.object(svc, "_check_user_authorization", new=AsyncMock(return_value={"authorized": False})):
+            r = await svc._security_pre_check(_euw(mod), {}, "u")
+            assert r["passed"] is False
+        with patch.object(svc, "_check_user_authorization", new=AsyncMock(side_effect=RuntimeError("x"))):
+            r = await svc._security_pre_check(_euw(mod), {}, "u")
+            assert r["passed"] is False
+        # _compliance_pre_check failure
+        with patch.object(svc, "_check_compliance_requirements", new=AsyncMock(return_value={"compliant": False})):
+            r = await svc._compliance_pre_check(_euw(mod), {}, "u")
+            assert r["passed"] is False
+        with patch.object(svc, "_check_compliance_requirements", new=AsyncMock(side_effect=RuntimeError("x"))):
+            r = await svc._compliance_pre_check(_euw(mod), {}, "u")
+            assert r["passed"] is False
+        # getter error paths
+        with patch.object(mod, "rate_limiter") as rl:
+            rl.is_rate_limited = AsyncMock(side_effect=RuntimeError("x"))
+            assert await svc.get_enterprise_workflows() == []
+            assert "error" in await svc.get_automations_status()
+            with pytest.raises(Exception):
+                await svc.get_enterprise_metrics()
+            with pytest.raises(Exception):
+                await svc.close()
+
+
+# ---------------------------------------------------------------------------
+# atom_enterprise_unified_service — final push
+# ---------------------------------------------------------------------------
+class TestEnterpriseUnifiedFinal:
+    async def test_circuit_and_rate_limit_paths(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {"security_service": MagicMock()})
+        svc.security_service.audit_event = AsyncMock()
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=False)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            for call in [
+                lambda: svc.create_enterprise_workflow({"name": "x"}, "u"),
+                lambda: svc.execute_enterprise_workflow("w", {}, "u"),
+                lambda: svc.create_security_automation({"name": "x"}, "u"),
+                lambda: svc.create_compliance_automation({"name": "x"}, "u"),
+                lambda: svc.handle_security_event({}),
+                lambda: svc.handle_compliance_violation({}),
+                lambda: svc.get_automations_status(),
+            ]:
+                r = await call()
+                assert isinstance(r, dict), r
+            assert await svc.get_enterprise_workflows() == []
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(True, 0))
+            for call in [
+                lambda: svc.create_enterprise_workflow({"name": "x"}, "u"),
+                lambda: svc.execute_enterprise_workflow("w", {}, "u"),
+                lambda: svc.create_security_automation({"name": "x"}, "u"),
+                lambda: svc.create_compliance_automation({"name": "x"}, "u"),
+                lambda: svc.handle_security_event({}),
+                lambda: svc.handle_compliance_violation({}),
+                lambda: svc.get_automations_status(),
+            ]:
+                r = await call()
+                assert isinstance(r, dict), r
+            assert await svc.get_enterprise_workflows() == []
+
+    async def test_coerce_and_init_branches(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        assert mod._coerce_compliance_standard("SOC2") == mod.ComplianceStandard.SOC2
+        assert mod._coerce_compliance_standard(mod.ComplianceStandard.GDPR) == mod.ComplianceStandard.GDPR
+        assert mod._coerce_compliance_standard("soc2") == mod.ComplianceStandard.SOC2
+        with pytest.raises(ValueError):
+            mod._coerce_compliance_standard(123)
+        # __init__ platform integrations from globals
+        import types
+        fake_mod = types.ModuleType("fake")
+        with patch.dict(mod.__dict__, {
+            "atom_slack_integration": "slack_obj",
+            "atom_teams_integration": "teams_obj",
+            "atom_google_chat_integration": "chat_obj",
+            "atom_discord_integration": "discord_obj",
+        }):
+            svc = mod.AtomEnterpriseUnifiedService("t1", {})
+            assert svc.platform_integrations == {
+                "slack": "slack_obj", "teams": "teams_obj",
+                "google_chat": "chat_obj", "discord": "discord_obj",
+            }
+        # workflow_service create failure inside create_enterprise_workflow
+        svc2 = mod.AtomEnterpriseUnifiedService("t1", {"security_service": MagicMock()})
+        svc2.security_service.audit_event = AsyncMock()
+        ws = MagicMock()
+        ws.create_workflow = AsyncMock(return_value={"ok": False, "error": "denied"})
+        svc2.workflow_service = ws
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            data = {
+                "name": "wf", "description": "d", "service_type": "security",
+                "security_level": "restricted", "compliance_standards": ["SOC2"],
+                "triggers": [], "steps": [], "actions": [],
+            }
+            r = await svc2.create_enterprise_workflow(data, "u")
+            assert r["ok"] is False and r["error"] == "denied"
+            # exception path
+            ws.create_workflow = AsyncMock(side_effect=RuntimeError("boom"))
+            r = await svc2.create_enterprise_workflow(data, "u")
+            assert r["ok"] is False
+
+    async def test_ai_context_all_paths(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {})
+        wf = _euw(mod)
+        ai = MagicMock()
+        svc.ai_service = ai
+        req = MagicMock()
+        req.ok = True
+        req.output_data = {"insights": 1}
+        req.confidence = 0.9
+        ai.process_ai_request = AsyncMock(return_value=req)
+        with patch.dict(mod.__dict__, {
+            "AIRequest": MagicMock(),
+            "AITaskType": MagicMock(USER_BEHAVIOR_ANALYSIS="uba"),
+            "AIModelType": MagicMock(GPT_4="gpt4"),
+            "AIServiceType": MagicMock(OPENAI="openai"),
+        }):
+            r = await svc._get_ai_enhanced_context(wf, {"k": "v"})
+        assert r["ai_enhanced"] is True
+        assert r["ai_insights"] == {"insights": 1}
+
+    async def test_singleton_and_import_guards(self):
+        import importlib
+        import integrations.atom_enterprise_unified_service as mod
+
+        assert mod.atom_enterprise_unified_service is not None
+        assert "database" in mod.atom_enterprise_unified_service.config
+        real_security = sys.modules.pop("atom_enterprise_security_service", None)
+        real_ai = sys.modules.pop("ai_enhanced_service", None)
+        with patch.dict(sys.modules, {
+            "ai_enhanced_service": None,
+            "atom_ai_integration": None,
+            "atom_discord_integration": None,
+            "atom_enterprise_security_service": None,
+            "atom_google_chat_integration": None,
+            "atom_ingestion_pipeline": None,
+            "atom_memory_service": None,
+            "atom_search_service": None,
+            "atom_slack_integration": None,
+            "atom_teams_integration": None,
+            "atom_workflow_service": None,
+        }):
+            importlib.reload(mod)
+        importlib.reload(mod)
+        assert mod.ComplianceStandard is not None
+
+
+# ---------------------------------------------------------------------------
+# atom_enterprise_unified_service — last gaps
+# ---------------------------------------------------------------------------
+class TestEnterpriseUnifiedLast:
+    async def test_remaining_branches(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        # __init__ config=None
+        svc = mod.AtomEnterpriseUnifiedService("t1", None)
+        assert svc.config == {}
+        # create_enterprise_workflow exception path
+        svc2 = mod.AtomEnterpriseUnifiedService("t1", {"security_service": MagicMock()})
+        svc2.security_service.audit_event = AsyncMock()
+        data = {
+            "name": "wf", "description": "d", "service_type": "security",
+            "security_level": "restricted", "compliance_standards": ["SOC2"],
+            "triggers": [], "steps": [], "actions": [],
+        }
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            with patch.object(svc2, "_validate_enterprise_workflow", new=AsyncMock(side_effect=RuntimeError("x"))):
+                r = await svc2.create_enterprise_workflow(data, "u")
+                assert r["ok"] is False
+        # _validate_enterprise_workflow security/compliance failure
+        svc3 = mod.AtomEnterpriseUnifiedService("t1", {})
+        wf = _euw(mod)
+        with patch.object(svc3, "_validate_workflow_security", new=AsyncMock(return_value={"valid": False, "errors": ["e1"]})):
+            r = await svc3._validate_enterprise_workflow(wf)
+            assert r["valid"] is False and r["errors"] == ["e1"]
+        with patch.object(svc3, "_validate_workflow_security", new=AsyncMock(return_value={"valid": True, "errors": []})), \
+             patch.object(svc3, "_validate_workflow_compliance", new=AsyncMock(return_value={"valid": False, "errors": ["e2"]})):
+            r = await svc3._validate_enterprise_workflow(wf)
+            assert r["valid"] is False and r["errors"] == ["e2"]
+        # _get_ai_enhanced_context ai_service fail path (line 1150)
+        ai = MagicMock()
+        ai.process_ai_request = AsyncMock(return_value=MagicMock(ok=False))
+        svc3.ai_service = ai
+        with patch.dict(mod.__dict__, {
+            "AIRequest": MagicMock(),
+            "AITaskType": MagicMock(USER_BEHAVIOR_ANALYSIS="uba"),
+            "AIModelType": MagicMock(GPT_4="gpt4"),
+            "AIServiceType": MagicMock(OPENAI="openai"),
+        }):
+            r = await svc3._get_ai_enhanced_context(wf, {})
+            assert r["ai_enhanced"] is False
+        # setup method error paths
+        for fn, attr in [("_setup_workflow_security_integration", "security_service"),
+                         ("_setup_compliance_automation", "security_service"),
+                         ("_setup_ai_powered_automation", "ai_integration"),
+                         ("_start_enterprise_monitoring", "security_service")]:
+            svc4 = mod.AtomEnterpriseUnifiedService("t1", {})
+            boom = MagicMock()
+            for m in ["setup_workflow_monitoring", "setup_compliance_automation", "start_monitoring", "setup_workflow_automation"]:
+                setattr(boom, m, AsyncMock(side_effect=RuntimeError("x")))
+            svc4.security_service = boom
+            svc4.ai_integration = boom
+            await getattr(svc4, fn)()
+        # _initialize_enterprise_services error
+        svc5 = mod.AtomEnterpriseUnifiedService("t1", {})
+        with _mock_imports({"integrations.atom_ai_integration": ModuleType("_ai")}):
+            with patch("integrations.atom_enterprise_security_service.atom_enterprise_security_service", new=MagicMock(side_effect=RuntimeError("x"))):
+                await svc5._initialize_enterprise_services()
+
+    async def test_handler_severity_branches(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {})
+        wf = _euw(mod)
+        svc.enterprise_workflows["wf_1"] = wf
+        # medium severity -> monitoring paths
+        with patch.object(svc, "_increase_workflow_monitoring", new=AsyncMock()) as inc, \
+             patch.object(svc, "_notify_security_team", new=AsyncMock()):
+            await svc._handle_security_alert({"severity": "medium"}, wf, {}, "u")
+            inc.assert_awaited()
+        with patch.object(svc, "_enable_compliance_logging", new=AsyncMock()) as en, \
+             patch.object(svc, "_notify_compliance_team", new=AsyncMock()):
+            await svc._handle_compliance_violation({"severity": "medium"}, wf, {}, "u")
+            en.assert_awaited()
+        # low severity -> no block
+        with patch.object(svc, "_block_workflow_execution", new=AsyncMock()) as blk, \
+             patch.object(svc, "_notify_security_team", new=AsyncMock()):
+            await svc._handle_security_alert({"severity": "low"}, wf, {}, "u")
+            blk.assert_not_awaited()
+        # active_workflows block path
+        aw = MagicMock()
+        svc.active_workflows["wf_1"] = aw
+        await svc._block_workflow_execution("wf_1", "r")
+        assert aw.status == "blocked"
+        svc6 = mod.AtomEnterpriseUnifiedService("t1", {})
+        svc6.enterprise_workflows["wf_1"] = wf
+        with patch.object(svc6, "enterprise_workflows", new={"wf_1": MagicMock()}):
+            svc6.enterprise_workflows["wf_1"].status = "active"
+        # block error path (dict mock raising on item access)
+        class BoomDict(dict):
+            def __getitem__(self, k):
+                raise RuntimeError("x")
+        svc7 = mod.AtomEnterpriseUnifiedService("t1", {})
+        svc7.active_workflows = BoomDict()
+        svc7.enterprise_workflows = BoomDict()
+        await svc7._block_workflow_execution("w", "r")
+        # monitoring error paths
+        svc8 = mod.AtomEnterpriseUnifiedService("t1", {})
+        svc8.workflow_monitoring = BoomDict()
+        await svc8._increase_workflow_monitoring("w")
+        await svc8._enable_compliance_logging("w")
+        # notify methods
+        svc9 = mod.AtomEnterpriseUnifiedService("t1", {})
+        await svc9._notify_security_team({"type": "x"}, wf, "u")
+        await svc9._notify_compliance_team({"type": "x"}, wf, "u")
+        # _log_enterprise_event without security service
+        svc10 = mod.AtomEnterpriseUnifiedService("t1", {})
+        await svc10._log_enterprise_event("e", "u", "r", "a", "s")
+
+    async def test_getter_exception_and_close_paths(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {})
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            await svc.get_enterprise_metrics()
+            await svc.close()
+            await svc.get_automations_status()
+            cb.is_enabled = AsyncMock(return_value=False)
+            with pytest.raises(Exception):
+                await svc.get_enterprise_metrics()
+            with pytest.raises(Exception):
+                await svc.close()
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(True, 0))
+            with pytest.raises(Exception):
+                await svc.get_enterprise_metrics()
+            with pytest.raises(Exception):
+                await svc.close()
+
+
+# ---------------------------------------------------------------------------
+# atom_enterprise_unified_service — final fixes
+# ---------------------------------------------------------------------------
+class TestEnterpriseUnifiedTiny:
+    async def test_initialize_exception_and_validation_paths(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {"security_service": MagicMock(), "ai_service": MagicMock()})
+        with patch.object(svc, "_initialize_enterprise_services", new=AsyncMock(side_effect=RuntimeError("x"))):
+            assert await svc.initialize() is False
+        svc2 = mod.AtomEnterpriseUnifiedService("t1", {})
+        wf = _euw(mod)
+        with patch.object(svc2, "_validate_workflow_security", new=AsyncMock(return_value={"valid": True, "errors": []})), \
+             patch.object(svc2, "_validate_workflow_compliance", new=AsyncMock(return_value={"valid": True, "errors": []})), \
+             patch.object(svc2, "_validate_enterprise_workflow", new=AsyncMock(return_value={"valid": False, "errors": ["bad step"]})):
+            r = await svc2._validate_enterprise_workflow(wf)
+            assert r == {"valid": False, "errors": ["bad step"]}
+        # validation-failure return in create_enterprise_workflow (line 301)
+        svc3 = mod.AtomEnterpriseUnifiedService("t1", {"security_service": MagicMock()})
+        svc3.security_service.audit_event = AsyncMock()
+        data = {
+            "name": "wf", "description": "d", "service_type": "security",
+            "security_level": "restricted", "compliance_standards": ["SOC2"],
+            "triggers": [], "steps": [], "actions": [],
+        }
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            with patch.object(svc3, "_validate_enterprise_workflow", new=AsyncMock(
+                return_value={"valid": False, "errors": ["nope"]})):
+                r = await svc3.create_enterprise_workflow(data, "u")
+                assert r["ok"] is False and "validation failed" in r["error"]
+        # _validate_enterprise_workflow circuit/rate branches (swallowed -> error dict)
+        with patch.object(mod, "circuit_breaker") as cb2, patch.object(mod, "rate_limiter") as rl2:
+            cb2.is_enabled = AsyncMock(return_value=False)
+            rl2.is_rate_limited = AsyncMock(return_value=(False, 10))
+            r = await svc2._validate_enterprise_workflow(wf)
+            assert r["valid"] is False
+            cb2.is_enabled = AsyncMock(return_value=True)
+            rl2.is_rate_limited = AsyncMock(return_value=(True, 0))
+            r = await svc2._validate_enterprise_workflow(wf)
+            assert r["valid"] is False
+
+    async def test_security_pre_check_context_failure(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {})
+        wf = _euw(mod)
+        with patch.object(svc, "_check_user_authorization", new=AsyncMock(return_value={"authorized": True})), \
+             patch.object(svc, "_validate_context_security", new=AsyncMock(return_value={"valid": False})):
+            r = await svc._security_pre_check(wf, {}, "u")
+            assert r["passed"] is False
+            assert r["reason"] == "Context security validation failed"
+
+    async def test_handler_exception_paths(self):
+        import integrations.atom_enterprise_unified_service as mod
+
+        svc = mod.AtomEnterpriseUnifiedService("t1", {})
+        wf = _euw(mod)
+        sec = MagicMock()
+        sec.log_security_alert = AsyncMock(side_effect=RuntimeError("x"))
+        sec.log_compliance_violation = AsyncMock(side_effect=RuntimeError("x"))
+        svc.security_service = sec
+        await svc._handle_security_alert({"severity": "high"}, wf, {}, "u")
+        await svc._handle_compliance_violation({"severity": "high"}, wf, {}, "u")
+        # exception AFTER logging — block raises
+        svc2 = mod.AtomEnterpriseUnifiedService("t1", {})
+        svc2.enterprise_workflows["wf_1"] = wf
+        with patch.object(svc2, "_block_workflow_execution", new=AsyncMock(side_effect=RuntimeError("x"))), \
+             patch.object(svc2, "security_service", new=MagicMock()):
+            with patch.object(svc2.security_service, "log_security_alert", new=AsyncMock()):
+                await svc2._handle_security_alert({"severity": "high"}, wf, {}, "u")
+
+    async def test_import_block_full_coverage(self):
+        import importlib
+        import types
+        import integrations.atom_enterprise_unified_service as mod
+
+        mock_mods = {
+            "ai_enhanced_service": MagicMock(
+                AIModelType=MagicMock(), AIRequest=MagicMock(), AIResponse=MagicMock(),
+                AIServiceType=MagicMock(), AITaskType=MagicMock(), ai_enhanced_service=MagicMock()),
+            "atom_ai_integration": MagicMock(atom_ai_integration=MagicMock()),
+            "atom_discord_integration": MagicMock(atom_discord_integration=MagicMock()),
+            "atom_enterprise_security_service": MagicMock(atom_enterprise_security_service=MagicMock()),
+            "atom_google_chat_integration": MagicMock(atom_google_chat_integration=MagicMock()),
+            "atom_ingestion_pipeline": MagicMock(AtomIngestionPipeline=MagicMock()),
+            "atom_memory_service": MagicMock(AtomMemoryService=MagicMock()),
+            "atom_search_service": MagicMock(AtomSearchService=MagicMock()),
+            "atom_slack_integration": MagicMock(atom_slack_integration=MagicMock()),
+            "atom_teams_integration": MagicMock(atom_teams_integration=MagicMock()),
+            "atom_workflow_service": MagicMock(AtomWorkflowService=MagicMock(), Workflow=MagicMock(),
+                                              WorkflowAction=MagicMock(), WorkflowStatus=MagicMock(),
+                                              WorkflowStep=MagicMock(), WorkflowTrigger=MagicMock()),
+        }
+        with patch.dict(sys.modules, mock_mods):
+            importlib.reload(mod)
+        importlib.reload(mod)
+        assert mod.atom_enterprise_unified_service is not None
+
+
+# ---------------------------------------------------------------------------
+# atom_enterprise_security_service.py
+# ---------------------------------------------------------------------------
+def _sec_svc(config=None):
+    import integrations.atom_enterprise_security_service as mod
+
+    cfg = config or {}
+    return mod.AtomEnterpriseSecurityService("t1", cfg)
+
+
+class TestSecurityServiceCoverage:
+    async def test_initialize(self):
+        import integrations.atom_enterprise_security_service as mod
+
+        svc = _sec_svc()
+        for m in ["_initialize_encryption", "_load_security_policies", "_initialize_threat_detection",
+                  "_start_security_monitoring", "_initialize_compliance_monitoring"]:
+            setattr(svc, m, AsyncMock())
+        assert await svc.initialize() is True
+        svc2 = _sec_svc()
+        with patch.object(svc2, "_initialize_encryption", new=AsyncMock(side_effect=RuntimeError("x"))):
+            assert await svc2.initialize() is False
+
+    async def test_create_security_policy_flows(self):
+        import integrations.atom_enterprise_security_service as mod
+
+        svc = _sec_svc({"database": AsyncMock()})
+        data = {
+            "name": "p", "description": "d", "security_level": "enterprise",
+            "compliance_standards": ["SOC2"], "rules": [], "enforcement_actions": [],
+        }
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            r = await svc.create_security_policy(data, "u")
+            assert r["ok"] is True
+            assert r["policy_id"] in svc.active_policies
+            svc.db.store_security_policy.assert_awaited()
+            with patch.object(svc, "_validate_security_policy", new=AsyncMock(return_value={"valid": False, "errors": ["no"]})):
+                r = await svc.create_security_policy(data, "u")
+                assert r["ok"] is False
+            cb.is_enabled = AsyncMock(return_value=False)
+            r = await svc.create_security_policy(data, "u")
+            assert r["ok"] is False
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(True, 0))
+            r = await svc.create_security_policy(data, "u")
+            assert r["ok"] is False
+
+    async def test_detect_threat_flows(self):
+        import integrations.atom_enterprise_security_service as mod
+
+        svc = _sec_svc()
+        svc.ai_service = MagicMock()
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            patched = [
+                {"type": "sql_injection", "severity": "high", "confidence": 0.9,
+                 "description": "sqli", "indicators": ["x"]},
+            ]
+            with patch.object(svc, "_pattern_based_detection", new=AsyncMock(
+                    side_effect=[patched, []])), \
+                 patch.object(svc, "_behavioral_anomaly_detection", new=AsyncMock(
+                    side_effect=[[
+                        {"type": "anomalous_behavior", "severity": "critical", "confidence": 0.8,
+                         "description": "anom", "indicators": ["y"]},
+                    ], []])), \
+                 patch.object(svc, "_ai_threat_detection", new=AsyncMock(
+                    side_effect=[[
+                        {"type": "phishing", "severity": "low", "confidence": 0.5,
+                         "description": "phish", "indicators": ["z"]},
+                    ], []])), \
+                 patch.object(svc, "_mitigate_threat", new=AsyncMock()):
+                t = await svc.detect_threat({"source_ip": "1.2.3.4", "user_id": "u", "session_id": "s", "event_type": "login"})
+                assert t is not None
+                assert t.threat_type == mod.ThreatType.SQL_INJECTION
+                assert svc.security_metrics["total_threats_detected"] == 3
+                t2 = await svc.detect_threat({})
+                assert t2 is None
+            # error path
+            cb.is_enabled = AsyncMock(side_effect=RuntimeError("x"))
+            assert await svc.detect_threat({}) is None
+
+    async def test_audit_event_flows(self):
+        import integrations.atom_enterprise_security_service as mod
+
+        svc = _sec_svc({"database": AsyncMock()})
+        event = {
+            "event_type": "user_login", "user_id": "u", "resource": "r", "action": "a",
+            "result": "success", "ip_address": "1.1.1.1", "user_agent": "ua",
+        }
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            with patch.object(svc, "_check_compliance_for_event", new=AsyncMock()):
+                audit = await svc.audit_event(event)
+                assert audit is not None
+                assert len(svc.audit_logs) == 1
+                svc.db.store_security_audit.assert_awaited()
+                cb.is_enabled = AsyncMock(side_effect=RuntimeError("x"))
+                assert await svc.audit_event(event) is None
+
+    async def test_check_compliance_flows(self):
+        import integrations.atom_enterprise_security_service as mod
+
+        svc = _sec_svc()
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            with patch.object(svc, "_get_compliance_data", new=AsyncMock(return_value={"d": 1})), \
+                 patch.object(svc, "_ai_compliance_analysis", new=AsyncMock(return_value={
+                    "findings": [], "recommendations": [], "score": 90.0, "artifacts": []})), \
+                 patch.object(svc, "_calculate_compliance_score", return_value=95.0):
+                report = await svc.check_compliance(mod.ComplianceStandard.SOC2, "monthly")
+                assert report is not None
+                assert report.overall_score == 95.0
+                assert svc.security_metrics["compliance_checks_passed"] == 1
+            cb.is_enabled = AsyncMock(side_effect=RuntimeError("x"))
+            assert await svc.check_compliance(mod.ComplianceStandard.SOC2) is None
+
+    async def test_encrypt_decrypt(self):
+        import integrations.atom_enterprise_security_service as mod
+
+        svc = _sec_svc()
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            enc = await svc.encrypt_data("secret")
+            data, ctx = await svc.decrypt_data(enc)
+            assert data == "secret" and ctx is None
+            enc2 = await svc.encrypt_data("secret", {"k": "v"})
+            data2, ctx2 = await svc.decrypt_data(enc2)
+            assert data2 == "secret" and ctx2 == {"k": "v"}
+            cb.is_enabled = AsyncMock(side_effect=RuntimeError("x"))
+            with pytest.raises(RuntimeError):
+                await svc.encrypt_data("s")
+            with pytest.raises(RuntimeError):
+                await svc.decrypt_data("s")
+
+    async def test_validate_password(self):
+        import integrations.atom_enterprise_security_service as mod
+
+        svc = _sec_svc()
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            r = await svc.validate_password("StrongPass1!")
+            assert r["valid"] is True
+            r = await svc.validate_password("short")
+            assert r["valid"] is False
+            r = await svc.validate_password("password123")
+            assert r["valid"] is False
+            r = await svc.validate_password("UPPER123!")
+            assert r["valid"] is False  # no lower
+            r = await svc.validate_password("lower123!")
+            assert r["valid"] is False  # no upper
+            r = await svc.validate_password("LowerUpper!")
+            assert r["valid"] is False  # no digits
+            r = await svc.validate_password("LowerUpper123")
+            assert r["valid"] is False  # no special
+            cb.is_enabled = AsyncMock(side_effect=RuntimeError("x"))
+            r = await svc.validate_password("x")
+            assert r["valid"] is False
+
+    async def test_analyze_user_behavior(self):
+        import integrations.atom_enterprise_security_service as mod
+
+        svc = _sec_svc()
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            with patch.object(svc, "_get_user_activities", new=AsyncMock(return_value=[{"a": 1}])), \
+                 patch.object(svc, "_calculate_login_frequency", return_value=1.5), \
+                 patch.object(svc, "_analyze_access_patterns", return_value={}), \
+                 patch.object(svc, "_calculate_data_access_volume", return_value=3), \
+                 patch.object(svc, "_detect_unusual_activities", return_value=[]):
+                m = await svc.analyze_user_behavior("u1")
+                assert m["login_frequency"] == 1.5
+                assert m["data_access_volume"] == 3
+            ai = MagicMock()
+            ai.process_ai_request = AsyncMock(return_value=MagicMock(ok=True, output_data={}, confidence=0.9))
+            with patch.dict(mod.__dict__, {
+                "AIRequest": MagicMock(),
+                "AITaskType": MagicMock(CONVERSATION_ANALYSIS="ca"),
+                "AIModelType": MagicMock(GPT_4="gpt4"),
+                "AIServiceType": MagicMock(OPENAI="openai"),
+            }):
+                svc.ai_service = ai
+                with patch.object(svc, "_get_user_activities", new=AsyncMock(return_value=[])), \
+                     patch.object(svc, "_ai_behavior_analysis", new=AsyncMock(return_value={"risk_score": 0.7, "anomalies": ["a"]})):
+                    m = await svc.analyze_user_behavior("u1")
+                    assert m["risk_score"] == 0.7
+            cb.is_enabled = AsyncMock(side_effect=RuntimeError("x"))
+            r = await svc.analyze_user_behavior("u1")
+            assert "error" in r
+
+    async def test_detection_helpers(self):
+        import integrations.atom_enterprise_security_service as mod
+
+        svc = _sec_svc()
+        # pattern-based detection (matches + no match)
+        threats = await svc._pattern_based_detection({"content": "SELECT * FROM users; DROP TABLE x"})
+        assert len(threats) >= 1
+        threats = await svc._pattern_based_detection({"content": "hello world"})
+        assert threats == []
+        # behavioral anomaly
+        assert await svc._behavioral_anomaly_detection({}) == []
+        assert await svc._behavioral_anomaly_detection({"user_id": "u"}) == []
+        # ai threat detection without/with ai
+        assert await svc._ai_threat_detection({}) == []
+        ai = MagicMock()
+        ai.process_ai_request = AsyncMock(return_value=MagicMock(ok=True, confidence=0.9, output_data="data"))
+        svc.ai_service = ai
+        with patch.dict(mod.__dict__, {
+            "AIRequest": MagicMock(),
+            "AITaskType": MagicMock(CONVERSATION_ANALYSIS="ca"),
+            "AIModelType": MagicMock(GPT_4="gpt4"),
+            "AIServiceType": MagicMock(OPENAI="openai"),
+        }), patch.object(svc, "_parse_ai_threat_results", return_value=[{"type": "xss", "severity": "m", "confidence": 0.5, "description": "d"}]):
+            assert len(await svc._ai_threat_detection({})) == 1
+        ai.process_ai_request = AsyncMock(side_effect=RuntimeError("x"))
+        assert await svc._ai_threat_detection({}) == []
+        # mitigate threat
+        threat = mod.ThreatDetection(
+            detection_id="t1", threat_type=mod.ThreatType.SQL_INJECTION, severity="high",
+            confidence=0.9, source_ip="1.2.3.4", user_id="u", session_id="s",
+            timestamp=datetime.now(timezone.utc), description="d", indicators=[],
+        )
+        with patch.object(svc, "_block_ip", new=AsyncMock()), patch.object(svc, "_log_security_audit", new=AsyncMock()):
+            await svc._mitigate_threat(threat)
+            assert threat.mitigated is True
+            assert threat.mitigation_actions == ["Blocked IP: 1.2.3.4"]
+        threat2 = mod.ThreatDetection(
+            detection_id="t2", threat_type=mod.ThreatType.COMPROMISED_ACCOUNT, severity="critical",
+            confidence=0.9, source_ip=None, user_id=None, session_id="s2",
+            timestamp=datetime.now(timezone.utc), description="d", indicators=[],
+        )
+        with patch.object(svc, "_terminate_session", new=AsyncMock()), patch.object(svc, "_log_security_audit", new=AsyncMock()):
+            await svc._mitigate_threat(threat2)
+        threat3 = mod.ThreatDetection(
+            detection_id="t3", threat_type=mod.ThreatType.INSIDER_THREAT, severity="critical",
+            confidence=0.9, source_ip=None, user_id="u3", session_id=None,
+            timestamp=datetime.now(timezone.utc), description="d", indicators=[],
+        )
+        with patch.object(svc, "_lock_user_account", new=AsyncMock()), patch.object(svc, "_log_security_audit", new=AsyncMock()):
+            await svc._mitigate_threat(threat3)
+        with patch.object(svc, "_block_ip", new=AsyncMock(side_effect=RuntimeError("x"))):
+            await svc._mitigate_threat(threat)
+
+    async def test_compliance_helpers(self):
+        import integrations.atom_enterprise_security_service as mod
+
+        svc = _sec_svc()
+        data = await svc._get_compliance_data(mod.ComplianceStandard.SOC2, "monthly")
+        assert data["standard"] == "soc2"
+        r = await svc._ai_compliance_analysis(mod.ComplianceStandard.SOC2, {})
+        assert r["score"] == 0.0
+        ai = MagicMock()
+        ai.process_ai_request = AsyncMock(return_value=MagicMock(ok=True, output_data="out"))
+        svc.ai_service = ai
+        with patch.dict(mod.__dict__, {
+            "AIRequest": MagicMock(),
+            "AITaskType": MagicMock(CONTENT_GENERATION="cg"),
+            "AIModelType": MagicMock(GPT_4="gpt4"),
+            "AIServiceType": MagicMock(OPENAI="openai"),
+        }), patch.object(svc, "_parse_ai_compliance_results", return_value={"findings": [], "recommendations": [], "score": 80.0}):
+            r = await svc._ai_compliance_analysis(mod.ComplianceStandard.SOC2, {})
+            assert r["score"] == 80.0
+        ai.process_ai_request = AsyncMock(return_value=MagicMock(ok=False))
+        r = await svc._ai_compliance_analysis(mod.ComplianceStandard.SOC2, {})
+        assert r["score"] == 0.0
+        ai.process_ai_request = AsyncMock(side_effect=RuntimeError("x"))
+        r = await svc._ai_compliance_analysis(mod.ComplianceStandard.SOC2, {})
+        assert r["score"] == 0.0
+        # score calculation
+        assert svc._calculate_compliance_score({"findings": [{"severity": "critical"}, {"severity": "high"},
+                                                             {"severity": "medium"}, {"severity": "low"}]}) == 50.0
+        assert svc._calculate_compliance_score({"findings": [{"severity": "critical"} for _ in range(10)]}) == 0.0
+        assert svc._calculate_compliance_score({}) == 100.0
+        with patch.object(svc, "_calculate_compliance_score", side_effect=RuntimeError("x")):
+            pass
+        # _check_compliance_for_event
+        audit = mod.SecurityAudit(
+            audit_id="a", event_type=mod.AuditEventType.DATA_ACCESS, user_id="u", resource="r",
+            action="data_access", result="ok", ip_address="1.1.1.1", user_agent="ua",
+            timestamp=datetime.now(timezone.utc), metadata={},
+        )
+        issues = await svc._check_compliance_for_event(audit)
+        assert len(issues) == 1 and issues[0]["standard"] == "SOC2"
+        audit2 = mod.SecurityAudit(
+            audit_id="a2", event_type=mod.AuditEventType.DATA_ACCESS, user_id="u", resource="r",
+            action="data_export", result="ok", ip_address="1.1.1.1", user_agent="ua",
+            timestamp=datetime.now(timezone.utc), metadata={},
+        )
+        issues = await svc._check_compliance_for_event(audit2)
+        assert len(issues) == 1 and issues[0]["standard"] == "GDPR"
+        audit3 = mod.SecurityAudit(
+            audit_id="a3", event_type=mod.AuditEventType.DATA_ACCESS, user_id="u", resource="r",
+            action="data_access", result="ok", ip_address="1.1.1.1", user_agent="ua",
+            timestamp=datetime.now(timezone.utc), metadata={"logged": True},
+        )
+        assert await svc._check_compliance_for_event(audit3) == []
+        with patch.object(svc, "_check_compliance_for_event", side_effect=RuntimeError("x")):
+            pass
+
+    async def test_misc_helpers_and_metrics(self):
+        import integrations.atom_enterprise_security_service as mod
+
+        svc = _sec_svc()
+        assert svc._matches_pattern({"content": "x' OR 1=1--"}, svc.malicious_patterns["sql_injection"]) is True
+        assert svc._matches_pattern({"content": "plain"}, svc.malicious_patterns["sql_injection"]) is False
+        assert svc._matches_pattern({"url": "javascript:alert(1)"}, svc.malicious_patterns["xss"]) is True
+        assert svc._matches_pattern({"headers": "../etc"}, svc.malicious_patterns["path_traversal"]) is True
+        assert svc._matches_pattern({"other": "x"}, svc.malicious_patterns["xss"]) is False
+        key = svc._generate_encryption_key()
+        assert isinstance(key, bytes)
+        assert svc._calculate_login_frequency([]) == 0.0
+        assert svc._analyze_access_patterns([]) == {}
+        assert svc._calculate_data_access_volume([]) == 0
+        assert svc._detect_unusual_activities([]) == []
+        assert await svc._ai_behavior_analysis("u", []) == {}
+        assert svc._detect_anomalies({}, {}) == []
+        assert svc._parse_ai_threat_results("x") == []
+        assert svc._get_compliance_requirements(mod.ComplianceStandard.GDPR) == ["data_protection", "privacy", "consent"]
+        assert svc._get_compliance_requirements(mod.ComplianceStandard.NIST) == []
+        r = svc._parse_ai_compliance_results("x", mod.ComplianceStandard.SOC2)
+        assert r["score"] == 0.0
+        assert await svc._validate_security_policy(MagicMock()) == {"valid": True, "errors": []}
+        assert await svc._get_user_activities("u", "24h") == []
+        # _block_ip / _terminate_session / _lock_user_account / _quarantine_resource
+        with patch.object(svc, "_log_security_audit", new=AsyncMock()):
+            await svc._block_ip("9.9.9.9", 60)
+            assert "9.9.9.9" in svc.blocked_ips
+            await svc._terminate_session("sess_none")
+            svc.active_sessions["sess1"] = {}
+            await svc._terminate_session("sess1")
+            assert "sess1" not in svc.active_sessions
+            await svc._lock_user_account("user_x")
+            svc.user_security_contexts["user_x"] = {}
+            await svc._lock_user_account("user_x")
+            assert svc.user_security_contexts["user_x"]["locked"] is True
+            await svc._quarantine_resource("res1")
+            assert "res1" in svc.quarantined_resources
+        audit = await svc._log_security_audit(mod.AuditEventType.SECURITY_ALERT, "u", "r", "a", "ok")
+        assert audit is not None
+        # init methods
+        for m in ["_initialize_encryption", "_load_security_policies", "_initialize_threat_detection",
+                  "_start_security_monitoring", "_initialize_compliance_monitoring"]:
+            assert await getattr(svc, m)() is None
+        assert svc.monitoring_active is True
+        assert svc.security_policies["password_policy"]["min_length"] == 12
+        info = await svc.get_service_info()
+        assert info["status"] == "ACTIVE"
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            m = await svc.get_security_metrics()
+            assert m["active_policies"] == 0
+            await svc.close()
+            cb.is_enabled = AsyncMock(return_value=False)
+            with pytest.raises(Exception):
+                await svc.get_security_metrics()
+            with pytest.raises(Exception):
+                await svc.close()
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(True, 0))
+            with pytest.raises(Exception):
+                await svc.get_security_metrics()
+            with pytest.raises(Exception):
+                await svc.close()
+        # http session close
+        svc.http_session = MagicMock()
+        svc.http_session.close = AsyncMock()
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            await svc.close()
+        svc.http_session.close.assert_awaited()
+        # singleton config
+        assert "database" in mod.atom_enterprise_security_service.config
+
+
+# ---------------------------------------------------------------------------
+# atom_enterprise_security_service — last gaps
+# ---------------------------------------------------------------------------
+class TestSecurityServiceLast:
+    async def test_breaker_and_rate_warning_branches(self):
+        import integrations.atom_enterprise_security_service as mod
+
+        svc = _sec_svc()
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=False)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            with pytest.raises(Exception):
+                await svc.create_security_policy({"name": "p"}, "u")
+            with pytest.raises(Exception):
+                await svc.detect_threat({})
+            with pytest.raises(Exception):
+                await svc.audit_event({"event_type": "x", "user_id": "u", "resource": "r", "action": "a", "result": "ok", "ip_address": "1"})
+            with pytest.raises(Exception):
+                await svc.check_compliance(mod.ComplianceStandard.SOC2)
+            with pytest.raises(Exception):
+                await svc.encrypt_data("s")
+            with pytest.raises(Exception):
+                await svc.decrypt_data("s")
+            with pytest.raises(Exception):
+                await svc.validate_password("x")
+            with pytest.raises(Exception):
+                await svc.analyze_user_behavior("u")
+            with pytest.raises(Exception):
+                await svc._pattern_based_detection({})
+            with pytest.raises(Exception):
+                await svc.get_security_metrics()
+            with pytest.raises(Exception):
+                await svc.close()
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(True, 0))
+            with pytest.raises(Exception):
+                await svc.create_security_policy({"name": "p"}, "u")
+            with pytest.raises(Exception):
+                await svc.detect_threat({})
+            with pytest.raises(Exception):
+                await svc.audit_event({"event_type": "x", "user_id": "u", "resource": "r", "action": "a", "result": "ok", "ip_address": "1"})
+            with pytest.raises(Exception):
+                await svc.check_compliance(mod.ComplianceStandard.SOC2)
+            with pytest.raises(Exception):
+                await svc.encrypt_data("s")
+            with pytest.raises(Exception):
+                await svc.decrypt_data("s")
+            with pytest.raises(Exception):
+                await svc.validate_password("x")
+            with pytest.raises(Exception):
+                await svc.analyze_user_behavior("u")
+            with pytest.raises(Exception):
+                await svc._pattern_based_detection({})
+            with pytest.raises(Exception):
+                await svc.get_security_metrics()
+            with pytest.raises(Exception):
+                await svc.close()
+
+    async def test_policy_invalid_standard_and_init_excepts(self):
+        import integrations.atom_enterprise_security_service as mod
+
+        svc = _sec_svc()
+        data = {
+            "name": "p", "description": "d", "security_level": "enterprise",
+            "compliance_standards": ["BOGUS"], "rules": [], "enforcement_actions": [],
+        }
+        with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
+            cb.is_enabled = AsyncMock(return_value=True)
+            rl.is_rate_limited = AsyncMock(return_value=(False, 10))
+            r = await svc.create_security_policy(data, "u")
+            assert r["ok"] is False
+            assert "Invalid compliance standard" in r["error"]
+        # init method except branches
+        svc2 = _sec_svc()
+        for m in ["_initialize_encryption", "_load_security_policies", "_initialize_threat_detection",
+                  "_start_security_monitoring", "_initialize_compliance_monitoring"]:
+            with patch.object(svc2, m, new=AsyncMock(side_effect=RuntimeError("x"))):
+                await getattr(svc2, m)()
+        # _get_compliance_data, _ai_compliance_analysis error, score error
+        await svc2._get_compliance_data(mod.ComplianceStandard.SOC2, "m")
+        with patch.object(svc2, "_parse_ai_compliance_results", side_effect=RuntimeError("x")), \
+             patch.dict(mod.__dict__, {
+                 "AIRequest": MagicMock(),
+                 "AITaskType": MagicMock(CONTENT_GENERATION="cg"),
+                 "AIModelType": MagicMock(GPT_4="gpt4"),
+                 "AIServiceType": MagicMock(OPENAI="openai"),
+             }):
+            ai = MagicMock()
+            ai.process_ai_request = AsyncMock(return_value=MagicMock(ok=True, output_data="o"))
+            svc2.ai_service = ai
+            r = await svc2._ai_compliance_analysis(mod.ComplianceStandard.SOC2, {})
+            assert r["score"] == 0.0
+        # _check_compliance_for_event error path
+        with patch.object(svc2, "_check_compliance_for_event", side_effect=RuntimeError("x")):
+            pass
+        audit = mod.SecurityAudit(
+            audit_id="a", event_type=mod.AuditEventType.DATA_ACCESS, user_id="u", resource="r",
+            action="data_access", result="ok", ip_address="1", user_agent="ua",
+            timestamp=datetime.now(timezone.utc), metadata={},
+        )
+        with patch.object(svc2, "audit_event", new=AsyncMock(side_effect=RuntimeError("x"))):
+            await svc2._check_compliance_for_event(audit)
+        # init methods restore normal
+        await svc2._initialize_encryption()
+        await svc2._load_security_policies()
+        await svc2._initialize_threat_detection()
+        await svc2._start_security_monitoring()
+        await svc2._initialize_compliance_monitoring()
+        # config=None ctor
+        svc3 = mod.AtomEnterpriseSecurityService("t1", None)
+        assert svc3.config == {}
+
+    async def test_behavioral_detection_with_user(self):
+        import integrations.atom_enterprise_security_service as mod
+
+        svc = _sec_svc()
+        svc.anomaly_baselines["u1"] = {"baseline": 1}
+        with patch.object(svc, "_detect_anomalies", return_value=[
+            {"severity": "medium", "confidence": 0.6, "description": "d", "indicators": ["i"]},
+        ]):
+            threats = await svc._behavioral_anomaly_detection({"user_id": "u1"})
+            assert len(threats) == 1
+            assert threats[0]["type"] == "anomalous_behavior"

@@ -1,6 +1,4 @@
-"""
-Bug-hunt tests for comms integration services (R84 wave).
-
+"""Bug-hunt tests for comms integration services (R84 wave).
 TDD RED->GREEN for real bugs found while reading:
   integrations/slack_enhanced_service.py
   integrations/slack_analytics_engine.py
@@ -10,6 +8,17 @@ TDD RED->GREEN for real bugs found while reading:
   integrations/teams_enhanced_service.py
   integrations/chat_orchestrator.py
 """
+# Some legacy test files permanently replace integration modules in sys.modules
+# with MagicMock at import time (e.g. test_scheduled_messaging_minimal,
+# test_condition_monitoring_minimal, test_alert_service). Restore the REAL
+# modules before this file binds its imports so tests run against the source.
+import sys as _sys
+from unittest.mock import MagicMock as _MagicMock
+for _name in ("integrations.teams_enhanced_service", "integrations.slack_enhanced_service"):
+    if isinstance(_sys.modules.get(_name), _MagicMock):
+        _sys.modules.pop(_name, None)
+del _sys, _MagicMock, _name
+
 import asyncio
 import importlib
 import inspect
@@ -51,7 +60,12 @@ BACKEND = "/Users/rushiparikh/projects/atom/backend"
 
 
 def _teams_module():
-    """Lazily import teams_enhanced_service (module was unimportable before fix)."""
+    """Lazily import the REAL teams_enhanced_service (module was unimportable
+    before the phantom-import fix; also immune to legacy sys.modules pollution)."""
+    import sys as _sys
+    from unittest.mock import MagicMock as _MM
+    if isinstance(_sys.modules.get("integrations.teams_enhanced_service"), _MM):
+        _sys.modules.pop("integrations.teams_enhanced_service", None)
     return importlib.import_module("integrations.teams_enhanced_service")
 
 
@@ -76,6 +90,12 @@ class TestSlackDuplicateMethods:
     """B2: duplicate get_capabilities/health_check definitions (merge residue)."""
 
     def test_no_duplicate_health_check_definition(self):
+        # inspect.getsource resolves the class through sys.modules, which some
+        # legacy suites replace with a MagicMock at import time — restore the
+        # real module first so source inspection works in any run order.
+        if isinstance(sys.modules.get("integrations.slack_enhanced_service"), MagicMock):
+            sys.modules.pop("integrations.slack_enhanced_service", None)
+            importlib.import_module("integrations.slack_enhanced_service")
         source = inspect.getsource(SlackEnhancedService)
         assert source.count("def health_check") == 1
         assert source.count("def get_capabilities") == 1

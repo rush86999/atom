@@ -358,6 +358,10 @@ class TestStreamingResponseHandling:
                 handler = BYOKHandler.__new__(BYOKHandler)
                 handler.workspace_id = "default"
                 handler.clients = {"openai": Mock(), "deepseek": Mock()}
+                # Model-compat heuristic (Bug 14) would skip 'gpt-4o' on
+                # deepseek by design — allow the cross-provider fallback so the
+                # fallback MECHANISM itself is exercised.
+                handler._provider_serves_model = Mock(return_value=True)
 
                 # First provider fails, second succeeds
                 # Create proper async generator for stream

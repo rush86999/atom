@@ -61,6 +61,18 @@ class UniversalIntegrationService:
     def __init__(self, workspace_id: str = "default"):
         self.workspace_id = workspace_id
         
+    def _mask_response(self, service: str, response: Any) -> Any:
+        """Apply the gatekeeper's per-provider response field masking so
+        credentials (access_token, refresh_token, ...) never leak out of the
+        integration layer. Best-effort: any gatekeeper failure returns the
+        response unmasked rather than failing the action."""
+        if governance_middleware is not None and hasattr(governance_middleware, "mask_response"):
+            try:
+                return governance_middleware.mask_response(service, response)
+            except Exception:
+                logger.warning(f"Response masking skipped for {service}", exc_info=True)
+        return response
+
     async def execute(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Execute an action against a specific integration service via IntegrationRegistry.
@@ -119,6 +131,10 @@ class UniversalIntegrationService:
                 # Pipeline 2: Standard Integration Logic
                 result = await self._dispatch_execution(service, action, params, context)
 
+                # --- Gatekeeper response field masking (P3) ---
+                # Never return credentials/secret-shaped fields to callers.
+                result = self._mask_response(service, result)
+
                 # --- Spend Attribution (Phase 44) ---
                 if result.get("status") in ("success", "error"):
                     cost = get_action_cost(service, action)
@@ -138,7 +154,7 @@ class UniversalIntegrationService:
             if budget_service is not None:
                 budget_service.record_workspace_spend(workspace_id, cost)
             
-            return {"status": "error", "error": str(e)}
+            return self._mask_response(service, {"status": "error", "error": str(e)})
 
     async def _dispatch_execution(self, service, action, params, context):
         """
@@ -244,31 +260,35 @@ class UniversalIntegrationService:
 
                 if service == "salesforce":
                     data = await self._search_salesforce(query, entity_type, user_id, context)
-                    return {"status": "success", "data": data}
+                    result = {"status": "success", "data": data}
                 elif service == "hubspot":
-                    return await self._search_hubspot(query, entity_type, context)
+                    result = await self._search_hubspot(query, entity_type, context)
                 elif service in ("slack", "teams", "discord", "google_chat", "telegram", "whatsapp", "gmail", "outlook", "zoho_mail"):
-                    return await self._search_communication(service, query, entity_type, context)
+                    result = await self._search_communication(service, query, entity_type, context)
                 elif service in ("google_calendar", "outlook_calendar"):
-                    return await self._search_calendar(service, query, context)
+                    result = await self._search_calendar(service, query, context)
                 elif service in ("linear", "monday", "zoho_projects", "asana", "jira", "trello"):
-                    return await self._search_project_management(service, query, context)
+                    result = await self._search_project_management(service, query, context)
                 elif service in ("google_drive", "dropbox", "onedrive", "box", "notion"):
-                    return await self._search_storage(service, query, context)
+                    result = await self._search_storage(service, query, context)
                 elif service in ("salesforce", "hubspot", "zoho_crm", "pipedrive"):
-                    return await self._search_crm(service, query, context)
+                    result = await self._search_crm(service, query, context)
                 elif service in ("zendesk", "freshdesk", "intercom"):
-                    return await self._search_support(service, query, context)
+                    result = await self._search_support(service, query, context)
                 elif service in ("github", "gitlab"):
-                    return await self._search_dev(service, query, context)
+                    result = await self._search_dev(service, query, context)
                 elif service in ("mailchimp"):
-                    return await self._search_marketing(service, query, context)
+                    result = await self._search_marketing(service, query, context)
                 elif service in ("tableau", "google_analytics"):
-                    return await self._search_analytics(service, query, context)
+                    result = await self._search_analytics(service, query, context)
                 elif service == "zoho_workdrive":
-                    return await self._execute_storage(service, "search", {"query": query}, context)
+                    result = await self._execute_storage(service, "search", {"query": query}, context)
                 else:
                     raise ValueError(f"Service '{service}' not supported for search.")
+
+                # Gatekeeper response field masking (P3) — strip credentials
+                # (access_token, refresh_token, ...) from search results too.
+                return self._mask_response(service, result)
         except Exception as e:
             logger.error(f"Universal Search Failed ({service}): {e}")
             circuit_breaker.record_failure(service, e)

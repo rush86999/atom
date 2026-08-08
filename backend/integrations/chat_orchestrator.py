@@ -72,12 +72,12 @@ try:
     from accounting.fpa_service import FPAService
     from accounting.multi_entity import IntercompanyManager
 except Exception:
-    AccountingAssistant = None
-    CollectionAgent = None
-    CloseChecklistAgent = None
-    TaxService = None
-    FPAService = None
-    IntercompanyManager = None
+    AccountingAssistant = None  # type: ignore[assignment,misc]
+    CollectionAgent = None  # type: ignore[assignment,misc]
+    CloseChecklistAgent = None  # type: ignore[assignment,misc]
+    TaxService = None  # type: ignore[assignment,misc]
+    FPAService = None  # type: ignore[assignment,misc]
+    IntercompanyManager = None  # type: ignore[assignment,misc]
     logger.warning("Accounting service modules not importable — finance chat handlers degraded")
 
 from core.database import SessionLocal
@@ -1178,43 +1178,43 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             db = SessionLocal()
             try:
                 # In a real app, workspace_id comes from context or session
-                workspace_id = context.get("workspace_id") if context else "default"
+                workspace_id: str = (context or {}).get("workspace_id") or "default"
                 assistant = AccountingAssistant(db)
                 result = await assistant.process_query(workspace_id, message)
                 
                 # Check for specific AP/AR follow-up actions
                 if "intent" in result:
                     if result["intent"] == "check_overdue":
-                        agent = CollectionAgent(db)
-                        reminders = await agent.check_overdue_invoices(workspace_id)
+                        collection_agent = CollectionAgent(db)
+                        reminders = await collection_agent.check_overdue_invoices(workspace_id)
                         result["answer"] = f"I've identified {len(reminders)} overdue invoices and triggered reminders."
                         result["reminders"] = reminders
                     elif result["intent"] == "get_aging":
-                        agent = CollectionAgent(db)
-                        result["aging_report"] = agent.generate_aging_report(workspace_id)
+                        collection_agent = CollectionAgent(db)
+                        result["aging_report"] = collection_agent.generate_aging_report(workspace_id)
                         result["answer"] = "Here is your current AR aging report summary."
                     elif result["intent"] == "check_close_readiness":
-                        agent = CloseChecklistAgent(db)
+                        close_agent = CloseChecklistAgent(db)
                         period = result.get("params", {}).get("period", datetime.now(timezone.utc).strftime("%Y-%m"))
-                        result["close_check"] = await agent.run_close_check(workspace_id, period)
+                        result["close_check"] = await close_agent.run_close_check(workspace_id, period)
                         result["answer"] = f"Here is the close readiness report for {period}."
                     elif result["intent"] == "get_tax_estimate":
-                        service = TaxService(db)
-                        result["tax_estimate"] = service.estimate_tax_liability(workspace_id)
+                        tax_service = TaxService(db)
+                        result["tax_estimate"] = tax_service.estimate_tax_liability(workspace_id)
                         result["answer"] = "I've calculated your estimated tax liability based on current sales."
                     elif result["intent"] == "get_cash_forecast":
-                        service = FPAService(db)
-                        result["forecast"] = service.get_13_week_forecast(workspace_id)
+                        fpa_service = FPAService(db)
+                        result["forecast"] = fpa_service.get_13_week_forecast(workspace_id)
                         result["answer"] = "Here is your 13-week cash flow forecast."
                     elif result["intent"] == "run_scenario":
-                        service = FPAService(db)
+                        fpa_service = FPAService(db)
                         # Assume params contains scenario definitions
                         scenarios = result.get("params", {}).get("scenarios", [])
-                        result["scenario_results"] = service.run_scenario(workspace_id, scenarios)
+                        result["scenario_results"] = fpa_service.run_scenario(workspace_id, scenarios)
                         result["answer"] = "I've modeled the requested scenario and updated the forecast."
                     elif result["intent"] == "get_intercompany_report":
-                        manager = IntercompanyManager(db)
-                        result["intercompany_report"] = manager.generate_elimination_report(workspace_id)
+                        intercompany_manager = IntercompanyManager(db)
+                        result["intercompany_report"] = intercompany_manager.generate_elimination_report(workspace_id)
                         result["answer"] = "Here is the intercompany activity and elimination report."
                     
                     # Append Regulatory Disclaimer to all financial answers
@@ -1248,7 +1248,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             db = SessionLocal()
             try:
                 from sales.assistant import SalesAssistant
-                workspace_id = context.get("workspace_id") if context else "default"
+                workspace_id: str = (context or {}).get("workspace_id") or "default"
                 assistant = SalesAssistant(db)
                 answer = await assistant.answer_sales_query(workspace_id, message)
                 
@@ -1271,7 +1271,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         from core.business_health_service import business_health_service
         
         message_lower = message.lower()
-        workspace_id = context.get("workspace_id") if context else "default"
+        workspace_id: str = (context or {}).get("workspace_id") or "default"
         
         try:
             if any(word in message_lower for word in ["simulate", "simulation", "impact", "what if"]):

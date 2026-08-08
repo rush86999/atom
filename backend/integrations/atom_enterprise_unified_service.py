@@ -1190,9 +1190,9 @@ class AtomEnterpriseUnifiedService:
             # Initialize security service
             if not self.security_service:
                 from integrations.atom_enterprise_security_service import (
-                    enterprise_security_service,
+                    atom_enterprise_security_service,
                 )
-                self.security_service = enterprise_security_service
+                self.security_service = atom_enterprise_security_service
             # Initialize AI integration
             if not self.ai_integration:
                 from integrations.atom_ai_integration import ai_integration

@@ -3216,16 +3216,22 @@ class BYOKHandler:
         """Get cost comparison across all providers using dynamic pricing"""
         try:
             fetcher = get_pricing_fetcher()
-            return fetcher.compare_providers()
+            comparison = fetcher.compare_providers()
+            if comparison:
+                return comparison
+            # An EMPTY result is as unusable as a failed fetch (e.g. the price
+            # cache holds only zero-cost entries) — fall through to the static
+            # table so the pricing surface never renders an empty comparison.
+            logger.warning("No dynamic provider comparison data; using static fallback")
         except Exception as e:
             logger.warning(f"Could not get provider comparison: {e}")
-            # Return static fallback
-            return {
-                "openai": {"avg_cost_per_token": 0.00003, "tier": "premium"},
-                "anthropic": {"avg_cost_per_token": 0.000025, "tier": "premium"},
-                "deepseek": {"avg_cost_per_token": 0.000002, "tier": "budget"},
-                "moonshot": {"avg_cost_per_token": 0.000003, "tier": "budget"},
-            }
+        # Static fallback
+        return {
+            "openai": {"avg_cost_per_token": 0.00003, "tier": "premium"},
+            "anthropic": {"avg_cost_per_token": 0.000025, "tier": "premium"},
+            "deepseek": {"avg_cost_per_token": 0.000002, "tier": "budget"},
+            "moonshot": {"avg_cost_per_token": 0.000003, "tier": "budget"},
+        }
 
     def get_cheapest_models(self, limit: int = 5) -> List[Dict[str, Any]]:
         """Get the cheapest models available"""

@@ -3446,3 +3446,292 @@ class TestGraduationGaps2:
         assert "low-intervention sessions" in joined
         assert "rating too low" in joined
         assert "rate too high" in joined
+
+
+# ============================================================================
+# ingestion_pipeline final gaps
+# ============================================================================
+
+class _PipelineFactory:
+    def make(self):
+        from core.ingestion_pipeline import IngestionPipelineService
+
+        with patch("core.lancedb_handler.LanceDBHandler"), \
+             patch("core.graphrag_engine.GraphRAGEngine"), \
+             patch("core.llm_service.LLMService"), \
+             patch("core.meta_agent_orchestrator.MetaAgentOrchestrator"), \
+             patch("core.usage_tracking_service.UsageTrackingService"), \
+             patch("core.entity_linking_service.EntityLinkingService"), \
+             patch("core.schema_discovery_service.SchemaDiscoveryService"), \
+             patch("core.multi_entity_llm_extractor.MultiEntityLLMExtractor"):
+            return IngestionPipelineService(tenant_id="t1", workspace_id="w1", db=MagicMock())
+
+
+class TestPipelineGaps:
+    @pytest.mark.asyncio
+    async def test_sync_and_ingest_default_config(self):
+        svc = _PipelineFactory().make()
+        svc.sync_configs = {}
+        svc._fetch_integration_data = AsyncMock(return_value=[])
+        with patch("core.ingestion_pipeline.DEFAULT_SYNC_CONFIGS",
+                   {"salesforce": MagicMock()}):
+            result = await svc.sync_and_ingest("salesforce")
+        assert result["success"] is True
+        assert result["records_fetched"] == 0
+
+    @pytest.mark.asyncio
+    async def test_sync_and_ingest_no_config_error(self):
+        svc = _PipelineFactory().make()
+        svc.sync_configs = {}
+        with patch("core.ingestion_pipeline.DEFAULT_SYNC_CONFIGS", {}):
+            result = await svc.sync_and_ingest("unknown-app")
+        assert result["success"] is False
+
+    @pytest.mark.asyncio
+    async def test_prepare_record_text_attachment_branches(self):
+        svc = _PipelineFactory().make()
+
+        processor = MagicMock()
+        processor.is_format_supported.return_value = True
+        processor.process_document = AsyncMock(
+            return_value={"success": True, "content": "x" * 50}
+        )
+        service = MagicMock()
+        service.config = {"access_token": "tok"}
+        service.get_attachment_metadata = AsyncMock(return_value=[
+            {"id": "a1", "name": "doc.pdf", "size": 100, "contentType": "application/pdf"},
+            {"id": "a2", "name": "big.bin", "size": 99 * 1024 * 1024, "contentType": "x"},
+            {"id": "a3", "name": "bad.pdf", "size": 100, "contentType": "application/pdf"},
+        ])
+        svc.integration_registry = MagicMock()
+        svc.integration_registry.get_service = AsyncMock(return_value=service)
+
+        record = {
+            "id": "m1", "type": "email", "hasAttachments": True,
+            "subject": "S", "body": "body text here",
+        }
+        # a3: download fails -> continue
+        async def _download(**kw):
+            if kw.get("attachment_id") == "a3":
+                return None
+            return b"PDFBYTES" * 10
+
+        service.download_attachment = AsyncMock(side_effect=_download)
+
+        # a1: download ok -> parse; a2: oversized -> skipped; a3: no bytes -> skipped
+        with patch("core.ingestion_pipeline.get_docling_processor", return_value=processor), \
+             patch.dict(os.environ, {"ENABLE_OUTLOOK_ATTACHMENT_INGESTION": "true"}):
+            text = await svc._prepare_record_text_async(record, "outlook", "conn-1")
+        assert "[Attachment: doc.pdf]" in text
+
+        # exception path
+        service.download_attachment = AsyncMock(side_effect=Exception("boom"))
+        with patch("core.ingestion_pipeline.get_docling_processor", return_value=processor):
+            text2 = await svc._prepare_record_text_async(record, "outlook", "conn-1")
+        assert "subject: S" in text2
+
+    @pytest.mark.asyncio
+    async def test_prepare_record_text_service_config_variants(self):
+        svc = _PipelineFactory().make()
+        svc.integration_registry = MagicMock()
+
+        class _Service:
+            _config = {"access_token": "tok2"}
+            download_file = AsyncMock(return_value=None)
+
+        svc.integration_registry.get_service = AsyncMock(return_value=_Service())
+        processor = MagicMock()
+        processor.is_format_supported.return_value = True
+        with patch("core.ingestion_pipeline.get_docling_processor", return_value=processor):
+            text = await svc._prepare_record_text_async(
+                {"id": "f1", "type": "file", "name": "x.pdf", "extension": "pdf"},
+                "zoho_workdrive", None,
+            )
+        assert text  # falls back to record_to_text
+
+    @pytest.mark.asyncio
+    async def test_process_webhook_payload_body_handling(self):
+        svc = _PipelineFactory().make()
+        svc.graphrag = MagicMock()
+        svc._transform_webhook_payload = AsyncMock(return_value=[
+            {"id": "1", "type": "slack_message", "text": "a" * 40,
+             "body": {"content": "old"}, "bodyPreview": "p"},
+            {"id": "2", "type": "slack_message", "text": "b" * 40,
+             "body": "plain body", "bodyPreview": "p2"},
+        ])
+        svc._prepare_record_text_async = AsyncMock(side_effect=[
+            "x" * 40, "y" * 40,
+        ])
+        svc._process_multi_entity_extraction = AsyncMock(side_effect=Exception("extract boom"))
+        result = await svc.process_webhook_payload("slack", {"event": {}})
+        assert result["records_processed"] == 2
+        assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_process_webhook_payload_email_lancedb_text(self):
+        svc = _PipelineFactory().make()
+        svc.graphrag = MagicMock()
+        lancedb = MagicMock()
+        svc._transform_webhook_payload = AsyncMock(return_value=[
+            {"id": "m1", "type": "email", "subject": "Hello", "body": "",
+             "from": "a@b.c", "to": "d@e.f", "text": ""},
+        ])
+        svc._prepare_record_text_async = AsyncMock(return_value="x" * 40)
+        with patch("core.lancedb_handler.LanceDBHandler", return_value=lancedb):
+            result = await svc.process_webhook_payload("gmail", {"historyId": "1"})
+        assert result["success"] is True
+        lancedb.add_document.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_tiered_webhook_branches(self):
+        svc = _PipelineFactory().make()
+        svc.graphrag = MagicMock()
+        svc.usage_tracker = MagicMock()
+        svc.usage_tracker.check_quota_before_job = AsyncMock(return_value={"allowed": True})
+        svc.usage_tracker.calculate_acu_consumed = MagicMock(return_value=1.5)
+        svc.usage_tracker.track_acu_usage = AsyncMock()
+        svc.lancedb = MagicMock()
+        svc._transform_webhook_payload = AsyncMock(return_value=[
+            {"id": "1", "type": "slack_message", "text": "t" * 60, "sender_id": "u1"},
+        ])
+        svc._is_doc_already_ingested = MagicMock(return_value=False)
+        svc._record_doc_ingestion = MagicMock()
+
+        tenant = MagicMock()
+        tenant.plan_type = "solo"
+        session = MagicMock()
+        session.query.return_value.filter.return_value.first.return_value = tenant
+
+        svc.graphrag.ingest_document = AsyncMock(return_value=None)
+        with patch("core.ingestion_pipeline.SessionLocal", return_value=session):
+            result = await svc.process_webhook_payload_tiered("slack", {"event": {}})
+        assert result["success"] is True
+        assert result["tier"] in ("basic", "deep")
+
+    @pytest.mark.asyncio
+    async def test_transform_standardizer_missing_id_and_uuids(self):
+        svc = _PipelineFactory().make()
+        svc._transform_slack_payload = AsyncMock(return_value=[
+            {"type": "slack_message", "text": "hello", "user": "u1",
+             "metadata": {"uuid_val": uuid.uuid4(), "nested": {"u": uuid.uuid4()}},
+             "properties": {"email": "a@b.c"},
+             "extra": uuid.uuid4()},
+        ])
+        records = await svc._transform_webhook_payload("slack", {"type": "event_callback"})
+        assert len(records) == 1
+        assert records[0]["id"] == ""
+        assert records[0]["sender_id"] == "u1"
+        assert isinstance(records[0]["metadata"]["uuid_val"], str)
+
+    @pytest.mark.asyncio
+    async def test_transform_gmail_payload_internal_date_error(self):
+        svc = _PipelineFactory().make()
+        svc._fetch_gmail_resource_direct = AsyncMock(side_effect=[
+            {"history": [{"messagesAdded": [{"message": {"id": "g1"}}]}]},
+            {
+                "payload": {"headers": [{"name": "Subject", "value": "Hi"},
+                                        {"name": "From", "value": "a@b.c"}]},
+                "snippet": "snip",
+                "internalDate": "not-a-number",
+                "threadId": "th1",
+            },
+        ])
+        records = await svc._transform_gmail_payload(
+            {"historyId": "42", "_source_connection_id": "conn-1"}
+        )
+        assert records[0]["id"] == "g1"
+        assert records[0]["timestamp"]  # fell back to now
+
+    @pytest.mark.asyncio
+    async def test_transform_telegram_payload_dict_media(self):
+        svc = _PipelineFactory().make()
+        records = await svc._transform_telegram_payload({
+            "message": {
+                "message_id": 7,
+                "text": "hello",
+                "from": {"id": 1, "first_name": "A"},
+                "chat": {"id": 2, "title": "Room"},
+                "photo": [{"file_id": "small"}, {"file_id": "large"}],
+                "document": {"file_id": "doc1"},
+            }
+        })
+        assert records[0]["properties"]["media_id"] == "large"
+
+        records2 = await svc._transform_telegram_payload({
+            "message": {"message_id": 8, "text": "x", "chat": {"id": 2},
+                        "document": {"file_id": "doc2"}}
+        })
+        assert records2[0]["properties"]["media_id"] == "doc2"
+
+    @pytest.mark.asyncio
+    async def test_fetch_outlook_resource_direct(self):
+        svc = _PipelineFactory().make()
+
+        class _Resp:
+            def __init__(self, status, data=None):
+                self.status_code = status
+                self._data = data
+
+            def raise_for_status(self):
+                if self.status_code >= 400:
+                    raise _HTTPError(self)
+
+            def json(self):
+                return self._data
+
+        class _HTTPError(Exception):
+            def __init__(self, resp):
+                self.response = resp
+
+        conn = MagicMock()
+        conn.credentials = "encrypted"
+        session = MagicMock()
+        session.query.return_value.filter.return_value.first.return_value = conn
+
+        conn_service = MagicMock()
+        conn_service._decrypt.return_value = {"access_token": "tok"}
+        conn_service._refresh_token_if_needed = AsyncMock(return_value=None)
+
+        import httpx
+
+        async def _get(url, **kw):
+            if url.endswith("me/messages/1"):
+                return _Resp(404)
+            raise _HTTPError(_Resp(500))
+
+        client = MagicMock()
+        client.get = AsyncMock(side_effect=_get)
+        client.__aenter__.return_value = client
+        client.__aexit__.return_value = False
+
+        svc.db = session
+        with patch("httpx.AsyncClient", return_value=client), \
+             patch("core.connection_service.ConnectionService", return_value=conn_service):
+            r1 = await svc._fetch_outlook_resource_direct("conn-1", "me/messages/1")
+            assert r1 == {}
+            r2 = await svc._fetch_outlook_resource_direct("conn-1", "me/messages/2")
+            assert r2 is None
+            r3 = await svc._fetch_outlook_resource_direct("conn-1", "https://graph.microsoft.com/v1.0/me")
+            assert r3 is None  # HTTPStatusError -> None
+
+    @pytest.mark.asyncio
+    async def test_fetch_gmail_resource_direct_error_branches(self):
+        svc = _PipelineFactory().make()
+        session = MagicMock()
+        session.query.return_value.filter.return_value.first.return_value = None
+        svc.db = session
+        assert await svc._fetch_gmail_resource_direct("conn-x", "users/me/history") is None
+
+    def test_is_canonical_type_false(self):
+        svc = _PipelineFactory().make()
+        assert svc._is_core_entity_type("not-a-real-type") is False
+
+    @pytest.mark.asyncio
+    async def test_run_schema_discovery_failure(self):
+        svc = _PipelineFactory().make()
+        svc.schema_discovery = MagicMock()
+        svc.schema_discovery.discover_and_link = AsyncMock(side_effect=Exception("boom"))
+        svc.meta_agent_orchestrator = MagicMock()
+        with patch("core.ingestion_pipeline.SessionLocal") as sl:
+            sl.return_value = MagicMock()
+            await svc._run_schema_discovery({"records_processed": 1})

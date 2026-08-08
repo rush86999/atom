@@ -30,7 +30,14 @@ def engine():
     )
     from core.models_registration import Base
 
-    Base.metadata.create_all(eng)
+    from core.auto_dev.models import HypothesisTreeRecord
+    from core.models import UserTask
+
+    Base.metadata.create_all(eng, tables=[
+        GraphNode.__table__, GraphEdge.__table__, GraphCommunity.__table__,
+        Formula.__table__, User.__table__, Workspace.__table__,
+        UserTask.__table__, HypothesisTreeRecord.__table__,
+    ])
     yield eng
     eng.dispose()
 

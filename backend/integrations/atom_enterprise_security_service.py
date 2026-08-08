@@ -289,12 +289,23 @@ class AtomEnterpriseSecurityService:
                 )
 
             policy_id = f"policy_{int(time.time())}_{hashlib.md5(policy_data['name'].encode()).hexdigest()[:8]}"
+            # ComplianceStandard uses lowercase values; coerce case-insensitively.
+            try:
+                standards = [
+                    ComplianceStandard(s.lower()) if isinstance(s, str) else s
+                    for s in policy_data['compliance_standards']
+                ]
+            except (ValueError, AttributeError) as ve:
+                return {
+                    'ok': False,
+                    'error': f"Invalid compliance standard: {ve}"
+                }
             security_policy = SecurityPolicy(
                 policy_id=policy_id,
                 name=policy_data['name'],
                 description=policy_data['description'],
                 security_level=SecurityLevel(policy_data['security_level']),
-                compliance_standards=[ComplianceStandard(standard) for standard in policy_data['compliance_standards']],
+                compliance_standards=standards,
                 rules=policy_data['rules'],
                 enforcement_actions=policy_data['enforcement_actions'],
                 exceptions=policy_data.get('exceptions', []),
@@ -974,7 +985,9 @@ class AtomEnterpriseSecurityService:
                 'threat_type': ThreatType.SQL_INJECTION.value,
                 'severity': 'high',
                 'confidence': 0.9,
-                'patterns': [r"('|(.*--)|(;)|(\b(ALTER|CREATE|DELETE|DROP|EXEC(UTE)?|INSERT( +INTO)?|MERGE|SELECT|UPDATE)\b)"]
+                # NOTE: keep the grouping balanced — a malformed pattern raises
+                # re.error from re.search and kills the whole detection pass.
+                'patterns': [r"('|(.*--)|(;)|(\b(ALTER|CREATE|DELETE|DROP|EXEC(UTE)?|INSERT( +INTO)?|MERGE|SELECT|UPDATE)\b))"]
             },
             'xss': {
                 'threat_type': ThreatType.XSS.value,

@@ -1164,6 +1164,7 @@ class TestPersistReasoningStep:
     async def test_persist_dispatch_fact_extraction(self, meta_agent, monkeypatch):
         import core.atom_meta_agent as ama
         agent, sl = meta_agent
+        ama._pending_extraction_tasks.clear()  # drop orphaned cross-loop tasks
         monkeypatch.setattr(ama, "_TURN_FACT_EXTRACTION_ENABLED", True)
         extractor = MagicMock()
         extractor.extract_from_turn = AsyncMock()
@@ -1184,6 +1185,7 @@ class TestPersistReasoningStep:
     async def test_persist_dispatch_maturity_error(self, meta_agent, monkeypatch):
         import core.atom_meta_agent as ama
         agent, sl = meta_agent
+        ama._pending_extraction_tasks.clear()  # drop orphaned cross-loop tasks
         monkeypatch.setattr(ama, "_TURN_FACT_EXTRACTION_ENABLED", True)
         extractor = MagicMock()
         extractor.extract_from_turn = AsyncMock()
@@ -1203,6 +1205,7 @@ class TestPersistReasoningStep:
     async def test_persist_dispatch_extractor_error(self, meta_agent, monkeypatch):
         import core.atom_meta_agent as ama
         agent, sl = meta_agent
+        ama._pending_extraction_tasks.clear()  # drop orphaned cross-loop tasks
         monkeypatch.setattr(ama, "_TURN_FACT_EXTRACTION_ENABLED", True)
         extractor = MagicMock()
         extractor.extract_from_turn = lambda *a, **k: (_ for _ in ()).throw(Exception("extract down"))

@@ -92,6 +92,117 @@ class WorkspaceSyncService:
     def __init__(self, db: Session):
         self.db = db
 
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return workspace sync capabilities"""
+        return {
+            "operations": [
+                {
+                    "id": "sync_workspace",
+                    "name": "Sync Workspace",
+                    "description": "Synchronize workspace data across platforms",
+                    "parameters": {
+                        "workspace_id": {
+                            "type": "string",
+                            "required": True,
+                            "description": "Unified workspace ID"
+                        },
+                        "source": {
+                            "type": "string",
+                            "required": False,
+                            "description": "Source platform (slack, discord, google_chat, teams)"
+                        }
+                    }
+                },
+                {
+                    "id": "list_syncs",
+                    "name": "List Syncs",
+                    "description": "List all sync operations for a workspace",
+                    "parameters": {
+                        "workspace_id": {
+                            "type": "string",
+                            "required": True,
+                            "description": "Unified workspace ID"
+                        }
+                    }
+                },
+                {
+                    "id": "get_sync_status",
+                    "name": "Get Sync Status",
+                    "description": "Get synchronization status for a workspace",
+                    "parameters": {
+                        "workspace_id": {
+                            "type": "string",
+                            "required": True,
+                            "description": "Unified workspace ID"
+                        }
+                    }
+                },
+                {
+                    "id": "cancel_sync",
+                    "name": "Cancel Sync",
+                    "description": "Cancel an active synchronization",
+                    "parameters": {
+                        "sync_id": {
+                            "type": "string",
+                            "required": True,
+                            "description": "Sync operation ID"
+                        }
+                    }
+                },
+                {
+                    "id": "invalidate_cache",
+                    "name": "Invalidate Cache",
+                    "description": "Clear per-tenant cache (MIG-10)"
+                }
+            ],
+            "required_params": ["database"],
+            "rate_limits": {
+                "requests_per_minute": 10,
+                "reason": "Heavy operations"
+            },
+            "supports_webhooks": False
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        """Check if workspace sync service is healthy"""
+        is_healthy = bool(self.db)
+
+        if is_healthy:
+            try:
+                # Test database connection
+                from sqlalchemy import text
+
+                self.db.execute(text("SELECT 1"))
+                return {
+                    "ok": True,
+                    "status": "healthy",
+                    "healthy": True,
+                    "service": "workspace_sync",
+                    "message": "Workspace sync service healthy",
+                    "database_connected": True,
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+            except Exception as e:
+                logger.error(f"Workspace sync health check failed: {e}")
+                return {
+                    "ok": False,
+                    "status": "unhealthy",
+                    "healthy": False,
+                    "service": "workspace_sync",
+                    "error": str(e),
+                    "message": "Database connection failed",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+
+        return {
+            "ok": False,
+            "status": "unhealthy",
+            "healthy": False,
+            "service": "workspace_sync",
+            "message": "Database not configured",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
     @classmethod
     def _get_platform_id(cls, workspace: UnifiedWorkspace, platform: str) -> Optional[str]:
         """Get the platform-specific workspace ID stored on a unified workspace."""
@@ -348,12 +459,7 @@ class WorkspaceSyncService:
 
             # Update workspace last sync time
             workspace.last_sync_at = datetime.now(timezone.utc)
-            if overall_status == "failure":
-                workspace.sync_status = "error"
-                workspace.last_sync_error = f"Failed to sync to {len(failed_platforms)} platforms"
-            else:
-                workspace.sync_status = "active"
-                workspace.last_sync_error = None
+            workspace.sync_status = "error" if overall_status == "failure" else "active"
 
             self.db.commit()
 
@@ -401,7 +507,6 @@ class WorkspaceSyncService:
             "name": workspace.name,
             "sync_status": workspace.sync_status,
             "last_sync_at": workspace.last_sync_at.isoformat() if workspace.last_sync_at else None,
-            "last_sync_error": workspace.last_sync_error,
             "platforms": {
                 "slack": workspace.slack_workspace_id,
                 "discord": workspace.discord_guild_id,
@@ -584,13 +689,6 @@ class WorkspaceSyncService:
             from integrations.slack_enhanced_service import SlackEnhancedService
 
             slack_enhanced_service = SlackEnhancedService()
-
-            if not slack_enhanced_service:
-                logger.warning("Slack enhanced service not available")
-                return {
-                    "success": False,
-                    "error": "Slack service not available"
-                }
 
             # Route based on change type
             if change_type == ChangeType.WORKSPACE_NAME_CHANGE:

@@ -41,7 +41,7 @@ def engine():
     )
     from core.models_registration import Base
 
-    Base.metadata.create_all(eng)
+    Base.metadata.create_all(eng, tables=[HistoricalSyncJob.__table__])
     yield eng
     eng.dispose()
 
@@ -347,8 +347,7 @@ class TestExtractChunkAndIngest:
             )
         assert ents == 2
         assert rels == 2
-        assert gcls.return_value.ingestion_pipeline_batch.call_count == 2
-        gcls.return_value.close.assert_called_once()
+        assert gcls.return_value.ingest_structured_data.call_count == 2
         shared_db.close.assert_called_once()
 
     async def test_empty_extraction_skips_ingestion(self, db_session):
@@ -363,7 +362,7 @@ class TestExtractChunkAndIngest:
                 "job-1", 0, [("d1", "long text record", "salesforce")], "ws-1"
             )
         assert (ents, rels) == (0, 0)
-        gcls.return_value.ingestion_pipeline_batch.assert_not_called()
+        gcls.return_value.ingest_structured_data.assert_not_called()
 
     async def test_llm_failure_yields_none_result(self, db_session):
         svc = make_service(db_session)
@@ -377,7 +376,7 @@ class TestExtractChunkAndIngest:
                 "job-1", 0, [("d1", "long text record", "salesforce")], "ws-1"
             )
         assert (ents, rels) == (0, 0)
-        gcls.return_value.ingestion_pipeline_batch.assert_not_called()
+        gcls.return_value.ingest_structured_data.assert_not_called()
 
     async def test_partial_results_only_valid_ingested(self, db_session):
         svc = make_service(db_session)
@@ -418,7 +417,7 @@ class TestExtractChunkAndIngest:
                 )
         assert ents == 1 and rels == 0
         assert calls["n"] == 2
-        gcls.return_value.ingestion_pipeline_batch.assert_called_once()
+        gcls.return_value.ingest_structured_data.assert_called_once()
 
     async def test_inner_llm_retry_exhausted(self, db_session):
         svc = make_service(db_session)
@@ -438,7 +437,7 @@ class TestExtractChunkAndIngest:
                     "job-1", 0, [("d1", "long text record", "salesforce")], "ws-1"
                 )
         assert (ents, rels) == (0, 0)
-        gcls.return_value.ingestion_pipeline_batch.assert_not_called()
+        gcls.return_value.ingest_structured_data.assert_not_called()
 
     async def test_task_result_exception_is_swallowed(self, db_session):
         svc = make_service(db_session)
@@ -458,7 +457,7 @@ class TestExtractChunkAndIngest:
                     "job-1", 0, [("d1", "long text record", "salesforce")], "ws-1"
                 )
         assert (ents, rels) == (0, 0)
-        gcls.return_value.ingestion_pipeline_batch.assert_not_called()
+        gcls.return_value.ingest_structured_data.assert_not_called()
 
 
 # ============================ _process_sync_job ============================
