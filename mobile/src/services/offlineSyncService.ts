@@ -363,14 +363,26 @@ class OfflineSyncService {
               this.notifyConflictListeners(action);
             } else {
               failed++;
-              await this.updateActionStatus(action.id, 'failed');
               await this.incrementSyncAttempts(action.id);
+              // Keep failed actions pending so the next sync retries them with
+              // exponential backoff (syncAction sleeps 2^attempts before each
+              // retry). Drop the action once attempts are exhausted instead of
+              // orphaning it in the queue as 'failed' forever.
+              if (action.syncAttempts + 1 >= MAX_SYNC_ATTEMPTS) {
+                await this.removeActionFromQueue(action.id);
+              } else {
+                await this.updateActionStatus(action.id, 'pending');
+              }
             }
           } catch (error) {
             console.error(`OfflineSync: Failed to sync action ${action.id}:`, error);
             failed++;
-            await this.updateActionStatus(action.id, 'failed');
             await this.incrementSyncAttempts(action.id);
+            if (action.syncAttempts + 1 >= MAX_SYNC_ATTEMPTS) {
+              await this.removeActionFromQueue(action.id);
+            } else {
+              await this.updateActionStatus(action.id, 'pending');
+            }
           }
         }
       }
@@ -928,6 +940,11 @@ class OfflineSyncService {
       action.syncAttempts += 1;
       await this.saveQueue(queue);
     }
+  }
+
+  private async removeActionFromQueue(id: string): Promise<void> {
+    const queue = await this.getQueue();
+    await this.saveQueue(queue.filter((a) => a.id !== id));
   }
 
   private async removeCompletedActions(): Promise<void> {

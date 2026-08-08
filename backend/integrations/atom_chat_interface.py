@@ -97,7 +97,7 @@ class AtomChatInterface:
         # Slack integration commands
         self.commands['slack-connect'] = SlackCommand(
             trigger='slack-connect',
-            pattern=r'/slack-connect',
+            pattern=r'/slack-connect(?:\s+(.+))?',
             handler=self._handle_slack_connect,
             description='Connect to Slack workspace',
             requires_slack=False

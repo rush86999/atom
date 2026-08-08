@@ -861,8 +861,7 @@ async def schedule_workflow(
         input_data = schedule_config.get('input_data')
         
         if not trigger_type or not trigger_config:
-            raise HTTPException(status_code=400, detail="Missing trigger_type or trigger_config")
-            
+            raise HTTPException(status_code=400, detail="Missing trigger_type or trigger_config")    
         # R69: record whether the scheduling user may run critical definitions.
         # The scheduler fire skips critical defs unless authorized was captured
         # as True (WORKFLOW_MANAGE) at schedule time.
@@ -871,6 +870,10 @@ async def schedule_workflow(
         
         return {"success": True, "job_id": job_id, "message": f"Workflow scheduled with ID {job_id}"}
         
+    except HTTPException:
+        # R79: the missing-config 400 must not be masked as a 500 by the
+        # broad handler below.
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail="Internal error")
     except Exception as e:

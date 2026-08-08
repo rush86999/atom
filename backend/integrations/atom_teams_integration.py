@@ -13,24 +13,46 @@ import os
 from typing import Any, Dict, List, Optional, Union
 
 # Import existing ATOM services
+# NOTE: these modules live in the integrations package — bare imports silently
+# failed and left the whole integration permanently disabled. Each optional
+# service is guarded individually so one missing module can't poison the rest.
 try:
-    from atom_ingestion_pipeline import AtomIngestionPipeline
-    from atom_memory_service import AtomMemoryService
-    from atom_search_service import AtomSearchService
-    from atom_workflow_service import AtomWorkflowService
-    from teams_analytics_engine import teams_analytics_engine
-    from teams_enhanced_service import (
+    from integrations.atom_ingestion_pipeline import AtomIngestionPipeline
+    from integrations.teams_enhanced_service import (
         TeamsChannel,
+        TeamsEnhancedService,
+        TeamsEventType,
         TeamsFile,
         TeamsMessage,
         TeamsWorkspace,
-        teams_enhanced_service,
     )
+    teams_enhanced_service = TeamsEnhancedService(tenant_id="system", config={})
 except ImportError as e:
     logging.warning(f"Teams integration services not available: {e}")
     teams_enhanced_service = None
+
+# Optional cross-platform services (may not exist in this deployment)
+try:
+    from teams_analytics_engine import teams_analytics_engine
+except (ImportError, Exception):
     teams_analytics_engine = None
-    teams_workflow_engine = None # Implicitly used later
+
+try:
+    from atom_memory_service import AtomMemoryService
+except (ImportError, Exception):
+    AtomMemoryService = None
+
+try:
+    from atom_search_service import AtomSearchService
+except (ImportError, Exception):
+    AtomSearchService = None
+
+try:
+    from atom_workflow_service import AtomWorkflowService
+except (ImportError, Exception):
+    AtomWorkflowService = None
+
+teams_workflow_engine = None  # teams_workflow_engine module is optional
 
 logger = logging.getLogger(__name__)
 
@@ -162,16 +184,16 @@ class AtomTeamsIntegration:
                     'status': 'active' if not channel.is_archived else 'archived',
                     'member_count': channel.member_count,
                     'message_count': channel.message_count,
-                    'unread_count': channel.unreadCount or 0,
-                    'last_activity': channel.lastActivityAt.isoformat() if channel.lastActivityAt else None,
-                    'is_private': channel.channelType == 'private',
-                    'is_muted': channel.isMuted or False,
+                    'unread_count': getattr(channel, 'unread_count', 0) or 0,
+                    'last_activity': channel.last_activity_at.isoformat() if channel.last_activity_at else None,
+                    'is_private': channel.channel_type == 'private',
+                    'is_muted': getattr(channel, 'is_muted', False) or False,
                     'integration_data': {
                         'channel_id': channel.channel_id,
                         'membership_type': channel.membership_type,
                         'email': channel.email,
-                        'web_url': channel.webUrl,
-                        'allow_cross_team_posts': channel.allowCrossTeamPosts
+                        'web_url': channel.web_url,
+                        'allow_cross_team_posts': channel.allow_cross_team_posts
                     },
                     'capabilities': {
                         'messaging': True,
@@ -280,18 +302,18 @@ class AtomTeamsIntegration:
                         'platform': 'Microsoft Teams',
                         'workspace_id': workspace_id,
                         'channel_id': channel_id,
-                        'user_id': f"teams_{message.userId}",
-                        'user_name': message.userName,
-                        'user_email': message.userEmail,
-                        'user_avatar': f"https://ui-avatars.com/api/?name={message.userName}&background=random",
+                        'user_id': f"teams_{message.user_id}",
+                        'user_name': message.user_name,
+                        'user_email': message.user_email,
+                        'user_avatar': f"https://ui-avatars.com/api/?name={message.user_name}&background=random",
                         'timestamp': message.timestamp,
-                        'thread_id': f"teams_{message.threadId}" if message.threadId else None,
-                        'reply_to_id': f"teams_{message.replyToId}" if message.replyToId else None,
-                        'message_type': message.messageType,
+                        'thread_id': f"teams_{message.thread_id}" if message.thread_id else None,
+                        'reply_to_id': f"teams_{message.reply_to_id}" if message.reply_to_id else None,
+                        'message_type': message.message_type,
                         'importance': message.importance,
                         'subject': message.subject,
-                        'is_edited': message.isEdited,
-                        'edit_timestamp': message.editTimestamp,
+                        'is_edited': message.is_edited,
+                        'edit_timestamp': message.edit_timestamp,
                         'reactions': message.reactions,
                         'attachments': message.attachments,
                         'mentions': [
@@ -316,15 +338,15 @@ class AtomTeamsIntegration:
                         ],
                         'integration_data': {
                             'message_id': message.message_id,
-                            'user_id': message.userId,
-                            'tenant_id': message.tenantId,
+                            'user_id': message.user_id,
+                            'tenant_id': message.tenant_id,
                             'etag': message.etag,
-                            'channel_identity': message.channelIdentity,
-                            'participant_count': message.participantCount
+                            'channel_identity': message.channel_identity,
+                            'participant_count': message.participant_count
                         },
                         'metadata': {
-                            'has_thread': bool(message.threadId),
-                            'reply_count': len([msg for msg in teams_messages if msg.replyToId == message.message_id]),
+                            'has_thread': bool(message.thread_id),
+                            'reply_count': len([msg for msg in teams_messages if msg.reply_to_id == message.message_id]),
                             'has_attachments': bool(message.attachments),
                             'has_mentions': bool(message.mentions),
                             'importance_level': {
@@ -374,21 +396,21 @@ class AtomTeamsIntegration:
                         for message in teams_results.get('messages', []):
                             unified_result = {
                                 'id': f"teams_{message.message_id}",
-                                'title': message.subject or f"Message from {message.userName}",
+                                'title': message.subject or f"Message from {message.user_name}",
                                 'content': message.text,
                                 'platform': 'Microsoft Teams',
-                                'workspace_id': workspace_id or f"teams_{message.tenantId}",
+                                'workspace_id': workspace_id or f"teams_{message.tenant_id}",
                                 'channel_id': channel_id,
-                                'user_id': f"teams_{message.userId}",
-                                'user_name': message.userName,
+                                'user_id': f"teams_{message.user_id}",
+                                'user_name': message.user_name,
                                 'timestamp': message.timestamp,
                                 'type': 'message',
-                                'url': f"https://teams.microsoft.com/l/message/{message.message_id}/thread/{message.threadId}" if message.threadId else f"https://teams.microsoft.com/l/message/{message.message_id}",
+                                'url': f"https://teams.microsoft.com/l/message/{message.message_id}/thread/{message.thread_id}" if message.thread_id else f"https://teams.microsoft.com/l/message/{message.message_id}",
                                 'relevance_score': message.metadata.get('search_score', 1.0) if hasattr(message, 'metadata') else 1.0,
                                 'highlights': self._generate_search_highlights(message.text, query),
                                 'integration_data': {
                                     'message_id': message.message_id,
-                                    'channel_name': message.channelIdentity.get('displayName') if hasattr(message, 'channelIdentity') else None,
+                                    'channel_name': message.channel_identity.get('displayName') if getattr(message, 'channel_identity', None) else None,
                                     'importance': message.importance
                                 }
                             }

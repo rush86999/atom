@@ -10,6 +10,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from fastapi import HTTPException
+
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -427,12 +429,8 @@ class TestExecuteToolLocalTools:
         db = MagicMock()
         db.__enter__ = MagicMock(return_value=db)
         db.__exit__ = MagicMock(return_value=False)
-        with _mock_imports({
-            "accounting.close_agent": ModuleType("_x"),
-            "core.database": MagicMock(SessionLocal=lambda: db),
-        }):
-            from accounting import close_agent
-            close_agent.CloseChecklistAgent = _cls(agent)
+        with patch("accounting.close_agent.CloseChecklistAgent", _cls(agent)), \
+             patch("core.database.SessionLocal", lambda: db):
             r = await _run_local(svc, "finance_close_check", {"period": "2026-07"})
         assert r == {"ok": True}
 
@@ -935,12 +933,8 @@ class TestExecuteToolLocalTools:
         db = MagicMock()
         db.__enter__ = MagicMock(return_value=db)
         db.__exit__ = MagicMock(return_value=False)
-        with _mock_imports({
-            "accounting.close_agent": ModuleType("_x"),
-            "core.database": MagicMock(SessionLocal=lambda: db),
-        }):
-            from accounting import close_agent
-            close_agent.CloseChecklistAgent = _cls(agent)
+        with patch("accounting.close_agent.CloseChecklistAgent", _cls(agent)), \
+             patch("core.database.SessionLocal", lambda: db):
             r = await _run_local(svc, "finance_close_check", {}, {"workspace_id": "w"})
         assert r == {"ok": True}
 
@@ -1287,9 +1281,8 @@ class TestExecuteToolLocalTools:
 
     async def test_list_integrations(self):
         svc = _svc()
-        with _mock_imports({"integrations.universal_integration_service": ModuleType("_u")}):
-            import integrations.universal_integration_service as ui
-            ui.NATIVE_INTEGRATIONS = {"salesforce", "hubspot"}
+        with patch("integrations.universal_integration_service.NATIVE_INTEGRATIONS",
+                   {"salesforce", "hubspot"}):
             r = await _run_local(svc, "list_integrations")
         assert r["native_count"] == 2
 
@@ -2034,16 +2027,16 @@ class TestUniversalExecuteBranches:
                 with _mock_imports({
                     "integrations.slack_service_unified": MagicMock(slack_unified_service=MagicMock(
                         make_request=AsyncMock(return_value={"r": 1}))),
-                    "integrations.atom_google_chat_integration": MagicMock(google_chat_integration=MagicMock(
-                        search_entities=AsyncMock(return_value=[{"g": 1}]))),
-                    "integrations.atom_telegram_integration": MagicMock(telegram_integration=MagicMock(
-                        search_entities=AsyncMock(return_value=[{"t": 1}]))),
-                    "integrations.atom_whatsapp_integration": MagicMock(whatsapp_integration=MagicMock(
-                        search_entities=AsyncMock(return_value=[{"w": 1}]))),
-                    "integrations.gmail_service": MagicMock(gmail_service=MagicMock(
-                        search_messages=MagicMock(return_value=[{"m": 1}]))),
-                    "integrations.teams_service": MagicMock(teams_service=MagicMock(
-                        get_teams=MagicMock(return_value=[{"tm": 1}]))),
+                    "integrations.atom_google_chat_integration": MagicMock(atom_google_chat_integration=MagicMock(
+                        unified_search=AsyncMock(return_value=[{"g": 1}]))),
+                    "integrations.atom_telegram_integration": MagicMock(atom_telegram_integration=MagicMock(
+                        perform_intelligent_search=AsyncMock(return_value=[{"t": 1}]))),
+                    "integrations.atom_whatsapp_integration": MagicMock(atom_whatsapp_integration=MagicMock(
+                        perform_intelligent_search=AsyncMock(return_value=[{"w": 1}]))),
+                    "integrations.gmail_service": MagicMock(GmailService=MagicMock(return_value=MagicMock(
+                        search_messages=MagicMock(return_value=[{"m": 1}])))),
+                    "integrations.teams_service": MagicMock(TeamsService=MagicMock(return_value=MagicMock(
+                        get_teams=MagicMock(return_value=[{"tm": 1}])))),
                 }):
                     r = await service.search("slack", "q", None, ctx)
                     assert r["status"] == "success"
@@ -2312,29 +2305,27 @@ class TestUniversalExecuteBranches:
                 sl.return_value.__enter__.return_value = MagicMock()
                 reg_cls.return_value.get_service_instance = AsyncMock(return_value=MagicMock())
                 with _mock_imports({
-                    "integrations.tableau_service": ModuleType("_t"),
-                    "integrations.mailchimp_service": MagicMock(mailchimp_service=MagicMock(
+                    "integrations.mailchimp_service": MagicMock(MailchimpService=MagicMock(return_value=MagicMock(
                         get_campaigns=AsyncMock(return_value=[{"settings": {"subject_line": "s", "title": "t"}}]),
-                        get_audiences=AsyncMock(return_value=[{"id": 1}]))),
+                        get_audiences=AsyncMock(return_value=[{"id": 1}])))),
                     "integrations.hubspot_service": MagicMock(get_hubspot_service=lambda: MagicMock(
                         get_campaigns=AsyncMock(return_value=[{"id": 1}]))),
-                    "integrations.github_service": MagicMock(github_service=MagicMock(
-                        get_user_repositories=MagicMock(return_value=[{"name": "Repo"}]))),
-                    "integrations.gitlab_service": MagicMock(gitlab_service=MagicMock(
-                        search_projects=AsyncMock(return_value=[{"id": 1}]))),
+                    "integrations.github_service": MagicMock(GitHubService=MagicMock(return_value=MagicMock(
+                        get_user_repositories=MagicMock(return_value=[{"name": "Repo"}])))),
+                    "integrations.gitlab_service": MagicMock(GitLabService=MagicMock(return_value=MagicMock(
+                        search_projects=AsyncMock(return_value=[{"id": 1}])))),
                     "integrations.zoho_crm_service": MagicMock(ZohoCRMService=MagicMock(return_value=MagicMock(
                         get_leads=AsyncMock(return_value=[{"Last_Name": "X", "Email": "x@y"}])))),
-                    "integrations.zendesk_service": MagicMock(zendesk_service=MagicMock(
-                        get_tickets=AsyncMock(return_value=[{"id": 1}]))),
-                    "integrations.freshdesk_service": MagicMock(get_freshdesk_service=lambda: MagicMock(
-                        search_tickets=AsyncMock(return_value=[{"id": 1}]))),
+                    "integrations.zendesk_service": MagicMock(ZendeskService=MagicMock(return_value=MagicMock(
+                        get_tickets=AsyncMock(return_value=[{"id": 1}])))),
+                    "integrations.freshdesk_service": MagicMock(FreshdeskService=MagicMock(return_value=MagicMock(
+                        search_tickets=AsyncMock(return_value=[{"id": 1}])))),
                 }):
-                    from integrations import tableau_service as _t
                     tableau = MagicMock()
                     tableau.get_workbooks = AsyncMock(side_effect=RuntimeError("boom"))
-                    _t.TableauService = MagicMock(return_value=tableau)
-                    r = await service.execute("tableau", "list", {}, ctx)
-                    assert r["status"] == "error"
+                    with patch("integrations.tableau_service.TableauService", MagicMock(return_value=tableau)):
+                        r = await service.execute("tableau", "list", {}, ctx)
+                        assert r["status"] == "error"
                     r = await service.execute("mailchimp", "list", {}, ctx)
                     assert r["status"] == "success"
                     r = await service.execute("mailchimp", "get_campaigns", {}, ctx)
@@ -2367,52 +2358,51 @@ class TestUniversalExecuteBranches:
                     side_effect=lambda svc, tid: hub_svc if svc == "hubspot" else storage_svc
                 )
                 with _mock_imports({
-                    "integrations.github_service": MagicMock(github_service=MagicMock(
+                    "integrations.github_service": MagicMock(GitHubService=MagicMock(return_value=MagicMock(
                         get_user_repositories=MagicMock(return_value=[{"name": "RepoA"}],
-                        ))),
-                    "integrations.gitlab_service": MagicMock(gitlab_service=MagicMock(
-                        search_projects=AsyncMock(return_value=[{"name": "P"}]))),
-                    "integrations.mailchimp_service": MagicMock(mailchimp_service=MagicMock(
-                        get_campaigns=AsyncMock(return_value=[{"settings": {"subject_line": "Sale!", "title": "t"}}]))),
+                        )))),
+                    "integrations.gitlab_service": MagicMock(GitLabService=MagicMock(return_value=MagicMock(
+                        search_projects=AsyncMock(return_value=[{"name": "P"}])))),
+                    "integrations.mailchimp_service": MagicMock(MailchimpService=MagicMock(return_value=MagicMock(
+                        get_campaigns=AsyncMock(return_value=[{"settings": {"subject_line": "Sale!", "title": "t"}}])))),
                     "integrations.zoho_crm_service": MagicMock(ZohoCRMService=MagicMock(return_value=MagicMock(
                         get_leads=AsyncMock(return_value=[{"Last_Name": "Smith", "Email": "s@x"}])))),
-                    "integrations.zendesk_service": MagicMock(zendesk_service=MagicMock(
-                        get_tickets=AsyncMock(return_value=[{"id": 1}]))),
-                    "integrations.freshdesk_service": MagicMock(get_freshdesk_service=lambda: MagicMock(
-                        search_tickets=AsyncMock(return_value=[{"id": 1}]))),
-                    "integrations.tableau_service": ModuleType("_t2"),
+                    "integrations.zendesk_service": MagicMock(ZendeskService=MagicMock(return_value=MagicMock(
+                        get_tickets=AsyncMock(return_value=[{"id": 1}])))),
+                    "integrations.freshdesk_service": MagicMock(FreshdeskService=MagicMock(return_value=MagicMock(
+                        search_tickets=AsyncMock(return_value=[{"id": 1}])))),
                 }):
-                    from integrations import tableau_service as _t
                     tableau = MagicMock()
                     tableau.get_workbooks = AsyncMock(return_value=[{"name": "Sales"}])
-                    _t.TableauService = MagicMock(return_value=tableau)
-                    r = await service.search("github", "repoa", None, ctx)
-                    assert r["status"] == "success"
-                    r = await service.search("gitlab", "q", None, ctx)
-                    assert r["status"] == "success"
-                    r = await service.search("mailchimp", "sale", None, ctx)
-                    assert len(r["data"]) == 1
-                    r = await service.search("zoho_crm", "smith", None, ctx)
-                    assert len(r["data"]) == 1
-                    r = await service.search("salesforce", "q", None, ctx)
-                    assert r["status"] == "success"
-                    r = await service.search("hubspot", "q", None, ctx)
-                    assert r == [{"id": 1}]
-                    r = await service.search("zendesk", "q", None, ctx)
-                    assert r["status"] == "success"
-                    r = await service.search("freshdesk", "q", None, ctx)
-                    assert r["status"] == "success"
-                    r = await service.search("intercom", "q", None, ctx)
-                    assert r["status"] == "error"
-                    r = await service.search("tableau", "sales", None, ctx)
-                    assert r["status"] == "success"
-                    r = await service.search("google_analytics", "q", None, ctx)
-                    assert r["status"] == "success"
+                    with patch("integrations.tableau_service.TableauService",
+                               MagicMock(return_value=tableau)):
+                        r = await service.search("github", "repoa", None, ctx)
+                        assert r["status"] == "success"
+                        r = await service.search("gitlab", "q", None, ctx)
+                        assert r["status"] == "success"
+                        r = await service.search("mailchimp", "sale", None, ctx)
+                        assert len(r["data"]) == 1
+                        r = await service.search("zoho_crm", "smith", None, ctx)
+                        assert len(r["data"]) == 1
+                        r = await service.search("salesforce", "q", None, ctx)
+                        assert r["status"] == "success"
+                        r = await service.search("hubspot", "q", None, ctx)
+                        assert r == [{"id": 1}]
+                        r = await service.search("zendesk", "q", None, ctx)
+                        assert r["status"] == "success"
+                        r = await service.search("freshdesk", "q", None, ctx)
+                        assert r["status"] == "success"
+                        r = await service.search("intercom", "q", None, ctx)
+                        assert r["status"] == "error"
+                        r = await service.search("tableau", "sales", None, ctx)
+                        assert r["status"] == "success"
+                        r = await service.search("google_analytics", "q", None, ctx)
+                        assert r["status"] == "success"
                     tableau2 = MagicMock()
                     tableau2.get_workbooks = AsyncMock(side_effect=RuntimeError("boom"))
-                    _t.TableauService = MagicMock(return_value=tableau2)
-                    r = await service.search("tableau", "q", None, ctx)
-                    assert r["status"] == "error"
+                    with patch("integrations.tableau_service.TableauService", MagicMock(return_value=tableau2)):
+                        r = await service.search("tableau", "q", None, ctx)
+                        assert r["status"] == "error"
 
     async def test_search_intercom_via_registry(self):
         import integrations.universal_integration_service as mod
@@ -2503,6 +2493,7 @@ class TestUniversalExecuteBranches:
             assert r["circuit_open"] is True
             cb.is_enabled = AsyncMock(return_value=True)
             with patch.object(mod, "governance_middleware") as gm:
+                gm.mask_response = MagicMock(side_effect=lambda s, r: r)
                 gm.check_action_risk = AsyncMock(return_value={"allowed": False, "reason": "needs review", "intervention_id": "i1"})
                 r = await service.execute("slack", "send_message", {}, {"user_id": "u"})
                 assert r["status"] == "paused"
@@ -2530,8 +2521,8 @@ class TestUniversalExecuteBranches:
             cb.record_failure = AsyncMock()
             with patch("core.database.SessionLocal") as sl, \
                  patch("core.integration_registry.IntegrationRegistry") as reg_cls, _mock_imports({
-                     "integrations.mailchimp_service": MagicMock(mailchimp_service=MagicMock(
-                         get_campaigns=AsyncMock(return_value=[{"settings": {"subject_line": "s"}}]))),
+                     "integrations.mailchimp_service": MagicMock(MailchimpService=MagicMock(return_value=MagicMock(
+                         get_campaigns=AsyncMock(return_value=[{"settings": {"subject_line": "s"}}])))),
                  }):
                 sl.return_value.__enter__.return_value = MagicMock()
                 st_svc = MagicMock()
@@ -2557,11 +2548,10 @@ class TestUniversalExecuteBranches:
                  patch("core.integration_registry.IntegrationRegistry") as reg_cls:
                 sl.return_value.__enter__.return_value = MagicMock()
                 reg_cls.return_value.get_service_instance = AsyncMock(return_value=MagicMock())
-                with _mock_imports({"integrations.tableau_service": ModuleType("_t3")}):
-                    from integrations import tableau_service as _t
-                    tableau = MagicMock()
-                    tableau.get_workbooks = AsyncMock(return_value=[{"name": "Workbook"}])
-                    _t.TableauService = MagicMock(return_value=tableau)
+                tableau = MagicMock()
+                tableau.get_workbooks = AsyncMock(return_value=[{"name": "Workbook"}])
+                with patch("integrations.tableau_service.TableauService",
+                           MagicMock(return_value=tableau)):
                     r = await service.search("tableau", "work", None, ctx)
                     assert r["status"] == "success"
                     assert len(r["data"]) == 1
@@ -2656,32 +2646,29 @@ class TestUniversalCoverageWave3:
         assert r["status"] == "success"
         # default handler returns via execute()
         with patch.object(mod, "circuit_breaker") as cb, _mock_imports({
-            "integrations.mailchimp_service": MagicMock(mailchimp_service=MagicMock(
-                get_campaigns=AsyncMock(return_value=[{"settings": {"subject_line": "s"}}]))),
+            "integrations.mailchimp_service": MagicMock(MailchimpService=MagicMock(return_value=MagicMock(
+                get_campaigns=AsyncMock(return_value=[{"settings": {"subject_line": "s"}}])))),
             "integrations.hubspot_service": MagicMock(get_hubspot_service=lambda: MagicMock(
                 get_campaigns=AsyncMock(return_value=[{"id": 1}]))),
-            "integrations.github_service": MagicMock(github_service=MagicMock(
-                get_user_repositories=MagicMock(return_value=[{"name": "R"}]))),
-            "integrations.gitlab_service": MagicMock(gitlab_service=MagicMock(
-                search_projects=AsyncMock(return_value=[{"id": 1}]))),
+            "integrations.github_service": MagicMock(GitHubService=MagicMock(return_value=MagicMock(
+                get_user_repositories=MagicMock(return_value=[{"name": "R"}])))),
+            "integrations.gitlab_service": MagicMock(GitLabService=MagicMock(return_value=MagicMock(
+                search_projects=AsyncMock(return_value=[{"id": 1}])))),
             "integrations.zoho_crm_service": MagicMock(ZohoCRMService=MagicMock(return_value=MagicMock(
                 get_leads=AsyncMock(return_value=[{"Last_Name": "X"}])))),
-            "integrations.zoho_mail_service": MagicMock(zoho_mail_service=MagicMock(
-                get_recent_inbox=AsyncMock(return_value=[{"id": 1}]))),
+            "integrations.zoho_mail_service": MagicMock(ZohoMailService=MagicMock(return_value=MagicMock(
+                get_recent_inbox=AsyncMock(return_value=[{"id": 1}])))),
             "integrations.zoho_inventory_service": MagicMock(zoho_inventory_service=MagicMock(
                 get_items=AsyncMock(return_value=[{"id": 1}]))),
-            "integrations.zoho_projects_service": MagicMock(zoho_projects_service=MagicMock(
-                get_projects=AsyncMock(return_value=[{"id": 1}]))),
-            "integrations.tableau_service": ModuleType("_t4"),
-            "integrations.zendesk_service": MagicMock(zendesk_service=MagicMock(
-                get_tickets=AsyncMock(return_value=[{"id": 1}]))),
-            "integrations.freshdesk_service": MagicMock(get_freshdesk_service=lambda: MagicMock(
-                search_tickets=AsyncMock(return_value=[{"id": 1}]))),
+            "integrations.zoho_projects_service": MagicMock(ZohoProjectsService=MagicMock(return_value=MagicMock(
+                get_projects=AsyncMock(return_value=[{"id": 1}])))),
+            "integrations.zendesk_service": MagicMock(ZendeskService=MagicMock(return_value=MagicMock(
+                get_tickets=AsyncMock(return_value=[{"id": 1}])))),
+            "integrations.freshdesk_service": MagicMock(FreshdeskService=MagicMock(return_value=MagicMock(
+                search_tickets=AsyncMock(return_value=[{"id": 1}])))),
         }):
-            from integrations import tableau_service as _t
             tableau = MagicMock()
             tableau.get_workbooks = AsyncMock(return_value=[{"name": "W"}])
-            _t.TableauService = MagicMock(return_value=tableau)
             cb.is_enabled = AsyncMock(return_value=True)
             cb.record_failure = AsyncMock()
             session = MagicMock()
@@ -2693,7 +2680,8 @@ class TestUniversalCoverageWave3:
             reg = MagicMock()
             reg.get_service_instance = AsyncMock(return_value=inst)
             with patch("core.database.SessionLocal", return_value=session), \
-                 patch("core.integration_registry.IntegrationRegistry", return_value=reg):
+                 patch("core.integration_registry.IntegrationRegistry", return_value=reg), \
+                 patch("integrations.tableau_service.TableauService", MagicMock(return_value=tableau)):
                 ctx = {"user_id": "u", "tenant_id": "t", "access_token": "tok"}
                 # default handler returns (unmatched actions)
                 r = await service.execute("google_drive", "nope", {}, ctx)
@@ -4796,52 +4784,47 @@ class TestSecurityServiceLast:
         with patch.object(mod, "circuit_breaker") as cb, patch.object(mod, "rate_limiter") as rl:
             cb.is_enabled = AsyncMock(return_value=False)
             rl.is_rate_limited = AsyncMock(return_value=(False, 10))
-            with pytest.raises(Exception):
-                await svc.create_security_policy({"name": "p"}, "u")
-            with pytest.raises(Exception):
-                await svc.detect_threat({})
-            with pytest.raises(Exception):
-                await svc.audit_event({"event_type": "x", "user_id": "u", "resource": "r", "action": "a", "result": "ok", "ip_address": "1"})
-            with pytest.raises(Exception):
-                await svc.check_compliance(mod.ComplianceStandard.SOC2)
-            with pytest.raises(Exception):
-                await svc.encrypt_data("s")
-            with pytest.raises(Exception):
-                await svc.decrypt_data("s")
-            with pytest.raises(Exception):
-                await svc.validate_password("x")
-            with pytest.raises(Exception):
-                await svc.analyze_user_behavior("u")
-            with pytest.raises(Exception):
-                await svc._pattern_based_detection({})
-            with pytest.raises(Exception):
-                await svc.get_security_metrics()
-            with pytest.raises(Exception):
-                await svc.close()
+            # Methods that swallow the 503 into an error result
+            r = await svc.create_security_policy({"name": "p"}, "u")
+            assert r["ok"] is False and "temporarily disabled" in r["error"]
+            assert await svc.detect_threat({}) is None
+            assert await svc.audit_event({"event_type": "x", "user_id": "u", "resource": "r", "action": "a", "result": "ok", "ip_address": "1"}) is None
+            assert await svc.check_compliance(mod.ComplianceStandard.SOC2) is None
+            r = await svc.validate_password("x")
+            assert r["valid"] is False and "temporarily disabled" in r["error"]
+            r = await svc.analyze_user_behavior("u")
+            assert "temporarily disabled" in r["error"]
+            # Methods that re-raise the 503
+            for call in [
+                lambda: svc.encrypt_data("s"),
+                lambda: svc.decrypt_data("s"),
+                lambda: svc._pattern_based_detection({}),
+                lambda: svc.get_security_metrics(),
+                lambda: svc.close(),
+            ]:
+                with pytest.raises(HTTPException):
+                    await call()
             cb.is_enabled = AsyncMock(return_value=True)
             rl.is_rate_limited = AsyncMock(return_value=(True, 0))
-            with pytest.raises(Exception):
-                await svc.create_security_policy({"name": "p"}, "u")
-            with pytest.raises(Exception):
-                await svc.detect_threat({})
-            with pytest.raises(Exception):
-                await svc.audit_event({"event_type": "x", "user_id": "u", "resource": "r", "action": "a", "result": "ok", "ip_address": "1"})
-            with pytest.raises(Exception):
-                await svc.check_compliance(mod.ComplianceStandard.SOC2)
-            with pytest.raises(Exception):
-                await svc.encrypt_data("s")
-            with pytest.raises(Exception):
-                await svc.decrypt_data("s")
-            with pytest.raises(Exception):
-                await svc.validate_password("x")
-            with pytest.raises(Exception):
-                await svc.analyze_user_behavior("u")
-            with pytest.raises(Exception):
-                await svc._pattern_based_detection({})
-            with pytest.raises(Exception):
-                await svc.get_security_metrics()
-            with pytest.raises(Exception):
-                await svc.close()
+            # Same contract split under rate limiting
+            r = await svc.create_security_policy({"name": "p"}, "u")
+            assert r["ok"] is False and "Rate limit exceeded" in r["error"]
+            assert await svc.detect_threat({}) is None
+            assert await svc.audit_event({"event_type": "x", "user_id": "u", "resource": "r", "action": "a", "result": "ok", "ip_address": "1"}) is None
+            assert await svc.check_compliance(mod.ComplianceStandard.SOC2) is None
+            r = await svc.validate_password("x")
+            assert r["valid"] is False and "Rate limit exceeded" in r["error"]
+            r = await svc.analyze_user_behavior("u")
+            assert "Rate limit exceeded" in r["error"]
+            for call in [
+                lambda: svc.encrypt_data("s"),
+                lambda: svc.decrypt_data("s"),
+                lambda: svc._pattern_based_detection({}),
+                lambda: svc.get_security_metrics(),
+                lambda: svc.close(),
+            ]:
+                with pytest.raises(HTTPException):
+                    await call()
 
     async def test_policy_invalid_standard_and_init_excepts(self):
         import integrations.atom_enterprise_security_service as mod
@@ -4857,11 +4840,12 @@ class TestSecurityServiceLast:
             r = await svc.create_security_policy(data, "u")
             assert r["ok"] is False
             assert "Invalid compliance standard" in r["error"]
-        # init method except branches
+        # init method except branches (patch logger.info so the real method
+        # bodies hit their internal try/except handlers)
         svc2 = _sec_svc()
         for m in ["_initialize_encryption", "_load_security_policies", "_initialize_threat_detection",
                   "_start_security_monitoring", "_initialize_compliance_monitoring"]:
-            with patch.object(svc2, m, new=AsyncMock(side_effect=RuntimeError("x"))):
+            with patch.object(mod.logger, "info", side_effect=RuntimeError("x")):
                 await getattr(svc2, m)()
         # _get_compliance_data, _ai_compliance_analysis error, score error
         await svc2._get_compliance_data(mod.ComplianceStandard.SOC2, "m")
@@ -4908,3 +4892,52 @@ class TestSecurityServiceLast:
             threats = await svc._behavioral_anomaly_detection({"user_id": "u1"})
             assert len(threats) == 1
             assert threats[0]["type"] == "anomalous_behavior"
+
+
+# ---------------------------------------------------------------------------
+# mcp_service phantom-import guards (fail-closed behavior)
+# ---------------------------------------------------------------------------
+class TestPhantomImportGuards:
+    async def test_cloud_browser_guard_fails_closed(self):
+        svc = _svc()
+        cloud_tools = [
+            "browser_navigate", "browser_click", "browser_type", "browser_screenshot",
+            "browser_new_tab", "browser_switch_tab", "browser_click_coords",
+            "list_browser_tabs", "browser_save_session", "browser_set_proxy",
+            "browser_monitor", "browser_wait_for_selector", "browser_extract_content",
+            "browser_upload_file", "browser_download_file",
+        ]
+        args_by_tool = {
+            "browser_navigate": {"url": "http://x"},
+            "browser_click": {"selector": "#a"},
+            "browser_type": {"text": "hi"},
+            "browser_click_coords": {"x": 1, "y": 2},
+        }
+        ctx = {"computer_use_mode": "cloud", "workspace_id": "default"}
+        with _mock_imports({"core.cloud_browser_service": None}):
+            for tool in cloud_tools:
+                r = await _run_local(svc, tool, args_by_tool.get(tool, {}), ctx)
+                assert "Cloud browser service not available" in r, tool
+
+    async def test_cloud_browser_guard_fails_closed_click_variant(self):
+        svc = _svc()
+        with _mock_imports({"core.cloud_browser_service": None}):
+            r = await _run_local(
+                svc, "browser_click", {"selector": "#a", "x": 1, "y": 2},
+                {"computer_use_mode": "cloud", "workspace_id": "default"},
+            )
+            assert "Cloud browser service not available" in r
+
+    async def test_collaboration_hub_guard_fails_closed(self):
+        svc = _svc()
+        with _mock_imports({"core.collaboration_hub_service": None}):
+            for tool in ["analyze_message", "draft_response", "approve_draft"]:
+                r = await _run_local(svc, tool, {"message_id": "m"})
+                assert "Collaboration Hub service not available" in r["error"], tool
+
+    async def test_sales_agent_guard_fails_closed(self):
+        svc = _svc()
+        with _mock_imports({"core.sales_agent": None}):
+            for tool in ["score_lead", "draft_sales_outreach", "monitor_pipeline_health"]:
+                r = await _run_local(svc, tool, {"lead_data": {}}, {"workspace_id": "w"})
+                assert "Sales agent service not available" in r["error"], tool

@@ -89,18 +89,21 @@ class TestAgentIntegrationGatewayCoverage:
         """Cover lines 1-50: Gateway initialization"""
         gateway = AgentIntegrationGateway()
         assert gateway.services is not None
-        assert "meta" in gateway.services
+        # Only services with real (non-None) instances are registered. The
+        # enterprise modules (meta/marketing/docs/openclaw) export classes
+        # only — their instance imports are guarded and fall back to None,
+        # so those platforms are NOT in the services map.
         assert "ecommerce" in gateway.services
-        assert "marketing" in gateway.services
         assert "whatsapp" in gateway.services
-        assert "docs" in gateway.services
         assert "shopify" in gateway.services
         assert "discord" in gateway.services
         assert "teams" in gateway.services
         assert "telegram" in gateway.services
         assert "google_chat" in gateway.services
         assert "slack" in gateway.services
-        assert "openclaw" in gateway.services
+        assert "meta" not in gateway.services
+        assert "marketing" not in gateway.services
+        assert "openclaw" not in gateway.services
 
     def test_action_type_enum(self):
         """Cover ActionType enum values"""

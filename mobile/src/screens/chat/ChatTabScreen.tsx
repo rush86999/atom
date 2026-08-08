@@ -235,6 +235,7 @@ export const ChatTabScreen = () => {
     <TouchableOpacity
       style={styles.conversationItem}
       onPress={() => openConversation(item)}
+      onLongPress={() => deleteConversation(item.id)}
       activeOpacity={0.7}
     >
       {/* Agent Icon */}

@@ -78,6 +78,9 @@ class ApiService {
    */
   async clearToken(): Promise<void> {
     this.token = null;
+    // #6 fix: setToken/getToken use 'atom_access_token' — clear the SAME key,
+    // plus the legacy 'auth_token' key so old stores are cleaned too.
+    await secureDelete('atom_access_token');
     await secureDelete('auth_token');
   }
 

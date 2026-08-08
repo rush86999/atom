@@ -12,62 +12,8 @@ Tests alert threshold evaluation service including:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, Mock, patch, MagicMock as MockMagic
+from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime, timedelta
-
-# Mock the missing modules and models BEFORE importing alert_service
-import sys
-orig_core_models = sys.modules.get('core.models')
-orig_integration_metrics = sys.modules.get('core.integration_metrics')
-orig_slack_service = sys.modules.get('integrations.slack_enhanced_service')
-orig_token_storage = sys.modules.get('core.token_storage')
-orig_email_service = sys.modules.get('core.email_service')
-
-# Mock core.models with AlertConfiguration
-from unittest.mock import MagicMock as MockMagic
-mock_models = MockMagic()
-mock_alert_config = MockMagic()
-mock_alert_config.tenant_id = "tenant-001"
-mock_alert_config.connector_id = "slack"
-mock_alert_config.window_seconds = 300
-mock_alert_config.error_rate_threshold = 10.0
-mock_alert_config.latency_threshold_ms = 500
-mock_alert_config.notification_channels = []
-mock_alert_config.slack_channel_id = None
-mock_alert_config.email_recipients = None
-mock_alert_config.is_active = True
-mock_models.AlertConfiguration = MockMagic(return_value=mock_alert_config)
-mock_models.query = MockMagic()
-sys.modules['core.models'] = mock_models
-
-# Mock core.integration_metrics with get_integration_metrics
-mock_integration_metrics = MockMagic()
-mock_metrics_instance = MockMagic()
-mock_metrics_instance.success_counts = {}
-mock_metrics_instance.failure_counts = {}
-mock_metrics_instance.get_duration_percentiles = MockMagic(return_value={"p95": 400.0})
-mock_metrics_instance._make_key = MockMagic(return_value="slack:tenant-001:agent")
-mock_integration_metrics.get_integration_metrics = MockMagic(return_value=mock_metrics_instance)
-sys.modules['core.integration_metrics'] = mock_integration_metrics
-
-# Mock integrations.slack_enhanced_service
-mock_slack_service = MockMagic()
-mock_slack_instance = MockMagic()
-mock_slack_instance.send_message = AsyncMock(return_value=True)
-mock_slack_service.SlackEnhancedService = MockMagic(return_value=mock_slack_instance)
-sys.modules['integrations.slack_enhanced_service'] = mock_slack_service
-
-# Mock core.token_storage
-mock_token_storage = MockMagic()
-mock_token_storage.get_token = MockMagic(return_value={"access_token": "xoxb-test-token"})
-sys.modules['core.token_storage'] = mock_token_storage
-
-# Mock core.email_service
-mock_email_service = MockMagic()
-mock_email_instance = MockMagic()
-mock_email_instance.send_email = AsyncMock(return_value=True)
-mock_email_service.EmailService = MockMagic(return_value=mock_email_instance)
-sys.modules['core.email_service'] = mock_email_service
 
 from core.alert_service import (
     AlertSeverity,
@@ -76,32 +22,6 @@ from core.alert_service import (
     AlertEvaluationResult,
     AlertThresholdService
 )
-
-# Restore original modules in sys.modules to prevent test pollution
-if orig_core_models:
-    sys.modules['core.models'] = orig_core_models
-else:
-    del sys.modules['core.models']
-
-if orig_integration_metrics:
-    sys.modules['core.integration_metrics'] = orig_integration_metrics
-else:
-    del sys.modules['core.integration_metrics']
-
-if orig_slack_service:
-    sys.modules['integrations.slack_enhanced_service'] = orig_slack_service
-else:
-    del sys.modules['integrations.slack_enhanced_service']
-
-if orig_token_storage:
-    sys.modules['core.token_storage'] = orig_token_storage
-else:
-    del sys.modules['core.token_storage']
-
-if orig_email_service:
-    sys.modules['core.email_service'] = orig_email_service
-else:
-    del sys.modules['core.email_service']
 
 
 class TestAlertSeverity:

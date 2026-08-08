@@ -7,8 +7,9 @@ from datetime import datetime, timedelta
 import json
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
 
+from core.auth import get_current_user
 from integrations.atom_communication_apps_lancedb_integration import communication_ingestion_router
 from integrations.atom_communication_ingestion_pipeline import (
     CommunicationAppType,
@@ -24,7 +25,10 @@ class AtomCommunicationMemoryAPI:
     """Main API for ATOM communication memory system"""
     
     def __init__(self):
-        self.router = APIRouter(prefix="/api/atom/communication/memory", tags=["ATOM Communication Memory"])
+        self.router = APIRouter(
+            prefix="/api/atom/communication/memory", tags=["ATOM Communication Memory"],
+            dependencies=[Depends(get_current_user)],
+        )
         self.setup_routes()
     
     def setup_routes(self):
@@ -125,7 +129,7 @@ class AtomCommunicationMemoryAPI:
                     memory_manager.initialize()
                 
                 # Ingest message
-                success = ingestion_pipeline.ingest_message(app_id, message_data)
+                success = await ingestion_pipeline.ingest_message(app_id, message_data)
                 
                 if success:
                     # Broadcast update to connected clients
@@ -174,7 +178,7 @@ class AtomCommunicationMemoryAPI:
                 # Ingest batch
                 success_count = 0
                 for message in messages:
-                    if ingestion_pipeline.ingest_message(app_id, message):
+                    if await ingestion_pipeline.ingest_message(app_id, message):
                         success_count += 1
                 
                 return {
@@ -184,7 +188,7 @@ class AtomCommunicationMemoryAPI:
                     "total_messages": len(messages),
                     "success_count": success_count,
                     "failure_count": len(messages) - success_count,
-                    "success_rate": f"{(success_count / len(messages)) * 100:.1f}%",
+                    "success_rate": f"{(success_count / len(messages)) * 100:.1f}%" if messages else "0.0%",
                     "timestamp": datetime.now().isoformat(),
                     "memory_system": "LanceDB"
                 }

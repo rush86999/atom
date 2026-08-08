@@ -37,9 +37,9 @@ except ImportError as e:
     logging.warning(f"Salesforce integration not available: {e}")
     SALESFORCE_AVAILABLE = False
 
+from core.auth import get_current_user
 from core.database import get_db
 from core.mock_mode import get_mock_mode_manager
-from core.models import User
 from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
 from integrations.integration_helpers import (
     create_execution_record,
@@ -52,8 +52,12 @@ from .auth_handler_salesforce import salesforce_auth_handler
 logger = logging.getLogger(__name__)
 
 # Create router
-# Auth Type: OAuth2
-router = APIRouter(prefix="/api/salesforce", tags=["salesforce"])
+# Auth Type: OAuth2 + user auth
+router = APIRouter(
+    prefix="/api/salesforce",
+    tags=["salesforce"],
+    dependencies=[Depends(get_current_user)],
+)
 
 # Feature flags
 SALESFORCE_GOVERNANCE_ENABLED = os.getenv("SALESFORCE_GOVERNANCE_ENABLED", "true").lower() == "true"
@@ -178,15 +182,31 @@ def format_salesforce_error_response(error_msg: str) -> Dict[str, Any]:
     }
 
 
+def _salesforce_error_response(exc: Exception) -> Dict[str, Any]:
+    """Return a generic error response; log the real exception server-side.
+
+    Never echoes ``str(exc)`` into the client-facing payload (information
+    leak — exception text can contain paths, tokens or connection details).
+    """
+    logger.error(f"Salesforce operation failed: {exc}")
+    return format_salesforce_error_response("Salesforce operation failed")
+
+
 @router.get("/health")
 async def salesforce_health_check():
     """Check Salesforce integration health"""
-    sf = get_salesforce_client_from_env()
-
     if not SALESFORCE_AVAILABLE:
         raise HTTPException(
             status_code=503, detail="Salesforce integration not available"
         )
+
+    try:
+        # Client init failures must degrade (not 500): the integration may be
+        # unconfigured or the auth handler may be mid-rotation.
+        sf = get_salesforce_client_from_env()
+    except Exception as e:
+        logger.error(f"Failed to initialize Salesforce client for health check: {e}")
+        sf = None
 
     try:
         # Simple health check by testing service availability
@@ -248,7 +268,7 @@ async def get_salesforce_accounts(
 
         return format_salesforce_response({"accounts": result})
     except Exception as e:
-        return format_salesforce_error_response(str(e))
+        return _salesforce_error_response(e)
 
 
 @router.get("/accounts/{account_id}")
@@ -282,7 +302,7 @@ async def get_salesforce_account(
             return format_salesforce_response(result['records'][0])
         return format_salesforce_error_response("Account not found")
     except Exception as e:
-        return format_salesforce_error_response(str(e))
+        return _salesforce_error_response(e)
 
 
 @router.post("/accounts")
@@ -345,7 +365,7 @@ async def create_salesforce_account(
         )
         return format_salesforce_response(result)
     except Exception as e:
-        return format_salesforce_error_response(str(e))
+        return _salesforce_error_response(e)
 
 
 @router.get("/contacts")
@@ -386,7 +406,7 @@ async def get_salesforce_contacts(
 
         return format_salesforce_response(result)
     except Exception as e:
-        return format_salesforce_error_response(str(e))
+        return _salesforce_error_response(e)
 
 
 @router.post("/contacts")
@@ -421,7 +441,7 @@ async def create_salesforce_contact(
         )
         return format_salesforce_response(result)
     except Exception as e:
-        return format_salesforce_error_response(str(e))
+        return _salesforce_error_response(e)
 
 
 @router.get("/opportunities")
@@ -459,7 +479,7 @@ async def get_salesforce_opportunities(
                 
         return format_salesforce_response(result)
     except Exception as e:
-        return format_salesforce_error_response(str(e))
+        return _salesforce_error_response(e)
 
 
 @router.post("/opportunities")
@@ -493,7 +513,7 @@ async def create_salesforce_opportunity(
         )
         return format_salesforce_response(result)
     except Exception as e:
-        return format_salesforce_error_response(str(e))
+        return _salesforce_error_response(e)
 
 
 @router.get("/leads")
@@ -525,7 +545,7 @@ async def get_salesforce_leads(
                 
         return format_salesforce_response(result)
     except Exception as e:
-        return format_salesforce_error_response(str(e))
+        return _salesforce_error_response(e)
 
 
 @router.post("/leads")
@@ -560,7 +580,7 @@ async def create_salesforce_lead(
         )
         return format_salesforce_response(result)
     except Exception as e:
-        return format_salesforce_error_response(str(e))
+        return _salesforce_error_response(e)
 
 
 @router.get("/search")
@@ -591,9 +611,9 @@ async def search_salesforce(
             result = sf.search(soql_query)
             return format_salesforce_response(result)
         except Exception as e:
-            return format_salesforce_error_response(str(e))
+            return _salesforce_error_response(e)
     except Exception as e:
-        return format_salesforce_error_response(str(e))
+        return _salesforce_error_response(e)
 
 
 @router.get("/analytics/pipeline")
@@ -641,7 +661,7 @@ async def get_sales_pipeline_analytics(
             "message": "Real-time pipeline analytics"
         })
     except Exception as e:
-        return format_salesforce_error_response(str(e))
+        return _salesforce_error_response(e)
 
 
 @router.get("/analytics/leads")
@@ -686,7 +706,7 @@ async def get_leads_analytics(
             "message": "Real-time leads analytics"
         })
     except Exception as e:
-        return format_salesforce_error_response(str(e))
+        return _salesforce_error_response(e)
 
 
 @router.get("/profile")
@@ -719,9 +739,9 @@ async def get_salesforce_user_profile(
                     return format_salesforce_response(res['records'][0])
                 return format_salesforce_error_response("User not found")
             except Exception as e:
-                return format_salesforce_error_response(f"Database query failed: {str(e)}")
+                return _salesforce_error_response(e)
     except Exception as e:
-        return format_salesforce_error_response(str(e))
+        return _salesforce_error_response(e)
 
 
 @router.post("/integrations/stripe/payments")
@@ -748,7 +768,7 @@ async def sync_stripe_payments_with_salesforce(
         }
         return format_salesforce_response(result)
     except Exception as e:
-        return format_salesforce_error_response(str(e))
+        return _salesforce_error_response(e)
 
 
 # Root endpoint

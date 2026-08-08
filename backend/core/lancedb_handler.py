@@ -169,8 +169,14 @@ class LanceDBHandler:
         self.embedding_provider = os.getenv("EMBEDDING_PROVIDER", embedding_provider)
         self.embedding_model = os.getenv("EMBEDDING_MODEL", embedding_model)
 
+        # Dual vector storage configuration: 'vector' (OpenAI default, 1536-dim)
+        # and 'vector_fastembed' (FastEmbed, 384-dim — BAAI/bge-small-en-v1.5).
+        # EmbeddingService writes/reads the fastembed column for coarse search;
+        # dropping it here makes every add_embedding/similarity_search call with
+        # vector_column="vector_fastembed" raise ValueError (dual-vector dead).
         self.vector_columns = {
             "vector": 1536,  # OpenAI (default) - text-embedding-3-small
+            "vector_fastembed": 384,  # FastEmbed - BAAI/bge-small-en-v1.5
         }
 
         self.db = None
@@ -314,7 +320,7 @@ class LanceDBHandler:
 
         except Exception as e:
             logger.error(f"LanceDB connection test failed: {e}")
-            return {"status": "error", "message": str(e), "connected": False}
+            return {"status": "error", "message": "LanceDB connection test failed", "connected": False}
 
     def create_table(
         self,
@@ -346,7 +352,15 @@ class LanceDBHandler:
                 if self.embedding_provider == "openai" or not vector_size:
                     vector_size = 1536
 
-                # Create PyArrow schema
+                # Knowledge-graph tables need the edge columns IN ADDITION to
+                # the standard document columns (query_knowledge_graph reads
+                # text/source; add_knowledge_edge writes from_id/to_id/type).
+                # The old `elif table_name == "knowledge_graph"` branch was
+                # unreachable dead code (schema is None always entered the
+                # first branch), so KG tables were created with the document
+                # schema and every edge insert failed on schema mismatch.
+                is_knowledge_graph = table_name == "knowledge_graph"
+
                 fields = [
                     pa.field("id", pa.string()),
                     pa.field("user_id", pa.string()),
@@ -358,24 +372,19 @@ class LanceDBHandler:
                     pa.field("vector", pa.list_(pa.float32(), vector_size)),
                 ]
 
-                schema = pa.schema(fields)
+                if is_knowledge_graph:
+                    fields.extend(
+                        [
+                            pa.field("from_id", pa.string()),
+                            pa.field("to_id", pa.string()),
+                            pa.field("type", pa.string()),
+                        ]
+                    )
 
-            elif table_name == "knowledge_graph":
-                # Knowledge Graph Relationship Table
-                if self.embedding_provider == "openai" or not vector_size:
-                    vector_size = 1536
-
-                fields = [
-                    pa.field("id", pa.string()),
-                    pa.field("user_id", pa.string()),
-                    pa.field("workspace_id", pa.string()),
-                    pa.field("from_id", pa.string()),
-                    pa.field("to_id", pa.string()),
-                    pa.field("type", pa.string()),
-                    pa.field("metadata", pa.string()),
-                    pa.field("created_at", pa.string()),
-                    pa.field("vector", pa.list_(pa.float32(), vector_size)),
-                ]
+                if dual_vector:
+                    fields.append(
+                        pa.field("vector_fastembed", pa.list_(pa.float32(), 384))
+                    )
 
                 schema = pa.schema(fields)
 
@@ -536,11 +545,14 @@ class LanceDBHandler:
             if metadata is None:
                 metadata = {}
 
-            # Create record
+            # Create record (includes the standard columns so the record is
+            # schema-complete for the knowledge_graph table)
             record = {
                 "id": edge_id,
                 "user_id": user_id,
                 "workspace_id": self.workspace_id,
+                "text": description,
+                "source": "knowledge_graph",
                 "from_id": from_id,
                 "to_id": to_id,
                 "type": rel_type,
@@ -1229,8 +1241,15 @@ class LanceDBHandler:
             if table is None:
                 return None
 
-            # Query by ID
-            results = table.search().where(f"id == '{episode_id}'").limit(1).to_pandas()
+            # Query by ID (escape single quotes to prevent filter injection,
+            # matching get_document_by_id)
+            safe_episode_id = str(episode_id).replace("'", "''")
+            results = (
+                table.search()
+                .where(f"id == '{safe_episode_id}'")
+                .limit(1)
+                .to_pandas()
+            )
 
             if results.empty:
                 return None

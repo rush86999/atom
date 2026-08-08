@@ -208,7 +208,7 @@ class TestTelegramInlineSearch:
         """Test inline query handling with LanceDB"""
         # Mock LanceDB handler
         mock_lancedb = Mock()
-        mock_lancedb.semantic_search = AsyncMock(return_value=[
+        mock_lancedb.search = AsyncMock(return_value=[
             {
                 'id': 'comm_1',
                 'subject': 'Test Result 1',
@@ -231,9 +231,9 @@ class TestTelegramInlineSearch:
         })
 
         # Verify LanceDB search was called
-        mock_lancedb.semantic_search.assert_called_once_with(
+        mock_lancedb.search.assert_called_once_with(
             table_name="communications",
-            query_text="test search",
+            query="test search",
             limit=10
         )
 

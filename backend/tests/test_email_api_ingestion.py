@@ -4,10 +4,23 @@ Tests the Gmail and Outlook API integration for polling and message fetching.
 """
 
 import asyncio
+import sys
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 import pytest_asyncio
+
+# Scoped stub for core.knowledge_ingestion: importing the pipeline drags in
+# core.knowledge_ingestion -> enhanced_ai_workflow_endpoints -> service_factory
+# -> atom_meta_agent -> the whole application (network-bound imports and slow
+# provider initialization at import time). The pipeline only calls
+# get_knowledge_ingestion() inside _store_in_memory (never exercised by these
+# tests — the memory manager is mocked), so a stub is safe. The original
+# module is restored immediately after the import to avoid pollution.
+_orig_knowledge_ingestion = sys.modules.get("core.knowledge_ingestion")
+_mock_knowledge_ingestion = MagicMock()
+_mock_knowledge_ingestion.get_knowledge_ingestion = MagicMock(return_value=None)
+sys.modules["core.knowledge_ingestion"] = _mock_knowledge_ingestion
 
 from integrations.atom_communication_ingestion_pipeline import (
     CommunicationAppType,
@@ -15,6 +28,11 @@ from integrations.atom_communication_ingestion_pipeline import (
     IngestionConfig,
     LanceDBMemoryManager,
 )
+
+if _orig_knowledge_ingestion is not None:
+    sys.modules["core.knowledge_ingestion"] = _orig_knowledge_ingestion
+else:
+    sys.modules.pop("core.knowledge_ingestion", None)
 
 
 @pytest.fixture
@@ -337,11 +355,19 @@ class TestOutlookAPIIntegration:
                 mock_client = AsyncMock()
                 mock_client_class.return_value.__aenter__.return_value = mock_client
 
-                # Rate limit response
+                # Rate limit responses. NOTE: the pipeline's 429 branch sleeps
+                # Retry-After and retries WITHOUT incrementing fetch_count, so
+                # a mock that always returns 429 loops forever — the sequence
+                # must eventually return a non-429 response to terminate.
                 rate_limit_response = Mock(status_code=429)
-                rate_limit_response.headers = {"Retry-After": "30"}
+                rate_limit_response.headers = {"Retry-After": "0"}
 
-                mock_client.get = AsyncMock(return_value=rate_limit_response)
+                ok_response = Mock(status_code=200)
+                ok_response.json = Mock(return_value={"value": []})
+
+                mock_client.get = AsyncMock(
+                    side_effect=[rate_limit_response, rate_limit_response, ok_response]
+                )
 
                 messages = await ingestion_pipeline._fetch_outlook_messages(None)
 
@@ -384,16 +410,25 @@ class TestEmailErrorHandling:
     @pytest.mark.asyncio(mode="auto")
     async def test_gmail_service_import_error(self, ingestion_pipeline):
         """Test graceful handling when Gmail service is not available"""
-        with patch('integrations.atom_communication_ingestion_pipeline.INTEGRATIONS', {}, clear=True):
-            # Force ImportError by hiding the module
-            import sys
-            gmail_module = sys.modules.get('integrations.gmail_service')
-            if 'integrations.gmail_service' in sys.modules:
-                del sys.modules['integrations.gmail_service']
+        # Force ImportError by replacing integrations.gmail_service with a stub
+        # module that does NOT expose GmailService. Restore afterwards so the
+        # real module survives for co-collected suites.
+        import types
+        import sys
 
+        real_gmail_module = sys.modules.get('integrations.gmail_service')
+        stub_gmail_module = types.ModuleType('integrations.gmail_service')
+        sys.modules['integrations.gmail_service'] = stub_gmail_module
+
+        try:
             messages = await ingestion_pipeline._fetch_gmail_messages(None)
 
             assert messages == []
+        finally:
+            if real_gmail_module is not None:
+                sys.modules['integrations.gmail_service'] = real_gmail_module
+            else:
+                sys.modules.pop('integrations.gmail_service', None)
 
     @pytest.mark.asyncio(mode="auto")
     async def test_outlook_handles_api_error(self, ingestion_pipeline):

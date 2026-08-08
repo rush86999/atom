@@ -28,7 +28,7 @@ async def get_platform_settings(context: Dict[str, Any] = None) -> Dict[str, Any
             return {s.setting_key: s.setting_value for s in settings}
     except Exception as e:
         logger.error(f"Error fetching platform settings: {e}")
-        return {"error": f"Failed to fetch settings: {str(e)}"}
+        return {"error": "Failed to fetch settings"}
 
 async def update_platform_setting(key: str, value: str, context: Dict[str, Any] = None) -> str:
     """Updates or creates a platform-wide setting."""
@@ -54,7 +54,7 @@ async def update_platform_setting(key: str, value: str, context: Dict[str, Any] 
             return f"Setting '{key}' successfully updated to '{value}'."
     except Exception as e:
         logger.error(f"Error updating platform setting: {e}")
-        return f"Error: Failed to update setting: {str(e)}"
+        return "Error: Failed to update setting"
 
 async def update_tenant_profile(
     name: Optional[str] = None,
@@ -115,7 +115,7 @@ async def update_tenant_profile(
             return f"Tenant profile updated successfully. Fields modified: {', '.join(updates)}."
     except Exception as e:
         logger.error(f"Error updating tenant profile: {e}")
-        return f"Error: Failed to update tenant profile: {str(e)}"
+        return "Error: Failed to update tenant profile"
 
 async def set_byok_api_key(
     provider: str,
@@ -125,21 +125,30 @@ async def set_byok_api_key(
     """Sets or updates a Bring-Your-Own-Key (BYOK) API key for a provider."""
     from core.database import SessionLocal
     from core.byok_endpoints import BYOKManager
-    
+
     tenant_id = context.get("workspace_id") if context else None
     if not tenant_id:
         return "Error: Could not resolve tenant/workspace ID from context."
-        
+
     db = SessionLocal()
     try:
-        manager = BYOKManager(db)
-        await manager.set_api_key(tenant_id, provider, api_key)
+        manager = BYOKManager()
+        manager.store_api_key(
+            provider_id=provider,
+            api_key=api_key,
+            key_name="default",
+            environment="production",
+        )
         db.commit()
         return f"Successfully set API key for {provider} in tenant {tenant_id}."
+    except ValueError as e:
+        db.rollback()
+        logger.warning(f"Invalid BYOK provider or key: {e}")
+        return "Error setting BYOK API key: invalid provider or key"
     except Exception as e:
         db.rollback()
         logger.error(f"Error setting BYOK API key: {e}")
-        return f"Error setting BYOK API key: {str(e)}"
+        return "Error setting BYOK API key"
     finally:
         db.close()
 
@@ -175,7 +184,7 @@ async def list_tenant_members(context: Dict[str, Any] = None) -> str:
         return "\n".join(result)
     except Exception as e:
         logger.error(f"Error listing tenant members: {e}")
-        return f"Error listing tenant members: {str(e)}"
+        return "Error listing tenant members"
     finally:
         db.close()
 
@@ -214,7 +223,7 @@ async def manage_tenant_member(
     except Exception as e:
         db.rollback()
         logger.error(f"Error managing tenant member: {e}")
-        return f"Error managing tenant member: {str(e)}"
+        return "Error managing tenant member"
     finally:
         db.close()
 
@@ -276,7 +285,7 @@ async def manage_workspace(
     except Exception as e:
         db.rollback()
         logger.error(f"Error managing workspace: {e}")
-        return f"Error managing workspace: {str(e)}"
+        return "Error managing workspace"
     finally:
         db.close()
 
@@ -343,7 +352,7 @@ async def manage_team(
     except Exception as e:
         db.rollback()
         logger.error(f"Error managing team: {e}")
-        return f"Error managing team: {str(e)}"
+        return "Error managing team"
     finally:
         db.close()
 
@@ -365,7 +374,7 @@ async def create_tenant(
             return f"Tenant '{name}' created successfully with ID {tenant.id}."
     except Exception as e:
         logger.error(f"Error creating tenant: {e}")
-        return f"Error creating tenant: {str(e)}"
+        return "Error creating tenant"
 
 
 async def update_tenant(
@@ -388,7 +397,7 @@ async def update_tenant(
             return f"Tenant {tenant_id} updated successfully."
     except Exception as e:
         logger.error(f"Error updating tenant: {e}")
-        return f"Error updating tenant: {str(e)}"
+        return "Error updating tenant"
 
 
 async def delete_tenant(
@@ -409,7 +418,7 @@ async def delete_tenant(
             return f"Tenant {tenant_id} deleted successfully."
     except Exception as e:
         logger.error(f"Error deleting tenant: {e}")
-        return f"Error deleting tenant: {str(e)}"
+        return "Error deleting tenant"
 
 
 async def create_workspace(
@@ -429,7 +438,7 @@ async def create_workspace(
             return f"Workspace '{name}' created successfully with ID {workspace.id}."
     except Exception as e:
         logger.error(f"Error creating workspace: {e}")
-        return f"Error creating workspace: {str(e)}"
+        return "Error creating workspace"
 
 
 async def update_workspace(
@@ -452,7 +461,7 @@ async def update_workspace(
             return f"Workspace {workspace_id} updated successfully."
     except Exception as e:
         logger.error(f"Error updating workspace: {e}")
-        return f"Error updating workspace: {str(e)}"
+        return "Error updating workspace"
 
 
 async def delete_workspace(
@@ -473,7 +482,7 @@ async def delete_workspace(
             return f"Workspace {workspace_id} deleted successfully."
     except Exception as e:
         logger.error(f"Error deleting workspace: {e}")
-        return f"Error deleting workspace: {str(e)}"
+        return "Error deleting workspace"
 
 
 async def add_member_to_workspace(
@@ -511,7 +520,7 @@ async def create_team(
             return f"Team '{name}' created successfully with ID {team.id}."
     except Exception as e:
         logger.error(f"Error creating team: {e}")
-        return f"Error creating team: {str(e)}"
+        return "Error creating team"
 
 
 async def update_team(
@@ -534,7 +543,7 @@ async def update_team(
             return f"Team {team_id} updated successfully."
     except Exception as e:
         logger.error(f"Error updating team: {e}")
-        return f"Error updating team: {str(e)}"
+        return "Error updating team"
 
 
 async def delete_team(
@@ -555,7 +564,7 @@ async def delete_team(
             return f"Team {team_id} deleted successfully."
     except Exception as e:
         logger.error(f"Error deleting team: {e}")
-        return f"Error deleting team: {str(e)}"
+        return "Error deleting team"
 
 
 async def add_member_to_team(

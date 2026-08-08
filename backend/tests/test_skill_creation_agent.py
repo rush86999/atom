@@ -224,7 +224,7 @@ class TestGenerateSkillCode:
         """_generate_skill_code uses LLM to generate code."""
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
-        mock_llm.generate_response = AsyncMock(return_value="import httpx\n\nasync def execute():\n    pass")
+        mock_llm.generate = AsyncMock(return_value="import httpx\n\nasync def execute():\n    pass")
         agent = SkillCreationAgent(db=mock_db, llm_service=mock_llm)
 
         analysis = {
@@ -244,7 +244,7 @@ class TestGenerateSkillCode:
         """_generate_skill_code returns fallback code on LLM errors."""
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
-        mock_llm.generate_response = AsyncMock(side_effect=Exception("LLM error"))
+        mock_llm.generate = AsyncMock(side_effect=Exception("LLM error"))
         agent = SkillCreationAgent(db=mock_db, llm_service=mock_llm)
 
         analysis = {
@@ -353,7 +353,7 @@ class TestGenerateComponentCode:
         """_generate_component_code uses LLM to generate component."""
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
-        mock_llm.generate_response = AsyncMock(return_value="export const Component = () => <div />")
+        mock_llm.generate = AsyncMock(return_value="export const Component = () => <div />")
         agent = SkillCreationAgent(db=mock_db, llm_service=mock_llm)
 
         mock_skill = Mock()
@@ -372,7 +372,7 @@ class TestGenerateComponentCode:
         """_generate_component_code returns fallback template on errors."""
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
-        mock_llm.generate_response = AsyncMock(side_effect=Exception("LLM error"))
+        mock_llm.generate = AsyncMock(side_effect=Exception("LLM error"))
         agent = SkillCreationAgent(db=mock_db, llm_service=mock_llm)
 
         mock_skill = Mock()
@@ -396,7 +396,7 @@ class TestCreateSkillFromAPIDocumentation:
         """create_skill_from_api_documentation creates Skill record."""
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
-        mock_llm.generate_response = AsyncMock(return_value="async def execute(): pass")
+        mock_llm.generate = AsyncMock(return_value="async def execute(): pass")
         agent = SkillCreationAgent(db=mock_db, llm_service=mock_llm)
 
         # Mock HTTP client
@@ -457,7 +457,7 @@ class TestCreateCanvasComponentForSkill:
         """create_canvas_component_for_skill creates CanvasComponent."""
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
-        mock_llm.generate_response = AsyncMock(return_value="export const Component = () => <div />")
+        mock_llm.generate = AsyncMock(return_value="export const Component = () => <div />")
         agent = SkillCreationAgent(db=mock_db, llm_service=mock_llm)
 
         mock_skill = Mock()

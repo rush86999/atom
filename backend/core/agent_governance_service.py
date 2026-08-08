@@ -489,7 +489,13 @@ class AgentGovernanceService:
         if not agent:
             return {"allowed": False, "reason": "Agent not found", "requires_human_approval": True}
 
-        if agent.status in [AgentStatus.PAUSED.value, AgentStatus.STOPPED.value]:
+        # Normalize case once: stored status may be written by API clients in
+        # non-lowercase form (e.g. "AUTONOMOUS"), which would otherwise break
+        # the paused/stopped deny-check, the maturity tier lookup, and the
+        # SUPERVISED approval rule below (case-sensitive comparisons).
+        stored_status = agent.status.lower() if isinstance(agent.status, str) else agent.status
+
+        if stored_status in [AgentStatus.PAUSED.value, AgentStatus.STOPPED.value]:
             return {"allowed": False, "reason": f"Agent is {agent.status}", "requires_human_approval": True}
 
         # Find complexity (Level 1-4). Exact matches take priority over substring
@@ -507,7 +513,7 @@ class AgentGovernanceService:
         required_status = self.MATURITY_REQUIREMENTS.get(complexity, AgentStatus.SUPERVISED)
 
         maturity_order = [s.value for s in [AgentStatus.STUDENT, AgentStatus.INTERN, AgentStatus.SUPERVISED, AgentStatus.AUTONOMOUS]]
-        agent_idx = maturity_order.index(agent.status) if agent.status in maturity_order else 0
+        agent_idx = maturity_order.index(stored_status) if stored_status in maturity_order else 0
         req_idx = maturity_order.index(required_status.value)
 
         allowed = agent_idx >= req_idx
@@ -528,7 +534,7 @@ class AgentGovernanceService:
             allowed = True
             required_status = AgentStatus.STUDENT  # cosmetic: report the relaxed bar
 
-        approval_needed = not allowed or (agent.status == AgentStatus.SUPERVISED.value and complexity >= 3) or require_approval
+        approval_needed = not allowed or (stored_status == AgentStatus.SUPERVISED.value and complexity >= 3) or require_approval
 
         # Budget Check (requires tenant_id - skip if not available). When called
         # from already-running async code, run_until_complete would raise

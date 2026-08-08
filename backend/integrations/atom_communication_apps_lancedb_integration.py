@@ -7,8 +7,9 @@ from datetime import datetime, timedelta
 import json
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
+from core.auth import get_current_user
 from integrations.atom_communication_ingestion_pipeline import (
     CommunicationAppType,
     IngestionConfig,
@@ -22,7 +23,10 @@ class CommunicationAppIngestionIntegration:
     """Integration layer for all communication apps with LanceDB ingestion"""
     
     def __init__(self):
-        self.router = APIRouter(prefix="/api/memory/ingestion", tags=["Communication Memory"])
+        self.router = APIRouter(
+            prefix="/api/memory/ingestion", tags=["Communication Memory"],
+            dependencies=[Depends(get_current_user)],
+        )
         self.setup_routes()
         self._initialize_default_configs()
     
@@ -330,7 +334,7 @@ class CommunicationAppIngestionIntegration:
                     memory_manager.initialize()
                 
                 # Ingest message
-                success = ingestion_pipeline.ingest_message(app_id, message_data)
+                success = await ingestion_pipeline.ingest_message(app_id, message_data)
                 
                 if success:
                     return {
@@ -362,7 +366,7 @@ class CommunicationAppIngestionIntegration:
                 # Ingest batch
                 success_count = 0
                 for message in messages:
-                    if ingestion_pipeline.ingest_message(app_id, message):
+                    if await ingestion_pipeline.ingest_message(app_id, message):
                         success_count += 1
                 
                 return {
@@ -436,35 +440,6 @@ class CommunicationAppIngestionIntegration:
                 logger.error(f"Error searching memory: {str(e)}")
                 raise HTTPException(status_code=500, detail="Internal error")
         
-        @self.router.get("/communications/{app_id}")
-        async def get_app_communications(app_id: str, limit: int = 100):
-            """Get communications by app type"""
-            try:
-                # Validate app_id
-                CommunicationAppType(app_id)
-                
-                # Initialize memory manager if needed
-                if not memory_manager.db:
-                    memory_manager.initialize()
-                
-                # Get communications
-                results = memory_manager.get_communications_by_app(app_id, limit)
-                
-                return {
-                    "success": True,
-                    "app_id": app_id,
-                    "limit": limit,
-                    "total_results": len(results),
-                    "communications": results,
-                    "timestamp": datetime.now().isoformat()
-                }
-                
-            except ValueError:
-                raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
-            except Exception as e:
-                logger.error(f"Error getting communications: {str(e)}")
-                raise HTTPException(status_code=500, detail="Internal error")
-        
         @self.router.get("/communications/timeline")
         async def get_communications_timeline(
             start_date: str,
@@ -502,6 +477,35 @@ class CommunicationAppIngestionIntegration:
                 raise HTTPException(status_code=400, detail="Internal error")
             except Exception as e:
                 logger.error(f"Error getting timeline: {str(e)}")
+                raise HTTPException(status_code=500, detail="Internal error")
+        
+        @self.router.get("/communications/{app_id}")
+        async def get_app_communications(app_id: str, limit: int = 100):
+            """Get communications by app type"""
+            try:
+                # Validate app_id
+                CommunicationAppType(app_id)
+                
+                # Initialize memory manager if needed
+                if not memory_manager.db:
+                    memory_manager.initialize()
+                
+                # Get communications
+                results = memory_manager.get_communications_by_app(app_id, limit)
+                
+                return {
+                    "success": True,
+                    "app_id": app_id,
+                    "limit": limit,
+                    "total_results": len(results),
+                    "communications": results,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+            except ValueError:
+                raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
+            except Exception as e:
+                logger.error(f"Error getting communications: {str(e)}")
                 raise HTTPException(status_code=500, detail="Internal error")
         
         @self.router.get("/memory/stats")

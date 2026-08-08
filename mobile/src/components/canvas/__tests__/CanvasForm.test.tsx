@@ -6,37 +6,48 @@
  */
 
 import React from 'react';
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act, screen } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import { CanvasForm } from '../CanvasForm';
 import { FormField, FormData } from '../../types/canvas';
 
 // Mock dependencies
-jest.mock('react-native-paper', () => ({
-  useTheme: () => ({
-    colors: {
-      primary: '#2196F3',
-      error: '#f44336',
-      background: '#fff',
-      surface: '#fff',
-      onSurface: '#000',
-      onSurfaceVariant: '#666',
-      outline: '#e0e0e0',
-      errorContainer: '#FFEBEE',
-    },
-  }),
-  Checkbox: {
-    Item: ({ label, onPress, status }: any) => {
-      const React = require('react');
-      const { TouchableOpacity, Text } = require('react-native');
-      return (
+jest.mock('react-native-paper', () => {
+  const React = require('react');
+  const { TouchableOpacity, Text } = require('react-native');
+  return {
+    useTheme: () => ({
+      colors: {
+        primary: '#2196F3',
+        error: '#f44336',
+        background: '#fff',
+        surface: '#fff',
+        onSurface: '#000',
+        onSurfaceVariant: '#666',
+        outline: '#e0e0e0',
+        errorContainer: '#FFEBEE',
+        primaryContainer: '#E3F2FD',
+        onPrimaryContainer: '#1565C0',
+        secondary: '#FF9800',
+        onPrimary: '#fff',
+        onSecondary: '#fff',
+      },
+    }),
+    Checkbox: {
+      Item: ({ label, onPress, status }: any) => (
         <TouchableOpacity onPress={onPress}>
           <Text>{label}</Text>
         </TouchableOpacity>
-      );
+      ),
     },
-  },
-  Switch: 'Switch',
-}));
+    // Functional Switch so toggles can be flipped via onValueChange
+    Switch: ({ value, onValueChange, testID }: any) => (
+      <TouchableOpacity testID={testID} onPress={() => onValueChange?.(!value)}>
+        <Text>{value ? 'ON' : 'OFF'}</Text>
+      </TouchableOpacity>
+    ),
+  };
+});
 
 jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: {
@@ -61,6 +72,7 @@ jest.mock('@react-native-community/datetimepicker', () => ({
 }), { virtual: true });
 
 jest.mock('expo-image-picker', () => ({
+  MediaTypeOptions: { All: 'All', Images: 'Images', Videos: 'Videos' },
   requestCameraPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
   requestMediaLibraryPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
   launchCameraAsync: jest.fn(() => Promise.resolve({ canceled: true, assets: [] })),
@@ -658,6 +670,494 @@ describe('CanvasForm Component', () => {
       fireEvent.changeText(nameInput, '<>&"\'\\n\\t');
 
       expect(nameInput.props.value).toBe('<>&"\'\\n\\t');
+    });
+  });
+
+  describe('Field Validation Branches', () => {
+    test('should validate the numeric minimum', async () => {
+      const { getByPlaceholderText, getByText } = render(
+        <CanvasForm data={mockFormData} />
+      );
+
+      const ageInput = getByPlaceholderText(/Enter age/i);
+      fireEvent.changeText(ageInput, '15');
+
+      fireEvent.press(getByText('Submit'));
+
+      await waitFor(() => {
+        expect(getByText(/must be at least 18/i)).toBeTruthy();
+      });
+    });
+
+    test('should validate string minimum length', async () => {
+      const form: FormData = {
+        id: 'str-min',
+        title: 'String Min',
+        fields: [
+          {
+            name: 'code',
+            type: 'text',
+            label: 'Code',
+            validation: { min: 5 },
+          },
+        ],
+      };
+
+      const { getByPlaceholderText, getByText } = render(<CanvasForm data={form} />);
+
+      const input = getByPlaceholderText('Code');
+      fireEvent.changeText(input, 'abc');
+      fireEvent.press(getByText('Submit'));
+
+      await waitFor(() => {
+        expect(getByText(/must be at least 5 characters/i)).toBeTruthy();
+      });
+    });
+
+    test('should validate string maximum length', async () => {
+      const form: FormData = {
+        id: 'str-max',
+        title: 'String Max',
+        fields: [
+          {
+            name: 'code',
+            type: 'text',
+            label: 'Code',
+            validation: { max: 3 },
+          },
+        ],
+      };
+
+      const { getByPlaceholderText, getByText } = render(<CanvasForm data={form} />);
+
+      const input = getByPlaceholderText('Code');
+      fireEvent.changeText(input, 'abcd');
+      fireEvent.press(getByText('Submit'));
+
+      await waitFor(() => {
+        expect(getByText(/must be at most 3 characters/i)).toBeTruthy();
+      });
+    });
+
+    test('should use the default message when pattern has no message', async () => {
+      const form: FormData = {
+        id: 'pattern',
+        title: 'Pattern Form',
+        fields: [
+          {
+            name: 'zip',
+            type: 'text',
+            label: 'Zip',
+            validation: { pattern: '^\\d{5}$' },
+          },
+        ],
+      };
+
+      const { getByPlaceholderText, getByText } = render(<CanvasForm data={form} />);
+
+      const input = getByPlaceholderText('Zip');
+      fireEvent.changeText(input, '12ab');
+      fireEvent.press(getByText('Submit'));
+
+      await waitFor(() => {
+        expect(getByText(/Zip format is invalid/i)).toBeTruthy();
+      });
+    });
+
+    test('should validate on blur', async () => {
+      const { getByPlaceholderText } = render(<CanvasForm data={mockFormData} />);
+
+      const emailInput = getByPlaceholderText('Enter email');
+      fireEvent.changeText(emailInput, 'not-an-email');
+      fireEvent(emailInput, 'blur');
+
+      await waitFor(() => {
+        expect(screen.getByText('Invalid email format')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Select Fields', () => {
+    const selectForm: FormData = {
+      id: 'select',
+      title: 'Select Form',
+      fields: [
+        {
+          name: 'plan',
+          type: 'select',
+          label: 'Plan',
+          options: ['Basic', 'Pro', 'Enterprise'],
+        },
+      ],
+    };
+
+    test('should render and select an option', async () => {
+      const onChange = jest.fn();
+      const { getByText } = render(
+        <CanvasForm data={selectForm} onChange={onChange} />
+      );
+
+      expect(getByText('Basic')).toBeTruthy();
+      expect(getByText('Pro')).toBeTruthy();
+      expect(getByText('Enterprise')).toBeTruthy();
+
+      fireEvent.press(getByText('Enterprise'));
+
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      await waitFor(() => {
+        expect(onChange).toHaveBeenCalledWith(
+          expect.objectContaining({ plan: 'Enterprise' })
+        );
+      });
+    });
+
+    test('should render nothing for a select without options', async () => {
+      const form: FormData = {
+        id: 'no-options',
+        title: 'No Options',
+        fields: [
+          { name: 'empty', type: 'select', label: 'Empty Select' },
+        ],
+      };
+
+      const { getByText, queryByText } = render(<CanvasForm data={form} />);
+
+      expect(getByText('Empty Select')).toBeTruthy();
+      expect(queryByText('Submit')).toBeTruthy();
+    });
+  });
+
+  describe('Time Picker', () => {
+    test('should open the time picker and update the value', async () => {
+      const onChange = jest.fn();
+      const form: FormData = {
+        id: 'time',
+        title: 'Time Form',
+        fields: [
+          { name: 'meeting', type: 'time', label: 'Meeting Time' },
+        ],
+      };
+
+      const { getByText } = render(<CanvasForm data={form} onChange={onChange} />);
+
+      fireEvent.press(getByText('Select Meeting Time'));
+
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      await waitFor(() => {
+        expect(onChange).toHaveBeenCalled();
+        expect(onChange.mock.calls[0][0].meeting).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      });
+    });
+  });
+
+  describe('Toggle Fields', () => {
+    test('should flip the toggle value', async () => {
+      const onChange = jest.fn();
+      const form: FormData = {
+        id: 'toggle',
+        title: 'Toggle Form',
+        fields: [
+          { name: 'notify', type: 'toggle', label: 'Notifications' },
+        ],
+      };
+
+      const { getByText } = render(<CanvasForm data={form} onChange={onChange} />);
+
+      // Switch mock renders OFF initially
+      expect(getByText('OFF')).toBeTruthy();
+
+      fireEvent.press(getByText('OFF'));
+
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      await waitFor(() => {
+        expect(onChange).toHaveBeenCalledWith(
+          expect.objectContaining({ notify: true })
+        );
+      });
+      expect(getByText('ON')).toBeTruthy();
+    });
+  });
+
+  describe('Multi-Select Fields', () => {
+    const multiForm: FormData = {
+      id: 'multi',
+      title: 'Multi Form',
+      fields: [
+        {
+          name: 'tags',
+          type: 'multiselect',
+          label: 'Tags',
+          options: ['alpha', 'beta', 'gamma'],
+        },
+      ],
+    };
+
+    test('should toggle options in the selected set', async () => {
+      const onChange = jest.fn();
+      const { getByText } = render(<CanvasForm data={multiForm} onChange={onChange} />);
+
+      fireEvent.press(getByText('alpha'));
+      fireEvent.press(getByText('beta'));
+      fireEvent.press(getByText('alpha'));
+
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      await waitFor(() => {
+        expect(onChange).toHaveBeenCalledWith(
+          expect.objectContaining({ tags: ['beta'] })
+        );
+      });
+    });
+
+    test('should render nothing for a multiselect without options', async () => {
+      const form: FormData = {
+        id: 'multi-empty',
+        title: 'Multi Empty',
+        fields: [
+          { name: 'tags', type: 'multiselect', label: 'Tags' },
+        ],
+      };
+
+      const { getByText } = render(<CanvasForm data={form} />);
+
+      expect(getByText('Tags')).toBeTruthy();
+    });
+  });
+
+  describe('File Upload', () => {
+    const fileForm: FormData = {
+      id: 'file',
+      title: 'File Form',
+      fields: [
+        { name: 'doc', type: 'file', label: 'Document' },
+      ],
+    };
+
+    test('should show the preview after choosing a file', async () => {
+      const ImagePicker = require('expo-image-picker');
+      (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'file:///tmp/doc.pdf' }],
+      });
+
+      const { getByText, getByPlaceholderText } = render(<CanvasForm data={fileForm} />);
+
+      fireEvent.press(getByText('Choose File'));
+
+      await waitFor(() => {
+        expect(getByText('File selected')).toBeTruthy();
+      });
+      expect(getByText('Remove')).toBeTruthy();
+    });
+
+    test('should do nothing when the picker is cancelled', async () => {
+      const { getByText, queryByText } = render(<CanvasForm data={fileForm} />);
+
+      fireEvent.press(getByText('Choose File'));
+
+      await waitFor(() => {
+        expect(queryByText('File selected')).toBeNull();
+        expect(getByText('Choose File')).toBeTruthy();
+      });
+    });
+
+    test('should log an error when the picker throws', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const ImagePicker = require('expo-image-picker');
+      (ImagePicker.launchImageLibraryAsync as jest.Mock).mockRejectedValueOnce(new Error('no access'));
+
+      const { getByText } = render(<CanvasForm data={fileForm} />);
+
+      fireEvent.press(getByText('Choose File'));
+
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalled();
+      });
+      errorSpy.mockRestore();
+    });
+
+    test('should show the preview after taking a photo', async () => {
+      const ImagePicker = require('expo-image-picker');
+      (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'file:///tmp/photo.jpg' }],
+      });
+
+      const { getByText } = render(<CanvasForm data={fileForm} />);
+
+      fireEvent.press(getByText('Take Photo'));
+
+      await waitFor(() => {
+        expect(getByText('File selected')).toBeTruthy();
+      });
+    });
+
+    test('should log an error when the camera throws', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const ImagePicker = require('expo-image-picker');
+      (ImagePicker.launchCameraAsync as jest.Mock).mockRejectedValueOnce(new Error('camera broken'));
+
+      const { getByText } = render(<CanvasForm data={fileForm} />);
+
+      fireEvent.press(getByText('Take Photo'));
+
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalled();
+      });
+      errorSpy.mockRestore();
+    });
+
+    test('should remove the selected file', async () => {
+      const ImagePicker = require('expo-image-picker');
+      (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'file:///tmp/doc.pdf' }],
+      });
+
+      const { getByText, queryByText } = render(<CanvasForm data={fileForm} />);
+
+      fireEvent.press(getByText('Choose File'));
+      await waitFor(() => {
+        expect(getByText('File selected')).toBeTruthy();
+      });
+
+      fireEvent.press(getByText('Remove'));
+
+      await waitFor(() => {
+        expect(queryByText('File selected')).toBeNull();
+        expect(getByText('Choose File')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Submission Flow', () => {
+    test('should alert when the submit handler throws', async () => {
+      const onSubmit = jest.fn(() => Promise.reject(new Error('boom')));
+      const initialValues = {
+        name: 'John Doe',
+        email: 'john@example.com',
+        age: 25,
+      };
+
+      const { getByText } = render(
+        <CanvasForm data={mockFormData} initialValues={initialValues} onSubmit={onSubmit} />
+      );
+
+      fireEvent.press(getByText('Submit'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Submit Error',
+          'Failed to submit form. Please try again.'
+        );
+      });
+    });
+
+    test('should show a validation alert for invalid forms', async () => {
+      const onSubmit = jest.fn();
+      const { getByText } = render(
+        <CanvasForm data={mockFormData} onSubmit={onSubmit} />
+      );
+
+      fireEvent.press(getByText('Submit'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Validation Error',
+          'Please fix the errors before submitting'
+        );
+      });
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    test('should show progress percentage for required fields', async () => {
+      const { getByText } = render(<CanvasForm data={mockFormData} />);
+
+      expect(getByText('0%')).toBeTruthy();
+
+      const nameInput = screen.getByPlaceholderText('Enter your name');
+      const emailInput = screen.getByPlaceholderText('Enter email');
+      const ageInput = screen.getByPlaceholderText(/Enter age/i);
+      fireEvent.changeText(nameInput, 'John');
+      fireEvent.changeText(emailInput, 'john@example.com');
+      fireEvent.changeText(ageInput, '30');
+
+      await waitFor(() => {
+        expect(getByText('100%')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Custom Buttons', () => {
+    test('should render a custom submit label', async () => {
+      const form: FormData = {
+        id: 'custom',
+        title: 'Custom Form',
+        submit_button_text: 'Save Changes',
+        fields: [],
+      };
+
+      const { getByText } = render(<CanvasForm data={form} />);
+
+      expect(getByText('Save Changes')).toBeTruthy();
+    });
+
+    test('should render and press the cancel button', async () => {
+      const haptics = require('expo-haptics');
+      const form: FormData = {
+        id: 'cancel',
+        title: 'Cancel Form',
+        cancel_button_text: 'Never Mind',
+        fields: [],
+      };
+
+      const { getByText } = render(<CanvasForm data={form} />);
+
+      fireEvent.press(getByText('Never Mind'));
+
+      expect(haptics.impactAsync).toHaveBeenCalled();
+    });
+  });
+
+  describe('Draft Saving Indicator', () => {
+    test('should show and hide the saving indicator', async () => {
+      jest.useFakeTimers();
+      const onChange = jest.fn();
+      const { getByPlaceholderText, getByText, queryByText } = render(
+        <CanvasForm data={mockFormData} onChange={onChange} autoSaveDelay={1000} />
+      );
+
+      const nameInput = getByPlaceholderText('Enter your name');
+      fireEvent.changeText(nameInput, 'John');
+
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      await waitFor(() => {
+        expect(getByText('Saving draft...')).toBeTruthy();
+      });
+
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
+
+      await waitFor(() => {
+        expect(queryByText('Saving draft...')).toBeNull();
+      });
+
+      jest.useRealTimers();
     });
   });
 

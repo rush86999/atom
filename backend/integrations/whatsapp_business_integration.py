@@ -20,7 +20,16 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
-from flask import Blueprint, current_app, jsonify, request
+try:
+    from flask import Blueprint, current_app, jsonify, request
+    FLASK_AVAILABLE = True
+except ImportError:
+    # FastAPI runtime — Flask is optional. Route decorators degrade to no-ops.
+    FLASK_AVAILABLE = False
+    Blueprint = None
+    current_app = None
+    jsonify = None
+    request = None
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import requests
@@ -30,8 +39,21 @@ from core.connection_service import connection_service
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Create Flask blueprint
-whatsapp_bp = Blueprint("whatsapp", __name__, url_prefix="/api/whatsapp")
+# Create Flask blueprint (degraded to None when Flask is unavailable)
+if FLASK_AVAILABLE:
+    whatsapp_bp = Blueprint("whatsapp", __name__, url_prefix="/api/whatsapp")
+else:
+    whatsapp_bp = None
+
+
+def _noop_route(*args, **kwargs):
+    """Decorator that leaves the handler untouched when Flask is unavailable."""
+    def deco(fn):
+        return fn
+    return deco
+
+
+_bp_route = whatsapp_bp.route if whatsapp_bp else _noop_route
 
 
 class WhatsAppBusinessIntegration(IntegrationService):
@@ -435,7 +457,8 @@ class WhatsAppBusinessIntegration(IntegrationService):
 
         except Exception as e:
             logger.error(f"Error creating template: {str(e)}")
-            self.db_connection.rollback()
+            if self.db_connection:
+                self.db_connection.rollback()
             return {"success": False, "error": str(e)}
 
     def get_analytics(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
@@ -569,14 +592,15 @@ class WhatsAppBusinessIntegration(IntegrationService):
 
         except Exception as e:
             logger.error(f"Error storing message: {str(e)}")
-            self.db_connection.rollback()
+            if self.db_connection:
+                self.db_connection.rollback()
 
 
 # Initialize WhatsApp integration
 whatsapp_integration = WhatsAppBusinessIntegration()
 
 
-@whatsapp_bp.route("/health", methods=["GET"])
+@_bp_route("/health", methods=["GET"])
 def health_check():
     """Health check endpoint"""
     try:
@@ -596,7 +620,7 @@ def health_check():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
-@whatsapp_bp.route("/send", methods=["POST"])
+@_bp_route("/send", methods=["POST"])
 async def send_message_route():
     """Send a WhatsApp message"""
     try:
@@ -626,7 +650,7 @@ async def send_message_route():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@whatsapp_bp.route("/conversations", methods=["GET"])
+@_bp_route("/conversations", methods=["GET"])
 def get_conversations():
     """Get WhatsApp conversations"""
     try:
@@ -648,7 +672,7 @@ def get_conversations():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@whatsapp_bp.route("/messages/<whatsapp_id>", methods=["GET"])
+@_bp_route("/messages/<whatsapp_id>", methods=["GET"])
 def get_messages(whatsapp_id):
     """Get messages for a specific WhatsApp contact"""
     try:
@@ -663,7 +687,7 @@ def get_messages(whatsapp_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@whatsapp_bp.route("/templates", methods=["POST"])
+@_bp_route("/templates", methods=["POST"])
 def create_template():
     """Create a message template"""
     try:
@@ -695,7 +719,7 @@ def create_template():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@whatsapp_bp.route("/analytics", methods=["GET"])
+@_bp_route("/analytics", methods=["GET"])
 def get_analytics():
     """Get WhatsApp analytics"""
     try:
@@ -730,7 +754,7 @@ def get_analytics():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@whatsapp_bp.route("/webhook", methods=["GET", "POST"])
+@_bp_route("/webhook", methods=["GET", "POST"])
 def webhook():
     """Handle WhatsApp webhook events"""
     try:
@@ -832,8 +856,11 @@ def initialize_whatsapp_integration(app, config: Dict[str, Any]):
     try:
         success = whatsapp_integration.initialize(config)
         if success:
-            app.register_blueprint(whatsapp_bp)
-            logger.info("WhatsApp Business Integration registered successfully")
+            if whatsapp_bp is not None:
+                app.register_blueprint(whatsapp_bp)
+                logger.info("WhatsApp Business Integration registered successfully")
+            else:
+                logger.warning("Flask unavailable - WhatsApp blueprint not registered")
         else:
             logger.error("Failed to initialize WhatsApp Business Integration")
 
@@ -841,9 +868,13 @@ def initialize_whatsapp_integration(app, config: Dict[str, Any]):
         logger.error(f"Error registering WhatsApp integration: {str(e)}")
 
 
+# Alias for the class name referenced by core.integration_registry
+WhatsAppBusinessService = WhatsAppBusinessIntegration
+
 # Export the integration class and initialization function
 __all__ = [
     "WhatsAppBusinessIntegration",
+    "WhatsAppBusinessService",
     "initialize_whatsapp_integration",
     "whatsapp_bp",
 ]

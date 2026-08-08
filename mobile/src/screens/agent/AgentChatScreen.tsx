@@ -62,9 +62,16 @@ export function AgentChatScreen() {
 
   /**
    * Load chat session if provided
+   *
+   * Only the session id handed in through the route is auto-loaded. The
+   * session id set after a successful send is already reflected in `messages`
+   * — reloading it from the server would overwrite the visible conversation
+   * (and race server-side persistence), wiping messages the user just sent.
    */
+  const routeSessionIdRef = useRef(initialSessionId ?? null);
+
   useEffect(() => {
-    if (currentSessionId) {
+    if (currentSessionId && currentSessionId === routeSessionIdRef.current) {
       loadSession(currentSessionId);
     }
   }, [currentSessionId]);
@@ -358,7 +365,7 @@ export function AgentChatScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.goBack()} testID="back-button">
           <Icon source="arrow-left" size={24} color="#000" />
         </TouchableOpacity>
 
@@ -392,7 +399,7 @@ export function AgentChatScreen() {
           <View style={styles.episodeHeader}>
             <Icon source="brain" size={16} color={MD3Colors.primary50} />
             <Text style={styles.episodeHeaderTitle}>Relevant Context</Text>
-            <TouchableOpacity onPress={() => setShowEpisodes(false)}>
+            <TouchableOpacity onPress={() => setShowEpisodes(false)} testID="episode-close-button">
               <Icon source="close" size={16} color="#000" />
             </TouchableOpacity>
           </View>
@@ -445,6 +452,7 @@ export function AgentChatScreen() {
           style={[styles.sendButton, (!inputMessage.trim() || isSending) && styles.sendButtonDisabled]}
           onPress={sendMessage}
           disabled={!inputMessage.trim() || isSending}
+          testID="send-message-button"
         >
           {isSending ? (
             <ActivityIndicator size="small" color="#fff" />

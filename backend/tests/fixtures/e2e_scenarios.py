@@ -23,11 +23,78 @@ from typing import Dict, Any, List, Optional
 
 from sqlalchemy.orm import Session
 
-from core.models import FinancialAccount, FinancialAudit, User
+from core.models import FinancialAccount, FinancialAudit, Tenant, User
 from core.decimal_utils import to_decimal, round_money
 
 # Type alias for Session to support older Python versions
 DatabaseSession = Session
+
+
+def _create_tenant(db_session) -> Tenant:
+    """Create a tenant (required FK for FinancialAccount)."""
+    tenant = Tenant(
+        name=f"E2E-{uuid.uuid4()}",
+        subdomain=f"e2e-{uuid.uuid4()}.example.com",
+        edition="personal",
+    )
+    db_session.add(tenant)
+    db_session.flush()
+    return tenant
+
+
+def _make_audit_kwargs(action: str, account_id: str, user_id: str,
+                       seq: int, prev_hash: str, old_values=None, new_values=None,
+                       **metadata) -> Dict[str, Any]:
+    """Build FinancialAudit kwargs from the current model columns.
+
+    Governance/request context that has no dedicated column on the model
+    (agent_id, success, governance_check_passed, ...) is folded into
+    audit_metadata, matching core/financial_audit_service.py.
+    """
+    entry_hash = hashlib.sha256(f"{action}{account_id}{seq}".encode()).hexdigest()
+    return {
+        'id': str(uuid.uuid4()),
+        'timestamp': datetime.utcnow(),
+        'user_id': user_id,
+        'account_id': account_id,
+        'operation_type': action,
+        'table_name': 'FinancialAccount',
+        'record_id': account_id,
+        'old_values': old_values,
+        'new_values': new_values,
+        'agent_maturity': 'AUTONOMOUS',
+        'sequence_number': seq,
+        'hash_chain': entry_hash,
+        'previous_hash': prev_hash,
+        'audit_metadata': {
+            'agent_id': 'test-agent',
+            'agent_execution_id': None,
+            'success': True,
+            'error_message': None,
+            'governance_check_passed': True,
+            'required_approval': False,
+            'approval_granted': None,
+            'request_id': str(uuid.uuid4()),
+            'ip_address': '127.0.0.1',
+            'user_agent': 'E2E Test Scenario',
+            **metadata,
+        },
+    }
+
+
+def _make_account_kwargs(tenant_id: str, name: str, balance: float, currency: str,
+                         account_type: str) -> Dict[str, Any]:
+    """Build FinancialAccount kwargs from the current model columns."""
+    return {
+        'id': str(uuid.uuid4()),
+        'name': name,
+        'balance': balance,
+        'currency': currency,
+        'account_type': account_type,
+        'tenant_id': tenant_id,
+        'created_at': datetime.utcnow(),
+        'updated_at': datetime.utcnow(),
+    }
 
 
 # ==================== PAYMENT SCENARIO FACTORY ====================
@@ -66,17 +133,17 @@ class PaymentScenarioFactory:
         db_session.add(user)
         db_session.flush()
 
+        tenant = _create_tenant(db_session)
+
         # Create financial account
         account = FinancialAccount(
-            id=str(uuid.uuid4()),
-            user_id=user.id,
-            name="Payment Test Account",
-            balance=float(amount),
-            currency=currency,
-            account_type="checking",
-            provider="Test Bank",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            **_make_account_kwargs(
+                tenant_id=tenant.id,
+                name="Payment Test Account",
+                balance=float(amount),
+                currency=currency,
+                account_type="checking",
+            )
         )
         db_session.add(account)
         db_session.flush()
@@ -115,56 +182,30 @@ class PaymentScenarioFactory:
 
         # Account creation audit
         account_audit = FinancialAudit(
-            id=str(uuid.uuid4()),
-            timestamp=datetime.utcnow(),
-            user_id=user.id,
-            agent_id='test-agent',
-            agent_execution_id=None,
-            account_id=account.id,
-            action_type='create',
-            changes={},
-            old_values=None,
-            new_values={'balance': float(amount), 'currency': currency},
-            success=True,
-            error_message=None,
-            agent_maturity='AUTONOMOUS',
-            governance_check_passed=True,
-            required_approval=False,
-            approval_granted=None,
-            request_id=str(uuid.uuid4()),
-            ip_address='127.0.0.1',
-            user_agent='E2E Test Scenario',
-            sequence_number=1,
-            entry_hash=hashlib.sha256(f"create{account.id}1".encode()).hexdigest(),
-            prev_hash=''
+            **_make_audit_kwargs(
+                action='create',
+                account_id=account.id,
+                user_id=user.id,
+                seq=1,
+                prev_hash='',
+                old_values=None,
+                new_values={'balance': float(amount), 'currency': currency},
+            )
         )
         db_session.add(account_audit)
         audit_entries.append(account_audit)
 
         # Payment transaction audit
         payment_audit = FinancialAudit(
-            id=str(uuid.uuid4()),
-            timestamp=datetime.utcnow(),
-            user_id=user.id,
-            agent_id='test-agent',
-            agent_execution_id=None,
-            account_id=account.id,
-            action_type='update',
-            changes={'balance': {'old': float(amount), 'new': float(amount)}},
-            old_values={'balance': float(amount)},
-            new_values={'transaction_id': transaction_id, 'amount': float(amount)},
-            success=True,
-            error_message=None,
-            agent_maturity='AUTONOMOUS',
-            governance_check_passed=True,
-            required_approval=False,
-            approval_granted=None,
-            request_id=str(uuid.uuid4()),
-            ip_address='127.0.0.1',
-            user_agent='E2E Test Scenario',
-            sequence_number=2,
-            entry_hash=hashlib.sha256(f"update{account.id}2".encode()).hexdigest(),
-            prev_hash=account_audit.entry_hash
+            **_make_audit_kwargs(
+                action='update',
+                account_id=account.id,
+                user_id=user.id,
+                seq=2,
+                prev_hash=account_audit.hash_chain,
+                old_values={'balance': float(amount)},
+                new_values={'transaction_id': transaction_id, 'amount': float(amount)},
+            )
         )
         db_session.add(payment_audit)
         audit_entries.append(payment_audit)
@@ -217,20 +258,20 @@ class BudgetScenarioFactory:
         db_session.add(user)
         db_session.flush()
 
+        tenant = _create_tenant(db_session)
+
         # Create project account (simulating project model)
         project_id = str(uuid.uuid4())
 
         # Create budget account
         account = FinancialAccount(
-            id=str(uuid.uuid4()),
-            user_id=user.id,
-            name=f"Budget Test Account {project_id[:8]}",
-            balance=float(budget_amount),
-            currency="USD",
-            account_type="checking",
-            provider="Budget Provider",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            **_make_account_kwargs(
+                tenant_id=tenant.id,
+                name=f"Budget Test Account {project_id[:8]}",
+                balance=float(budget_amount),
+                currency="USD",
+                account_type="checking",
+            )
         )
         db_session.add(account)
         db_session.flush()
@@ -262,28 +303,15 @@ class BudgetScenarioFactory:
 
         # Budget setup audit
         budget_audit = FinancialAudit(
-            id=str(uuid.uuid4()),
-            timestamp=datetime.utcnow(),
-            user_id=user.id,
-            agent_id='test-agent',
-            agent_execution_id=None,
-            account_id=account.id,
-            action_type='create',
-            changes={},
-            old_values=None,
-            new_values={'balance': float(budget_amount)},
-            success=True,
-            error_message=None,
-            agent_maturity='AUTONOMOUS',
-            governance_check_passed=True,
-            required_approval=False,
-            approval_granted=None,
-            request_id=str(uuid.uuid4()),
-            ip_address='127.0.0.1',
-            user_agent='E2E Test Scenario',
-            sequence_number=1,
-            entry_hash=hashlib.sha256(f"create{account.id}1".encode()).hexdigest(),
-            prev_hash=''
+            **_make_audit_kwargs(
+                action='create',
+                account_id=account.id,
+                user_id=user.id,
+                seq=1,
+                prev_hash='',
+                old_values=None,
+                new_values={'balance': float(budget_amount)},
+            )
         )
         db_session.add(budget_audit)
         audit_entries.append(budget_audit)
@@ -291,56 +319,35 @@ class BudgetScenarioFactory:
         if is_approved and transaction:
             # Spend approval audit
             spend_audit = FinancialAudit(
-                id=str(uuid.uuid4()),
-                timestamp=datetime.utcnow(),
-                user_id=user.id,
-                agent_id='test-agent',
-                agent_execution_id=None,
-                account_id=account.id,
-                action_type='update',
-                changes={'balance': {'old': float(budget_amount), 'new': new_balance}},
-                old_values={'balance': float(budget_amount)},
-                new_values={'balance': new_balance, 'transaction_id': transaction['id']},
-                success=True,
-                error_message=None,
-                agent_maturity='AUTONOMOUS',
-                governance_check_passed=True,
-                required_approval=False,
-                approval_granted=None,
-                request_id=str(uuid.uuid4()),
-                ip_address='127.0.0.1',
-                user_agent='E2E Test Scenario',
-                sequence_number=2,
-                entry_hash=hashlib.sha256(f"update{account.id}2".encode()).hexdigest(),
-                prev_hash=budget_audit.entry_hash
+                **_make_audit_kwargs(
+                    action='update',
+                    account_id=account.id,
+                    user_id=user.id,
+                    seq=2,
+                    prev_hash=budget_audit.hash_chain,
+                    old_values={'balance': float(budget_amount)},
+                    new_values={'balance': new_balance, 'transaction_id': transaction['id']},
+                )
             )
             db_session.add(spend_audit)
             audit_entries.append(spend_audit)
         else:
             # Spend denial audit
             denial_audit = FinancialAudit(
-                id=str(uuid.uuid4()),
-                timestamp=datetime.utcnow(),
-                user_id=user.id,
-                agent_id='test-agent',
-                agent_execution_id=None,
-                account_id=account.id,
-                action_type='create',
-                changes={},
-                old_values=None,
-                new_values={'spend_denied': True, 'requested_amount': float(spend_amount)},
-                success=False,
-                error_message='Budget limit exceeded',
-                agent_maturity='AUTONOMOUS',
-                governance_check_passed=False,
-                required_approval=True,
-                approval_granted=False,
-                request_id=str(uuid.uuid4()),
-                ip_address='127.0.0.1',
-                user_agent='E2E Test Scenario',
-                sequence_number=2,
-                entry_hash=hashlib.sha256(f"create{account.id}2".encode()).hexdigest(),
-                prev_hash=budget_audit.entry_hash
+                **_make_audit_kwargs(
+                    action='create',
+                    account_id=account.id,
+                    user_id=user.id,
+                    seq=2,
+                    prev_hash=budget_audit.hash_chain,
+                    old_values=None,
+                    new_values={'spend_denied': True, 'requested_amount': float(spend_amount)},
+                    success=False,
+                    error_message='Budget limit exceeded',
+                    governance_check_passed=False,
+                    required_approval=True,
+                    approval_granted=False,
+                )
             )
             db_session.add(denial_audit)
             audit_entries.append(denial_audit)
@@ -396,18 +403,18 @@ class SubscriptionScenarioFactory:
         db_session.add(user)
         db_session.flush()
 
+        tenant = _create_tenant(db_session)
+
         # Create subscription account
         subscription_id = str(uuid.uuid4())
         account = FinancialAccount(
-            id=str(uuid.uuid4()),
-            user_id=user.id,
-            name=f"Test Subscription {subscription_id[:8]}",
-            balance=float(monthly_cost * num_months),
-            currency="USD",
-            account_type="credit_card",
-            provider="Subscription Provider",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            **_make_account_kwargs(
+                tenant_id=tenant.id,
+                name=f"Test Subscription {subscription_id[:8]}",
+                balance=float(monthly_cost * num_months),
+                currency="USD",
+                account_type="credit_card",
+            )
         )
         db_session.add(account)
         db_session.flush()
@@ -433,56 +440,30 @@ class SubscriptionScenarioFactory:
 
             # Create invoice audit entry
             invoice_audit = FinancialAudit(
-                id=str(uuid.uuid4()),
-                timestamp=datetime.utcnow() - timedelta(days=30 * (num_months - month)),
-                user_id=user.id,
-                agent_id='test-agent',
-                agent_execution_id=None,
-                account_id=account.id,
-                action_type='create',
-                changes={},
-                old_values=None,
-                new_values={'invoice_id': invoice_id, 'amount': float(monthly_cost), 'month': month + 1},
-                success=True,
-                error_message=None,
-                agent_maturity='AUTONOMOUS',
-                governance_check_passed=True,
-                required_approval=False,
-                approval_granted=None,
-                request_id=str(uuid.uuid4()),
-                ip_address='127.0.0.1',
-                user_agent='E2E Test Scenario',
-                sequence_number=month + 1,
-                entry_hash=hashlib.sha256(f"create{account.id}{month + 1}".encode()).hexdigest(),
-                prev_hash=audit_entries[-1].entry_hash if audit_entries else ''
+                **_make_audit_kwargs(
+                    action='create',
+                    account_id=account.id,
+                    user_id=user.id,
+                    seq=month + 1,
+                    prev_hash=audit_entries[-1].hash_chain if audit_entries else '',
+                    old_values=None,
+                    new_values={'invoice_id': invoice_id, 'amount': float(monthly_cost), 'month': month + 1},
+                )
             )
             db_session.add(invoice_audit)
             audit_entries.append(invoice_audit)
 
         # Cancel subscription audit
         cancel_audit = FinancialAudit(
-            id=str(uuid.uuid4()),
-            timestamp=datetime.utcnow(),
-            user_id=user.id,
-            agent_id='test-agent',
-            agent_execution_id=None,
-            account_id=account.id,
-            action_type='update',
-            changes={'status': {'old': 'active', 'new': 'cancelled'}},
-            old_values={'status': 'active'},
-            new_values={'status': 'cancelled', 'cancelled_at': datetime.utcnow().isoformat()},
-            success=True,
-            error_message=None,
-            agent_maturity='AUTONOMOUS',
-            governance_check_passed=True,
-            required_approval=False,
-            approval_granted=None,
-            request_id=str(uuid.uuid4()),
-            ip_address='127.0.0.1',
-            user_agent='E2E Test Scenario',
-            sequence_number=num_months + 1,
-            entry_hash=hashlib.sha256(f"update{account.id}{num_months + 1}".encode()).hexdigest(),
-            prev_hash=audit_entries[-1].entry_hash if audit_entries else ''
+            **_make_audit_kwargs(
+                action='update',
+                account_id=account.id,
+                user_id=user.id,
+                seq=num_months + 1,
+                prev_hash=audit_entries[-1].hash_chain if audit_entries else '',
+                old_values={'status': 'active'},
+                new_values={'status': 'cancelled', 'cancelled_at': datetime.utcnow().isoformat()},
+            )
         )
         db_session.add(cancel_audit)
         audit_entries.append(cancel_audit)
@@ -542,17 +523,17 @@ class ReconciliationScenarioFactory:
         db_session.add(user)
         db_session.flush()
 
+        tenant = _create_tenant(db_session)
+
         # Create account
         account = FinancialAccount(
-            id=str(uuid.uuid4()),
-            user_id=user.id,
-            name="Reconciliation Test Account",
-            balance=float(initial_balance),
-            currency="USD",
-            account_type="checking",
-            provider="Test Bank",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            **_make_account_kwargs(
+                tenant_id=tenant.id,
+                name="Reconciliation Test Account",
+                balance=float(initial_balance),
+                currency="USD",
+                account_type="checking",
+            )
         )
         db_session.add(account)
         db_session.flush()
@@ -564,28 +545,15 @@ class ReconciliationScenarioFactory:
 
         # Create initial balance audit
         initial_audit = FinancialAudit(
-            id=str(uuid.uuid4()),
-            timestamp=datetime.utcnow(),
-            user_id=user.id,
-            agent_id='test-agent',
-            agent_execution_id=None,
-            account_id=account.id,
-            action_type='create',
-            changes={},
-            old_values=None,
-            new_values={'balance': float(initial_balance)},
-            success=True,
-            error_message=None,
-            agent_maturity='AUTONOMOUS',
-            governance_check_passed=True,
-            required_approval=False,
-            approval_granted=None,
-            request_id=str(uuid.uuid4()),
-            ip_address='127.0.0.1',
-            user_agent='E2E Test Scenario',
-            sequence_number=1,
-            entry_hash=hashlib.sha256(f"create{account.id}1".encode()).hexdigest(),
-            prev_hash=''
+            **_make_audit_kwargs(
+                action='create',
+                account_id=account.id,
+                user_id=user.id,
+                seq=1,
+                prev_hash='',
+                old_values=None,
+                new_values={'balance': float(initial_balance)},
+            )
         )
         db_session.add(initial_audit)
         audit_entries.append(initial_audit)
@@ -606,28 +574,15 @@ class ReconciliationScenarioFactory:
 
             # Create audit entry for operation
             op_audit = FinancialAudit(
-                id=str(uuid.uuid4()),
-                timestamp=datetime.utcnow(),
-                user_id=user.id,
-                agent_id='test-agent',
-                agent_execution_id=None,
-                account_id=account.id,
-                action_type='update',
-                changes={'transaction_id': transaction_id, 'type': op['type']},
-                old_values=None,
-                new_values={'amount': float(amount), 'type': op['type']},
-                success=True,
-                error_message=None,
-                agent_maturity='AUTONOMOUS',
-                governance_check_passed=True,
-                required_approval=False,
-                approval_granted=None,
-                request_id=str(uuid.uuid4()),
-                ip_address='127.0.0.1',
-                user_agent='E2E Test Scenario',
-                sequence_number=seq_num,
-                entry_hash=hashlib.sha256(f"update{account.id}{seq_num}".encode()).hexdigest(),
-                prev_hash=audit_entries[-1].entry_hash if audit_entries else ''
+                **_make_audit_kwargs(
+                    action='update',
+                    account_id=account.id,
+                    user_id=user.id,
+                    seq=seq_num,
+                    prev_hash=audit_entries[-1].hash_chain if audit_entries else '',
+                    old_values=None,
+                    new_values={'amount': float(amount), 'type': op['type']},
+                )
             )
             db_session.add(op_audit)
             audit_entries.append(op_audit)
@@ -681,18 +636,18 @@ class ComplexMultiModelScenarioFactory:
         db_session.add(user)
         db_session.flush()
 
+        tenant = _create_tenant(db_session)
+
         # Create project account
         project_id = str(uuid.uuid4())
         project_account = FinancialAccount(
-            id=str(uuid.uuid4()),
-            user_id=user.id,
-            name=f"Complex Test Project {project_id[:8]}",
-            balance=10000.00,
-            currency="USD",
-            account_type="checking",
-            provider="Project Bank",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            **_make_account_kwargs(
+                tenant_id=tenant.id,
+                name=f"Complex Test Project {project_id[:8]}",
+                balance=10000.00,
+                currency="USD",
+                account_type="checking",
+            )
         )
         db_session.add(project_account)
         db_session.flush()
@@ -700,15 +655,13 @@ class ComplexMultiModelScenarioFactory:
         # Create subscription account
         subscription_id = str(uuid.uuid4())
         subscription_account = FinancialAccount(
-            id=str(uuid.uuid4()),
-            user_id=user.id,
-            name="Project Tool Subscription",
-            balance=299.00,
-            currency="USD",
-            account_type="credit_card",
-            provider="Subscription Provider",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            **_make_account_kwargs(
+                tenant_id=tenant.id,
+                name="Project Tool Subscription",
+                balance=299.00,
+                currency="USD",
+                account_type="credit_card",
+            )
         )
         db_session.add(subscription_account)
         db_session.flush()
@@ -731,84 +684,45 @@ class ComplexMultiModelScenarioFactory:
 
         # Project account creation audit
         project_audit = FinancialAudit(
-            id=str(uuid.uuid4()),
-            timestamp=datetime.utcnow(),
-            user_id=user.id,
-            agent_id='test-agent',
-            agent_execution_id=None,
-            account_id=project_account.id,
-            action_type='create',
-            changes={},
-            old_values=None,
-            new_values={'balance': 10000.00, 'project_id': project_id},
-            success=True,
-            error_message=None,
-            agent_maturity='AUTONOMOUS',
-            governance_check_passed=True,
-            required_approval=False,
-            approval_granted=None,
-            request_id=str(uuid.uuid4()),
-            ip_address='127.0.0.1',
-            user_agent='E2E Test Scenario',
-            sequence_number=1,
-            entry_hash=hashlib.sha256(f"create{project_account.id}1".encode()).hexdigest(),
-            prev_hash=''
+            **_make_audit_kwargs(
+                action='create',
+                account_id=project_account.id,
+                user_id=user.id,
+                seq=1,
+                prev_hash='',
+                old_values=None,
+                new_values={'balance': 10000.00, 'project_id': project_id},
+            )
         )
         db_session.add(project_audit)
         audit_entries.append(project_audit)
 
         # Subscription account creation audit
         subscription_audit = FinancialAudit(
-            id=str(uuid.uuid4()),
-            timestamp=datetime.utcnow(),
-            user_id=user.id,
-            agent_id='test-agent',
-            agent_execution_id=None,
-            account_id=subscription_account.id,
-            action_type='create',
-            changes={},
-            old_values=None,
-            new_values={'balance': 299.00, 'subscription_id': subscription_id},
-            success=True,
-            error_message=None,
-            agent_maturity='AUTONOMOUS',
-            governance_check_passed=True,
-            required_approval=False,
-            approval_granted=None,
-            request_id=str(uuid.uuid4()),
-            ip_address='127.0.0.1',
-            user_agent='E2E Test Scenario',
-            sequence_number=1,
-            entry_hash=hashlib.sha256(f"create{subscription_account.id}1".encode()).hexdigest(),
-            prev_hash=''
+            **_make_audit_kwargs(
+                action='create',
+                account_id=subscription_account.id,
+                user_id=user.id,
+                seq=1,
+                prev_hash='',
+                old_values=None,
+                new_values={'balance': 299.00, 'subscription_id': subscription_id},
+            )
         )
         db_session.add(subscription_audit)
         audit_entries.append(subscription_audit)
 
         # Invoice payment audit (linked to project)
         invoice_audit = FinancialAudit(
-            id=str(uuid.uuid4()),
-            timestamp=datetime.utcnow(),
-            user_id=user.id,
-            agent_id='test-agent',
-            agent_execution_id=None,
-            account_id=project_account.id,
-            action_type='update',
-            changes={'balance': {'old': 10000.00, 'new': 9701.00}},
-            old_values={'balance': 10000.00},
-            new_values={'balance': 9701.00, 'invoice_id': invoice_id, 'subscription_id': subscription_id},
-            success=True,
-            error_message=None,
-            agent_maturity='AUTONOMOUS',
-            governance_check_passed=True,
-            required_approval=False,
-            approval_granted=None,
-            request_id=str(uuid.uuid4()),
-            ip_address='127.0.0.1',
-            user_agent='E2E Test Scenario',
-            sequence_number=2,
-            entry_hash=hashlib.sha256(f"update{project_account.id}2".encode()).hexdigest(),
-            prev_hash=project_audit.entry_hash
+            **_make_audit_kwargs(
+                action='update',
+                account_id=project_account.id,
+                user_id=user.id,
+                seq=2,
+                prev_hash=project_audit.hash_chain,
+                old_values={'balance': 10000.00},
+                new_values={'balance': 9701.00, 'invoice_id': invoice_id, 'subscription_id': subscription_id},
+            )
         )
         db_session.add(invoice_audit)
         audit_entries.append(invoice_audit)

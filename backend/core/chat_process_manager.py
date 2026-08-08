@@ -35,25 +35,39 @@ class ChatProcessManager:
         user_id: str,
         name: str,
         steps: List[Dict[str, Any]],
-        initial_context: Optional[Dict[str, Any]] = None
+        initial_context: Optional[Dict[str, Any]] = None,
+        tenant_id: Optional[str] = None
     ) -> str:
         """Initialize a new chat process"""
         process_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc)
 
         async with get_async_db_session() as db:
+            # tenant_id is NOT NULL; deriving it from the user's tenant avoids
+            # IntegrityError on every create (nothing else populates it).
+            if not tenant_id:
+                from core.models import User
+                user = (
+                    await db.execute(select(User).where(User.id == user_id))
+                ).scalar_one_or_none()
+                tenant_id = user.tenant_id if user else "default"
             process = ChatProcess(
                 id=process_id,
+                tenant_id=tenant_id,
                 user_id=user_id,
                 name=name,
                 current_step=0,
                 total_steps=len(steps),
-                steps=steps,
-                context=initial_context or {},
-                inputs={},
-                outputs={},
+                # ChatProcess stores JSON payloads in Text columns — binding
+                # lists/dicts directly raised ProgrammingError on SQLite and
+                # PostgreSQL ("type 'list' is not supported"). Serialize to
+                # JSON; the read path already json.loads() them.
+                steps=json.dumps(steps),
+                context=json.dumps(initial_context or {}),
+                inputs=json.dumps({}),
+                outputs=json.dumps({}),
                 status="active",
-                missing_parameters=[],
+                missing_parameters=json.dumps([]),
                 created_at=now,
                 updated_at=now
             )
@@ -142,10 +156,10 @@ class ChatProcessManager:
 
             # Update process
             process.current_step = next_step
-            process.inputs = current_inputs
-            process.outputs = current_outputs
+            process.inputs = json.dumps(current_inputs)
+            process.outputs = json.dumps(current_outputs)
             process.status = new_status
-            process.missing_parameters = missing_parameters or []
+            process.missing_parameters = json.dumps(missing_parameters or [])
             process.updated_at = datetime.now(timezone.utc)
 
             await db.commit()
@@ -185,8 +199,8 @@ class ChatProcessManager:
                     missing_params.remove(key)
 
             # Update process
-            process.inputs = current_inputs
-            process.missing_parameters = missing_params
+            process.inputs = json.dumps(current_inputs)
+            process.missing_parameters = json.dumps(missing_params)
             process.status = "active" if len(missing_params) == 0 else "paused"
             process.updated_at = datetime.now(timezone.utc)
 

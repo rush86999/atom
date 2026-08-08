@@ -43,6 +43,16 @@ type RouteParams = {
 
 const { width, height } = Dimensions.get('window');
 
+// Canvas types rendered as full-page HTML in a WebView rather than as native
+// component blocks (chart/sheet/terminal types render natively).
+const WEB_CANVAS_TYPES = [
+  CanvasType.GENERIC,
+  CanvasType.DOCS,
+  CanvasType.EMAIL,
+  CanvasType.ORCHESTRATION,
+  CanvasType.CODING,
+];
+
 interface CanvasMetadata {
   id: string;
   title: string;
@@ -67,6 +77,10 @@ export function CanvasViewerScreen() {
   const theme = useTheme();
 
   const { canvasId, canvasType, sessionId, agentId } = route.params;
+
+  // Web-oriented canvas types render through CanvasWebView (full-page HTML);
+  // the native component renderer handles chart/sheet/terminal canvases.
+  const isWebCanvas = canvasType ? WEB_CANVAS_TYPES.includes(canvasType) : false;
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -218,7 +232,12 @@ export function CanvasViewerScreen() {
     const unsubscribe = NetInfo.addEventListener(state => {
       setIsOnline(state.isConnected ?? true);
     });
-    return unsubscribe;
+    // addEventListener returns a subscription object ({ remove }), not a
+    // function — wrap it so React gets a proper cleanup and the listener is
+    // actually removed on unmount.
+    return () => {
+      unsubscribe?.remove?.();
+    };
   }, []);
 
   // Load canvas on mount
@@ -522,7 +541,17 @@ export function CanvasViewerScreen() {
 
       {/* Canvas content */}
       <ScrollView style={styles.canvasContent} showsVerticalScrollIndicator={true}>
-        {canvasData?.components && canvasData.components.length > 0 ? (
+        {isWebCanvas ? (
+          <CanvasWebView
+            ref={webViewRef}
+            canvasId={canvasId}
+            canvasType={canvasType}
+            initialData={canvasData}
+            onMessage={handleWebViewMessage}
+            onSubmit={handleFormSubmit}
+            onError={handleCanvasError}
+          />
+        ) : canvasData?.components && canvasData.components.length > 0 ? (
           canvasData.components.map((component: any, index: number) => (
             <View key={index} style={styles.componentWrapper}>
               {renderCanvasComponent(component)}

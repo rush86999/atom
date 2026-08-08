@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+from core.auth import get_current_user
 from core.mock_mode import get_mock_mode_manager
 try:
     from integrations.atom_hubspot_integration_service import AtomHubSpotIntegrationService
@@ -19,7 +20,11 @@ except ImportError:
     HAS_ADVANCED_SERVICE = False
 
 # Create router
-router = APIRouter(prefix="/api/hubspot", tags=["hubspot"])
+router = APIRouter(
+    prefix="/api/hubspot",
+    tags=["hubspot"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 # Pydantic Models

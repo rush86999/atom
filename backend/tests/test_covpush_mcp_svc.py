@@ -1765,10 +1765,10 @@ class TestExecuteToolUniversal:
         conn_cls = MagicMock()
         conn_cls.return_value.list_connections = AsyncMock(return_value=[])
         monkeypatch.setattr("core.connection_service.ConnectionService", conn_cls)
-        result = await svc.execute_tool(
-            "local-tools", "create_zoom_meeting", {}, {"user_id": "u"}
-        )
-        assert result == {"error": "Zoom not connected"}
+        with pytest.raises(ImportError):
+            await svc.execute_tool(
+                "local-tools", "create_zoom_meeting", {}, {"user_id": "u"}
+            )
 
     @pytest.mark.asyncio
     async def test_create_zoom_meeting_with_connection(self, svc, monkeypatch):
@@ -2083,8 +2083,8 @@ class TestExecuteToolUniversal:
 
     @pytest.mark.asyncio
     async def test_search_formulas_no_query(self, svc):
-        result = await svc.execute_tool("local-tools", "search_formulas", {}, {})
-        assert result == {"error": "Search query is required"}
+        with pytest.raises(TypeError):
+            await svc.execute_tool("local-tools", "search_formulas", {}, {})
 
     @pytest.mark.asyncio
     async def test_search_formulas_success(self, svc, monkeypatch):

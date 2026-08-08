@@ -17,14 +17,14 @@ import uuid
 import yaml
 
 # Import SlackEnhancedService for real API calls
+logger = logging.getLogger(__name__)
+
 try:
     from integrations.slack_enhanced_service import SlackEnhancedService
     SLACK_SERVICE_AVAILABLE = True
-except ImportError:
+except ImportError:  # pragma: no cover - module exists in this codebase
     SLACK_SERVICE_AVAILABLE = False
     logger.warning("SlackEnhancedService not available - workflow actions will use mock implementations")
-
-logger = logging.getLogger(__name__)
 
 class WorkflowTriggerType(Enum):
     """Workflow trigger types"""
@@ -217,6 +217,9 @@ class WorkflowTemplate:
                     description="Send welcome DM"
                 )
             ],
+            created_by="system",
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             category="onboarding",
             tags=["welcome", "onboarding", "automation"]
         )
@@ -284,6 +287,9 @@ class WorkflowTemplate:
                     description="Send summary message"
                 )
             ],
+            created_by="system",
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             category="reporting",
             tags=["summary", "daily", "analytics"]
         )
@@ -601,12 +607,19 @@ class WorkflowExecutionEngine:
             raise ValueError(f"No handler found for action type: {action.type}")
         
         return await handler(execution, action)
+
+    def _param_value(self, action: WorkflowAction, name: str, default: Any = None) -> Any:
+        """Read an action parameter value, tolerating missing parameters."""
+        param = action.parameters.get(name)
+        if param is None:
+            return default
+        return param.value
     
     # Action handlers
     async def _handle_send_message(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle send message action"""
-        channel = action.parameters.get('channel', {}).value
-        message = action.parameters.get('message', {}).value
+        channel = self._param_value(action, 'channel')
+        message = self._param_value(action, 'message')
         workspace_id = execution.trigger_data.get('workspace_id')
 
         # Try to use real Slack service
@@ -639,8 +652,8 @@ class WorkflowExecutionEngine:
 
     async def _handle_send_dm(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle send DM action"""
-        user_id = action.parameters.get('user_id', {}).value
-        message = action.parameters.get('message', {}).value
+        user_id = self._param_value(action, 'user_id')
+        message = self._param_value(action, 'message')
         workspace_id = execution.trigger_data.get('workspace_id')
 
         # Try to use real Slack service
@@ -673,9 +686,9 @@ class WorkflowExecutionEngine:
 
     async def _handle_create_channel(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle create channel action"""
-        channel_name = action.parameters.get('name', {}).value
-        is_private = action.parameters.get('private', {}).value or False
-        description = action.parameters.get('description', {}).value
+        channel_name = self._param_value(action, 'name')
+        is_private = self._param_value(action, 'private') or False
+        description = self._param_value(action, 'description')
         workspace_id = execution.trigger_data.get('workspace_id')
 
         # Try to use real Slack service
@@ -709,8 +722,8 @@ class WorkflowExecutionEngine:
 
     async def _handle_invite_user(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle invite user action"""
-        channel = action.parameters.get('channel', {}).value
-        user_ids = action.parameters.get('user_ids', {}).value
+        channel = self._param_value(action, 'channel')
+        user_ids = self._param_value(action, 'user_ids')
         workspace_id = execution.trigger_data.get('workspace_id')
 
         # Ensure user_ids is a list
@@ -746,9 +759,9 @@ class WorkflowExecutionEngine:
 
     async def _handle_add_reaction(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle add reaction action"""
-        channel = action.parameters.get('channel', {}).value
-        message_ts = action.parameters.get('message_ts', {}).value
-        emoji = action.parameters.get('emoji', {}).value
+        channel = self._param_value(action, 'channel')
+        message_ts = self._param_value(action, 'message_ts')
+        emoji = self._param_value(action, 'emoji')
         workspace_id = execution.trigger_data.get('workspace_id')
 
         # Try to use real Slack service
@@ -782,8 +795,8 @@ class WorkflowExecutionEngine:
 
     async def _handle_pin_message(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle pin message action"""
-        channel = action.parameters.get('channel', {}).value
-        message_ts = action.parameters.get('message_ts', {}).value
+        channel = self._param_value(action, 'channel')
+        message_ts = self._param_value(action, 'message_ts')
         workspace_id = execution.trigger_data.get('workspace_id')
 
         # Try to use real Slack service
@@ -814,9 +827,9 @@ class WorkflowExecutionEngine:
     
     async def _handle_create_task(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle create task action"""
-        title = action.parameters.get('title', {}).value
-        description = action.parameters.get('description', {}).value
-        assignee = action.parameters.get('assignee', {}).value
+        title = self._param_value(action, 'title')
+        description = self._param_value(action, 'description')
+        assignee = self._param_value(action, 'assignee')
         
         # Implementation would create task in task management system
         return {
@@ -830,8 +843,8 @@ class WorkflowExecutionEngine:
     
     async def _handle_update_status(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle update status action"""
-        status_text = action.parameters.get('status', {}).value
-        emoji = action.parameters.get('emoji', {}).value
+        status_text = self._param_value(action, 'status')
+        emoji = self._param_value(action, 'emoji')
         
         # Implementation would update user status
         return {
@@ -842,10 +855,10 @@ class WorkflowExecutionEngine:
     
     async def _handle_call_api(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle API call action"""
-        endpoint = action.parameters.get('endpoint', {}).value
-        method = action.parameters.get('method', {}).value or 'GET'
-        headers = action.parameters.get('headers', {}).value or {}
-        data = action.parameters.get('data', {}).value
+        endpoint = self._param_value(action, 'endpoint')
+        method = self._param_value(action, 'method') or 'GET'
+        headers = self._param_value(action, 'headers') or {}
+        data = self._param_value(action, 'data')
         
         # Implementation would make HTTP API call
         return {
@@ -858,9 +871,9 @@ class WorkflowExecutionEngine:
     
     async def _handle_send_email(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle send email action"""
-        to = action.parameters.get('to', {}).value
-        subject = action.parameters.get('subject', {}).value
-        body = action.parameters.get('body', {}).value
+        to = self._param_value(action, 'to')
+        subject = self._param_value(action, 'subject')
+        body = self._param_value(action, 'body')
         
         # Implementation would send email
         return {
@@ -872,8 +885,8 @@ class WorkflowExecutionEngine:
     
     async def _handle_execute_script(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle execute script action"""
-        script = action.parameters.get('script', {}).value
-        args = action.parameters.get('args', {}).value
+        script = self._param_value(action, 'script')
+        args = self._param_value(action, 'args')
         
         # Implementation would execute script
         return {
@@ -886,9 +899,9 @@ class WorkflowExecutionEngine:
     
     async def _handle_update_spreadsheet(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle update spreadsheet action"""
-        spreadsheet_id = action.parameters.get('spreadsheet_id', {}).value
-        range = action.parameters.get('range', {}).value
-        values = action.parameters.get('values', {}).value
+        spreadsheet_id = self._param_value(action, 'spreadsheet_id')
+        range = self._param_value(action, 'range')
+        values = self._param_value(action, 'values')
         
         # Implementation would update Google Sheet or similar
         return {
@@ -900,10 +913,10 @@ class WorkflowExecutionEngine:
     
     async def _handle_create_meeting(self, execution: WorkflowExecution, action: WorkflowAction) -> Dict[str, Any]:
         """Handle create meeting action"""
-        title = action.parameters.get('title', {}).value
-        attendees = action.parameters.get('attendees', {}).value
-        start_time = action.parameters.get('start_time', {}).value
-        duration = action.parameters.get('duration', {}).value
+        title = self._param_value(action, 'title')
+        attendees = self._param_value(action, 'attendees')
+        start_time = self._param_value(action, 'start_time')
+        duration = self._param_value(action, 'duration')
         
         # Implementation would create calendar meeting
         return {

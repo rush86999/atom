@@ -69,13 +69,11 @@ class AutoresearchAgent:
             """
 
             try:
-                # Standardize on unified LLMService.generate_response
-                content = await self.llm.generate_response(
-                    tenant_id=tenant_id,
-                    messages=[
-                        {"role": "system", "content": "You are a senior ML researcher. Output only valid Python code designed to improve the metric."},
-                        {"role": "user", "content": prompt}
-                    ]
+                # Standardize on unified LLMService.generate
+                content = await self.llm.generate(
+                    prompt=prompt,
+                    system_instruction="You are a senior ML researcher. Output only valid Python code designed to improve the metric.",
+                    tenant_id=tenant_id
                 )
                 
                 new_code = (content or "").strip()

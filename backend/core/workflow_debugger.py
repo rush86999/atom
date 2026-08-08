@@ -1196,7 +1196,7 @@ class WorkflowDebugger:
 
         Returns a stream ID that can be used with WebSocket connections.
         """
-        stream_id = f"trace_{execution_id}_{session_id}_{uuid.uuid4().hex[:8]}"
+        stream_id = f"trace_{session_id}_{execution_id}_{uuid.uuid4().hex[:8]}"
 
         logger.info(f"Created trace stream {stream_id} for execution {execution_id}")
         return stream_id

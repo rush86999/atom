@@ -343,43 +343,48 @@ class TestCreativeTool:
             tool = FFmpegTool()
         assert tool.service is None
 
-    def test_run_not_autonomous(self):
+    async def test_run_not_autonomous(self):
         tool = self._tool()
-        with pytest.raises(PermissionError):
-            tool._run("trim_video", "in.mp4", "out.mp4", maturity_level="STUDENT")
+        res = await tool._run("trim_video", "in.mp4", "out.mp4", maturity_level="STUDENT")
+        assert res["success"] is False
+        assert "AUTONOMOUS" in res["error"]
 
-    def test_run_no_maturity(self):
+    async def test_run_no_maturity(self):
         tool = self._tool()
-        with pytest.raises(PermissionError):
-            tool._run("trim_video", "in.mp4", "out.mp4")
+        res = await tool._run("trim_video", "in.mp4", "out.mp4")
+        assert res["success"] is False
 
-    def test_run_service_unavailable(self):
+    async def test_run_service_unavailable(self):
         with patch("tools.creative_tool.FFmpegService", side_effect=RuntimeError("x")):
             from tools.creative_tool import FFmpegTool
             tool = FFmpegTool()
-            with pytest.raises(RuntimeError):
-                tool._run("trim_video", "in.mp4", "out.mp4", maturity_level="AUTONOMOUS")
+            res = await tool._run("trim_video", "in.mp4", "out.mp4", maturity_level="AUTONOMOUS")
+        assert res["success"] is False
+        assert "service" in res["error"].lower()
 
-    def test_run_path_validation_failure(self):
+    async def test_run_path_validation_failure(self):
         tool = self._tool()
         self.service.validate_path.side_effect = ValueError("outside")
-        with pytest.raises(ValueError):
-            tool._run("trim_video", "in.mp4", "out.mp4", maturity_level="AUTONOMOUS")
+        res = await tool._run("trim_video", "in.mp4", "out.mp4", maturity_level="AUTONOMOUS")
+        assert res["success"] is False
+        assert "path" in res["error"].lower()
 
-    def test_run_unknown_action(self):
+    async def test_run_unknown_action(self):
         tool = self._tool()
-        with pytest.raises(RuntimeError):
-            tool._run("explode", "in.mp4", "out.mp4", maturity_level="AUTONOMOUS")
+        res = await tool._run("explode", "in.mp4", "out.mp4", maturity_level="AUTONOMOUS")
+        assert res["success"] is False
+        assert "explode" in res["error"]
 
-    def test_run_success_sync_context(self):
+    async def test_run_success_sync_context(self):
         from tools.creative_tool import FFmpegTool
         with patch.object(FFmpegTool, "_execute_operation",
                           return_value={"job_id": "j1"}) as exec_op:
             tool = self._tool()
-            res = tool._run("trim_video", "in.mp4", "out.mp4",
-                            maturity_level="AUTONOMOUS", start_time="00:00:01",
-                            duration="00:01:00")
-        assert res == {"job_id": "j1"}
+            res = await tool._run("trim_video", "in.mp4", "out.mp4",
+                                  maturity_level="AUTONOMOUS", start_time="00:00:01",
+                                  duration="00:01:00")
+        assert res["success"] is True
+        assert res["job_id"] == "j1"
         exec_op.assert_called_once()
 
     def test_execute_operation_trim(self):

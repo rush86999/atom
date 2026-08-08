@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 # --- Data Models ---
 
 class UnifiedTask(BaseModel):
+    id: Optional[str] = None
     name: str
     platform: str  # 'asana', 'jira', 'zoho', 'planner'
     status: str
@@ -112,8 +113,8 @@ async def get_live_project_board(
              logger.warning("ASANA_ACCESS_TOKEN not configured, skipping Asana fetch")
          else:
              # Use asana_service to fetch tasks
-             asana_tasks = asana_service.get_user_tasks(user_id=user_id, limit=limit)
-             tasks.extend([map_asana_task(t) for t in asana_tasks])
+             asana_tasks = await asana_service.get_tasks(access_token=asana_token, limit=limit)
+             tasks.extend([map_asana_task(t) for t in asana_tasks.get("data", [])])
              providers_status["asana"] = True
     except Exception as e:
         logger.warning(f"Failed to fetch live Asana tasks: {e}")

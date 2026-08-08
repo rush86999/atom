@@ -4,28 +4,9 @@ Minimal unit tests for Scheduled Messaging Service core logic
 Tests only the service logic without database or integration dependencies.
 """
 
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock
 import pytest
 from datetime import datetime, timezone, timedelta
-
-# Mock the imports before importing the service
-sys.modules['core.agent_integration_gateway'] = MagicMock()
-sys.modules['integrations.atom_discord_integration'] = MagicMock()
-sys.modules['integrations.atom_whatsapp_integration'] = MagicMock()
-sys.modules['integrations.atom_telegram_integration'] = MagicMock()
-sys.modules['integrations.google_chat_enhanced_service'] = MagicMock()
-sys.modules['integrations.meta_business_service'] = MagicMock()
-sys.modules['integrations.marketing_unified_service'] = MagicMock()
-sys.modules['integrations.ecommerce_unified_service'] = MagicMock()
-sys.modules['integrations.slack_enhanced_service'] = MagicMock()
-sys.modules['integrations.teams_enhanced_service'] = MagicMock()
-sys.modules['integrations.document_logic_service'] = MagicMock()
-sys.modules['integrations.shopify_service'] = MagicMock()
-sys.modules['integrations.openclaw_service'] = MagicMock()
 
 from core.models import ScheduledMessageStatus
 from core.cron_parser import natural_language_to_cron, CronParser
@@ -174,12 +155,14 @@ class TestScheduledMessageDataValidation:
 
     def test_message_statuses(self):
         """Test all message statuses."""
+        # ScheduledMessageStatus is a SQLAlchemy table model (not an enum);
+        # assert the status strings the service writes to the column.
         statuses = [
-            ScheduledMessageStatus.ACTIVE.value,
-            ScheduledMessageStatus.PAUSED.value,
-            ScheduledMessageStatus.COMPLETED.value,
-            ScheduledMessageStatus.FAILED.value,
-            ScheduledMessageStatus.CANCELLED.value,
+            "active",
+            "paused",
+            "completed",
+            "failed",
+            "cancelled",
         ]
 
         assert "active" in statuses

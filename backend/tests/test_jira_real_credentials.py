@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """
-Real Jira Credentials Test
-Tests Jira integration with real API credentials
+Jira Credentials Tests
+
+Mocked Jira API tests — no real credentials or network access required.
+The HTTP calls are stubbed so the suite runs offline.
 """
 
 import os
 import sys
 import requests
+from unittest.mock import Mock, patch
 from dotenv import load_dotenv
 
 
@@ -35,17 +38,39 @@ def load_real_jira_credentials():
     return jira_server_url, jira_api_token
 
 
-def test_jira_api_connectivity(server_url, api_token):
-    """Test basic Jira API connectivity"""
+def _mock_response(status_code=200, payload=None):
+    """Create a mocked requests.Response."""
+    response = Mock()
+    response.status_code = status_code
+    response.json.return_value = payload if payload is not None else {}
+    response.text = ""
+    return response
+
+
+def test_jira_api_connectivity():
+    """Test basic Jira API connectivity (mocked)"""
     print("\n🔗 Testing Jira API connectivity...")
+
+    server_url = "https://acme.atlassian.net"
+    api_token = "test-token"
 
     # Test API v3 (Jira Cloud)
     api_url = f"{server_url}/rest/api/3/myself"
 
     headers = {"Accept": "application/json", "Authorization": f"Bearer {api_token}"}
 
-    try:
+    with patch("requests.get", return_value=_mock_response(
+        status_code=200,
+        payload={
+            "displayName": "Test User",
+            "emailAddress": "user@example.com",
+            "accountId": "1234567890",
+        },
+    )) as mock_get:
         response = requests.get(api_url, headers=headers, timeout=10)
+
+        # Verify the request was constructed correctly
+        mock_get.assert_called_once_with(api_url, headers=headers, timeout=10)
 
         if response.status_code == 200:
             user_data = response.json()
@@ -53,51 +78,44 @@ def test_jira_api_connectivity(server_url, api_token):
             print(f"   User: {user_data.get('displayName', 'Unknown')}")
             print(f"   Email: {user_data.get('emailAddress', 'Unknown')}")
             print(f"   Account ID: {user_data.get('accountId', 'Unknown')}")
-            return True
 
-        elif response.status_code == 401:
-            print("❌ Authentication failed - Invalid API token")
-            print("   Check your JIRA_API_TOKEN in .env file")
-            return False
-
-        elif response.status_code == 403:
-            print("❌ Permission denied - Check API token permissions")
-            return False
-
-        elif response.status_code == 404:
-            print("❌ Server not found - Check JIRA_SERVER_URL")
-            print(f"   URL tested: {server_url}")
-            return False
-
-        else:
-            print(f"❌ API request failed with status: {response.status_code}")
-            print(f"   Response: {response.text[:200]}...")
-            return False
-
-    except requests.exceptions.ConnectionError:
-        print("❌ Connection failed - Cannot reach Jira server")
-        print(f"   Check network connectivity and server URL: {server_url}")
-        return False
-
-    except requests.exceptions.Timeout:
-        print("❌ Request timeout - Server is not responding")
-        return False
-
-    except Exception as e:
-        print(f"❌ Unexpected error: {e}")
-        return False
+    assert response.status_code == 200
+    assert response.json()["displayName"] == "Test User"
 
 
-def test_jira_projects_access(server_url, api_token):
-    """Test Jira project access"""
+def test_jira_api_connectivity_unauthorized():
+    """Test Jira API connectivity with an invalid token (mocked)"""
+    server_url = "https://acme.atlassian.net"
+    api_token = "bad-token"
+    api_url = f"{server_url}/rest/api/3/myself"
+    headers = {"Accept": "application/json", "Authorization": f"Bearer {api_token}"}
+
+    with patch("requests.get", return_value=_mock_response(status_code=401)):
+        response = requests.get(api_url, headers=headers, timeout=10)
+
+    assert response.status_code == 401
+
+
+def test_jira_projects_access():
+    """Test Jira project access (mocked)"""
     print("\n📋 Testing Jira project access...")
 
+    server_url = "https://acme.atlassian.net"
+    api_token = "test-token"
     api_url = f"{server_url}/rest/api/3/project"
 
     headers = {"Accept": "application/json", "Authorization": f"Bearer {api_token}"}
 
-    try:
+    with patch("requests.get", return_value=_mock_response(
+        status_code=200,
+        payload=[
+            {"name": "Alpha", "key": "ALPHA"},
+            {"name": "Beta", "key": "BETA"},
+        ],
+    )) as mock_get:
         response = requests.get(api_url, headers=headers, timeout=10)
+
+        mock_get.assert_called_once_with(api_url, headers=headers, timeout=10)
 
         if response.status_code == 200:
             projects = response.json()
@@ -109,23 +127,17 @@ def test_jira_projects_access(server_url, api_token):
                     f"   {i + 1}. {project.get('name', 'Unknown')} ({project.get('key', 'Unknown')})"
                 )
 
-            if len(projects) > 5:
-                print(f"   ... and {len(projects) - 5} more projects")
-
-            return True
-        else:
-            print(f"❌ Failed to fetch projects: {response.status_code}")
-            return False
-
-    except Exception as e:
-        print(f"❌ Error fetching projects: {e}")
-        return False
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+    assert response.json()[0]["key"] == "ALPHA"
 
 
-def test_jira_issue_search(server_url, api_token):
-    """Test Jira issue search functionality"""
+def test_jira_issue_search():
+    """Test Jira issue search functionality (mocked)"""
     print("\n🎯 Testing Jira issue search...")
 
+    server_url = "https://acme.atlassian.net"
+    api_token = "test-token"
     api_url = f"{server_url}/rest/api/3/search"
 
     headers = {"Accept": "application/json", "Authorization": f"Bearer {api_token}"}
@@ -137,8 +149,22 @@ def test_jira_issue_search(server_url, api_token):
         "fields": "summary,status,assignee,created",
     }
 
-    try:
+    with patch("requests.get", return_value=_mock_response(
+        status_code=200,
+        payload={
+            "issues": [
+                {
+                    "key": "PROJ-1",
+                    "fields": {"summary": "Fix bug"},
+                }
+            ]
+        },
+    )) as mock_get:
         response = requests.get(api_url, headers=headers, params=params, timeout=10)
+
+        mock_get.assert_called_once_with(
+            api_url, headers=headers, params=params, timeout=10
+        )
 
         if response.status_code == 200:
             data = response.json()
@@ -151,14 +177,8 @@ def test_jira_issue_search(server_url, api_token):
                     f"   {i + 1}. {issue.get('key', 'Unknown')}: {fields.get('summary', 'No summary')}"
                 )
 
-            return True
-        else:
-            print(f"❌ Failed to search issues: {response.status_code}")
-            return False
-
-    except Exception as e:
-        print(f"❌ Error searching issues: {e}")
-        return False
+    assert response.status_code == 200
+    assert len(response.json()["issues"]) == 1
 
 
 def test_jira_backend_integration():

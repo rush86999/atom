@@ -5,11 +5,6 @@ Tests blueprint registration for Asana, Trello, and Notion auth handlers
 """
 
 import logging
-import os
-import sys
-
-# Add the current directory to Python path
-sys.path.insert(0, os.path.dirname(__file__))
 
 # Configure logging
 logging.basicConfig(

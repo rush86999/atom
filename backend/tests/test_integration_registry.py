@@ -110,6 +110,41 @@ class TestIntegrationRegistrySingleTenant:
         # At least 8 out of 9 should load (trello may fail)
         assert loaded_count >= 8, f"Only {loaded_count}/{len(sample_integrations)} integrations loaded"
 
+    def test_whatsapp_mapping_resolves(self):
+        """'whatsapp' must resolve to a real service class (no phantom mapping)."""
+        registry = IntegrationRegistry(use_cache=False)
+        service_class = registry.get_service_class("whatsapp")
+        assert service_class is not None
+        assert service_class.__name__ in (
+            "WhatsAppBusinessIntegration",
+            "WhatsAppBusinessService",
+        )
+
+    def test_every_registry_entry_loads(self):
+        """Every DEFAULT_SERVICE_REGISTRY entry must resolve to a real class.
+
+        Phantom mappings (module or class name that does not exist) silently
+        return None and poison the integration catalog with never-loading
+        integrations. The only allowed misses are connectors whose *optional
+        third-party SDK* is not installed in the current environment (the
+        module exists but its dependency import fails).
+        """
+        env_dependent = {
+            "dropbox",       # requires the optional 'dropbox' SDK
+            "outlook_calendar",  # requires the optional 'msal' SDK
+        }
+        registry = IntegrationRegistry(use_cache=False, load_timeout=20)
+        missing = []
+        for connector_id in DEFAULT_SERVICE_REGISTRY:
+            if connector_id in env_dependent:
+                continue
+            service_class = registry.get_service_class(connector_id)
+            if service_class is None:
+                missing.append(connector_id)
+        assert not missing, (
+            f"Phantom registry entries (no resolvable service class): {missing}"
+        )
+
     def test_get_all_integrations(self):
         """Verify get_all_integrations returns catalog."""
         registry = IntegrationRegistry()

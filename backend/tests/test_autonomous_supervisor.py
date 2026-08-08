@@ -9,7 +9,6 @@ import uuid
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
-from core.database import get_db
 from core.models import (
     AgentExecution,
     AgentProposal,
@@ -17,12 +16,8 @@ from core.models import (
     AgentStatus,
     ProposalStatus,
     ProposalType,
-    QueueStatus,
-    SupervisionSession,
-    SupervisionStatus,
+    Tenant,
     User,
-    UserActivity,
-    UserState,
 )
 from core.autonomous_supervisor_service import (
     AutonomousSupervisorService,
@@ -35,17 +30,21 @@ from core.autonomous_supervisor_service import (
 # ============================================================================
 
 @pytest.fixture
-def db():
-    """Get database session."""
-    db = next(get_db())
-    try:
-        yield db
-    finally:
-        db.close()
+def test_tenant(db_session: Session):
+    """Create test tenant (required FK for proposals)."""
+    tenant = Tenant(
+        name=f"Test-{uuid.uuid4()}",
+        subdomain=f"test-{uuid.uuid4()}.example.com",
+        edition="personal",
+    )
+    db_session.add(tenant)
+    db_session.commit()
+    db_session.refresh(tenant)
+    return tenant
 
 
 @pytest.fixture
-def test_user(db: Session):
+def test_user(db_session: Session):
     """Create test user."""
     user = User(
         email=f"test-{uuid.uuid4()}@example.com",
@@ -53,52 +52,54 @@ def test_user(db: Session):
         last_name="User",
         status="ACTIVE", role="member"
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
     return user
 
 
 @pytest.fixture
-def autonomous_agent(db: Session, test_user: User):
+def autonomous_agent(db_session: Session, test_user: User):
     """Create autonomous supervisor agent."""
     agent = AgentRegistry(
         name="Autonomous Supervisor",
         description="High-confidence autonomous agent",
-        agent_type="generic",
         category="finance",
         status=AgentStatus.AUTONOMOUS.value,
         confidence_score=0.95,
-        user_id=test_user.id
+        user_id=test_user.id,
+        module_path="core.generic_agent",
+        class_name="GenericAgent",
     )
-    db.add(agent)
-    db.commit()
-    db.refresh(agent)
+    db_session.add(agent)
+    db_session.commit()
+    db_session.refresh(agent)
     return agent
 
 
 @pytest.fixture
-def intern_agent(db: Session, test_user: User):
+def intern_agent(db_session: Session, test_user: User):
     """Create INTERN agent needing supervision."""
     agent = AgentRegistry(
         name="Intern Agent",
         description="Low-confidence intern agent",
-        agent_type="generic",
         category="finance",
         status=AgentStatus.INTERN.value,
         confidence_score=0.6,
-        user_id=test_user.id
+        user_id=test_user.id,
+        module_path="core.generic_agent",
+        class_name="GenericAgent",
     )
-    db.add(agent)
-    db.commit()
-    db.refresh(agent)
+    db_session.add(agent)
+    db_session.commit()
+    db_session.refresh(agent)
     return agent
 
 
 @pytest.fixture
-def supervisor_service(db: Session):
+def supervisor_service(db_session: Session):
     """Get AutonomousSupervisorService instance."""
-    return AutonomousSupervisorService(db)
+    return AutonomousSupervisorService(db_session)
 
 
 # ============================================================================
@@ -126,16 +127,16 @@ def test_find_autonomous_supervisor_by_category(
 def test_find_autonomous_supervisor_no_match(
     supervisor_service: AutonomousSupervisorService,
     intern_agent: AgentRegistry,
-    db: Session
+    db_session: Session
 ):
     """Test finding autonomous supervisor when none exists."""
     import asyncio
 
     # Delete autonomous agents
-    db.query(AgentRegistry).filter(
+    db_session.query(AgentRegistry).filter(
         AgentRegistry.status == AgentStatus.AUTONOMOUS.value
     ).delete()
-    db.commit()
+    db_session.commit()
 
     supervisor = asyncio.run(supervisor_service.find_autonomous_supervisor(
         intern_agent=intern_agent
@@ -148,14 +149,14 @@ def test_find_autonomous_supervisor_different_category(
     supervisor_service: AutonomousSupervisorService,
     intern_agent: AgentRegistry,
     autonomous_agent: AgentRegistry,
-    db: Session
+    db_session: Session
 ):
     """Test finding autonomous supervisor with different category."""
     import asyncio
 
     # Change autonomous agent to different category
     autonomous_agent.category = "engineering"
-    db.commit()
+    db_session.commit()
 
     supervisor = asyncio.run(supervisor_service.find_autonomous_supervisor(
         intern_agent=intern_agent,
@@ -174,27 +175,31 @@ def test_review_proposal_returns_review(
     supervisor_service: AutonomousSupervisorService,
     intern_agent: AgentRegistry,
     autonomous_agent: AgentRegistry,
-    db: Session
+    test_user: User,
+    test_tenant: Tenant,
+    db_session: Session
 ):
     """Test reviewing proposal returns valid review."""
     import asyncio
 
     # Create proposal
     proposal = AgentProposal(
+        tenant_id=test_tenant.id,
+        user_id=test_user.id,
         agent_id=intern_agent.id,
         agent_name=intern_agent.name,
         proposal_type=ProposalType.ACTION.value,
         title="Test Proposal",
         description="Test proposal for review",
-        proposed_action={
+        proposal_data={
             "action_type": "canvas_present",
-            "canvas_type": "chart"
+            "canvas_type": "chart",
+            "reasoning": "This action is safe and necessary",
         },
-        reasoning="This action is safe and necessary",
         status=ProposalStatus.PENDING_APPROVAL.value
     )
-    db.add(proposal)
-    db.commit()
+    db_session.add(proposal)
+    db_session.commit()
 
     # Review proposal
     review = asyncio.run(supervisor_service.review_proposal(
@@ -214,27 +219,31 @@ def test_review_proposal_high_risk_action(
     supervisor_service: AutonomousSupervisorService,
     intern_agent: AgentRegistry,
     autonomous_agent: AgentRegistry,
-    db: Session
+    test_user: User,
+    test_tenant: Tenant,
+    db_session: Session
 ):
     """Test reviewing high-risk proposal."""
     import asyncio
 
     # Create high-risk proposal
     proposal = AgentProposal(
+        tenant_id=test_tenant.id,
+        user_id=test_user.id,
         agent_id=intern_agent.id,
         agent_name=intern_agent.name,
         proposal_type=ProposalType.ACTION.value,
         title="Delete Data Proposal",
         description="Proposal to delete data",
-        proposed_action={
+        proposal_data={
             "action_type": "delete",
-            "target": "important_data"
+            "target": "important_data",
+            "reasoning": "Need to clean up old data",
         },
-        reasoning="Need to clean up old data",
         status=ProposalStatus.PENDING_APPROVAL.value
     )
-    db.add(proposal)
-    db.commit()
+    db_session.add(proposal)
+    db_session.commit()
 
     # Review proposal
     review = asyncio.run(supervisor_service.review_proposal(
@@ -250,27 +259,31 @@ def test_review_proposal_safe_action(
     supervisor_service: AutonomousSupervisorService,
     intern_agent: AgentRegistry,
     autonomous_agent: AgentRegistry,
-    db: Session
+    test_user: User,
+    test_tenant: Tenant,
+    db_session: Session
 ):
     """Test reviewing safe proposal."""
     import asyncio
 
     # Create safe proposal
     proposal = AgentProposal(
+        tenant_id=test_tenant.id,
+        user_id=test_user.id,
         agent_id=intern_agent.id,
         agent_name=intern_agent.name,
         proposal_type=ProposalType.ACTION.value,
         title="Present Chart Proposal",
         description="Proposal to present chart",
-        proposed_action={
+        proposal_data={
             "action_type": "canvas_present",
-            "canvas_type": "chart"
+            "canvas_type": "chart",
+            "reasoning": "Display data visualization",
         },
-        reasoning="Display data visualization",
         status=ProposalStatus.PENDING_APPROVAL.value
     )
-    db.add(proposal)
-    db.commit()
+    db_session.add(proposal)
+    db_session.commit()
 
     # Review proposal
     review = asyncio.run(supervisor_service.review_proposal(
@@ -292,24 +305,27 @@ def test_approve_proposal_success(
     supervisor_service: AutonomousSupervisorService,
     intern_agent: AgentRegistry,
     autonomous_agent: AgentRegistry,
-    db: Session
+    test_user: User,
+    test_tenant: Tenant,
+    db_session: Session
 ):
     """Test approving proposal as autonomous supervisor."""
     import asyncio
 
     # Create proposal
     proposal = AgentProposal(
+        tenant_id=test_tenant.id,
+        user_id=test_user.id,
         agent_id=intern_agent.id,
         agent_name=intern_agent.name,
         proposal_type=ProposalType.ACTION.value,
         title="Test Proposal",
         description="Test proposal",
-        proposed_action={"action_type": "canvas_present"},
-        reasoning="Safe action",
+        proposal_data={"action_type": "canvas_present"},
         status=ProposalStatus.PENDING_APPROVAL.value
     )
-    db.add(proposal)
-    db.commit()
+    db_session.add(proposal)
+    db_session.commit()
 
     # Create review
     review = ProposalReview(
@@ -329,7 +345,7 @@ def test_approve_proposal_success(
     assert success is True
 
     # Check proposal status
-    db.refresh(proposal)
+    db_session.refresh(proposal)
     assert proposal.status == ProposalStatus.EXECUTED.value
     assert proposal.approved_by == autonomous_agent.id
 
@@ -363,8 +379,7 @@ def test_approve_proposal_nonexistent_proposal(
 def test_monitor_execution_yields_events(
     supervisor_service: AutonomousSupervisorService,
     autonomous_agent: AgentRegistry,
-    test_user: User,
-    db: Session
+    db_session: Session
 ):
     """Test monitoring execution yields supervision events."""
     import asyncio
@@ -373,14 +388,11 @@ def test_monitor_execution_yields_events(
     execution = AgentExecution(
         id="test_exec_123",
         agent_id=autonomous_agent.id,
-        user_id=test_user.id,
-        agent_name=autonomous_agent.name,
         status="running",
-        input_data={"test": "data"},
         started_at=datetime.utcnow()
     )
-    db.add(execution)
-    db.commit()
+    db_session.add(execution)
+    db_session.commit()
 
     # Monitor execution
     events = []
@@ -390,8 +402,7 @@ def test_monitor_execution_yields_events(
             supervisor=autonomous_agent
         ):
             events.append(event)
-            if len(events) >= 2:  # Collect first 2 events
-                break
+            break  # Running executions stream forever; first event is guaranteed
 
     asyncio.run(collect_events())
 
@@ -404,8 +415,7 @@ def test_monitor_execution_yields_events(
 def test_monitor_completed_execution(
     supervisor_service: AutonomousSupervisorService,
     autonomous_agent: AgentRegistry,
-    test_user: User,
-    db: Session
+    db_session: Session
 ):
     """Test monitoring already completed execution."""
     import asyncio
@@ -414,17 +424,14 @@ def test_monitor_completed_execution(
     execution = AgentExecution(
         id="test_exec_completed",
         agent_id=autonomous_agent.id,
-        user_id=test_user.id,
-        agent_name=autonomous_agent.name,
         status="completed",
-        input_data={},
         started_at=datetime.utcnow() - timedelta(minutes=5),
         completed_at=datetime.utcnow(),
         duration_seconds=300,
-        output_summary="Execution completed successfully"
+        result_summary="Execution completed successfully"
     )
-    db.add(execution)
-    db.commit()
+    db_session.add(execution)
+    db_session.commit()
 
     # Monitor execution
     events = []
@@ -434,7 +441,6 @@ def test_monitor_completed_execution(
             supervisor=autonomous_agent
         ):
             events.append(event)
-            break  # Only collect first event
 
     asyncio.run(collect_events())
 
@@ -447,8 +453,7 @@ def test_monitor_completed_execution(
 def test_monitor_failed_execution(
     supervisor_service: AutonomousSupervisorService,
     autonomous_agent: AgentRegistry,
-    test_user: User,
-    db: Session
+    db_session: Session
 ):
     """Test monitoring failed execution."""
     import asyncio
@@ -457,16 +462,13 @@ def test_monitor_failed_execution(
     execution = AgentExecution(
         id="test_exec_failed",
         agent_id=autonomous_agent.id,
-        user_id=test_user.id,
-        agent_name=autonomous_agent.name,
         status="failed",
-        input_data={},
         started_at=datetime.utcnow() - timedelta(minutes=2),
         completed_at=datetime.utcnow(),
         error_message="Execution failed: timeout"
     )
-    db.add(execution)
-    db.commit()
+    db_session.add(execution)
+    db_session.commit()
 
     # Monitor execution
     events = []
@@ -476,7 +478,6 @@ def test_monitor_failed_execution(
             supervisor=autonomous_agent
         ):
             events.append(event)
-            break  # Only collect first event
 
     asyncio.run(collect_events())
 
@@ -508,7 +509,7 @@ def test_get_available_supervisors_returns_autonomous_agents(
 def test_get_available_supervisors_filters_by_category(
     supervisor_service: AutonomousSupervisorService,
     autonomous_agent: AgentRegistry,
-    db: Session
+    db_session: Session
 ):
     """Test filtering available supervisors by category."""
     import asyncio

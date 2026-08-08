@@ -59,7 +59,7 @@ class AtomIngestionPipeline:
         elif app_type == "salesforce":
             if record_type == RecordType.LEAD:
                 normalized["content"] = f"Lead: {data.get('FirstName')} {data.get('LastName')} at {data.get('Company')}"
-            elif record_type == RecordType.DEAL or record_type == RecordType.RECORD:
+            elif record_type in (RecordType.DEAL, RecordType.GENERIC):
                 normalized["content"] = f"Opportunity: {data.get('Name')} (Stage: {data.get('StageName')})"
         
         # Meta & WhatsApp Specifics
@@ -124,10 +124,16 @@ class AtomIngestionPipeline:
                 id=record.id,
                 app_type=record.app_type,
                 timestamp=record.timestamp,
+                direction="internal",
                 sender=normalized["metadata"].get("sender", "system"),
                 recipient=normalized["metadata"].get("recipient", "user"),
+                subject=None,
                 content=record.content,
+                attachments=[],
                 metadata=json.dumps(record.metadata),
+                status="active",
+                priority="normal",
+                tags=[record.record_type.value],
                 vector_embedding=record.vector_embedding
             )
             

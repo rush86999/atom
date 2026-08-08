@@ -150,8 +150,11 @@ class BYOKCostOptimizer:
         )
 
         if total_requests == 0:
-            # Default pattern for new users
-            return UsagePattern(
+            # Default pattern for new users.
+            # BUG: this branch returned without caching the pattern, so the
+            # caller's `self.usage_patterns[user_id]` lookup right after
+            # raised KeyError for any new user with no usage history.
+            pattern = UsagePattern(
                 user_id=user_id,
                 task_distribution={"general": 40, "chat": 30, "code": 20, "analysis": 10},
                 peak_hours=[9, 10, 14, 15, 16],
@@ -160,6 +163,9 @@ class BYOKCostOptimizer:
                 cost_sensitivity="medium",
                 quality_preference="balanced"
             )
+            self.usage_patterns[user_id] = pattern
+            self._save_usage_patterns()
+            return pattern
 
         # Analyze task distribution from usage
         task_distribution = {}
@@ -257,7 +263,11 @@ class BYOKCostOptimizer:
         recommended_provider = recommended["provider_id"]
 
         # Calculate estimated savings
-        current_cost_per_token = self.byok_manager.providers.get(current_provider, {}).get("cost_per_token", 0.00003)
+        # providers maps provider_id -> provider *object* (AIProviderConfig),
+        # not a dict — calling .get() on it raised AttributeError on every
+        # recommendation. Read the attribute (getattr guard for the default).
+        current_provider_cfg = self.byok_manager.providers.get(current_provider)
+        current_cost_per_token = getattr(current_provider_cfg, "cost_per_token", 0.00003)
         recommended_cost_per_token = recommended["cost_per_token"]
 
         if current_cost_per_token > 0 and recommended_cost_per_token < current_cost_per_token:

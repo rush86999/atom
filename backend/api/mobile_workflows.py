@@ -126,7 +126,7 @@ async def get_mobile_workflows(
         # Transform to mobile format
         mobile_workflows = []
         for wf in workflows:
-            workflow_id = wf.get('id', '')
+            workflow_id = wf.get('id') or wf.get('workflow_id', '')
             # Calculate execution stats
             executions = db.query(WorkflowExecution).filter(
                 WorkflowExecution.workflow_id == workflow_id
@@ -137,7 +137,7 @@ async def get_mobile_workflows(
             success_rate = (successful_execs / total_execs * 100) if total_execs > 0 else 0.0
 
             # Get last execution
-            last_exec = max(executions, key=lambda e: e.started_at, default=None)
+            last_exec = max(executions, key=lambda e: e.created_at, default=None)
             last_execution = last_exec.started_at.isoformat() if last_exec else None
 
             mobile_workflows.append(MobileWorkflowSummary(
@@ -163,6 +163,46 @@ async def get_mobile_workflows(
         )
 
 
+@router.get("/search")
+async def search_workflows_mobile(
+    query: str,
+    limit: int = Query(20, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Search workflows (mobile-optimized)
+
+    Full-text search across workflow names and descriptions.
+    """
+    try:
+        search_term = f"%{query}%"
+
+        workflows = db.query(Workflow).filter(
+            (Workflow.name.ilike(search_term)) |
+            (Workflow.description.ilike(search_term))
+        ).limit(limit).all()
+
+        return [
+            {
+                "id": wf.id,
+                "name": wf.name,
+                "description": wf.description,
+                "category": (wf.configuration or {}).get("category", ""),
+                "status": wf.status,
+                "tags": (wf.configuration or {}).get("tags", []) or [],
+            }
+            for wf in workflows
+        ]
+
+    except Exception as e:
+        logger.error(f"Error searching workflows: {e}")
+        raise router.internal_error(
+            message="Failed to search workflows",
+            details={"error": str(e)}
+        )
+
+
 @router.get("/{workflow_id}")
 async def get_mobile_workflow_details(
     workflow_id: str,
@@ -184,10 +224,10 @@ async def get_mobile_workflow_details(
         # Get recent executions (last 10)
         recent_executions = db.query(WorkflowExecution).filter(
             WorkflowExecution.workflow_id == workflow_id
-        ).order_by(WorkflowExecution.started_at.desc()).limit(10).all()
+        ).order_by(WorkflowExecution.created_at.desc()).limit(10).all()
 
         return {
-            "id": workflow_dict.get("id"),
+            "id": workflow_dict.get("id") or workflow_dict.get("workflow_id"),
             "name": workflow_dict.get("name", ""),
             "description": workflow_dict.get("description", ""),
             "category": workflow_dict.get("category", ""),
@@ -198,16 +238,18 @@ async def get_mobile_workflow_details(
             "execution_count": len(recent_executions),
             "recent_executions": [
                 {
-                    "id": exec.id,
+                    "id": exec.execution_id,
                     "status": exec.status,
-                    "started_at": exec.started_at.isoformat(),
+                    "started_at": exec.created_at.isoformat(),
                     "completed_at": exec.completed_at.isoformat() if exec.completed_at else None,
-                    "duration_seconds": exec.duration_seconds,
+                    "duration_seconds": None,
                 }
                 for exec in recent_executions
             ]
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching mobile workflow details: {e}")
         raise router.internal_error(
@@ -235,7 +277,9 @@ async def trigger_workflow_mobile(
         if not workflow_dict:
             raise router.not_found_error("Workflow", request.workflow_id)
 
-        if workflow_dict.get("status") != 'active':
+        # Agent-driven step rows omit `status` (default = active); only an
+        # explicit non-active status blocks triggering.
+        if workflow_dict.get("status") is not None and workflow_dict.get("status") != 'active':
             raise router.validation_error(
                 field="workflow_status",
                 message=f"Cannot trigger workflow with status: {workflow_dict.get('status')}",
@@ -379,7 +423,7 @@ async def get_mobile_execution_details(
             "started_at": execution.created_at.isoformat(),
             "completed_at": execution.updated_at.isoformat() if execution.updated_at else None,
             "duration_seconds": None,
-            "triggered_by": execution.triggered_by,
+            "triggered_by": execution.user_id,
             "current_step": None,
             "total_steps": None,
             "progress_percentage": progress_percentage,
@@ -396,6 +440,8 @@ async def get_mobile_execution_details(
             ]
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching execution details: {e}")
         raise router.internal_error(
@@ -441,6 +487,8 @@ async def get_workflow_executions_mobile(
             for exec in executions
         ]
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching workflow executions: {e}")
         raise router.internal_error(
@@ -576,13 +624,15 @@ async def cancel_execution_mobile(
                 details={"execution_id": execution_id, "status": execution.status}
             )
 
-        if execution.triggered_by != user_id:
+        # R79: the query user_id is spoofable — ownership is judged against
+        # the authenticated caller, never the client-supplied parameter.
+        if execution.user_id != current_user.id:
             raise router.permission_denied_error(
                 action="cancel_execution",
                 resource="WorkflowExecution",
                 details={
                     "execution_id": execution_id,
-                    "triggered_by": execution.triggered_by,
+                    "triggered_by": execution.user_id,
                     "user_id": user_id
                 }
             )
@@ -606,51 +656,16 @@ async def cancel_execution_mobile(
             "execution_id": execution_id
         }
 
+    except HTTPException:
+        # Permission/validation/not-found errors must reach the client with
+        # their own status, not be masked as internal errors.
+        db.rollback()
+        raise
     except Exception as e:
         logger.error(f"Error cancelling execution: {e}")
         db.rollback()
         raise router.internal_error(
             message="Failed to cancel execution",
-            details={"error": str(e)}
-        )
-
-
-@router.get("/search")
-async def search_workflows_mobile(
-    query: str,
-    limit: int = Query(20, ge=1, le=50),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Search workflows (mobile-optimized)
-
-    Full-text search across workflow names and descriptions.
-    """
-    try:
-        search_term = f"%{query}%"
-
-        workflows = db.query(Workflow).filter(
-            (Workflow.name.ilike(search_term)) |
-            (Workflow.description.ilike(search_term))
-        ).limit(limit).all()
-
-        return [
-            {
-                "id": wf.id,
-                "name": wf.name,
-                "description": wf.description,
-                "category": wf.category,
-                "status": wf.status,
-                "tags": wf.tags or [],
-            }
-            for wf in workflows
-        ]
-
-    except Exception as e:
-        logger.error(f"Error searching workflows: {e}")
-        raise router.internal_error(
-            message="Failed to search workflows",
             details={"error": str(e)}
         )
 
@@ -671,7 +686,12 @@ def _load_workflow_definition(db: Session, workflow_id: str) -> Optional[Dict[st
     try:
         with open(workflows_file, 'r') as f:
             workflows = json.load(f)
-        return next((w for w in workflows if w.get('id') == workflow_id), None)
+        # R79: entries may key on either `id` (node dialect) or `workflow_id`
+        # (the agent-driven step dialect — 44/48 entries in prod data).
+        return next(
+            (w for w in workflows if w.get('id') == workflow_id or w.get('workflow_id') == workflow_id),
+            None,
+        )
     except Exception as e:
         logger.error(f"Error loading workflow {workflow_id}: {e}")
         return None

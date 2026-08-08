@@ -17,7 +17,7 @@
  */
 
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act, screen } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { PendingActionsList } from '../offline/PendingActionsList';
 import { offlineSyncService } from '../../services/offlineSyncService';
@@ -82,10 +82,22 @@ describe('PendingActionsList Component', () => {
     }),
   ];
 
+  let subscribeCallback: (() => void) | null = null;
+
+  const mockStatefulQueue = () => {
+    const queue = mockActions.map((a) => ({ ...a }));
+    (offlineSyncService.getQueue as jest.Mock).mockImplementation(async () => queue);
+    return queue;
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    subscribeCallback = null;
 
-    (offlineSyncService.subscribe as jest.Mock).mockImplementation(() => jest.fn());
+    (offlineSyncService.subscribe as jest.Mock).mockImplementation((cb) => {
+      subscribeCallback = cb;
+      return jest.fn();
+    });
     // Clone per test: retry/prioritize handlers mutate queue entries in place
     (offlineSyncService.getQueue as jest.Mock).mockResolvedValue(
       mockActions.map((a) => ({ ...a }))
@@ -579,6 +591,278 @@ describe('PendingActionsList Component', () => {
       expect(offlineSyncService.saveQueue).toHaveBeenCalledWith(
         mockActions.filter((a) => a.id !== 'action1' && a.id !== 'action2')
       );
+    });
+
+    test('should retry all selected actions', async () => {
+      const queue = mockStatefulQueue();
+      const { findByText, queryByText } = render(<PendingActionsList />);
+
+      await findByText('AGENT MESSAGE');
+      fireEvent(await findByText('WORKFLOW TRIGGER'), 'onLongPress');
+      fireEvent(await findByText('AGENT MESSAGE'), 'onLongPress');
+
+      expect(await findByText('2 selected')).toBeTruthy();
+
+      fireEvent.press(await findByText('Retry All'));
+
+      await waitFor(() => {
+        expect(offlineSyncService.triggerSync).toHaveBeenCalled();
+      });
+
+      // Failed action reset to pending; select mode exited
+      const failed = queue.find((a) => a.id === 'action2');
+      expect(failed?.status).toBe('pending');
+      expect(failed?.syncAttempts).toBe(0);
+      expect(queryByText('2 selected')).toBeNull();
+      expect(queryByText('Network error')).toBeNull();
+    });
+
+    test('should still trigger sync when batch retry hits a queue load error', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockStatefulQueue();
+      const { findByText, queryByText } = render(<PendingActionsList />);
+
+      fireEvent(await findByText('AGENT MESSAGE'), 'onLongPress');
+      fireEvent(await findByText('WORKFLOW TRIGGER'), 'onLongPress');
+
+      (offlineSyncService.getQueue as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      fireEvent.press(await findByText('Retry All'));
+
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalled();
+        expect(offlineSyncService.triggerSync).toHaveBeenCalled();
+      });
+      // Select mode still exits after the batch operation
+      expect(queryByText('2 selected')).toBeNull();
+      errorSpy.mockRestore();
+    });
+
+    test('should alert when batch delete fails', async () => {
+      const { findByText } = render(<PendingActionsList />);
+
+      fireEvent(await findByText('AGENT MESSAGE'), 'onLongPress');
+      fireEvent(await findByText('WORKFLOW TRIGGER'), 'onLongPress');
+
+      fireEvent.press(await findByText('Delete All'));
+      const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
+      (offlineSyncService.getQueue as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      await buttons.find((b: any) => b.text === 'Delete').onPress();
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to delete actions');
+      });
+    });
+
+    test('should deselect a selected action via its checkbox', async () => {
+      const { findByText, queryByText } = render(<PendingActionsList />);
+
+      fireEvent(await findByText('AGENT MESSAGE'), 'onLongPress');
+      fireEvent(await findByText('WORKFLOW TRIGGER'), 'onLongPress');
+      expect(await findByText('2 selected')).toBeTruthy();
+
+      // Press the checkbox on the first row to deselect it
+      const checkboxes = screen.getAllByTestId('icon-checkbox');
+      fireEvent.press(checkboxes[0]);
+
+      expect(await findByText('1 selected')).toBeTruthy();
+      expect(queryByText('2 selected')).toBeNull();
+    });
+
+    test('should select actions by tapping rows while in select mode', async () => {
+      const { findByText, getAllByTestId } = render(<PendingActionsList />);
+
+      await findByText('AGENT MESSAGE');
+
+      // Enter select mode via the header toggle
+      fireEvent.press(screen.getByTestId('icon-checkboxes-outline'));
+
+      fireEvent.press(await findByText('AGENT MESSAGE'));
+
+      expect(getAllByTestId('icon-checkbox').length).toBe(1);
+      expect(await findByText('1 selected')).toBeTruthy();
+    });
+  });
+
+  describe('Prioritize Actions', () => {
+    test('should raise the priority of an action when prioritized', async () => {
+      const queue = mockStatefulQueue();
+      const { findByText, getAllByTestId } = render(<PendingActionsList />);
+
+      await findByText('AGENT MESSAGE');
+
+      fireEvent.press(getAllByTestId('icon-arrow-up')[0]);
+
+      await waitFor(() => {
+        expect(findByText('Priority: 7/10')).toBeTruthy();
+      });
+      expect(queue.find((a) => a.id === 'action1')?.priority).toBe(7);
+    });
+
+    test('should cap priority at 10', async () => {
+      (offlineSyncService.getQueue as jest.Mock).mockImplementation(async () => [
+        makeAction({ priority: 9 }),
+      ]);
+      const { findByText, getAllByTestId } = render(<PendingActionsList />);
+
+      await findByText('AGENT MESSAGE');
+      fireEvent.press(getAllByTestId('icon-arrow-up')[0]);
+
+      await waitFor(() => {
+        expect(findByText('Priority: 10/10')).toBeTruthy();
+      });
+    });
+
+    test('should log an error when prioritizing hits a queue load error', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockStatefulQueue();
+      const { findByText, getAllByTestId } = render(<PendingActionsList />);
+
+      await findByText('AGENT MESSAGE');
+      (offlineSyncService.getQueue as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      fireEvent.press(getAllByTestId('icon-arrow-up')[0]);
+
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalled();
+      });
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe('Sorting', () => {
+    test('should sort by priority descending', async () => {
+      const { findByText, UNSAFE_getByType } = render(<PendingActionsList />);
+      const { FlatList } = require('react-native');
+
+      await findByText('AGENT MESSAGE');
+      fireEvent.press(await findByText('Priority'));
+
+      const list = UNSAFE_getByType(FlatList);
+      expect(list.props.data.map((a: any) => a.id)).toEqual(['action2', 'action1', 'action3']);
+    });
+
+    test('should sort by type alphabetically', async () => {
+      const { findByText, UNSAFE_getByType } = render(<PendingActionsList />);
+      const { FlatList } = require('react-native');
+
+      await findByText('AGENT MESSAGE');
+      fireEvent.press(await findByText('Type'));
+
+      const list = UNSAFE_getByType(FlatList);
+      expect(list.props.data.map((a: any) => a.id)).toEqual(['action1', 'action3', 'action2']);
+    });
+
+    test('should switch back to time sorting', async () => {
+      const { findByText, UNSAFE_getByType } = render(<PendingActionsList />);
+      const { FlatList } = require('react-native');
+
+      await findByText('AGENT MESSAGE');
+      fireEvent.press(await findByText('Priority'));
+      fireEvent.press(await findByText('Time'));
+
+      const list = UNSAFE_getByType(FlatList);
+      // Newest first: action1 (5m), action2 (10m), action3 (15m)
+      expect(list.props.data.map((a: any) => a.id)).toEqual(['action1', 'action2', 'action3']);
+    });
+
+    test('should restore all actions when the All filter is pressed', async () => {
+      const { findByText, queryByText } = render(<PendingActionsList />);
+
+      await findByText('AGENT MESSAGE');
+      fireEvent.press(await findByText('Failed'));
+      expect(queryByText('AGENT MESSAGE')).toBeNull();
+
+      fireEvent.press(await findByText('All'));
+
+      expect(await findByText('AGENT MESSAGE')).toBeTruthy();
+      expect(findByText('CANVAS UPDATE')).toBeTruthy();
+    });
+  });
+
+  describe('Sync Subscription', () => {
+    test('should reload the queue when the sync service notifies', async () => {
+      const { findByText } = render(<PendingActionsList />);
+
+      await findByText('AGENT MESSAGE');
+      expect(offlineSyncService.getQueue).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        subscribeCallback?.();
+      });
+
+      await waitFor(() => {
+        expect(offlineSyncService.getQueue).toHaveBeenCalledTimes(2);
+      });
+    });
+  });
+
+  describe('Load Errors', () => {
+    test('should log an error when the queue load fails', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      (offlineSyncService.getQueue as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+
+      const { findByText } = render(<PendingActionsList />);
+
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalled();
+      });
+      // Still shows the empty state after the failed load
+      expect(await findByText('All Caught Up!')).toBeTruthy();
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe('Action Icons', () => {
+    test('should map every action type to its icon', async () => {
+      const types = [
+        ['form_submit', 'document-text'],
+        ['feedback', 'star'],
+        ['device_command', 'hardware-chip'],
+        ['agent_sync', 'person'],
+        ['workflow_sync', 'git-branch'],
+        ['canvas_sync', 'layers'],
+        ['episode_sync', 'albums'],
+        ['mystery_type', 'document'],
+      ];
+      (offlineSyncService.getQueue as jest.Mock).mockResolvedValue(
+        types.map(([type], i) => makeAction({ id: `a${i}`, type, payload: null }))
+      );
+
+      const { findByTestId } = render(<PendingActionsList />);
+
+      for (const [, icon] of types) {
+        expect(await findByTestId(`icon-${icon}`)).toBeTruthy();
+      }
+    });
+  });
+
+  describe('Retry Error Paths', () => {
+    test('should still trigger sync when retry hits a queue load error', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const { findByText, getAllByTestId } = render(<PendingActionsList />);
+
+      await findByText('AGENT MESSAGE');
+      (offlineSyncService.getQueue as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      fireEvent.press(getAllByTestId('icon-refresh')[0]);
+
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalled();
+        expect(offlineSyncService.triggerSync).toHaveBeenCalled();
+      });
+      errorSpy.mockRestore();
+    });
+
+    test('should alert when deleting an action fails', async () => {
+      const { findByText, getAllByTestId } = render(<PendingActionsList />);
+
+      await findByText('AGENT MESSAGE');
+      fireEvent.press(getAllByTestId('icon-trash')[0]);
+      const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
+      (offlineSyncService.getQueue as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      await buttons.find((b: any) => b.text === 'Delete').onPress();
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to delete action');
+      });
     });
   });
 });

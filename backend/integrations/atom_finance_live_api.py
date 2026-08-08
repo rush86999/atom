@@ -4,6 +4,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+import httpx
 from core.auth import get_current_user
 from pydantic import BaseModel
 
@@ -84,6 +85,7 @@ def map_zoho_invoice(invoice: Dict[str, Any]) -> UnifiedTransaction:
         currency=invoice.get("currency_code", "USD"),
         date=invoice.get("date"),
         status=invoice.get("status"),
+        platform="zoho",
         customer_name=invoice.get("customer_name")
     )
 
@@ -172,8 +174,8 @@ async def get_live_financial_overview(
         logger.warning(f"Failed to fetch live Dynamics 365 data: {e}")
 
     # Calculate Stats
-    total_rev = sum(t.amount for t in transactions if t.status in ['succeeded', 'paid', 'paid'])
-    pending_rev = sum(t.amount for t in transactions if t.status in ['pending', 'open'])
+    total_rev = sum(t.amount for t in transactions if (t.status or "").lower() in ['succeeded', 'paid', 'authorised'])
+    pending_rev = sum(t.amount for t in transactions if (t.status or "").lower() in ['pending', 'open'])
 
     breakdown = {
         "stripe": sum(t.amount for t in transactions if t.platform == 'stripe'),

@@ -416,6 +416,7 @@ class AtomSaaSWebSocketClient:
                         else:
                             cache_entry = SkillCache(
                                 skill_id=skill_id,
+                                tenant_id="default",
                                 skill_data=data,
                                 expires_at=datetime.now(timezone.utc).replace(
                                     hour=23, minute=59, second=59, microsecond=0
@@ -442,6 +443,7 @@ class AtomSaaSWebSocketClient:
                         else:
                             cache_entry = CategoryCache(
                                 category_name=category_name,
+                                tenant_id="default",
                                 category_data=data,
                                 expires_at=datetime.now(timezone.utc).replace(
                                     hour=23, minute=59, second=59, microsecond=0
@@ -557,9 +559,12 @@ class AtomSaaSWebSocketClient:
                 reconnect_attempts=self._reconnect_attempts
             )
 
-            # Schedule next reconnection attempt
+            # Schedule next reconnection attempt. Track the continuation in
+            # self._reconnect_task so a subsequent _handle_disconnect sees the
+            # chain is still alive and doesn't spawn a PARALLEL chain (which
+            # would double the connect rate and duplicate connections).
             if self._reconnect_attempts < self.MAX_RECONNECT_ATTEMPTS:
-                asyncio.create_task(self._reconnect())
+                self._reconnect_task = asyncio.create_task(self._reconnect())
 
     async def _update_db_state(
         self,
@@ -672,7 +677,14 @@ class AtomSaaSWebSocketClient:
                     ).first()
 
                     if skill_cache:
-                        skill_data = skill_cache.skill_data
+                        # Copy FIRST, then mutate: JSON columns have no
+                        # mutable tracking, and the returned dict IS the
+                        # attribute's stored object — mutating it in place and
+                        # reassigning a copy of the SAME content makes the new
+                        # value equal to the (already-mutated) old one, so
+                        # SQLAlchemy sees no change and the update is never
+                        # flushed. Ratings were silently never persisted.
+                        skill_data = dict(skill_cache.skill_data)
                         skill_data["average_rating"] = data.get("average_rating")
                         skill_data["rating_count"] = data.get("rating_count")
                         skill_cache.skill_data = skill_data

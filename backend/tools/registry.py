@@ -332,14 +332,19 @@ class ToolRegistry:
                     # In production, tools should explicitly register with proper metadata
                     category = module_name.replace("tools.", "").replace("_tool", "")
 
-                    # Infer complexity from function name
+                    # Infer complexity from function name. The CRITICAL check
+                    # must come FIRST: "execute_command" also contains
+                    # "execute" and "delete" also matched the HIGH branch, so
+                    # the CRITICAL tier was unreachable (auto-discovered
+                    # command-execution tools were gated SUPERVISED instead of
+                    # AUTONOMOUS).
                     complexity = 2  # Default to MODERATE
-                    if any(keyword in name for keyword in ["present", "get", "read", "fetch", "list"]):
+                    if any(keyword in name for keyword in ["execute_command", "deploy"]):
+                        complexity = 4  # CRITICAL
+                    elif any(keyword in name for keyword in ["present", "get", "read", "fetch", "list"]):
                         complexity = 1  # LOW
                     elif any(keyword in name for keyword in ["create", "update", "send", "post", "execute", "delete"]):
                         complexity = 3  # HIGH
-                    elif any(keyword in name for keyword in ["execute_command", "delete", "deploy"]):
-                        complexity = 4  # CRITICAL
 
                     # Infer maturity from complexity
                     maturity_map = {1: "STUDENT", 2: "INTERN", 3: "SUPERVISED", 4: "AUTONOMOUS"}

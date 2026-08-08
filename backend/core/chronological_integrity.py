@@ -97,8 +97,12 @@ class ChronologicalIntegrityValidator:
         if end_time:
             query = query.filter(FinancialAudit.timestamp <= end_time)
 
-        # Group by account_id for per-account monotonicity
-        audits = query.order_by(FinancialAudit.account_id, FinancialAudit.timestamp).all()
+        # Group by account_id for per-account monotonicity.
+        # BUG: ordering by timestamp made this check vacuous — rows sorted by
+        # time are always monotonic, so backward jumps (clock skew / manual
+        # manipulation) were never detected. Order by sequence_number: the
+        # timestamp of each successive sequence entry must not go backwards.
+        audits = query.order_by(FinancialAudit.account_id, FinancialAudit.sequence_number).all()
 
         violations = []
         current_account = None

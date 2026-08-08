@@ -230,16 +230,18 @@ class TeamsAdapter(PlatformAdapter):
             logger.error(f"Webhook signature verification error: {e}")
             return False
 
-    async def normalize_payload(self, request: Request, body_bytes: bytes) -> Dict[str, Any]:
+    def normalize_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
         Normalize Microsoft Bot Framework Activity.
+
+        Follows the PlatformAdapter contract: sync method taking the parsed
+        payload dict (previously this was an async (request, body_bytes)
+        signature that violated the base class and crashed dict-style callers).
         """
-        import json
-        try:
-            data = json.loads(body_bytes)
-        except json.JSONDecodeError:
+        if not isinstance(payload, dict):
             return {}
 
+        data = payload
         activity_type = data.get("type")
         if activity_type != "message":
             return {}

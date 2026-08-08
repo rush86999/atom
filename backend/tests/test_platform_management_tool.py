@@ -3,6 +3,8 @@ Tests for tools/platform_management_tool.py
 Platform Management Tools - Administrative tools for managing tenants, workspaces, members, teams
 """
 
+import asyncio
+import inspect
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from uuid import uuid4
@@ -26,6 +28,11 @@ from tools.platform_management_tool import (
     add_member_to_team,
     remove_member_from_team
 )
+
+
+def _run(coro):
+    """Run an async platform-management function in a fresh event loop."""
+    return asyncio.new_event_loop().run_until_complete(coro)
 
 
 # Fixtures
@@ -59,7 +66,10 @@ class TestPlatformSettings:
         ]
         db_session.query.return_value.filter.return_value.all.return_value = mock_settings
 
-        result = get_platform_settings(test_context)
+        with patch("core.database.SessionLocal", return_value=db_session):
+            result = get_platform_settings(test_context)
+            if inspect.iscoroutine(result):
+                result = _run(result)
 
         # Verify settings are returned
         assert result is not None
@@ -69,7 +79,10 @@ class TestPlatformSettings:
         """Test retrieving platform settings when none exist"""
         db_session.query.return_value.filter.return_value.all.return_value = []
 
-        result = get_platform_settings(test_context)
+        with patch("core.database.SessionLocal", return_value=db_session):
+            result = get_platform_settings(test_context)
+            if inspect.iscoroutine(result):
+                result = _run(result)
 
         # Verify empty settings
         assert result == {} or "error" in result
@@ -78,7 +91,10 @@ class TestPlatformSettings:
         """Test updating a platform setting"""
         db_session.query.return_value.filter.return_value.first.return_value = None  # Setting doesn't exist
 
-        result = update_platform_setting("new_feature", "true", test_context)
+        with patch("core.database.SessionLocal", return_value=db_session):
+            result = update_platform_setting("new_feature", "true", test_context)
+            if inspect.iscoroutine(result):
+                result = _run(result)
 
         # Verify setting was updated
         assert result is not None
@@ -173,8 +189,10 @@ class TestTenantManagement:
         tenant_id = uuid4()
         db_session.query.return_value.filter.return_value.first.return_value = None
 
-        with pytest.raises(ValueError):
-            delete_tenant(tenant_id)
+        with patch("core.database.SessionLocal", return_value=db_session):
+            result = _run(delete_tenant(str(tenant_id)))
+
+        assert "not found" in result
 
 
 # Workspace Management Tests
@@ -196,7 +214,8 @@ class TestWorkspaceManagement:
         db_session.commit.return_value = None
         db_session.refresh.return_value = mock_workspace
 
-        result = create_workspace(workspace_data)
+        with patch("core.database.SessionLocal", return_value=db_session):
+            result = _run(create_workspace(workspace_data["name"], workspace_data["tenant_id"]))
 
         # Verify workspace was created
         assert result is not None or db_session.add.called
@@ -336,7 +355,8 @@ class TestTeamManagement:
         db_session.commit.return_value = None
         db_session.refresh.return_value = mock_team
 
-        result = create_team(team_data)
+        with patch("core.database.SessionLocal", return_value=db_session):
+            result = _run(create_team(team_data["name"], team_data["workspace_id"]))
 
         # Verify team was created
         assert result is not None or db_session.add.called
@@ -481,9 +501,10 @@ class TestBulkOperations:
         ]
 
         results = []
-        for data in workspace_data:
-            result = create_workspace(data)
-            results.append(result)
+        with patch("core.database.SessionLocal", return_value=db_session):
+            for data in workspace_data:
+                result = _run(create_workspace(data["name"], data["tenant_id"]))
+                results.append(result)
 
         # Verify all workspaces were created
         assert len(results) == 3

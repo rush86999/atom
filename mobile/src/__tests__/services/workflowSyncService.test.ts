@@ -545,4 +545,309 @@ describe('workflowSyncService', () => {
       }).not.toThrow();
     });
   });
+
+  // ========================================================================
+  // Cache TTL and fallback tests
+  // ========================================================================
+
+  describe('Cache TTL and Fallback', () => {
+    it('should refetch from the server when the cache is stale', async () => {
+      const stale = mockWorkflow('wf-1', new Date(Date.now() - 48 * 60 * 60 * 1000));
+      (workflowSyncService as any).cache.workflows['wf-1'] = stale;
+      const fresh = mockWorkflow('wf-1', new Date());
+      mockApiService.get.mockResolvedValue({ success: true, data: fresh });
+
+      const result = await workflowSyncService.getWorkflow('wf-1');
+
+      expect(mockApiService.get).toHaveBeenCalledWith('/api/workflows/wf-1');
+      expect(result?.name).toBe(fresh.name);
+    });
+
+    it('should serve the stale cache when the refetch fails', async () => {
+      const stale = mockWorkflow('wf-1', new Date(Date.now() - 48 * 60 * 60 * 1000));
+      (workflowSyncService as any).cache.workflows['wf-1'] = stale;
+      mockApiService.get.mockResolvedValue({ success: false, error: 'offline' });
+
+      const result = await workflowSyncService.getWorkflow('wf-1');
+
+      expect(result?.id).toBe('wf-1');
+      expect(result?.name).toBe(stale.name);
+    });
+
+    it('should serve the fresh cache without a network call', async () => {
+      const fresh = mockWorkflow('wf-1', new Date());
+      (workflowSyncService as any).cache.workflows['wf-1'] = fresh;
+      mockApiService.get.mockClear();
+
+      const result = await workflowSyncService.getWorkflow('wf-1');
+
+      expect(result?.id).toBe('wf-1');
+      expect(mockApiService.get).not.toHaveBeenCalled();
+    });
+
+    it('should return null when the execution is not cached or fetchable', async () => {
+      mockApiService.get.mockResolvedValue({ success: false, error: 'not found' });
+
+      const result = await workflowSyncService.getExecution('missing-exec');
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null when the trigger request throws', async () => {
+      mockOfflineSyncService.getSyncState.mockResolvedValue({
+        syncInProgress: false,
+        lastSyncAt: null,
+        pendingActions: 0,
+        syncProgress: 0,
+      });
+      mockApiService.post.mockRejectedValue(new Error('network down'));
+
+      const executionId = await workflowSyncService.triggerWorkflow(
+        'wf-1',
+        { input: 1 },
+        'user-123',
+        'device-123',
+        5
+      );
+
+      expect(executionId).toBeNull();
+    });
+  });
+
+  // ========================================================================
+  // Offline trigger queue limit tests
+  // ========================================================================
+
+  describe('Offline Trigger Queue Limits', () => {
+    it('should cap pending triggers at 100 keeping highest priorities', async () => {
+      mockOfflineSyncService.getSyncState.mockResolvedValue({
+        syncInProgress: true,
+        lastSyncAt: null,
+        pendingActions: 0,
+        syncProgress: 0,
+      });
+      (workflowSyncService as any).cache.pendingTriggers = [];
+
+      for (let i = 0; i < 105; i++) {
+        await workflowSyncService.triggerWorkflow('wf-1', { i }, 'u', 'd', i % 10);
+      }
+
+      const triggers = (workflowSyncService as any).cache.pendingTriggers;
+      expect(triggers).toHaveLength(100);
+      // Sorted by priority (desc) — never out of order
+      for (let i = 1; i < triggers.length; i++) {
+        expect(triggers[i - 1].priority).toBeGreaterThanOrEqual(triggers[i].priority);
+      }
+    });
+  });
+
+  // ========================================================================
+  // Pending trigger sync lifecycle tests
+  // ========================================================================
+
+  describe('Pending Trigger Sync Lifecycle', () => {
+    const seedTrigger = (id: string, retryCount = 0) => ({
+      id,
+      workflowId: 'wf-1',
+      input: { x: 1 },
+      priority: 5,
+      createdAt: new Date(),
+      retryCount,
+    });
+
+    it('should remove triggers that sync successfully', async () => {
+      (workflowSyncService as any).cache.pendingTriggers = [
+        seedTrigger('t1'),
+        seedTrigger('t2'),
+      ];
+      mockApiService.post.mockResolvedValue({ success: true, data: {} });
+
+      await workflowSyncService.syncExecutions('u', 'd');
+
+      expect((workflowSyncService as any).cache.pendingTriggers).toHaveLength(0);
+      expect(mockApiService.post).toHaveBeenCalledWith(
+        '/api/workflows/wf-1/trigger',
+        { x: 1 }
+      );
+    });
+
+    it('should drop a trigger whose syncs keep throwing after 5 retries', async () => {
+      (workflowSyncService as any).cache.pendingTriggers = [seedTrigger('t1')];
+      mockApiService.post.mockRejectedValue(new Error('network down'));
+
+      for (let i = 0; i < 5; i++) {
+        await workflowSyncService.syncExecutions('u', 'd');
+      }
+
+      expect((workflowSyncService as any).cache.pendingTriggers).toHaveLength(0);
+      expect(mockApiService.post).toHaveBeenCalledTimes(5);
+    });
+
+    it('should keep a trigger that failed fewer than 5 times', async () => {
+      (workflowSyncService as any).cache.pendingTriggers = [seedTrigger('t1')];
+      mockApiService.post.mockRejectedValue(new Error('network down'));
+
+      for (let i = 0; i < 3; i++) {
+        await workflowSyncService.syncExecutions('u', 'd');
+      }
+
+      const triggers = (workflowSyncService as any).cache.pendingTriggers;
+      expect(triggers).toHaveLength(1);
+      expect(triggers[0].retryCount).toBe(3);
+    });
+
+    it('should remove triggers that report failure after 5 retries', async () => {
+      (workflowSyncService as any).cache.pendingTriggers = [seedTrigger('t1')];
+      mockApiService.post.mockResolvedValue({ success: false, error: 'invalid' });
+
+      for (let i = 0; i < 5; i++) {
+        await workflowSyncService.syncExecutions('u', 'd');
+      }
+
+      expect((workflowSyncService as any).cache.pendingTriggers).toHaveLength(0);
+    });
+
+    it('should replay an execution only when it exists', async () => {
+      mockApiService.get.mockResolvedValue({ success: false, error: 'missing' });
+
+      const result = await workflowSyncService.replayExecution('missing', 'u', 'd');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  // ========================================================================
+  // Execution cache tests
+  // ========================================================================
+
+  describe('Execution Cache', () => {
+    it('should return executions sorted newest-first capped at 20', async () => {
+      const executions: Record<string, any> = {};
+      for (let i = 0; i < 25; i++) {
+        const exec = mockExecution(`e${i}`, 'wf-1', 'completed');
+        exec.startedAt = new Date(Date.now() + i * 1000);
+        executions[`e${i}`] = exec;
+      }
+      (workflowSyncService as any).cache.executions = executions;
+
+      const result = workflowSyncService.getWorkflowExecutions('wf-1');
+
+      expect(result).toHaveLength(20);
+      expect(result[0].id).toBe('e24');
+      expect(result[19].id).toBe('e5');
+      expect(
+        new Date(result[0].startedAt).getTime()
+      ).toBeGreaterThan(new Date(result[19].startedAt).getTime());
+    });
+
+    it('should exclude executions from other workflows', async () => {
+      (workflowSyncService as any).cache.executions = {
+        e1: mockExecution('e1', 'wf-1', 'completed'),
+        e2: mockExecution('e2', 'wf-other', 'completed'),
+      };
+
+      const result = workflowSyncService.getWorkflowExecutions('wf-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('e1');
+    });
+  });
+
+  // ========================================================================
+  // Cache size enforcement tests
+  // ========================================================================
+
+  describe('Cache Size Enforcement', () => {
+    it('should evict the oldest workflows on save beyond 50', async () => {
+      const workflows: Record<string, any> = {};
+      for (let i = 0; i < 55; i++) {
+        workflows[`wf-${i}`] = mockWorkflow(`wf-${i}`, new Date(Date.now() + i * 1000));
+      }
+      (workflowSyncService as any).cache.workflows = workflows;
+
+      await (workflowSyncService as any).saveCache();
+
+      const remaining = Object.keys((workflowSyncService as any).cache.workflows);
+      expect(remaining).toHaveLength(50);
+      expect(remaining).toContain('wf-54');
+      expect(remaining).not.toContain('wf-0');
+    });
+
+    it('should evict oldest executions per workflow on save beyond 20', async () => {
+      const executions: Record<string, any> = {};
+      for (let i = 0; i < 25; i++) {
+        const exec = mockExecution(`e${i}`, 'wf-1', 'completed');
+        exec.startedAt = new Date(Date.now() + i * 1000);
+        executions[`e${i}`] = exec;
+      }
+      (workflowSyncService as any).cache.executions = executions;
+
+      await (workflowSyncService as any).saveCache();
+
+      const remaining = Object.keys((workflowSyncService as any).cache.executions);
+      expect(remaining).toHaveLength(20);
+      expect(remaining).toContain('e24');
+      expect(remaining).not.toContain('e0');
+    });
+
+    it('should clear the cache and persist it', async () => {
+      (workflowSyncService as any).cache.workflows = {
+        'wf-1': mockWorkflow('wf-1', new Date()),
+      };
+      mockStorageService.setObject.mockClear();
+
+      await workflowSyncService.clearCache();
+
+      expect(workflowSyncService.getAllWorkflows()).toHaveLength(0);
+      expect(mockStorageService.setObject).toHaveBeenCalledWith(
+        'workflow_cache' as any,
+        expect.objectContaining({ workflows: {}, executions: {} })
+      );
+    });
+  });
+
+  // ========================================================================
+  // Metrics update tests
+  // ========================================================================
+
+  describe('Metrics Updates', () => {
+    beforeEach(() => {
+      // initialize() is idempotent after the first call — loadMetrics never
+      // re-runs, so the singleton's metrics persist between tests. Reset them.
+      (workflowSyncService as any).metrics = {
+        totalExecutions: 0,
+        successfulExecutions: 0,
+        failedExecutions: 0,
+        avgDuration: 0,
+        lastExecutionAt: null,
+      };
+    });
+
+    it('should count completed executions as successful', async () => {
+      await (workflowSyncService as any).updateMetrics(
+        mockExecution('e1', 'wf-1', 'completed')
+      );
+
+      const metrics = workflowSyncService.getMetrics();
+      expect(metrics.totalExecutions).toBe(1);
+      expect(metrics.successfulExecutions).toBe(1);
+      expect(metrics.failedExecutions).toBe(0);
+    });
+
+    it('should count failed executions and track duration', async () => {
+      await (workflowSyncService as any).updateMetrics(
+        mockExecution('e2', 'wf-1', 'failed')
+      );
+
+      const metrics = workflowSyncService.getMetrics();
+      expect(metrics.totalExecutions).toBe(1);
+      expect(metrics.failedExecutions).toBe(1);
+      expect(metrics.avgDuration).toBe(1000);
+      expect(metrics.lastExecutionAt).toBeInstanceOf(Date);
+      expect(mockStorageService.setObject).toHaveBeenCalledWith(
+        'workflow_metrics' as any,
+        expect.objectContaining({ failedExecutions: 1 })
+      );
+    });
+  });
 });

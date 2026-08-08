@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.api_governance import ActionComplexity, require_governance
+from core.auth import User, get_current_user
 from core.base_routes import BaseAPIRouter
 from core.business_health_service import business_health_service
 from core.database import get_db
@@ -19,6 +20,7 @@ class SimulationRequest(BaseModel):
 
 @router.get("/dashboard")
 async def get_dashboard_data(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get all data for the Owner Cockpit"""
@@ -41,7 +43,7 @@ async def get_dashboard_data(
     except Exception as e:
         logger.error(f"Error getting dashboard data: {e}")
         raise router.internal_error(
-            message=f"Failed to get dashboard data: {str(e)}"
+            message="Failed to get dashboard data"
         )
 
 @router.post("/simulate")
@@ -77,5 +79,5 @@ async def run_simulation(
     except Exception as e:
         logger.error(f"Error running simulation: {e}")
         raise router.internal_error(
-            message=f"Failed to run simulation: {str(e)}"
+            message="Failed to run simulation"
         )

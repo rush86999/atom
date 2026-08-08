@@ -16,10 +16,6 @@ D. SecurityPolicy.required_credentials is declared but never enforced by
    credential allows requests that present no credentials at all.
 """
 
-import sys
-from datetime import datetime, timedelta
-from pathlib import Path
-
 import pytest
 
 from core.identity.did_manager import DIDManager, DIDType
@@ -38,8 +34,6 @@ from core.federation.zero_trust_security import (
     SecurityPolicy,
     ZeroTrustSecurityManager,
 )
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 @pytest.fixture

@@ -1,16 +1,16 @@
 /**
  * AgentChatScreen Component Tests
  *
- * Tests for chat interface, streaming text, input handling,
- * message rendering, and platform-specific keyboard behavior.
+ * Tests for chat interface, message sending (streaming + fallback),
+ * session loading, episode context, governance badges, and error paths.
  */
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { Alert, StyleSheet } from 'react-native';
 import { mockPlatform, restorePlatform } from '../../helpers/testUtils';
-import { AgentChatScreen } from '../../../screens/agent/AgentChatScreen';
 
-// Mock React Navigation
+// Mock React Navigation (params are mutable so per-test agent/session ids work)
 const mockNavigation = {
   navigate: jest.fn(),
   goBack: jest.fn(),
@@ -18,14 +18,15 @@ const mockNavigation = {
   reset: jest.fn(),
 };
 
-// Mock @react-navigation/native
+const mockRouteParams: any = {
+  agentId: 'agent-123',
+  sessionId: undefined,
+};
+
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => mockNavigation,
   useRoute: () => ({
-    params: {
-      agentId: 'agent-123',
-      sessionId: undefined,
-    },
+    params: mockRouteParams,
   }),
 }));
 
@@ -85,6 +86,18 @@ const mockGetChatSession = jest.fn(() =>
           content: 'Hello',
           timestamp: '2024-01-01T00:00:00Z',
         },
+        {
+          id: 'msg-1',
+          role: 'assistant',
+          content: 'Hi there!',
+          agent_name: 'Test Agent',
+          timestamp: '2024-01-01T00:00:01Z',
+          governance_badge: {
+            maturity: 'AUTONOMOUS',
+            confidence: 0.95,
+            requires_supervision: false,
+          },
+        },
       ],
     },
   })
@@ -99,20 +112,24 @@ const mockGetEpisodeContext = jest.fn(() =>
 
 jest.mock('../../../services/agentService', () => ({
   agentService: {
-    getAgent: () => mockGetAgent(),
+    getAgent: (agentId: string) => mockGetAgent(agentId),
     getAvailableAgents: () => mockGetAvailableAgents(),
-    sendMessage: () => mockSendMessage(),
-    getChatSession: () => mockGetChatSession(),
-    getEpisodeContext: () => mockGetEpisodeContext(),
+    sendMessage: (agentId: string, message: string, sessionId?: string) =>
+      mockSendMessage(agentId, message, sessionId),
+    getChatSession: (sessionId: string) => mockGetChatSession(sessionId),
+    getEpisodeContext: (agentId: string, query: string, limit: number) =>
+      mockGetEpisodeContext(agentId, query, limit),
   },
 }));
 
 // Mock WebSocketContext
-const mockWebSocketContext = {
+const mockWebSocketContext: any = {
   isConnected: true,
   sendStreamingMessage: jest.fn(),
   subscribeToStream: jest.fn(() => jest.fn()),
 };
+
+let streamHandlers: any = {};
 
 jest.mock('../../../contexts/WebSocketContext', () => ({
   useWebSocket: () => mockWebSocketContext,
@@ -129,11 +146,22 @@ jest.mock('react-native-paper', () => ({
   },
 }));
 
+import { AgentChatScreen } from '../../../screens/agent/AgentChatScreen';
+
 describe('AgentChatScreen', () => {
   beforeEach(() => {
     mockPlatform('ios');
     jest.clearAllMocks();
     jest.useFakeTimers();
+    mockRouteParams.agentId = 'agent-123';
+    mockRouteParams.sessionId = undefined;
+    mockWebSocketContext.isConnected = true;
+    mockWebSocketContext.subscribeToStream.mockImplementation(
+      (sessionId: string, onChunk: any, onComplete: any, onError: any) => {
+        streamHandlers = { sessionId, onChunk, onComplete, onError };
+        return jest.fn();
+      }
+    );
   });
 
   afterEach(() => {
@@ -142,9 +170,24 @@ describe('AgentChatScreen', () => {
     jest.clearAllTimers();
   });
 
+  const renderChat = () => render(<AgentChatScreen />);
+
+  const waitForAgent = async () => {
+    await waitFor(() => {
+      expect(screen.getByText('Test Agent')).toBeTruthy();
+    });
+  };
+
+  const typeAndSend = async (text: string) => {
+    const input = screen.getByPlaceholderText(/type a message/i);
+    fireEvent.changeText(input, text);
+    fireEvent.press(screen.getByTestId('send-message-button'));
+    await act(async () => {});
+  };
+
   describe('Screen Rendering', () => {
     it('renders loading state initially', async () => {
-      const { getByText } = render(<AgentChatScreen />);
+      const { getByText } = renderChat();
 
       await waitFor(() => {
         expect(getByText('Loading agent...')).toBeTruthy();
@@ -152,430 +195,672 @@ describe('AgentChatScreen', () => {
     });
 
     it('renders chat interface with agent name', async () => {
-      const { getByText } = render(<AgentChatScreen />);
+      renderChat();
 
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
+      await waitForAgent();
     });
 
     it('renders empty state when no messages', async () => {
-      const { getByText } = render(<AgentChatScreen />);
+      renderChat();
 
       await waitFor(() => {
-        expect(getByText(/Start a conversation with/)).toBeTruthy();
+        expect(screen.getByText(/Start a conversation with/)).toBeTruthy();
+        expect(screen.getByText(/A test agent for automation/)).toBeTruthy();
       });
     });
 
     it('renders agent maturity badge', async () => {
-      const { getByText } = render(<AgentChatScreen />);
+      renderChat();
 
       await waitFor(() => {
-        expect(getByText('AUTONOMOUS')).toBeTruthy();
+        expect(screen.getByText('AUTONOMOUS')).toBeTruthy();
       });
     });
 
     it('renders agent status badge', async () => {
-      const { getByText } = render(<AgentChatScreen />);
+      renderChat();
 
       await waitFor(() => {
-        expect(getByText('online')).toBeTruthy();
+        expect(screen.getByText('online')).toBeTruthy();
       });
     });
   });
 
-  describe('Message Rendering', () => {
-    it('renders user messages correctly', async () => {
-      const { getByText, getByPlaceholderText } = render(<AgentChatScreen />);
+  describe('Agent Loading', () => {
+    it('shows error alert when agent fetch fails with a server error', async () => {
+      mockGetAgent.mockResolvedValueOnce({ success: false, error: 'Agent missing' });
 
-      // Wait for loading
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
-
-      const input = getByPlaceholderText(/type a message/i);
-      fireEvent.changeText(input, 'Test message');
-
-      // Send button is an Icon, not text - just verify the input works
-      expect(input).toBeTruthy();
-    });
-
-    it('renders assistant messages with governance badge', async () => {
-      const { getByText, getByPlaceholderText } = render(<AgentChatScreen />);
+      renderChat();
 
       await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
-
-      const input = getByPlaceholderText(/type a message/i);
-      fireEvent.changeText(input, 'Hello');
-
-      await waitFor(() => {
-        expect(input).toBeTruthy();
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Agent missing');
       });
     });
 
-    it('renders message timestamps', async () => {
-      const { getByText } = render(<AgentChatScreen />);
+    it('shows error alert when agent fetch throws', async () => {
+      mockGetAgent.mockRejectedValueOnce(new Error('Network down'));
+
+      renderChat();
 
       await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to load agent');
       });
-
-      // Timestamps are rendered in HH:MM format
-      // Just verify the component doesn't crash
-      expect(getByText(/Start a conversation with/)).toBeTruthy();
     });
 
-    it('renders streaming indicator for streaming messages', async () => {
-      const { getByPlaceholderText, getByText } = render(<AgentChatScreen />);
+    it('loads available agents when no agentId is provided', async () => {
+      mockRouteParams.agentId = undefined;
+
+      renderChat();
 
       await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
+        expect(mockGetAvailableAgents).toHaveBeenCalled();
+        expect(screen.getByText('Test Agent')).toBeTruthy();
       });
+    });
 
-      // Type a message to see input
-      const input = getByPlaceholderText(/type a message/i);
-      expect(input).toBeTruthy();
+    it('shows empty state when no agents are available', async () => {
+      mockRouteParams.agentId = undefined;
+      mockGetAvailableAgents.mockResolvedValueOnce({ success: true, data: [] });
+
+      renderChat();
+
+      await waitFor(() => {
+        expect(screen.getByText('Select Agent')).toBeTruthy();
+        expect(screen.getByText(/Start a conversation with the agent/)).toBeTruthy();
+      });
+    });
+
+    it('logs an error when the available-agents fetch throws', async () => {
+      mockRouteParams.agentId = undefined;
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockGetAvailableAgents.mockRejectedValueOnce(new Error('boom'));
+
+      renderChat();
+
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalled();
+        expect(screen.getByText('Select Agent')).toBeTruthy();
+      });
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe('Session Loading', () => {
+    it('loads and renders a chat session when sessionId is provided', async () => {
+      mockRouteParams.sessionId = 'session-1';
+
+      renderChat();
+
+      await waitFor(() => {
+        expect(mockGetChatSession).toHaveBeenCalledWith('session-1');
+        expect(screen.getByText('Hello')).toBeTruthy();
+        expect(screen.getByText('Hi there!')).toBeTruthy();
+      });
+    });
+
+    it('renders agent name for assistant session messages', async () => {
+      mockRouteParams.sessionId = 'session-1';
+
+      renderChat();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Test Agent').length).toBeGreaterThanOrEqual(2);
+      });
+    });
+
+    it('logs an error when session load fails', async () => {
+      mockRouteParams.sessionId = 'session-1';
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockGetChatSession.mockRejectedValueOnce(new Error('boom'));
+
+      renderChat();
+
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalled();
+      });
+      errorSpy.mockRestore();
     });
   });
 
   describe('Input Handling', () => {
     it('renders text input field', async () => {
-      const { getByPlaceholderText, getByText } = render(<AgentChatScreen />);
+      renderChat();
 
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
+      await waitForAgent();
 
-      const input = getByPlaceholderText(/type a message/i);
-      expect(input).toBeTruthy();
+      expect(screen.getByPlaceholderText(/type a message/i)).toBeTruthy();
     });
 
-    it('allows typing in input field', async () => {
-      const { getByPlaceholderText, getByText } = render(<AgentChatScreen />);
+    it('enforces max length limit on the input', async () => {
+      renderChat();
 
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
+      await waitForAgent();
 
-      const input = getByPlaceholderText(/type a message/i);
-      fireEvent.changeText(input, 'Test message');
-
-      expect(input).toBeTruthy();
-    });
-
-    it('enforces max length limit', async () => {
-      const { getByPlaceholderText, getByText } = render(<AgentChatScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
-
-      const input = getByPlaceholderText(/type a message/i);
-      const longText = 'a'.repeat(2100); // Exceeds 2000 char limit
-      fireEvent.changeText(input, longText);
-
-      // Input should accept the text (truncation happens via maxLength prop)
-      expect(input).toBeTruthy();
+      const input = screen.getByPlaceholderText(/type a message/i);
+      expect(input.props.maxLength).toBe(2000);
     });
 
     it('disables input while sending', async () => {
-      const { getByPlaceholderText, getByText } = render(<AgentChatScreen />);
+      renderChat();
+
+      await waitForAgent();
+
+      const input = screen.getByPlaceholderText(/type a message/i);
+      expect(input.props.editable).toBe(true);
+
+      fireEvent.changeText(input, 'Hello');
+      fireEvent.press(screen.getByTestId('send-message-button'));
 
       await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
+        expect(screen.getByPlaceholderText(/type a message/i).props.editable).toBe(false);
       });
-
-      const input = getByPlaceholderText(/type a message/i);
-      expect(input.props.editable).toBe(true);
     });
   });
 
   describe('Send Button Behavior', () => {
     it('disables send button when input is empty', async () => {
-      const { getByPlaceholderText, getByText } = render(<AgentChatScreen />);
+      renderChat();
 
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
+      await waitForAgent();
 
-      const input = getByPlaceholderText(/type a message/i);
-      expect(input).toBeTruthy();
+      const sendButton = screen.getByTestId('send-message-button');
+      expect(sendButton.props.accessibilityState?.disabled ?? sendButton.props.disabled).toBe(true);
     });
 
-    it('enables send button when input has text', async () => {
-      const { getByPlaceholderText, getByText } = render(<AgentChatScreen />);
+    it('does not send when input is whitespace only', async () => {
+      renderChat();
 
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
+      await waitForAgent();
 
-      const input = getByPlaceholderText(/type a message/i);
-      fireEvent.changeText(input, 'Test');
+      fireEvent.changeText(screen.getByPlaceholderText(/type a message/i), '   ');
+      fireEvent.press(screen.getByTestId('send-message-button'));
 
-      expect(input).toBeTruthy();
+      expect(mockWebSocketContext.sendStreamingMessage).not.toHaveBeenCalled();
+      expect(mockSendMessage).not.toHaveBeenCalled();
     });
 
-    it('sends message when send button is pressed', async () => {
-      const { getByPlaceholderText, getByText, getByTestId } = render(<AgentChatScreen />);
+    it('clears input and appends the user message after sending', async () => {
+      renderChat();
+
+      await waitForAgent();
+
+      const input = screen.getByPlaceholderText(/type a message/i);
+      fireEvent.changeText(input, 'Hello there');
+      fireEvent.press(screen.getByTestId('send-message-button'));
 
       await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
+        expect(input.props.value).toBe('');
+        expect(screen.getByText('Hello there')).toBeTruthy();
       });
-
-      const input = getByPlaceholderText(/type a message/i);
-      fireEvent.changeText(input, 'Test message');
-
-      // Send button is an Icon component, not text
-      // Just verify the component renders
-      expect(input).toBeTruthy();
-    });
-
-    it('clears input after sending message', async () => {
-      const { getByPlaceholderText, getByText } = render(<AgentChatScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
-
-      const input = getByPlaceholderText(/type a message/i);
-      fireEvent.changeText(input, 'Test message');
-
-      expect(input).toBeTruthy();
     });
   });
 
-  describe('Streaming Text Updates', () => {
-    it('subscribes to WebSocket stream when connected', async () => {
-      const { getByText } = render(<AgentChatScreen />);
+  describe('Streaming Messages (WebSocket connected)', () => {
+    it('sends streaming message and subscribes to the stream', async () => {
+      renderChat();
 
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
+      await waitForAgent();
 
-      // WebSocket subscription happens automatically
-      // Just verify the screen renders with connection indicator
-      expect(getByText('Test Agent')).toBeTruthy();
+      await typeAndSend('Hi agent');
+
+      expect(mockWebSocketContext.sendStreamingMessage).toHaveBeenCalledWith(
+        'agent-123',
+        'Hi agent',
+        'new'
+      );
+      expect(mockWebSocketContext.subscribeToStream).toHaveBeenCalledWith(
+        'new',
+        expect.any(Function),
+        expect.any(Function),
+        expect.any(Function)
+      );
     });
 
-    it('updates message content during streaming', async () => {
-      const { getByPlaceholderText, getByText } = render(<AgentChatScreen />);
+    it('renders streaming chunks and appends them to the streaming message', async () => {
+      renderChat();
 
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
+      await waitForAgent();
+
+      await typeAndSend('Tell me a story');
+
+      await act(async () => {
+        streamHandlers.onChunk({ token: 'Once ', metadata: {} });
       });
+      expect(screen.getByText('Once ')).toBeTruthy();
 
-      const input = getByPlaceholderText(/type a message/i);
-      fireEvent.changeText(input, 'Test');
-
-      expect(input).toBeTruthy();
+      await act(async () => {
+        streamHandlers.onChunk({ token: 'upon ', metadata: {} });
+      });
+      expect(screen.getByText('Once upon ')).toBeTruthy();
     });
 
-    it('shows streaming indicator while streaming', async () => {
-      const { getByText } = render(<AgentChatScreen />);
+    it('renders governance badge from streaming chunk metadata', async () => {
+      renderChat();
 
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
+      await waitForAgent();
+
+      await typeAndSend('Analyze this');
+
+      await act(async () => {
+        streamHandlers.onChunk({
+          token: 'Working',
+          metadata: {
+            governance_badge: { maturity: 'SUPERVISED', confidence: 0.8 },
+          },
+        });
       });
 
-      // Streaming indicator appears when is_streaming is true
-      // Just verify the component renders
-      expect(getByText('Test Agent')).toBeTruthy();
+      expect(screen.getByText('SUPERVISED')).toBeTruthy();
     });
 
-    it('removes streaming indicator when complete', async () => {
-      const { getByText } = render(<AgentChatScreen />);
+    it('marks the stream complete and re-enables input', async () => {
+      renderChat();
 
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
+      await waitForAgent();
+
+      await typeAndSend('Finish this');
+
+      await act(async () => {
+        streamHandlers.onChunk({ token: 'Final answer', metadata: {} });
+      });
+      expect(screen.getByText('Final answer')).toBeTruthy();
+
+      await act(async () => {
+        streamHandlers.onComplete();
       });
 
-      expect(getByText('Test Agent')).toBeTruthy();
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/type a message/i).props.editable).toBe(true);
+      });
+      expect(screen.getByText('Final answer')).toBeTruthy();
+    });
+
+    it('alerts the user when the stream errors', async () => {
+      renderChat();
+
+      await waitForAgent();
+
+      await typeAndSend('Broken stream');
+
+      await act(async () => {
+        streamHandlers.onError('Connection lost');
+      });
+
+      expect(Alert.alert).toHaveBeenCalledWith('Streaming Error', 'Connection lost');
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/type a message/i).props.editable).toBe(true);
+      });
+    });
+
+    it('unsubscribes from the stream after 30 seconds', async () => {
+      const unsubscribe = jest.fn();
+      mockWebSocketContext.subscribeToStream.mockReturnValue(unsubscribe);
+
+      renderChat();
+
+      await waitForAgent();
+
+      await typeAndSend('Long request');
+
+      act(() => {
+        jest.advanceTimersByTime(30000);
+      });
+
+      expect(unsubscribe).toHaveBeenCalled();
     });
   });
 
-  describe('Keyboard Avoidance Behavior', () => {
-    it('uses padding behavior on iOS', async () => {
-      mockPlatform('ios');
-      const { getByText } = render(<AgentChatScreen />);
+  describe('Non-Streaming Fallback (WebSocket disconnected)', () => {
+    it('sends via agentService and renders the assistant reply', async () => {
+      mockWebSocketContext.isConnected = false;
+
+      renderChat();
+
+      await waitForAgent();
+
+      await typeAndSend('Fallback message');
 
       await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
+        expect(mockSendMessage).toHaveBeenCalledWith('agent-123', 'Fallback message', undefined);
+        expect(screen.getByText('Hello! How can I help you?')).toBeTruthy();
       });
-
-      expect(getByText('Test Agent')).toBeTruthy();
     });
 
-    it('uses undefined behavior on Android', async () => {
-      mockPlatform('android');
-      const { getByText } = render(<AgentChatScreen />);
+    it('shows the agent governance badge on the fallback reply', async () => {
+      mockWebSocketContext.isConnected = false;
+
+      renderChat();
+
+      await waitForAgent();
+
+      await typeAndSend('Reply with badge');
 
       await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
+        expect(screen.getAllByText('AUTONOMOUS').length).toBeGreaterThanOrEqual(2);
       });
+    });
 
-      expect(getByText('Test Agent')).toBeTruthy();
+    it('alerts when the fallback send fails with a server error', async () => {
+      mockWebSocketContext.isConnected = false;
+      mockSendMessage.mockResolvedValueOnce({ success: false, error: 'Rate limited' });
+
+      renderChat();
+
+      await waitForAgent();
+
+      await typeAndSend('Fail me');
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Rate limited');
+      });
+    });
+
+    it('alerts when the fallback send throws', async () => {
+      mockWebSocketContext.isConnected = false;
+      mockSendMessage.mockRejectedValueOnce(new Error('network'));
+
+      renderChat();
+
+      await waitForAgent();
+
+      await typeAndSend('Crash me');
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to send message');
+      });
     });
   });
 
   describe('Episode Context', () => {
-    it('displays episode context when available', async () => {
-      const { getByText, getByPlaceholderText } = render(<AgentChatScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
+    it('fetches and displays episode context after sending a message', async () => {
+      mockGetEpisodeContext.mockResolvedValueOnce({
+        success: true,
+        data: [
+          {
+            id: 'ep-1',
+            title: 'Sales Pipeline Review',
+            summary: 'Reviewed Q3 pipeline',
+            created_at: '2024-01-01T00:00:00Z',
+            relevance_score: 0.87,
+          },
+        ],
       });
 
-      // Trigger episode context fetch by sending a message
-      const input = getByPlaceholderText(/type a message/i);
-      fireEvent.changeText(input, 'Test');
+      renderChat();
+
+      await waitForAgent();
+
+      await typeAndSend('What did we do last time?');
 
       await waitFor(() => {
-        expect(input).toBeTruthy();
+        expect(mockGetEpisodeContext).toHaveBeenCalledWith('agent-123', 'What did we do last time?', 3);
+        expect(screen.getByText('Relevant Context')).toBeTruthy();
+        expect(screen.getByText('Sales Pipeline Review')).toBeTruthy();
+        expect(screen.getByText('87%')).toBeTruthy();
       });
     });
 
-    it('shows relevance score for episodes', async () => {
-      const { getByPlaceholderText, getByText } = render(<AgentChatScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
+    it('logs when an episode chip is tapped', async () => {
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      mockGetEpisodeContext.mockResolvedValueOnce({
+        success: true,
+        data: [
+          {
+            id: 'ep-1',
+            title: 'Sales Pipeline Review',
+            summary: 'Reviewed Q3 pipeline',
+            created_at: '2024-01-01T00:00:00Z',
+            relevance_score: 0.87,
+          },
+        ],
       });
 
-      const input = getByPlaceholderText(/type a message/i);
-      fireEvent.changeText(input, 'Test');
+      renderChat();
+
+      await waitForAgent();
+
+      await typeAndSend('Remind me of context');
 
       await waitFor(() => {
-        expect(input).toBeTruthy();
+        expect(screen.getByText('Sales Pipeline Review')).toBeTruthy();
       });
+
+      fireEvent.press(screen.getByText('Sales Pipeline Review'));
+
+      expect(logSpy).toHaveBeenCalledWith('Episode tapped:', 'ep-1');
+      logSpy.mockRestore();
+    });
+
+    it('hides the episode panel when close is pressed', async () => {
+      mockGetEpisodeContext.mockResolvedValueOnce({
+        success: true,
+        data: [
+          {
+            id: 'ep-1',
+            title: 'Sales Pipeline Review',
+            summary: 'Reviewed Q3 pipeline',
+            created_at: '2024-01-01T00:00:00Z',
+            relevance_score: 0.87,
+          },
+        ],
+      });
+
+      renderChat();
+
+      await waitForAgent();
+
+      await typeAndSend('Show me context');
+
+      await waitFor(() => {
+        expect(screen.getByText('Relevant Context')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId('episode-close-button'));
+
+      await waitFor(() => {
+        expect(screen.queryByText('Relevant Context')).toBeNull();
+      });
+    });
+
+    it('does not show episodes when context is empty', async () => {
+      renderChat();
+
+      await waitForAgent();
+
+      await typeAndSend('No context please');
+
+      await waitFor(() => {
+        expect(screen.queryByText('Relevant Context')).toBeNull();
+      });
+    });
+
+    it('logs an error when episode context fetch fails', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockGetEpisodeContext.mockRejectedValueOnce(new Error('boom'));
+
+      renderChat();
+
+      await waitForAgent();
+
+      await typeAndSend('Context fail');
+
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalled();
+      });
+      errorSpy.mockRestore();
     });
   });
 
   describe('Connection Status', () => {
     it('shows reconnection status when disconnected', async () => {
-      // Mock disconnected WebSocket
       mockWebSocketContext.isConnected = false;
 
-      const { getByText } = render(<AgentChatScreen />);
+      renderChat();
 
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
+      await waitForAgent();
 
-      // Connection status indicator should appear
-      expect(getByText('Test Agent')).toBeTruthy();
+      expect(screen.getByText('Reconnecting...')).toBeTruthy();
+    });
 
-      // Reset for other tests
-      mockWebSocketContext.isConnected = true;
+    it('does not show reconnection status when connected', async () => {
+      renderChat();
+
+      await waitForAgent();
+
+      expect(screen.queryByText('Reconnecting...')).toBeNull();
     });
   });
 
   describe('Header Actions', () => {
-    it('renders back button', async () => {
-      const { getByText } = render(<AgentChatScreen />);
+    it('navigates back when back button pressed', async () => {
+      renderChat();
 
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
+      await waitForAgent();
 
-      // Back button is in the header
-      expect(getByText('Test Agent')).toBeTruthy();
-    });
-
-    it('renders settings button', async () => {
-      const { getByText } = render(<AgentChatScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
-
-      // Settings button is in the header
-      expect(getByText('Test Agent')).toBeTruthy();
-    });
-  });
-
-  describe('Platform-Specific Behavior', () => {
-    it('renders correctly on iOS', async () => {
-      mockPlatform('ios');
-      const { getByText } = render(<AgentChatScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
-    });
-
-    it('renders correctly on Android', async () => {
-      mockPlatform('android');
-      const { getByText } = render(<AgentChatScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
+      fireEvent.press(screen.getByTestId('back-button'));
+      expect(mockNavigation.goBack).toHaveBeenCalled();
     });
   });
 
   describe('Governance Badges', () => {
     it('shows correct badge for AUTONOMOUS agent', async () => {
-      const { getByText } = render(<AgentChatScreen />);
+      renderChat();
 
       await waitFor(() => {
-        expect(getByText('AUTONOMOUS')).toBeTruthy();
+        expect(screen.getByText('AUTONOMOUS')).toBeTruthy();
       });
     });
 
-    it('shows maturity badge in header', async () => {
-      const { getByText } = render(<AgentChatScreen />);
+    it('renders INTERN agent with blue maturity badge', async () => {
+      mockGetAgent.mockResolvedValueOnce({
+        success: true,
+        data: {
+          id: 'agent-123',
+          name: 'Intern Agent',
+          description: 'Learning',
+          maturity_level: 'INTERN',
+          status: 'offline',
+          confidence_score: 0.6,
+          created_at: '2024-01-01T00:00:00Z',
+        },
+      });
+
+      renderChat();
 
       await waitFor(() => {
-        expect(getByText('AUTONOMOUS')).toBeTruthy();
+        expect(screen.getByText('INTERN')).toBeTruthy();
+        expect(screen.getByText('offline')).toBeTruthy();
       });
+
+      const badgeText = screen.getByText('INTERN');
+      const parent = badgeText.parent;
+      const badge = parent && parent.parent;
+      const flattened = StyleSheet.flatten(badge?.props.style);
+      expect(flattened && flattened.backgroundColor).toBe('#2196F3');
+    });
+
+    it('renders STUDENT agent with grey maturity badge', async () => {
+      mockGetAgent.mockResolvedValueOnce({
+        success: true,
+        data: {
+          id: 'agent-123',
+          name: 'Student Agent',
+          description: 'Training',
+          maturity_level: 'STUDENT',
+          status: 'maintenance',
+          confidence_score: 0.4,
+          created_at: '2024-01-01T00:00:00Z',
+        },
+      });
+
+      renderChat();
+
+      await waitFor(() => {
+        expect(screen.getByText('STUDENT')).toBeTruthy();
+      });
+
+      const badgeText = screen.getByText('STUDENT');
+      const flattened = StyleSheet.flatten(badgeText.parent?.parent?.props.style);
+      expect(flattened.backgroundColor).toBe('#9E9E9E');
+    });
+
+    it('renders SUPERVISED agent with orange maturity badge', async () => {
+      mockGetAgent.mockResolvedValueOnce({
+        success: true,
+        data: {
+          id: 'agent-123',
+          name: 'Supervised Agent',
+          description: 'Supervised',
+          maturity_level: 'SUPERVISED',
+          status: 'busy',
+          confidence_score: 0.75,
+          created_at: '2024-01-01T00:00:00Z',
+        },
+      });
+
+      renderChat();
+
+      await waitFor(() => {
+        expect(screen.getByText('SUPERVISED')).toBeTruthy();
+        expect(screen.getByText('busy')).toBeTruthy();
+      });
+
+      const badgeText = screen.getByText('SUPERVISED');
+      const flattened = StyleSheet.flatten(badgeText.parent?.parent?.props.style);
+      expect(flattened.backgroundColor).toBe('#FF9800');
+    });
+
+    it('renders unknown maturity with the default grey color', async () => {
+      mockGetAgent.mockResolvedValueOnce({
+        success: true,
+        data: {
+          id: 'agent-123',
+          name: 'Unknown Agent',
+          description: 'Unknown',
+          maturity_level: 'WEIRD' as any,
+          status: 'unknown-status' as any,
+          confidence_score: 0.5,
+          created_at: '2024-01-01T00:00:00Z',
+        },
+      });
+
+      renderChat();
+
+      await waitFor(() => {
+        expect(screen.getByText('WEIRD')).toBeTruthy();
+      });
+
+      const badgeText = screen.getByText('WEIRD');
+      const flattened = StyleSheet.flatten(badgeText.parent?.parent?.props.style);
+      expect(flattened.backgroundColor).toBe('#9E9E9E');
     });
   });
 
   describe('Edge Cases', () => {
     it('handles very long messages', async () => {
-      const { getByPlaceholderText, getByText } = render(<AgentChatScreen />);
+      renderChat();
 
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
+      await waitForAgent();
 
-      const input = getByPlaceholderText(/type a message/i);
-      const longMessage = 'a'.repeat(1999); // Just under limit
+      const input = screen.getByPlaceholderText(/type a message/i);
+      const longMessage = 'a'.repeat(1999);
       fireEvent.changeText(input, longMessage);
 
-      expect(input).toBeTruthy();
+      expect(input.props.value).toBe(longMessage);
     });
 
-    it('handles special characters in messages', async () => {
-      const { getByPlaceholderText, getByText } = render(<AgentChatScreen />);
+    it('renders message timestamps in HH:MM format', async () => {
+      mockRouteParams.sessionId = 'session-1';
+
+      renderChat();
 
       await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
+        expect(screen.getByText('Hi there!')).toBeTruthy();
       });
 
-      const input = getByPlaceholderText(/type a message/i);
-      const specialMessage = 'Test <script>alert("xss")</script> & special chars';
-      fireEvent.changeText(input, specialMessage);
-
-      expect(input).toBeTruthy();
-    });
-  });
-
-  describe('Message List Auto-Scroll', () => {
-    it('scrolls to bottom when new message is added', async () => {
-      const { getByPlaceholderText, getByText } = render(<AgentChatScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Test Agent')).toBeTruthy();
-      });
-
-      const input = getByPlaceholderText(/type a message/i);
-      fireEvent.changeText(input, 'New message');
-
-      // FlatList should scroll to bottom automatically
-      expect(input).toBeTruthy();
+      // Both session messages render a localized time
+      const times = screen.getAllByText(/\d{1,2}:\d{2}/);
+      expect(times.length).toBe(2);
     });
   });
 });

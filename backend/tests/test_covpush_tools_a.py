@@ -319,7 +319,8 @@ class TestRegistry:
         assert r.get("read_foo").cacheable is True
         assert r.get("create_foo").complexity == 3
         assert r.get("create_foo").cacheable is False
-        assert r.get("execute_command_bar").complexity == 3
+        assert r.get("execute_command_bar").complexity == 4
+        assert r.get("execute_command_bar").maturity_required == "AUTONOMOUS"
         assert r.get("execute_command_bar").cacheable is False
         assert r.get("deploy_thing").complexity == 4
         assert r.get("deploy_thing").maturity_required == "AUTONOMOUS"

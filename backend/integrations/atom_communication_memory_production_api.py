@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from core.auth import get_current_user
 from core.jwt_verifier import verify_token
 from core.uptime_tracker import check_uptime
 from integrations.atom_communication_ingestion_pipeline import (
@@ -31,7 +32,8 @@ class AtomCommunicationMemoryProductionAPI:
     def __init__(self):
         self.router = APIRouter(
             prefix="/api/atom/communication/memory",
-            tags=["ATOM Communication Memory - Production"]
+            tags=["ATOM Communication Memory - Production"],
+            dependencies=[Depends(get_current_user)],
         )
         self.setup_routes()
         self.setup_production_middleware()
@@ -148,11 +150,11 @@ class AtomCommunicationMemoryProductionAPI:
                 message_data['metadata'].update({
                     'ingested_at': datetime.now().isoformat(),
                     'environment': 'production',
-                    'token_used': token[:10] + '...'  # Track token usage
+                    'token_used': str(token.get('sub') or token.get('user_id') or 'authenticated')[:10] + '...'  # Track token usage
                 })
                 
                 # Ingest message
-                success = ingestion_pipeline.ingest_message(app_id, message_data)
+                success = await ingestion_pipeline.ingest_message(app_id, message_data)
                 
                 if success:
                     return {
@@ -189,14 +191,14 @@ class AtomCommunicationMemoryProductionAPI:
                     message['metadata'].update({
                         'ingested_at': datetime.now().isoformat(),
                         'environment': 'production',
-                        'token_used': token[:10] + '...',
+                        'token_used': str(token.get('sub') or token.get('user_id') or 'authenticated')[:10] + '...',
                         'batch_id': f"batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
                     })
                 
                 # Ingest batch
                 success_count = 0
                 for message in messages:
-                    if ingestion_pipeline.ingest_message(app_id, message):
+                    if await ingestion_pipeline.ingest_message(app_id, message):
                         success_count += 1
                 
                 return {
@@ -207,7 +209,7 @@ class AtomCommunicationMemoryProductionAPI:
                     "total_messages": len(messages),
                     "success_count": success_count,
                     "failure_count": len(messages) - success_count,
-                    "success_rate": f"{(success_count / len(messages)) * 100:.1f}%",
+                    "success_rate": f"{(success_count / len(messages)) * 100:.1f}%" if messages else "0.0%",
                     "ingested_at": datetime.now().isoformat(),
                     "environment": "production"
                 }
@@ -276,7 +278,7 @@ class AtomCommunicationMemoryProductionAPI:
                     "search_metadata": {
                         "searched_at": datetime.now().isoformat(),
                         "environment": "production",
-                        "token_used": token[:10] + '...'
+                        "token_used": str(token.get("sub") or token.get("user_id") or "authenticated")[:10] + '...'
                     },
                     "timestamp": datetime.now().isoformat(),
                     "environment": "production"
@@ -447,7 +449,7 @@ class AtomCommunicationMemoryProductionAPI:
                         "environment": "production",
                         "data_source": "LanceDB",
                         "record_count": len(filtered_records),
-                        "token_used": token[:10] + '...'
+                        "token_used": str(token.get("sub") or token.get("user_id") or "authenticated")[:10] + '...'
                     },
                     "timestamp": datetime.now().isoformat(),
                     "environment": "production"

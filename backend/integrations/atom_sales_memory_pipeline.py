@@ -16,7 +16,7 @@ from integrations.atom_communication_ingestion_pipeline import (
     LanceDBMemoryManager,
     get_memory_manager,
 )
-from integrations.hubspot_service import hubspot_service
+from integrations.hubspot_service import get_hubspot_service
 
 # from integrations.salesforce_service import salesforce_service # Import when ready
 
@@ -66,8 +66,16 @@ class SalesMemoryPipeline:
                 logger.warning("Skipping HubSpot ingestion: No Access Token")
                 return
 
-            deals_response = hubspot_service.get_deals(token, limit=50) 
-            deals = deals_response.get('results', [])
+            hubspot_service = get_hubspot_service()
+            if not hubspot_service:
+                logger.warning("Skipping HubSpot ingestion: Service not configured")
+                return
+
+            deals_response = await hubspot_service.get_deals(token=token, limit=50)
+            if isinstance(deals_response, list):
+                deals = deals_response
+            else:
+                deals = deals_response.get('results', [])
             
             count = 0
             for deal in deals:

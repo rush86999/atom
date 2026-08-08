@@ -123,6 +123,12 @@ class AgentMarketplaceService:
                 category=template_data.get("category", "General"),
                 role="agent",
                 type="marketplace",
+                # module_path/class_name are NOT NULL columns — omitting them
+                # made every install fail with IntegrityError on a real DB
+                # (mock-session tests masked it). Marketplace agents run the
+                # generic agent, mirroring atom_meta_agent's convention.
+                module_path="core.generic_agent",
+                class_name="GenericAgent",
                 user_id=user_id,
                 tenant_id=tenant_id,
                 status="intern",  # Marketplace agents start as internship level
@@ -215,10 +221,14 @@ class AgentMarketplaceService:
             template_id = installation.template_id
 
             # 2. Cleanup linked memory
+            # SQLite (default Personal Edition DB) does not support the
+            # PostgreSQL-only `.astext` on JSON index access — it raised
+            # AttributeError on every uninstall. The plain JSON index op
+            # compiles to json_extract() on SQLite and works everywhere.
             self.db.query(OperationErrorResolution).filter(
                 and_(
                     OperationErrorResolution.tenant_id == tenant_id,
-                    OperationErrorResolution.resolution_metadata["source_template_id"].astext == template_id
+                    OperationErrorResolution.resolution_metadata["source_template_id"] == template_id
                 )
             ).delete(synchronize_session=False)
 

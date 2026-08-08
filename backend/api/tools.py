@@ -14,7 +14,7 @@ Endpoints:
 
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import Depends, Query
+from fastapi import Depends, HTTPException, Query
 
 from core.base_routes import BaseAPIRouter
 from core.auth import get_current_user, User
@@ -29,6 +29,7 @@ router = BaseAPIRouter(prefix="/api/tools", tags=["tools"])
 async def list_tools(
     category: Optional[str] = None,
     maturity: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
     registry: ToolRegistry = Depends(get_tool_registry)
 ):
     """
@@ -65,9 +66,109 @@ async def list_tools(
         raise router.internal_error(message="Internal error")
 
 
+@router.get("/categories")
+async def list_categories(
+    current_user: User = Depends(get_current_user),
+    registry: ToolRegistry = Depends(get_tool_registry)
+):
+    """
+    List all tool categories.
+
+    Returns:
+        List of category names with tool counts
+    """
+    try:
+        stats = registry.get_stats()
+
+        categories = [
+            {
+                "name": category,
+                "count": count
+            }
+            for category, count in stats["categories"].items()
+        ]
+
+        # Sort by count descending
+        categories.sort(key=lambda x: x["count"], reverse=True)
+
+        return router.success_response(
+            data={"categories": categories, "count": len(categories)},
+            message=f"Retrieved {len(categories)} categories"
+        )
+
+    except Exception as e:
+        logger.error(f"Error listing categories: {e}")
+        raise router.internal_error(message="Internal error")
+@router.get("/search")
+async def search_tools(
+    query: str = Query(..., description="Search query for tools"),
+    current_user: User = Depends(get_current_user),
+    registry: ToolRegistry = Depends(get_tool_registry)
+):
+    """
+    Search tools by name, description, or tags.
+
+    Query Parameters:
+    - query: Search query string
+
+    Returns:
+        List of matching tool metadata dictionaries
+    """
+    try:
+        if not query or len(query.strip()) < 2:
+            raise router.validation_error(
+                field="query",
+                message="Query must be at least 2 characters",
+                details={"provided_length": len(query) if query else 0}
+            )
+
+        results = registry.search(query)
+
+        tools = [metadata.to_dict() for metadata in results]
+
+        return router.success_response(
+            data={"tools": tools, "count": len(tools), "query": query},
+            message=f"Found {len(tools)} tools matching '{query}'"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error searching tools: {e}")
+        raise router.internal_error(message="Internal error")
+
+
+@router.get("/stats")
+async def get_tool_stats(
+    current_user: User = Depends(get_current_user),
+    registry: ToolRegistry = Depends(get_tool_registry)
+):
+    """
+    Get tool registry statistics.
+
+    Returns:
+        Registry statistics including total tools, category distribution,
+        complexity distribution, and maturity distribution
+    """
+    try:
+        stats = registry.get_stats()
+
+        return router.success_response(
+            data={"stats": stats},
+            message="Tool registry statistics retrieved"
+        )
+
+    except Exception as e:
+        logger.error(f"Error getting tool stats: {e}")
+        raise router.internal_error(message="Internal error")
+
+
+
+
 @router.get("/{name}")
 async def get_tool(
     name: str,
+    current_user: User = Depends(get_current_user),
     registry: ToolRegistry = Depends(get_tool_registry)
 ):
     """
@@ -90,6 +191,8 @@ async def get_tool(
             message=f"Tool '{name}' retrieved successfully"
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error getting tool {name}: {e}")
         raise router.internal_error(message="Internal error")
@@ -98,6 +201,7 @@ async def get_tool(
 @router.get("/category/{category}")
 async def list_tools_by_category(
     category: str,
+    current_user: User = Depends(get_current_user),
     registry: ToolRegistry = Depends(get_tool_registry)
 ):
     """
@@ -134,95 +238,3 @@ async def list_tools_by_category(
         raise router.internal_error(message="Internal error")
 
 
-@router.get("/search")
-async def search_tools(
-    query: str = Query(..., description="Search query for tools"),
-    registry: ToolRegistry = Depends(get_tool_registry)
-):
-    """
-    Search tools by name, description, or tags.
-
-    Query Parameters:
-    - query: Search query string
-
-    Returns:
-        List of matching tool metadata dictionaries
-    """
-    try:
-        if not query or len(query.strip()) < 2:
-            raise router.validation_error(
-                field="query",
-                message="Query must be at least 2 characters",
-                details={"provided_length": len(query) if query else 0}
-            )
-
-        results = registry.search(query)
-
-        tools = [metadata.to_dict() for metadata in results]
-
-        return router.success_response(
-            data={"tools": tools, "count": len(tools), "query": query},
-            message=f"Found {len(tools)} tools matching '{query}'"
-        )
-
-    except Exception as e:
-        logger.error(f"Error searching tools: {e}")
-        raise router.internal_error(message="Internal error")
-
-
-@router.get("/stats")
-async def get_tool_stats(
-    registry: ToolRegistry = Depends(get_tool_registry)
-):
-    """
-    Get tool registry statistics.
-
-    Returns:
-        Registry statistics including total tools, category distribution,
-        complexity distribution, and maturity distribution
-    """
-    try:
-        stats = registry.get_stats()
-
-        return router.success_response(
-            data={"stats": stats},
-            message="Tool registry statistics retrieved"
-        )
-
-    except Exception as e:
-        logger.error(f"Error getting tool stats: {e}")
-        raise router.internal_error(message="Internal error")
-
-
-@router.get("/categories")
-async def list_categories(
-    registry: ToolRegistry = Depends(get_tool_registry)
-):
-    """
-    List all tool categories.
-
-    Returns:
-        List of category names with tool counts
-    """
-    try:
-        stats = registry.get_stats()
-
-        categories = [
-            {
-                "name": category,
-                "count": count
-            }
-            for category, count in stats["categories"].items()
-        ]
-
-        # Sort by count descending
-        categories.sort(key=lambda x: x["count"], reverse=True)
-
-        return router.success_response(
-            data={"categories": categories, "count": len(categories)},
-            message=f"Retrieved {len(categories)} categories"
-        )
-
-    except Exception as e:
-        logger.error(f"Error listing categories: {e}")
-        raise router.internal_error(message="Internal error")

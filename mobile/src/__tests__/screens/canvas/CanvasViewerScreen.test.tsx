@@ -1,47 +1,88 @@
 /**
  * CanvasViewerScreen Component Tests
  *
- * Tests for canvas loading, rendering, interactions,
- * WebView messaging, and platform-specific behavior.
+ * Tests for canvas loading, rendering, interactions, offline support,
+ * WebView messaging, metadata display, fullscreen, share, and feedback.
  */
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { Alert, Share, StatusBar } from 'react-native';
 import { mockPlatform, restorePlatform } from '../../helpers/testUtils';
 
-// Mock React Navigation
+// Mock React Navigation (route params are mutable so per-test canvas types work)
 const mockNavigation = {
   navigate: jest.fn(),
   goBack: jest.fn(),
   setOptions: jest.fn(),
   reset: jest.fn(),
+  push: jest.fn(),
 };
 
-// Mock @react-navigation/native
+const mockRouteParams: any = {
+  canvasId: 'canvas-123',
+  canvasType: 'chart',
+  sessionId: 'session-456',
+  agentId: 'agent-789',
+};
+
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => mockNavigation,
   useRoute: () => ({
-    params: {
-      canvasId: 'canvas-123',
-      canvasType: 'chart',
-      sessionId: 'session-456',
-      agentId: 'agent-789',
-    },
+    params: mockRouteParams,
   }),
 }));
 
-// Mock react-native-webview
+// react-native-webview is mocked via CanvasWebView below; keep this for safety
 jest.mock('react-native-webview', () => ({
   WebView: 'WebView',
 }));
 
 // Canvas subcomponents load heavy native deps (datetimepicker); mock them
 jest.mock('@react-native-community/datetimepicker', () => ({ default: 'DateTimePicker' }), { virtual: true });
-jest.mock('../../../components/canvas/CanvasWebView', () => ({ CanvasWebView: 'CanvasWebView' }));
-jest.mock('../../../components/canvas/CanvasChart', () => ({ CanvasChart: 'CanvasChart' }));
-jest.mock('../../../components/canvas/CanvasForm', () => ({ CanvasForm: 'CanvasForm' }));
-jest.mock('../../../components/canvas/CanvasSheet', () => ({ CanvasSheet: 'CanvasSheet' }));
-jest.mock('../../../components/canvas/CanvasTerminal', () => ({ CanvasTerminal: 'CanvasTerminal' }));
+
+// CanvasWebView is the web-canvas renderer — a functional mock that spreads
+// its props onto a View, so tests can read props (canvasId, onMessage, ...)
+// and drive the message handlers straight from the rendered tree.
+jest.mock('../../../components/canvas/CanvasWebView', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    CanvasWebView: (props: any) => React.createElement(View, { ...props, testID: 'mock-webview' }),
+  };
+});
+
+jest.mock('../../../components/canvas/CanvasChart', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { CanvasChart: (props: any) => React.createElement(View, { testID: 'mock-canvas-chart' }) };
+});
+
+// CanvasForm is mocked with a functional component so tests can trigger the
+// inline onSubmit handler the screen wires to apiService.
+jest.mock('../../../components/canvas/CanvasForm', () => {
+  const React = require('react');
+  const { TouchableOpacity, Text } = require('react-native');
+  return {
+    CanvasForm: (props: any) =>
+      React.createElement(
+        TouchableOpacity,
+        { testID: 'mock-form-submit', onPress: () => props.onSubmit?.({ name: 'Test User' }) },
+        React.createElement(Text, null, 'Mock Form')
+      ),
+  };
+});
+
+jest.mock('../../../components/canvas/CanvasSheet', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { CanvasSheet: (props: any) => React.createElement(View, { testID: 'mock-canvas-sheet' }) };
+});
+jest.mock('../../../components/canvas/CanvasTerminal', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { CanvasTerminal: (props: any) => React.createElement(View, { testID: 'mock-canvas-terminal' }) };
+});
 
 // Mock apiService
 const mockApiGet = jest.fn(() =>
@@ -80,63 +121,44 @@ const mockApiGet = jest.fn(() =>
   })
 );
 
+const mockApiPost = jest.fn(() =>
+  Promise.resolve({
+    success: true,
+    data: {},
+  })
+);
+
 jest.mock('../../../services/api', () => ({
   apiService: {
-    // mockApiGet is configured per-test (mockResolvedValueOnce/RejectedValueOnce)
     get: mockApiGet,
-    post: jest.fn(() =>
-      Promise.resolve({
-        success: true,
-        data: {
-          id: 'canvas-123',
-          type: 'chart',
-          components: [
-            {
-              id: 'comp-1',
-              type: 'markdown',
-              data: {
-                content: '# Test Canvas\n\nThis is a test canvas.',
-              },
-            },
-            {
-              id: 'comp-2',
-              type: 'chart',
-              data: {
-                type: 'line',
-                data: {
-                  labels: ['Jan', 'Feb', 'Mar'],
-                  datasets: [
-                    {
-                      label: 'Sales',
-                      data: [10, 20, 30],
-                    },
-                  ],
-                },
-                show_legend: true,
-              },
-            },
-          ],
-        },
-      })
-    ),
-    post: jest.fn(() =>
-      Promise.resolve({
-        success: true,
-        data: {},
-      })
-    ),
+    post: mockApiPost,
   },
 }));
+
+// Mock NetInfo so tests can flip connectivity per test
+jest.mock('@react-native-community/netinfo', () => {
+  const listeners: Array<(state: any) => void> = [];
+  const mockFetch = jest.fn().mockResolvedValue({ isConnected: true });
+  return {
+    fetch: mockFetch,
+    addEventListener: jest.fn((cb) => {
+      listeners.push(cb);
+      return { remove: jest.fn(() => {}) };
+    }),
+    // Test helper to fire connectivity changes
+    _emit: (state: any) => listeners.forEach((cb) => cb(state)),
+  };
+});
 
 // require() AFTER the mocks/data are declared — a static import would run the
 // api mock factory before mockApiGet is initialized (hoisted var).
 const { CanvasViewerScreen } = require('../../../screens/canvas/CanvasViewerScreen');
-
+const NetInfo = require('@react-native-community/netinfo');
 
 // Mock react-native-paper
 jest.mock('react-native-paper', () => {
   const React = require('react');
-  const { View } = require('react-native');
+  const { View, Text } = require('react-native');
   return {
     useTheme: () => ({
       colors: {
@@ -150,11 +172,16 @@ jest.mock('react-native-paper', () => {
         outline: '#e0e0e0',
         secondary: '#FF9800',
         background: '#fff',
+        onPrimary: '#fff',
+        primaryContainer: '#E3F2FD',
+        onPrimaryContainer: '#1565C0',
+        errorContainer: '#FFEBEE',
       },
     }),
     IconButton: ({ icon, onPress, ...props }: any) =>
       React.createElement(View, { ...props, onPress, testID: `icon-btn-${icon}` }),
-    Badge: (props: any) => React.createElement(View, props),
+    Badge: ({ children, ...props }: any) =>
+      React.createElement(View, props, React.createElement(Text, null, children)),
     Icon: 'Icon',
     MD3Colors: {
       primary50: '#2196F3',
@@ -170,6 +197,11 @@ describe('CanvasViewerScreen', () => {
     mockPlatform('ios');
     jest.clearAllMocks();
     jest.useFakeTimers();
+    mockRouteParams.canvasId = 'canvas-123';
+    mockRouteParams.canvasType = 'chart';
+    mockRouteParams.sessionId = 'session-456';
+    mockRouteParams.agentId = 'agent-789';
+    (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: true });
   });
 
   afterEach(() => {
@@ -178,9 +210,42 @@ describe('CanvasViewerScreen', () => {
     jest.clearAllTimers();
   });
 
+  const renderCanvas = () => render(<CanvasViewerScreen />);
+
+  const waitForLoaded = async () => {
+    await waitFor(() => {
+      expect(screen.getByText('Canvas')).toBeTruthy();
+    });
+  };
+
+  const metadataPayload = (overrides: any = {}) => ({
+    success: true,
+    data: {
+      id: 'canvas-123',
+      type: 'sheets',
+      metadata: {
+        id: 'canvas-123',
+        title: 'Quarterly Sales',
+        type: 'sheets',
+        agent_name: 'Sales Agent',
+        agent_id: 'agent-789',
+        governance_level: 'AUTONOMOUS',
+        created_at: '2024-01-02T12:00:00Z',
+        updated_at: '2024-02-03T12:00:00Z',
+        version: 3,
+        component_count: 2,
+        related_canvases: [
+          { id: 'canvas-rel-1', title: 'Monthly Report', type: 'chart' },
+        ],
+      },
+      components: [],
+      ...overrides,
+    },
+  });
+
   describe('Screen Rendering', () => {
     it('renders loading state initially', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
+      const { getByText } = renderCanvas();
 
       await waitFor(() => {
         expect(getByText('Loading canvas...')).toBeTruthy();
@@ -188,156 +253,51 @@ describe('CanvasViewerScreen', () => {
     });
 
     it('renders header with title', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
+      const { getByText } = renderCanvas();
 
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('renders back button', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('renders refresh button', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
+      await waitForLoaded();
     });
   });
 
   describe('Canvas Loading', () => {
-    it('loads canvas data on mount', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
+    it('loads canvas data on mount with mobile params', async () => {
+      const { getByText } = renderCanvas();
 
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
+      await waitForLoaded();
 
-      expect(mockApiGet).toHaveBeenCalled();
-    });
-
-    it('shows loading indicator while loading', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Loading canvas...')).toBeTruthy();
+      expect(mockApiGet).toHaveBeenCalledWith('/api/canvas/canvas-123', {
+        params: { platform: 'mobile', optimized: true },
       });
     });
 
     it('hides loading indicator after loading', async () => {
-      const { queryByText } = render(<CanvasViewerScreen />);
+      const { queryByText } = renderCanvas();
 
       await waitFor(() => {
-        // Loading should be gone after data loads
-        // The loading state should transition to WebView
         expect(queryByText('Loading canvas...')).toBeNull();
       }, { timeout: 5000 });
     });
   });
 
-  describe('Canvas Rendering with Chart Content', () => {
-    it('renders chart canvas type', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('generates HTML for canvas components', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-  });
-
-  describe('Canvas Rendering with Form Content', () => {
-    it('renders form canvas type', async () => {
-      mockApiGet.mockResolvedValueOnce({
-        success: true,
-        data: {
-          id: 'canvas-form',
-          type: 'form',
-          components: [
-            {
-              id: 'form-1',
-              type: 'form',
-              data: {
-                title: 'Test Form',
-                description: 'A test form',
-                fields: [
-                  {
-                    name: 'name',
-                    label: 'Name',
-                    type: 'text',
-                    required: true,
-                  },
-                  {
-                    name: 'email',
-                    label: 'Email',
-                    type: 'email',
-                    required: true,
-                  },
-                ],
-                submit_button_text: 'Submit',
-              },
-            },
-          ],
-        },
-      });
-
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-  });
-
-  describe('Canvas Interaction', () => {
-    it('handles WebView messages', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-
-      // WebView message handling is done via injectedJavaScript
-      // Just verify the screen renders
-      expect(getByText('Canvas')).toBeTruthy();
-    });
-
-    it('handles form submission from WebView', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('handles canvas action events', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-  });
-
   describe('Canvas Error State', () => {
-    it('renders error state when loading fails', async () => {
+    it('renders error state with server-provided message', async () => {
+      mockApiGet.mockResolvedValueOnce({
+        success: false,
+        error: 'Canvas not found',
+      });
+
+      const { getByText } = renderCanvas();
+
+      await waitFor(() => {
+        expect(getByText('Failed to Load Canvas')).toBeTruthy();
+        expect(getByText('Canvas not found')).toBeTruthy();
+      });
+    });
+
+    it('renders generic error when the API throws and no cache exists', async () => {
       mockApiGet.mockRejectedValueOnce(new Error('Network error'));
 
-      const { getByText } = render(<CanvasViewerScreen />);
+      const { getByText } = renderCanvas();
 
       await waitFor(() => {
         expect(getByText('Failed to Load Canvas')).toBeTruthy();
@@ -348,7 +308,7 @@ describe('CanvasViewerScreen', () => {
     it('shows retry button on error', async () => {
       mockApiGet.mockRejectedValueOnce(new Error('Network error'));
 
-      const { getByText } = render(<CanvasViewerScreen />);
+      const { getByText } = renderCanvas();
 
       await waitFor(() => {
         expect(getByText('Retry')).toBeTruthy();
@@ -366,493 +326,626 @@ describe('CanvasViewerScreen', () => {
         },
       });
 
-      const { getByText } = render(<CanvasViewerScreen />);
+      const { getByText } = renderCanvas();
 
       await waitFor(() => {
         expect(getByText('Failed to Load Canvas')).toBeTruthy();
       });
 
-      const retryButton = getByText('Retry');
-      fireEvent.press(retryButton);
+      fireEvent.press(getByText('Retry'));
 
       await waitFor(() => {
-        // Should retry and succeed
         expect(mockApiGet).toHaveBeenCalledTimes(2);
+        expect(getByText('No canvas components')).toBeTruthy();
       });
     });
   });
 
-  describe('Canvas Close/Navigation Back', () => {
-    it('navigates back when back button pressed', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
+  describe('Offline Support', () => {
+    it('shows offline error when disconnected and no cache exists', async () => {
+      (NetInfo.fetch as jest.Mock).mockResolvedValueOnce({ isConnected: false });
+
+      const { getByText } = renderCanvas();
 
       await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
+        expect(getByText('No internet connection and no cached version available')).toBeTruthy();
       });
-
-      // Back button behavior is tested via navigation mock
-      expect(mockNavigation.goBack).not.toHaveBeenCalled();
     });
 
-    it('navigates back when WebView can go back', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
+    it('shows Offline badge when connectivity drops while viewing', async () => {
+      const { getByText, queryByText } = renderCanvas();
+
+      await waitForLoaded();
+      expect(queryByText('Offline')).toBeNull();
+
+      act(() => {
+        NetInfo._emit({ isConnected: false });
+      });
+
+      expect(getByText('Offline')).toBeTruthy();
+    });
+  });
+
+  describe('Fullscreen', () => {
+    it('enters fullscreen and hides the header', async () => {
+      const setHiddenSpy = jest.spyOn(StatusBar, 'setHidden');
+      const { getByTestId, queryByText } = renderCanvas();
+
+      await waitForLoaded();
+      expect(queryByText('Was this canvas helpful?')).toBeTruthy();
+
+      fireEvent.press(getByTestId('icon-btn-fullscreen'));
+
+      // Header actions hidden in fullscreen — share/refresh buttons gone
+      expect(queryByTestIdSafe('icon-btn-share-variant')).toBeNull();
+      expect(setHiddenSpy).toHaveBeenCalledWith(true);
+    });
+
+    it('exits fullscreen and restores the status bar', async () => {
+      const setHiddenSpy = jest.spyOn(StatusBar, 'setHidden');
+      const { getByTestId } = renderCanvas();
+
+      await waitForLoaded();
+
+      fireEvent.press(getByTestId('icon-btn-fullscreen'));
+      expect(setHiddenSpy).toHaveBeenCalledWith(true);
+
+      fireEvent.press(getByTestId('icon-btn-fullscreen-exit'));
+      expect(setHiddenSpy).toHaveBeenCalledWith(false);
+    });
+
+    it('restores status bar on unmount while fullscreen', async () => {
+      const setHiddenSpy = jest.spyOn(StatusBar, 'setHidden');
+      const { getByTestId, unmount } = renderCanvas();
+
+      await waitForLoaded();
+
+      fireEvent.press(getByTestId('icon-btn-fullscreen'));
+      expect(setHiddenSpy).toHaveBeenCalledWith(true);
+
+      unmount();
+      expect(setHiddenSpy).toHaveBeenCalledWith(false);
+    });
+  });
+
+  describe('Share', () => {
+    it('shares the canvas with its title', async () => {
+      mockApiGet.mockResolvedValueOnce(metadataPayload());
+      const shareSpy = jest.spyOn(Share, 'share').mockResolvedValue({} as any);
+
+      const { getByTestId } = renderCanvas();
 
       await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
+        expect(screen.getByText('Quarterly Sales')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('icon-btn-share-variant'));
+
+      expect(shareSpy).toHaveBeenCalledWith({
+        message: 'Check out this canvas: Quarterly Sales',
+        url: expect.stringContaining('/canvas/canvas-123'),
+      });
+    });
+
+    it('falls back to canvas id in share message without metadata', async () => {
+      const shareSpy = jest.spyOn(Share, 'share').mockResolvedValue({} as any);
+
+      const { getByTestId, getByText } = renderCanvas();
+
+      await waitForLoaded();
+
+      fireEvent.press(getByTestId('icon-btn-share-variant'));
+
+      expect(shareSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Check out this canvas: canvas-123' })
+      );
+    });
+
+    it('logs an error when share fails', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      jest.spyOn(Share, 'share').mockRejectedValue(new Error('share failed'));
+
+      const { getByTestId, getByText } = renderCanvas();
+
+      await waitForLoaded();
+
+      fireEvent.press(getByTestId('icon-btn-share-variant'));
+
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalled();
+      });
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe('Feedback', () => {
+    it('records thumbs-up feedback', async () => {
+      const { getByTestId } = renderCanvas();
+
+      await waitForLoaded();
+
+      fireEvent.press(getByTestId('icon-btn-thumb-up'));
+
+      // Icon color switches to primary after selecting "up"
+      expect(getByTestId('icon-btn-thumb-up').props.iconColor).toBe('#2196F3');
+      expect(getByTestId('icon-btn-thumb-down').props.iconColor).toBe('#666');
+    });
+
+    it('records thumbs-down feedback', async () => {
+      const { getByTestId } = renderCanvas();
+
+      await waitForLoaded();
+
+      fireEvent.press(getByTestId('icon-btn-thumb-down'));
+
+      expect(getByTestId('icon-btn-thumb-down').props.iconColor).toBe('#f44336');
+      expect(getByTestId('icon-btn-thumb-up').props.iconColor).toBe('#666');
+    });
+  });
+
+  describe('Canvas Metadata & Related Canvases', () => {
+    it('renders metadata section with title, type, version and timestamps', async () => {
+      mockApiGet.mockResolvedValueOnce(metadataPayload());
+
+      const { getByText, getAllByText } = renderCanvas();
+
+      await waitFor(() => {
+        expect(getByText('Quarterly Sales')).toBeTruthy();
+        expect(getByText('by Sales Agent')).toBeTruthy();
+      });
+
+      expect(getByText('Canvas Details')).toBeTruthy();
+      expect(getByText('sheets')).toBeTruthy();
+      expect(getByText('3')).toBeTruthy();
+      expect(screen.getAllByText(/2024/).length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('renders governance badge for non-autonomous canvas', async () => {
+      const payload = metadataPayload();
+      payload.data.metadata.governance_level = 'SUPERVISED';
+      mockApiGet.mockResolvedValueOnce(payload);
+
+      const { getByText } = renderCanvas();
+
+      await waitFor(() => {
+        expect(getByText('SUPERVISED')).toBeTruthy();
+      });
+    });
+
+    it('navigates to a related canvas on press', async () => {
+      mockApiGet.mockResolvedValueOnce(metadataPayload());
+
+      const { getByText } = renderCanvas();
+
+      await waitFor(() => {
+        expect(getByText('Monthly Report')).toBeTruthy();
+      });
+
+      fireEvent.press(getByText('Monthly Report'));
+
+      expect(mockNavigation.push).toHaveBeenCalledWith('CanvasViewer', {
+        canvasId: 'canvas-rel-1',
+      });
+    });
+
+    it('renders empty state when canvas has no components', async () => {
+      mockApiGet.mockResolvedValueOnce(metadataPayload());
+
+      const { getByText } = renderCanvas();
+
+      await waitFor(() => {
+        expect(getByText('No canvas components')).toBeTruthy();
       });
     });
   });
 
-  describe('Platform-Specific WebView Behavior', () => {
-    it('renders correctly on iOS', async () => {
-      mockPlatform('ios');
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('renders correctly on Android', async () => {
-      mockPlatform('android');
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-  });
-
-  describe('Zoom Controls', () => {
-    it('renders zoom controls in toolbar', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('displays current zoom level', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        // Should display 100% initially
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('handles zoom in button', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('handles zoom out button', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('disables zoom in at max level', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('disables zoom out at min level', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-  });
-
-  describe('Refresh Functionality', () => {
-    it('reloads canvas when refresh button pressed', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-
-      // Refresh button is in header
-      expect(getByText('Canvas')).toBeTruthy();
-    });
-  });
-
-  describe('Different Canvas Types', () => {
-    it('renders generic canvas type', async () => {
+  describe('Native Component Rendering', () => {
+    it('renders a chart component', async () => {
       mockApiGet.mockResolvedValueOnce({
         success: true,
         data: {
-          id: 'canvas-generic',
-          type: 'generic',
-          components: [],
+          id: 'canvas-123',
+          type: 'chart',
+          components: [{ id: 'c1', type: 'chart', data: { type: 'line' } }],
         },
       });
 
-      const { getByText } = render(<CanvasViewerScreen />);
+      const { getByTestId } = renderCanvas();
 
       await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
+        expect(getByTestId('mock-canvas-chart')).toBeTruthy();
       });
     });
 
-    it('renders docs canvas type', async () => {
+    it('renders a sheet component', async () => {
       mockApiGet.mockResolvedValueOnce({
         success: true,
         data: {
-          id: 'canvas-docs',
-          type: 'docs',
-          components: [],
-        },
-      });
-
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('renders email canvas type', async () => {
-      mockApiGet.mockResolvedValueOnce({
-        success: true,
-        data: {
-          id: 'canvas-email',
-          type: 'email',
-          components: [],
-        },
-      });
-
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('renders sheets canvas type', async () => {
-      mockApiGet.mockResolvedValueOnce({
-        success: true,
-        data: {
-          id: 'canvas-sheets',
+          id: 'canvas-123',
           type: 'sheets',
-          components: [],
+          components: [{ id: 'c1', type: 'sheet', data: {} }],
         },
       });
 
-      const { getByText } = render(<CanvasViewerScreen />);
+      const { getByTestId } = renderCanvas();
 
       await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
+        expect(getByTestId('mock-canvas-sheet')).toBeTruthy();
       });
     });
 
-    it('renders orchestration canvas type', async () => {
+    it('renders a table component', async () => {
       mockApiGet.mockResolvedValueOnce({
         success: true,
         data: {
-          id: 'canvas-orchestration',
-          type: 'orchestration',
-          components: [],
+          id: 'canvas-123',
+          type: 'sheets',
+          components: [{ id: 'c1', type: 'table', data: {} }],
         },
       });
 
-      const { getByText } = render(<CanvasViewerScreen />);
+      const { getByTestId } = renderCanvas();
 
       await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
+        expect(getByTestId('mock-canvas-sheet')).toBeTruthy();
       });
     });
 
-    it('renders terminal canvas type', async () => {
+    it('renders a terminal component with output', async () => {
       mockApiGet.mockResolvedValueOnce({
         success: true,
         data: {
-          id: 'canvas-terminal',
+          id: 'canvas-123',
           type: 'terminal',
-          components: [],
+          components: [{ id: 'c1', type: 'terminal', data: { output: ['line 1'] } }],
         },
       });
 
-      const { getByText } = render(<CanvasViewerScreen />);
+      const { getByTestId } = renderCanvas();
 
       await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
+        expect(getByTestId('mock-canvas-terminal')).toBeTruthy();
       });
     });
 
-    it('renders coding canvas type', async () => {
+    it('submits form component values through the API', async () => {
       mockApiGet.mockResolvedValueOnce({
         success: true,
         data: {
-          id: 'canvas-coding',
-          type: 'coding',
-          components: [],
-        },
-      });
-
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-  });
-
-  describe('WebView Message Handling', () => {
-    it('handles canvas_ready message', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('handles canvas_action message', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('handles canvas_error message', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('handles link_click message', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-  });
-
-  describe('Injected JavaScript', () => {
-    it('injects mobile optimization scripts', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('sets up WebView message handlers', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('adds mobile meta tags', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('overrides form submit behavior', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-  });
-
-  describe('Edge Cases', () => {
-    it('handles empty canvas data', async () => {
-      mockApiGet.mockResolvedValueOnce({
-        success: true,
-        data: {
-          id: 'canvas-empty',
-          type: 'generic',
-          components: [],
-        },
-      });
-
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('handles canvas with no components', async () => {
-      mockApiGet.mockResolvedValueOnce({
-        success: true,
-        data: {
-          id: 'canvas-no-components',
-          type: 'generic',
-        },
-      });
-
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('handles canvas with many components', async () => {
-      const components = Array.from({ length: 50 }, (_, i) => ({
-        id: `comp-${i}`,
-        type: 'markdown',
-        data: {
-          content: `Component ${i}`,
-        },
-      }));
-
-      mockApiGet.mockResolvedValueOnce({
-        success: true,
-        data: {
-          id: 'canvas-many',
-          type: 'generic',
-          components,
-        },
-      });
-
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('handles special characters in canvas content', async () => {
-      mockApiGet.mockResolvedValueOnce({
-        success: true,
-        data: {
-          id: 'canvas-special',
-          type: 'generic',
+          id: 'canvas-123',
+          type: 'chart',
           components: [
             {
-              id: 'comp-special',
-              type: 'markdown',
-              data: {
-                content: 'Test <script>alert("xss")</script> content',
-              },
+              id: 'f1',
+              type: 'form',
+              data: { title: 'My Form', fields: [{ name: 'name', label: 'Name' }] },
             },
           ],
         },
       });
 
-      const { getByText } = render(<CanvasViewerScreen />);
+      const { getByTestId, getByText } = renderCanvas();
 
       await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
+        expect(getByText('Mock Form')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('mock-form-submit'));
+
+      await waitFor(() => {
+        expect(mockApiPost).toHaveBeenCalledWith('/api/canvas/submit', {
+          canvas_id: 'canvas-123',
+          form_data: { name: 'Test User' },
+          session_id: 'session-456',
+          agent_id: 'agent-789',
+        });
+        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Form submitted successfully');
+      });
+    });
+
+    it('shows error alert when form component submission fails', async () => {
+      mockApiGet.mockResolvedValueOnce({
+        success: true,
+        data: {
+          id: 'canvas-123',
+          type: 'chart',
+          components: [
+            {
+              id: 'f1',
+              type: 'form',
+              data: { title: 'My Form', fields: [{ name: 'name', label: 'Name' }] },
+            },
+          ],
+        },
+      });
+      mockApiPost.mockRejectedValueOnce(new Error('boom'));
+
+      const { getByTestId, getByText } = renderCanvas();
+
+      await waitFor(() => {
+        expect(getByText('Mock Form')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('mock-form-submit'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to submit form');
       });
     });
   });
 
-  describe('Form Submission', () => {
-    it('submits form data to backend', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
+  describe('Web Canvas Rendering (CanvasWebView)', () => {
+    const renderWebCanvas = async () => {
+      mockRouteParams.canvasType = 'generic';
+      mockApiGet.mockResolvedValueOnce({
+        success: true,
+        data: { id: 'canvas-web', type: 'generic', components: [] },
       });
+      const utils = renderCanvas();
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-webview').props.canvasId).toBe('canvas-123');
+      });
+      return utils;
+    };
+
+    it('renders CanvasWebView for web-oriented canvas types', async () => {
+      const { getByTestId } = await renderWebCanvas();
+
+      expect(getByTestId('mock-webview')).toBeTruthy();
+      expect(screen.getByTestId('mock-webview').props.canvasType).toBe('generic');
+      expect(screen.getByTestId('mock-webview').props.initialData).toBeDefined();
+      expect(screen.getByTestId('mock-webview').props.onMessage).toBeDefined();
+      expect(screen.getByTestId('mock-webview').props.onSubmit).toBeDefined();
+      expect(screen.getByTestId('mock-webview').props.onError).toBeDefined();
     });
 
-    it('shows success message after submission', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
+    it('does not render WebView for chart canvases', async () => {
+      const { queryByTestId } = renderCanvas();
 
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
+      await waitForLoaded();
+
+      expect(queryByTestId('mock-webview')).toBeNull();
     });
 
-    it('shows error message on submission failure', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
+    it('handles canvas_ready message', async () => {
+      await renderWebCanvas();
 
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
+      await act(async () => {
+        screen.getByTestId('mock-webview').props.onMessage({ nativeEvent: { data: JSON.stringify({ type: 'canvas_ready' }) } });
       });
-    });
-  });
 
-  describe('Audit Logging', () => {
-    it('logs canvas interactions', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
+      // No crash; loading already complete
+      expect(screen.getByText('Canvas')).toBeTruthy();
     });
 
-    it('includes session info in audit logs', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
+    it('handles canvas_action message with audit logging', async () => {
+      const { getByText } = await renderWebCanvas();
 
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-  });
-
-  describe('WebView Configuration', () => {
-    it('configures WebView for mobile optimization', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('enables JavaScript in WebView', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-
-    it('enables DOM storage in WebView', async () => {
-      const { getByText } = render(<CanvasViewerScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Canvas')).toBeTruthy();
-      });
-    });
-  });
-
-  describe('Canvas Types from RESEARCH.md', () => {
-    it('handles all 7 built-in canvas types', async () => {
-      const canvasTypes = ['generic', 'docs', 'email', 'sheets', 'orchestration', 'terminal', 'coding'];
-
-      for (const type of canvasTypes) {
-        mockApiGet.mockResolvedValueOnce({
-          success: true,
-          data: {
-            id: `canvas-${type}`,
-            type,
-            components: [],
+      await act(async () => {
+        screen.getByTestId('mock-webview').props.onMessage({
+          nativeEvent: {
+            data: JSON.stringify({ type: 'canvas_action', message: 'Saved!', component_count: 2, metadata: { k: 'v' } }),
           },
         });
+      });
 
-        const { getByText, unmount } = render(<CanvasViewerScreen />);
+      expect(mockApiPost).toHaveBeenCalledWith('/api/canvas/audit', {
+        canvas_id: 'canvas-123',
+        canvas_type: 'generic',
+        action: 'execute',
+        agent_id: 'agent-789',
+        session_id: 'session-456',
+        component_count: 2,
+        metadata: { k: 'v' },
+      });
+      expect(Alert.alert).toHaveBeenCalledWith('Action Executed', 'Saved!');
+      expect(getByText('Canvas')).toBeTruthy();
+    });
 
-        await waitFor(() => {
-          expect(getByText('Canvas')).toBeTruthy();
+    it('logs audit failure without crashing the action alert', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockApiPost.mockRejectedValueOnce(new Error('audit failed'));
+      await renderWebCanvas();
+
+      await act(async () => {
+        screen.getByTestId('mock-webview').props.onMessage({
+          nativeEvent: { data: JSON.stringify({ type: 'canvas_action', message: 'Done' }) },
         });
+      });
 
+      expect(Alert.alert).toHaveBeenCalledWith('Action Executed', 'Done');
+      expect(errorSpy).toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
+
+    it('handles canvas_error message', async () => {
+      await renderWebCanvas();
+
+      await act(async () => {
+        screen.getByTestId('mock-webview').props.onMessage({
+          nativeEvent: { data: JSON.stringify({ type: 'canvas_error', error: 'Render failed' }) },
+        });
+      });
+
+      expect(Alert.alert).toHaveBeenCalledWith('Canvas Error', 'Render failed');
+    });
+
+    it('handles form_submit message successfully', async () => {
+      await renderWebCanvas();
+
+      await act(async () => {
+        screen.getByTestId('mock-webview').props.onMessage({
+          nativeEvent: {
+            data: JSON.stringify({ type: 'form_submit', formData: { email: 'a@b.com' } }),
+          },
+        });
+      });
+
+      expect(mockApiPost).toHaveBeenCalledWith('/api/canvas/submit', {
+        canvas_id: 'canvas-123',
+        form_data: { email: 'a@b.com' },
+        session_id: 'session-456',
+        agent_id: 'agent-789',
+      });
+      expect(Alert.alert).toHaveBeenCalledWith('Success', 'Form submitted successfully');
+    });
+
+    it('handles form_submit message failure response', async () => {
+      mockApiPost.mockResolvedValueOnce({ success: false, error: 'Validation failed' });
+      await renderWebCanvas();
+
+      await act(async () => {
+        screen.getByTestId('mock-webview').props.onMessage({
+          nativeEvent: { data: JSON.stringify({ type: 'form_submit', formData: {} }) },
+        });
+      });
+
+      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Validation failed');
+    });
+
+    it('handles form_submit message network error', async () => {
+      mockApiPost.mockRejectedValueOnce(new Error('offline'));
+      await renderWebCanvas();
+
+      await act(async () => {
+        screen.getByTestId('mock-webview').props.onMessage({
+          nativeEvent: { data: JSON.stringify({ type: 'form_submit', formData: {} }) },
+        });
+      });
+
+      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to submit form');
+    });
+
+    it('handles link_click message', async () => {
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      await renderWebCanvas();
+
+      await act(async () => {
+        screen.getByTestId('mock-webview').props.onMessage({
+          nativeEvent: { data: JSON.stringify({ type: 'link_click', url: 'https://example.com' }) },
+        });
+      });
+
+      expect(logSpy).toHaveBeenCalled();
+      logSpy.mockRestore();
+    });
+
+    it('logs unknown message types', async () => {
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      await renderWebCanvas();
+
+      await act(async () => {
+        screen.getByTestId('mock-webview').props.onMessage({ nativeEvent: { data: JSON.stringify({ type: 'mystery' }) } });
+      });
+
+      expect(logSpy).toHaveBeenCalledWith('Unknown WebView message:', expect.anything());
+      logSpy.mockRestore();
+    });
+
+    it('logs a parse error for invalid JSON messages', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await renderWebCanvas();
+
+      await act(async () => {
+        screen.getByTestId('mock-webview').props.onMessage({ nativeEvent: { data: 'not-json{' } });
+      });
+
+      expect(errorSpy).toHaveBeenCalledWith('Failed to parse WebView message:', expect.any(Error));
+      errorSpy.mockRestore();
+    });
+
+    it('renders WebView for every web canvas type', async () => {
+      for (const type of ['docs', 'email', 'orchestration', 'coding', 'generic']) {
+        mockRouteParams.canvasType = type;
+        mockApiGet.mockResolvedValueOnce({
+          success: true,
+          data: { id: `canvas-${type}`, type, components: [] },
+        });
+        const { unmount } = renderCanvas();
+        await waitFor(() => {
+          expect(screen.getByTestId('mock-webview').props.canvasId).toBe('canvas-123');
+        });
         unmount();
       }
     });
   });
+
+  describe('Edge Cases', () => {
+    it('handles canvas with no components', async () => {
+      mockApiGet.mockResolvedValueOnce({
+        success: true,
+        data: { id: 'canvas-no-components', type: 'chart' },
+      });
+
+      const { getByText } = renderCanvas();
+
+      await waitFor(() => {
+        expect(getByText('No canvas components')).toBeTruthy();
+      });
+    });
+
+    it('handles canvases with unsupported component types without crashing', async () => {
+      mockApiGet.mockResolvedValueOnce({
+        success: true,
+        data: {
+          id: 'canvas-mixed',
+          type: 'chart',
+          components: [
+            { id: 'c1', type: 'markdown', data: { content: 'x' } },
+            { id: 'c2', type: 'code', data: {} },
+            { id: 'c3', type: 'custom', data: {} },
+          ],
+        },
+      });
+
+      const { getByText, queryByText } = renderCanvas();
+
+      await waitFor(() => {
+        expect(getByText('Canvas')).toBeTruthy();
+      });
+
+      // Unsupported types render nothing but don't crash
+      expect(queryByText('No canvas components')).toBeNull();
+    });
+  });
+
+  describe('Navigation Back', () => {
+    it('navigates back when back button pressed', async () => {
+      const { getByTestId } = renderCanvas();
+
+      await waitForLoaded();
+
+      fireEvent.press(getByTestId('icon-btn-arrow-left'));
+      expect(mockNavigation.goBack).toHaveBeenCalled();
+    });
+  });
+
+  describe('Refresh', () => {
+    it('reloads canvas when refresh button pressed', async () => {
+      const { getByTestId } = renderCanvas();
+
+      await waitForLoaded();
+      expect(mockApiGet).toHaveBeenCalledTimes(1);
+
+      fireEvent.press(getByTestId('icon-btn-refresh'));
+
+      await waitFor(() => {
+        expect(mockApiGet).toHaveBeenCalledTimes(2);
+      });
+    });
+  });
+
+  describe('Platform-Specific Behavior', () => {
+    it('renders correctly on Android', async () => {
+      mockPlatform('android');
+      const { getByText } = renderCanvas();
+
+      await waitForLoaded();
+    });
+  });
 });
+
+// Helper so queryByTestId is available in scope of tests that didn't destructure it
+function queryByTestIdSafe(id: string) {
+  return screen.queryByTestId(id);
+}

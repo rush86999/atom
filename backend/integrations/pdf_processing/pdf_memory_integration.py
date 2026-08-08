@@ -149,8 +149,8 @@ class PDFMemoryIntegration:
             cursor.execute("""
                 CREATE TRIGGER IF NOT EXISTS pdf_documents_ad
                 AFTER DELETE ON pdf_documents BEGIN
-                    INSERT INTO pdf_documents_fts(pdf_documents_fts, doc_id, extracted_text)
-                    VALUES ('delete', old.doc_id, old.extracted_text);
+                    INSERT INTO pdf_documents_fts(pdf_documents_fts, rowid, doc_id, extracted_text)
+                    VALUES ('delete', old.rowid, old.doc_id, old.extracted_text);
                 END
             """)
 

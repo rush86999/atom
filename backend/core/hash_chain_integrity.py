@@ -66,10 +66,10 @@ class HashChainIntegrity:
         Returns:
             Canonical JSON string
         """
-        # Filter out None values and entry_hash (avoid circular dependency)
-        # Note: prev_hash MUST be included for hash chain integrity
+        # Filter out None values and hash_chain (avoid circular dependency)
+        # Note: previous_hash MUST be included for hash chain integrity
         filtered = {k: v for k, v in data.items()
-                    if v is not None and k not in ['entry_hash']}
+                    if v is not None and k not in ['hash_chain']}
 
         # Convert datetime to ISO format string
         for key, value in filtered.items():
@@ -174,14 +174,14 @@ class HashChainIntegrity:
         break_count = 0
         first_break = None
 
-        # Verify first entry (prev_hash should be empty)
-        if entries[0].prev_hash != '':
+        # Verify first entry (previous_hash should be empty)
+        if entries[0].previous_hash != '':
             first_break = {
                 'sequence_number': entries[0].sequence_number,
                 'audit_id': entries[0].id,
                 'issue': 'first_entry_has_prev_hash',
                 'expected_prev_hash': '',
-                'actual_prev_hash': entries[0].prev_hash
+                'actual_prev_hash': entries[0].previous_hash
             }
             break_count += 1
 
@@ -193,36 +193,36 @@ class HashChainIntegrity:
             # Recompute hash for current entry
             expected_hash = self.compute_entry_hash(
                 account_id=current.account_id,
-                action_type=current.action_type,
+                action_type=current.operation_type,
                 old_values=current.old_values,
                 new_values=current.new_values,
                 timestamp=current.timestamp,
                 sequence_number=current.sequence_number,
-                prev_hash=current.prev_hash,
+                prev_hash=current.previous_hash,
                 user_id=current.user_id
             )
 
             # Check if stored hash matches computed hash
-            if current.entry_hash != expected_hash:
+            if current.hash_chain != expected_hash:
                 if first_break is None:
                     first_break = {
                         'sequence_number': current.sequence_number,
                         'audit_id': current.id,
                         'issue': 'hash_mismatch',
                         'expected_hash': expected_hash,
-                        'actual_hash': current.entry_hash
+                        'actual_hash': current.hash_chain
                     }
                 break_count += 1
 
-            # Check if prev_hash matches previous entry's hash
-            if current.prev_hash != previous.entry_hash:
+            # Check if previous_hash matches previous entry's hash
+            if current.previous_hash != previous.hash_chain:
                 if first_break is None:
                     first_break = {
                         'sequence_number': current.sequence_number,
                         'audit_id': current.id,
                         'issue': 'prev_hash_mismatch',
-                        'expected_prev_hash': previous.entry_hash,
-                        'actual_prev_hash': current.prev_hash
+                        'expected_prev_hash': previous.hash_chain,
+                        'actual_prev_hash': current.previous_hash
                     }
                 break_count += 1
 
@@ -311,8 +311,8 @@ class HashChainIntegrity:
         verification = self.verify_chain(account_id)
 
         # Compute chain health metrics
-        first_hash = entries[0].entry_hash
-        last_hash = entries[-1].entry_hash
+        first_hash = entries[0].hash_chain
+        last_hash = entries[-1].hash_chain
 
         return {
             'account_id': account_id,
@@ -356,7 +356,7 @@ class HashChainIntegrity:
         if not audit:
             return {'error': 'Audit entry not found'}
 
-        old_hash = audit.entry_hash
+        old_hash = audit.hash_chain
 
         # Get previous entry's hash
         prev_entry = self.db.query(FinancialAudit).filter(
@@ -364,12 +364,12 @@ class HashChainIntegrity:
             FinancialAudit.sequence_number == audit.sequence_number - 1
         ).first()
 
-        prev_hash = prev_entry.entry_hash if prev_entry else ''
+        prev_hash = prev_entry.hash_chain if prev_entry else ''
 
         # Compute new hash
         new_hash = self.compute_entry_hash(
             account_id=audit.account_id,
-            action_type=audit.action_type,
+            action_type=audit.operation_type,
             old_values=audit.old_values,
             new_values=audit.new_values,
             timestamp=audit.timestamp,
@@ -379,7 +379,7 @@ class HashChainIntegrity:
         )
 
         # Update the hash (this would be logged separately)
-        audit.entry_hash = new_hash
+        audit.hash_chain = new_hash
         self.db.commit()
 
         logger.warning(f"Recomputed hash for audit {audit_id}: {old_hash[:8]}... -> {new_hash[:8]}...")

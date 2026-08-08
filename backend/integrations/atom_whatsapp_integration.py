@@ -27,6 +27,67 @@ except ImportError:
     logging.warning("NumPy/Pandas not available, some analytics features disabled")
 
 # Import existing ATOM services
+# NOTE: modules live in the integrations package — a single bare-import block
+# failed on the first missing module (ai_enhanced_service) and set EVERY
+# enterprise service to None. Each optional service is guarded individually.
+try:
+    from integrations.atom_ai_integration import atom_ai_integration
+except (ImportError, Exception):
+    atom_ai_integration = None
+
+try:
+    from integrations.atom_discord_integration import atom_discord_integration
+except (ImportError, Exception):
+    atom_discord_integration = None
+
+try:
+    from integrations.atom_enterprise_security_service import (
+        ComplianceStandard,
+        SecurityLevel,
+        atom_enterprise_security_service,
+    )
+except (ImportError, Exception):
+    atom_enterprise_security_service = None
+
+try:
+    from integrations.atom_enterprise_unified_service import (
+        WorkflowSecurityLevel,
+        atom_enterprise_unified_service,
+    )
+except (ImportError, Exception):
+    atom_enterprise_unified_service = None
+
+try:
+    from integrations.atom_google_chat_integration import atom_google_chat_integration
+except (ImportError, Exception):
+    atom_google_chat_integration = None
+
+try:
+    from integrations.atom_ingestion_pipeline import AtomIngestionPipeline
+except (ImportError, Exception):
+    AtomIngestionPipeline = None
+
+try:
+    from integrations.atom_teams_integration import atom_teams_integration
+except (ImportError, Exception):
+    atom_teams_integration = None
+
+try:
+    from integrations.atom_telegram_integration import atom_telegram_integration
+except (ImportError, Exception):
+    atom_telegram_integration = None
+
+try:
+    from integrations.atom_workflow_automation_service import (
+        AutomationPriority,
+        AutomationStatus,
+        atom_workflow_automation_service,
+    )
+except (ImportError, Exception):
+    atom_workflow_automation_service = None
+
+# ai_enhanced_service / atom_slack_integration / memory / search / workflow
+# services are not part of this deployment — degrade gracefully.
 try:
     from ai_enhanced_service import (
         AIModelType,
@@ -36,46 +97,28 @@ try:
         AITaskType,
         ai_enhanced_service,
     )
-    from atom_ai_integration import atom_ai_integration
-    from atom_discord_integration import atom_discord_integration
-    from atom_enterprise_security_service import (
-        ComplianceStandard,
-        SecurityLevel,
-        atom_enterprise_security_service,
-    )
-    from atom_enterprise_unified_service import (
-        WorkflowSecurityLevel,
-        atom_enterprise_unified_service,
-    )
-    from atom_google_chat_integration import atom_google_chat_integration
-    from atom_ingestion_pipeline import AtomIngestionPipeline
-    from atom_memory_service import AtomMemoryService
-    from atom_search_service import AtomSearchService
-    from atom_slack_integration import atom_slack_integration
-    from atom_teams_integration import atom_teams_integration
-    from atom_telegram_integration import atom_telegram_integration
-    from atom_workflow_automation_service import (
-        AutomationPriority,
-        AutomationStatus,
-        atom_workflow_automation_service,
-    )
-    from atom_workflow_service import AtomWorkflowService
-except ImportError as e:
-    logging.warning(f"Enterprise services not available: {e}")
-    atom_enterprise_security_service = None
-    atom_workflow_automation_service = None
+except (ImportError, Exception):
     ai_enhanced_service = None
-    atom_enterprise_unified_service = None
-    AtomMemoryService = None
-    AtomSearchService = None
-    AtomWorkflowService = None
-    AtomIngestionPipeline = None
-    atom_ai_integration = None
+
+try:
+    from atom_slack_integration import atom_slack_integration
+except (ImportError, Exception):
     atom_slack_integration = None
-    atom_teams_integration = None
-    atom_google_chat_integration = None
-    atom_discord_integration = None
-    atom_telegram_integration = None
+
+try:
+    from atom_memory_service import AtomMemoryService
+except (ImportError, Exception):
+    AtomMemoryService = None
+
+try:
+    from atom_search_service import AtomSearchService
+except (ImportError, Exception):
+    AtomSearchService = None
+
+try:
+    from atom_workflow_service import AtomWorkflowService
+except (ImportError, Exception):
+    AtomWorkflowService = None
 
 # Configure logging
 logger = logging.getLogger(__name__)

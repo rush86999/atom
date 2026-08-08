@@ -23,9 +23,7 @@ from core.condition_checkers import CONDITION_TYPE_COMPOSITE
 from core.models import (
     AgentRegistry,
     ConditionAlert,
-    ConditionAlertStatus,
     ConditionMonitor,
-    ConditionMonitorType,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,6 +38,29 @@ class ConditionMonitoringService:
 
     def __init__(self, db: Session):
         self.db = db
+
+    def _hydrate_config(self, monitor: ConditionMonitor) -> ConditionMonitor:
+        """Mirror the JSON ``condition_config`` onto plain attributes.
+
+        The stub ``ConditionMonitor`` model only persists ``condition_config``;
+        readers like ``ConditionCheckers.check_condition`` still access
+        ``monitor.threshold_config``/``composite_logic``/... directly. After a
+        DB re-fetch those attributes don't exist, so restore them from the
+        persisted config. Non-persisted convenience attrs (``status``,
+        ``agent_id``, ``agent_name``) are set to stable defaults.
+        """
+        cfg = monitor.condition_config or {}
+        monitor.agent_id = getattr(monitor, "agent_id", None)
+        monitor.agent_name = getattr(monitor, "agent_name", None)
+        monitor.threshold_config = cfg.get("threshold_config", {})
+        monitor.platforms = cfg.get("platforms", [])
+        monitor.check_interval_seconds = cfg.get("check_interval_seconds", 300)
+        monitor.alert_template = cfg.get("alert_template")
+        monitor.composite_logic = cfg.get("composite_logic")
+        monitor.composite_conditions = cfg.get("composite_conditions", [])
+        monitor.governance_metadata = cfg.get("governance_metadata", {})
+        monitor.status = "active" if monitor.is_active else "paused"
+        return monitor
 
     def create_monitor(
         self,
@@ -86,8 +107,10 @@ class ConditionMonitoringService:
                 detail=f"Agent {agent_id} not found"
             )
 
-        # Validate threshold_config
-        if not threshold_config:
+        # Validate threshold_config. Composite monitors carry their thresholds
+        # inside ``composite_conditions``, so an empty threshold_config is
+        # legitimate for them (the composite validation below covers the rest).
+        if not threshold_config and condition_type != CONDITION_TYPE_COMPOSITE:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="threshold_config is required"
@@ -110,21 +133,42 @@ class ConditionMonitoringService:
                     detail="composite_logic must be 'AND' or 'OR'"
                 )
 
-        # Create the monitor
+        # Create the monitor.
+        #
+        # The ``ConditionMonitor`` model (core/models.py) is a stub with only
+        # ``name``/``user_id``/``condition_type``/``condition_config``/
+        # ``is_active`` columns — it has no threshold_config/platforms/...
+        # columns, so passing them as constructor kwargs raises TypeError.
+        # The rich config is persisted inside the JSON ``condition_config``
+        # column, and mirrored onto plain instance attributes so existing
+        # readers (ConditionCheckers, _generate_alert_message, _send_alert)
+        # keep working on the returned object.
+        config: Dict[str, Any] = {
+            "threshold_config": threshold_config,
+            "platforms": platforms,
+            "check_interval_seconds": check_interval_seconds,
+            "alert_template": alert_template,
+            "composite_logic": composite_logic,
+            "composite_conditions": composite_conditions,
+            "governance_metadata": governance_metadata or {},
+        }
         monitor = ConditionMonitor(
-            agent_id=agent_id,
-            agent_name=agent.name,
+            user_id=agent.user_id or agent_id,
             name=name,
             condition_type=condition_type,
-            threshold_config=threshold_config,
-            composite_logic=composite_logic,
-            composite_conditions=composite_conditions,
-            check_interval_seconds=check_interval_seconds,
-            platforms=platforms,
-            alert_template=alert_template,
-            status="active",
-            governance_metadata=governance_metadata or {},
+            condition_config=config,
+            is_active=True,
         )
+        monitor.agent_id = agent_id
+        monitor.agent_name = agent.name
+        monitor.threshold_config = threshold_config
+        monitor.platforms = platforms
+        monitor.check_interval_seconds = check_interval_seconds
+        monitor.alert_template = alert_template
+        monitor.composite_logic = composite_logic
+        monitor.composite_conditions = composite_conditions
+        monitor.governance_metadata = governance_metadata or {}
+        monitor.status = "active"
 
         self.db.add(monitor)
         self.db.commit()
@@ -157,20 +201,31 @@ class ConditionMonitoringService:
                 detail=f"Condition monitor {monitor_id} not found"
             )
 
-        # Update fields
+        self._hydrate_config(monitor)
+
+        # Update fields. The JSON ``condition_config`` column is not
+        # mutation-tracked, so always assign a fresh dict rather than mutating
+        # in place (in-place changes are silently dropped on commit).
         if name is not None:
             monitor.name = name
-        if threshold_config is not None:
-            monitor.threshold_config = threshold_config
+        cfg = dict(monitor.condition_config or {})
         if check_interval_seconds is not None:
             monitor.check_interval_seconds = check_interval_seconds
+            cfg["check_interval_seconds"] = check_interval_seconds
         if alert_template is not None:
             monitor.alert_template = alert_template
+            cfg["alert_template"] = alert_template
         if platforms is not None:
             monitor.platforms = platforms
+            cfg["platforms"] = platforms
+        if threshold_config is not None:
+            monitor.threshold_config = threshold_config
+            cfg["threshold_config"] = threshold_config
+        monitor.condition_config = cfg
 
         self.db.commit()
         self.db.refresh(monitor)
+        self._hydrate_config(monitor)
 
         logger.info(f"Updated condition monitor {monitor_id}")
 
@@ -188,9 +243,11 @@ class ConditionMonitoringService:
                 detail=f"Condition monitor {monitor_id} not found"
             )
 
+        monitor.is_active = False
         monitor.status = "paused"
         self.db.commit()
         self.db.refresh(monitor)
+        self._hydrate_config(monitor)
 
         logger.info(f"Paused condition monitor {monitor_id}")
 
@@ -208,9 +265,11 @@ class ConditionMonitoringService:
                 detail=f"Condition monitor {monitor_id} not found"
             )
 
+        monitor.is_active = True
         monitor.status = "active"
         self.db.commit()
         self.db.refresh(monitor)
+        self._hydrate_config(monitor)
 
         logger.info(f"Resumed condition monitor {monitor_id}")
 
@@ -245,21 +304,28 @@ class ConditionMonitoringService:
         """Get condition monitors with optional filters."""
         query = self.db.query(ConditionMonitor)
 
+        # The stub model has no ``agent_id`` column — monitors are linked via
+        # ``user_id`` (set to the creating agent's id/owner at creation).
         if agent_id:
-            query = query.filter(ConditionMonitor.agent_id == agent_id)
+            query = query.filter(ConditionMonitor.user_id == agent_id)
         if condition_type:
             query = query.filter(ConditionMonitor.condition_type == condition_type)
-        if status:
-            query = query.filter(ConditionMonitor.status == status)
+        if status is not None:
+            query = query.filter(ConditionMonitor.is_active == (status == "active"))
 
         monitors = query.order_by(ConditionMonitor.created_at.desc()).limit(limit).all()
+        for monitor in monitors:
+            self._hydrate_config(monitor)
         return monitors
 
     def get_monitor(self, monitor_id: str) -> Optional[ConditionMonitor]:
         """Get a specific monitor by ID."""
-        return self.db.query(ConditionMonitor).filter(
+        monitor = self.db.query(ConditionMonitor).filter(
             ConditionMonitor.id == monitor_id
         ).first()
+        if monitor:
+            self._hydrate_config(monitor)
+        return monitor
 
     def get_alerts(
         self,
@@ -272,10 +338,25 @@ class ConditionMonitoringService:
 
         if monitor_id:
             query = query.filter(ConditionAlert.monitor_id == monitor_id)
-        if status:
-            query = query.filter(ConditionAlert.status == status)
+        if status is not None:
+            if status == "resolved":
+                query = query.filter(ConditionAlert.is_resolved == True)  # noqa: E712
+            elif status == "unresolved":
+                query = query.filter(ConditionAlert.is_resolved == False)  # noqa: E712
 
-        alerts = query.order_by(ConditionAlert.triggered_at.desc()).limit(limit).all()
+        alerts = query.order_by(ConditionAlert.created_at.desc()).limit(limit).all()
+
+        # Hydrate the plain attributes the stub alert model can't persist so
+        # the monitoring routes' AlertResponse (from_attributes) serializes.
+        for alert in alerts:
+            alert.condition_value = getattr(alert, "condition_value", {})
+            alert.threshold_value = getattr(alert, "threshold_value", {})
+            alert.alert_message = getattr(alert, "alert_message", alert.message)
+            alert.platforms_sent = getattr(alert, "platforms_sent", [])
+            alert.status = getattr(alert, "status", "sent")
+            alert.triggered_at = getattr(alert, "triggered_at", alert.created_at)
+            alert.sent_at = getattr(alert, "sent_at", None)
+            alert.error_message = getattr(alert, "error_message", None)
         return alerts
 
     async def check_and_alert_monitors(self) -> Dict[str, int]:
@@ -292,7 +373,7 @@ class ConditionMonitoringService:
 
         # Find active monitors
         monitors = self.db.query(ConditionMonitor).filter(
-            ConditionMonitor.status == "active"
+            ConditionMonitor.is_active == True  # noqa: E712
         ).all()
 
         checked_count = 0
@@ -302,19 +383,21 @@ class ConditionMonitoringService:
         for monitor in monitors:
             try:
                 checked_count += 1
+                self._hydrate_config(monitor)
 
                 # Check if should throttle (prevent alert spam)
-                if monitor.last_alert_sent_at:
+                last_alert_sent_at = getattr(monitor, "last_alert_sent_at", None)
+                if last_alert_sent_at:
                     # Normalize a naive timestamp to UTC before subtracting.
                     # ``now`` is timezone-aware (UTC); subtracting a naive
                     # datetime raises TypeError, which the broad ``except``
                     # below would swallow and silently skip this monitor's
                     # condition check (i.e. silently disable monitoring for it).
-                    last_sent = monitor.last_alert_sent_at
+                    last_sent = last_alert_sent_at
                     if last_sent.tzinfo is None:
                         last_sent = last_sent.replace(tzinfo=timezone.utc)
                     time_since_last_alert = (now - last_sent).total_seconds()
-                    throttle_seconds = monitor.throttle_minutes * 60
+                    throttle_seconds = getattr(monitor, "throttle_minutes", 30) * 60
 
                     if time_since_last_alert < throttle_seconds:
                         logger.debug(
@@ -332,15 +415,25 @@ class ConditionMonitoringService:
                 if condition_result["triggered"]:
                     triggered_count += 1
 
-                    # Create alert
+                    # Create alert. The stub ``ConditionAlert`` model only has
+                    # monitor_id/alert_type/message/is_resolved columns; the
+                    # richer fields are carried as plain attributes so the
+                    # monitoring routes' AlertResponse can still serialize them.
+                    alert_message = self._generate_alert_message(monitor, condition_result)
                     alert = ConditionAlert(
                         monitor_id=monitor.id,
-                        condition_value=condition_result["value"],
-                        threshold_value=monitor.threshold_config,
-                        alert_message=self._generate_alert_message(monitor, condition_result),
-                        status=ConditionAlertStatus.PENDING.value,
-                        triggered_at=now,
+                        alert_type="warning",
+                        message=alert_message,
+                        is_resolved=False,
                     )
+                    alert.status = "pending"
+                    alert.condition_value = condition_result["value"]
+                    alert.threshold_value = monitor.threshold_config
+                    alert.alert_message = alert_message
+                    alert.triggered_at = now
+                    alert.platforms_sent = []
+                    alert.sent_at = None
+                    alert.error_message = None
                     self.db.add(alert)
                     self.db.commit()
 
@@ -349,7 +442,7 @@ class ConditionMonitoringService:
 
                     if sent_count > 0:
                         alerts_sent_count += sent_count
-                        alert.status = ConditionAlertStatus.SENT.value
+                        alert.status = "sent"
                         alert.sent_at = now
                         monitor.last_alert_sent_at = now
                         self.db.commit()
@@ -359,7 +452,7 @@ class ConditionMonitoringService:
                             f"to {sent_count} platforms"
                         )
                     else:
-                        alert.status = ConditionAlertStatus.FAILED.value
+                        alert.status = "failed"
                         alert.error_message = "Failed to send to any platform"
                         self.db.commit()
 
@@ -431,7 +524,7 @@ class ConditionMonitoringService:
                 # Send via AgentIntegrationGateway
                 params = {
                     "recipient_id": recipient_id,
-                    "content": alert.alert_message,
+                    "content": alert.message,
                     "workspace_id": "default",
                 }
 
@@ -538,9 +631,7 @@ class ConditionMonitoringService:
         Returns:
             Condition check result with current value and triggered status
         """
-        monitor = self.db.query(ConditionMonitor).filter(
-            ConditionMonitor.id == monitor_id
-        ).first()
+        monitor = self.get_monitor(monitor_id)
 
         if not monitor:
             raise HTTPException(
@@ -578,7 +669,7 @@ class ConditionMonitoringService:
 
         total_alerts = self.db.query(func.count(ConditionAlert.id)).scalar()
         pending_alerts = self.db.query(func.count(ConditionAlert.id)).filter(
-            ConditionAlert.status == ConditionAlertStatus.PENDING.value
+            ConditionAlert.is_resolved == False  # noqa: E712
         ).scalar()
 
         recent_alerts = self.db.query(func.count(ConditionAlert.id)).filter(

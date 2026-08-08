@@ -430,6 +430,53 @@ class TestReminderSystem:
         assert engine._ar_invoices["ar-001"].reminders_sent == 3
 
 
+class TestReminderStringTone:
+    """generate_reminder must accept plain string tones (e.g. tone="firm")."""
+
+    @pytest.fixture
+    def engine(self):
+        """Create APAREngine instance."""
+        return APAREngine()
+
+    def _seed_invoice(self, engine, invoice_id="ar-002"):
+        invoice = ARInvoice(
+            id=invoice_id,
+            customer="Customer",
+            amount=1000.00,
+            due_date=datetime.now(),
+            line_items=[],
+            status=InvoiceStatus.SENT,
+        )
+        engine._ar_invoices[invoice_id] = invoice
+
+    def test_string_tone_firm(self, engine):
+        """tone="firm" maps to FIRM subject/tone, not AttributeError."""
+        self._seed_invoice(engine)
+        reminder = engine.generate_reminder("ar-002", tone="firm")
+        assert reminder["tone"] == "firm"
+        assert "Second Notice" in reminder["subject"]
+
+    def test_string_tone_friendly(self, engine):
+        """tone="friendly" maps to FRIENDLY subject/tone."""
+        self._seed_invoice(engine)
+        reminder = engine.generate_reminder("ar-002", tone="friendly")
+        assert reminder["tone"] == "friendly"
+        assert "Friendly Reminder" in reminder["subject"]
+
+    def test_string_tone_final(self, engine):
+        """tone="final" maps to FINAL subject/tone."""
+        self._seed_invoice(engine)
+        reminder = engine.generate_reminder("ar-002", tone="final")
+        assert reminder["tone"] == "final"
+        assert "Final Notice" in reminder["subject"]
+
+    def test_uppercase_string_tone_normalized(self, engine):
+        """tone="FIRM" is normalized the same as 'firm'."""
+        self._seed_invoice(engine)
+        reminder = engine.generate_reminder("ar-002", tone="FIRM")
+        assert reminder["tone"] == "firm"
+
+
 # ==============================================================================
 # Integration Tests
 # ==============================================================================

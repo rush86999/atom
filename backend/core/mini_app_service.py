@@ -104,6 +104,8 @@ def validate_manifest(manifest: Any) -> None:
         )
 
     storage = manifest.get("storage") or {}
+    if not isinstance(storage, dict):
+        raise ValueError("manifest.storage must be an object")
     if "enabled" in storage and not isinstance(storage.get("enabled"), bool):
         raise ValueError("manifest.storage.enabled must be a boolean")
     if storage.get("backend") is not None and storage.get("backend") not in _VALID_STORAGE_BACKENDS:
@@ -1218,7 +1220,9 @@ async def run_stateful(
                         logger.warning("Invalid storage_op skipped: %s", raw_op)
                         continue
                     if persist:
-                        op_results.append(_execute_storage_op(valid, storage, db, canvas, app))
+                        op_results.append(_execute_storage_op(
+                            valid, storage, db, canvas, app, created_by=user_id
+                        ))
                     else:
                         # Harness dry-run: propose the op, never execute it (no
                         # backend store, no MiniAppAsset rows, no commit).
@@ -1305,7 +1309,11 @@ async def run_stateful(
                 "callbacks": meta.get("callbacks", []),
             }
     except RuntimeError as e:
-        return {"success": False, "error": str(e)}
+        # Keep runtime failures generic in the response — the raised message
+        # can carry env var names/values and FS paths (e.g. Firecracker
+        # provisioning details) that must not reach the agent/API surface.
+        logger.error("MiniApp run_stateful runtime error for %s: %s", canvas_id, e)
+        return {"success": False, "error": "Mini-app runtime unavailable"}
     except Exception as e:  # noqa: BLE001
         logger.error("MiniApp run_stateful failed for %s: %s", canvas_id, e)
         return {"success": False, "error": "Mini-app run failed"}
@@ -1317,8 +1325,13 @@ def _execute_storage_op(
     db: Session,
     canvas: Any,
     app: Any,
+    created_by: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Execute a validated storage op against the backend + rows."""
+    """Execute a validated storage op against the backend + rows.
+
+    ``created_by`` is the acting user of the run (attribution parity with
+    ``_execute_record_op``); falls back to the app author for legacy callers.
+    """
     from core.models import MiniAppAsset
 
     op = valid_op["op"]
@@ -1338,7 +1351,7 @@ def _execute_storage_op(
                     uri=uri,
                     content_type=valid_op.get("content_type"),
                     size=len(valid_op["data"]),
-                    created_by=app.created_by,
+                    created_by=created_by or app.created_by,
                 ))
             else:
                 row.uri = uri

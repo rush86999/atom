@@ -13,7 +13,7 @@ from starlette.requests import Request
 
 from core.base_routes import BaseAPIRouter
 from core.database import get_db_session
-from core.models import User
+from core.models import User, UserRole
 from core.security_dependencies import get_current_user
 from integrations.adapters.line_adapter import line_adapter
 
@@ -79,7 +79,10 @@ async def handle_line_webhook(
         # Verify signature
         if not line_adapter.verify_signature(body, x_line_signature):
             logger.warning("Invalid LINE webhook signature")
-            raise router.permission_denied_error(message="Invalid signature")
+            raise router.permission_denied_error(
+                action="handle_line_webhook",
+                details={"error": "Invalid signature"},
+            )
 
         # Parse JSON body
         import json
@@ -99,6 +102,7 @@ async def handle_line_webhook(
 @router.post("/send-message")
 async def send_line_message(
     request: SendMessageRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
     """
@@ -131,6 +135,7 @@ async def send_line_message(
 @router.post("/send-messages")
 async def send_line_messages(
     request: SendMessagesRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
     """
@@ -163,6 +168,7 @@ async def send_line_messages(
 @router.post("/send-quick-reply")
 async def send_line_quick_reply(
     request: SendQuickReplyRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
     """
@@ -196,6 +202,7 @@ async def send_line_quick_reply(
 @router.post("/send-template")
 async def send_line_template(
     request: SendTemplateRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
     """
@@ -251,7 +258,8 @@ async def get_line_user_profile(
         # This requires additional logic to verify the mapping
 
         # For now, add a warning if accessing different user's profile
-        if user_id != current_user.id and not current_user.is_superuser:
+        admin_roles = (UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.ADMIN, UserRole.WORKSPACE_ADMIN)
+        if user_id != current_user.id and current_user.role not in admin_roles:
             logger.warning(f"User {current_user.id} attempting to access LINE profile for user_id {user_id}")
             raise router.permission_denied_error(
                 action="get_line_user_profile",
@@ -262,7 +270,11 @@ async def get_line_user_profile(
         result = await line_adapter.get_user_profile(user_id)
 
         if not result.get('ok'):
-            raise router.not_found_error(message="User not found", details={"error": result.get('error', 'Unknown error')})
+            raise router.not_found_error(
+                "LINEUserProfile",
+                user_id,
+                details={"error": result.get('error', 'Unknown error')}
+            )
 
         return result
 

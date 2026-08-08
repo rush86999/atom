@@ -28,6 +28,17 @@ try:
     from atom_workflow_service import AtomWorkflowService
 except ImportError as e:
     logging.warning(f"AI integration services not available: {e}")
+    # Safe fallbacks so the module still imports and degrades gracefully
+    # (previous code left these names undefined -> NameError at instantiation).
+    LLMService = None
+    atom_discord_integration = None
+    atom_google_chat_integration = None
+    AtomIngestionPipeline = None
+    AtomMemoryService = None
+    AtomSearchService = None
+    atom_slack_integration = None
+    atom_teams_integration = None
+    AtomWorkflowService = None
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -61,7 +72,9 @@ class AtomAIIntegration:
         }
         
         # AI service (Modernized)
-        self.llm_service = config.get('llm_service') or LLMService(workspace_id=config.get('workspace_id', 'default'))
+        self.llm_service = config.get('llm_service')
+        if self.llm_service is None and LLMService is not None:
+            self.llm_service = LLMService(workspace_id=config.get('workspace_id', 'default'))
         
         # Integration state
         self.is_initialized = False
@@ -971,7 +984,7 @@ class IntelligentSearchManager:
         try:
             # Implementation depends on ingestion pipeline API
             return []
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - log-only body cannot raise
             logger.error(f"Error getting recent communications: {e}")
             return []
 
@@ -1023,7 +1036,7 @@ class IntelligentSearchManager:
             logger.info("Loading search index")
             self.search_index = {"documents": [], "embeddings": [], "metadata": {}}
             logger.info("Search index loaded successfully")
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - log-only body cannot raise
             logger.error(f"Error loading search index: {e}")
 
 class WorkflowIntelligenceManager:
@@ -1094,7 +1107,7 @@ class WorkflowIntelligenceManager:
         try:
             # Implementation depends on workflow service
             return []
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - log-only body cannot raise
             logger.error(f"Error getting workflows: {e}")
             return []
 
@@ -1103,7 +1116,7 @@ class WorkflowIntelligenceManager:
         try:
             # Apply optimizations
             logger.info(f"Applying optimizations to workflow {workflow.get('id')}")
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - log-only body cannot raise
             logger.error(f"Error applying optimizations: {e}")
 
     async def _load_workflow_patterns(self):
@@ -1120,7 +1133,7 @@ class WorkflowIntelligenceManager:
             }
 
             logger.info("Workflow patterns loaded successfully")
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - log-only body cannot raise
             logger.error(f"Error loading workflow patterns: {e}")
 
     async def setup_workflow_automation(self):
@@ -1129,7 +1142,7 @@ class WorkflowIntelligenceManager:
             logger.info("Setting up workflow automation")
             # Initialize AI workflow automation
             logger.info("Workflow automation setup complete")
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - log-only body cannot raise
             logger.error(f"Error setting up workflow automation: {e}")
 
     async def start_monitoring(self):
@@ -1138,7 +1151,7 @@ class WorkflowIntelligenceManager:
             logger.info("Starting AI monitoring")
             # Start background AI monitoring tasks
             logger.info("AI monitoring started successfully")
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - log-only body cannot raise
             logger.error(f"Error starting AI monitoring: {e}")
 
 class CrossPlatformAIManager:
@@ -1215,7 +1228,7 @@ class CrossPlatformAIManager:
                 'message_count': 1000,
                 'engagement_level': 'high'
             }
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - log-only body cannot raise
             logger.error(f"Error getting platform insights for {platform}: {e}")
             return {}
 
@@ -1228,7 +1241,7 @@ class CrossPlatformAIManager:
                 "connected": False,
                 "data": {}
             }
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - log-only body cannot raise
             logger.error(f"Error getting platform data for {platform}: {e}")
             return {}
 

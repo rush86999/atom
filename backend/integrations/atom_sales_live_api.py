@@ -50,8 +50,8 @@ def map_salesforce_opportunity(opp: Dict[str, Any], instance_url: str = "") -> U
         id=opp.get("Id"),
         deal_name=opp.get("Name"),
         value=float(opp.get("Amount") or 0.0),
-        status=opp.get("StageName"),
-        stage=opp.get("StageName"),
+        status=opp.get("StageName") or "unknown",
+        stage=opp.get("StageName") or "unknown",
         platform="salesforce",
         company=None, # Account name usually needs a separate fetch or join
         close_date=opp.get("CloseDate"),
@@ -65,8 +65,8 @@ def map_hubspot_deal(deal: Dict[str, Any]) -> UnifiedDeal:
         id=deal.get("id"),
         deal_name=properties.get("dealname") or "Unknown Deal",
         value=float(properties.get("amount") or 0.0),
-        status=properties.get("dealstage"),
-        stage=properties.get("dealstage"),
+        status=properties.get("dealstage") or "unknown",
+        stage=properties.get("dealstage") or "unknown",
         platform="hubspot",
         close_date=properties.get("closedate"),
         owner=properties.get("hubspot_owner_id")
@@ -77,8 +77,8 @@ def map_zoho_deal(deal: Dict[str, Any]) -> UnifiedDeal:
         id=deal.get("id"),
         deal_name=deal.get("Deal_Name") or "Untitled Zoho Deal",
         value=float(deal.get("Amount") or 0.0),
-        status=deal.get("Stage"),
-        stage=deal.get("Stage"),
+        status=deal.get("Stage") or "unknown",
+        stage=deal.get("Stage") or "unknown",
         platform="zoho",
         company=deal.get("Account_Name", {}).get("name"),
         close_date=deal.get("Closing_Date"),
@@ -190,7 +190,7 @@ async def get_live_pipeline(
     count = len(deals)
     avg_size = total_value / count if count > 0 else 0
     # simple mock calculation for win rate based on 'closed won' status
-    won_count = sum(1 for d in deals if 'won' in d.status.lower())
+    won_count = sum(1 for d in deals if (d.status or '') and 'won' in d.status.lower())
     win_rate = (won_count / count * 100) if count > 0 else 0.0
 
     return LivePipelineResponse(

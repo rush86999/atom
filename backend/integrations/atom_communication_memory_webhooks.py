@@ -9,8 +9,9 @@ import hmac
 import json
 import logging
 import os
+import time
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -60,7 +61,8 @@ class AtomCommunicationMemoryWebhooks:
         }
 
     def verify_webhook_signature(
-        self, app_name: str, request: Request, signature: str, body: bytes
+        self, app_name: str, request: Request, signature: str, body: bytes,
+        timestamp: Optional[str] = None,
     ) -> bool:
         """Verify webhook signature"""
         try:
@@ -68,11 +70,22 @@ class AtomCommunicationMemoryWebhooks:
             if not secret:
                 return False
 
+            # Slack signs "v0:<timestamp>:<body>"; Meta prefixes with "sha256=".
+            raw_signature = (signature or "").strip()
+            for prefix in ("sha256=", "v0=", "sha1="):
+                if raw_signature.startswith(prefix):
+                    raw_signature = raw_signature[len(prefix):]
+
+            if app_name == "slack" and timestamp:
+                key = f"v0:{timestamp}:".encode() + body
+            else:
+                key = body
+
             expected_signature = hmac.new(
-                secret.encode(), body, hashlib.sha256
+                secret.encode(), key, hashlib.sha256
             ).hexdigest()
 
-            return hmac.compare_digest(expected_signature, signature)
+            return hmac.compare_digest(expected_signature, raw_signature)
         except Exception as e:
             logger.error(f"Error verifying webhook signature: {str(e)}")
             return False
@@ -84,7 +97,7 @@ class AtomCommunicationMemoryWebhooks:
         async def whatsapp_webhook(
             request: Request,
             background_tasks: BackgroundTasks,
-            x_hub_signature_256: Optional[str] = None,
+            x_hub_signature_256: Optional[str] = Header(None),
             token: str = Depends(verify_token),
         ):
             """WhatsApp webhook for real-time message ingestion"""
@@ -116,6 +129,8 @@ class AtomCommunicationMemoryWebhooks:
                     "timestamp": datetime.now().isoformat(),
                 }
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error processing WhatsApp webhook: {str(e)}")
                 raise HTTPException(status_code=500, detail="Internal error")
@@ -124,8 +139,8 @@ class AtomCommunicationMemoryWebhooks:
         async def slack_webhook(
             request: Request,
             background_tasks: BackgroundTasks,
-            x_slack_signature: Optional[str] = None,
-            x_slack_request_timestamp: Optional[str] = None,
+            x_slack_signature: Optional[str] = Header(None),
+            x_slack_request_timestamp: Optional[str] = Header(None),
             token: str = Depends(verify_token),
         ):
             """Slack webhook for real-time message ingestion"""
@@ -133,14 +148,29 @@ class AtomCommunicationMemoryWebhooks:
                 # Get request body
                 body = await request.body()
 
-                # Verify signature
-                if x_slack_signature and x_slack_request_timestamp:
-                    if not self.verify_webhook_signature(
-                        "slack", request, x_slack_signature, body
-                    ):
-                        raise HTTPException(
-                            status_code=401, detail="Invalid webhook signature"
-                        )
+                # Verify signature — fail CLOSED when headers missing
+                if not x_slack_signature or not x_slack_request_timestamp:
+                    raise HTTPException(
+                        status_code=401, detail="Missing Slack signature headers"
+                    )
+                try:
+                    request_ts = int(x_slack_request_timestamp)
+                except (TypeError, ValueError):
+                    raise HTTPException(
+                        status_code=401, detail="Invalid Slack request timestamp"
+                    )
+                # Replay protection: reject timestamps older than 5 minutes
+                if abs(time.time() - request_ts) > 300:
+                    raise HTTPException(
+                        status_code=401, detail="Stale Slack request timestamp"
+                    )
+                if not self.verify_webhook_signature(
+                    "slack", request, x_slack_signature, body,
+                    timestamp=x_slack_request_timestamp,
+                ):
+                    raise HTTPException(
+                        status_code=401, detail="Invalid webhook signature"
+                    )
 
                 # Parse webhook data
                 webhook_data = json.loads(body.decode())
@@ -154,6 +184,8 @@ class AtomCommunicationMemoryWebhooks:
                     "timestamp": datetime.now().isoformat(),
                 }
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error processing Slack webhook: {str(e)}")
                 raise HTTPException(status_code=500, detail="Internal error")
@@ -162,8 +194,8 @@ class AtomCommunicationMemoryWebhooks:
         async def discord_webhook(
             request: Request,
             background_tasks: BackgroundTasks,
-            x_signature_ed25519: Optional[str] = None,
-            x_signature_timestamp: Optional[str] = None,
+            x_signature_ed25519: Optional[str] = Header(None),
+            x_signature_timestamp: Optional[str] = Header(None),
             token: str = Depends(verify_token),
         ):
             """Discord webhook for real-time message ingestion"""
@@ -171,14 +203,17 @@ class AtomCommunicationMemoryWebhooks:
                 # Get request body
                 body = await request.body()
 
-                # Verify signature
-                if x_signature_ed25519 and x_signature_timestamp:
-                    if not self.verify_webhook_signature(
-                        "discord", request, x_signature_ed25519, body
-                    ):
-                        raise HTTPException(
-                            status_code=401, detail="Invalid webhook signature"
-                        )
+                # Verify signature — fail CLOSED when headers missing
+                if not x_signature_ed25519 or not x_signature_timestamp:
+                    raise HTTPException(
+                        status_code=401, detail="Missing Discord signature headers"
+                    )
+                if not self.verify_webhook_signature(
+                    "discord", request, x_signature_ed25519, body
+                ):
+                    raise HTTPException(
+                        status_code=401, detail="Invalid webhook signature"
+                    )
 
                 # Parse webhook data
                 webhook_data = json.loads(body.decode())
@@ -192,6 +227,8 @@ class AtomCommunicationMemoryWebhooks:
                     "timestamp": datetime.now().isoformat(),
                 }
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error processing Discord webhook: {str(e)}")
                 raise HTTPException(status_code=500, detail="Internal error")
@@ -200,12 +237,25 @@ class AtomCommunicationMemoryWebhooks:
         async def telegram_webhook(
             request: Request,
             background_tasks: BackgroundTasks,
+            x_telegram_bot_api_secret_token: Optional[str] = Header(None),
             token: str = Depends(verify_token),
         ):
             """Telegram webhook for real-time message ingestion"""
             try:
                 # Get request body
                 body = await request.body()
+
+                # Verify secret token — fail CLOSED when header missing or secret unconfigured
+                if not x_telegram_bot_api_secret_token:
+                    raise HTTPException(
+                        status_code=401, detail="Missing Telegram secret token header"
+                    )
+                if not self.verify_webhook_signature(
+                    "telegram", request, x_telegram_bot_api_secret_token, body
+                ):
+                    raise HTTPException(
+                        status_code=401, detail="Invalid Telegram secret token"
+                    )
 
                 # Parse webhook data
                 webhook_data = json.loads(body.decode())
@@ -219,6 +269,8 @@ class AtomCommunicationMemoryWebhooks:
                     "timestamp": datetime.now().isoformat(),
                 }
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error processing Telegram webhook: {str(e)}")
                 raise HTTPException(status_code=500, detail="Internal error")
@@ -227,13 +279,25 @@ class AtomCommunicationMemoryWebhooks:
         async def gmail_webhook(
             request: Request,
             background_tasks: BackgroundTasks,
-            authorization: Optional[str] = None,
+            x_atom_webhook_secret: Optional[str] = Header(None),
             token: str = Depends(verify_token),
         ):
             """Gmail webhook for real-time message ingestion"""
             try:
                 # Get request body
                 body = await request.body()
+
+                # Verify shared secret — fail CLOSED when header missing or secret unconfigured
+                if not x_atom_webhook_secret:
+                    raise HTTPException(
+                        status_code=401, detail="Missing webhook secret header"
+                    )
+                if not self.verify_webhook_signature(
+                    "gmail", request, x_atom_webhook_secret, body
+                ):
+                    raise HTTPException(
+                        status_code=401, detail="Invalid webhook secret"
+                    )
 
                 # Parse webhook data
                 webhook_data = json.loads(body.decode())
@@ -247,6 +311,8 @@ class AtomCommunicationMemoryWebhooks:
                     "timestamp": datetime.now().isoformat(),
                 }
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error processing Gmail webhook: {str(e)}")
                 raise HTTPException(status_code=500, detail="Internal error")
@@ -255,13 +321,25 @@ class AtomCommunicationMemoryWebhooks:
         async def outlook_webhook(
             request: Request,
             background_tasks: BackgroundTasks,
-            client_state: Optional[str] = None,
+            x_atom_webhook_secret: Optional[str] = Header(None),
             token: str = Depends(verify_token),
         ):
             """Outlook webhook for real-time message ingestion"""
             try:
                 # Get request body
                 body = await request.body()
+
+                # Verify shared secret — fail CLOSED when header missing or secret unconfigured
+                if not x_atom_webhook_secret:
+                    raise HTTPException(
+                        status_code=401, detail="Missing webhook secret header"
+                    )
+                if not self.verify_webhook_signature(
+                    "outlook", request, x_atom_webhook_secret, body
+                ):
+                    raise HTTPException(
+                        status_code=401, detail="Invalid webhook secret"
+                    )
 
                 # Parse webhook data
                 webhook_data = json.loads(body.decode())
@@ -275,6 +353,8 @@ class AtomCommunicationMemoryWebhooks:
                     "timestamp": datetime.now().isoformat(),
                 }
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error processing Outlook webhook: {str(e)}")
                 raise HTTPException(status_code=500, detail="Internal error")
@@ -319,7 +399,7 @@ class AtomCommunicationMemoryWebhooks:
                                     }
 
                                     # Ingest to memory
-                                    ingestion_pipeline.ingest_message(
+                                    await ingestion_pipeline.ingest_message(
                                         "whatsapp", normalized_message
                                     )
 
@@ -358,7 +438,7 @@ class AtomCommunicationMemoryWebhooks:
                     }
 
                     # Ingest to memory
-                    ingestion_pipeline.ingest_message("slack", normalized_message)
+                    await ingestion_pipeline.ingest_message("slack", normalized_message)
 
             logger.info(
                 f"Processed Slack webhook: {webhook_data.get('event', {}).get('type', 'unknown')}"
@@ -393,7 +473,7 @@ class AtomCommunicationMemoryWebhooks:
                 }
 
                 # Ingest to memory
-                ingestion_pipeline.ingest_message("discord", normalized_message)
+                await ingestion_pipeline.ingest_message("discord", normalized_message)
 
             logger.info(
                 f"Processed Discord webhook: {webhook_data.get('type', 'unknown')}"
@@ -428,7 +508,7 @@ class AtomCommunicationMemoryWebhooks:
                 }
 
                 # Ingest to memory
-                ingestion_pipeline.ingest_message("telegram", normalized_message)
+                await ingestion_pipeline.ingest_message("telegram", normalized_message)
 
             logger.info(
                 f"Processed Telegram webhook: message_id {webhook_data.get('message', {}).get('message_id', 'unknown')}"
@@ -464,7 +544,7 @@ class AtomCommunicationMemoryWebhooks:
                 }
 
                 # Ingest to memory
-                ingestion_pipeline.ingest_message("gmail", normalized_message)
+                await ingestion_pipeline.ingest_message("gmail", normalized_message)
 
             logger.info(
                 f"Processed Gmail webhook: message_id {webhook_data.get('message', {}).get('id', 'unknown')}"
@@ -504,7 +584,7 @@ class AtomCommunicationMemoryWebhooks:
                     }
 
                     # Ingest to memory
-                    ingestion_pipeline.ingest_message("outlook", normalized_message)
+                    await ingestion_pipeline.ingest_message("outlook", normalized_message)
 
             logger.info(
                 f"Processed Outlook webhook: {len(webhook_data.get('value', []))} messages"

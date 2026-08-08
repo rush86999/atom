@@ -369,6 +369,12 @@ class APAREngine:
                 subject = "Final Notice: Immediate Attention Required"
                 message = f"FINAL NOTICE: Invoice #{invoice.id} for ${invoice.amount:.2f} remains unpaid. Please contact us immediately."
         else:
+            # Normalize a plain string tone (e.g. "firm" / "FIRM") to the enum
+            # so comparisons below and the returned ``tone.value`` work. Before,
+            # a string compared `==` against plain-Enum members (always False →
+            # FINAL message) and `tone.value` raised AttributeError.
+            if isinstance(tone, str):
+                tone = ReminderTone(tone.strip().lower())
             if tone == ReminderTone.FRIENDLY:
                 subject = "Friendly Reminder: Invoice Due"
                 message = f"Just a friendly reminder that invoice #{invoice.id} for ${invoice.amount:.2f} is now due."

@@ -189,8 +189,9 @@ class CanvasLogicService:
             from core.sandbox_policy import PolicyIssuer
             try:
                 policy = PolicyIssuer().issue(
-                    tier_at_issuance="autonomous",
                     run_id=f"canvas-{namespace}",
+                    agent_id=agent_id or "canvas-logic",
+                    tier_at_issuance="autonomous",
                     workspace_data_root=fs_root,
                 )
                 policy = replace(policy, tool_whitelist=tuple(scopes))
@@ -200,8 +201,9 @@ class CanvasLogicService:
             try:
                 from core.sandbox_policy import PolicyIssuer
                 policy = PolicyIssuer().issue(
-                    tier="autonomous",
                     run_id=f"canvas-{namespace}",
+                    agent_id=agent_id or "canvas-logic",
+                    tier_at_issuance="autonomous",
                     workspace_data_root=fs_root,
                 )
             except Exception:

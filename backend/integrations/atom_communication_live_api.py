@@ -61,6 +61,7 @@ class UnifiedLiveMessage:
                  thread_id: Optional[str] = None,
                  url: Optional[str] = None,
                  status: str = "read", # read, unread
+                 subject: Optional[str] = None,
                  metadata: Dict[str, Any] = {}
                  ):
         self.id = id
@@ -73,6 +74,7 @@ class UnifiedLiveMessage:
         self.thread_id = thread_id
         self.url = url
         self.status = status
+        self.subject = subject
         self.metadata = metadata
 
     def to_dict(self):
@@ -87,6 +89,7 @@ class UnifiedLiveMessage:
             "thread_id": self.thread_id,
             "url": self.url,
             "status": self.status,
+            "subject": self.subject,
             "metadata": self.metadata
         }
 
@@ -346,43 +349,63 @@ async def get_recent_contacts(limit: int = 10):
             }
     
     # 1. Fetch recent messages (reusing fetch logic)
+    # Each provider is guarded independently so a missing helper or a failed
+    # provider never blocks the remaining providers.
     try:
         # Slack
         if SLACK_AVAILABLE:
             slack_msgs = await fetch_slack_recent(limit=20)
             for m in slack_msgs:
                 add_contact(m.get("sender"), "slack")
-                
+    except Exception as e:
+        logger.warning(f"Error fetching Slack contacts: {e}")
+
+    try:
         # Gmail
         if GMAIL_AVAILABLE:
             gmail_msgs = await fetch_gmail_recent(limit=20)
             for m in gmail_msgs:
                 sender = m.get("sender", "")
                 add_contact(sender, "gmail")
-                
+    except Exception as e:
+        logger.warning(f"Error fetching Gmail contacts: {e}")
+
+    try:
         # Discord
         if DISCORD_AVAILABLE:
             discord_msgs = await fetch_discord_recent(limit=20)
             for m in discord_msgs:
                 add_contact(m.get("sender"), "discord")
-                
+    except Exception as e:
+        logger.warning(f"Error fetching Discord contacts: {e}")
+
+    try:
+        # Zoho Mail
+        if ZOHO_MAIL_AVAILABLE:
             zoho_msgs = await fetch_zoho_mail_recent(limit=20)
             for m in zoho_msgs:
                 add_contact(m.get("sender"), "zoho")
+    except Exception as e:
+        logger.warning(f"Error fetching Zoho Mail contacts: {e}")
 
+    try:
         # Outlook
         if M365_AVAILABLE:
             outlook_msgs = await fetch_outlook_recent(limit=20)
             for m in outlook_msgs:
                 add_contact(m.get("sender"), "outlook")
-            
+    except Exception as e:
+        logger.warning(f"Error fetching Outlook contacts: {e}")
+
+    try:
+        # Teams
+        if M365_AVAILABLE:
             teams_msgs = await fetch_teams_recent(limit=20)
             for m in teams_msgs:
                 add_contact(m.get("sender"), "teams")
-                
     except Exception as e:
-        logger.error(f"Error fetching recent contacts: {e}")
-        
+        logger.warning(f"Error fetching Teams contacts: {e}")
+
     contact_list = list(contacts.values())
     return {
         "ok": True,

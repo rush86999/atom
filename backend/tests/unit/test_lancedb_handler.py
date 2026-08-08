@@ -851,14 +851,15 @@ class TestDualVectorStorage:
                 vector_column="invalid_column"
             )
 
-        # The legacy fastembed column was removed from the registry — rejected too
-        with pytest.raises(ValueError, match="Unknown vector column"):
-            await handler.add_embedding(
-                table_name="episodes",
-                episode_id="ep1",
-                vector=[0.1] * 384,
-                vector_column="vector_fastembed"
-            )
+        # The fastembed column is a valid dual-vector column (restored — see
+        # test_bughunt_autodev_comms.py; embedding_service relies on it)
+        result = await handler.add_embedding(
+            table_name="episodes",
+            episode_id="ep1",
+            vector=[0.1] * 384,
+            vector_column="vector_fastembed"
+        )
+        assert result is True
 
     @pytest.mark.asyncio
     async def test_similarity_search_on_vector_column(self, temp_db_path, mock_lancedb_connection):

@@ -54,7 +54,6 @@ class KingAgent(AtomMetaAgent):
         if context.get("user_id") and context.get("tenant_id"):
             mermaid = self.queen.generate_mermaid(blueprint, node_statuses)
             canvas_res = await present_markdown(
-                tenant_id=context["tenant_id"],
                 user_id=context["user_id"],
                 title=f"Execution Plan: {blueprint.get('architecture_name')}",
                 content=f"```mermaid\n{mermaid}\n```",
@@ -84,7 +83,6 @@ class KingAgent(AtomMetaAgent):
                     node_statuses[node["id"]] = "in_progress"
                     new_mermaid = self.queen.generate_mermaid(blueprint, node_statuses)
                     await update_canvas(
-                        tenant_id=context["tenant_id"],
                         user_id=context["user_id"],
                         canvas_id=canvas_id,
                         updates={"content": f"```mermaid\n{new_mermaid}\n```"}
@@ -112,7 +110,6 @@ class KingAgent(AtomMetaAgent):
                     if canvas_id:
                         new_mermaid = self.queen.generate_mermaid(blueprint, node_statuses)
                         await update_canvas(
-                            tenant_id=context["tenant_id"],
                             user_id=context["user_id"],
                             canvas_id=canvas_id,
                             updates={"content": f"```mermaid\n{new_mermaid}\n```"}
@@ -126,7 +123,6 @@ class KingAgent(AtomMetaAgent):
                     if canvas_id:
                         new_mermaid = self.queen.generate_mermaid(blueprint, node_statuses)
                         await update_canvas(
-                            tenant_id=context["tenant_id"],
                             user_id=context["user_id"],
                             canvas_id=canvas_id,
                             updates={"content": f"```mermaid\n{new_mermaid}\n```"}
@@ -186,7 +182,6 @@ class KingAgent(AtomMetaAgent):
                         if canvas_id:
                             new_mermaid = self.queen.generate_mermaid(blueprint, node_statuses)
                             await update_canvas(
-                                tenant_id=context["tenant_id"],
                                 user_id=context["user_id"],
                                 canvas_id=canvas_id,
                                 updates={

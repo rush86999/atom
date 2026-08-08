@@ -195,7 +195,11 @@ class BiometricService {
       });
 
       // Record attempt
-      await this.recordAttempt(result.success, undefined, biometricType);
+      await this.recordAttempt(
+        result.success,
+        result.success ? undefined : this.mapErrorToType(result.error),
+        biometricType
+      );
 
       // Clear lockout on success
       if (result.success) {

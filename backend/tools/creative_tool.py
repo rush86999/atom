@@ -99,7 +99,7 @@ class FFmpegTool(BaseTool):
         # Governance cache for permission checks
         self.governance_cache = GovernanceCache()
 
-    def _run(
+    async def _run(
         self,
         action: str,
         input_path: str,
@@ -107,7 +107,7 @@ class FFmpegTool(BaseTool):
         agent_id: Optional[str] = None,
         maturity_level: Optional[str] = None,
         **kwargs
-    ) -> str:
+    ) -> dict:
         """
         Execute FFmpeg operation with governance enforcement.
 
@@ -120,12 +120,12 @@ class FFmpegTool(BaseTool):
             **kwargs: Additional operation-specific parameters
 
         Returns:
-            JSON string with job_id and status
+            Dict with success status. On failure: {"success": False, "error": ...}.
+            On success: {"success": True, **operation_result} (e.g. job_id).
 
-        Raises:
-            PermissionError: If maturity level is below AUTONOMOUS
-            ValueError: If file paths are outside allowed directories
-            RuntimeError: If FFmpeg binary or service not available
+        The tool-result contract is dict-based: governance/path/service
+        failures are returned as failure dicts, never raised, so the agent
+        loop and the RPC surface see a uniform error shape.
         """
         # Governance check - AUTONOMOUS ONLY
         if not maturity_level or maturity_level != "AUTONOMOUS":
@@ -141,19 +141,28 @@ class FFmpegTool(BaseTool):
                 maturity_level=maturity_level,
                 required="AUTONOMOUS"
             )
-            raise PermissionError(error_msg)
+            return {"success": False, "error": error_msg}
 
         # Check FFmpeg service availability
         if not self.service:
-            raise RuntimeError(
-                "FFmpeg service not available. "
-                "Install FFmpeg: brew install ffmpeg (macOS) or apt install ffmpeg (Ubuntu)"
-            )
+            return {
+                "success": False,
+                "error": (
+                    "FFmpeg service not available. "
+                    "Install FFmpeg: brew install ffmpeg (macOS) or apt install ffmpeg (Ubuntu)"
+                ),
+            }
 
-        # Validate file paths (security boundary)
+        # Validate file paths (security boundary). The service validator
+        # returns False for traversal/out-of-scope paths (it only raises for
+        # argument-shape errors), so a False return must be treated as a hard
+        # block — previously the boolean was ignored and traversal paths
+        # reached the FFmpeg service (fail-open).
         try:
-            self.service.validate_path(input_path)
-            self.service.validate_path(output_path)
+            if not self.service.validate_path(input_path):
+                raise ValueError(f"input path outside allowed directories: {input_path}")
+            if not self.service.validate_path(output_path):
+                raise ValueError(f"output path outside allowed directories: {output_path}")
         except ValueError as e:
             logger.warning(
                 "Path validation failed",
@@ -161,10 +170,13 @@ class FFmpegTool(BaseTool):
                 output_path=output_path,
                 error=str(e)
             )
-            raise ValueError(
-                f"File path outside allowed directory: {e}. "
-                f"Allowed directories: {self.service.allowed_dirs}"
-            )
+            return {
+                "success": False,
+                "error": (
+                    f"File path outside allowed directory: {e}. "
+                    f"Allowed directories: {self.service.allowed_dirs}"
+                ),
+            }
 
         # Route to appropriate operation
         try:
@@ -174,6 +186,12 @@ class FFmpegTool(BaseTool):
                 output_path,
                 **kwargs
             )
+
+            # Normalize to the tool-result contract.
+            if isinstance(result, dict):
+                result = {"success": True, **result}
+            else:
+                result = {"success": bool(result), "result": result}
 
             # Log successful operation for audit trail
             logger.info(
@@ -187,6 +205,16 @@ class FFmpegTool(BaseTool):
 
             return result
 
+        except ValueError as e:
+            logger.error(
+                "FFmpeg operation failed",
+                agent_id=agent_id,
+                action=action,
+                error=str(e)
+            )
+            # Unknown-action diagnostics are agent-useful (guide retry) and
+            # contain no secrets.
+            return {"success": False, "error": f"FFmpeg operation failed: {e}"}
         except Exception as e:
             logger.error(
                 "FFmpeg operation failed",
@@ -194,7 +222,7 @@ class FFmpegTool(BaseTool):
                 action=action,
                 error=str(e)
             )
-            raise RuntimeError(f"FFmpeg operation failed: {e}")
+            return {"success": False, "error": "FFmpeg operation failed"}
 
     def _execute_operation(
         self,

@@ -366,8 +366,10 @@ class AutonomousSupervisorService:
         proposal.approved_by = supervisor_id
         proposal.approved_at = datetime.now()
 
-        # Store review results
-        proposal.execution_result = {
+        # Store review results in the real supervision_metadata JSON column
+        # (AgentProposal has no `execution_result` column — writing it set an
+        # unsaved Python attribute and the review was silently lost).
+        proposal.supervision_metadata = {
             "autonomous_approval": True,
             "supervisor_id": supervisor_id,
             "review": {
@@ -384,7 +386,7 @@ class AutonomousSupervisorService:
         # Requires integration with action execution framework
         # See: docs/archive/implementation/FUTURE_WORK.md
         proposal.status = ProposalStatus.EXECUTED.value
-        proposal.completed_at = datetime.now()
+        proposal.executed_at = datetime.now()
 
         self.db.commit()
 

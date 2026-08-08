@@ -226,6 +226,7 @@ describe('offlineSyncService', () => {
     });
 
     test('should stop retrying after max attempts', async () => {
+      jest.useFakeTimers();
       const { apiService } = require('../../services/api');
       apiService.post.mockRejectedValue(new Error('Persistent failure'));
 
@@ -237,12 +238,14 @@ describe('offlineSyncService', () => {
         'device_1'
       );
 
-      // Multiple sync attempts should eventually discard the action
-      await offlineSyncService.triggerSync();
-      await offlineSyncService.triggerSync();
-      await offlineSyncService.triggerSync();
-      await offlineSyncService.triggerSync();
-      await offlineSyncService.triggerSync();
+      // Failed actions are re-queued for retry with exponential backoff —
+      // advance time past the 2^attempts sleeps on each retry.
+      for (let i = 0; i < 5; i++) {
+        const syncPromise = offlineSyncService.triggerSync();
+        await jest.advanceTimersByTimeAsync(70000);
+        await syncPromise;
+      }
+      jest.useRealTimers();
 
       const state = await offlineSyncService.getSyncState();
       // After 5 attempts, action should be removed
@@ -886,6 +889,9 @@ describe('offlineSyncService', () => {
 
       // Server wins - action should be synced (skipped)
       expect(result).toBeDefined();
+      expect(result.synced).toBeGreaterThan(0);
+      // The local update is NOT pushed — the server version wins
+      expect(apiService.put).not.toHaveBeenCalled();
     });
 
     test('should resolve conflict with client_wins strategy', async () => {
@@ -1026,6 +1032,7 @@ describe('offlineSyncService', () => {
     });
 
     test('should enforce max sync attempts', async () => {
+      jest.useFakeTimers();
       const { apiService } = require('../../services/api');
       apiService.post.mockRejectedValue(new Error('Persistent failure'));
 
@@ -1037,12 +1044,13 @@ describe('offlineSyncService', () => {
         'device_1'
       );
 
-      // Try syncing multiple times
-      await offlineSyncService.triggerSync();
-      await offlineSyncService.triggerSync();
-      await offlineSyncService.triggerSync();
-      await offlineSyncService.triggerSync();
-      await offlineSyncService.triggerSync();
+      // Try syncing multiple times (advancing past each backoff sleep)
+      for (let i = 0; i < 5; i++) {
+        const syncPromise = offlineSyncService.triggerSync();
+        await jest.advanceTimersByTimeAsync(70000);
+        await syncPromise;
+      }
+      jest.useRealTimers();
 
       const state = await offlineSyncService.getSyncState();
 
@@ -1347,6 +1355,482 @@ describe('offlineSyncService', () => {
       expect(quota.breakdown).toHaveProperty('canvases');
       expect(quota.breakdown).toHaveProperty('episodes');
       expect(quota.breakdown).toHaveProperty('other');
+    });
+  });
+
+  // ========================================================================
+  // Retry and Backoff Tests (real retry behavior)
+  // ========================================================================
+
+  describe('Retry and Backoff', () => {
+    const queueMessage = () =>
+      offlineSyncService.queueAction(
+        'agent_message',
+        { agentId: 'agent_retry', message: 'Retry me', sessionId: 'session_retry' },
+        'normal',
+        'user_1',
+        'device_1'
+      );
+
+    test('should re-queue failed actions as pending for the next sync', async () => {
+      const { apiService } = require('../../services/api');
+      apiService.post.mockRejectedValue(new Error('Network error'));
+
+      await queueMessage();
+
+      const result = await offlineSyncService.triggerSync();
+
+      expect(result.failed).toBe(1);
+      // The action is NOT orphaned as 'failed' — it stays pending for retry
+      expect(await offlineSyncService.getPendingCount()).toBe(1);
+    });
+
+    test('should retry a failed action with backoff and succeed on the next sync', async () => {
+      jest.useFakeTimers();
+      const { apiService } = require('../../services/api');
+      apiService.post
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValueOnce({ success: true, data: {} });
+
+      await queueMessage();
+
+      const first = await offlineSyncService.triggerSync();
+      expect(first.failed).toBe(1);
+
+      // Second sync must wait out the exponential backoff (2^1 * 1000ms)
+      const secondPromise = offlineSyncService.triggerSync();
+      await jest.advanceTimersByTimeAsync(2100);
+      const second = await secondPromise;
+
+      expect(second.synced).toBe(1);
+      expect(second.failed).toBe(0);
+      expect(await offlineSyncService.getPendingCount()).toBe(0);
+      expect(apiService.post).toHaveBeenCalledTimes(2);
+      jest.useRealTimers();
+    });
+
+    test('should drop an action after MAX_SYNC_ATTEMPTS failed retries', async () => {
+      jest.useFakeTimers();
+      const { apiService } = require('../../services/api');
+      apiService.post.mockRejectedValue(new Error('Persistent failure'));
+
+      await queueMessage();
+
+      for (let i = 0; i < 5; i++) {
+        const syncPromise = offlineSyncService.triggerSync();
+        await jest.advanceTimersByTimeAsync(70000);
+        await syncPromise;
+      }
+      jest.useRealTimers();
+
+      // Converged: attempts exhausted -> action removed from the queue
+      expect(await offlineSyncService.getPendingCount()).toBe(0);
+      const state = await offlineSyncService.getSyncState();
+      expect(state.consecutiveFailures).toBe(5);
+    });
+
+    test('should cap the backoff delay at 60 seconds', async () => {
+      jest.useFakeTimers();
+      const { apiService } = require('../../services/api');
+      const { storageService } = require('../../services/storageService');
+      apiService.post.mockResolvedValue({ success: true, data: {} });
+
+      // Seed an action that already failed 5+ times: 2^5 = 32s, 2^6 = 64s -> capped
+      const seeded = {
+        id: 'action_seeded',
+        type: 'agent_message',
+        payload: { agentId: 'a', message: 'm', sessionId: 's' },
+        priority: 5,
+        priorityLevel: 'normal',
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        syncAttempts: 6,
+        userId: 'u',
+        deviceId: 'd',
+      };
+      await storageService.setString('offline_queue', JSON.stringify([seeded]));
+
+      const syncPromise = offlineSyncService.triggerSync();
+      // Delay would be 64s without the cap — the promise resolving after
+      // 61s of fake time proves the delay was clamped to 60s.
+      await jest.advanceTimersByTimeAsync(61000);
+      const result = await syncPromise;
+
+      // Attempts were already exhausted, so the action is dropped — but the
+      // capped sleep ran first, and the sync still completed.
+      expect(result.synced).toBe(0);
+      expect(await offlineSyncService.getPendingCount()).toBe(0);
+      jest.useRealTimers();
+    });
+
+    test('should fail actions with unknown types', async () => {
+      const { apiService } = require('../../services/api');
+      apiService.post.mockResolvedValue({ success: true, data: {} });
+
+      await offlineSyncService.queueAction(
+        'unknown_action' as any,
+        { x: 1 },
+        'normal',
+        'user_1',
+        'device_1'
+      );
+
+      const result = await offlineSyncService.triggerSync();
+
+      expect(result.failed).toBe(1);
+      expect(result.synced).toBe(0);
+    });
+  });
+
+  // ========================================================================
+  // Queue Integrity Tests
+  // ========================================================================
+
+  describe('Queue Integrity', () => {
+    test('should reset the queue when stored data is corrupted', async () => {
+      const { storageService } = require('../../services/storageService');
+      storageService.setString('offline_queue', '{corrupted-json');
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const result = await offlineSyncService.triggerSync();
+
+      expect(result.success).toBe(false);
+      expect(storageService.getString('offline_queue')).toBeNull();
+      errorSpy.mockRestore();
+    });
+
+    test('should evict old low-priority actions when storage quota is exceeded', async () => {
+      const { storageService } = require('../../services/storageService');
+      const NetInfo = require('@react-native-community/netinfo');
+      const networkCallback = NetInfo.addEventListener.mock.calls[0][0];
+
+      // Take the service offline so the critical action does not auto-sync
+      networkCallback({ isConnected: false });
+
+      await offlineSyncService.queueAction(
+        'agent_message',
+        { label: 'old-low' },
+        'low',
+        'user_1',
+        'device_1',
+        'last_write_wins',
+        'agents',
+        'agent-1'
+      );
+      await offlineSyncService.queueAction(
+        'agent_message',
+        { label: 'keep-critical' },
+        'critical',
+        'user_1',
+        'device_1'
+      );
+
+      // Simulate near-full storage: 49MB of 50MB used
+      (offlineSyncService as any).storageQuota.usedBytes = 49 * 1024 * 1024;
+      const bigPayload = { data: 'x'.repeat(3 * 1024 * 1024) };
+      await offlineSyncService.queueAction(
+        'agent_message',
+        bigPayload,
+        'normal',
+        'user_1',
+        'device_1'
+      );
+
+      const queue = JSON.parse(storageService.getString('offline_queue')!);
+      const labels = queue.map((a: any) => a.payload.label || a.payload.data);
+      expect(labels).toContain('keep-critical');
+      expect(labels).not.toContain('old-low');
+      expect(labels.some((l: any) => typeof l === 'string' && l.startsWith('x'))).toBe(true);
+
+      // Restore online state for subsequent tests
+      networkCallback({ isConnected: true });
+    });
+  });
+
+  // ========================================================================
+  // Sync Failure Path Tests
+  // ========================================================================
+
+  describe('Sync Failure Paths', () => {
+    test('should fail actions when the server responds with an error', async () => {
+      const { apiService } = require('../../services/api');
+      apiService.post.mockResolvedValue({ success: false, error: 'rate limited' });
+      apiService.put.mockResolvedValue({ success: false, error: 'rate limited' });
+      apiService.get.mockResolvedValue({
+        success: true,
+        data: { updated_at: new Date(Date.now() - 100000).toISOString() },
+      });
+
+      // agent_message -> POST failure
+      await offlineSyncService.queueAction(
+        'agent_message',
+        { agentId: 'a', message: 'm', sessionId: 's' },
+        'normal',
+        'u',
+        'd'
+      );
+      // workflow_trigger -> POST failure
+      await offlineSyncService.queueAction(
+        'workflow_trigger',
+        { workflowId: 'wf', input: {} },
+        'normal',
+        'u',
+        'd'
+      );
+      // feedback -> POST failure
+      await offlineSyncService.queueAction(
+        'feedback',
+        { agentId: 'a', feedbackType: 'thumbs', rating: 1, comment: 'c' },
+        'normal',
+        'u',
+        'd'
+      );
+
+      const result = await offlineSyncService.triggerSync();
+
+      expect(result.failed).toBe(3);
+      // All three remain pending for retry (backoff applies on the next sync)
+      expect(await offlineSyncService.getPendingCount()).toBe(3);
+    });
+
+    test('should fail entity syncs when the server responds with an error', async () => {
+      const { apiService } = require('../../services/api');
+      apiService.put.mockResolvedValue({ success: false, error: 'conflict' });
+
+      await offlineSyncService.queueAction(
+        'agent_sync',
+        { agentId: 'a', agentData: { name: 'A' } },
+        'normal',
+        'u',
+        'd',
+        'last_write_wins',
+        'agents',
+        'a'
+      );
+      await offlineSyncService.queueAction(
+        'workflow_sync',
+        { workflowId: 'wf', workflowData: { name: 'W' } },
+        'normal',
+        'u',
+        'd',
+        'last_write_wins',
+        'workflows',
+        'wf'
+      );
+      await offlineSyncService.queueAction(
+        'canvas_sync',
+        { canvasId: 'c', canvasData: { title: 'C' } },
+        'normal',
+        'u',
+        'd',
+        'last_write_wins',
+        'canvases',
+        'c'
+      );
+      await offlineSyncService.queueAction(
+        'episode_sync',
+        { episodeId: 'e', episodeData: { summary: 'E' } },
+        'normal',
+        'u',
+        'd',
+        'last_write_wins',
+        'episodes',
+        'e'
+      );
+
+      const result = await offlineSyncService.triggerSync();
+
+      expect(result.failed).toBe(4);
+      expect(apiService.put).toHaveBeenCalledTimes(4);
+    });
+
+    test('should fail canvas updates and merges when the server rejects', async () => {
+      const { apiService } = require('../../services/api');
+      apiService.get.mockResolvedValue({
+        success: true,
+        data: {
+          updated_at: new Date(Date.now() + 100000).toISOString(),
+          tags: ['server'],
+          metadata: {},
+        },
+      });
+      apiService.put.mockResolvedValue({ success: false, error: 'rejected' });
+
+      // client_wins with a rejected PUT
+      await offlineSyncService.queueAction(
+        'canvas_update',
+        { canvasId: 'c1', updates: { title: 'Local' } },
+        'normal',
+        'u',
+        'd',
+        'client_wins'
+      );
+      // merge strategy with a rejected PUT
+      await offlineSyncService.queueAction(
+        'canvas_update',
+        { canvasId: 'c2', updates: { tags: ['local'] } },
+        'normal',
+        'u',
+        'd',
+        'merge'
+      );
+
+      const result = await offlineSyncService.triggerSync();
+
+      expect(result.failed).toBe(2);
+      expect(apiService.put).toHaveBeenCalledTimes(2);
+    });
+
+    test('should sync feedback and form submissions successfully', async () => {
+      const { apiService } = require('../../services/api');
+      apiService.post.mockResolvedValue({ success: true, data: {} });
+      apiService.get.mockResolvedValue({
+        success: true,
+        data: { updated_at: new Date(Date.now() - 100000).toISOString() },
+      });
+
+      await offlineSyncService.queueAction(
+        'feedback',
+        { agentId: 'a', feedbackType: 'thumbs', rating: 5, comment: 'great' },
+        'normal',
+        'u',
+        'd'
+      );
+      await offlineSyncService.queueAction(
+        'form_submit',
+        { canvasId: 'c', formData: { name: 'x' } },
+        'normal',
+        'u',
+        'd'
+      );
+
+      const result = await offlineSyncService.triggerSync();
+
+      expect(result.synced).toBe(2);
+      // Feedback payload carries the original createdAt timestamp
+      expect(apiService.post).toHaveBeenCalledWith(
+        '/api/feedback',
+        expect.objectContaining({ agent_id: 'a', rating: 5, comment: 'great' })
+      );
+      expect(apiService.post).toHaveBeenCalledWith(
+        '/api/canvas/c/submit',
+        expect.objectContaining({ form_data: { name: 'x' } })
+      );
+    });
+
+    test('should fail form submissions the server rejects', async () => {
+      const { apiService } = require('../../services/api');
+      apiService.get.mockResolvedValue({
+        success: true,
+        data: { updated_at: new Date(Date.now() - 100000).toISOString() },
+      });
+      apiService.post.mockResolvedValue({ success: false, error: 'validation failed' });
+
+      await offlineSyncService.queueAction(
+        'form_submit',
+        { canvasId: 'c', formData: { name: 'x' } },
+        'normal',
+        'u',
+        'd'
+      );
+
+      const result = await offlineSyncService.triggerSync();
+
+      expect(result.failed).toBe(1);
+      expect(await offlineSyncService.getPendingCount()).toBe(1);
+    });
+
+    test('should fail actions whose API calls throw', async () => {
+      const { apiService } = require('../../services/api');
+      const networkError = new Error('connection lost');
+      apiService.post.mockRejectedValue(networkError);
+      apiService.put.mockRejectedValue(networkError);
+      apiService.get.mockRejectedValue(networkError);
+
+      // Every syncable type, all failing by exception
+      await offlineSyncService.queueAction('agent_message', { agentId: 'a', message: 'm', sessionId: 's' }, 'normal', 'u', 'd');
+      await offlineSyncService.queueAction('workflow_trigger', { workflowId: 'wf', input: {} }, 'normal', 'u', 'd');
+      await offlineSyncService.queueAction('form_submit', { canvasId: 'c', formData: {} }, 'normal', 'u', 'd');
+      await offlineSyncService.queueAction('feedback', { agentId: 'a', feedbackType: 't', rating: 1 }, 'normal', 'u', 'd');
+      await offlineSyncService.queueAction('canvas_update', { canvasId: 'c', updates: {} }, 'normal', 'u', 'd');
+      await offlineSyncService.queueAction('agent_sync', { agentId: 'a', agentData: {} }, 'normal', 'u', 'd', 'last_write_wins', 'agents', 'a');
+      await offlineSyncService.queueAction('workflow_sync', { workflowId: 'wf', workflowData: {} }, 'normal', 'u', 'd', 'last_write_wins', 'workflows', 'wf');
+      await offlineSyncService.queueAction('canvas_sync', { canvasId: 'c', canvasData: {} }, 'normal', 'u', 'd', 'last_write_wins', 'canvases', 'c');
+      await offlineSyncService.queueAction('episode_sync', { episodeId: 'e', episodeData: {} }, 'normal', 'u', 'd', 'last_write_wins', 'episodes', 'e');
+
+      const result = await offlineSyncService.triggerSync();
+
+      expect(result.failed).toBe(9);
+      expect(result.success).toBe(true);
+      // All remain pending — retried with backoff on the next sync
+      expect(await offlineSyncService.getPendingCount()).toBe(9);
+    });
+  });
+
+  // ========================================================================
+  // Canvas Conflict Resolution Tests
+  // ========================================================================
+
+  describe('Canvas Conflicts', () => {
+    test('should flag conflicts with last_write_wins and notify listeners', async () => {
+      const { apiService } = require('../../services/api');
+      apiService.get.mockResolvedValue({
+        success: true,
+        data: { updated_at: new Date(Date.now() + 100000).toISOString() },
+      });
+      apiService.put.mockResolvedValue({ success: true, data: {} });
+
+      const conflictCallback = jest.fn();
+      offlineSyncService.subscribeToConflicts(conflictCallback);
+
+      await offlineSyncService.queueAction(
+        'canvas_update',
+        { canvasId: 'canvas_c', updates: { title: 'Local' } },
+        'normal',
+        'user_1',
+        'device_1',
+        'last_write_wins'
+      );
+
+      const result = await offlineSyncService.triggerSync();
+
+      expect(result.conflicts).toBe(1);
+      expect(result.synced).toBe(0);
+      expect(conflictCallback).toHaveBeenCalledTimes(1);
+      expect(conflictCallback.mock.calls[0][0].payload.canvasId).toBe('canvas_c');
+    });
+
+    test('should merge tags and metadata when resolving with merge strategy', async () => {
+      const { apiService } = require('../../services/api');
+      apiService.get.mockResolvedValue({
+        success: true,
+        data: {
+          updated_at: new Date(Date.now() + 100000).toISOString(),
+          tags: ['server'],
+          metadata: { a: 1 },
+        },
+      });
+      const putMock = apiService.put.mockResolvedValue({ success: true, data: {} });
+
+      await offlineSyncService.queueAction(
+        'canvas_update',
+        { canvasId: 'canvas_m', updates: { tags: ['local'], metadata: { b: 2 } } },
+        'normal',
+        'user_1',
+        'device_1',
+        'merge'
+      );
+
+      const result = await offlineSyncService.triggerSync();
+
+      expect(result.synced).toBe(1);
+      expect(putMock).toHaveBeenCalledWith(
+        '/api/canvas/canvas_m',
+        expect.objectContaining({
+          tags: ['server', 'local'],
+          metadata: { a: 1, b: 2 },
+        })
+      );
     });
   });
 });

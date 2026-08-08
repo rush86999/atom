@@ -5,39 +5,26 @@ Tests condition monitors that trigger alerts when thresholds are exceeded.
 """
 
 import sys
-import os
 
 import pytest
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# Add backend to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from unittest.mock import Mock, MagicMock
-
-# Mock the imports before importing the service
-sys.modules['core.agent_integration_gateway'] = MagicMock()
-sys.modules['integrations.atom_discord_integration'] = MagicMock()
-sys.modules['integrations.atom_whatsapp_integration'] = MagicMock()
-sys.modules['integrations.atom_telegram_integration'] = MagicMock()
-sys.modules['integrations.google_chat_enhanced_service'] = MagicMock()
-sys.modules['integrations.meta_business_service'] = MagicMock()
-sys.modules['integrations.marketing_unified_service'] = MagicMock()
-sys.modules['integrations.ecommerce_unified_service'] = MagicMock()
-sys.modules['integrations.slack_enhanced_service'] = MagicMock()
-sys.modules['integrations.teams_enhanced_service'] = MagicMock()
-sys.modules['integrations.document_logic_service'] = MagicMock()
-sys.modules['integrations.shopify_service'] = MagicMock()
-sys.modules['integrations.openclaw_service'] = MagicMock()
 
 from core.models import AgentRegistry, AgentStatus
 try:
     from core.models import ConditionMonitorType
 except ImportError:
     ConditionMonitorType = None
-from core.condition_checkers import ConditionCheckers
+from core.condition_checkers import (
+    CONDITION_TYPE_API_METRICS,
+    CONDITION_TYPE_COMPOSITE,
+    CONDITION_TYPE_INBOX_VOLUME,
+    CONDITION_TYPE_TASK_BACKLOG,
+    ConditionCheckers,
+)
 from core.condition_monitoring_service import ConditionMonitoringService
 
 # Skip tests if ConditionMonitorType is not available
@@ -166,7 +153,7 @@ class TestConditionMonitoringService:
         monitor = service.create_monitor(
             agent_id=autonomous_agent.id,
             name="High Inbox Volume",
-            condition_type=ConditionMonitorType.INBOX_VOLUME.value,
+            condition_type=CONDITION_TYPE_INBOX_VOLUME,
             threshold_config={
                 "metric": "unread_count",
                 "operator": ">",
@@ -178,10 +165,10 @@ class TestConditionMonitoringService:
             check_interval_seconds=300,
         )
 
-        assert monitor.condition_type == ConditionMonitorType.INBOX_VOLUME.value
+        assert monitor.condition_type == CONDITION_TYPE_INBOX_VOLUME
         assert monitor.name == "High Inbox Volume"
-        assert monitor.status == "active"
-        assert monitor.threshold_config["operator"] == ">"
+        assert monitor.is_active is True
+        assert monitor.condition_config["threshold_config"]["operator"] == ">"
 
     def test_create_task_backlog_monitor(self, db, autonomous_agent):
         """Test creating a task backlog monitor."""
@@ -190,7 +177,7 @@ class TestConditionMonitoringService:
         monitor = service.create_monitor(
             agent_id=autonomous_agent.id,
             name="Task Backlog",
-            condition_type=ConditionMonitorType.TASK_BACKLOG.value,
+            condition_type=CONDITION_TYPE_TASK_BACKLOG,
             threshold_config={
                 "metric": "pending_count",
                 "operator": ">",
@@ -201,8 +188,8 @@ class TestConditionMonitoringService:
             ],
         )
 
-        assert monitor.condition_type == ConditionMonitorType.TASK_BACKLOG.value
-        assert monitor.threshold_config["value"] == 50
+        assert monitor.condition_type == CONDITION_TYPE_TASK_BACKLOG
+        assert monitor.condition_config["threshold_config"]["value"] == 50
 
     def test_create_api_metrics_monitor(self, db, autonomous_agent):
         """Test creating an API metrics monitor."""
@@ -211,7 +198,7 @@ class TestConditionMonitoringService:
         monitor = service.create_monitor(
             agent_id=autonomous_agent.id,
             name="High Error Rate",
-            condition_type=ConditionMonitorType.API_METRICS.value,
+            condition_type=CONDITION_TYPE_API_METRICS,
             threshold_config={
                 "metric": "error_rate",
                 "operator": ">",
@@ -223,8 +210,8 @@ class TestConditionMonitoringService:
             ],
         )
 
-        assert monitor.condition_type == ConditionMonitorType.API_METRICS.value
-        assert monitor.threshold_config["metric"] == "error_rate"
+        assert monitor.condition_type == CONDITION_TYPE_API_METRICS
+        assert monitor.condition_config["threshold_config"]["metric"] == "error_rate"
 
     def test_create_composite_monitor(self, db, autonomous_agent):
         """Test creating a composite monitor with AND/OR logic."""
@@ -233,7 +220,7 @@ class TestConditionMonitoringService:
         monitor = service.create_monitor(
             agent_id=autonomous_agent.id,
             name="Composite Condition",
-            condition_type=ConditionMonitorType.COMPOSITE.value,
+            condition_type=CONDITION_TYPE_COMPOSITE,
             threshold_config={},
             composite_logic="AND",
             composite_conditions=[
@@ -251,9 +238,9 @@ class TestConditionMonitoringService:
             ],
         )
 
-        assert monitor.condition_type == ConditionMonitorType.COMPOSITE.value
-        assert monitor.composite_logic == "AND"
-        assert len(monitor.composite_conditions) == 2
+        assert monitor.condition_type == CONDITION_TYPE_COMPOSITE
+        assert monitor.condition_config["composite_logic"] == "AND"
+        assert len(monitor.condition_config["composite_conditions"]) == 2
 
     def test_pause_monitor(self, db, autonomous_agent):
         """Test pausing a monitor."""
@@ -262,14 +249,14 @@ class TestConditionMonitoringService:
         monitor = service.create_monitor(
             agent_id=autonomous_agent.id,
             name="Test Monitor",
-            condition_type=ConditionMonitorType.INBOX_VOLUME.value,
+            condition_type=CONDITION_TYPE_INBOX_VOLUME,
             threshold_config={"metric": "unread_count", "operator": ">", "value": 100},
             platforms=[{"platform": "slack", "recipient_id": "C12345"}],
         )
 
         paused_monitor = service.pause_monitor(monitor.id)
 
-        assert paused_monitor.status == "paused"
+        assert paused_monitor.is_active is False
 
     def test_resume_monitor(self, db, autonomous_agent):
         """Test resuming a paused monitor."""
@@ -278,7 +265,7 @@ class TestConditionMonitoringService:
         monitor = service.create_monitor(
             agent_id=autonomous_agent.id,
             name="Test Monitor",
-            condition_type=ConditionMonitorType.INBOX_VOLUME.value,
+            condition_type=CONDITION_TYPE_INBOX_VOLUME,
             threshold_config={"metric": "unread_count", "operator": ">", "value": 100},
             platforms=[{"platform": "slack", "recipient_id": "C12345"}],
         )
@@ -289,7 +276,7 @@ class TestConditionMonitoringService:
         # Resume
         resumed_monitor = service.resume_monitor(monitor.id)
 
-        assert resumed_monitor.status == "active"
+        assert resumed_monitor.is_active is True
 
     def test_delete_monitor(self, db, autonomous_agent):
         """Test deleting a monitor."""
@@ -298,7 +285,7 @@ class TestConditionMonitoringService:
         monitor = service.create_monitor(
             agent_id=autonomous_agent.id,
             name="Test Monitor",
-            condition_type=ConditionMonitorType.INBOX_VOLUME.value,
+            condition_type=CONDITION_TYPE_INBOX_VOLUME,
             threshold_config={"metric": "unread_count", "operator": ">", "value": 100},
             platforms=[{"platform": "slack", "recipient_id": "C12345"}],
         )
@@ -319,7 +306,7 @@ class TestConditionMonitoringService:
         monitor = service.create_monitor(
             agent_id=autonomous_agent.id,
             name="Original Name",
-            condition_type=ConditionMonitorType.INBOX_VOLUME.value,
+            condition_type=CONDITION_TYPE_INBOX_VOLUME,
             threshold_config={"metric": "unread_count", "operator": ">", "value": 100},
             platforms=[{"platform": "slack", "recipient_id": "C12345"}],
         )
@@ -332,7 +319,7 @@ class TestConditionMonitoringService:
         )
 
         assert updated_monitor.name == "Updated Name"
-        assert updated_monitor.threshold_config["value"] == 200
+        assert updated_monitor.condition_config["threshold_config"]["value"] == 200
 
     def test_get_monitors_by_agent(self, db, autonomous_agent):
         """Test filtering monitors by agent."""
@@ -342,14 +329,14 @@ class TestConditionMonitoringService:
         service.create_monitor(
             agent_id=autonomous_agent.id,
             name="Monitor 1",
-            condition_type=ConditionMonitorType.INBOX_VOLUME.value,
+            condition_type=CONDITION_TYPE_INBOX_VOLUME,
             threshold_config={"metric": "unread_count", "operator": ">", "value": 100},
             platforms=[{"platform": "slack", "recipient_id": "C12345"}],
         )
         service.create_monitor(
             agent_id=autonomous_agent.id,
             name="Monitor 2",
-            condition_type=ConditionMonitorType.TASK_BACKLOG.value,
+            condition_type=CONDITION_TYPE_TASK_BACKLOG,
             threshold_config={"metric": "pending_count", "operator": ">", "value": 50},
             platforms=[{"platform": "discord", "recipient_id": "G67890"}],
         )
@@ -358,7 +345,26 @@ class TestConditionMonitoringService:
         monitors = service.get_monitors(agent_id=autonomous_agent.id)
 
         assert len(monitors) == 2
-        assert all(m.agent_id == autonomous_agent.id for m in monitors)
+        assert all(m.user_id == autonomous_agent.id for m in monitors)
+
+    def test_get_monitor_hydrates_config(self, db, autonomous_agent):
+        """Re-fetched monitors restore config onto plain attributes."""
+        service = ConditionMonitoringService(db)
+
+        monitor = service.create_monitor(
+            agent_id=autonomous_agent.id,
+            name="Test Monitor",
+            condition_type=CONDITION_TYPE_INBOX_VOLUME,
+            threshold_config={"metric": "unread_count", "operator": ">", "value": 100},
+            platforms=[{"platform": "slack", "recipient_id": "C12345"}],
+        )
+
+        refetched = service.get_monitor(monitor.id)
+
+        assert refetched.condition_config["threshold_config"]["value"] == 100
+        # Hydrated plain attrs keep ConditionCheckers working on re-fetched rows
+        assert refetched.threshold_config["value"] == 100
+        assert refetched.platforms[0]["platform"] == "slack"
 
 
 class TestMonitoringPresets:
@@ -407,7 +413,7 @@ class TestConditionMonitoringValidation:
             service.create_monitor(
                 agent_id=autonomous_agent.id,
                 name="Invalid Composite",
-                condition_type=ConditionMonitorType.COMPOSITE.value,
+                condition_type=CONDITION_TYPE_COMPOSITE,
                 threshold_config={},
                 composite_logic=None,  # Missing
                 composite_conditions=None,  # Missing
@@ -424,7 +430,7 @@ class TestConditionMonitoringValidation:
             service.create_monitor(
                 agent_id="non-existent-id",
                 name="Test Monitor",
-                condition_type=ConditionMonitorType.INBOX_VOLUME.value,
+                condition_type=CONDITION_TYPE_INBOX_VOLUME,
                 threshold_config={"metric": "unread_count", "operator": ">", "value": 100},
                 platforms=[{"platform": "slack", "recipient_id": "C12345"}],
             )

@@ -1,250 +1,227 @@
 """
 Jira Integration Tests (pytest)
 
-Tests Jira issue management integration with proper mocking.
+Tests the real JiraService in integrations/jira_service.py by mocking its
+HTTP seam (_make_request). Covers issue create/update/transition/comment,
+JQL search, error handling, and the execute_operation dispatch.
 """
 
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from sqlalchemy.orm import Session
+from unittest.mock import Mock, patch
 
-from core.models import AgentExecution, AgentOperationTracker
+from integrations.jira_service import JiraService
+
+
+class FakeResponse:
+    """Minimal requests.Response stand-in."""
+
+    def __init__(self, status_code: int = 200, payload=None):
+        self.status_code = status_code
+        self._payload = payload if payload is not None else {}
+        self.headers = {}
+
+    def json(self):
+        return self._payload
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise Exception(f"HTTP {self.status_code}")
+
+
+@pytest.fixture
+def jira_service():
+    """Create a JiraService instance with OAuth config (skips SSRF guard)."""
+    return JiraService(
+        tenant_id="tenant-001",
+        config={
+            "access_token": "test-oauth-token",
+            "cloud_id": "cloud-123",
+        },
+    )
+
+
+@pytest.fixture
+def mock_request(jira_service):
+    """Mock the HTTP seam used by all JiraService methods."""
+    with patch.object(jira_service, "_make_request") as mock_make:
+        mock_make.return_value = FakeResponse()
+        yield mock_make
 
 
 class TestJiraIssueIntegration:
     """Test Jira issue management integration."""
 
-    @pytest.fixture
-    def mock_jira_client(self):
-        """Create mock Jira client."""
-        with patch('integrations.jira_service.JIRA') as mock_client:
-            yield mock_client.return_value
-
-    @pytest.fixture
-    def mock_db(self):
-        """Create mock database session."""
-        db = Mock(spec=Session)
-        db.query = Mock()
-        db.add = Mock()
-        db.commit = Mock()
-        db.rollback = Mock()
-        db.refresh = Mock()
-        return db
-
-    def test_create_jira_issue(self, mock_jira_client, mock_db):
+    def test_create_jira_issue(self, jira_service, mock_request):
         """Test creating an issue in Jira."""
-        # Mock Jira API response
-        mock_jira_client.create_issue.return_value = {
+        mock_request.return_value = FakeResponse(payload={
             "key": "PROJ-123",
             "id": "12345",
             "fields": {
                 "summary": "Fix login bug",
                 "issuetype": {"name": "Bug"},
-                "priority": {"name": "High"}
-            }
-        }
+                "priority": {"name": "High"},
+            },
+        })
 
-        execution = AgentExecution(
-            id="exec-jira-001",
-            agent_id="agent-001",
-            status="running",
-            input_data={"task": "Create Jira issue"},
-            started_at=datetime.utcnow()
+        result = jira_service.create_issue(
+            project_key="PROJ",
+            summary="Fix login bug",
+            issue_type="Bug",
+            description="Login flow crashes",
+            priority="High",
         )
-        mock_db.add(execution)
 
-        # Create issue
-        issue_dict = {
-            "project": {"key": "PROJ"},
-            "summary": "Fix login bug",
-            "issuetype": {"name": "Bug"},
-            "priority": {"name": "High"}
-        }
-
-        result = mock_jira_client.create_issue(issue_dict)
-
-        # Verify API call
-        mock_jira_client.create_issue.assert_called_once()
         assert result["key"] == "PROJ-123"
         assert result["fields"]["summary"] == "Fix login bug"
 
-        execution.output_data = {
-            "issue_created": True,
-            "issue_key": result["key"],
-            "issue_url": f"https://jira.atlassian.net/browse/{result['key']}"
-        }
-        execution.status = "completed"
-        execution.completed_at = datetime.utcnow()
-        mock_db.commit()
+        # Verify the API call shape
+        method, endpoint = mock_request.call_args.args[:2]
+        assert method == "POST"
+        assert endpoint == "/rest/api/3/issue"
+        sent_json = mock_request.call_args.kwargs["json"]
+        assert sent_json["fields"]["project"]["key"] == "PROJ"
+        assert sent_json["fields"]["summary"] == "Fix login bug"
+        assert sent_json["fields"]["priority"]["name"] == "High"
 
-        assert execution.output_data["issue_created"] is True
-
-    def test_update_jira_issue(self, mock_jira_client, mock_db):
+    def test_update_jira_issue(self, jira_service, mock_request):
         """Test updating an existing Jira issue."""
-        mock_jira_client.update_issue.return_value = None
-
-        execution = AgentExecution(
-            id="exec-jira-002",
-            agent_id="agent-001",
-            status="running",
-            input_data={"task": "Update issue"},
-            started_at=datetime.utcnow()
+        result = jira_service.update_issue(
+            "PROJ-123", {"fields": {"summary": "Updated summary"}}
         )
-        mock_db.add(execution)
 
-        # Update issue
-        issue_key = "PROJ-123"
-        fields = {"summary": "Updated summary"}
+        assert result is True
+        method, endpoint = mock_request.call_args.args[:2]
+        assert method == "PUT"
+        assert endpoint == "/rest/api/3/issue/PROJ-123"
 
-        mock_jira_client.update_issue(issue_key, fields=fields)
+    def test_transition_jira_issue(self, jira_service, mock_request):
+        """Test transitioning Jira issue status by name."""
+        def side_effect(method, endpoint, **kwargs):
+            if "transitions" in endpoint:
+                return FakeResponse(payload={
+                    "transitions": [
+                        {"id": "31", "name": "In Progress"},
+                        {"id": "41", "name": "Done"},
+                    ]
+                })
+            return FakeResponse()
 
-        # Verify API call
-        mock_jira_client.update_issue.assert_called_once_with(issue_key, fields=fields)
+        mock_request.side_effect = side_effect
 
-        execution.output_data = {"issue_updated": True, "issue_key": issue_key}
-        execution.status = "completed"
-        execution.completed_at = datetime.utcnow()
-        mock_db.commit()
+        result = jira_service.transition_issue("PROJ-123", "In Progress")
 
-    def test_transition_jira_issue(self, mock_jira_client, mock_db):
-        """Test transitioning Jira issue status."""
-        mock_jira_client.transition_issue.return_value = None
+        assert result is True
+        # Second request should POST the resolved transition id
+        calls = mock_request.call_args_list
+        assert len(calls) == 2
+        assert calls[0].args[:2] == ("GET", "/rest/api/3/issue/PROJ-123/transitions")
+        assert calls[1].args[:2] == ("POST", "/rest/api/3/issue/PROJ-123/transitions")
+        assert calls[1].kwargs["json"] == {"transition": {"id": "31"}}
 
-        execution = AgentExecution(
-            id="exec-jira-003",
-            agent_id="agent-001",
-            status="running",
-            input_data={"task": "Transition issue"},
-            started_at=datetime.utcnow()
-        )
-        mock_db.add(execution)
+    def test_transition_unknown_status_returns_false(self, jira_service, mock_request):
+        """Test transitioning to an unknown status fails gracefully."""
+        mock_request.return_value = FakeResponse(payload={"transitions": []})
 
-        # Transition issue
-        issue_key = "PROJ-123"
-        transition_id = "31"  # ID for "In Progress" transition
+        result = jira_service.transition_issue("PROJ-123", "Nope")
 
-        mock_jira_client.transition_issue(issue_key, transition_id)
+        assert result is False
 
-        # Verify API call
-        mock_jira_client.transition_issue.assert_called_once_with(issue_key, transition_id)
-
-        execution.output_data = {
-            "issue_transitioned": True,
-            "issue_key": issue_key,
-            "new_status": "In Progress"
-        }
-        execution.status = "completed"
-        execution.completed_at = datetime.utcnow()
-        mock_db.commit()
-
-    def test_add_comment_to_jira_issue(self, mock_jira_client, mock_db):
+    def test_add_comment_to_jira_issue(self, jira_service, mock_request):
         """Test adding a comment to Jira issue."""
-        mock_jira_client.add_comment.return_value = {
+        mock_request.return_value = FakeResponse(payload={
             "id": "comment-001",
-            "body": "Issue resolved successfully"
-        }
+            "body": "Issue resolved successfully",
+        })
 
-        execution = AgentExecution(
-            id="exec-jira-004",
-            agent_id="agent-001",
-            status="running",
-            input_data={"task": "Add comment"},
-            started_at=datetime.utcnow()
-        )
-        mock_db.add(execution)
+        result = jira_service.add_comment("PROJ-123", "Issue resolved successfully")
 
-        # Add comment
-        result = mock_jira_client.add_comment("PROJ-123", "Issue resolved successfully")
+        assert result["id"] == "comment-001"
+        method, endpoint = mock_request.call_args.args[:2]
+        assert method == "POST"
+        assert endpoint == "/rest/api/3/issue/PROJ-123/comment"
 
-        # Verify API call
-        mock_jira_client.add_comment.assert_called_once()
-        assert result["body"] == "Issue resolved successfully"
+    def test_search_jira_issues(self, jira_service, mock_request):
+        """Test searching for issues using JQL."""
+        mock_request.return_value = FakeResponse(payload={
+            "issues": [
+                {"key": "PROJ-100", "fields": {"summary": "Issue 1"}},
+                {"key": "PROJ-101", "fields": {"summary": "Issue 2"}},
+            ],
+            "total": 2,
+        })
 
-        execution.status = "completed"
-        execution.completed_at = datetime.utcnow()
-        mock_db.commit()
+        result = jira_service.search_issues("project = PROJ AND status = Open")
 
-    def test_search_jira_issues(self, mock_jira_client, mock_db):
-        """Test searching for issues in Jira."""
-        mock_jira_client.search_issues.return_value = [
-            {"key": "PROJ-100", "fields": {"summary": "Issue 1"}},
-            {"key": "PROJ-101", "fields": {"summary": "Issue 2"}}
-        ]
+        assert result["total"] == 2
+        assert len(result["issues"]) == 2
+        assert result["issues"][0]["key"] == "PROJ-100"
+        method, endpoint = mock_request.call_args.args[:2]
+        assert method == "GET"
+        assert endpoint == "/rest/api/3/search"
+        assert "jql" in mock_request.call_args.kwargs["params"]
 
-        execution = AgentExecution(
-            id="exec-jira-005",
-            agent_id="agent-001",
-            status="running",
-            input_data={"task": "Search issues"},
-            started_at=datetime.utcnow()
-        )
-        mock_db.add(execution)
-
-        # Search issues
-        jql = "project = PROJ AND status = Open"
-        results = mock_jira_client.search_issues(jql)
-
-        # Verify API call
-        mock_jira_client.search_issues.assert_called_once()
-        assert len(results) == 2
-
-        execution.output_data = {
-            "issues_found": len(results),
-            "issues": [{"key": i["key"], "summary": i["fields"]["summary"]} for i in results]
-        }
-        execution.status = "completed"
-        execution.completed_at = datetime.utcnow()
-        mock_db.commit()
-
-    def test_jira_error_handling(self, mock_jira_client, mock_db):
+    def test_jira_error_handling(self, jira_service, mock_request):
         """Test handling Jira API errors."""
-        # Mock API error
-        mock_jira_client.create_issue.side_effect = Exception("JiraError: Unauthorized")
+        mock_request.return_value = FakeResponse(status_code=401, payload={})
 
-        execution = AgentExecution(
-            id="exec-jira-error-001",
-            agent_id="agent-001",
-            status="running",
-            input_data={"task": "Create issue"},
-            started_at=datetime.utcnow()
+        # create_issue returns None on API failure
+        result = jira_service.create_issue("PROJ", "Summary", "Bug")
+        assert result is None
+
+        # update_issue returns False on API failure
+        update_result = jira_service.update_issue("PROJ-123", {})
+        assert update_result is False
+
+    def test_connection_test_failure(self, jira_service):
+        """Test connection check returns error dict on API failure."""
+        with patch.object(
+            jira_service.session, "get", return_value=FakeResponse(status_code=401)
+        ):
+            result = jira_service.test_connection()
+
+        assert result["status"] == "error"
+        assert result["authenticated"] is False
+
+
+class TestJiraExecuteOperation:
+    """Test the execute_operation dispatch seam."""
+
+    @pytest.mark.asyncio
+    async def test_execute_operation_create_issue(self, jira_service, mock_request):
+        """Test execute_operation dispatches to create_issue."""
+        mock_request.return_value = FakeResponse(payload={"key": "PROJ-1"})
+
+        result = await jira_service.execute_operation(
+            "create_issue",
+            {
+                "project_key": "PROJ",
+                "summary": "From gateway",
+                "issue_type": "Task",
+            },
+            context={"tenant_id": "tenant-001"},
         )
-        mock_db.add(execution)
 
-        # Attempt to create issue
-        try:
-            mock_jira_client.create_issue({"project": {"key": "PROJ"}})
-        except Exception as e:
-            execution.status = "failed"
-            execution.error_message = str(e)
-            execution.completed_at = datetime.utcnow()
-            mock_db.commit()
+        assert result["success"] is True
+        assert result["result"]["key"] == "PROJ-1"
+        assert result["operation"] == "create_issue"
 
-        assert execution.status == "failed"
-        assert "Unauthorized" in execution.error_message
-
-    def test_jira_authentication_error(self, mock_jira_client, mock_db):
-        """Test handling Jira authentication errors."""
-        # Mock auth error
-        mock_jira_client.create_issue.side_effect = Exception("JiraError: 401 Unauthorized")
-
-        execution = AgentExecution(
-            id="exec-jira-auth-001",
-            agent_id="agent-001",
-            status="running",
-            input_data={"task": "Create issue"},
-            started_at=datetime.utcnow()
+    @pytest.mark.asyncio
+    async def test_execute_operation_tenant_mismatch_denied(self, jira_service, mock_request):
+        """Test execute_operation rejects cross-tenant context."""
+        result = await jira_service.execute_operation(
+            "create_issue",
+            {"project_key": "PROJ", "summary": "x", "issue_type": "Task"},
+            context={"tenant_id": "other-tenant"},
         )
-        mock_db.add(execution)
 
-        # Attempt to create issue
-        try:
-            mock_jira_client.create_issue({})
-        except Exception as e:
-            execution.status = "failed"
-            execution.error_message = f"Authentication failed: {str(e)}"
-            execution.completed_at = datetime.utcnow()
-            mock_db.commit()
+        assert result["success"] is False
+        assert result["error"] == "Tenant ID mismatch"
+        mock_request.assert_not_called()
 
-        assert execution.status == "failed"
-        assert "401" in execution.error_message
+    @pytest.mark.asyncio
+    async def test_execute_operation_unknown_operation(self, jira_service, mock_request):
+        """Test execute_operation rejects unknown operations."""
+        result = await jira_service.execute_operation("delete_everything", {})
+
+        assert result["success"] is False
+        assert "Unknown operation" in result["error"]

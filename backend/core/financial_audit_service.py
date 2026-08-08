@@ -181,34 +181,36 @@ class FinancialAuditService:
         if not audit:
             return {'error': 'Audit entry not found'}
 
+        metadata = audit.audit_metadata or {}
+
         # Reconstruct from audit data
         return {
             'audit_id': audit.id,
             'timestamp': audit.timestamp.isoformat(),
             'sequence_number': audit.sequence_number,
-            'action': audit.action_type,
+            'action': audit.operation_type,
             'actor': {
                 'user_id': audit.user_id,
                 'agent_maturity': audit.agent_maturity,
-                'agent_id': audit.agent_id
+                'agent_id': metadata.get('agent_id')
             },
             'state': {
                 'before': audit.old_values,
                 'after': audit.new_values,
-                'changes': audit.changes
+                'changes': _compute_changes(audit.old_values, audit.new_values)
             },
             'governance': {
-                'passed': audit.governance_check_passed,
-                'required_approval': audit.required_approval,
-                'approval_granted': audit.approval_granted
+                'passed': metadata.get('governance_check_passed', True),
+                'required_approval': metadata.get('required_approval', False),
+                'approval_granted': metadata.get('approval_granted')
             },
             'result': {
-                'success': audit.success,
-                'error': audit.error_message
+                'success': metadata.get('success', True),
+                'error': metadata.get('error_message')
             },
             'integrity': {
-                'entry_hash': audit.entry_hash,
-                'prev_hash': audit.prev_hash
+                'entry_hash': audit.hash_chain,
+                'prev_hash': audit.previous_hash
             }
         }
 
@@ -345,7 +347,7 @@ def _create_audit_entry(session: Session, instance: Any, action: str) -> Optiona
             FinancialAudit.account_id == account_id
         ).order_by(FinancialAudit.sequence_number.desc()).first()
 
-        prev_hash = prev_entry.entry_hash if prev_entry else ''
+        prev_hash = prev_entry.hash_chain if prev_entry else ''
 
         # Get next sequence number
         next_sequence = (prev_entry.sequence_number + 1) if prev_entry else 1
@@ -369,30 +371,39 @@ def _create_audit_entry(session: Session, instance: Any, action: str) -> Optiona
             user_id=user_id
         )
 
-        # Create FinancialAudit record
+        # Create FinancialAudit record.
+        # NOTE: the model uses operation_type/table_name/record_id/
+        # hash_chain/previous_hash/audit_metadata columns; governance and
+        # request-context fields without dedicated columns are folded into
+        # audit_metadata so the listener actually persists audit entries
+        # (previously it constructed phantom kwargs, failed silently, and
+        # produced NO audit records at all).
         audit = FinancialAudit(
             id=str(uuid.uuid4()),
             timestamp=timestamp,  # Will be overwritten by server_default=func.now()
             user_id=user_id,
-            agent_id=_get_agent_id(session),
-            agent_execution_id=_get_agent_execution_id(session),
             account_id=account_id,
-            action_type=action,
-            changes=_compute_changes(old_values, new_values),
+            operation_type=action,
+            table_name=type(instance).__name__,
+            record_id=account_id,
             old_values=old_values,
             new_values=new_values,
-            success=True,  # after_flush means operation succeeded
-            error_message=None,
             agent_maturity=agent_maturity,
-            governance_check_passed=True,  # Placeholder
-            required_approval=False,  # Placeholder
-            approval_granted=None,
-            request_id=_get_request_id(session),
-            ip_address=_get_ip_address(session),
-            user_agent=_get_user_agent(session),
             sequence_number=next_sequence,
-            entry_hash=entry_hash,
-            prev_hash=prev_hash
+            hash_chain=entry_hash,
+            previous_hash=prev_hash,
+            audit_metadata={
+                'agent_id': _get_agent_id(session),
+                'agent_execution_id': _get_agent_execution_id(session),
+                'success': True,  # after_flush means operation succeeded
+                'error_message': None,
+                'governance_check_passed': True,  # Placeholder
+                'required_approval': False,  # Placeholder
+                'approval_granted': None,
+                'request_id': _get_request_id(session),
+                'ip_address': _get_ip_address(session),
+                'user_agent': _get_user_agent(session),
+            }
         )
 
         session.add(audit)

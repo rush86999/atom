@@ -232,9 +232,11 @@ class SlackWorkflowAutomation:
             
             logger.error(f"Workflow execution failed: {execution_id} - {e}")
             
-            # Retry logic
-            if workflow.triggers and workflow.triggers[0].retry_count > 0:
-                workflow.triggers[0].retry_count -= 1
+            # Retry logic (retry_count lives on actions, not triggers)
+            retryable_actions = [a for a in workflow.actions if a.retry_count > 0]
+            if retryable_actions:
+                for action in retryable_actions:
+                    action.retry_count -= 1
                 await asyncio.sleep(5)  # Wait before retry
                 return await self.execute_workflow(workflow_id, trigger_data)
         

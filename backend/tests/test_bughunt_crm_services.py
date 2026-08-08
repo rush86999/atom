@@ -12,6 +12,7 @@ Covered modules:
 """
 
 import asyncio
+import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
@@ -120,6 +121,79 @@ class TestSalesforceRoutesLogger:
         import integrations.salesforce_routes as routes
 
         assert hasattr(routes, "logger")
+
+
+# ============================================================================
+# 2b. salesforce_routes.py - health must degrade (not 500) when the client
+#     cannot be initialized; error responses must not leak str(e)
+# ============================================================================
+
+class TestSalesforceHealthDegradation:
+    @pytest.mark.asyncio
+    async def test_health_degrades_when_client_init_raises(self):
+        """Client init failure -> degraded, not a 500 RuntimeError."""
+        import integrations.salesforce_routes as routes
+
+        with patch.object(routes, "SALESFORCE_AVAILABLE", True), \
+             patch.object(routes, "get_salesforce_client_from_env",
+                          side_effect=RuntimeError("sf client init failed")):
+            result = await routes.salesforce_health_check()
+
+        assert result["ok"] is True
+        assert result["status"] == "degraded"
+
+    @pytest.mark.asyncio
+    async def test_accounts_error_response_does_not_leak_exception(self):
+        """str(e) must not reach the client in the error payload."""
+        import integrations.salesforce_routes as routes
+
+        with patch.object(routes, "SALESFORCE_AVAILABLE", True), \
+             patch.object(routes, "get_salesforce_client_from_env",
+                          return_value=Mock()), \
+             patch.object(routes, "list_accounts",
+                          new=AsyncMock(side_effect=ValueError("secret-internal-detail"))):
+            result = await routes.get_salesforce_accounts(limit=10, access_token="tok")
+
+        assert result["ok"] is False
+        assert "secret-internal-detail" not in json.dumps(result)
+
+    @pytest.mark.asyncio
+    async def test_soql_error_response_does_not_leak_exception(self):
+        """SOQL query failures must not leak exception internals either."""
+        import integrations.salesforce_routes as routes
+
+        with patch.object(routes, "SALESFORCE_AVAILABLE", True), \
+             patch.object(routes, "get_salesforce_client_from_env",
+                          return_value=Mock()), \
+             patch.object(routes, "execute_soql_query",
+                          new=AsyncMock(side_effect=RuntimeError("soql-internal-detail"))):
+            result = await routes.get_salesforce_account(
+                account_id="001000000000001AAA", access_token="tok"
+            )
+
+        assert "soql-internal-detail" not in json.dumps(result)
+
+
+# ============================================================================
+# 2c. salesforce + hubspot routers must require user auth (no anonymous data)
+# ============================================================================
+
+class TestIntegrationRouterAuth:
+    def test_salesforce_router_requires_user_auth(self):
+        import integrations.salesforce_routes as routes
+
+        assert routes.router.dependencies, (
+            "salesforce router has no user-auth dependency — /api/v1/integrations/salesforce/* "
+            "is reachable anonymously"
+        )
+
+    def test_hubspot_router_requires_user_auth(self):
+        import integrations.hubspot_routes as routes
+
+        assert routes.router.dependencies, (
+            "hubspot router has no user-auth dependency — /api/v1/integrations/hubspot/* "
+            "is reachable anonymously"
+        )
 
 
 # ============================================================================

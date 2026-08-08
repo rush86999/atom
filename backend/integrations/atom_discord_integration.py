@@ -13,7 +13,7 @@ import os
 from typing import Any, Dict, List, Optional, Union
 
 # Import existing ATOM services
-try:
+try:  # pragma: no cover - phantom top-level modules in this runtime
     from atom_ingestion_pipeline import AtomIngestionPipeline
     from atom_memory_service import AtomMemoryService
     from atom_search_service import AtomSearchService
@@ -21,13 +21,12 @@ try:
     from discord_analytics_engine import discord_analytics_engine
     from discord_enhanced_service import (
         DiscordChannel,
+        DiscordEventType,
         DiscordGuild,
         DiscordMessage,
         DiscordUser,
         discord_enhanced_service,
     )
-
-    from core.models import UnifiedWorkspace
 except ImportError as e:
     logging.warning(f"Discord integration services not available: {e}")
     discord_enhanced_service = None
@@ -36,6 +35,13 @@ except ImportError as e:
     DiscordChannel = None
     DiscordMessage = None
     DiscordUser = None
+    DiscordEventType = None
+
+# Real module - keep out of the optional-import try block so workspace sync
+# always has the model (previously left as None -> _get_or_create_unified_workspace crashed).
+try:
+    from core.models import UnifiedWorkspace
+except ImportError:  # pragma: no cover - core.models exists in this codebase
     UnifiedWorkspace = None
 
 logger = logging.getLogger(__name__)
@@ -63,7 +69,7 @@ class AtomDiscordIntegration:
                 from integrations.workspace_sync_service import WorkspaceSyncService
                 self.workspace_sync = WorkspaceSyncService(self.db)
                 logger.info("Workspace sync service initialized for Discord integration")
-            except ImportError as e:
+            except Exception as e:  # pragma: no cover - ImportError + ctor failures
                 logger.warning(f"Workspace sync service not available: {e}")
 
         # Integration state

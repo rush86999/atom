@@ -15,9 +15,24 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from core.chat_process_manager import get_process_manager
 
 
+async def ensure_tables():
+    """Ensure the chat_processes/users tables exist on the async engine.
+
+    The script previously crashed with "no such table" against a fresh DB.
+    """
+    from core.database import Base, async_engine
+    from core.models import ChatProcess, User
+
+    async with async_engine.begin() as conn:
+        await conn.run_sync(
+            Base.metadata.create_all, tables=[ChatProcess.__table__, User.__table__]
+        )
+
+
 async def test_chat_process_manager():
     """Test the ChatProcessManager functionality"""
     print("=== Testing ChatProcessManager ===\n")
+    await ensure_tables()
 
     manager = get_process_manager()
     user_id = "test_user_123"

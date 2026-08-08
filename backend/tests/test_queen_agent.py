@@ -60,7 +60,7 @@ class TestBlueprintGeneration:
             "missing_capabilities": []
         }
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=json.dumps(simple_blueprint)
         )
 
@@ -124,7 +124,7 @@ class TestBlueprintGeneration:
             "missing_capabilities": [{"name": "lead_scoring", "description": "ML-based lead scoring"}]
         }
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=json.dumps(complex_blueprint)
         )
 
@@ -175,7 +175,7 @@ class TestBlueprintGeneration:
             ]
         }
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=json.dumps(blueprint_with_gaps)
         )
 
@@ -218,7 +218,7 @@ class TestExecutionModes:
             "missing_capabilities": []
         }
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=json.dumps(one_off_blueprint)
         )
 
@@ -233,8 +233,8 @@ class TestExecutionModes:
 
             assert result["execution_mode"] == "one-off"
             # Verify prompt contained one-off instruction
-            mock_llm.generate_response.assert_called_once()
-            call_args = mock_llm.generate_response.call_args
+            mock_llm.generate.assert_called_once()
+            call_args = mock_llm.generate.call_args
             prompt = call_args[1]["prompt"]
             assert "ONE-OFF TASK" in prompt
 
@@ -276,7 +276,7 @@ class TestExecutionModes:
             "missing_capabilities": []
         }
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=json.dumps(recurring_blueprint)
         )
 
@@ -291,8 +291,8 @@ class TestExecutionModes:
 
             assert result["execution_mode"] == "recurring_automation"
             # Verify prompt contained trigger instruction
-            mock_llm.generate_response.assert_called_once()
-            call_args = mock_llm.generate_response.call_args
+            mock_llm.generate.assert_called_once()
+            call_args = mock_llm.generate.call_args
             prompt = call_args[1]["prompt"]
             assert "RECURRING AUTOMATION" in prompt
             assert "TRIGGER node" in prompt
@@ -328,7 +328,7 @@ class TestExecutionModes:
             "missing_capabilities": []
         }
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=json.dumps(recurring_blueprint)
         )
 
@@ -393,7 +393,7 @@ class TestArchitectureDesign:
             "missing_capabilities": []
         }
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=json.dumps(workflow_blueprint)
         )
 
@@ -462,7 +462,7 @@ class TestArchitectureDesign:
             "missing_capabilities": []
         }
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=json.dumps(branching_blueprint)
         )
 
@@ -510,7 +510,7 @@ class TestArchitectureDesign:
             "missing_capabilities": []
         }
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=json.dumps(integration_blueprint)
         )
 
@@ -552,7 +552,7 @@ class TestBlueprintValidation:
             "missing_capabilities": []
         }
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=json.dumps(valid_blueprint)
         )
 
@@ -588,7 +588,7 @@ class TestBlueprintValidation:
             "missing_capabilities": []
         }
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=json.dumps(simple_blueprint)
         )
 
@@ -621,7 +621,7 @@ class TestErrorHandling:
         mock_llm = Mock()
 
         # Mock LLM failure
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             side_effect=Exception("LLM service unavailable")
         )
 
@@ -647,7 +647,7 @@ class TestErrorHandling:
         mock_llm = Mock()
 
         # Mock LLM returning invalid JSON
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value="This is not valid JSON {{broken"
         )
 
@@ -688,7 +688,7 @@ class TestErrorHandling:
 }
 ```'''
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=wrapped_json
         )
 
@@ -720,7 +720,7 @@ class TestErrorHandling:
             "missing_capabilities": []
         }
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=json.dumps(empty_blueprint)
         )
 
@@ -788,7 +788,7 @@ class TestSkillCreationIntegration:
             ]
         }
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=json.dumps(blueprint_with_missing)
         )
 
@@ -954,7 +954,7 @@ class TestWorkspaceAndTenant:
         mock_db = Mock(spec=Session)
         mock_llm = Mock()
 
-        mock_llm.generate_response = AsyncMock(
+        mock_llm.generate = AsyncMock(
             return_value=json.dumps({
                 "architecture_name": "Test",
                 "description": "Test",
@@ -974,6 +974,6 @@ class TestWorkspaceAndTenant:
             )
 
             # Verify tenant_id was passed to LLM
-            mock_llm.generate_response.assert_called_once()
-            call_kwargs = mock_llm.generate_response.call_args[1]
+            mock_llm.generate.assert_called_once()
+            call_kwargs = mock_llm.generate.call_args[1]
             assert call_kwargs["tenant_id"] == "test-tenant-123"

@@ -483,7 +483,11 @@ class TestErrorHandling:
     def test_uninstall_agent_rolls_back_on_exception(self, marketplace_service):
         """Test uninstall_agent rolls back database transaction on exception."""
         # Arrange
-        marketplace_service.db.query().filter().side_effect = Exception("Query failed")
+        # NOTE: the side_effect must be on `.first()` — setting it on the
+        # filter-result mock never fires (`.first()` is a child attribute).
+        # Before the .astext fix this test passed by accident: the PG-only
+        # JSON accessor raised AttributeError during query construction.
+        marketplace_service.db.query().filter().first.side_effect = Exception("Query failed")
 
         # Act
         result = marketplace_service.uninstall_agent("tenant-uuid", "agent-001")

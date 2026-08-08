@@ -277,6 +277,19 @@ class GoogleChatEnhancedService(IntegrationService):
         # Rate limiter
         self.rate_limiter = GoogleChatRateLimiter(self.redis_client)
         
+        # Required scopes (must be set before _setup_oauth_flow - it uses them)
+        self.required_scopes = [
+            'https://www.googleapis.com/auth/chat.spaces',
+            'https://www.googleapis.com/auth/chat.messages',
+            'https://www.googleapis.com/auth/chat.memberships',
+            'https://www.googleapis.com/auth/chat.messages.readonly',
+            'https://www.googleapis.com/auth/drive',
+            'https://www.googleapis.com/auth/drive.file',
+            'https://www.googleapis.com/auth/gmail.readonly',
+            'https://www.googleapis.com/auth/userinfo.email',
+            'https://www.googleapis.com/auth/userinfo.profile'
+        ]
+        
         # OAuth flow
         self.oauth_flow = None
         self._setup_oauth_flow()
@@ -294,19 +307,6 @@ class GoogleChatEnhancedService(IntegrationService):
         
         # Connection status
         self.connection_status: Dict[str, GoogleChatConnectionStatus] = {}
-        
-        # Required scopes
-        self.required_scopes = [
-            'https://www.googleapis.com/auth/chat.spaces',
-            'https://www.googleapis.com/auth/chat.messages',
-            'https://www.googleapis.com/auth/chat.memberships',
-            'https://www.googleapis.com/auth/chat.messages.readonly',
-            'https://www.googleapis.com/auth/drive',
-            'https://www.googleapis.com/auth/drive.file',
-            'https://www.googleapis.com/auth/gmail.readonly',
-            'https://www.googleapis.com/auth/userinfo.email',
-            'https://www.googleapis.com/auth/userinfo.profile'
-        ]
         
         logger.info("Google Chat Enhanced Service initialized")
     
@@ -346,7 +346,13 @@ class GoogleChatEnhancedService(IntegrationService):
         if not self.cipher:
             logger.warning("Encryption key not configured — cannot decrypt token")
             return encrypted_token
-        return self.cipher.decrypt(encrypted_token.encode()).decode()
+        try:
+            return self.cipher.decrypt(encrypted_token.encode()).decode()
+        except Exception:
+            # Legacy plaintext token (or corrupt) - return as-is so the
+            # service still works; previously this crashed chat-service creation.
+            logger.warning("Failed to decrypt token — falling back to raw token")
+            return encrypted_token
     
     def _get_chat_service(self, user_id: str) -> Optional[Any]:
         """Get or create Google Chat API service for user"""
@@ -447,7 +453,7 @@ class GoogleChatEnhancedService(IntegrationService):
                 self.redis_client.setex(
                     f"gc_space_user:{space.user_id}",
                     3600,  # 1 hour
-                    json.dumps(asdict(space))
+                    json.dumps(asdict(space), default=str)
                 )
             
             # Update connection status

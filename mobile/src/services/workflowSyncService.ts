@@ -359,6 +359,12 @@ class WorkflowSyncService {
       } catch (error) {
         console.error(`WorkflowSync: Failed to sync trigger ${trigger.id}:`, error);
         trigger.retryCount++;
+        // Mirrors the success:false path above — a throwing trigger must also
+        // be dropped after 5 retries instead of being retried forever.
+        if (trigger.retryCount >= 5) {
+          console.error(`WorkflowSync: Trigger ${trigger.id} failed after 5 retries`);
+          this.cache.pendingTriggers = this.cache.pendingTriggers.filter(t => t.id !== trigger.id);
+        }
       }
     }
 
@@ -488,7 +494,10 @@ class WorkflowSyncService {
     }
 
     // Limit executions per workflow
-    for (const workflowId in this.cache.executions) {
+    const executionWorkflowIds = [
+      ...new Set(Object.values(this.cache.executions).map((exec) => exec.workflowId)),
+    ];
+    for (const workflowId of executionWorkflowIds) {
       const executions = Object.values(this.cache.executions)
         .filter(exec => exec.workflowId === workflowId);
 

@@ -18,7 +18,15 @@ from core.auto_dev.evolution_pipeline import (
 
 @pytest.fixture
 def pipeline():
-    return UnifiedEvolutionPipeline(db=MagicMock())
+    # NOTE: fixture upgraded for the daily-limit wiring fix (see
+    # test_bughunt_autodev_comms.py) — the pipeline now calls
+    # check_daily_limits(agent_id, capability, settings) with a mapped
+    # capability, so the magic-mock db must behave like an empty store
+    # (no workspace, no mutations) instead of exploding on the query chain.
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = None
+    db.query.return_value.filter.return_value.count.return_value = 0
+    return UnifiedEvolutionPipeline(db=db)
 
 
 def _make_request(**kwargs):

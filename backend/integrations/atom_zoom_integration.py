@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 # Import existing ATOM services
-try:
+try:  # pragma: no cover - phantom top-level modules in this runtime
     from ai_enhanced_service import (
         AIModelType,
         AIRequest,
@@ -48,10 +48,17 @@ try:
     )
     from atom_workflow_service import AtomWorkflowService
     from atom_zoom_integration import atom_zoom_integration
-
-    from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
 except ImportError as e:
     logging.warning(f"Enterprise services not available: {e}")
+
+# Real module - keep out of the optional-import try block so the meeting
+# event handlers can always ingest to memory (previous code left these
+# names undefined -> NameError in every _handle_*_event).
+try:
+    from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
+except ImportError:  # pragma: no cover - module exists in this codebase
+    RecordType = None
+    atom_ingestion_pipeline = None
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -1124,10 +1131,10 @@ class AtomZoomIntegration:
             if not self.enterprise_automation:
                 return
             
-            # Find relevant automations
+            # Find relevant automations (trigger keys are the event types)
             relevant_automations = []
             for automation_id, automation in self.automation_triggers.items():
-                if automation['enabled'] and event_type in automation['name']:
+                if automation['enabled'] and event_type == automation_id:
                     relevant_automations.append(automation)
             
             # Execute automations
@@ -1177,13 +1184,13 @@ _zoom_config = {
 
 # Add optional services if they were imported successfully
 _security_service = globals().get('atom_enterprise_security_service')
-if _security_service:
+if _security_service:  # pragma: no cover - optional services absent in this runtime
     _zoom_config['security_service'] = _security_service
 _automation_service = globals().get('atom_workflow_automation_service')
-if _automation_service:
+if _automation_service:  # pragma: no cover - optional services absent in this runtime
     _zoom_config['automation_service'] = _automation_service
 _ai_service = globals().get('ai_enhanced_service')
-if _ai_service:
+if _ai_service:  # pragma: no cover - optional services absent in this runtime
     _zoom_config['ai_service'] = _ai_service
 
 atom_zoom_integration = AtomZoomIntegration(_zoom_config)

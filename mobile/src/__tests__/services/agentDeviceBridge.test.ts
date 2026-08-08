@@ -681,4 +681,331 @@ describe('agentDeviceBridge', () => {
       expect(mockNotificationService.setBadgeCount).toHaveBeenCalledWith(5);
     });
   });
+
+  // ========================================================================
+  // Capability validation error tests
+  // ========================================================================
+
+  describe('Capability Validation', () => {
+    // Approve the permission alert for every request in this suite
+    beforeEach(() => {
+      mockAlert.mockImplementation((title, message, buttons) => {
+        if (buttons && buttons[1] && typeof buttons[1].onPress === 'function') {
+          buttons[1].onPress();
+        }
+      });
+    });
+
+    it('should reject camera takePhoto without a camera ref', async () => {
+      const request = mockRequest('INTERN', 'camera', 'takePhoto');
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Camera ref is required');
+    });
+
+    it('should reject camera takePhoto without UI component', async () => {
+      const request = mockRequest('INTERN', 'camera', 'takePhoto', {
+        cameraRef: 'camera-1',
+      });
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('requires camera UI component');
+    });
+
+    it('should reject camera scanBarcode without an active session', async () => {
+      const request = mockRequest('INTERN', 'camera', 'scanBarcode');
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('scanning session');
+    });
+
+    it('should reject unknown camera actions', async () => {
+      const request = mockRequest('INTERN', 'camera', 'openFlashlight');
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Unknown camera action');
+    });
+
+    it('should reject unknown location actions', async () => {
+      const request = mockRequest('INTERN', 'location', 'flyToMoon');
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Unknown location action');
+    });
+
+    it('should require coordinates for reverseGeocode', async () => {
+      const request = mockRequest('INTERN', 'location', 'reverseGeocode');
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('coordinates are required');
+    });
+
+    it('should require from/to for calculateDistance', async () => {
+      const request = mockRequest('INTERN', 'location', 'calculateDistance', {
+        from: { latitude: 1, longitude: 2 },
+      });
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('from and to coordinates are required');
+    });
+
+    it('should require title and body for sendNotification', async () => {
+      const request = mockRequest('INTERN', 'notification', 'sendNotification', {
+        title: 'Missing body',
+      });
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('title and body are required');
+    });
+
+    it('should require triggerSeconds for scheduleNotification', async () => {
+      const request = mockRequest('INTERN', 'notification', 'scheduleNotification', {
+        title: 't',
+        body: 'b',
+      });
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('triggerSeconds are required');
+    });
+
+    it('should require a numeric count for setBadge', async () => {
+      const request = mockRequest('INTERN', 'notification', 'setBadge', {
+        count: 'five',
+      });
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('count is required');
+    });
+
+    it('should reject unknown biometric actions', async () => {
+      const request = mockRequest('AUTONOMOUS', 'biometric', 'enroll');
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Unknown biometric action');
+    });
+
+    it('should reject unknown photos actions', async () => {
+      const request = mockRequest('INTERN', 'photos', 'deletePhoto');
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Unknown photos action');
+    });
+
+    it('should reject unimplemented microphone capability', async () => {
+      const request = mockRequest('SUPERVISED', 'microphone', 'record');
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not yet implemented');
+    });
+
+    it('should reject unimplemented contacts capability', async () => {
+      const request = mockRequest('AUTONOMOUS', 'contacts', 'getContacts');
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not yet implemented');
+    });
+
+    it('should reject unknown capabilities from canAgentUseCapability', () => {
+      expect(
+        agentDeviceBridge.canAgentUseCapability('AUTONOMOUS', 'hologram' as DeviceCapability)
+      ).toBe(false);
+    });
+  });
+
+  // ========================================================================
+  // Biometric capability tests
+  // ========================================================================
+
+  describe('Biometric Capability', () => {
+    it('should report biometric availability and enrollment', async () => {
+      mockAlert.mockImplementationOnce((title, message, buttons) => {
+        buttons[1].onPress();
+      });
+
+      mockBiometricService.isAvailable.mockResolvedValue(true);
+      mockBiometricService.isEnrolled.mockResolvedValue(true);
+      mockBiometricService.getBiometricType.mockResolvedValue('facial');
+
+      const request = mockRequest('AUTONOMOUS', 'biometric', 'checkAvailability');
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({ available: true, enrolled: true, type: 'facial' });
+    });
+  });
+
+  // ========================================================================
+  // Audit log limit and persistence tests
+  // ========================================================================
+
+  describe('Audit Log Limits', () => {
+    it('should apply the limit filter', async () => {
+      mockAlert.mockImplementation((title, message, buttons) => {
+        buttons[1].onPress();
+      });
+
+      for (let i = 0; i < 3; i++) {
+        await agentDeviceBridge.requestCapability(
+          mockRequest('INTERN', 'notification', 'sendNotification', {
+            title: `T${i}`,
+            body: 'B',
+          })
+        );
+      }
+
+      const limited = await agentDeviceBridge.getAuditLog({ limit: 2 });
+      expect(limited).toHaveLength(2);
+      expect(limited[0].requestId).not.toBe(limited[1].requestId);
+    });
+
+    it('should truncate the audit log at 5000 entries', async () => {
+      (agentDeviceBridge as any).auditLog = new Array(5000).fill({
+        requestId: 'seed',
+        agentId: 'a',
+        agentName: 'A',
+        maturityLevel: 'INTERN',
+        capability: 'notification',
+        action: 'sendNotification',
+        granted: true,
+        userApproved: false,
+        timestamp: 1,
+      });
+      mockAlert.mockImplementationOnce((title, message, buttons) => {
+        buttons[1].onPress();
+      });
+
+      await agentDeviceBridge.requestCapability(
+        mockRequest('INTERN', 'notification', 'sendNotification', {
+          title: 'Newest',
+          body: 'B',
+        })
+      );
+
+      const log = await agentDeviceBridge.getAuditLog();
+      expect(log).toHaveLength(5000);
+      expect(log[0].action).toBe('sendNotification');
+    });
+  });
+
+  describe('Persistence', () => {
+    it('should load the audit log from storage on initialize', async () => {
+      mockAsyncStorage.getItem.mockResolvedValueOnce(
+        JSON.stringify([
+          {
+            requestId: 'req-old',
+            agentId: 'agent-9',
+            agentName: 'Old',
+            maturityLevel: 'INTERN',
+            capability: 'notification',
+            action: 'sendNotification',
+            granted: true,
+            userApproved: false,
+            timestamp: 1000,
+          },
+        ])
+      );
+
+      await agentDeviceBridge.initialize();
+
+      const log = await agentDeviceBridge.getAuditLog();
+      expect(log).toHaveLength(1);
+      expect(log[0].requestId).toBe('req-old');
+    });
+
+    it('should survive corrupted audit log data', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      mockAsyncStorage.getItem.mockResolvedValueOnce('{not-json');
+
+      await expect(agentDeviceBridge.initialize()).resolves.toBeUndefined();
+
+      const log = await agentDeviceBridge.getAuditLog();
+      expect(log).toEqual([]);
+      consoleSpy.mockRestore();
+    });
+
+    it('should still grant capability when persisting the audit log fails', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      mockAsyncStorage.setItem.mockRejectedValue(new Error('storage full'));
+      mockAlert.mockImplementationOnce((title, message, buttons) => {
+        buttons[1].onPress();
+      });
+
+      const request = mockRequest('INTERN', 'notification', 'sendNotification', {
+        title: 'T',
+        body: 'B',
+      });
+      const result = await agentDeviceBridge.requestCapability(request);
+
+      expect(result.success).toBe(true);
+      consoleSpy.mockRestore();
+    });
+
+    it('should expose capabilities that are unavailable', async () => {
+      mockCameraService.isAvailable.mockResolvedValue(false);
+      mockBiometricService.isAvailable.mockResolvedValue(false);
+
+      const capabilities = await agentDeviceBridge.getAvailableCapabilities();
+
+      expect(capabilities).toEqual(['location', 'notification', 'photos']);
+    });
+  });
+
+  // ========================================================================
+  // Timeout tests
+  // ========================================================================
+
+  describe('Timeouts', () => {
+    it('should handle capability timeouts without hanging', async () => {
+      jest.useFakeTimers();
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      mockAlert.mockImplementationOnce((title, message, buttons) => {
+        buttons[1].onPress();
+      });
+      // Capability never resolves — the timeout fires while it is pending
+      mockBiometricService.authenticate.mockReturnValue(
+        new Promise(() => {}) as any
+      );
+
+      const request = mockRequest('AUTONOMOUS', 'biometric', 'authenticate');
+      const pending = agentDeviceBridge.requestCapability(request);
+
+      // Let the (synchronously resolved) approval promise settle so the
+      // service registers the timeout — wait until it is actually pending.
+      for (
+        let i = 0;
+        i < 20 && (agentDeviceBridge as any).pendingRequests.size === 0;
+        i++
+      ) {
+        await Promise.resolve();
+      }
+      expect((agentDeviceBridge as any).pendingRequests.size).toBe(1);
+
+      jest.advanceTimersByTime(31000); // DEFAULT_TIMEOUT is 30s
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        'AgentDeviceBridge: Request timed out',
+        request.requestId
+      );
+      // The request is removed from the pending map so it is not re-fired
+      expect((agentDeviceBridge as any).pendingRequests.size).toBe(0);
+
+      jest.useRealTimers();
+      warnSpy.mockRestore();
+      void pending;
+    });
+  });
 });

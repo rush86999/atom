@@ -4251,5 +4251,23 @@
     "metadata": {},
     "message_count": 0,
     "history": []
+  },
+  {
+    "session_id": "0af1fa6d-70f6-4a9d-8f1f-93b89487d243",
+    "user_id": "test_user",
+    "created_at": "2026-08-08T12:21:58.148743+00:00",
+    "last_active": "2026-08-08T12:21:58.148743+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "c8f9b7e6-8223-4eef-bc3b-8d3d1bef67b4",
+    "user_id": "test_user",
+    "created_at": "2026-08-08T12:21:59.768559+00:00",
+    "last_active": "2026-08-08T12:21:59.768559+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
   }
 ]

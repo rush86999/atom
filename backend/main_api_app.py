@@ -1719,6 +1719,9 @@ _blacklisted_integrations = {
     # "atom_agent",  # Crashes due to numpy/lancedb issues
     "unified_calendar",  # May have similar issues
     "unified_task",  # May have similar issues
+    "line",  # Mounted statically from api.line_routes (auth-gated); the lazy
+    # registry's integrations.line_routes is a legacy no-auth duplicate that
+    # would shadow it under a doubled prefix.
     # "unified_search" - NOW USING REAL LANCEDB, SAFE TO AUTO-LOAD!
 }
 
@@ -1879,6 +1882,41 @@ try:
         logger.info("✓ Slack Chat Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load Slack chat routes: {e}")
+
+    # Mobile / Operations / Tools / LINE routers. These declare their own
+    # /api/* prefixes and real auth deps but were never mounted — every route
+    # 404'd in prod while their api-wave tests mounted them manually.
+    try:
+        from api.mobile_workflows import router as mobile_workflows_router
+
+        app.include_router(mobile_workflows_router)
+        logger.info("✓ Mobile Workflows Routes Loaded at /api/mobile/workflows")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Failed to load mobile workflows routes: {e}")
+
+    try:
+        from api.operations_api import router as operations_router
+
+        app.include_router(operations_router)
+        logger.info("✓ Operations Routes Loaded at /api/operations")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Failed to load operations routes: {e}")
+
+    try:
+        from api.tools import router as tools_router
+
+        app.include_router(tools_router)
+        logger.info("✓ Tools Routes Loaded at /api/tools")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Failed to load tools routes: {e}")
+
+    try:
+        from api.line_routes import router as line_router
+
+        app.include_router(line_router)
+        logger.info("✓ LINE Routes Loaded at /api/line (auth-gated)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Failed to load LINE routes: {e}")
 
     # External Resource Routes (already consolidated in V1 block above)
     # Keeping block for future extensions

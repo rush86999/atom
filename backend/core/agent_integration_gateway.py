@@ -19,7 +19,8 @@ except ImportError:
     document_logic_service = None
 from integrations.ecommerce_unified_service import EcommercePlatform, ecommerce_service
 try:
-    from integrations.google_chat_enhanced_service import google_chat_enhanced_service
+    from integrations.google_chat_enhanced_service import GoogleChatEnhancedService
+    google_chat_enhanced_service = GoogleChatEnhancedService()
 except ImportError:
     logging.getLogger(__name__).warning("Google Chat Enhanced service not available")
     google_chat_enhanced_service = None
@@ -44,12 +45,14 @@ except ImportError:
     openclaw_service = None
 from integrations.shopify_service import ShopifyService
 try:
-    from integrations.slack_enhanced_service import slack_enhanced_service
+    from integrations.slack_enhanced_service import SlackEnhancedService
+    slack_enhanced_service = SlackEnhancedService()
 except ImportError:
     logging.getLogger(__name__).warning("Slack Enhanced service not available")
     slack_enhanced_service = None
 try:
-    from integrations.teams_enhanced_service import teams_enhanced_service
+    from integrations.teams_enhanced_service import TeamsEnhancedService
+    teams_enhanced_service = TeamsEnhancedService()
 except ImportError:
     logging.getLogger(__name__).warning("Teams Enhanced service not available")
     teams_enhanced_service = None

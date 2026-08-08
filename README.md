@@ -21,6 +21,8 @@
 
 Atom is an open-source, self-hosted **AI agent workforce** for your employees. Instead of one assistant, Atom runs a team of specialty agents — sales, support, finance, engineering — that your people delegate to in plain language. Agents plan, verify, and execute complex workflows across your entire tech stack.
 
+**Autonomous agents as teammates**: Atom's agents don't just respond to commands — they operate autonomously within governed boundaries, handling routine work end-to-end while your employees focus on strategy, creativity, and high-value decisions. Each agent is a digital teammate with specialized skills, persistent memory, and the ability to collaborate with other agents and humans alike.
+
 **Trusted by design**: every agent action is governed by a 4-tier maturity model, executed inside a default-on sandbox, and recorded in a complete audit trail — with human-in-the-loop approval wherever you want it. Your employees get capable help; you keep control.
 
 **Your data stays yours**: workflow data, agent state, and memory live on your infrastructure. LLM inference uses your own API keys (BYOK) — or local models (Ollama/Llama.cpp) for fully private deployments.
@@ -56,30 +58,50 @@ Atom is an open-source, self-hosted **AI agent workforce** for your employees. I
 ## ⚡ The AI Agent Landscape — Where Atom Fits
 
 ```
-                    ┌─────────────────────────────────────────────────────┐
-                    │              AI AGENT SPECTRUM                      │
-                    ├─────────────────┬─────────────────┬─────────────────┤
-                    │   CONSUMER      │   DEVELOPER     │   ENTERPRISE    │
-                    │   ASSISTANTS    │   FRAMEWORKS    │   WORKFORCE     │
-                    ├─────────────────┼─────────────────┼─────────────────┤
-                    │ ChatGPT/Claude  │ LangGraph       │ ✅ ATOM         │
-                    │ Notion AI       │ AutoGPT         │                 │
-                    │ Copilot         │ CrewAI          │                 │
-                    │ Perplexity      │ AutoGen         │                 │
-                    ├─────────────────┼─────────────────┼─────────────────┤
-                    │ Single chat     │ Code-first      │ Team delegation │
-                    │ No governance   │ Build-your-own  │ Governed by     │
-                    │ Cloud-only      │ Self-hosted     │ design          │
-                    │ No integrations │ Bring integrations│ 46+ native    │
-                    └─────────────────┴─────────────────┴─────────────────┘
+                     ┌─────────────────────────────────────────────────────┐
+                     │              AI AGENT SPECTRUM                      │
+                     ├─────────────────┬─────────────────┬─────────────────┤
+                     │   CONSUMER      │   DEVELOPER     │   ENTERPRISE    │
+                     │   ASSISTANTS    │   FRAMEWORKS    │   WORKFORCE     │
+                     ├─────────────────┼─────────────────┼─────────────────┤
+                     │ ChatGPT/Claude  │ LangGraph       │ ✅ ATOM         │
+                     │ Notion AI       │ AutoGPT         │                 │
+                     │ Copilot         │ CrewAI          │                 │
+                     │ Perplexity      │ AutoGen         │                 │
+                     ├─────────────────┼─────────────────┼─────────────────┤
+                     │ Single chat     │ Code-first      │ Team delegation │
+                     │ Reactive only   │ Build-your-own  │ Governed by     │
+                     │ Cloud-only      │ Self-hosted     │ design          │
+                     │ No integrations │ Bring integrations│ 46+ native    │
+                     └─────────────────┴─────────────────┴─────────────────┘
 ```
 
 **Atom is the only open-source platform that delivers:**
 - **Enterprise governance** (maturity tiers, HITL, audit) — without vendor lock-in
 - **Self-hosted privacy** — your data, your keys, your infrastructure
+- **Autonomous agent teammates** — agents that work *with* your people, not just *for* them
 - **Agent-authored workflows** — chat to build, no drag-and-drop
 - **Office/Canvas native** — real Excel formulas, live co-editing
 - **46+ business integrations** — Salesforce, HubSpot, Slack, Jira, Stripe, QuickBooks…
+
+---
+
+## 🤖 Autonomous Agents as Digital Teammates
+
+Atom redefines the relationship between humans and AI in the workplace. Instead of a single chat assistant, your employees get a **team of autonomous digital teammates**:
+
+| Traditional AI Assistant | Atom Autonomous Agent Teammates |
+|---|---|
+| Reactive — waits for commands | Proactive — handles routine work end-to-end |
+| Single-threaded, no memory | Persistent memory, cross-session continuity |
+| No governance, no audit | 4-tier maturity, HITL approval, full audit trail |
+| One generic model per task | Specialized agents per domain (sales, finance, support, eng) |
+| Human does the orchestration | Agents collaborate with each other & humans |
+| Cloud-only, data leaves your infra | Self-hosted, your keys, your infrastructure |
+
+**The vision**: Every employee gets a *personal agent team* that knows their workflows, remembers context across days/weeks, and autonomously executes the repetitive 60-80% of work — research, data entry, scheduling, drafting, reconciliation — so people can focus on judgment, creativity, and relationships.
+
+This isn't "AI replacing humans." It's **AI handling the work humans shouldn't be doing**, with governance that keeps you in control.
 
 ---
 

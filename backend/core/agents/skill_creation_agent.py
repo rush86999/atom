@@ -426,13 +426,11 @@ Generate a Python function that:
 Return ONLY the Python code, no explanations."""
 
         try:
-            # Standardize on unified LLMService.generate_response
-            content = await self.llm.generate_response(
-                tenant_id="system",
-                messages=[
-                    {"role": "system", "content": "You are a Python developer. Generate clean, production-ready code."},
-                    {"role": "user", "content": prompt}
-                ]
+            # Standardize on unified LLMService.generate
+            content = await self.llm.generate(
+                prompt=prompt,
+                system_instruction="You are a Python developer. Generate clean, production-ready code.",
+                tenant_id="system"
             )
 
             code = content or ""
@@ -617,13 +615,11 @@ Requirements:
 Return ONLY the TypeScript code, no explanations."""
 
         try:
-            # Standardize on unified LLMService.generate_response
-            content = await self.llm.generate_response(
-                tenant_id="system",
-                messages=[
-                    {"role": "system", "content": "You are a React/TypeScript developer. Generate clean, production-ready components."},
-                    {"role": "user", "content": prompt}
-                ]
+            # Standardize on unified LLMService.generate
+            content = await self.llm.generate(
+                prompt=prompt,
+                system_instruction="You are a React/TypeScript developer. Generate clean, production-ready components.",
+                tenant_id="system"
             )
 
             code = content or ""

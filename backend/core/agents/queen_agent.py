@@ -89,9 +89,9 @@ Guidelines:
 Return ONLY the JSON object."""
 
         try:
-            content = await self.llm.generate_response(
+            content = await self.llm.generate(
                 prompt=prompt,
-                system_prompt="You are a master AI architect. Output only valid JSON.",
+                system_instruction="You are a master AI architect. Output only valid JSON.",
                 tenant_id=tenant_id
             )
             if "```json" in content:

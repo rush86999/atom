@@ -699,4 +699,336 @@ describe('BiometricService', () => {
       expect(label).toBe('Biometric Authentication');
     });
   });
+
+  // ========================================================================
+  // Initialize Tests
+  // ========================================================================
+
+  describe('Initialize', () => {
+    test('should load stored preferences and attempts', async () => {
+      (AsyncStorage.getItem as jest.Mock)
+        .mockResolvedValueOnce(
+          JSON.stringify({ requireForLogin: true, maxAttempts: 3 })
+        )
+        .mockResolvedValueOnce(
+          JSON.stringify([
+            {
+              timestamp: Date.now(),
+              success: false,
+              error: 'authentication_failed',
+              biometricType: 'fingerprint',
+            },
+          ])
+        );
+
+      await biometricService.initialize();
+
+      const prefs = biometricService.getPreferences();
+      expect(prefs.requireForLogin).toBe(true);
+      expect(prefs.maxAttempts).toBe(3);
+      // Stored values merge over defaults
+      expect(prefs.requireForPayments).toBe(true);
+
+      const attempts = biometricService.getRecentAttempts();
+      expect(attempts).toHaveLength(1);
+      expect(attempts[0].biometricType).toBe('fingerprint');
+    });
+
+    test('should drop stored attempts older than one hour', async () => {
+      (AsyncStorage.getItem as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(
+          JSON.stringify([
+            { timestamp: Date.now() - 2 * 3600000, success: false },
+            { timestamp: Date.now(), success: true, biometricType: 'facial' },
+          ])
+        );
+
+      await biometricService.initialize();
+
+      const attempts = biometricService.getRecentAttempts();
+      expect(attempts).toHaveLength(1);
+      expect(attempts[0].success).toBe(true);
+    });
+
+    test('should not throw when initialization fails', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockRejectedValue(
+        new Error('Storage unavailable')
+      );
+
+      await expect(biometricService.initialize()).resolves.toBeUndefined();
+      expect(biometricService.getPreferences().enabled).toBe(true);
+    });
+  });
+
+  // ========================================================================
+  // Lockout Configuration Tests
+  // ========================================================================
+
+  describe('Lockout Configuration', () => {
+    beforeEach(() => {
+      jest.spyOn(LocalAuthentication, 'hasHardwareAsync').mockResolvedValue(true);
+      jest.spyOn(LocalAuthentication, 'isEnrolledAsync').mockResolvedValue(true);
+      jest.spyOn(LocalAuthentication, 'supportedAuthenticationTypesAsync').mockResolvedValue([
+        LocalAuthentication.AuthenticationType.FINGERPRINT,
+      ]);
+      jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
+        success: false,
+        error: { code: 'authentication_failed', message: 'Failed' },
+        warning: undefined,
+      });
+    });
+
+    test('should lock out after the configured max attempts', async () => {
+      await biometricService.updatePreferences({ maxAttempts: 3 });
+
+      for (let i = 0; i < 3; i++) {
+        await biometricService.authenticate();
+      }
+
+      const status = biometricService.getLockoutStatus();
+      expect(status.locked).toBe(true);
+      expect(status.remainingMinutes).toBeGreaterThan(0);
+    });
+
+    test('should not lock out when lockout is disabled', async () => {
+      await biometricService.updatePreferences({ lockoutEnabled: false });
+
+      for (let i = 0; i < 6; i++) {
+        await biometricService.authenticate();
+      }
+
+      expect(biometricService.getLockoutStatus().locked).toBe(false);
+    });
+
+    test('should report remaining minutes rounded up', async () => {
+      (biometricService as any).lockoutUntil = Date.now() + 150000; // 2.5 min
+
+      const status = biometricService.getLockoutStatus();
+      expect(status.locked).toBe(true);
+      expect(status.remainingMinutes).toBe(3);
+    });
+
+    test('should report unlocked once the lockout window has passed', async () => {
+      (biometricService as any).lockoutUntil = Date.now() - 1000;
+
+      expect(biometricService.getLockoutStatus()).toEqual({ locked: false });
+    });
+
+    test('should return a lockout message with remaining minutes', async () => {
+      (biometricService as any).lockoutUntil = Date.now() + 120000;
+
+      const result = await biometricService.authenticate();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('2 minutes');
+    });
+  });
+
+  // ========================================================================
+  // Authentication Failure Mapping Tests
+  // ========================================================================
+
+  describe('Authentication Error Mapping', () => {
+    beforeEach(() => {
+      jest.spyOn(LocalAuthentication, 'hasHardwareAsync').mockResolvedValue(true);
+      jest.spyOn(LocalAuthentication, 'isEnrolledAsync').mockResolvedValue(true);
+      jest.spyOn(LocalAuthentication, 'supportedAuthenticationTypesAsync').mockResolvedValue([
+        LocalAuthentication.AuthenticationType.FINGERPRINT,
+      ]);
+    });
+
+    const errorCases: Array<[string, string, string]> = [
+      ['locked_out', 'locked_out', 'Too many attempts'],
+      ['user_cancel', 'user_cancelled', 'Authentication was cancelled'],
+      ['system_cancel', 'system_cancelled', 'Authentication was cancelled'],
+      ['passcode_not_set', 'passcode_not_set', 'Device passcode is not set'],
+      ['not_available', 'not_available', 'not available'],
+      ['not_enrolled', 'not_enrolled', 'No biometric enrolled'],
+    ];
+
+    test.each(errorCases)(
+      'should map %s code to a friendly message',
+      async (code, expectedAttemptError, expectedMessagePart) => {
+        jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
+          success: false,
+          error: { code, message: 'raw' },
+          warning: undefined,
+        });
+
+        const result = await biometricService.authenticate();
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain(expectedMessagePart);
+        expect(result.error).not.toBe('raw');
+
+        const attempts = biometricService.getRecentAttempts();
+        expect(attempts[0].error).toBe(expectedAttemptError);
+      }
+    );
+
+    test('should record an unknown error type when authenticateAsync throws', async () => {
+      jest
+        .spyOn(LocalAuthentication, 'authenticateAsync')
+        .mockRejectedValue(new Error('Biometry disabled by device policy'));
+
+      const result = await biometricService.authenticate();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Biometry disabled by device policy');
+      const attempts = biometricService.getRecentAttempts();
+      expect(attempts).toHaveLength(1);
+      expect(attempts[0].success).toBe(false);
+      expect(attempts[0].error).toBe('unknown');
+    });
+
+    test('should use a fallback message when a non-Error is thrown', async () => {
+      jest
+        .spyOn(LocalAuthentication, 'authenticateAsync')
+        .mockRejectedValue('biometry unavailable');
+
+      const result = await biometricService.authenticate();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Authentication failed');
+    });
+
+    test('should forward all authentication options', async () => {
+      const authSpy = jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
+        success: true,
+        error: undefined,
+        warning: undefined,
+      });
+
+      await biometricService.authenticate({
+        promptMessage: 'Confirm identity',
+        fallbackLabel: 'Use PIN',
+        cancelLabel: 'Skip',
+        disableDeviceFallback: true,
+      });
+
+      expect(authSpy).toHaveBeenCalledWith({
+        promptMessage: 'Confirm identity',
+        fallbackLabel: 'Use PIN',
+        cancelLabel: 'Skip',
+        disableDeviceFallback: true,
+      });
+    });
+  });
+
+  // ========================================================================
+  // Attempt Tracking Tests
+  // ========================================================================
+
+  describe('Attempt Tracking', () => {
+    beforeEach(() => {
+      jest.spyOn(LocalAuthentication, 'hasHardwareAsync').mockResolvedValue(true);
+      jest.spyOn(LocalAuthentication, 'isEnrolledAsync').mockResolvedValue(true);
+      jest.spyOn(LocalAuthentication, 'supportedAuthenticationTypesAsync').mockResolvedValue([
+        LocalAuthentication.AuthenticationType.FINGERPRINT,
+      ]);
+      jest.spyOn(LocalAuthentication, 'authenticateAsync').mockResolvedValue({
+        success: false,
+        error: { code: 'authentication_failed', message: 'Failed' },
+        warning: undefined,
+      });
+    });
+
+    test('should keep only the last 20 attempts', async () => {
+      await biometricService.updatePreferences({ lockoutEnabled: false });
+
+      for (let i = 0; i < 25; i++) {
+        await biometricService.authenticate();
+      }
+
+      const attempts = biometricService.getRecentAttempts(25);
+      expect(attempts).toHaveLength(20);
+    });
+
+    test('should limit getRecentAttempts to the requested count', async () => {
+      await biometricService.updatePreferences({ lockoutEnabled: false });
+
+      for (let i = 0; i < 6; i++) {
+        await biometricService.authenticate();
+      }
+
+      expect(biometricService.getRecentAttempts(3)).toHaveLength(3);
+    });
+
+    test('should clear attempts and lockout', async () => {
+      for (let i = 0; i < 5; i++) {
+        await biometricService.authenticate();
+      }
+      expect(biometricService.getLockoutStatus().locked).toBe(true);
+
+      await biometricService.clearAttempts();
+
+      expect(biometricService.getRecentAttempts()).toHaveLength(0);
+      expect(biometricService.getLockoutStatus().locked).toBe(false);
+    });
+
+    test('should not throw when saving attempts fails', async () => {
+      (AsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(
+        new Error('disk full')
+      );
+
+      const result = await biometricService.authenticate();
+
+      expect(result.success).toBe(false);
+    });
+
+    test('should not throw when saving preferences fails', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      (AsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(
+        new Error('disk full')
+      );
+
+      await expect(
+        biometricService.updatePreferences({ requireForLogin: true })
+      ).resolves.toBeUndefined();
+
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+  });
+
+  // ========================================================================
+  // Label and Preference Tests
+  // ========================================================================
+
+  describe('Labels and Preferences', () => {
+    test('should return Face Recognition on Android for facial', async () => {
+      jest.spyOn(LocalAuthentication, 'supportedAuthenticationTypesAsync').mockResolvedValue([
+        LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION,
+      ]);
+
+      const originalPlatform = require('react-native').Platform.OS;
+      require('react-native').Platform.OS = 'android';
+
+      const label = await biometricService.getBiometricLabel();
+
+      expect(label).toBe('Face Recognition');
+      require('react-native').Platform.OS = originalPlatform;
+    });
+
+    test('should return Iris Scan for iris', async () => {
+      jest.spyOn(LocalAuthentication, 'supportedAuthenticationTypesAsync').mockResolvedValue([
+        LocalAuthentication.AuthenticationType.IRIS,
+      ]);
+
+      const label = await biometricService.getBiometricLabel();
+
+      expect(label).toBe('Iris Scan');
+    });
+
+    test('should reflect updated preferences in action gates', async () => {
+      expect(biometricService.isBiometricEnabledFor('login')).toBe(false);
+
+      await biometricService.updatePreferences({ requireForLogin: true });
+
+      expect(biometricService.isBiometricEnabledFor('login')).toBe(true);
+      expect(biometricService.isBiometricEnabledFor('payments')).toBe(true);
+      expect(biometricService.isBiometricEnabledFor('sensitive')).toBe(true);
+    });
+  });
 });
