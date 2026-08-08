@@ -446,6 +446,33 @@ class SelfConsistencyVoter:
         offset = base - 0.7
         return [max(0.0, min(1.5, round(t + offset, 2))) for t in spread]
 
+    # ------------------------------------------------------------------
+    # P4a (W3): diversity-aware initialization.
+    # arXiv 2601.19921 ("Demystifying MAD"): diversity-aware init improves the
+    # prior probability of MAD success WITHOUT changing update dynamics. The
+    # win comes from starting samples with varied perspectives, not from more
+    # rounds. This rotates a per-sample system_instruction overlay so each
+    # sample approaches the problem from a different angle.
+    # ------------------------------------------------------------------
+    _DIVERSITY_PERSPECTIVES: list[str] = [
+        "Approach this methodically, step by step.",
+        "Consider edge cases and what could go wrong first.",
+        "Be concise and direct; favor the simplest correct answer.",
+        "Reason from first principles before committing to an approach.",
+    ]
+
+    @classmethod
+    def diversity_overlays(cls, n: int, enabled: bool = False) -> list[str]:
+        """Return N system_instruction overlays (diversity-aware init).
+
+        When ``enabled`` is False (the default / current behavior), returns a
+        list of empty strings so callers see no overlay (kill-switch parity).
+        When True, cycles through perspective prompts so samples diverge.
+        """
+        if not enabled or n <= 0:
+            return ["" for _ in range(max(1, n))]
+        return [cls._DIVERSITY_PERSPECTIVES[i % len(cls._DIVERSITY_PERSPECTIVES)] for i in range(n)]
+
     @staticmethod
     def _hash_sample(sample: Any) -> str:
         """Stable hash of a sample for majority-vote equality.

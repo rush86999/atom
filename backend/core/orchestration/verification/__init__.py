@@ -35,6 +35,7 @@ from core.orchestration.verification.execution import ExecutionVerifier
 from core.orchestration.verification.formal import FormalVerifier
 from core.orchestration.verification.grounded import GroundedVerifier
 from core.orchestration.verification.judge import JudgeVerifier
+from core.orchestration.verification.review import ReviewerVerifier
 from core.orchestration.verification.schema_verifier import SchemaVerifier
 from core.orchestration.verification.voting import VotingVerifier
 
@@ -54,6 +55,7 @@ __all__ = [
     "GroundedVerifier",
     "JudgeVerifier",
     "CodePipelineVerifier",
+    "ReviewerVerifier",
     # Resolution helpers
     "infer_domain",
     "resolve_domain",

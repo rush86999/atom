@@ -39,6 +39,7 @@ from core.orchestration.verification.execution import ExecutionVerifier
 from core.orchestration.verification.formal import FormalVerifier
 from core.orchestration.verification.grounded import GroundedVerifier
 from core.orchestration.verification.judge import JudgeVerifier
+from core.orchestration.verification.review import ReviewerVerifier
 from core.orchestration.verification.schema_verifier import SchemaVerifier
 from core.orchestration.verification.voting import VotingVerifier
 
@@ -84,6 +85,7 @@ class VerificationOrchestrator:
                 VerificationStrategy.GROUNDED: GroundedVerifier(llm_service),
                 VerificationStrategy.JUDGE: JudgeVerifier(llm_service),
                 VerificationStrategy.CODE_PIPELINE: CodePipelineVerifier(sandbox_runtime),
+                VerificationStrategy.REVIEW: ReviewerVerifier(llm_service),
             }
 
     # ------------------------------------------------------------------

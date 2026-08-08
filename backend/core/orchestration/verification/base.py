@@ -47,6 +47,7 @@ class VerificationStrategy(str, Enum):
     GROUNDED = "grounded"      # LLM faithfulness check against retrieved sources
     JUDGE = "judge"            # LLM-as-judge ranks free-form candidates
     CODE_PIPELINE = "code_pipeline"  # Coding: reconcile action dicts → execute code
+    REVIEW = "review"          # P4b: reviewer accepts/rejects + signals re-delegation (NOT debate)
 
 
 @dataclass(frozen=True)
