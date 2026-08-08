@@ -158,6 +158,22 @@ class CronParser:
         if cron_field.isdigit():
             return value == int(cron_field)
 
+        # List (e.g., "1,3,5" or "1-5,10" or "*/15,45"). Each comma-separated
+        # sub-entry is itself a valid cron field (a single value, a range, a
+        # step, or a wildcard), so recurse rather than only keeping pure-digit
+        # entries. This must be checked before the range/step branches because a
+        # list sub-entry may itself contain '-' or '/' (e.g. "1-5,10" or
+        # "*/15,45"), which would otherwise be mis-parsed as a single range or
+        # step spanning the whole field. The old code filtered with
+        # ``v.strip().isdigit()`` and silently dropped range/step sub-entries
+        # such as the "1-5" in "1-5,10".
+        if "," in cron_field:
+            for sub_field in cron_field.split(","):
+                sub_field = sub_field.strip()
+                if sub_field and self._matches_field(value, sub_field, min_val, max_val):
+                    return True
+            return False
+
         # Range (e.g., "1-5")
         if "-" in cron_field:
             parts = cron_field.split("-")
@@ -168,7 +184,13 @@ class CronParser:
         # Step (e.g., "*/5" or "1-10/2")
         if "/" in cron_field:
             base, step = cron_field.split("/")
+            if not step.isdigit():
+                return False
             step = int(step)
+            # A step of zero is meaningless and would otherwise raise
+            # ZeroDivisionError in the modulo below.
+            if step == 0:
+                return False
 
             if base == "*":
                 # cron semantics for */N: "every N starting at the field min".
@@ -184,11 +206,6 @@ class CronParser:
                     if start <= value <= end:
                         return (value - start) % step == 0
                     return False
-
-        # List (e.g., "1,3,5")
-        if "," in cron_field:
-            values = [int(v.strip()) for v in cron_field.split(",") if v.strip().isdigit()]
-            return value in values
 
         return False
 
@@ -381,7 +398,10 @@ def _is_valid_field(self, field: str, min_val: int, max_val: int) -> bool:
     # Step
     if "/" in field:
         base, step = field.split("/")
-        if step.isdigit():
+        # A step of zero is invalid: it is meaningless and would crash the
+        # matcher with ZeroDivisionError. Previously any digit step was
+        # accepted, so "*/0" wrongly passed validation.
+        if step.isdigit() and int(step) != 0:
             if base == "*":
                 return True
             if "-" in base:
@@ -389,13 +409,16 @@ def _is_valid_field(self, field: str, min_val: int, max_val: int) -> bool:
                 if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
                     return True
 
-    # List
+    # List (e.g., "1,3,5" or "1-5,10" or "*/15,45"). Each comma-separated
+    # sub-entry is itself a valid cron field, so validate each recursively.
+    # The old code required every entry to be a pure digit, which wrongly
+    # rejected lists containing a range or step (e.g. "1-5,10").
     if "," in field:
-        values = [v.strip() for v in field.split(",")]
-        for v in values:
-            if not v.isdigit():
+        for sub_field in field.split(","):
+            sub_field = sub_field.strip()
+            if not sub_field:
                 return False
-            if not (min_val <= int(v) <= max_val):
+            if not self._is_valid_field(sub_field, min_val, max_val):
                 return False
         return True
 

@@ -48,8 +48,29 @@ class ExpressionParser:
         self.variables: Dict[str, Any] = {}  # Variable context for resolution
     TOKEN_NUMBER = r'(?P<NUMBER>-?\d+\.?\d*(?:[eE][+-]?\d+)?)'
     TOKEN_STRING = r'(?P<STRING>"[^"]*"|\'[^\']*\')'
-    TOKEN_BOOLEAN = r'(?P<BOOLEAN>True|False|None)'
-    TOKEN_OPERATOR = r'(?P<OPERATOR>==|!=|<=?|>=?|and|or|not|in|\*\*|\*|/|%|is\s+not|is|\+|\-)'
+    # Keyword tokens use a trailing ``(?![A-Za-z0-9_])`` negative lookahead so
+    # they only match as whole words. Without it the master tokenizer (which
+    # tries these alternatives before IDENTIFIER) matched them as prefixes of
+    # identifiers: e.g. ``android`` -> ``and`` + ``roid``, ``island`` ->
+    # ``is`` + ``land``, ``Truely`` -> ``True`` + ``ly``.
+    TOKEN_BOOLEAN = r'(?P<BOOLEAN>True|False|None)(?![A-Za-z0-9_])'
+    # Symbolic operators match anywhere; keyword operators (and/or/not/in/is)
+    # require a trailing non-word boundary ``(?![A-Za-z0-9_])`` so they only
+    # match as whole words. Without it the master tokenizer (which tries these
+    # alternatives before IDENTIFIER) matched them as prefixes of identifiers:
+    # e.g. ``android`` -> ``and`` + ``roid``, ``island`` -> ``is`` + ``land``.
+    # ``is\s+not`` is listed before ``is`` so the two-word form wins.
+    TOKEN_OPERATOR = (
+        r'(?P<OPERATOR>'
+        r'==|!=|<=?|>=?|\*\*|\*|/|%|\+|\-'
+        r'|is\s+not(?![A-Za-z0-9_])'
+        r'|and(?![A-Za-z0-9_])'
+        r'|or(?![A-Za-z0-9_])'
+        r'|not(?![A-Za-z0-9_])'
+        r'|in(?![A-Za-z0-9_])'
+        r'|is(?![A-Za-z0-9_])'
+        r')'
+    )
     TOKEN_IDENTIFIER = r'(?P<IDENTIFIER>[a-zA-Z_][a-zA-Z0-9_\.]*(?:\[[^\]]+\])?)'
     TOKEN_LPAREN = r'(?P<LPAREN>\()'
     TOKEN_RPAREN = r'(?P<RPAREN>\))'
@@ -239,13 +260,36 @@ class ExpressionParser:
         return left
 
     def _parse_multiplicative(self) -> Any:
-        """Parse multiplicative operations (*, /, %, **)."""
+        """Parse multiplicative operations (*, /, %).
+
+        Note: ``**`` (exponentiation) is handled by ``_parse_power`` which sits
+        between this level and unary, so that ``2 * 3 ** 2`` evaluates to
+        ``2 * 9`` (= 18) rather than ``(2 * 3) ** 2`` (= 36).
+        """
         left = self._parse_unary()
 
-        while self._current_token() and self._current_token()['value'] in ('*', '/', '%', '**'):
+        while self._current_token() and self._current_token()['value'] in ('*', '/', '%'):
             op = self._advance()['value']
             right = self._parse_unary()
             left = self.OPERATORS[op](left, right)
+
+        return left
+
+    def _parse_power(self) -> Any:
+        """Parse exponentiation (``**``).
+
+        ``**`` binds tighter than ``*``/``/``/``%`` (so it is reached via
+        ``_parse_unary``, below the multiplicative level) but looser than unary
+        minus on its LEFT operand, matching Python: ``-2 ** 2 == -4``. The RIGHT
+        operand is a full unary expression so that ``2 ** -3`` and right
+        associativity (``2 ** 3 ** 2 == 512``) both work.
+        """
+        left = self._parse_primary()
+
+        while self._current_token() and self._current_token()['value'] == '**':
+            self._advance()
+            right = self._parse_unary()  # unary, not power, so 2**-3 works
+            left = self.OPERATORS['**'](left, right)
 
         return left
 
@@ -259,7 +303,7 @@ class ExpressionParser:
                 return -operand
             return operand
 
-        return self._parse_primary()
+        return self._parse_power()
 
     def _parse_primary(self) -> Any:
         """Parse primary expressions (literals, identifiers, parenthesized expressions)."""
