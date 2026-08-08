@@ -438,6 +438,7 @@ class AtomWorkflowAutomationService:
                 automation_type=WorkflowAutomationType(automation_data['automation_type']),
                 priority=AutomationPriority(automation_data['priority']),
                 status=AutomationStatus.ACTIVE,
+                enabled=automation_data.get('enabled', True),
                 conditions=automation_data['conditions'],
                 actions=automation_data['actions'],
                 schedule=automation_data.get('schedule'),
@@ -1004,7 +1005,8 @@ class AtomWorkflowAutomationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_workflow_automation"
                 )
-            filters = filters or {}
+            if not isinstance(filters, dict):
+                filters = {}
             automations = []
             
             for automation in self.automations.values():
@@ -1796,7 +1798,8 @@ class AtomWorkflowAutomationService:
                             logger.info(f"Running scheduled automation: {automation_id}")
                             await self.execute_automation(
                                 automation_id=automation_id,
-                                trigger_context={'trigger_type': 'scheduled'}
+                                trigger_context={'trigger_type': 'scheduled'},
+                                triggered_by='scheduler'
                             )
                 # Sleep for a short interval before checking again
                 await asyncio.sleep(60)  # Check every minute
@@ -1849,7 +1852,8 @@ class AtomWorkflowAutomationService:
                     if automation.enabled:
                         await self.execute_automation(
                             automation_id=automation_id,
-                            trigger_context=event_data
+                            trigger_context=event_data,
+                            triggered_by='event_trigger'
                         )
         except Exception as e:
             logger.error(f"Error handling event trigger: {e}")
@@ -2098,7 +2102,7 @@ class AtomWorkflowAutomationService:
         """Send notifications based on automation execution"""
         try:
             # Get notification rules from automation metadata
-            notification_rules = automation.metadata.get('notification_rules', [])
+            notification_rules = automation.notification_rules or automation.metadata.get('notification_rules', [])
             if not notification_rules:
                 # Default notification behavior
                 if execution.status == AutomationStatus.FAILED:
@@ -2163,6 +2167,7 @@ class AtomWorkflowAutomationService:
                 'resource': 'automation',
                 'action': 'log',
                 'result': 'success',
+                'ip_address': 'automation_system',
                 'metadata': {
                     'automation_id': automation_id,
                     'details': details

@@ -237,11 +237,7 @@ class TestSecurityThreatDetection:
             return_value=SimpleNamespace(ok=True, confidence=0.95, output_data="x")
         )
         service = mod.AtomEnterpriseSecurityService(config={"ai_service": ai})
-        with patch(f"{SECURITY}.AIRequest", create=True, new=MagicMock()), patch.object(
-            mod, "AITaskType", MagicMock()
-        ), patch(f"{SECURITY}.AIModelType", create=True, new=MagicMock()), patch.object(
-            mod, "AIServiceType", MagicMock()
-        ):
+        with patch(f"{SECURITY}.AIRequest", create=True, new=MagicMock()), patch(f"{SECURITY}.AITaskType", create=True, new=MagicMock()), patch(f"{SECURITY}.AIModelType", create=True, new=MagicMock()), patch(f"{SECURITY}.AIServiceType", create=True, new=MagicMock()):
             threats = await service._ai_threat_detection({"event_type": "login"})
         assert threats == []
         ai.process_ai_request.assert_awaited_once()
@@ -253,11 +249,7 @@ class TestSecurityThreatDetection:
             return_value=SimpleNamespace(ok=True, confidence=0.5, output_data="x")
         )
         service = mod.AtomEnterpriseSecurityService(config={"ai_service": ai})
-        with patch(f"{SECURITY}.AIRequest", create=True, new=MagicMock()), patch.object(
-            mod, "AITaskType", MagicMock()
-        ), patch(f"{SECURITY}.AIModelType", create=True, new=MagicMock()), patch.object(
-            mod, "AIServiceType", MagicMock()
-        ):
+        with patch(f"{SECURITY}.AIRequest", create=True, new=MagicMock()), patch(f"{SECURITY}.AITaskType", create=True, new=MagicMock()), patch(f"{SECURITY}.AIModelType", create=True, new=MagicMock()), patch(f"{SECURITY}.AIServiceType", create=True, new=MagicMock()):
             threats = await service._ai_threat_detection({"event_type": "login"})
         assert threats == []
 
@@ -266,11 +258,7 @@ class TestSecurityThreatDetection:
         ai = MagicMock()
         ai.process_ai_request = AsyncMock(return_value=SimpleNamespace(ok=False))
         service = mod.AtomEnterpriseSecurityService(config={"ai_service": ai})
-        with patch(f"{SECURITY}.AIRequest", create=True, new=MagicMock()), patch.object(
-            mod, "AITaskType", MagicMock()
-        ), patch(f"{SECURITY}.AIModelType", create=True, new=MagicMock()), patch.object(
-            mod, "AIServiceType", MagicMock()
-        ):
+        with patch(f"{SECURITY}.AIRequest", create=True, new=MagicMock()), patch(f"{SECURITY}.AITaskType", create=True, new=MagicMock()), patch(f"{SECURITY}.AIModelType", create=True, new=MagicMock()), patch(f"{SECURITY}.AIServiceType", create=True, new=MagicMock()):
             assert await service._ai_threat_detection({}) == []
 
     async def test_ai_threat_detection_exception(self):
@@ -278,11 +266,7 @@ class TestSecurityThreatDetection:
         ai = MagicMock()
         ai.process_ai_request = AsyncMock(side_effect=RuntimeError("ai down"))
         service = mod.AtomEnterpriseSecurityService(config={"ai_service": ai})
-        with patch(f"{SECURITY}.AIRequest", create=True, new=MagicMock()), patch.object(
-            mod, "AITaskType", MagicMock()
-        ), patch(f"{SECURITY}.AIModelType", create=True, new=MagicMock()), patch.object(
-            mod, "AIServiceType", MagicMock()
-        ):
+        with patch(f"{SECURITY}.AIRequest", create=True, new=MagicMock()), patch(f"{SECURITY}.AITaskType", create=True, new=MagicMock()), patch(f"{SECURITY}.AIModelType", create=True, new=MagicMock()), patch(f"{SECURITY}.AIServiceType", create=True, new=MagicMock()):
             assert await service._ai_threat_detection({}) == []
 
     async def test_detect_threat_no_ai_service(self):
@@ -423,11 +407,7 @@ class TestSecurityCompliance:
             return_value=SimpleNamespace(ok=True, output_data="{}")
         )
         service = mod.AtomEnterpriseSecurityService(config={"ai_service": ai})
-        with patch(f"{SECURITY}.AIRequest", create=True, new=MagicMock()), patch.object(
-            mod, "AITaskType", MagicMock()
-        ), patch(f"{SECURITY}.AIModelType", create=True, new=MagicMock()), patch.object(
-            mod, "AIServiceType", MagicMock()
-        ):
+        with patch(f"{SECURITY}.AIRequest", create=True, new=MagicMock()), patch(f"{SECURITY}.AITaskType", create=True, new=MagicMock()), patch(f"{SECURITY}.AIModelType", create=True, new=MagicMock()), patch(f"{SECURITY}.AIServiceType", create=True, new=MagicMock()):
             report = await service.check_compliance(mod.ComplianceStandard.GDPR)
         assert report.overall_score == 100.0
 
@@ -436,11 +416,7 @@ class TestSecurityCompliance:
         ai = MagicMock()
         ai.process_ai_request = AsyncMock(return_value=SimpleNamespace(ok=False))
         service = mod.AtomEnterpriseSecurityService(config={"ai_service": ai})
-        with patch(f"{SECURITY}.AIRequest", create=True, new=MagicMock()), patch.object(
-            mod, "AITaskType", MagicMock()
-        ), patch(f"{SECURITY}.AIModelType", create=True, new=MagicMock()), patch.object(
-            mod, "AIServiceType", MagicMock()
-        ):
+        with patch(f"{SECURITY}.AIRequest", create=True, new=MagicMock()), patch(f"{SECURITY}.AITaskType", create=True, new=MagicMock()), patch(f"{SECURITY}.AIModelType", create=True, new=MagicMock()), patch(f"{SECURITY}.AIServiceType", create=True, new=MagicMock()):
             analysis = await service._ai_compliance_analysis(mod.ComplianceStandard.GDPR, {})
         assert analysis["score"] == 0.0
 
@@ -449,11 +425,7 @@ class TestSecurityCompliance:
         ai = MagicMock()
         ai.process_ai_request = AsyncMock(side_effect=RuntimeError("no"))
         service = mod.AtomEnterpriseSecurityService(config={"ai_service": ai})
-        with patch(f"{SECURITY}.AIRequest", create=True, new=MagicMock()), patch.object(
-            mod, "AITaskType", MagicMock()
-        ), patch(f"{SECURITY}.AIModelType", create=True, new=MagicMock()), patch.object(
-            mod, "AIServiceType", MagicMock()
-        ):
+        with patch(f"{SECURITY}.AIRequest", create=True, new=MagicMock()), patch(f"{SECURITY}.AITaskType", create=True, new=MagicMock()), patch(f"{SECURITY}.AIModelType", create=True, new=MagicMock()), patch(f"{SECURITY}.AIServiceType", create=True, new=MagicMock()):
             analysis = await service._ai_compliance_analysis(mod.ComplianceStandard.GDPR, {})
         assert analysis["findings"] == []
 
@@ -536,6 +508,23 @@ class TestSecurityCompliance:
         mod = _mod("atom_enterprise_security_service")
         service = mod.AtomEnterpriseSecurityService()
         assert await service.audit_event({"user_id": "u1"}) is None
+
+    async def test_audit_event_unknown_type_coerced(self):
+        mod = _mod("atom_enterprise_security_service")
+        service = mod.AtomEnterpriseSecurityService()
+        result = await service.audit_event(
+            {
+                "event_type": "automation_created",
+                "user_id": "u1",
+                "resource": "r",
+                "action": "log",
+                "result": "success",
+                "ip_address": "1.1.1.1",
+            }
+        )
+        assert result is not None
+        assert result.event_type == mod.AuditEventType.CONFIG_CHANGED
+        assert service.security_metrics["audit_events_logged"] == 1
 
     async def test_log_security_audit(self):
         mod = _mod("atom_enterprise_security_service")
@@ -691,9 +680,15 @@ class TestUnifiedCoercion:
 class TestUnifiedInitialize:
     async def test_initialize_missing_services(self):
         mod = _mod("atom_enterprise_unified_service")
-        with patch.object(mod, "atom_enterprise_security_service", None):
+        with patch.object(mod, "atom_enterprise_security_service", None, create=True):
             service = mod.AtomEnterpriseUnifiedService()
             assert await service.initialize() is False
+
+    async def test_initialize_resolves_security_service_via_fallback(self):
+        mod = _mod("atom_enterprise_unified_service")
+        service = mod.AtomEnterpriseUnifiedService(config={"ai_service": MagicMock()})
+        assert service.security_service is not None
+        assert await service.initialize() is True
 
     async def test_initialize_success(self):
         mod = _mod("atom_enterprise_unified_service")
@@ -1075,6 +1070,21 @@ class TestUnifiedWorkflowLifecycle:
 
 
 class TestUnifiedAutomations:
+    def _workflow_data(self, **overrides):
+        data = {
+            "name": "WF-Test",
+            "description": "d",
+            "service_type": "security",
+            "security_level": "confidential",
+            "compliance_standards": ["SOC2"],
+            "triggers": [],
+            "steps": [{"name": "s", "type": "security_check", "config": {}}],
+            "actions": [{"type": "notify"}],
+            "metadata": {},
+        }
+        data.update(overrides)
+        return data
+
     async def test_create_security_automation_full(self):
         mod = _mod("atom_enterprise_unified_service")
         service = mod.AtomEnterpriseUnifiedService()
@@ -1090,7 +1100,7 @@ class TestUnifiedAutomations:
         service.create_enterprise_workflow = AsyncMock(
             return_value={"ok": False, "error": "x"}
         )
-        result = await service.create_security_automation({"name": "SA"}, "u1")
+        result = await service.create_security_automation({"name": "SA", "description": "d"}, "u1")
         assert result["ok"] is False
 
     async def test_create_compliance_automation_full(self):
@@ -1324,7 +1334,7 @@ class TestUnifiedQueries:
     async def test_get_automations_status(self):
         mod = _mod("atom_enterprise_unified_service")
         service = mod.AtomEnterpriseUnifiedService()
-        await service.create_security_automation({"name": "SA"}, "u1")
+        await service.create_security_automation({"name": "SA", "description": "d"}, "u1")
         status = await service.get_automations_status()
         assert status["total_automations"] == 1
         assert status["security_automations"] == 1
@@ -1374,6 +1384,15 @@ class TestWorkflowAutomationLifecycle:
         result = await service.create_automation(self._automation_data(), "u1")
         assert result["ok"] is True
         assert service.automation_metrics["total_automations"] == 1
+
+    async def test_create_automation_records_audit(self):
+        mod = _mod("atom_workflow_automation_service")
+        security = _mod("atom_enterprise_security_service").AtomEnterpriseSecurityService()
+        service = mod.AtomWorkflowAutomationService(config={"security_service": security})
+        result = await service.create_automation(self._automation_data(), "u1")
+        assert result["ok"] is True
+        assert len(security.audit_logs) == 1
+        assert security.audit_logs[0].action == "log"
 
     async def test_create_automation_stores_db(self):
         mod = _mod("atom_workflow_automation_service")
@@ -1461,7 +1480,7 @@ class TestWorkflowAutomationLifecycle:
         assert result["ok"] is True
         assert result["status"] == "completed"
         execution = service.executions[result["execution_id"]]
-        assert execution.success_count is None or execution.actions_executed == 2
+        assert len(execution.actions_executed) == 2
 
     async def test_execute_automation_not_found(self):
         mod = _mod("atom_workflow_automation_service")
@@ -1548,6 +1567,7 @@ class TestWorkflowAutomationLifecycle:
     async def test_execute_automation_with_db(self):
         mod = _mod("atom_workflow_automation_service")
         db = MagicMock()
+        db.store_workflow_automation = AsyncMock()
         db.store_automation_execution = AsyncMock()
         service = mod.AtomWorkflowAutomationService(config={"database": db})
         created = await service.create_automation(
@@ -1979,7 +1999,7 @@ class TestWorkflowSchedulerAndTriggers:
             },
             "u1",
         )
-        assert result["automation_id"] in service.trigger_listeners["event_triggered"]["automations"]
+        assert result["automation_id"] in service.trigger_listeners["msg"]["automations"]
 
     async def test_initialize_trigger_listeners_exception(self):
         mod = _mod("atom_workflow_automation_service")
@@ -2253,6 +2273,7 @@ class TestWorkflowNotificationsAndMaturity:
         automation.metadata = {}
         automation.name = "A"
         automation.automation_id = "a1"
+        automation.notification_rules = []
         execution = MagicMock()
         execution.status = mod.AutomationStatus.FAILED
         execution.error = "err"
@@ -2267,6 +2288,7 @@ class TestWorkflowNotificationsAndMaturity:
         automation.metadata = {}
         automation.name = "A"
         automation.automation_id = "a1"
+        automation.notification_rules = []
         execution = MagicMock()
         execution.status = mod.AutomationStatus.COMPLETED
         execution.error = None
@@ -2283,6 +2305,7 @@ class TestWorkflowNotificationsAndMaturity:
         automation.metadata = {}
         automation.name = "A"
         automation.automation_id = "a1"
+        automation.notification_rules = []
         automation.notification_rules = [
             {
                 "status": "completed",
@@ -2306,6 +2329,7 @@ class TestWorkflowNotificationsAndMaturity:
         service = mod.AtomWorkflowAutomationService()
         service._notify_slack = AsyncMock()
         automation = MagicMock()
+        automation.notification_rules = []
         automation.metadata = {
             "notification_rules": [
                 {"on_error": True, "channels": ["slack:err"], "message": "m"}
@@ -2325,6 +2349,7 @@ class TestWorkflowNotificationsAndMaturity:
         automation.metadata = {}
         automation.name = "A"
         automation.automation_id = "a1"
+        automation.notification_rules = []
         execution = MagicMock()
         execution.status = mod.AutomationStatus.FAILED
         execution.error = "err"
@@ -2369,9 +2394,7 @@ class TestWorkflowNotificationsAndMaturity:
             reason="Maturity too low",
         )
         interceptor.intercept_trigger = AsyncMock(return_value=decision)
-        with patch.object(
-            mod, "TriggerInterceptor", MagicMock(return_value=interceptor)
-        ):
+        with patch("core.trigger_interceptor.TriggerInterceptor", MagicMock(return_value=interceptor)):
             result = await service.execute_automation(created["automation_id"], {}, "u")
         assert result["ok"] is False
         assert result["maturity_check"]["blocked"] is True
@@ -2404,9 +2427,7 @@ class TestWorkflowNotificationsAndMaturity:
             reason="ok",
         )
         interceptor.intercept_trigger = AsyncMock(return_value=decision)
-        with patch.object(
-            mod, "TriggerInterceptor", MagicMock(return_value=interceptor)
-        ):
+        with patch("core.trigger_interceptor.TriggerInterceptor", MagicMock(return_value=interceptor)):
             result = await service.execute_automation(created["automation_id"], {}, "u")
         assert result["ok"] is True
 
@@ -2431,15 +2452,14 @@ class TestWorkflowNotificationsAndMaturity:
         )
         interceptor = MagicMock()
         interceptor.intercept_trigger = AsyncMock(side_effect=ValueError("no agent"))
-        with patch.object(
-            mod, "TriggerInterceptor", MagicMock(return_value=interceptor)
-        ):
+        with patch("core.trigger_interceptor.TriggerInterceptor", MagicMock(return_value=interceptor)):
             result = await service.execute_automation(created["automation_id"], {}, "u")
         assert result["ok"] is True
 
     async def test_maturity_interception_with_db_commit(self):
         mod = _mod("atom_workflow_automation_service")
         db = MagicMock()
+        db.store_workflow_automation = AsyncMock()
         service = mod.AtomWorkflowAutomationService(config={"database": db})
         created = await service.create_automation(
             {
@@ -2463,9 +2483,7 @@ class TestWorkflowNotificationsAndMaturity:
             reason="low",
         )
         interceptor.intercept_trigger = AsyncMock(return_value=decision)
-        with patch.object(
-            mod, "TriggerInterceptor", MagicMock(return_value=interceptor)
-        ):
+        with patch("core.trigger_interceptor.TriggerInterceptor", MagicMock(return_value=interceptor)):
             result = await service.execute_automation(created["automation_id"], {}, "u")
         assert result["ok"] is False
         db.commit.assert_called_once()

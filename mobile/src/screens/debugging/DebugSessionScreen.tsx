@@ -52,7 +52,7 @@ export const DebugSessionScreen: React.FC<DebugSessionScreenProps> = ({ route })
   const startDebugSession = async () => {
     try {
       setLoading(true);
-      const response = await axios.post('/api/workflows/${workflowId}/debug/sessions', {
+      const response = await axios.post(`/api/workflows/${workflowId}/debug/sessions`, {
         stop_on_entry: false,
         stop_on_exceptions: true,
         stop_on_error: true,

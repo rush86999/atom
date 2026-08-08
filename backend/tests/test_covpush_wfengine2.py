@@ -445,7 +445,7 @@ class TestGenericExecutorAndBranches:
         cache = AsyncMock()
         cache.get = AsyncMock(return_value=None)
         cache.set = AsyncMock()
-        with patch("core.workflow_engine.cache", cache), \
+        with patch("core.cache.cache", cache), \
              patch("core.database.get_db_session") as gds, \
              patch("core.workflow_engine.httpx.AsyncClient") as _Client:
             db = Mock()
@@ -469,7 +469,7 @@ class TestGenericExecutorAndBranches:
         cache = AsyncMock()
         cache.get = AsyncMock(return_value={"actions": [{"name": "a1", "method": "GET",
                                                          "url": "https://x.example/u"}]})
-        with patch("core.workflow_engine.cache", cache), \
+        with patch("core.cache.cache", cache), \
              patch("core.workflow_engine.httpx.AsyncClient") as _Client:
             resp = Mock()
             resp.raise_for_status = Mock()
@@ -484,7 +484,7 @@ class TestGenericExecutorAndBranches:
         cache = AsyncMock()
         cache.get = AsyncMock(return_value={"actions": [{"name": "a1", "method": "GET",
                                                          "url": "https://x.example/{req}"}]})
-        with patch("core.workflow_engine.cache", cache):
+        with patch("core.cache.cache", cache):
             with pytest.raises(ValueError):
                 await e._execute_generic_action("svc", "a1", {})
 
@@ -492,7 +492,7 @@ class TestGenericExecutorAndBranches:
     async def test_slack_message_actions(self):
         e = _engine()
         with patch("core.workflow_engine.token_storage") as ts, \
-             patch("core.workflow_engine.slack_unified_service") as sus:
+             patch("integrations.slack_service_unified.slack_unified_service") as sus:
             ts.get_token.return_value = {"access_token": "tok"}
             sus.post_message = AsyncMock(return_value={"ok": True})
             sus.list_channels = AsyncMock(return_value=["c"])
@@ -530,7 +530,7 @@ class TestGenericExecutorAndBranches:
     async def test_slack_missing_param_raises(self):
         e = _engine()
         with patch("core.workflow_engine.token_storage") as ts, \
-             patch("core.workflow_engine.slack_unified_service") as sus:
+             patch("integrations.slack_service_unified.slack_unified_service") as sus:
             ts.get_token.return_value = {"access_token": "tok"}
             sus.get_channel_info = AsyncMock()
             with pytest.raises(ValueError):

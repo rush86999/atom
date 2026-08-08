@@ -792,11 +792,11 @@ class BYOKManager:
             ).first()
             if setting and setting.setting_value:
                 try:
-                    return self.decrypt_api_key(setting.setting_value)
+                    return self.decrypt_api_key(str(setting.setting_value))
                 except Exception:
                     # Legacy rows written before R81 hold plaintext — keep
                     # them readable instead of bricking stored credentials.
-                    return setting.setting_value
+                    return str(setting.setting_value)
 
         # 2. Fallback to BYOKManager storage
         key_id = f"tenant_{tenant_id}_{provider_id}_{key_name}_{environment}"

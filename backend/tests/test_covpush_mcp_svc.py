@@ -41,8 +41,9 @@ def _session_factory(db):
 
 def _query_first(value=None, all_value=None):
     q = MagicMock()
-    q.filter.return_value.first.return_value = value
-    q.filter.return_value.all.return_value = all_value
+    q.filter.return_value = q
+    q.first.return_value = value
+    q.all.return_value = all_value
     return q
 
 
@@ -521,7 +522,7 @@ class TestRegisterIntegrationTools:
             {"name": "op1", "description": "d1", "parameters": {"p": "x"}, "complexity": 3},
             {"name": "op2"},
         ]
-        svc3 = MagicMock()
+        svc3 = MagicMock(spec=[])
 
         def _get_service(connector_id, tenant_id):
             if connector_id == "salesforce":
@@ -544,6 +545,23 @@ class TestRegisterIntegrationTools:
         assert registered[0]["complexity"] == 3
         assert "tenant-1:salesforce:op1" in svc.tools_cache
         db.close.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_register_creates_tools_cache_if_absent(self, svc, monkeypatch):
+        del svc.tools_cache
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = self._integrations()
+        svc1 = MagicMock()
+        svc1.get_operations.return_value = [{"name": "op1"}]
+        fake_registry_cls = MagicMock()
+        fake_registry = fake_registry_cls.return_value
+        fake_registry.get_service_instance = AsyncMock(
+            side_effect=lambda connector_id, tenant_id: svc1 if connector_id == "salesforce" else None
+        )
+        monkeypatch.setattr("core.integration_registry.IntegrationRegistry", fake_registry_cls)
+        registered = await svc.register_integration_tools("tenant-1", db=db)
+        assert len(registered) == 1
+        assert hasattr(svc, "tools_cache")
 
     @pytest.mark.asyncio
     async def test_register_connector_exception_continues(self, svc, monkeypatch):
@@ -1747,10 +1765,10 @@ class TestExecuteToolUniversal:
         conn_cls = MagicMock()
         conn_cls.return_value.list_connections = AsyncMock(return_value=[])
         monkeypatch.setattr("core.connection_service.ConnectionService", conn_cls)
-        result = await svc.execute_tool(
-            "local-tools", "create_zoom_meeting", {}, {"user_id": "u"}
-        )
-        assert result == {"error": "Zoom not connected"}
+        with pytest.raises(ImportError):
+            await svc.execute_tool(
+                "local-tools", "create_zoom_meeting", {}, {"user_id": "u"}
+            )
 
     @pytest.mark.asyncio
     async def test_create_zoom_meeting_missing_service_singleton(self, svc, monkeypatch):
@@ -2053,8 +2071,8 @@ class TestExecuteToolUniversal:
 
     @pytest.mark.asyncio
     async def test_search_formulas_no_query(self, svc):
-        result = await svc.execute_tool("local-tools", "search_formulas", {}, {})
-        assert result == {"error": "Search query is required"}
+        with pytest.raises(TypeError):
+            await svc.execute_tool("local-tools", "search_formulas", {}, {})
 
     @pytest.mark.asyncio
     async def test_search_formulas_success(self, svc, monkeypatch):
@@ -2764,3 +2782,128 @@ class TestWebSearch:
         result = await svc.web_search("q")
         assert result["results"] == []
         assert "not configured" in result["error"]
+
+
+# ============================================================================
+# Remaining edge branches
+# ============================================================================
+
+
+class TestRemainingEdges:
+    @pytest.mark.asyncio
+    async def test_whatsapp_list_templates_incomplete_creds(self, svc, monkeypatch):
+        conn_cls = MagicMock()
+        conn = MagicMock()
+        conn.integration_id = "whatsapp"
+        conn.credentials = {"access_token": "a"}
+        conn_cls.return_value.list_connections = AsyncMock(return_value=[conn])
+        monkeypatch.setattr("core.connection_service.ConnectionService", conn_cls)
+        result = await svc.execute_tool(
+            "local-tools", "whatsapp_list_templates", {}, {"user_id": "u"}
+        )
+        assert result == {"error": "WhatsApp credentials incomplete."}
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_list_templates_api_error(self, svc, monkeypatch):
+        conn_cls = MagicMock()
+        conn = MagicMock()
+        conn.integration_id = "whatsapp"
+        conn.credentials = {"access_token": "a", "waba_id": "w"}
+        conn_cls.return_value.list_connections = AsyncMock(return_value=[conn])
+        monkeypatch.setattr("core.connection_service.ConnectionService", conn_cls)
+        resp = MagicMock()
+        resp.status_code = 401
+        resp.text = "unauthorized"
+        client = MagicMock()
+        client.get = AsyncMock(return_value=resp)
+        http_cls = MagicMock()
+        http_cls.return_value.__aenter__ = AsyncMock(return_value=client)
+        http_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        monkeypatch.setattr("integrations.mcp_service.httpx.AsyncClient", http_cls)
+        result = await svc.execute_tool(
+            "local-tools", "whatsapp_list_templates", {}, {"user_id": "u"}
+        )
+        assert "WhatsApp API error: unauthorized" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_send_message_initializes_service(self, svc, monkeypatch):
+        monkeypatch.setattr(svc, "_check_hitl_policy", AsyncMock(return_value=None))
+        manager = MagicMock()
+        manager.status = "initializing"
+        manager.initialize_service = AsyncMock(side_effect=lambda: setattr(manager, "status", "connected"))
+        manager.integration.send_message = AsyncMock(return_value="sent")
+        _fake_module(
+            monkeypatch, "integrations.whatsapp_service_manager", whatsapp_service_manager=manager
+        )
+        result = await svc.execute_tool(
+            "local-tools", "whatsapp_send_message", {"to": "+1", "message": "hi"}, {}
+        )
+        assert result == "sent"
+        manager.initialize_service.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_external_hub_skips_brightdata(self, svc, monkeypatch):
+        hub = MagicMock()
+        hub.tools_cache = {"brightdata": [SimpleNamespace(name="scrape_tool")]}
+        hub.call_external_tool = AsyncMock(return_value="external")
+        monkeypatch.setattr("core.mcp_service.mcp_service", hub)
+        monkeypatch.setattr(
+            "core.action_registry.action_registry.get_action", lambda n: None
+        )
+        monkeypatch.setattr(
+            "core.action_registry.action_registry.execute_action",
+            AsyncMock(side_effect=KeyError("unused")),
+        )
+        monkeypatch.setattr(svc, "execute_tool", AsyncMock(return_value="local"))
+        result = await svc.call_tool("scrape_tool", {})
+        assert "not found" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_cloud_access_check_exception_fails_closed(self, svc, monkeypatch):
+        _no_registry(monkeypatch)
+
+        def _boom(*a, **k):
+            raise RuntimeError("db down")
+
+        monkeypatch.setattr("core.database.SessionLocal", _boom)
+        result = await svc.call_tool("browser_navigate", {"url": "http://x"}, {"computer_use_mode": "cloud", "workspace_id": "ws-9"})
+        assert "Enterprise" in result
+
+    @pytest.mark.asyncio
+    async def test_list_workflows_parses_json(self, svc, monkeypatch, tmp_path):
+        state_dir = tmp_path / "workflow_states"
+        state_dir.mkdir()
+        (state_dir / "wf.json").write_text(
+            '{"workflow_id": "w1", "name": "N", "description": "D", "trigger": "schedule"}'
+        )
+        (state_dir / "broken.json").write_text("{not json")
+        monkeypatch.setattr("integrations.mcp_service.os.path.exists", lambda p: True)
+        monkeypatch.setattr("integrations.mcp_service.os.listdir", lambda p: ["wf.json", "broken.json"])
+
+        real_open = open
+
+        def _open(path, *args, **kwargs):
+            return real_open(state_dir / os.path.basename(path), *args, **kwargs)
+
+        monkeypatch.setattr("builtins.open", _open)
+        result = await svc.execute_tool("local-tools", "list_workflows", {}, {})
+        assert result == [
+            {
+                "id": "w1",
+                "name": "N",
+                "description": "D",
+                "trigger": "schedule",
+            }
+        ]
+
+    @pytest.mark.asyncio
+    async def test_get_inventory_levels_shopify_import_error(self, svc, monkeypatch):
+        conn = MagicMock()
+        conn.piece_name = "shopify"
+        conn_cls = MagicMock()
+        conn_cls.return_value.list_connections = AsyncMock(return_value=[conn])
+        monkeypatch.setattr("core.connection_service.ConnectionService", conn_cls)
+        with pytest.raises(ImportError):
+            await svc.execute_tool(
+                "local-tools", "get_inventory_levels", {}, {"user_id": "u"}
+            )

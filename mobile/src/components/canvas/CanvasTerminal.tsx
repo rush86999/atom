@@ -396,6 +396,7 @@ export const CanvasTerminal: React.FC<CanvasTerminalProps> = ({
             value={inputValue}
             onChangeText={setInputValue}
             onSubmitEditing={handleSubmit}
+            onKeyPress={(e) => handleKeyPress(e.nativeEvent.key)}
             placeholder="Type a command..."
             placeholderTextColor={darkTheme ? '#666666' : '#999999'}
             autoCapitalize="none"

@@ -453,9 +453,17 @@ class AtomEnterpriseSecurityService:
                 )
             audit_id = f"audit_{int(time.time())}_{hashlib.md5(str(event_data).encode()).hexdigest()[:8]}"
             
+            raw_event_type = event_data.get('event_type')
+            if raw_event_type is None:
+                raise KeyError("event_type is required")
+            try:
+                parsed_event_type = AuditEventType(raw_event_type)
+            except ValueError:
+                parsed_event_type = AuditEventType.CONFIG_CHANGED
+            
             security_audit = SecurityAudit(
                 audit_id=audit_id,
-                event_type=AuditEventType(event_data['event_type']),
+                event_type=parsed_event_type,
                 user_id=event_data['user_id'],
                 resource=event_data['resource'],
                 action=event_data['action'],

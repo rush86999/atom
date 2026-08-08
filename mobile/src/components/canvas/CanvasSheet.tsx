@@ -229,7 +229,9 @@ export const CanvasSheet: React.FC<CanvasSheetProps> = ({
       // Generate CSV
       const headers = data.columns.map(col => col.label);
       const rows = filteredRows.map(row =>
-        data.columns.map(col => String(row.data[col.key] || ''))
+        data.columns.map(col =>
+          row.data[col.key] != null ? String(row.data[col.key]) : ''
+        )
       );
 
       const csvContent = [

@@ -666,7 +666,7 @@ export const CanvasWebView = React.forwardRef<any, CanvasWebViewProps>(({
   const refresh = useCallback(() => {
     setLoading(true);
     setError(null);
-    sendMessageToWebView({ type: 'refresh' });
+    sendMessageToWebView({ command: 'refresh' });
   }, [sendMessageToWebView]);
 
   /**

@@ -1174,13 +1174,11 @@ class TestRunAsync:
     def test_returns_result(self):
         async def coro():
             return 42
-        with patch("core.mini_app_service.threading.Thread", _SyncThread):
-            # threading is imported lazily inside _run_async; patch the module
-            # attribute after import by re-importing is fragile, so patch the
-            # global threading module's Thread instead.
-            import threading
-            with patch.object(threading, "Thread", _SyncThread):
-                assert svc._run_async(coro()) == 42
+        # _run_async imports threading locally; patch the global Thread so the
+        # worker runs on this (coverage-instrumented) thread instead of spawning.
+        import threading
+        with patch.object(threading, "Thread", _SyncThread):
+            assert svc._run_async(coro()) == 42
 
     def test_propagates_exception(self):
         async def coro():
@@ -1225,6 +1223,308 @@ class TestStarterManifest:
         )
         assert m["declared_scopes"] == ["canvas_render"]
         assert m["dependencies"] == ["numpy"]
+
+
+# ===========================================================================
+# scaffold (real DB)
+# ===========================================================================
+class TestScaffold:
+    def test_scaffold_creates_app_and_canvas(self, db, monkeypatch):
+        monkeypatch.delenv("ATOM_MINIAAP_LLM_SCAFFOLD", raising=False)
+        viewer = SimpleNamespace(id="u1", tenant_id="t1", workspace_id="ws1")
+        spec = {"description": "my app", "version": "1.2.0"}
+        app, canvas_id = svc.scaffold(spec, "MyApp", ["canvas_render"], [], viewer, db)
+        assert app.name == "MyApp"
+        assert app.version == "1.2.0"
+        assert app.status == "draft"
+        assert app.blueprint_canvas_id == canvas_id
+        assert app.manifest["declared_scopes"] == ["canvas_render"]
+        from core.models import Canvas
+        src = db.query(Canvas).filter(Canvas.id == canvas_id).one()
+        assert src.mini_app_id == app.id
+        assert src.canvas_type == "mini_app"
+
+    def test_scaffold_defaults_viewer_fields(self, db, monkeypatch):
+        monkeypatch.delenv("ATOM_MINIAAP_LLM_SCAFFOLD", raising=False)
+        viewer = SimpleNamespace(id="u1")
+        app, _ = svc.scaffold({}, "App2", [], [], viewer, db)
+        assert app.tenant_id == "default"
+        assert app.workspace_id is None
+
+    def test_scaffold_llm_path_used_when_env_set(self, db, monkeypatch):
+        monkeypatch.setenv("ATOM_MINIAAP_LLM_SCAFFOLD", "true")
+        viewer = SimpleNamespace(id="u1", tenant_id="t1", workspace_id="ws1")
+        with patch("core.mini_app_service._llm_scaffold", return_value="state['x'] = 1\n") as llm:
+            app, _ = svc.scaffold({}, "LLMApp", [], [], viewer, db)
+        assert llm.called
+        from core.canvas_logic_service import CanvasLogicService
+        logic = CanvasLogicService(db).load_logic(app.blueprint_canvas_id)
+        assert logic["source"] == "state['x'] = 1\n"
+
+    def test_scaffold_llm_returns_none_falls_back_to_template(self, db, monkeypatch):
+        monkeypatch.setenv("ATOM_MINIAAP_LLM_SCAFFOLD", "true")
+        viewer = SimpleNamespace(id="u1", tenant_id="t1", workspace_id="ws1")
+        with patch("core.mini_app_service._llm_scaffold", return_value=None):
+            app, _ = svc.scaffold({}, "Fallback", [], [], viewer, db)
+        from core.canvas_logic_service import CanvasLogicService
+        logic = CanvasLogicService(db).load_logic(app.blueprint_canvas_id)
+        assert "Mini-app starter logic" in logic["source"]
+
+
+# ===========================================================================
+# _llm_scaffold
+# ===========================================================================
+class TestLlmScaffold:
+    def test_returns_generated_code(self):
+        # _llm_scaffold builds a coroutine, runs it via _run_async, then
+        # syntax-checks the result. Patch _run_async to return the LLM payload
+        # directly (avoids spawning a worker thread under coverage).
+        with patch("core.mini_app_service._run_async", return_value={"content": "state['x'] = 1\n"}):
+            code = svc._llm_scaffold("App", {})
+        assert "state['x']" in code
+
+    def test_returns_none_on_exception(self):
+        with patch("core.mini_app_service._run_async", side_effect=RuntimeError("boom")):
+            assert svc._llm_scaffold("App", {}) is None
+
+    def test_returns_none_on_syntax_error(self):
+        with patch("core.mini_app_service._run_async", return_value={"content": "def f(:"}):
+            assert svc._llm_scaffold("App", {}) is None
+
+    def test_returns_none_on_empty_content(self):
+        with patch("core.mini_app_service._run_async", return_value={"content": ""}):
+            assert svc._llm_scaffold("App", {}) is None
+
+    def test_returns_none_when_content_missing(self):
+        with patch("core.mini_app_service._run_async", return_value={}):
+            assert svc._llm_scaffold("App", {}) is None
+
+
+# ===========================================================================
+# run_stateful — full success path with mocked runtime + persistence
+# ===========================================================================
+class TestRunStatefulFull:
+    def _ctx(self, db):
+        class _Ctx:
+            def __enter__(self_inner):
+                return db
+            def __exit__(self_inner, *a):
+                pass
+        return _Ctx()
+
+    @pytest.mark.asyncio
+    async def test_persist_state_and_storage_ops(self, db, canvas, app):
+        db.add(CanvasState(canvas_id=canvas.id, tenant_id="t1", state={"runs": 0}, version=0))
+        db.commit()
+        from core.canvas_logic_service import CanvasLogicService
+        CanvasLogicService(db).save_logic(canvas_id=canvas.id, source="state['x']=1", created_by="u1")
+        envelope = {"state": {"runs": 1}, "storage_ops": [{"op": "put", "key": "k", "data": "hi"}]}
+        fake_result = SimpleNamespace(
+            stdout="", stderr="", exit_code=0, truncated=False,
+            metadata={"state_envelope": envelope},
+        )
+        runtime = MagicMock()
+        runtime.execute_python = AsyncMock(return_value=fake_result)
+        storage = MagicMock()
+        storage.store.return_value = "file:///k"
+        storage.retrieve.return_value = None
+        with patch("core.database.get_db_session", return_value=self._ctx(db)), \
+             patch("core.mini_app_service.get_miniapp_runtime", return_value=runtime), \
+             patch("core.mini_app_storage.get_max_object_bytes", return_value=50 * 1024 * 1024), \
+             patch("core.mini_app_storage.get_mini_app_storage", return_value=storage), \
+             patch("core.mini_app_service._inject_assets", return_value={}), \
+             patch("core.mini_app_service._inject_record_queries", return_value={}), \
+             patch("core.mini_app_service._inject_data_sources", new=AsyncMock(return_value={})), \
+             patch("core.mini_app_service._inject_integration_sources", new=AsyncMock(return_value={})), \
+             patch("core.mini_app_service._broadcast_state", new=AsyncMock()), \
+             patch("core.mini_app_service._broadcast_db", new=AsyncMock()):
+            r = await svc.run_stateful(canvas.id, user_id="u1", persist=True)
+        assert r["success"] is True
+        assert r["state_changed"] is True
+        assert r["version"] == 1
+        st = db.query(CanvasState).filter(CanvasState.canvas_id == canvas.id).one()
+        assert st.state == {"runs": 1}
+        assert db.query(MiniAppAsset).filter(MiniAppAsset.key == "k").count() == 1
+
+    @pytest.mark.asyncio
+    async def test_dry_run_proposes_ops_without_persisting(self, db, canvas, app):
+        db.add(CanvasState(canvas_id=canvas.id, tenant_id="t1", state={"runs": 5}, version=2))
+        db.commit()
+        from core.canvas_logic_service import CanvasLogicService
+        CanvasLogicService(db).save_logic(canvas_id=canvas.id, source="state['x']=1", created_by="u1")
+        envelope = {"state": {"runs": 6}, "storage_ops": [{"op": "put", "key": "kk", "data": "z"}]}
+        fake_result = SimpleNamespace(stdout="", stderr="", exit_code=0, truncated=False,
+                                      metadata={"state_envelope": envelope})
+        runtime = MagicMock()
+        runtime.execute_python = AsyncMock(return_value=fake_result)
+        storage = MagicMock()
+        with patch("core.database.get_db_session", return_value=self._ctx(db)), \
+             patch("core.mini_app_service.get_miniapp_runtime", return_value=runtime), \
+             patch("core.mini_app_storage.get_max_object_bytes", return_value=50 * 1024 * 1024), \
+             patch("core.mini_app_storage.get_mini_app_storage", return_value=storage), \
+             patch("core.mini_app_service._inject_assets", return_value={}), \
+             patch("core.mini_app_service._inject_record_queries", return_value={}), \
+             patch("core.mini_app_service._inject_data_sources", new=AsyncMock(return_value={})), \
+             patch("core.mini_app_service._inject_integration_sources", new=AsyncMock(return_value={})):
+            r = await svc.run_stateful(canvas.id, user_id="u1", persist=False)
+        assert r["success"] is True
+        assert r["version"] == 2
+        assert r["proposed_ops"][0]["proposed"] is True
+        assert db.query(MiniAppAsset).filter(MiniAppAsset.key == "kk").count() == 0
+        st = db.query(CanvasState).filter(CanvasState.canvas_id == canvas.id).one()
+        assert st.state == {"runs": 5}
+
+    @pytest.mark.asyncio
+    async def test_no_logic_returns_error(self, db, canvas, app):
+        with patch("core.database.get_db_session", return_value=self._ctx(db)):
+            r = await svc.run_stateful(canvas.id)
+        assert r["success"] is False
+        assert "No logic" in r["error"]
+
+    @pytest.mark.asyncio
+    async def test_truncated_stdout_without_envelope_fails_loud(self, db, canvas, app):
+        from core.canvas_logic_service import CanvasLogicService
+        CanvasLogicService(db).save_logic(canvas_id=canvas.id, source="state['x']=1", created_by="u1")
+        fake_result = SimpleNamespace(
+            stdout="...__MINIAPP_STATE__:{partial", stderr="", exit_code=0,
+            truncated=True, metadata={},
+        )
+        runtime = MagicMock()
+        runtime.execute_python = AsyncMock(return_value=fake_result)
+        with patch("core.database.get_db_session", return_value=self._ctx(db)), \
+             patch("core.mini_app_service.get_miniapp_runtime", return_value=runtime), \
+             patch("core.mini_app_service._inject_assets", return_value={}), \
+             patch("core.mini_app_service._inject_record_queries", return_value={}), \
+             patch("core.mini_app_service._inject_data_sources", new=AsyncMock(return_value={})), \
+             patch("core.mini_app_service._inject_integration_sources", new=AsyncMock(return_value={})):
+            r = await svc.run_stateful(canvas.id)
+        assert r["success"] is False
+        assert "truncated" in r["error"]
+
+    @pytest.mark.asyncio
+    async def test_runtime_runtime_error_returns_error(self, db, canvas, app):
+        from core.canvas_logic_service import CanvasLogicService
+        CanvasLogicService(db).save_logic(canvas_id=canvas.id, source="state['x']=1", created_by="u1")
+        with patch("core.database.get_db_session", return_value=self._ctx(db)), \
+             patch("core.mini_app_service.get_miniapp_runtime", side_effect=RuntimeError("FC unavailable")), \
+             patch("core.mini_app_service._inject_assets", return_value={}), \
+             patch("core.mini_app_service._inject_record_queries", return_value={}), \
+             patch("core.mini_app_service._inject_data_sources", new=AsyncMock(return_value={})), \
+             patch("core.mini_app_service._inject_integration_sources", new=AsyncMock(return_value={})):
+            r = await svc.run_stateful(canvas.id)
+        assert r["success"] is False
+        assert "FC unavailable" in r["error"]
+
+    @pytest.mark.asyncio
+    async def test_legacy_stdout_envelope_fallback(self, db, canvas, app):
+        from core.canvas_logic_service import CanvasLogicService
+        CanvasLogicService(db).save_logic(canvas_id=canvas.id, source="state['x']=1", created_by="u1")
+        stdout = '__MINIAPP_STATE__:' + '{"state": {"runs": 9}, "storage_ops": []}'
+        fake_result = SimpleNamespace(stdout=stdout, stderr="", exit_code=0, truncated=False, metadata={})
+        runtime = MagicMock()
+        runtime.execute_python = AsyncMock(return_value=fake_result)
+        with patch("core.database.get_db_session", return_value=self._ctx(db)), \
+             patch("core.mini_app_service.get_miniapp_runtime", return_value=runtime), \
+             patch("core.mini_app_storage.get_max_object_bytes", return_value=50 * 1024 * 1024), \
+             patch("core.mini_app_storage.get_mini_app_storage", return_value=MagicMock()), \
+             patch("core.mini_app_service._inject_assets", return_value={}), \
+             patch("core.mini_app_service._inject_record_queries", return_value={}), \
+             patch("core.mini_app_service._inject_data_sources", new=AsyncMock(return_value={})), \
+             patch("core.mini_app_service._inject_integration_sources", new=AsyncMock(return_value={})), \
+             patch("core.mini_app_service._broadcast_state", new=AsyncMock()):
+            r = await svc.run_stateful(canvas.id, user_id="u1")
+        assert r["success"] is True
+        assert r["state"] == {"runs": 9}
+
+    @pytest.mark.asyncio
+    async def test_storage_disabled_rejects_ops(self, db, canvas, app):
+        app.manifest = {"declared_scopes": ["canvas_render"], "storage": {"enabled": False}}
+        db.commit()
+        db.add(CanvasState(canvas_id=canvas.id, tenant_id="t1", state={}, version=1))
+        db.commit()
+        from core.canvas_logic_service import CanvasLogicService
+        CanvasLogicService(db).save_logic(canvas_id=canvas.id, source="state['x']=1", created_by="u1")
+        envelope = {"state": {}, "storage_ops": [{"op": "put", "key": "k", "data": "x"}]}
+        fake_result = SimpleNamespace(stdout="", stderr="", exit_code=0, truncated=False,
+                                      metadata={"state_envelope": envelope})
+        runtime = MagicMock()
+        runtime.execute_python = AsyncMock(return_value=fake_result)
+        with patch("core.database.get_db_session", return_value=self._ctx(db)), \
+             patch("core.mini_app_service.get_miniapp_runtime", return_value=runtime), \
+             patch("core.mini_app_storage.get_max_object_bytes", return_value=50 * 1024 * 1024), \
+             patch("core.mini_app_storage.get_mini_app_storage", return_value=MagicMock()), \
+             patch("core.mini_app_service._inject_assets", return_value={}), \
+             patch("core.mini_app_service._inject_record_queries", return_value={}), \
+             patch("core.mini_app_service._inject_data_sources", new=AsyncMock(return_value={})), \
+             patch("core.mini_app_service._inject_integration_sources", new=AsyncMock(return_value={})), \
+             patch("core.mini_app_service._broadcast_state", new=AsyncMock()):
+            r = await svc.run_stateful(canvas.id, user_id="u1")
+        assert r["success"] is True
+        assert r["op_results"][0]["ok"] is False
+        assert r["op_results"][0]["error"] == "storage_disabled"
+        assert db.query(MiniAppAsset).filter(MiniAppAsset.key == "k").count() == 0
+
+
+# ===========================================================================
+# run_tests — acceptance-test harness
+# ===========================================================================
+class TestRunTests:
+    @pytest.mark.asyncio
+    async def test_passing_case(self, db, canvas, app):
+        cases = [{"name": "ok", "initial_state": {}, "expect_state": {"x": 1}}]
+        with patch("core.mini_app_service.run_stateful", new=AsyncMock(
+            return_value={"success": True, "state": {"x": 1}, "proposed_ops": [], "stdout": ""}
+        )):
+            result = await svc.run_tests(app.id, canvas.id, cases)
+        assert result["passed"] == 1 and result["total"] == 1
+        assert result["results"][0]["passed"] is True
+
+    @pytest.mark.asyncio
+    async def test_state_diff_reported(self, db, canvas, app):
+        cases = [{"name": "diff", "initial_state": {}, "expect_state": {"x": 1, "y": 2}}]
+        with patch("core.mini_app_service.run_stateful", new=AsyncMock(
+            return_value={"success": True, "state": {"x": 1}, "proposed_ops": [], "stdout": ""}
+        )):
+            result = await svc.run_tests(app.id, canvas.id, cases)
+        assert result["passed"] == 0
+        assert "y" in result["results"][0]["diff"]
+
+    @pytest.mark.asyncio
+    async def test_ops_subset_match(self, db, canvas, app):
+        cases = [{"name": "ops", "expect_ops": [{"op": "put", "key": "k"}]}]
+        with patch("core.mini_app_service.run_stateful", new=AsyncMock(
+            return_value={"success": True, "state": {},
+                          "proposed_ops": [{"op": "put", "key": "k"}], "stdout": ""}
+        )):
+            result = await svc.run_tests(app.id, canvas.id, cases)
+        assert result["passed"] == 1
+
+    @pytest.mark.asyncio
+    async def test_run_failure_reported(self, db, canvas, app):
+        cases = [{"name": "fail", "expect_state": {}}]
+        with patch("core.mini_app_service.run_stateful", new=AsyncMock(
+            return_value={"success": False, "error": "boom"}
+        )):
+            result = await svc.run_tests(app.id, canvas.id, cases)
+        assert result["passed"] == 0
+        assert result["results"][0]["error"] == "boom"
+
+    @pytest.mark.asyncio
+    async def test_run_exception_reported(self, db, canvas, app):
+        cases = [{"name": "exc", "expect_state": {}}]
+        with patch("core.mini_app_service.run_stateful", new=AsyncMock(side_effect=RuntimeError("boom"))):
+            result = await svc.run_tests(app.id, canvas.id, cases)
+        assert result["passed"] == 0
+        assert result["results"][0]["error"] == "test run raised"
+
+    @pytest.mark.asyncio
+    async def test_case_without_name_gets_default(self, db, canvas, app):
+        cases = [{"expect_state": {}}]
+        with patch("core.mini_app_service.run_stateful", new=AsyncMock(
+            return_value={"success": True, "state": {}, "proposed_ops": [], "stdout": ""}
+        )):
+            result = await svc.run_tests(app.id, canvas.id, cases)
+        assert result["results"][0]["name"] == "case-0"
 
 
 # ===========================================================================

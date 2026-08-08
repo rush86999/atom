@@ -132,16 +132,33 @@ class ChatService {
 
       return response;
     } catch (error: any) {
-      // Queue message for offline send
-      const pendingMessage: PendingMessage = {
-        id: `pending_${Date.now()}`,
-        agent_id: agentId,
-        message,
-        session_id: sessionId,
-        attachments,
-        timestamp: new Date().toISOString(),
-        retry_count: 0,
-      };
+      // Queue message for offline send. Dedupe by content: repeated failures
+      // for the same message must bump retry_count on the existing entry, not
+      // spawn an unbounded chain of pending entries (which previously made
+      // syncPendingMessages unable to ever converge).
+      const existing = Array.from(this.pendingMessages.values()).find(
+        (msg) =>
+          msg.agent_id === agentId &&
+          msg.message === message &&
+          msg.session_id === sessionId
+      );
+
+      let pendingMessage: PendingMessage;
+      if (existing) {
+        existing.retry_count += 1;
+        existing.timestamp = new Date().toISOString();
+        pendingMessage = existing;
+      } else {
+        pendingMessage = {
+          id: `pending_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+          agent_id: agentId,
+          message,
+          session_id: sessionId,
+          attachments,
+          timestamp: new Date().toISOString(),
+          retry_count: 0,
+        };
+      }
 
       this.pendingMessages.set(pendingMessage.id, pendingMessage);
       await this.savePendingMessages();
@@ -153,7 +170,7 @@ class ChatService {
       await offlineSyncService.queueAction(
         'agent_message' as OfflineActionType,
         pendingMessage,
-        7, // High priority
+        'high',
         userId,
         deviceId,
         'last_write_wins'
@@ -385,11 +402,12 @@ class ChatService {
         if (response.success) {
           this.pendingMessages.delete(message.id);
         } else {
-          // Move to failed after 3 retries
-          message.retry_count += 1;
-          if (message.retry_count >= 3) {
+          // sendMessage's dedupe bumps retry_count on the queued entry, so
+          // read it back to decide whether it graduates to the failed queue.
+          const queued = this.pendingMessages.get(message.id);
+          if (queued && queued.retry_count >= 3) {
             this.pendingMessages.delete(message.id);
-            this.failedMessages.set(message.id, message);
+            this.failedMessages.set(message.id, queued);
           }
         }
       } catch (error) {

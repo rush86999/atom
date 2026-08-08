@@ -99,7 +99,9 @@ export class CanvasService {
         });
       }
 
-      return { data: cached, fromCache: true };
+      // Return the underlying canvas data — not the cache envelope — so the
+      // cached path is payload-compatible with the network path.
+      return { data: cached.data, fromCache: true };
     }
 
     // If offline and no cache, throw
@@ -367,8 +369,8 @@ export class CanvasService {
         this.cacheStats.oldestCache = Date.now();
       }
     } else {
-      this.cacheStats.totalSize -= size;
-      this.cacheStats.canvasCount -= 1;
+      this.cacheStats.totalSize = Math.max(0, this.cacheStats.totalSize - size);
+      this.cacheStats.canvasCount = Math.max(0, this.cacheStats.canvasCount - 1);
     }
   }
 }

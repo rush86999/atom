@@ -57,6 +57,10 @@ try:
     )
 except ImportError as e:
     logging.warning(f"Enterprise unified services not available: {e}")
+    try:
+        from integrations.atom_enterprise_security_service import atom_enterprise_security_service
+    except ImportError:
+        atom_enterprise_security_service = None
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -497,7 +501,7 @@ class AtomEnterpriseUnifiedService:
                 'description': automation_data['description'],
                 'service_type': EnterpriseServiceType.SECURITY.value,
                 'security_level': WorkflowSecurityLevel.RESTRICTED.value,
-                'compliance_standards': ['SOC2', 'ISO27001', 'NIST'],
+                'compliance_standards': ['SOC2', 'ISO27001', 'nist'],
                 'triggers': automation_data.get('triggers', []),
                 'steps': [
                     {
@@ -887,7 +891,8 @@ class AtomEnterpriseUnifiedService:
                     continue
                 if filters.get('security_level') and workflow.security_level.value != filters['security_level']:
                     continue
-                if filters.get('compliance_standard') and filters['compliance_standard'] not in [s.value for s in workflow.compliance_standards]:
+                standard_filter = filters.get('compliance_standard')
+                if standard_filter and str(standard_filter).lower() not in [s.value for s in workflow.compliance_standards]:
                     continue
                 
                 # Add enterprise details
@@ -1433,6 +1438,7 @@ class AtomEnterpriseUnifiedService:
                 'resource': resource,
                 'action': action,
                 'result': result,
+                'ip_address': 'enterprise_system',
                 'metadata': metadata or {}
             })
     

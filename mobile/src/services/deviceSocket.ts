@@ -67,6 +67,8 @@ class DeviceSocketService {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000; // Start with 1 second
   private heartbeatInterval: NodeJS.Timeout | null = null;
+  private pendingResults: ResultMessage[] = [];
+  private pendingResultsMax = 50;
 
   // Event handlers
   private commandHandlers: Map<string, (command: CommandMessage) => Promise<ResultMessage>> = new Map();
@@ -181,12 +183,17 @@ class DeviceSocketService {
       }
     });
 
-    this.socket.on('message', async (message: any) => {
-      await this.handleMessage(message);
+    this.socket.on('message', (message: any) => {
+      this.handleMessage(message).catch((error) => {
+        console.error('[DeviceSocket] Failed to handle message:', error);
+      });
     });
 
     this.socket.on('registered', (data: any) => {
       console.log('[DeviceSocket] Device registered:', data.device_node_id);
+
+      // Flush any results queued while the connection was down
+      this.flushPendingResults();
 
       // Start heartbeat
       this.startHeartbeat();
@@ -249,6 +256,11 @@ class DeviceSocketService {
    * Handle incoming message from server
    */
   private async handleMessage(message: any): Promise<void> {
+    if (!message || typeof message !== 'object' || !message.type) {
+      console.warn('[DeviceSocket] Received malformed message:', message);
+      return;
+    }
+
     const msgType = message.type;
 
     switch (msgType) {
@@ -531,12 +543,32 @@ class DeviceSocketService {
    */
   private sendResult(result: ResultMessage): void {
     if (!this.socket || !this.isConnected) {
-      console.error('[DeviceSocket] Cannot send result: not connected');
+      // Queue the result and flush it once the connection is re-established —
+      // dropping it would silently lose the outcome of an executed command.
+      this.pendingResults.push(result);
+      if (this.pendingResults.length > this.pendingResultsMax) {
+        this.pendingResults.shift();
+      }
+      console.warn('[DeviceSocket] Result queued (not connected):', result.command_id);
       return;
     }
 
     this.socket.emit('message', result);
     console.log('[DeviceSocket] Sent result for command:', result.command_id);
+  }
+
+  /**
+   * Flush results queued while the connection was down
+   */
+  private flushPendingResults(): void {
+    if (!this.socket || !this.isConnected) return;
+
+    while (this.pendingResults.length > 0) {
+      const result = this.pendingResults.shift();
+      if (result) {
+        this.socket.emit('message', result);
+      }
+    }
   }
 
   /**
