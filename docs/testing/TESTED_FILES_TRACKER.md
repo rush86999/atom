@@ -281,6 +281,18 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | 2026-08-07 | 5-file cross-suite batch | GREEN | **232 passed / 0 failed** (pollution repro fixed) |
 | 2026-08-07 | Backend chunked coverage (unit+api+core so far) | MEASURED | **32.8%** (was 30.0% same scope; suite fixes compounding; full number pending clean single-owner run) |
 
+### Resolved 2026-08-07 (R85 wave — pushed `983cb9b67` + `574a5575c`)
+| Date | File(s) | Status | Result |
+|---|---|---|---|
+| 2026-08-07 | `core/auth_endpoints.py` | FIXED | forgot/verify/reset-password 500'd for EVERY real user (token_hash/is_used vs rewritten PasswordResetToken model); aligned, SHA-256 at rest preserved |
+| 2026-08-07 | `api/episode_routes.py` | FIXED | list_episodes + feedback/submit 500'd (title→task_description ×4; AgentFeedback ctor missing original_output/tenant_id); **documented gap**: AgentEpisode lacks user-ownership column (feedback accepts any authenticated user) |
+| 2026-08-07 | `core/debug_storage.py` | FIXED | missing defaultdict import (NameError); naive-vs-aware datetime (cleanup never ran); stale column refs → snapshot_metadata |
+| 2026-08-07 | `core/logging_config.py` | FIXED | ContextVar `.get()` LookupError on every unbound log line → `.get('')` |
+| 2026-08-07 | `core/hybrid_retrieval_service.py` | FIXED | `.summary or .content` → `.task_description` |
+| 2026-08-07 | `api/admin/skill_routes.py` | FIXED | shadowed StaticAnalyzer import defeated patching + real analyzer |
+| 2026-08-07 | 19 test suites (security/accounting/analytics/supervision/marketplace/oauth/config/debug) | FIXED | ~670 tests green; security verdicts SECURE (no gates fail open); auth suites leak LOG_LEVEL → config test now pins env (cross-suite pollution class) |
+| 2026-08-07 | Combined verification | GREEN | **530/531** then 96/96 after env-pin fix |
+
 ## Known remaining work (verified at last run — updated 2026-08-07)
 - `core/models.py` `OAuthToken` — server-side model; verify `api/oauth` routes don't use stale columns (Notion/Spotify moved to IntegrationToken; sweep remaining writers)
 - `tests/test_cognitive_tier_e2e.py` — 11 collection ERRORS remain after the survey-sweep alignment (23 pass / 11 error; the stale `CognitiveTierPreference` kwargs were fixed but 11 tests still fail at setup — next target)
