@@ -37,7 +37,8 @@ def test_objective_predicate_error_is_safe():
 # objective_from_context — flag gating
 # ---------------------------------------------------------------------------
 def test_no_objective_when_flag_off(monkeypatch):
-    monkeypatch.delenv("ATOM_OBJECTIVE_LOOP_ENABLED", raising=False)
+    # Flag now defaults ON; test the explicit-off kill path.
+    monkeypatch.setenv("ATOM_OBJECTIVE_LOOP_ENABLED", "false")
     assert objective_loop_enabled() is False
     assert objective_from_context({"objective_goal": "x", "objective_done": lambda s: True}) is None
 

@@ -160,6 +160,26 @@ Set **at least one** cloud key, OR set `ATOM_LOCAL_ONLY=true` for Ollama.
 
 ---
 
+## 6b. Multi-Agent Coordination (AgentRadio)
+
+See [`docs/architecture/AGENT_RADIO.md`](../architecture/AGENT_RADIO.md).
+
+Lateral (peer-to-peer) coordination layer. Additive and ON by default; a
+fixed multi-agent team is **never** the default — threads auto-attach to fleet
+runs only when a task crosses a responsibility breakpoint. Setting the master
+switch to `false` restores pre-radio behavior on every path.
+
+| Variable | Default | Required? | Description |
+|----------|---------|-----------|-------------|
+| `ATOM_RADIO_ENABLED` | `true` | — | Master kill switch for the lateral messaging layer. `false` disables the 3 `radio.*` actions and the passive inbox drain (graceful `success:false` / no-op). |
+| `ATOM_RADIO_TEAM_BUDGET_USD` | `0.20` | — | Per-thread cumulative message-cost ceiling. When exhausted, `radio.send_message` returns `budget_exceeded`. |
+| `ATOM_RADIO_INBOX_CAP` | `10` | — | Max pending mentions surfaced to an agent per inbox drain (attention cap). |
+| `ATOM_RADIO_BACKLOG_TTL_MIN` | `30` | — | Messages older than this are treated as stale and dropped from the drain. |
+| `ATOM_RADIO_WAIT_TIMEOUT_SECONDS` | `30` | — | Hard cap on agent-initiated `wait_for_mention` (never system-imposed; agents keep working by default). |
+| `ATOM_RADIO_BREAKPOINT_GATE` | `true` | — | When `true`, a lateral thread is auto-attached to a recruited fleet ONLY for responsibility-breakpoint tasks. `false` disables auto-attachment entirely. |
+
+---
+
 ## 7. Per-Turn Fact Extraction (Hermes-style memory)
 
 See [`docs/architecture/CONTEXT_MEMORY.md`](../architecture/CONTEXT_MEMORY.md).
@@ -183,6 +203,11 @@ ActionJudge stays opt-in (`ATOM_SANDBOX_JUDGE_ENABLED`). Flags live in
 
 | Variable | Default | Required? | Description |
 |----------|---------|-----------|-------------|
+| `ATOM_KNOWLEDGE_VFS_ENABLED` | `true` | — | Agent-native knowledge VFS: `documents.ls`/`cat`/`grep` with line-numbered content (W1). `false` = legacy ILIKE-only `documents.search`. |
+| `ATOM_ORACLE_VERIFIER_ENABLED` | `true` | — | Postcondition oracle: independently re-derives success against the system of record (W2). The oracle audits alongside self-report; set the force-enforce companion to override. |
+| `ATOM_OBJECTIVE_LOOP_ENABLED` | `true` | — | Goal-driven ReAct loop: terminate early when an Objective's `definition_of_done` is satisfied (W5). `false` = `max_steps` bound only. |
+| `ATOM_FLEET_ROUTING_ENABLED` | `false` | — | Route TASK intents through the governed fleet path (`route_with_governance` → `FleetAdmiral`). Default OFF — live-traffic behavior change; flip on after validation. |
+| `ATOM_FLEET_ROUTING_FORCE_ENFORCE` | `false` | — | Shadow mode for fleet routing: when on, return the recruitment summary; when off (default), compute telemetry but fall through to Queen→ReAct. |
 | `ATOM_MOA_ENABLED` | `true` | — | Mixture-of-Agents on hard structured tasks (Workstream F). |
 | `ATOM_MOA_SAMPLES` | `3` | — | Samples drawn per MoA vote (min 2). |
 | `ATOM_PARALLEL_TOOLS` | `true` | — | In-loop parallel tool execution (Workstream G). |

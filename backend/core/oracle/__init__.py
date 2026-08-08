@@ -7,9 +7,9 @@ never grade its own work (Postcept principle). This module re-derives
 success against the **system of record** (DB read-back, status endpoint),
 independently of the tool's claim.
 
-Behind ``ATOM_ORACLE_VERIFIER_ENABLED`` (default false → shadow: checks
-computed + audited but the existing ``verified`` flag still comes from
-self-report until enforced).
+Behind ``ATOM_ORACLE_VERIFIER_ENABLED`` (default true — the checks run).
+Whether the oracle *overrides* self-report vs only audits alongside it is
+governed by the separate force-enforce companion (default false = audit only).
 """
 from __future__ import annotations
 
@@ -29,8 +29,8 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 def oracle_verifier_enabled() -> bool:
-    """Master switch for postcondition oracle verification. Default False (shadow)."""
-    return _env_bool("ATOM_ORACLE_VERIFIER_ENABLED", False)
+    """Master switch for postcondition oracle verification. Default True."""
+    return _env_bool("ATOM_ORACLE_VERIFIER_ENABLED", True)
 
 
 @dataclass(frozen=True)
@@ -81,3 +81,22 @@ async def validate(action: str, context: Optional[Dict[str, Any]] = None) -> Opt
             action=action, verified=False,
             evidence=f"oracle check errored: {e}", claim_verified=None,
         )
+
+
+async def verify_before_retry(action: str, context: Optional[Dict[str, Any]] = None) -> bool:
+    """arXiv 2608.02645 (P3b): on an ambiguous timeout, verify BEFORE retrying.
+
+    Returns True when the postcondition is already met (the effect landed
+    despite the timeout) — the caller must NOT retry, or it would duplicate
+    the side effect. Returns False when verification is disabled, the action
+    has no verifier (not in the high-risk mutating set), or the postcondition
+    is genuinely unmet (retry is still correct).
+
+    The flag-gated path is used because in shadow mode (default) the oracle
+    is advisory; the ``ATOM_ORACLE_VERIFIER_ENABLED`` kill switch turns the
+    check on end-to-end.
+    """
+    if not oracle_verifier_enabled():
+        return False
+    result = await validate(action, context)
+    return result is not None and result.verified

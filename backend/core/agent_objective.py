@@ -5,8 +5,8 @@ Converts ``GenericAgent``'s ``while current_step < max_steps`` from a
 step-counter into a goal-driven loop: agents decide when they're done
 against a ``definition_of_done`` predicate, not just by exhausting a budget.
 
-Behind ``ATOM_OBJECTIVE_LOOP_ENABLED`` (default false). Kill-switch parity:
-flag off → the loop uses the original ``max_steps`` bound exactly.
+Behind ``ATOM_OBJECTIVE_LOOP_ENABLED`` (default true). Kill-switch:
+set ``false`` → the loop uses the original ``max_steps`` bound exactly.
 """
 from __future__ import annotations
 
@@ -23,8 +23,8 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 def objective_loop_enabled() -> bool:
-    """Master switch for the goal-driven loop. Default False (max_steps bound)."""
-    return _env_bool("ATOM_OBJECTIVE_LOOP_ENABLED", False)
+    """Master switch for the goal-driven loop. Default True."""
+    return _env_bool("ATOM_OBJECTIVE_LOOP_ENABLED", True)
 
 
 @dataclass
