@@ -291,6 +291,124 @@ async def _documents_search(args: Dict[str, Any], context: Dict[str, Any]) -> Di
 async def _canvas_read(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.canvas_crud_tool import read_canvas
 
+
+# ============================================================================
+# P2c (W1): Agent-native knowledge VFS actions (ls/cat/grep).
+# Behind ATOM_KNOWLEDGE_VFS_ENABLED (default false). Kill-switch: returns a
+# disabled note when off, never raises.
+# ============================================================================
+
+_DOCUMENTS_LS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "path": {"type": "string", "description": "VFS path to list (e.g. 'knowledge/documents')"},
+    },
+    "required": ["path"],
+}
+
+_DOCUMENTS_CAT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "path": {"type": "string", "description": "VFS leaf path (e.g. 'knowledge/documents/<id>/content.lines')"},
+    },
+    "required": ["path"],
+}
+
+_DOCUMENTS_GREP_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "pattern": {"type": "string", "description": "Regex pattern to search for"},
+        "path_prefix": {"type": "string", "description": "VFS directory to search under (e.g. 'knowledge/documents')"},
+    },
+    "required": ["pattern", "path_prefix"],
+}
+
+
+def _vfs_disabled():
+    return {
+        "success": False, "error": "vfs_disabled",
+        "message": "Knowledge VFS is disabled (ATOM_KNOWLEDGE_VFS_ENABLED=false).",
+    }
+
+
+def _vfs_context(context: Dict[str, Any]) -> Dict[str, Any]:
+    """Build the VFS context (workspace scoping) from the action context."""
+    return {
+        "workspace_id": (context.get("user") and context["user"].__dict__.get("workspace_id"))
+        or context.get("workspace_id"),
+        "user_id": context.get("user_id"),
+    }
+
+
+def _ensure_vfs_registered():
+    """Lazily register the knowledge VFS provider (idempotent)."""
+    from core.vfs_registry import get_provider
+    if get_provider("knowledge") is None:
+        try:
+            from integrations.vfs.knowledge_vfs import KnowledgeVFSProvider
+            from core.vfs_registry import register_provider
+            register_provider(KnowledgeVFSProvider())
+        except Exception:
+            pass  # provider optional; actions degrade to empty results
+
+
+@register_action(
+    "documents.ls",
+    description="List children of a VFS path (line-numbered, greppable document tree).",
+    parameters_schema=_DOCUMENTS_LS_SCHEMA,
+)
+async def _documents_ls(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.knowledge_vfs_config import knowledge_vfs_enabled
+    if not knowledge_vfs_enabled():
+        return _vfs_disabled()
+    _ensure_vfs_registered()
+    from core.vfs_registry import resolve_provider
+    path = (args.get("path") or "").strip()
+    provider = resolve_provider(path)
+    if provider is None:
+        return {"success": False, "error": "no_provider", "message": f"No VFS provider for path '{path}'"}
+    nodes = await provider.ls(path, _vfs_context(context))
+    return {"success": True, "path": path, "entries": [n.__dict__ for n in nodes]}
+
+
+@register_action(
+    "documents.cat",
+    description="Read a VFS leaf as line-numbered content (L<n>: <text>) for precise citation.",
+    parameters_schema=_DOCUMENTS_CAT_SCHEMA,
+)
+async def _documents_cat(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.knowledge_vfs_config import knowledge_vfs_enabled
+    if not knowledge_vfs_enabled():
+        return _vfs_disabled()
+    _ensure_vfs_registered()
+    from core.vfs_registry import resolve_provider
+    path = (args.get("path") or "").strip()
+    provider = resolve_provider(path)
+    if provider is None:
+        return {"success": False, "error": "no_provider", "message": f"No VFS provider for path '{path}'"}
+    res = await provider.cat(path, _vfs_context(context))
+    return {"success": True, **res.to_dict()}
+
+
+@register_action(
+    "documents.grep",
+    description="Regex search across VFS content; returns [{path, line, snippet}] citations.",
+    parameters_schema=_DOCUMENTS_GREP_SCHEMA,
+)
+async def _documents_grep(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.knowledge_vfs_config import knowledge_vfs_enabled
+    if not knowledge_vfs_enabled():
+        return _vfs_disabled()
+    _ensure_vfs_registered()
+    from core.vfs_registry import resolve_provider
+    pattern = (args.get("pattern") or "").strip()
+    prefix = (args.get("path_prefix") or "").strip()
+    provider = resolve_provider(prefix)
+    if provider is None:
+        return {"success": False, "error": "no_provider", "message": f"No VFS provider for prefix '{prefix}'"}
+    citations = await provider.grep(pattern, prefix, _vfs_context(context))
+    return {"success": True, "pattern": pattern, "matches": [c.to_dict() for c in citations]}
+
     canvas_id = args.get("canvas_id")
     if not canvas_id:
         return {"success": False, "error": "canvas_id is required"}
@@ -776,3 +894,4 @@ async def _mini_app_db_write(args: Dict[str, Any], context: Dict[str, Any]) -> D
     from tools.mini_app_tool import mini_app_db_write
 
     return await mini_app_db_write(args, context)
+
