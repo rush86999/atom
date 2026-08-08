@@ -149,6 +149,14 @@ class GenericAgent:
                     _is_parallel_tools_enabled = lambda: False
                 _parallel_tools_enabled = _is_parallel_tools_enabled()
 
+                # P5 (W5): goal-driven loop. When an Objective is supplied AND
+                # ATOM_OBJECTIVE_LOOP_ENABLED is on, the loop terminates as soon
+                # as the objective's definition_of_done is satisfied — instead of
+                # always burning to max_steps. Flag off → objective is None and
+                # the loop behaves exactly as before (kill-switch parity).
+                from core.agent_objective import objective_from_context
+                _objective = objective_from_context(context or {})
+
                 while current_step < max_steps:
                     current_step += 1
 
@@ -355,6 +363,20 @@ class GenericAgent:
                             status = "max_steps_exceeded"
                             
                     steps.append(step_record)
+
+                    # P5 (W5): objective termination — if the goal's
+                    # definition_of_done is satisfied, stop early instead of
+                    # burning the remaining step budget.
+                    if _objective is not None and _objective.is_satisfied({
+                        "final_answer": final_answer,
+                        "steps": steps,
+                        "execution_history": execution_history,
+                        "current_step": current_step,
+                    }):
+                        if not final_answer:
+                            final_answer = thought or "Objective satisfied."
+                        status = "objective_satisfied"
+                        break
 
             # Wait for execution with timeout
             await asyncio.wait_for(run_loop(), timeout=timeout_seconds)
