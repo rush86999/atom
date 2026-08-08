@@ -305,11 +305,17 @@ class CacheAwareRouter:
         """
         if workspace_id:
             prefix = f"{workspace_id}:"
-            return {
+            selected = {
                 k: v for k, v in self.cache_hit_history.items()
                 if k.startswith(prefix)
             }
-        return self.cache_hit_history.copy()
+        else:
+            selected = self.cache_hit_history
+        # Defensive copy: copy BOTH the dict and each [hits, total] list so a
+        # caller mutating the returned analytics view cannot corrupt the
+        # router's internal state (predict_cache_hit_probability reads these
+        # same lists). The previous shallow `.copy()` shared inner list refs.
+        return {k: list(v) for k, v in selected.items()}
 
     def clear_cache_history(self, workspace_id: Optional[str] = None):
         """
@@ -323,7 +329,16 @@ class CacheAwareRouter:
             keys_to_delete = [k for k in self.cache_hit_history if k.startswith(prefix)]
             for key in keys_to_delete:
                 del self.cache_hit_history[key]
+            # Keep the FIFO tracker consistent: drop the cleared keys from the
+            # insertion-order list too. Previously they were left behind,
+            # breaking the _MAX_CACHE_KEYS bound and leaving stale entries that
+            # defeated the eviction invariant (`_cache_key_order` must mirror
+            # live history keys).
+            self._cache_key_order = [
+                k for k in self._cache_key_order if k not in set(keys_to_delete)
+            ]
         else:
             self.cache_hit_history.clear()
+            self._cache_key_order.clear()
 
         logger.info(f"Cleared cache hit history for workspace: {workspace_id or 'all'}")

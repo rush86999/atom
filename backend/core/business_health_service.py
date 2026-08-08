@@ -242,7 +242,19 @@ class BusinessHealthService:
         Types: 'HIRING', 'CAPEX', 'MARKETING_SPEND'
         """
         prompt = f"Simulate a {decision_type} decision with these details: {json.dumps(data)} for a business in workspace {workspace_id}. Predict cash flow impact and ROI over 6 months."
-        
+
+        # Guard the optional AI integration: when integrations.ai_enhanced_service
+        # failed to import, ai_enhanced_service (and the AIRequest/AITaskType/
+        # AIModelType/AIServiceType symbols) are None. Constructing AIRequest or
+        # reading AITaskType.PREDICTIVE_ANALYTICS would raise before the try/except,
+        # crashing the call. Mirror get_daily_priorities' `if ai_enhanced_service:`
+        # guard and degrade gracefully. Sibling method already follows this pattern.
+        if not ai_enhanced_service:
+            return {
+                "error": "AI simulation service unavailable.",
+                "prediction": "Simulation failed. Please try again later.",
+            }
+
         request = AIRequest(
             request_id=f"sim_{datetime.now().timestamp()}",
             task_type=AITaskType.PREDICTIVE_ANALYTICS, # Fix: DATA_EXTRACTION -> PREDICTIVE_ANALYTICS
@@ -250,7 +262,7 @@ class BusinessHealthService:
             service_type=AIServiceType.OPENAI,
             input_data=prompt
         )
-        
+
         try:
             response = await ai_enhanced_service.process_ai_request(request)
             return response.output_data
