@@ -48,10 +48,16 @@ class TokenRefresher:
         
         if not expires_at:
             return False
-        
-        # Refresh if expiring within buffer_minutes
-        # #8 fix: was datetime.now() (naive) compared against tz-aware expires_at
-        # from OAuth providers → TypeError. Now uses timezone-aware UTC.
+
+        # Refresh if expiring within buffer_minutes.
+        # The comparison uses tz-aware UTC, but the built-in refresh handlers
+        # (refresh_google_token / _microsoft / _salesforce / _whatsapp) all
+        # store a *naive* datetime.now() in expires_at. Without normalization
+        # the very first refresh would make every subsequent should_refresh /
+        # get_status / check_and_refresh_all raise TypeError and silently kill
+        # auto-refresh for that service forever. Coerce naive -> aware UTC.
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
         return datetime.now(timezone.utc) + timedelta(minutes=buffer_minutes) >= expires_at
     
     async def refresh_token(self, service_name: str) -> bool:

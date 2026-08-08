@@ -91,18 +91,32 @@ class BudgetGuardrailService:
         return float(tx_burn or 0.0) + float(bill_burn or 0.0)
 
     def _update_status(self, project: Project):
-        """Updates Project.budget_status based on burn thresholds."""
+        """Updates Project.budget_status based on burn thresholds.
+
+        Honors the per-project configurable thresholds
+        (``warn_threshold_pct`` / ``block_threshold_pct``) declared on the
+        Project model. Previously these columns were silently ignored and the
+        thresholds were hard-coded to 80% / 100%, which let a project
+        configured to block at, say, 70% keep reporting ``on_track`` well
+        past its configured block threshold (an enforcement bypass).
+        """
         if not project.budget_amount or project.budget_amount == 0:
             project.budget_status = BudgetStatus.ON_TRACK
             return
 
         ratio = project.actual_burn / project.budget_amount
-        
-        if ratio >= 1.0:
+
+        # Per-project thresholds (model defaults: warn=80, block=100).
+        block_pct = getattr(project, "block_threshold_pct", None)
+        warn_pct = getattr(project, "warn_threshold_pct", None)
+        block_threshold = (float(block_pct) / 100.0) if block_pct else 1.0
+        warn_threshold = (float(warn_pct) / 100.0) if warn_pct else 0.8
+
+        if ratio >= block_threshold:
             project.budget_status = BudgetStatus.OVER_BUDGET
-        elif ratio >= 0.8:
+        elif ratio >= warn_threshold:
             project.budget_status = BudgetStatus.AT_RISK
         else:
             project.budget_status = BudgetStatus.ON_TRACK
-        
+
         logger.info(f"Project {project.id} status updated to {project.budget_status.value} (Ratio: {ratio:.2f})")
