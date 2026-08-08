@@ -57,13 +57,22 @@ MATCH_CONFIDENCE_FORCE_PROPOSAL = (
 
 
 # ===========================================================================
-# Tri-state discriminator values (mirror tool_outcome_verifier.py:33-35)
+# Confidence tiers (P3c/W2: two-tier — internal self-assessment vs external oracle)
 # ===========================================================================
+# Internal — model/tool self-assessment (cheap, gameable).
 HIGH = "high"
 PARTIAL = "partial"
 AMBIGUOUS = "ambiguous"
+# External — independent re-derivation by the oracle (expensive, trustworthy).
+EXTERNAL_VERIFIED = "external_verified"
+EXTERNAL_REFUTED = "external_refuted"
+# Bridge state — internal says plausible, but needs the oracle before auto-proceed.
+NEEDS_EXTERNAL_VALIDATION = "needs_external_validation"
 
-_VALID_LEVELS = {HIGH, PARTIAL, AMBIGUOUS}
+_VALID_LEVELS = {
+    HIGH, PARTIAL, AMBIGUOUS,
+    EXTERNAL_VERIFIED, EXTERNAL_REFUTED, NEEDS_EXTERNAL_VALIDATION,
+}
 
 
 class MatchLevel:
@@ -124,6 +133,11 @@ class MatchConfidence:
     rationale: str
     candidates: List[SelectorCandidate] = field(default_factory=list)
     chosen_index: int = -1
+    # P3c/W2: two-tier provenance. ``score`` is the internal self-assessment;
+    # ``external_score`` is set ONLY by the oracle (independent re-derivation).
+    provenance: str = "internal"  # "internal" | "external" | "self_report" | "oracle"
+    external_score: Optional[float] = None
+    external_evidence: Optional[str] = None
 
     @property
     def is_high(self) -> bool:
@@ -132,6 +146,20 @@ class MatchConfidence:
     @property
     def requires_review(self) -> bool:
         return self.level in {PARTIAL, AMBIGUOUS}
+
+    @property
+    def is_credible(self) -> bool:
+        """The Stanford credibility gate: trustworthy ONLY if externally verified.
+
+        ``INTERNAL_HIGH`` is NOT credible — internal debate dressed up as
+        credibility is the anti-pattern (the attach_tiebreak promotion).
+        """
+        return self.level == EXTERNAL_VERIFIED
+
+    @property
+    def needs_external_validation(self) -> bool:
+        """Internal self-assessment that must clear the oracle before auto-proceed."""
+        return self.level in {HIGH, PARTIAL} and self.provenance == "internal"
 
     def to_dict(self) -> Dict[str, Any]:
         """Serializable view — used in tool_result dicts + audit metadata."""
@@ -190,6 +218,16 @@ def score_candidates(candidates: List[SelectorCandidate]) -> MatchConfidence:
     rationale_parts: List[str] = []
     score = 1.0
 
+    # A candidate that matched zero DOM nodes is never a confident resolution.
+    if primary.match_count <= 0:
+        return MatchConfidence(
+            level=AMBIGUOUS,
+            score=0.0,
+            rationale="0 matches within timeout",
+            candidates=list(candidates),
+            chosen_index=-1,
+        )
+
     # Multiplicity penalty
     extra = max(0, primary.match_count - 1)
     if extra > 0:
@@ -234,12 +272,16 @@ def coerce_match_level_for_storage(value: Optional[str]) -> str:
     """
     Coerce an arbitrary value into a valid stored level.
 
-    Defaults to PARTIAL on any invalid input — the safe middle state that
-    surfaces the row to reviewers without forcing a hard block.
+    P3c (RN3): defaults to ``AMBIGUOUS`` (route-to-human) on invalid input,
+    NOT ``PARTIAL``. ``PARTIAL`` is an internal band that can trigger the
+    LLM tiebreak cost on noise; ``AMBIGUOUS`` surfaces to reviewers without
+    auto-proceeding — the genuinely safe default. The new external tiers
+    (external_verified/refuted, needs_external_validation) are now valid and
+    pass through unchanged.
     """
     if value in _VALID_LEVELS:
         return value
-    return PARTIAL
+    return AMBIGUOUS
 
 
 # ===========================================================================

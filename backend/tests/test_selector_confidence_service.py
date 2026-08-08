@@ -141,11 +141,16 @@ class TestThresholds:
 # coerce_match_level_for_storage
 # ===========================================================================
 class TestCoerceForStorage:
-    def test_coerce_match_level_for_storage_invalid_defaults_to_partial(self):
-        """Garbage input → PARTIAL (the safe middle state that surfaces to reviewers)."""
-        assert coerce_match_level_for_storage("nonsense") == PARTIAL
-        assert coerce_match_level_for_storage(None) == PARTIAL
-        assert coerce_match_level_for_storage("") == PARTIAL
+    def test_coerce_match_level_for_storage_invalid_defaults_to_ambiguous(self):
+        """P3c (RN3): garbage input → AMBIGUOUS (route-to-human), not PARTIAL.
+
+        PARTIAL is an internal band that can trigger LLM tiebreak cost on
+        noise; AMBIGUOUS surfaces to reviewers without auto-proceeding — the
+        genuinely safe default.
+        """
+        assert coerce_match_level_for_storage("nonsense") == AMBIGUOUS
+        assert coerce_match_level_for_storage(None) == AMBIGUOUS
+        assert coerce_match_level_for_storage("") == AMBIGUOUS
 
     def test_coerce_match_level_for_storage_valid_passthrough(self):
         assert coerce_match_level_for_storage(HIGH) == HIGH
