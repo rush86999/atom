@@ -336,7 +336,7 @@ class AuthService:
             "redirect_uri": redirect_uri,
         }
 
-        response = requests.post(provider_config["token_url"], data=data)
+        response = requests.post(provider_config["token_url"], data=data, timeout=15)
         response.raise_for_status()
 
         return response.json()
@@ -363,7 +363,7 @@ class AuthService:
                 "grant_type": "refresh_token",
             }
 
-            response = requests.post(provider_config["token_url"], data=data)
+            response = requests.post(provider_config["token_url"], data=data, timeout=15)
             response.raise_for_status()
 
             new_tokens = response.json()
@@ -400,7 +400,7 @@ class AuthService:
                 return {}
 
             headers = {"Authorization": f"Bearer {access_token}"}
-            response = requests.get(endpoint, headers=headers)
+            response = requests.get(endpoint, headers=headers, timeout=15)
             response.raise_for_status()
 
             return response.json()
@@ -424,7 +424,7 @@ class AuthService:
                 return True  # No revocation endpoint, consider it successful
 
             data = {"token": access_token}
-            response = requests.post(endpoint, data=data)
+            response = requests.post(endpoint, data=data, timeout=15)
 
             # Some providers return 200, others might have different success codes
             return response.status_code in [200, 204]
