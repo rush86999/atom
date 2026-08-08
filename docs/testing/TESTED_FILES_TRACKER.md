@@ -338,6 +338,22 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | Frontend | **58.3%** lines (7,273 passed / 0 failures; 3 known full-run flakes pass in isolation) | 735 files | 2026-08-08 |
 | Backend | 54.0% (r80 full-ish); 32.8% chunked-scope (r84) | 158k stmts / ~1,015 files | 2026-08-07 |
 
+### Resolved 2026-08-08 (R92 wave — pushed `15c6651b2` + `72d0c6c0e`)
+| Date | Area | Status | Result |
+|---|---|---|---|
+| 2026-08-08 | FE pages/api round 2 (11 suites / 118 tests, 85–100%) | TESTED/FIXED | **6 real bugs**: dashboard-dev 500 when backend down + wrong `due_date` field + hardcoded :5058 URLs; financial goals NaN on empty filter; social/post crash on missing platform_results + "0 platforms"; desktop-bridge missing-args 500→400; learning-plan/health 0-value silent defaults → 400 |
+| 2026-08-08 | FE pages wave (12 suites / 135 tests, 71–100%) | TESTED/FIXED | **6 real bugs**: documents null-metadata crash; dev-studio Tauri invoke in web mode; finance unreachable TabsTrigger; dev-status invalid CSS var; analytics missing React import |
+| 2026-08-08 | Mobile polish (12 files → 92–100%) | TESTED/FIXED | **2 real bugs**: storageService clearCachedData fail-open + freedBytes credited for failed deletes; ForgotPasswordScreen leaked backend detail on 404 (anti-enumeration intent, code threw) |
+| 2026-08-08 | FE `[taskId].test.ts` stale duplicate | DEAD | removed (7 its vs canonical 12-test suite; broke full-run collection via next-auth→jose ESM); transformIgnorePatterns += jose\|next-auth |
+| 2026-08-08 | FE full suite + coverage | GREEN | **7,496 passed / 0 failed; 62.4% lines** (was 58.3%) |
+
+## Coverage stamps (latest)
+| Surface | Coverage | Tests | Date |
+|---|---|---|---|
+| Mobile | **87.5%** lines (3,843 passed / 115 suites, 0 failures) | 7,365 stmts / 80 files | 2026-08-08 |
+| Frontend | **62.4%** lines (7,496 passed / 0 failures) | 735 files | 2026-08-08 |
+| Backend | 54.0% (r80 full-ish); 32.8% chunked-scope (r84) | 158k stmts / ~1,015 files | 2026-08-07 |
+
 ## Known remaining work (verified at last run — updated 2026-08-08)
 - `core/models.py` `OAuthToken` — server-side model; verify `api/oauth` routes don't use stale columns (Notion/Spotify moved to IntegrationToken; sweep remaining writers)
 - `tests/test_cognitive_tier_e2e.py` — 11 collection ERRORS remain after the survey-sweep alignment (23 pass / 11 error; the stale `CognitiveTierPreference` kwargs were fixed but 11 tests still fail at setup — next target)
