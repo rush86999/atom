@@ -55,6 +55,15 @@ class NegotiationStateMachine:
         """
         Heuristic logic to advance negotiation state.
         """
+        # Terminal-state guard: WON and LOST are absorbing states. A signal
+        # (e.g. a late inbound email misclassified by the AI, or a customer
+        # re-engaging via a follow-up) must never walk a closed deal back to
+        # CLOSING/BARGAINING — that corrupts pipeline reporting and can
+        # double-count revenue. Re-opening a deal must be an explicit action,
+        # not a side effect of signal-driven transitions.
+        if current in (NegotiationState.WON, NegotiationState.LOST):
+            return current
+
         # Intent-driven transitions
         if "payment_commitment" in signals or "approval" in signals:
             return NegotiationState.CLOSING

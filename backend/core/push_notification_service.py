@@ -402,6 +402,15 @@ class PushNotificationService:
         title = f"⚠️ Error: {error_type}" if severity == "warning" else f"🚨 Critical: {error_type}"
         body = error_message
 
+        # Map severity to an FCM/APNs priority. The transport layer only
+        # distinguishes "high" vs "normal"; anything that isn't explicitly
+        # informational should be routed as high so urgent alerts are not
+        # deferred by the OS/FCM delivery batching. (Previously the raw
+        # severity string e.g. "critical"/"warning" was passed through, which
+        # the transport treated as normal-priority — silently degrading
+        # delivery latency for the most important alerts.)
+        priority = "normal" if severity == "info" else "high"
+
         return await self.send_notification(
             user_id=user_id,
             notification_type="error_alert",
@@ -412,7 +421,7 @@ class PushNotificationService:
                 "error_message": error_message,
                 "severity": severity
             },
-            priority=severity,
+            priority=priority,
             tenant_id=tenant_id
         )
 
@@ -475,6 +484,10 @@ class PushNotificationService:
 
         body = message
 
+        # Map severity to an FCM/APNs priority (see send_error_alert for the
+        # rationale). "info" stays normal; warning/critical are routed high.
+        priority = "normal" if severity == "info" else "high"
+
         return await self.send_notification(
             user_id=user_id,
             notification_type="system_alert",
@@ -484,7 +497,7 @@ class PushNotificationService:
                 "alert_type": alert_type,
                 "severity": severity
             },
-            priority=severity,
+            priority=priority,
             tenant_id=tenant_id
         )
 
