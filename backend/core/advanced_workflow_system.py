@@ -418,12 +418,11 @@ class ParameterValidator:
         """Validate a single parameter"""
         try:
             # Check if required
-            if param.required and value is None:
-                if param.default_value is not None:
-                    return True, None
+            if param.required and value is None and param.default_value is None:
                 return False, f"{param.label} is required"
 
-            # Use default value if None
+            # Use default value if None (also covers the required+default case
+            # so the default still flows through type/range validation below).
             if value is None and param.default_value is not None:
                 value = param.default_value
 
@@ -458,19 +457,30 @@ class ParameterValidator:
                     if not all(v in param.options for v in value):
                         return False, f"All {param.label} values must be from: {', '.join(param.options)}"
 
-            # Custom validation rules
+            # Custom validation rules.
+            # Length rules apply only to string-like / collection values; range
+            # rules apply only to numbers. Applying them across types previously
+            # raised TypeError (str < int) or rejected valid numbers because
+            # ``len(str(42))`` was compared against a length rule.
+            is_number = isinstance(value, (int, float)) and not isinstance(value, bool)
+            has_length = isinstance(value, (str, list, tuple, set, dict))
+
             for rule_name, rule_value in param.validation_rules.items():
-                if rule_name == "min_length" and len(str(value)) < rule_value:
-                    return False, f"{param.label} must be at least {rule_value} characters"
+                if rule_name == "min_length":
+                    if has_length and len(value) < rule_value:
+                        return False, f"{param.label} must be at least {rule_value} characters"
 
-                elif rule_name == "max_length" and len(str(value)) > rule_value:
-                    return False, f"{param.label} must be at most {rule_value} characters"
+                elif rule_name == "max_length":
+                    if has_length and len(value) > rule_value:
+                        return False, f"{param.label} must be at most {rule_value} characters"
 
-                elif rule_name == "min_value" and value < rule_value:
-                    return False, f"{param.label} must be at least {rule_value}"
+                elif rule_name == "min_value":
+                    if is_number and value < rule_value:
+                        return False, f"{param.label} must be at least {rule_value}"
 
-                elif rule_name == "max_value" and value > rule_value:
-                    return False, f"{param.label} must be at most {rule_value}"
+                elif rule_name == "max_value":
+                    if is_number and value > rule_value:
+                        return False, f"{param.label} must be at most {rule_value}"
 
                 elif rule_name == "pattern":
                     if len(rule_value) > MAX_REGEX_LENGTH:
@@ -716,6 +726,13 @@ class ExecutionEngine:
                 plan.parallel_groups.append(current_batch)
 
             to_execute = next_batch
+
+        # If some steps could not be scheduled (e.g. a dependency cycle or an
+        # unsatisfiable dependency), signal it instead of silently returning a
+        # partial/empty plan. Callers can detect this via estimated_duration < 0.
+        all_step_ids = {s.step_id for s in workflow.steps}
+        if all_step_ids and len(plan.planned_steps) != len(all_step_ids):
+            plan.estimated_duration = -1
 
         return plan
 

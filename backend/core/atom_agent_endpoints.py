@@ -961,12 +961,12 @@ async def handle_list_workflows(request: ChatRequest) -> Dict[str, Any]:
         if not workflows:
             return {"success": True, "response": {"message": "No workflows found.", "actions": []}}
         
-        workflow_list = "\n".join([f"• **{wf['name']}**" for wf in workflows])
+        workflow_list = "\n".join([f"• **{wf.get('name') or 'Unnamed'}**" for wf in workflows])
         return {
             "success": True,
             "response": {
                 "message": f"Found {len(workflows)} workflows:\n\n{workflow_list}",
-                "actions": [{"type": "run", "label": f"Run {wf['name']}", "workflowId": wf['workflow_id']} for wf in workflows[:3]]
+                "actions": [{"type": "run", "label": f"Run {wf.get('name') or 'Unnamed'}", "workflowId": _workflow_id_of(wf)} for wf in workflows[:3]]
             }
         }
     except Exception as e:
@@ -991,6 +991,29 @@ async def _gate_workflow_permission(user: Optional[User], workflow: Dict[str, An
     except HTTPException:
         return {"success": False, "response": {"message": f"Insufficient permissions to {action} this workflow (requires WORKFLOW_MANAGE).", "actions": []}}
 
+
+def _workflow_id_of(workflow: Dict[str, Any]) -> str:
+    """Return the canonical identifier for a workflow dict.
+
+    Workflow definitions are inconsistent: some carry ``id``, others
+    ``workflow_id``. Use whichever is present (preferring ``workflow_id``).
+    """
+    return workflow.get("workflow_id") or workflow.get("id") or ""
+
+
+def _workflow_matches_ref(workflow: Dict[str, Any], workflow_ref: str) -> bool:
+    """Case-insensitive match of a natural-language ref against a workflow.
+
+    Matches when ``workflow_ref`` appears in the workflow name OR equals/contains
+    the workflow's identifier (``workflow_id`` or ``id``). Uses ``.get`` so a
+    dict carrying only one of the keys does not raise ``KeyError``.
+    """
+    name = (workflow.get("name") or "")
+    if workflow_ref and workflow_ref.lower() in name.lower():
+        return True
+    wf_id = workflow.get("workflow_id") or workflow.get("id") or ""
+    return bool(workflow_ref and wf_id and workflow_ref in wf_id)
+
 async def handle_run_workflow(request: ChatRequest, entities: Dict[str, Any], user: Optional[User] = None) -> Dict[str, Any]:
     """Execute a specified workflow"""
     workflow_ref = entities.get("workflow_ref", "")
@@ -998,7 +1021,7 @@ async def handle_run_workflow(request: ChatRequest, entities: Dict[str, Any], us
         return {"success": False, "response": {"message": "Please specify which workflow to run.", "actions": []}}
 
     workflows = load_workflows()
-    workflow = next((w for w in workflows if workflow_ref.lower() in w['name'].lower() or workflow_ref in w['workflow_id']), None)
+    workflow = next((w for w in workflows if _workflow_matches_ref(w, workflow_ref)), None)
 
     if not workflow:
         return {"success": False, "response": {"message": f"Workflow '{workflow_ref}' not found.", "actions": []}}
@@ -1019,7 +1042,7 @@ async def handle_run_workflow(request: ChatRequest, entities: Dict[str, Any], us
             "success": True,
             "response": {
                 "message": f"✅ Workflow '{workflow['name']}' started! (ID: {execution_id})",
-                "actions": [{"type": "view_history", "label": "View History", "workflowId": workflow['id']}]
+                "actions": [{"type": "view_history", "label": "View History", "workflowId": _workflow_id_of(workflow)}]
             }
         }
     except Exception as e:
@@ -1041,7 +1064,7 @@ async def handle_schedule_workflow(request: ChatRequest, entities: Dict[str, Any
     
     # Find the workflow
     workflows = load_workflows()
-    workflow = next((w for w in workflows if workflow_ref.lower() in w['name'].lower() or workflow_ref in w['workflow_id']), None)
+    workflow = next((w for w in workflows if _workflow_matches_ref(w, workflow_ref)), None)
     
     if not workflow:
         return {
@@ -1077,38 +1100,40 @@ async def handle_schedule_workflow(request: ChatRequest, entities: Dict[str, Any
     # R69: capture whether the scheduling user may run critical definitions.
     authorized = bool(user) and RBACService.check_permission(user, Permission.WORKFLOW_MANAGE)
 
-    # Register with scheduler
-    job_id = f"{workflow['workflow_id']}_{uuid.uuid4().hex[:8]}"
+    # Register with scheduler. Use the canonical id (workflow_id or id) so a
+    # workflow dict carrying only one of the keys does not raise KeyError.
+    wf_id = _workflow_id_of(workflow)
+    job_id = f"{wf_id}_{uuid.uuid4().hex[:8]}"
 
     try:
         if schedule_info["schedule_type"] == "cron":
             workflow_scheduler.schedule_workflow_cron(
                 job_id=job_id,
-                workflow_id=workflow['workflow_id'],
+                workflow_id=wf_id,
                 cron_expression=schedule_info["cron_expression"],
                 authorized=authorized
             )
         elif schedule_info["schedule_type"] == "interval":
             workflow_scheduler.schedule_workflow_interval(
                 job_id=job_id,
-                workflow_id=workflow['workflow_id'],
+                workflow_id=wf_id,
                 interval_minutes=schedule_info["interval_minutes"],
                 authorized=authorized
             )
         elif schedule_info["schedule_type"] == "date":
             workflow_scheduler.schedule_workflow_once(
                 job_id=job_id,
-                workflow_id=workflow['workflow_id'],
+                workflow_id=wf_id,
                 run_date=schedule_info["run_date"],
                 authorized=authorized
             )
-            
+
         return {
             "success": True,
             "response": {
-                "message": f"✅ Scheduled '{workflow['name']}' to run {schedule_info['human_readable']}",
+                "message": f"✅ Scheduled '{workflow.get('name') or wf_id}' to run {schedule_info['human_readable']}",
                 "schedule_id": job_id,
-                "workflow_id": workflow['workflow_id'],
+                "workflow_id": wf_id,
                 "schedule": schedule_info['human_readable'],
                 "actions": [
                     {"type": "view_schedules", "label": "View All Schedules"},
@@ -1183,7 +1208,7 @@ async def handle_crm_intent(request: ChatRequest, entities: Dict[str, Any]) -> D
         logger.error(f"CRM handler failed: {e}")
         return {
             "success": False,
-            "error": f"Failed to process sales query: {str(e)}"
+            "error": "Failed to process sales query. Please try again later."
         }
 
 # --- Calendar Handlers ---

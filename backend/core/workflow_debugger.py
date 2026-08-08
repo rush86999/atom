@@ -282,7 +282,12 @@ class WorkflowDebugger:
             query = query.filter(WorkflowBreakpoint.created_by == user_id)
 
         if active_only:
-            query = query.filter(WorkflowBreakpoint.is_active == True)
+            query = query.filter(
+                and_(
+                    WorkflowBreakpoint.is_active == True,
+                    WorkflowBreakpoint.is_disabled == False,
+                )
+            )
 
         return query.order_by(WorkflowBreakpoint.created_at.desc()).all()
 
@@ -314,6 +319,12 @@ class WorkflowDebugger:
 
             breakpoints = query.all()
 
+            # Scan every matching breakpoint. A logpoint (log_message set) must
+            # NOT suppress a later real (pausing) breakpoint on the same node,
+            # so we keep scanning and let a pause win over a log message.
+            pause = False
+            log_message: Optional[str] = None
+            committed = False
             for bp in breakpoints:
                 # Check hit limit
                 if bp.hit_limit is not None and bp.hit_count >= bp.hit_limit:
@@ -326,15 +337,21 @@ class WorkflowDebugger:
 
                 # Increment hit count
                 bp.hit_count += 1
+                committed = True
+
+                # A pausing breakpoint takes precedence over any log message.
+                if not bp.log_message:
+                    pause = True
+                    break
+
+                # Logpoint: capture the message but keep scanning for a pause.
+                if log_message is None:
+                    log_message = bp.log_message
+
+            if committed:
                 self.db.commit()
 
-                # Return log message or pause signal
-                if bp.log_message:
-                    return False, bp.log_message
-                else:
-                    return True, None
-
-            return False, None
+            return pause, log_message
 
         except Exception as e:
             logger.error(f"Error checking breakpoint: {e}")
