@@ -181,6 +181,8 @@ class AtomChatInterface:
                             source: str = 'user', context: Dict[str, Any] = None) -> str:
         """Process incoming message and generate response"""
         try:
+            context = context or {}
+            
             # Get or create conversation context
             conversation_id = context.get('conversation_id', f"conv_{user_id}_{int(datetime.now(timezone.utc).timestamp())}")
             chat_context = self._get_context(conversation_id, user_id)
@@ -217,7 +219,7 @@ class AtomChatInterface:
             
         except Exception as e:
             logger.error(f"Error processing message: {e}")
-            return f"Sorry, I encountered an error while processing your message: {str(e)}"
+            return "Sorry, I encountered an error while processing your message."
     
     async def _process_command(self, message: ChatMessage) -> str:
         """Process slash commands"""
@@ -245,7 +247,7 @@ class AtomChatInterface:
                         return f"Invalid command syntax. Usage: {command.description}"
                 except Exception as e:
                     logger.error(f"Error executing command {trigger}: {e}")
-                    return f"Error executing command: {str(e)}"
+                    return "Error executing command. Please try again."
         
         return "Unknown command. Use `/help` to see available commands."
     
@@ -301,7 +303,7 @@ class AtomChatInterface:
         
         except Exception as e:
             logger.error(f"Error connecting to Slack: {e}")
-            return f"Error connecting to Slack: {str(e)}"
+            return "Error connecting to Slack."
     
     async def _handle_slack_channels(self, message: ChatMessage, channel_name: str = None) -> str:
         """Handle Slack channel listing/switching"""
@@ -339,7 +341,7 @@ class AtomChatInterface:
         
         except Exception as e:
             logger.error(f"Error handling Slack channels: {e}")
-            return f"Error listing channels: {str(e)}"
+            return "Error listing channels."
     
     async def _handle_slack_send(self, message: ChatMessage, channel: str = None, content: str = None) -> str:
         """Handle sending message to Slack"""
@@ -375,7 +377,7 @@ class AtomChatInterface:
         
         except Exception as e:
             logger.error(f"Error sending Slack message: {e}")
-            return f"Error sending message: {str(e)}"
+            return "Error sending message."
     
     async def _handle_slack_search(self, message: ChatMessage, query: str) -> str:
         """Handle Slack message search"""
@@ -402,13 +404,13 @@ class AtomChatInterface:
         
         except Exception as e:
             logger.error(f"Error searching Slack: {e}")
-            return f"Error searching Slack: {str(e)}"
+            return "Error searching Slack."
     
     async def _handle_slack_workflows(self, message: ChatMessage, action: str = 'list', params: str = '') -> str:
         """Handle Slack workflow management"""
         try:
             if action == 'list':
-                workflows = slack_workflow_automation.list_workspaces() if slack_workflow_automation else []
+                workflows = slack_workflow_automation.list_workflows() if slack_workflow_automation else []
                 if workflows:
                     workflow_list = "\n".join([
                         f"• {w.name} - {w.description} (Status: {'Active' if w.active else 'Inactive'})"
@@ -423,7 +425,7 @@ class AtomChatInterface:
                     return "Please specify a workflow ID or name to run."
                 
                 # Find workflow
-                workflows = slack_workflow_automation.list_workspaces() if slack_workflow_automation else []
+                workflows = slack_workflow_automation.list_workflows() if slack_workflow_automation else []
                 workflow = next((w for w in workflows if w.name == params or w.id == params), None)
                 
                 if workflow:
@@ -444,7 +446,7 @@ class AtomChatInterface:
         
         except Exception as e:
             logger.error(f"Error handling Slack workflows: {e}")
-            return f"Error with workflows: {str(e)}"
+            return "Error with workflows."
     
     async def _handle_remember(self, message: ChatMessage, content: str) -> str:
         """Handle remembering information"""
@@ -466,7 +468,7 @@ class AtomChatInterface:
         
         except Exception as e:
             logger.error(f"Error storing in memory: {e}")
-            return f"Error storing information: {str(e)}"
+            return "Error storing information."
     
     async def _handle_recall(self, message: ChatMessage, query: str = None) -> str:
         """Handle recalling information"""
@@ -499,7 +501,7 @@ class AtomChatInterface:
         
         except Exception as e:
             logger.error(f"Error recalling from memory: {e}")
-            return f"Error recalling information: {str(e)}"
+            return "Error recalling information."
     
     async def _handle_search(self, message: ChatMessage, query: str) -> str:
         """Handle searching all content"""
@@ -523,7 +525,7 @@ class AtomChatInterface:
         
         except Exception as e:
             logger.error(f"Error searching: {e}")
-            return f"Error searching: {str(e)}"
+            return "Error searching."
     
     async def _handle_help(self, message: ChatMessage, command: str = None) -> str:
         """Handle help command"""

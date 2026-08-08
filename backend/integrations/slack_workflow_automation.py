@@ -207,6 +207,12 @@ class SlackWorkflowAutomation:
                 
                 result = await self.execute_action(action, trigger_data)
                 execution.action_results.append(result)
+                
+                # Failed actions must fail the execution so retry logic and
+                # status tracking reflect reality (execute_action swallows
+                # exceptions into result dicts).
+                if result.get('status') != 'success':
+                    raise RuntimeError(f"Workflow action {action.id} failed")
             
             # Mark execution as completed
             execution.status = 'completed'
@@ -295,9 +301,9 @@ class SlackWorkflowAutomation:
         except Exception as e:
             return {
                 'action_id': action.id,
-                'type': action.type.value,
+                'type': getattr(action.type, 'value', action.type),
                 'status': 'failed',
-                'error': str(e),
+                'error': 'Action execution failed',
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }
     

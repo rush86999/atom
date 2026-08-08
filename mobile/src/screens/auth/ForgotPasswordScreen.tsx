@@ -169,16 +169,18 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
       if (!response.ok) {
         // Handle specific error cases
         if (response.status === 404) {
-          // For security reasons, don't reveal if email exists or not
-          // Show success message anyway to prevent email enumeration
+          // For security reasons, don't reveal if email exists or not.
+          // Treat as success and fall through to the success path to
+          // prevent email enumeration.
         } else if (response.status === 400) {
           throw new Error(data.detail || 'Invalid email address');
         } else if (response.status === 429) {
           throw new Error('Too many reset attempts. Please try again later.');
         } else if (response.status >= 500) {
           throw new Error('Server error. Please try again later.');
+        } else {
+          throw new Error(data.detail || 'Failed to send reset link');
         }
-        throw new Error(data.detail || 'Failed to send reset link');
       }
 
       // Start cooldown

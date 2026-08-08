@@ -327,6 +327,10 @@ class PDFMemoryIntegration:
             # Get extracted text from document_data
             extracted_text = document_data.get("extracted_text", "")
 
+            created_at = document_data.get("created_at", datetime.now())
+            if not isinstance(created_at, str):
+                created_at = created_at.isoformat()
+
             cursor.execute("""
                 INSERT OR REPLACE INTO pdf_documents
                 (doc_id, user_id, filename, page_count, total_chars, pdf_type,
@@ -341,7 +345,7 @@ class PDFMemoryIntegration:
                 document_data.get("pdf_type", "unknown"),
                 document_data.get("processing_method", "unknown"),
                 extracted_text[:10000],  # Limit for performance
-                document_data.get("created_at", datetime.now()).isoformat(),
+                created_at,
                 document_data.get("source_uri", "")
             ))
 
@@ -628,9 +632,11 @@ class PDFMemoryIntegration:
             # Try LanceDB first
             if self.lancedb_handler:
                 table = self.lancedb_handler.get_table(self.table_name)
+                safe_doc_id = str(doc_id).replace("'", "''")
+                safe_user_id = str(user_id).replace("'", "''")
                 result = (
                     table.search()
-                    .where(f"doc_id = '{doc_id}' AND user_id = '{user_id}'")
+                    .where(f"doc_id = '{safe_doc_id}' AND user_id = '{safe_user_id}'")
                     .to_list()
                 )
                 if result:
@@ -655,12 +661,14 @@ class PDFMemoryIntegration:
             return None
 
         try:
+            import json
+
             conn = sqlite3.connect(self._simple_db_path)
             cursor = conn.cursor()
 
             cursor.execute("""
                 SELECT doc_id, user_id, filename, page_count, total_chars,
-                       pdf_type, processing_method, extracted_text, created_at, source_uri
+                       pdf_type, processing_method, extracted_text, created_at, source_uri, tags
                 FROM pdf_documents
                 WHERE doc_id = ? AND user_id = ?
             """, (doc_id, user_id))
@@ -679,7 +687,8 @@ class PDFMemoryIntegration:
                     "processing_method": row[6],
                     "extracted_text": row[7],
                     "created_at": row[8],
-                    "source_uri": row[9]
+                    "source_uri": row[9],
+                    "tags": json.loads(row[10]) if row[10] else [],
                 }
             return None
 
@@ -731,7 +740,9 @@ class PDFMemoryIntegration:
             if self.lancedb_handler:
                 try:
                     table = self.lancedb_handler.get_table(self.table_name)
-                    table.delete(f"doc_id = '{doc_id}' AND user_id = '{user_id}'")
+                    safe_doc_id = str(doc_id).replace("'", "''")
+                    safe_user_id = str(user_id).replace("'", "''")
+                    table.delete(f"doc_id = '{safe_doc_id}' AND user_id = '{safe_user_id}'")
                     deleted_from.append("lancedb")
                 except Exception as e:
                     logger.warning(f"Failed to delete from LanceDB: {e}")
@@ -815,13 +826,17 @@ class PDFMemoryIntegration:
                 table = self.lancedb_handler.get_table(self.table_name)
 
                 # Build query filters
-                where_clause = f"user_id = '{user_id}'"
+                safe_user_id = str(user_id).replace("'", "''")
+                where_clause = f"user_id = '{safe_user_id}'"
                 if pdf_type:
-                    where_clause += f" AND pdf_type = '{pdf_type}'"
+                    safe_type = str(pdf_type).replace("'", "''")
+                    where_clause += f" AND pdf_type = '{safe_type}'"
                 if date_from:
-                    where_clause += f" AND created_at >= '{date_from}'"
+                    safe_from = str(date_from).replace("'", "''")
+                    where_clause += f" AND created_at >= '{safe_from}'"
                 if date_to:
-                    where_clause += f" AND created_at <= '{date_to}'"
+                    safe_to = str(date_to).replace("'", "''")
+                    where_clause += f" AND created_at <= '{safe_to}'"
                 if tags:
                     # LanceDB doesn't have great tag filtering, skip for now
                     pass
@@ -951,9 +966,11 @@ class PDFMemoryIntegration:
                 table = self.lancedb_handler.get_table(self.table_name)
 
                 # Check if document exists and belongs to user
+                safe_doc_id = str(doc_id).replace("'", "''")
+                safe_user_id = str(user_id).replace("'", "''")
                 results = (
                     table.search()
-                    .where(f"doc_id = '{doc_id}' AND user_id = '{user_id}'")
+                    .where(f"doc_id = '{safe_doc_id}' AND user_id = '{safe_user_id}'")
                     .to_list()
                 )
 
@@ -1213,7 +1230,8 @@ class PDFMemoryIntegration:
             # Get stats from LanceDB if available
             if self.lancedb_handler:
                 table = self.lancedb_handler.get_table(self.table_name)
-                user_docs = table.search().where(f"user_id = '{user_id}'").to_list()
+                safe_user_id = str(user_id).replace("'", "''")
+                user_docs = table.search().where(f"user_id = '{safe_user_id}'").to_list()
 
                 stats["total_documents"] = len(user_docs)
                 for doc in user_docs:

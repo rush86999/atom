@@ -985,10 +985,11 @@ class TestFinanceCoverage:
         monkeypatch.setenv("XERO_ACCESS_TOKEN", "xero")
         monkeypatch.delenv("ZOHO_CRM_ACCESS_TOKEN", raising=False)
         monkeypatch.delenv("MICROSOFT_365_ACCESS_TOKEN", raising=False)
-        with patch.object(finance_mod, "stripe_service") as svc:
-            svc.list_payments = Mock(return_value={"data": [{"id": "p", "amount": 1000,
-                                                             "currency": "usd", "created": 1700000000,
-                                                             "status": "succeeded"}]})
+        sdk = Mock()
+        sdk.Charge.list = Mock(return_value={"data": [{"id": "p", "amount": 1000,
+                                                       "currency": "usd", "created": 1700000000,
+                                                       "status": "succeeded"}]})
+        with patch.object(finance_mod, "stripe_sdk", sdk):
             with patch("integrations.xero_service.XeroService") as xcls:
                 xcls.return_value.get_invoices = AsyncMock(return_value=[
                     {"InvoiceID": "x", "InvoiceNumber": "1", "Total": 50.0,
@@ -1000,10 +1001,27 @@ class TestFinanceCoverage:
 
     def test_endpoint_stripe_failure_continues(self, monkeypatch):
         monkeypatch.setenv("STRIPE_SECRET_KEY", "sk")
-        with patch.object(finance_mod, "stripe_service") as svc:
-            svc.list_payments = Mock(side_effect=RuntimeError("stripe down"))
+        sdk = Mock()
+        sdk.Charge.list = Mock(side_effect=RuntimeError("stripe down"))
+        with patch.object(finance_mod, "stripe_sdk", sdk):
             result = asyncio.run(finance_mod.get_live_financial_overview(limit=10))
         assert result.providers["stripe"] is False
+
+    def test_endpoint_stripe_httpx_fallback(self, monkeypatch):
+        monkeypatch.setenv("STRIPE_SECRET_KEY", "sk")
+        class FakeResp:
+            status_code = 200
+            def json(self):
+                return {"data": [{"id": "p", "amount": 1000, "currency": "usd",
+                                  "created": 1700000000, "status": "succeeded"}]}
+        fake_client = AsyncMock()
+        fake_client.__aenter__ = AsyncMock(return_value=fake_client)
+        fake_client.__aexit__ = AsyncMock(return_value=False)
+        fake_client.get = AsyncMock(return_value=FakeResp())
+        with patch.object(finance_mod, "stripe_sdk", None), \
+             patch("httpx.AsyncClient", return_value=fake_client):
+            result = asyncio.run(finance_mod.get_live_financial_overview(limit=10))
+        assert result.providers["stripe"] is True
 
     def test_endpoint_dynamics_path(self, monkeypatch):
         monkeypatch.setenv("MICROSOFT_365_ACCESS_TOKEN", "ms")
@@ -1687,6 +1705,9 @@ class TestPipelineWebhookHelpers:
         with patch("builtins.__import__", side_effect=_fake_import):
             cls = pipeline_mod._get_sentence_transformer()
         assert cls is fake_mod.SentenceTransformer
+        # Restore module state so subsequent tests re-run the real import check
+        pipeline_mod._sentence_transformer_checked = False
+        pipeline_mod.SentenceTransformer = None
 
     def test_start_real_time_stream_paths(self):
         pipe = self._pipeline()
@@ -2523,7 +2544,15 @@ class TestGapFillWhatsApp:
         shutil.copy("integrations/atom_whatsapp_integration.py", pkg / "wa_copy.py")
         real_import = builtins.__import__
         blocked = {"numpy", "pandas", "ai_enhanced_service", "atom_slack_integration",
-                   "atom_memory_service", "atom_search_service", "atom_workflow_service"}
+                   "atom_memory_service", "atom_search_service", "atom_workflow_service",
+                   "integrations.atom_ai_integration", "integrations.atom_discord_integration",
+                   "integrations.atom_enterprise_security_service",
+                   "integrations.atom_enterprise_unified_service",
+                   "integrations.atom_google_chat_integration",
+                   "integrations.atom_ingestion_pipeline",
+                   "integrations.atom_teams_integration",
+                   "integrations.atom_telegram_integration",
+                   "integrations.atom_workflow_automation_service"}
 
         def _blocked(name, *a, **k):
             if name.split(".")[0] in blocked:
@@ -2626,6 +2655,7 @@ class TestGapFillMemoryApi:
     def test_initialize_called_when_db_none(self):
         mm = Mock()
         mm.db = None
+        mm.connections_table = None
         def _init():
             mm.db = Mock()
             mm.db.table_names = Mock(return_value=[])
@@ -2685,10 +2715,16 @@ class TestGapFillMemoryApi:
              "metadata": {"thread_id": "t1"}, "subject": "s", "id": "1"},
             {"app_type": "slack", "direction": "outbound", "priority": "normal",
              "status": "active", "timestamp": "2026-01-01T10:00:30",
-             "metadata": "not-json{", "subject": None, "id": "2"},
+             "metadata": json.dumps({"thread_id": "t1"}), "subject": "s", "id": "2"},
             {"app_type": "slack", "direction": "inbound", "priority": "normal",
              "status": "active", "timestamp": "2026-01-01T11:00:00",
              "metadata": "{}", "subject": "s3", "id": "3"},
+            {"app_type": "slack", "direction": "inbound", "priority": "normal",
+             "status": "active", "timestamp": "2026-01-01T12:00:00",
+             "metadata": "{}", "subject": None, "id": "4"},
+            {"app_type": "slack", "direction": "inbound", "priority": "normal",
+             "status": "active", "timestamp": "2026-01-01T13:00:00",
+             "metadata": "bad-json{", "subject": "s5", "id": "5"},
         ]
         df.to_dict = Mock(return_value=records)
         table.to_pandas = Mock(return_value=df)
@@ -3048,6 +3084,7 @@ class TestGapFillLanceDBIntegration:
     def test_memory_stats_initialize(self):
         mm = Mock()
         mm.db = None
+        mm.connections_table = None
         def _init():
             mm.db = Mock()
             mm.db.table_names = Mock(return_value=[])
@@ -3164,3 +3201,126 @@ class TestGapFillSmall:
                 {"id": "d1", "properties": {"dealname": "D", "amount": "1", "dealstage": "s"}}])
             asyncio.run(pipe._ingest_hubspot())
         pipe.memory_manager.ingest_communication.assert_called_once()
+
+
+class TestGapFillImportBranches:
+    def test_live_api_unavailable_flags(self, monkeypatch):
+        monkeypatch.setattr(comm_live, "SLACK_AVAILABLE", False)
+        monkeypatch.setattr(comm_live, "ZOHO_MAIL_AVAILABLE", False)
+        monkeypatch.setattr(comm_live, "M365_AVAILABLE", False)
+        assert asyncio.run(comm_live.fetch_slack_recent()) == []
+        assert asyncio.run(comm_live.fetch_zoho_mail_recent()) == []
+        assert asyncio.run(comm_live.fetch_outlook_recent()) == []
+        assert asyncio.run(comm_live.fetch_teams_recent()) == []
+
+    def test_whatsapp_intelligent_search_exception(self):
+        wa = whatsapp_mod.AtomWhatsAppIntegration({
+            "access_token": "tok", "phone_number_id": "ph1"})
+        wa.ai_service = None
+        class Boom:
+            @property
+            def content(self):
+                raise RuntimeError("boom")
+        wa.message_history = {"c1": [Boom()]}
+        assert asyncio.run(wa.perform_intelligent_search("q", "u1")) == []
+
+    def test_reload_live_api_import_fallbacks(self):
+        # Re-import the real module with every optional provider blocked so the
+        # ImportError fallback branches execute, then restore via clean reload.
+        import importlib
+        real_import = builtins.__import__
+        blocked = {"integrations.slack_service_unified", "integrations.discord_service",
+                   "integrations.gmail_service", "integrations.zoho_mail_service",
+                   "integrations.microsoft365_service"}
+
+        def _blocked(name, *a, **k):
+            if name in blocked:
+                raise ImportError(f"blocked: {name}")
+            return real_import(name, *a, **k)
+
+        with patch("builtins.__import__", side_effect=_blocked):
+            mod = importlib.reload(comm_live)
+        assert mod.SLACK_AVAILABLE is False
+        assert mod.DISCORD_AVAILABLE is False
+        assert mod.GMAIL_AVAILABLE is False
+        assert mod.ZOHO_MAIL_AVAILABLE is False
+        assert mod.M365_AVAILABLE is False
+        # Restore the fully-loaded module for the rest of the suite
+        importlib.reload(comm_live)
+        assert comm_live.SLACK_AVAILABLE is True
+
+    def test_reload_teams_import_fallback(self):
+        import importlib
+        real_import = builtins.__import__
+        blocked = {"integrations.teams_enhanced_service"}
+
+        def _blocked(name, *a, **k):
+            if name in blocked:
+                raise ImportError(f"blocked: {name}")
+            return real_import(name, *a, **k)
+
+        with patch("builtins.__import__", side_effect=_blocked):
+            mod = importlib.reload(teams_mod)
+        assert mod.teams_enhanced_service is None
+        importlib.reload(teams_mod)
+        assert teams_mod.teams_enhanced_service is not None
+
+    def test_reload_ingestion_pipeline_import_fallback(self):
+        import importlib
+        real_import = builtins.__import__
+        blocked = {"core.lancedb_handler"}
+
+        def _blocked(name, *a, **k):
+            if name in blocked:
+                raise ImportError(f"blocked: {name}")
+            return real_import(name, *a, **k)
+
+        with patch("builtins.__import__", side_effect=_blocked):
+            import importlib as il
+            from integrations import atom_ingestion_pipeline as aip
+            mod = il.reload(aip)
+        assert mod.AtomIngestionPipeline is not None
+        importlib.reload(aip)
+        assert aip.AtomIngestionPipeline is not None
+
+    def test_reload_whatsapp_import_fallbacks(self):
+        import importlib
+        if not isinstance(whatsapp_mod, types.ModuleType) or \
+                sys.modules.get("integrations.atom_whatsapp_integration") is not whatsapp_mod:
+            # Another suite (test_proactive_messaging_minimal) replaces
+            # sys.modules['integrations.atom_whatsapp_integration'] with a
+            # MagicMock at import time — cannot reload a mock.
+            pytest.skip("whatsapp module replaced by sys.modules mock from another suite")
+        real_import = builtins.__import__
+        blocked = {"numpy", "pandas", "ai_enhanced_service", "atom_slack_integration",
+                   "atom_memory_service", "atom_search_service", "atom_workflow_service",
+                   "integrations.atom_ai_integration", "integrations.atom_discord_integration",
+                   "integrations.atom_enterprise_security_service",
+                   "integrations.atom_enterprise_unified_service",
+                   "integrations.atom_google_chat_integration",
+                   "integrations.atom_ingestion_pipeline",
+                   "integrations.atom_teams_integration",
+                   "integrations.atom_telegram_integration",
+                   "integrations.atom_workflow_automation_service"}
+
+        def _blocked(name, *a, **k):
+            if name in blocked or name.split(".")[0] in blocked:
+                raise ImportError(f"blocked: {name}")
+            return real_import(name, *a, **k)
+
+        with patch("builtins.__import__", side_effect=_blocked):
+            mod = importlib.reload(whatsapp_mod)
+        assert mod.np is None
+        assert mod.AIRequest is None
+        assert mod.atom_slack_integration is None
+        assert mod.atom_ai_integration is None
+        assert mod.atom_discord_integration is None
+        assert mod.atom_google_chat_integration is None
+        assert mod.atom_teams_integration is None
+        assert mod.atom_telegram_integration is None
+        assert mod.AtomIngestionPipeline is None
+        assert mod.atom_enterprise_unified_service is None
+        # Restore the fully-loaded module
+        importlib.reload(whatsapp_mod)
+        assert whatsapp_mod.atom_enterprise_security_service is not None
+        assert whatsapp_mod.atom_teams_integration is not None

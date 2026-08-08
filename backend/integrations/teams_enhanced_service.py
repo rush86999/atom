@@ -1025,7 +1025,10 @@ class TeamsEnhancedService(IntegrationService):
                         workspace_id=workspace_id,
                         tenant_id=workspace_id,  # Would be actual tenant
                         timestamp=file_data.get('createdDateTime'),
-                        created_at=datetime.fromisoformat(file_data.get('createdDateTime').replace('Z', '+00:00')),
+                        created_at=datetime.fromisoformat(
+                            (file_data.get('createdDateTime') or datetime.now(timezone.utc).isoformat())
+                            .replace('Z', '+00:00')
+                        ),
                         url=file_data.get('webUrl'),
                         download_url=file_data.get('@microsoft.graph.downloadUrl'),
                         description=description,

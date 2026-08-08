@@ -83,6 +83,22 @@ describe("pages/api/social/post", () => {
     expect(res._getJSONData().message).toContain("Invalid platforms");
   });
 
+  it("returns 400 when platforms is not an array", async () => {
+    const res = await invoke("POST", { text: "hi", platforms: "twitter" });
+    expect(res._getStatusCode()).toBe(400);
+    expect(res._getJSONData().message).toBe(
+      "At least one platform must be specified",
+    );
+  });
+
+  it("omits the X-User-ID header when the session user has no id or email", async () => {
+    mockFetch.mockResolvedValue(backendJson({ success: true, platform_results: {} }));
+    const res = await invoke("POST", { text: "hi", platforms: ["twitter"] }, { user: {} });
+    expect(res._getStatusCode()).toBe(200);
+    const [, init] = mockFetch.mock.calls[0];
+    expect(init.headers["X-User-ID"]).toBeUndefined();
+  });
+
   it("forwards a valid post with optional fields and maps the success payload", async () => {
     mockFetch.mockResolvedValue(
       backendJson({

@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (command === "read_file_content") {
-      const filePath = args.path;
+      const filePath = args?.path;
       if (!filePath) {
         return res.status(400).json({ success: false, error: "Path is required" });
       }
@@ -40,8 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (command === "write_file_content") {
-      const filePath = args.path;
-      const content = args.content ?? "";
+      const filePath = args?.path;
+      const content = args?.content ?? "";
       if (!filePath) {
         return res.status(400).json({ success: false, error: "Path is required" });
       }
@@ -50,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (command === "list_directory") {
-      const dirPath = args.path || process.cwd();
+      const dirPath = args?.path || process.cwd();
       if (!fs.existsSync(dirPath)) {
         return res.status(400).json({ success: false, error: "Directory does not exist" });
       }

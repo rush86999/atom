@@ -25,8 +25,12 @@ module.exports = {
     "<rootDir>/components/**/__tests__/**/*.a11y.test.(ts|tsx)",
     "<rootDir>/lib/**/__tests__/**/*.test.(ts|tsx|js)",
     "<rootDir>/hooks/**/__tests__/**/*.test.(ts|tsx|js)",
-    "<rootDir>/pages/__tests__/**/*.test.(ts|tsx|js)",
-    "<rootDir>/pages/api/__tests__/**/*.test.(ts|tsx|js)"
+    // Page/API tests. MOVED out of pages/ (where Next.js' filesystem router
+    // tried to build them as routes and crashed `next build`) into tests/pages.
+    "<rootDir>/tests/pages/**/*.test.(ts|tsx|js)",
+    // Page tests co-located in pages/__tests__/ (underscore-prefixed dirs are
+    // ignored by the Next.js filesystem router, so next build is unaffected).
+    "<rootDir>/pages/__tests__/**/*.test.(ts|tsx|js)"
   ],
   collectCoverageFrom: [
     "components/**/*.{ts,tsx}",

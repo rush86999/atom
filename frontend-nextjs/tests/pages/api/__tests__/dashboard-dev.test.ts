@@ -100,6 +100,42 @@ describe("pages/api/dashboard-dev", () => {
     });
   });
 
+  it("falls back per-endpoint when a backend endpoint returns an error", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/api/calendar/events")) {
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+          json: async () => ({}),
+        });
+      }
+      if (url.includes("/api/tasks")) {
+        return Promise.resolve(backendJson({}));
+      }
+      return Promise.resolve(
+        backendJson({
+          messages: [
+            { id: "m-1", platform: "email", subject: "S", preview: "P", timestamp: new Date().toISOString(), unread: true, priority: "high" },
+          ],
+        }),
+      );
+    });
+    const res = await invoke("GET");
+    expect(res._getStatusCode()).toBe(200);
+    const body = res._getJSONData();
+    expect(body.calendar[0].id).toBe("mock-1");
+    expect(body.tasks).toHaveLength(0);
+    expect(body.messages).toHaveLength(1);
+    expect(body.stats).toEqual({
+      upcoming_events: 2,
+      overdue_tasks: 0,
+      unread_messages: 1,
+      completed_tasks: 0,
+      active_workflows: 0,
+      total_agents: 0,
+    });
+  });
+
   it("queries the configured backend base URL, not the hardcoded dev port", async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url.includes("/api/calendar/events")) {

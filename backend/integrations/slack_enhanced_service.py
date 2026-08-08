@@ -1161,13 +1161,12 @@ class SlackEnhancedService(IntegrationService):
     async def invite_to_channel(self, workspace_id: str, channel_id: str,
                                 user_ids: List[str]) -> Dict[str, Any]:
         """Invite users to a channel"""
+        invited_users = []
+        failed_users = []
         try:
             client = self._get_client(workspace_id)
             if not client:
                 raise SlackApiError("Failed to create Slack client", response=None)
-
-            invited_users = []
-            failed_users = []
 
             for user_id in user_ids:
                 try:
@@ -1294,12 +1293,12 @@ class SlackEnhancedService(IntegrationService):
             
             # Cache event for processing
             if self.redis_client:
-                await self.redis_client.lpush(
+                self.redis_client.lpush(
                     f"slack_events:{workspace_id}",
                     json.dumps(event_data)
                 )
                 # Keep only last 1000 events
-                await self.redis_client.ltrim(f"slack_events:{workspace_id}", 0, 999)
+                self.redis_client.ltrim(f"slack_events:{workspace_id}", 0, 999)
             
             # Find and call event handlers
             if event_type in [t.value for t in SlackEventType]:
@@ -1350,7 +1349,7 @@ class SlackEnhancedService(IntegrationService):
         
         try:
             cache_key = f"message:{workspace_id}:{message['ts']}"
-            await self.redis_client.setex(cache_key, 3600, json.dumps(message))
+            self.redis_client.setex(cache_key, 3600, json.dumps(message))
         except Exception as e:
             logger.error(f"Error caching message: {e}")
     
@@ -1362,7 +1361,7 @@ class SlackEnhancedService(IntegrationService):
         try:
             cache_key = f"messages:{workspace_id}:{channel_id}"
             message_data = [asdict(m) for m in messages]
-            await self.redis_client.setex(cache_key, 1800, json.dumps(message_data))
+            self.redis_client.setex(cache_key, 1800, json.dumps(message_data))
         except Exception as e:
             logger.error(f"Error caching messages: {e}")
     
@@ -1373,7 +1372,7 @@ class SlackEnhancedService(IntegrationService):
         
         try:
             cache_key = f"file:{workspace_id}:{slack_file.file_id}"
-            await self.redis_client.setex(cache_key, 7200, json.dumps(asdict(slack_file), default=str))
+            self.redis_client.setex(cache_key, 7200, json.dumps(asdict(slack_file), default=str))
         except Exception as e:
             logger.error(f"Error caching file: {e}")
     
@@ -1503,6 +1502,7 @@ class SlackEnhancedService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Slack metrics to Postgres: {e}")
                 db.rollback()
+                return {"success": False, "error": "Failed to save Slack metrics"}
             finally:
                 db.close()
                 

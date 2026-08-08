@@ -393,7 +393,7 @@ class AtomZoomIntegration:
             logger.error(f"Error sending intelligent message: {e}")
             return {
                 'success': False,
-                'error': str(e),
+                'error': 'Failed to send intelligent message',
                 'platform': 'zoom'
             }
     
@@ -491,7 +491,7 @@ class AtomZoomIntegration:
             }
         except Exception as e:
             logger.error(f"Error getting service status: {e}")
-            return {'error': str(e), 'platform': 'zoom'}
+            return {'error': 'Failed to get service status', 'platform': 'zoom'}
     
     # Private helper methods
     async def _test_api_connection(self):
@@ -890,7 +890,7 @@ class AtomZoomIntegration:
             logger.error(f"Error sending chat message: {e}")
             return {
                 'success': False,
-                'error': str(e)
+                'error': 'Failed to send chat message'
             }
     
     def _calculate_relevance_score(self, query: str, content: str) -> float:

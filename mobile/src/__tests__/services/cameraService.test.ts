@@ -871,6 +871,32 @@ describe('CameraService', () => {
       expect(beforeDelete.photos).toHaveLength(afterDelete.photos.length);
       expect(beforeDelete.photos[0].uri).toBe(afterDelete.photos[0].uri);
     });
+
+    test('should skip photos that fail to capture', async () => {
+      mockCameraRef.current.takePictureAsync
+        .mockResolvedValueOnce({
+          uri: 'file:///mock/photo-1.jpg',
+          width: 1920,
+          height: 1080,
+        })
+        .mockResolvedValueOnce(null) // Capture fails for the second photo
+        .mockResolvedValueOnce({
+          uri: 'file:///mock/photo-3.jpg',
+          width: 1920,
+          height: 1080,
+        });
+
+      const photos = await cameraService.captureMultiplePhotos(mockCameraRef, 3);
+
+      // Failed capture is skipped, successful ones are kept
+      expect(photos).toHaveLength(2);
+      expect(photos[0].uri).toContain('photo-1');
+      expect(photos[1].uri).toContain('photo-3');
+
+      const captured = cameraService.getCapturedPhotos();
+      expect(captured.photos).toHaveLength(2);
+      expect(captured.currentIndex).toBe(0);
+    });
   });
 
   // ========================================================================
@@ -1252,6 +1278,300 @@ describe('CameraService', () => {
 
       // Should not throw, just log error
       expect(CameraView.getCameraPermissionsAsync).toHaveBeenCalled();
+    });
+  });
+
+  // ========================================================================
+  // Availability Error Tests
+  // ========================================================================
+
+  describe('Availability Errors', () => {
+    test('should return false when availability check throws', async () => {
+      (CameraView.isAvailableAsync as jest.Mock).mockRejectedValue(
+        new Error('Camera check failed')
+      );
+
+      const isAvailable = await cameraService.isAvailable();
+
+      expect(isAvailable).toBe(false);
+    });
+  });
+
+  // ========================================================================
+  // Photo Compression Tests
+  // ========================================================================
+
+  describe('Photo Compression', () => {
+    beforeEach(async () => {
+      await cameraService.initialize();
+      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        granted: true,
+        canAskAgain: true,
+        expires: 'never',
+      });
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
+        exists: true,
+        size: '2048000',
+        uri: 'file:///mock/photo-large.jpg',
+      });
+    });
+
+    test('should compress photo when dimensions exceed MAX_IMAGE_DIMENSION', async () => {
+      // 4000x2000 -> maxDimension 4000 > 2048 -> scale = 0.512 -> width 2048
+      mockCameraRef.current.takePictureAsync.mockResolvedValue({
+        uri: 'file:///mock/photo-large.jpg',
+        width: 4000,
+        height: 2000,
+      });
+
+      const media = await cameraService.takePicture(mockCameraRef);
+
+      expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith(
+        'file:///mock/photo-large.jpg',
+        [{ resize: { width: 2048 } }],
+        {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+      // Final media points at the compressed file
+      expect(media?.uri).toBe('file:///mock/manipulated.jpg');
+      expect(media?.size).toBe(2048000);
+    });
+
+    test('should not compress photo within dimension limits', async () => {
+      mockCameraRef.current.takePictureAsync.mockResolvedValue({
+        uri: 'file:///mock/photo-small.jpg',
+        width: 1024,
+        height: 768,
+      });
+
+      const media = await cameraService.takePicture(mockCameraRef);
+
+      expect(ImageManipulator.manipulateAsync).not.toHaveBeenCalled();
+      expect(media?.uri).toBe('file:///mock/photo-small.jpg');
+    });
+  });
+
+  // ========================================================================
+  // Stop Recording Tests
+  // ========================================================================
+
+  describe('Stop Recording', () => {
+    beforeEach(async () => {
+      await cameraService.initialize();
+      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        granted: true,
+        canAskAgain: true,
+        expires: 'never',
+      });
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
+        exists: true,
+        size: '512000',
+        uri: 'file:///mock/video.mp4',
+      });
+      mockCameraRef.current.stopRecording.mockResolvedValue({
+        uri: 'file:///mock/video.mp4',
+      });
+    });
+
+    test('should stop video recording and return media with size', async () => {
+      const media = await cameraService.stopRecording(mockCameraRef);
+
+      expect(mockCameraRef.current.stopRecording).toHaveBeenCalled();
+      expect(media).toEqual({
+        uri: 'file:///mock/video.mp4',
+        type: 'video',
+        size: 512000,
+      });
+    });
+
+    test('should return null when camera ref not available', async () => {
+      const emptyRef = { current: null } as any;
+
+      const media = await cameraService.stopRecording(emptyRef);
+
+      expect(media).toBeNull();
+      expect(mockCameraRef.current.stopRecording).not.toHaveBeenCalled();
+    });
+
+    test('should return null when stopRecording throws', async () => {
+      mockCameraRef.current.stopRecording.mockRejectedValue(
+        new Error('Stop failed')
+      );
+
+      const media = await cameraService.stopRecording(mockCameraRef);
+
+      expect(media).toBeNull();
+    });
+
+    test('should handle missing file size on stop', async () => {
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
+        exists: true,
+        uri: 'file:///mock/video.mp4',
+      });
+
+      const media = await cameraService.stopRecording(mockCameraRef);
+
+      expect(media?.size).toBeUndefined();
+    });
+  });
+
+  // ========================================================================
+  // Capture or Pick Tests
+  // ========================================================================
+
+  describe('Capture or Pick', () => {
+    test('should return null when media library permission denied', async () => {
+      (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'denied',
+        canAskAgain: false,
+        granted: false,
+        expires: 'never',
+      });
+
+      const media = await cameraService.captureOrPick();
+
+      expect(media).toBeNull();
+      expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled();
+    });
+
+    test('should return null when picker is cancelled', async () => {
+      (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+      (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
+        canceled: true,
+        assets: [],
+      });
+
+      const media = await cameraService.captureOrPick();
+
+      expect(media).toBeNull();
+    });
+
+    test('should return null when picker returns no assets', async () => {
+      (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+      (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
+        canceled: false,
+        assets: [],
+      });
+
+      const media = await cameraService.captureOrPick();
+
+      expect(media).toBeNull();
+    });
+
+    test('should return selected asset on success', async () => {
+      (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+      (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
+        canceled: false,
+        assets: [
+          {
+            uri: 'file:///mock/picked.jpg',
+            width: 1920,
+            height: 1080,
+          },
+        ],
+      });
+
+      const media = await cameraService.captureOrPick();
+
+      expect(media).toEqual({
+        uri: 'file:///mock/picked.jpg',
+        type: 'photo',
+        width: 1920,
+        height: 1080,
+      });
+    });
+
+    test('should return null when picker throws', async () => {
+      (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+      (ImagePicker.launchImageLibraryAsync as jest.Mock).mockRejectedValue(
+        new Error('Picker failed')
+      );
+
+      const media = await cameraService.captureOrPick();
+
+      expect(media).toBeNull();
+    });
+  });
+
+  // ========================================================================
+  // Barcode Malformed Input Tests
+  // ========================================================================
+
+  describe('Barcode Malformed Input', () => {
+    test('should return null when barcodes array is missing', async () => {
+      const malformed = { noBarcodes: true };
+
+      const result = await cameraService.scanBarcode(malformed as any);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  // ========================================================================
+  // Captured Photo Index Tests
+  // ========================================================================
+
+  describe('Captured Photo Index', () => {
+    beforeEach(async () => {
+      await cameraService.initialize();
+      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        granted: true,
+        canAskAgain: true,
+        expires: 'never',
+      });
+      mockCameraRef.current.takePictureAsync.mockResolvedValue({
+        uri: 'file:///mock/photo.jpg',
+        width: 1920,
+        height: 1080,
+      });
+    });
+
+    test('should clamp currentPhotoIndex when deleting the last photo', async () => {
+      await cameraService.captureMultiplePhotos(mockCameraRef, 3);
+
+      // Move the index to the last photo, then delete it
+      (cameraService as any).currentPhotoIndex = 2;
+      cameraService.deleteCapturedPhoto(2);
+
+      const captured = cameraService.getCapturedPhotos();
+      expect(captured.photos).toHaveLength(2);
+      expect(captured.currentIndex).toBe(1);
+    });
+
+    test('should reset currentPhotoIndex to 0 when deleting from a single photo', async () => {
+      await cameraService.captureMultiplePhotos(mockCameraRef, 1);
+
+      (cameraService as any).currentPhotoIndex = 0;
+      cameraService.deleteCapturedPhoto(0);
+
+      const captured = cameraService.getCapturedPhotos();
+      expect(captured.photos).toHaveLength(0);
+      expect(captured.currentIndex).toBe(0);
     });
   });
 });

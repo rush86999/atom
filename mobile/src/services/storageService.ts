@@ -381,8 +381,15 @@ class StorageService {
       // Clear cache keys but preserve auth tokens
       const cacheKeys: StorageKey[] = ['episode_cache', 'canvas_cache', 'preferences', 'offline_queue'];
 
+      let allDeleted = true;
       for (const key of cacheKeys) {
-        await this.delete(key);
+        if (!(await this.delete(key))) {
+          allDeleted = false;
+        }
+      }
+
+      if (!allDeleted) {
+        return false;
       }
 
       // Reset quota
@@ -414,9 +421,11 @@ class StorageService {
         if (freedBytes >= requiredBytes) break;
 
         try {
-          await this.delete(key as StorageKey);
-          freedBytes += size;
-          console.log(`StorageService: Removed ${key} (${size} bytes)`);
+          const deleted = await this.delete(key as StorageKey);
+          if (deleted) {
+            freedBytes += size;
+            console.log(`StorageService: Removed ${key} (${size} bytes)`);
+          }
         } catch (error) {
           console.error(`StorageService: Failed to remove ${key}:`, error);
         }

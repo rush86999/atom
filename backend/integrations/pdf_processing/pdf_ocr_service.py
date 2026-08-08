@@ -18,7 +18,10 @@ except ImportError:  # pragma: no cover - PIL installed
 try:
     import pypdf as PyPDF2  # PyPDF2 merged into pypdf package
 except ImportError:
-    PyPDF2 = None
+    try:
+        import PyPDF2  # pragma: no cover - legacy package name
+    except ImportError:
+        PyPDF2 = None
 
 # Optional numpy import
 try:
@@ -346,7 +349,7 @@ class PDFOCRService:
                 optimal_provider = self.byok_manager.get_optimal_provider(
                     "image_comprehension"
                 )
-                if optimal_provider == "openai" and "openai" in self.ocr_readers:
+                if optimal_provider == "openai" and "ai_vision" in self.ocr_readers:
                     methods.append("openai_vision")
                     logger.info(
                         f"BYOK selected {optimal_provider} for image comprehension"
@@ -359,7 +362,7 @@ class PDFOCRService:
             methods.insert(0, "docling")
 
         # Fallback to default logic if BYOK not available or failed
-        if not methods and use_advanced_comprehension and "openai" in self.ocr_readers:
+        if not methods and use_advanced_comprehension and "ai_vision" in self.ocr_readers:
             methods.append("openai_vision")
 
         # Then standard OCR methods

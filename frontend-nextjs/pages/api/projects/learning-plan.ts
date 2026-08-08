@@ -87,7 +87,7 @@ export default async function handler(
     }
 
     // Validate duration
-    const duration = duration_weeks || 4;
+    const duration = duration_weeks ?? 4;
     if (duration < 1 || duration > 52) {
       return res.status(400).json({
         message: "Duration must be between 1 and 52 weeks"

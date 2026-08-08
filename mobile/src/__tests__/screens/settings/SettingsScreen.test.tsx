@@ -603,4 +603,188 @@ describe('SettingsScreen', () => {
       });
     });
   });
+
+  describe('Toggle Interactions', () => {
+    beforeEach(() => {
+      // Earlier (vacuous) tests queue mockResolvedValueOnce/mockImplementationOnce
+      // on the shared requestCapability mock without consuming them, which
+      // would poison later tests. Reset the queue and default to granted.
+      (mockDeviceContext.requestCapability as jest.Mock).mockReset();
+      mockDeviceContext.requestCapability.mockResolvedValue(true);
+    });
+
+    it('requests notification permission and enables switch when granted', async () => {
+      const { getByText } = render(<SettingsScreen />);
+      const { Switch } = require('react-native');
+
+      await waitFor(() => {
+        expect(getByText('Notifications')).toBeTruthy();
+      });
+
+      const switches = screen.UNSAFE_getAllByType(Switch);
+      fireEvent(switches[0], 'valueChange', true);
+
+      await waitFor(() => {
+        expect(mockDeviceContext.requestCapability).toHaveBeenCalledWith('notifications');
+        expect(switches[0].props.value).toBe(true);
+      });
+    });
+
+    it('shows alert and keeps switch off when notification permission denied', async () => {
+      mockDeviceContext.requestCapability.mockResolvedValueOnce(false);
+
+      const { getByText } = render(<SettingsScreen />);
+      const { Switch, Alert } = require('react-native');
+
+      await waitFor(() => {
+        expect(getByText('Notifications')).toBeTruthy();
+      });
+
+      const switches = screen.UNSAFE_getAllByType(Switch);
+      fireEvent(switches[0], 'valueChange', true);
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Permission Denied',
+          'Notification permission is required to enable notifications'
+        );
+        expect(switches[0].props.value).toBe(false);
+      });
+    });
+
+    it('disables notifications when switch is turned off', async () => {
+      const { getByText } = render(<SettingsScreen />);
+      const { Switch } = require('react-native');
+
+      await waitFor(() => {
+        expect(getByText('Notifications')).toBeTruthy();
+      });
+
+      const switches = screen.UNSAFE_getAllByType(Switch);
+
+      // Enable first
+      fireEvent(switches[0], 'valueChange', true);
+      await waitFor(() => {
+        expect(switches[0].props.value).toBe(true);
+      });
+
+      // Turn off — no permission request, switch goes back off
+      fireEvent(switches[0], 'valueChange', false);
+
+      await waitFor(() => {
+        expect(switches[0].props.value).toBe(false);
+      });
+      expect(mockDeviceContext.requestCapability).toHaveBeenCalledTimes(1);
+    });
+
+    it('requests biometric capability and enables switch when granted', async () => {
+      const { getByText } = render(<SettingsScreen />);
+      const { Switch } = require('react-native');
+
+      await waitFor(() => {
+        expect(getByText('Biometric Authentication')).toBeTruthy();
+      });
+
+      const switches = screen.UNSAFE_getAllByType(Switch);
+      fireEvent(switches[1], 'valueChange', true);
+
+      await waitFor(() => {
+        expect(mockDeviceContext.requestCapability).toHaveBeenCalledWith('biometric');
+        expect(switches[1].props.value).toBe(true);
+      });
+    });
+
+    it('shows alert when biometric capability is unavailable', async () => {
+      mockDeviceContext.requestCapability.mockResolvedValueOnce(false);
+
+      const { getByText } = render(<SettingsScreen />);
+      const { Switch, Alert } = require('react-native');
+
+      await waitFor(() => {
+        expect(getByText('Biometric Authentication')).toBeTruthy();
+      });
+
+      const switches = screen.UNSAFE_getAllByType(Switch);
+      fireEvent(switches[1], 'valueChange', true);
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Biometric Not Available',
+          expect.stringContaining('does not support biometric')
+        );
+        expect(switches[1].props.value).toBe(false);
+      });
+    });
+
+    it('toggles notifications when the setting item is pressed', async () => {
+      const { getByText } = render(<SettingsScreen />);
+      const { Switch } = require('react-native');
+
+      await waitFor(() => {
+        expect(getByText('Notifications')).toBeTruthy();
+      });
+
+      // Press the whole setting row (TouchableOpacity onPress path)
+      fireEvent.press(getByText('Notifications'));
+
+      const switches = screen.UNSAFE_getAllByType(Switch);
+      await waitFor(() => {
+        expect(mockDeviceContext.requestCapability).toHaveBeenCalledWith('notifications');
+        expect(switches[0].props.value).toBe(true);
+      });
+
+      // Pressing again toggles it off
+      fireEvent.press(getByText('Notifications'));
+      await waitFor(() => {
+        expect(switches[0].props.value).toBe(false);
+      });
+    });
+
+    it('toggles biometric when the setting item is pressed', async () => {
+      const { getByText } = render(<SettingsScreen />);
+      const { Switch } = require('react-native');
+
+      await waitFor(() => {
+        expect(getByText('Biometric Authentication')).toBeTruthy();
+      });
+
+      fireEvent.press(getByText('Biometric Authentication'));
+
+      const switches = screen.UNSAFE_getAllByType(Switch);
+      await waitFor(() => {
+        expect(mockDeviceContext.requestCapability).toHaveBeenCalledWith('biometric');
+        expect(switches[1].props.value).toBe(true);
+      });
+
+      // Pressing again toggles it off without another capability request
+      fireEvent.press(getByText('Biometric Authentication'));
+      await waitFor(() => {
+        expect(switches[1].props.value).toBe(false);
+      });
+      expect(mockDeviceContext.requestCapability).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Logout Confirmation', () => {
+    it('calls logout when the confirmation dialog is confirmed', async () => {
+      const { getByText } = render(<SettingsScreen />);
+      const { Alert } = require('react-native');
+
+      fireEvent.press(getByText('Logout'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalled();
+      });
+
+      const alertCalls = Alert.alert.mock.calls;
+      const lastCall = alertCalls[alertCalls.length - 1];
+      const confirmButton = lastCall[2][1];
+
+      await act(async () => {
+        confirmButton.onPress();
+      });
+
+      expect(mockAuthContext.logout).toHaveBeenCalled();
+    });
+  });
 });

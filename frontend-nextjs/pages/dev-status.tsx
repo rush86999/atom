@@ -299,7 +299,7 @@ const DevStatus = () => {
                 const statusColor = getStatusColor(service.status);
 
                 return (
-                  <Card key={index} className="border-l-4" style={{ borderLeftColor: statusColor.replace('bg-', 'var(--') }}>
+                  <Card key={index} className="border-l-4" style={{ borderLeftColor: `var(--${statusColor.replace('bg-', '')})` }}>
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{service.name}</h3>

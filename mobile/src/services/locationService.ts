@@ -144,6 +144,7 @@ class LocationService {
       } else {
         const { status: fgStatus } = await Location.getForegroundPermissionsAsync();
         status = fgStatus;
+        this.permissionStatus = fgStatus === 'granted' ? 'granted' : fgStatus;
       }
 
       // Request background permission (Android only)

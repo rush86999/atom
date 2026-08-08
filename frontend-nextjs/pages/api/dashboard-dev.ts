@@ -136,10 +136,16 @@ function getMockDashboardData(): DashboardData {
 };
 }
 
+// Mock fallback data used when the backend is unreachable
+const mockDashboardData = getMockDashboardData();
+const mockCalendarData = mockDashboardData.calendar;
+const mockTasksData = mockDashboardData.tasks;
+const mockMessagesData = mockDashboardData.messages;
+
 // Function to fetch real calendar data from backend API
 async function fetchRealCalendarData(): Promise<CalendarEvent[]> {
   try {
-    const response = await fetch("http://localhost:5058/api/calendar/events", {
+    const response = await fetch(`${BACKEND_API_URL}/api/calendar/events`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -162,7 +168,7 @@ async function fetchRealCalendarData(): Promise<CalendarEvent[]> {
 // Function to fetch real task data from backend API
 async function fetchRealTaskData(): Promise<Task[]> {
   try {
-    const response = await fetch("http://localhost:5058/api/tasks", {
+    const response = await fetch(`${BACKEND_API_URL}/api/tasks`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -185,7 +191,7 @@ async function fetchRealTaskData(): Promise<Task[]> {
 // Function to fetch real message data from backend API
 async function fetchRealMessageData(): Promise<Message[]> {
   try {
-    const response = await fetch("http://localhost:5058/api/messages", {
+    const response = await fetch(`${BACKEND_API_URL}/api/messages`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -238,7 +244,7 @@ export default async function handler(
     ).length;
 
     const overdueTasks = taskData.filter(
-      (task) => task.status !== "completed" && new Date(task.dueDate) < now,
+      (task) => task.status !== "completed" && new Date(task.due_date) < now,
     ).length;
 
     const unreadMessages = messageData.filter(

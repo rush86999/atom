@@ -276,6 +276,24 @@ describe('StorageService', () => {
 
       expect(result).toBe(true);
     });
+
+    test('should set number in AsyncStorage via string fallback', async () => {
+      const AsyncStorage = require('@react-native-async-storage/async-storage');
+
+      const result = await storageService.setNumber('episode_cache', 42);
+
+      expect(result).toBe(true);
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith('episode_cache', '42');
+    });
+
+    test('should set boolean in AsyncStorage via string fallback', async () => {
+      const AsyncStorage = require('@react-native-async-storage/async-storage');
+
+      const result = await storageService.setBoolean('preferences', true);
+
+      expect(result).toBe(true);
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith('preferences', 'true');
+    });
   });
 
   // ========================================================================
@@ -1242,6 +1260,142 @@ describe('StorageService', () => {
       const retrieved = await storageService.getObject<any>('preferences');
 
       expect(retrieved).toBeNull();
+    });
+  });
+
+  // ========================================================================
+  // Additional Error Path Tests
+  // ========================================================================
+
+  describe('Additional Error Paths', () => {
+    test('should return null when getStringAsync throws', async () => {
+      const mockMMKV = (global as any).__mmkvGlobalInstance;
+      mockMMKV.getString.mockImplementationOnce(() => {
+        throw new Error('MMKV read failed');
+      });
+
+      const value = await storageService.getStringAsync('auth_token');
+
+      expect(value).toBeNull();
+    });
+
+    test('should return false when setNumber throws', async () => {
+      const mockMMKV = (global as any).__mmkvGlobalInstance;
+      mockMMKV.set.mockImplementationOnce(() => {
+        throw new Error('MMKV write failed');
+      });
+
+      const result = await storageService.setNumber('offline_queue', 7);
+
+      expect(result).toBe(false);
+    });
+
+    test('should return null when getNumber throws', async () => {
+      const mockMMKV = (global as any).__mmkvGlobalInstance;
+      mockMMKV.getNumber.mockImplementationOnce(() => {
+        throw new Error('MMKV read failed');
+      });
+
+      const value = await storageService.getNumber('offline_queue');
+
+      expect(value).toBeNull();
+    });
+
+    test('should return false when setBoolean throws', async () => {
+      const mockMMKV = (global as any).__mmkvGlobalInstance;
+      mockMMKV.set.mockImplementationOnce(() => {
+        throw new Error('MMKV write failed');
+      });
+
+      const result = await storageService.setBoolean('biometric_enabled', true);
+
+      expect(result).toBe(false);
+    });
+
+    test('should return null when getBoolean throws', async () => {
+      const mockMMKV = (global as any).__mmkvGlobalInstance;
+      mockMMKV.getBoolean.mockImplementationOnce(() => {
+        throw new Error('MMKV read failed');
+      });
+
+      const value = await storageService.getBoolean('biometric_enabled');
+
+      expect(value).toBeNull();
+    });
+
+    test('should return zero stats when getStats throws', async () => {
+      const AsyncStorage = require('@react-native-async-storage/async-storage');
+      AsyncStorage.getAllKeys.mockRejectedValueOnce(new Error('Storage unavailable'));
+
+      const stats = await storageService.getStats();
+
+      expect(stats).toEqual({
+        mmkvSize: 0,
+        asyncStorageSize: 0,
+        totalItems: 0,
+      });
+    });
+
+    test('should return false when clearCachedData throws', async () => {
+      const AsyncStorage = require('@react-native-async-storage/async-storage');
+      AsyncStorage.removeItem.mockRejectedValueOnce(new Error('Remove failed'));
+
+      const result = await storageService.clearCachedData();
+
+      expect(result).toBe(false);
+    });
+
+    test('should continue cleanup when a single delete fails', async () => {
+      (storageService as any).quota = {
+        usedBytes: 600,
+        maxBytes: 50 * 1024 * 1024,
+        warningThreshold: 0.8,
+        enforcementThreshold: 0.95,
+        breakdown: {
+          canvas_cache: 500,
+          preferences: 100,
+        },
+      };
+
+      const AsyncStorage = require('@react-native-async-storage/async-storage');
+      AsyncStorage.removeItem.mockRejectedValueOnce(new Error('Remove failed'));
+
+      // Entries are sorted smallest-first: preferences (100) is deleted first
+      // and fails — its bytes must NOT be credited. The canvas_cache (500)
+      // delete still succeeds and is credited (500 < 600 required, so cleanup
+      // stops), and no exception escapes.
+      const freedBytes = await storageService.cleanupOldData(600);
+
+      expect(freedBytes).toBe(500);
+      expect(AsyncStorage.removeItem).toHaveBeenCalled();
+    });
+
+    test('should return 0 when cleanup encounters a storage error', async () => {
+      (storageService as any).quota = null;
+
+      const AsyncStorage = require('@react-native-async-storage/async-storage');
+      AsyncStorage.getAllKeys.mockRejectedValueOnce(new Error('Storage unavailable'));
+
+      const freedBytes = await storageService.cleanupOldData(10);
+
+      expect(freedBytes).toBe(0);
+    });
+
+    test('should skip compression when compression is disabled', async () => {
+      (storageService as any).compressionEnabled = false;
+
+      const result = await storageService.compressCache();
+
+      expect(result).toEqual({ compressed: 0, bytesSaved: 0 });
+    });
+
+    test('should return zero results when compressCache throws', async () => {
+      const AsyncStorage = require('@react-native-async-storage/async-storage');
+      AsyncStorage.getItem.mockRejectedValueOnce(new Error('Read failed'));
+
+      const result = await storageService.compressCache();
+
+      expect(result).toEqual({ compressed: 0, bytesSaved: 0 });
     });
   });
 });

@@ -573,4 +573,158 @@ await act(async () => {
       });
     });
   });
+
+  // ============================================================================
+  // Cooldown Blocking & Countdown Tests
+  // ============================================================================
+
+  describe('Cooldown Blocking', () => {
+    it('blocks a new request while cooldown is active', async () => {
+      // A reset happened 10 seconds ago -> 50s of cooldown remaining
+      (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(
+        String(Date.now() - 10000)
+      );
+
+      const { getByPlaceholderText, getByTestId } = render(
+        <ForgotPasswordScreen navigation={mockNavigation as any} />
+      );
+
+      // Let the mount effect finish reading the persisted cooldown
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      const emailInput = getByPlaceholderText('Email');
+      const sendButton = getByTestId('send-reset-button');
+
+      fireEvent.changeText(emailInput, 'test@example.com');
+      await act(async () => {
+        fireEvent.press(sendButton);
+      });
+
+      const { Alert } = require('react-native');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Please Wait',
+          expect.stringContaining('50 seconds')
+        );
+      });
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('counts down and re-enables the resend link after the cooldown expires', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ success: true }),
+        } as any)
+      );
+
+      const { getByPlaceholderText, getByText, getByTestId, queryByText } = render(
+        <ForgotPasswordScreen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Email'), 'test@example.com');
+      await act(async () => {
+        fireEvent.press(getByTestId('send-reset-button'));
+      });
+
+      // Cooldown starts at 60s; the first interval tick (1s) renders 59s
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+      expect(getByText('Resend in 59s')).toBeTruthy();
+
+      // One more tick decrements further
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+      expect(getByText('Resend in 58s')).toBeTruthy();
+
+      // After the full cooldown the interval is cleared and resend re-enables
+      act(() => {
+        jest.advanceTimersByTime(59000);
+      });
+      await waitFor(() => {
+        expect(queryByText(/Resend in/)).toBeNull();
+        expect(getByText('Resend Email')).toBeTruthy();
+      });
+    });
+  });
+
+  // ============================================================================
+  // Additional Server Response Paths
+  // ============================================================================
+
+  describe('Server Response Paths', () => {
+    it('shows a generic server error for 5xx responses', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 500,
+          json: () => Promise.resolve({ detail: 'Internal error' }),
+        } as any)
+      );
+
+      const { getByPlaceholderText, getByTestId } = render(
+        <ForgotPasswordScreen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Email'), 'test@example.com');
+      await act(async () => {
+        fireEvent.press(getByTestId('send-reset-button'));
+      });
+
+      const { Alert } = require('react-native');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Error',
+          'Server error. Please try again later.'
+        );
+      });
+    });
+
+    it('treats 404 as success to prevent email enumeration', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 404,
+          json: () => Promise.resolve({ detail: 'Not found' }),
+        } as any)
+      );
+
+      const { getByPlaceholderText, getByText, getByTestId } = render(
+        <ForgotPasswordScreen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Email'), 'ghost@example.com');
+      await act(async () => {
+        fireEvent.press(getByTestId('send-reset-button'));
+      });
+
+      // 404 must not reveal whether the account exists — success UI shows
+      await waitFor(() => {
+        expect(getByText('Check Your Email')).toBeTruthy();
+      });
+    });
+
+    it('shows validation error after blurring the email field and submitting', async () => {
+      const { getByPlaceholderText, getByText, getByTestId } = render(
+        <ForgotPasswordScreen navigation={mockNavigation as any} />
+      );
+
+      const emailInput = getByPlaceholderText('Email');
+
+      fireEvent(emailInput, 'blur');
+      await act(async () => {
+        fireEvent.press(getByTestId('send-reset-button'));
+      });
+
+      await waitFor(() => {
+        expect(getByText('Email is required')).toBeTruthy();
+      });
+    });
+  });
 });

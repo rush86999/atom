@@ -116,7 +116,7 @@ describe("pages/api/meeting_attendance_status/[taskId]", () => {
     expect(body.final_notion_page_url).toBe("https://notion.so/page");
     expect(new Date(body.status_timestamp).toISOString()).toBe(body.status_timestamp);
     expect(new Date(body.created_at).toISOString()).toBe(body.created_at);
-    const client = mockPoolHolder.pool.connect.mock.results[0].value;
+    const client = await mockPoolHolder.pool.connect.mock.results[0].value;
     expect(client.query).toHaveBeenCalledWith(
       "SELECT * FROM meeting_attendance_status WHERE task_id = $1 AND user_id = $2",
       ["task-1", "user-1"],

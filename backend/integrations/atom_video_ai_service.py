@@ -131,6 +131,28 @@ try:  # pragma: no cover - phantom top-level modules in this runtime
     from atom_zoom_integration import atom_zoom_integration
 except ImportError as e:
     logging.warning(f"Enterprise services not available: {e}")
+    # Fallback stubs so `_summarize_video` degrades gracefully instead of
+    # raising NameError when the optional module is absent.
+    class AIModelType(str, Enum):
+        GPT_4 = "gpt-4"
+
+    class AITaskType(str, Enum):
+        CONTENT_ANALYSIS = "content_analysis"
+
+    class AIServiceType(str, Enum):
+        OPENAI = "openai"
+
+    @dataclass
+    class AIRequest:
+        request_id: str
+        task_type: Any
+        model_type: Any
+        service_type: Any
+        input_data: Dict[str, Any]
+        context: Dict[str, Any]
+        platform: str
+
+    AIResponse = None
 
 # Configure logging
 logger = logging.getLogger(__name__)

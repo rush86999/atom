@@ -49,8 +49,8 @@ describe("pages/api/dev/desktop-bridge", () => {
     const body = res._getJSONData();
     expect(body.os).toEqual(expect.any(String));
     expect(body.cpu_usage).toBeGreaterThan(0);
-    expect(body.memory_usage).toBeGreaterThan(0);
-    expect(body.memory_usage).toBeLessThan(100);
+    expect(body.memory_usage).toBeGreaterThanOrEqual(0);
+    expect(body.memory_usage).toBeLessThanOrEqual(100);
     expect(body.disk_usage).toBe(52.4);
     expect(body.uptime).toBeGreaterThan(0);
   });

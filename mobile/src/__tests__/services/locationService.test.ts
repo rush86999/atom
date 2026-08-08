@@ -1567,4 +1567,460 @@ describe('LocationService', () => {
       expect(Location.removeSubscriptionAsync).toHaveBeenCalledWith(123);
     });
   });
+
+  // ========================================================================
+  // Watch Callback / Throttling Tests
+  // ========================================================================
+
+  describe('Watch Position Callback', () => {
+    // Capture the callback passed to watchPositionAsync so tests can drive it
+    let watchCallback: ((location: any) => void) | null = null;
+
+    beforeEach(async () => {
+      watchCallback = null;
+      (Location.watchPositionAsync as jest.Mock).mockImplementation(
+        (_options: any, callback: (location: any) => void) => {
+          watchCallback = callback;
+          return Promise.resolve(777);
+        }
+      );
+
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      await locationService.requestPermissions(true, false);
+      await locationService.startTracking();
+      expect(watchCallback).not.toBeNull();
+    });
+
+    test('should process location updates from the watch callback', async () => {
+      const updateLocation = {
+        coords: { latitude: 40.7128, longitude: -74.006, altitude: 10, accuracy: 12 },
+        timestamp: 1000000,
+      };
+
+      // lastLocationUpdate starts at 0, so the first update is NOT throttled
+      watchCallback!(updateLocation);
+
+      // Allow the async processLocationUpdate to settle (global fake timers:
+      // setTimeout never fires, so flush the promise chain via microtasks)
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const lastKnown = locationService.getLastKnownLocation();
+      expect(lastKnown?.latitude).toBe(40.7128);
+      expect(lastKnown?.longitude).toBe(-74.006);
+      expect(lastKnown?.timestamp).toBe(1000000);
+
+      // Update is recorded in history
+      const history = await locationService.getLocationHistory();
+      expect(history).toHaveLength(1);
+      expect(history[0].latitude).toBe(40.7128);
+    });
+
+    test('should throttle rapid updates and process them after the throttle window', async () => {
+      jest.useFakeTimers();
+
+      // Simulate a recent update so the next one falls inside the throttle window
+      (locationService as any).lastLocationUpdate = Date.now();
+
+      const firstUpdate = {
+        coords: { latitude: 1.0, longitude: 1.0, altitude: 1, accuracy: 1 },
+        timestamp: 2000000,
+      };
+      const secondUpdate = {
+        coords: { latitude: 2.0, longitude: 2.0, altitude: 2, accuracy: 2 },
+        timestamp: 3000000,
+      };
+
+      // First rapid update schedules a timer
+      watchCallback!(firstUpdate);
+      // Second rapid update must NOT schedule a second timer
+      watchCallback!(secondUpdate);
+
+      // History must not grow until the throttle window elapses
+      expect(await locationService.getLocationHistory()).toHaveLength(0);
+
+      // Advance past THROTTLE_MS so the scheduled timer fires
+      jest.advanceTimersByTime(5100);
+      // Let the (unawaited) async processLocationUpdate settle
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const history = await locationService.getLocationHistory();
+      expect(history).toHaveLength(1);
+      expect(locationService.getLastKnownLocation()?.timestamp).toBe(2000000);
+
+      jest.useRealTimers();
+    });
+
+    test('should stop tracking clear a pending throttled update timer', async () => {
+      jest.useFakeTimers();
+
+      (locationService as any).lastLocationUpdate = Date.now();
+      watchCallback!({
+        coords: { latitude: 3.0, longitude: 3.0, altitude: 3, accuracy: 3 },
+        timestamp: 4000000,
+      });
+
+      // A throttled timer is now pending; stopping tracking must clear it
+      await locationService.stopTracking();
+
+      jest.advanceTimersByTime(5100);
+      await Promise.resolve();
+
+      // The pending update must never be processed after stop
+      const history = await locationService.getLocationHistory();
+      expect(history).toHaveLength(0);
+      expect(locationService.getLastKnownLocation()).toBeNull();
+
+      jest.useRealTimers();
+    });
+  });
+
+  // ========================================================================
+  // Extended Error Path Tests
+  // ========================================================================
+
+  describe('Extended Error Paths', () => {
+    test('should not throw when initialize fails', async () => {
+      (Location.getForegroundPermissionsAsync as jest.Mock).mockRejectedValue(
+        new Error('Permission check failed')
+      );
+
+      await expect(locationService.initialize()).resolves.not.toThrow();
+    });
+
+    test('should read status (not request) when foreground=false', async () => {
+      (Location.getForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      const status = await locationService.requestPermissions(false, false);
+
+      expect(status).toBe('granted');
+      expect(Location.requestForegroundPermissionsAsync).not.toHaveBeenCalled();
+      expect(Location.getForegroundPermissionsAsync).toHaveBeenCalled();
+    });
+
+    test('should query background permission status on Android', async () => {
+      (Platform.OS as any) = 'android';
+      (Location.getBackgroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'denied',
+        canAskAgain: false,
+        granted: false,
+        expires: 'never',
+      });
+
+      const status = await locationService.getPermissionStatus();
+
+      expect(Location.getBackgroundPermissionsAsync).toHaveBeenCalled();
+      expect(status).toEqual({
+        foreground: 'granted',
+        background: 'denied',
+      });
+    });
+
+    test('should not throw when opening settings fails', async () => {
+      const { Linking } = require('react-native');
+      Linking.openURL.mockRejectedValue(new Error('Cannot open URL'));
+
+      await expect(locationService.openSettings()).resolves.not.toThrow();
+    });
+
+    test('should refuse background tracking without foreground permission', async () => {
+      (locationService as any)._resetState();
+
+      const started = await locationService.startBackgroundTracking();
+
+      expect(started).toBe(false);
+      expect(Location.requestBackgroundPermissionsAsync).not.toHaveBeenCalled();
+    });
+
+    test('should return false when background tracking setup throws', async () => {
+      (Platform.OS as any) = 'android';
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+      (Location.requestBackgroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+      (Location.watchPositionAsync as jest.Mock).mockRejectedValue(
+        new Error('Tracking unavailable')
+      );
+
+      await locationService.requestPermissions(true, false);
+
+      const started = await locationService.startBackgroundTracking();
+
+      expect(started).toBe(false);
+      expect(locationService.isBackgroundTrackingActive()).toBe(false);
+    });
+  });
+
+  // ========================================================================
+  // Geofence Management Tests
+  // ========================================================================
+
+  describe('Geofence Management', () => {
+    test('should add, list, and remove geofences', async () => {
+      const region1 = {
+        id: 'g1',
+        identifier: 'Home',
+        latitude: 37.7749,
+        longitude: -122.4194,
+        radius: 100,
+        notifyOnEntry: true,
+        notifyOnExit: true,
+      };
+      const region2 = {
+        id: 'g2',
+        identifier: 'Work',
+        latitude: 37.78,
+        longitude: -122.41,
+        radius: 200,
+        notifyOnEntry: true,
+        notifyOnExit: false,
+      };
+
+      await locationService.addGeofence(region1);
+      await locationService.addGeofence(region2);
+
+      expect(locationService.getGeofences()).toHaveLength(2);
+
+      // getGeofences must return a copy, not the internal array
+      const listed = locationService.getGeofences();
+      listed.push(region1);
+      expect(locationService.getGeofences()).toHaveLength(2);
+
+      await locationService.removeGeofence('g1');
+
+      const remaining = locationService.getGeofences();
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].id).toBe('g2');
+
+      // Persisted to storage
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'atom_geofences',
+        expect.stringContaining('"g2"')
+      );
+    });
+
+    test('should isolate a throwing geofence listener from other listeners', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const healthy = jest.fn();
+
+      locationService.onGeofenceEvent(() => {
+        throw new Error('Listener crashed');
+      });
+      locationService.onGeofenceEvent(healthy);
+
+      const region = {
+        id: 'g3',
+        identifier: 'Isolation',
+        latitude: 37.7749,
+        longitude: -122.4194,
+        radius: 100,
+        notifyOnEntry: true,
+        notifyOnExit: false,
+      };
+      await locationService.addGeofence(region);
+
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+      await locationService.requestPermissions(true, false);
+
+      await locationService.getCurrentLocation();
+
+      expect(healthy).toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'LocationService: Geofence listener error:',
+        expect.any(Error)
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  // ========================================================================
+  // History Limit & Storage Failure Tests
+  // ========================================================================
+
+  describe('History Limits and Storage Failures', () => {
+    test('should bound history at MAX_HISTORY_ENTRIES when adding entries', async () => {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const historyEntries = Array.from({ length: 1000 }, (_, i) => ({
+        latitude: 37.7749 + i * 0.0001,
+        longitude: -122.4194 + i * 0.0001,
+        accuracy: 10,
+        timestamp: Date.now() + i * 1000,
+      }));
+      AsyncStorage.getItem.mockResolvedValue(JSON.stringify(historyEntries));
+
+      await locationService.initialize();
+
+      // Adding one more entry must trigger the > MAX_HISTORY_ENTRIES branch
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+      await locationService.requestPermissions(true, false);
+      const location = await locationService.getCurrentLocation();
+      expect(location).not.toBeNull();
+
+      const history = await locationService.getLocationHistory();
+      expect(history).toHaveLength(1000);
+    });
+
+    test('should not throw when saving location history fails', async () => {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      AsyncStorage.setItem.mockRejectedValueOnce(new Error('Write failed'));
+
+      await locationService.requestPermissions(true, false);
+      const location = await locationService.getCurrentLocation();
+
+      // Failure to persist must not block location retrieval
+      expect(location).not.toBeNull();
+    });
+
+    test('should not throw when loading location history fails', async () => {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      AsyncStorage.getItem.mockRejectedValueOnce(new Error('Read failed'));
+
+      await expect(locationService.initialize()).resolves.not.toThrow();
+      expect(await locationService.getLocationHistory()).toEqual([]);
+    });
+
+    test('should not throw when saving geofences fails', async () => {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      AsyncStorage.setItem.mockRejectedValueOnce(new Error('Write failed'));
+
+      await expect(
+        locationService.addGeofence({
+          id: 'g10',
+          identifier: 'Persist Fail',
+          latitude: 0,
+          longitude: 0,
+          radius: 10,
+          notifyOnEntry: true,
+          notifyOnExit: true,
+        })
+      ).resolves.not.toThrow();
+
+      // In-memory state is still updated even if persistence fails
+      expect(locationService.getGeofences()).toHaveLength(1);
+    });
+
+    test('should not throw when loading geofences fails', async () => {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      AsyncStorage.getItem.mockRejectedValueOnce(new Error('Read failed'));
+
+      await expect(locationService.initialize()).resolves.not.toThrow();
+      expect(locationService.getGeofences()).toEqual([]);
+    });
+  });
+
+  // ========================================================================
+  // Mock Location Tests
+  // ========================================================================
+
+  describe('Mock Location', () => {
+    test('should set a mock location and record it in history', async () => {
+      const mockLoc: any = {
+        latitude: 51.5074,
+        longitude: -0.1278,
+        accuracy: 5,
+        timestamp: 123456789,
+      };
+
+      await locationService.setMockLocation(mockLoc);
+
+      expect(locationService.getLastKnownLocation()).toEqual(mockLoc);
+
+      const history = await locationService.getLocationHistory();
+      expect(history).toHaveLength(1);
+      expect(history[0].latitude).toBe(51.5074);
+      expect(history[0].timestamp).toBe(123456789);
+    });
+  });
+
+  // ========================================================================
+  // Remaining Error-Path Coverage
+  // ========================================================================
+
+  describe('Error-Path Coverage', () => {
+    test('should return false when background permission request throws', async () => {
+      (Platform.OS as any) = 'android';
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+      (Location.requestBackgroundPermissionsAsync as jest.Mock).mockRejectedValue(
+        new Error('Background permission request failed')
+      );
+
+      await locationService.requestPermissions(true, false);
+
+      const started = await locationService.startBackgroundTracking();
+
+      expect(started).toBe(false);
+      expect(locationService.isBackgroundTrackingActive()).toBe(false);
+      expect(Location.watchPositionAsync).not.toHaveBeenCalled();
+    });
+
+    test('should return Unknown location when all address parts are missing', async () => {
+      (Location.reverseGeocodeAsync as jest.Mock).mockResolvedValue([
+        {
+          street: '',
+          city: '',
+          region: '',
+          postalCode: '',
+          country: 'USA',
+        },
+      ]);
+
+      const address = await locationService.reverseGeocode({
+        latitude: 37.7749,
+        longitude: -122.4194,
+      });
+
+      expect(address).toBe('Unknown location');
+    });
+
+    test('should stop tracking gracefully when no subscription is active', async () => {
+      await locationService.stopTracking();
+
+      expect(Location.removeSubscriptionAsync).not.toHaveBeenCalled();
+      expect(locationService.isActive()).toBe(false);
+    });
+
+    test('should not throw when destroy runs with no active tracking', async () => {
+      await expect(locationService.destroy()).resolves.not.toThrow();
+      expect(locationService.isActive()).toBe(false);
+      expect(locationService.getLastKnownLocation()).toBeNull();
+    });
+  });
 });

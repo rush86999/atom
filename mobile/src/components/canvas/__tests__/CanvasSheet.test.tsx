@@ -307,5 +307,99 @@ describe('CanvasSheet Component', () => {
 
       expect(onEndReached).toHaveBeenCalled();
     });
+
+    test('syncs the horizontal scroll position when the vertical list scrolls to top', () => {
+      const scrollSpy = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+      const { UNSAFE_getAllByType } = render(<CanvasSheet data={baseSheet} />);
+
+      const scrollViews = UNSAFE_getAllByType(ScrollView);
+      const verticalScroll = scrollViews[1];
+
+      // y === 0 triggers the horizontal scroll sync
+      fireEvent(verticalScroll, 'scroll', {
+        nativeEvent: { contentOffset: { x: 40, y: 0 } },
+      });
+      expect(scrollSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ x: 40, animated: false })
+      );
+
+      scrollSpy.mockRestore();
+    });
+  });
+
+  describe('Extended interactions', () => {
+    test('selects a row via its checkbox and deselects on second press', () => {
+      const { getByTestId, getByText, queryByText, UNSAFE_getAllByType } = render(
+        <CanvasSheet data={baseSheet} />
+      );
+
+      fireEvent.press(getByTestId('icon-checkbox-multiple-marked-outline'));
+
+      const checkboxes = UNSAFE_getAllByType(Checkbox);
+      // checkboxes[0] is the header select-all; [1] is the first row's
+      fireEvent.press(checkboxes[1]);
+      expect(getByText('1 selected')).toBeTruthy();
+
+      fireEvent.press(checkboxes[1]);
+      expect(queryByText('1 selected')).toBeNull();
+    });
+
+    test('deselects a row when its cell is tapped again in selection mode', () => {
+      const { getByTestId, getByText, queryByText } = render(<CanvasSheet data={baseSheet} />);
+
+      fireEvent.press(getByTestId('icon-checkbox-multiple-marked-outline'));
+      fireEvent.press(getByText('North'));
+      expect(getByText('1 selected')).toBeTruthy();
+
+      // Tapping the same row's cell toggles the selection off
+      fireEvent.press(getByText('North'));
+      expect(queryByText('1 selected')).toBeNull();
+    });
+
+    test('opens the filter button without disrupting the sheet', () => {
+      const { getByTestId, getByText } = render(<CanvasSheet data={baseSheet} />);
+
+      fireEvent.press(getByTestId('icon-filter-outline'));
+
+      // The sheet still renders its rows after the filter modal state flips
+      expect(getByText('North')).toBeTruthy();
+      expect(getByText('3 rows')).toBeTruthy();
+    });
+
+    test('exports null cell values as empty strings', async () => {
+      const sheet: SheetData = {
+        title: 'Nullable',
+        columns: [
+          { key: 'a', label: 'A', type: 'text' },
+          { key: 'b', label: 'B', type: 'number' },
+        ],
+        rows: [{ id: 'r1', data: { a: 'x', b: null } }],
+      };
+      const { getByTestId } = render(<CanvasSheet data={sheet} />);
+
+      fireEvent.press(getByTestId('icon-download-outline'));
+
+      await waitFor(() => {
+        expect(mockWriteAsStringAsync).toHaveBeenCalled();
+      });
+
+      const [, csvContent] = mockWriteAsStringAsync.mock.calls[0];
+      expect(csvContent).toContain('"x",""');
+    });
+
+    test('export failure surfaces an alert', async () => {
+      mockWriteAsStringAsync.mockRejectedValueOnce(new Error('Disk full'));
+      const { Alert } = require('react-native');
+
+      const { getByTestId } = render(<CanvasSheet data={baseSheet} />);
+      fireEvent.press(getByTestId('icon-download-outline'));
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Export Failed',
+          'Could not export sheet data'
+        );
+      });
+    });
   });
 });

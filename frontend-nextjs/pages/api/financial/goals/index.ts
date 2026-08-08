@@ -113,9 +113,11 @@ async function handleGetGoals(req: NextApiRequest, res: NextApiResponse) {
         ),
         totalSaved: filteredGoals.reduce((sum, goal) => sum + goal.current, 0),
         totalProgress:
-          (filteredGoals.reduce((sum, goal) => sum + goal.current, 0) /
-            filteredGoals.reduce((sum, goal) => sum + goal.targetAmount, 0)) *
-          100,
+          filteredGoals.length > 0
+            ? (filteredGoals.reduce((sum, goal) => sum + goal.current, 0) /
+                filteredGoals.reduce((sum, goal) => sum + goal.targetAmount, 0)) *
+              100
+            : 0,
       },
     });
   } catch (error) {
@@ -153,7 +155,10 @@ async function handleCreateGoal(req: NextApiRequest, res: NextApiResponse) {
       description: description || '',
       targetAmount,
       current: currentAmount,
-      progress: (currentAmount / targetAmount) * 100,
+      progress:
+        typeof targetAmount === "number" && targetAmount > 0
+          ? (currentAmount / targetAmount) * 100
+          : 0,
       goalType,
       targetDate,
       status: 'active',
@@ -183,7 +188,10 @@ async function handleUpdateGoal(req: NextApiRequest, res: NextApiResponse) {
       name,
       targetAmount,
       current: currentAmount,
-      progress: (currentAmount / targetAmount) * 100,
+      progress:
+        typeof targetAmount === "number" && targetAmount > 0
+          ? (currentAmount / targetAmount) * 100
+          : 0,
       targetDate,
     };
 

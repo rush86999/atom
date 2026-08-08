@@ -167,7 +167,10 @@ class SkillCreationAgent:
             # 3. Generate component code
             component_code = await self._generate_component_code(skill, component_config)
 
-            # 4. Create component
+            # 4. Create component. CanvasComponent has no `config`/`dependencies`
+            # columns — passing them crashed every creation (TypeError) and the
+            # rollback re-raised. The skill binding now rides inside
+            # config_schema.
             component = CanvasComponent(
                 tenant_id=tenant_id,
                 author_id=user_id,
@@ -176,16 +179,15 @@ class SkillCreationAgent:
                 category=component_config["category"],
                 component_type="react",
                 code=component_code,
-                config_schema=component_config["config_schema"],
+                config_schema={
+                    **component_config["config_schema"],
+                    "required_skill_id": skill.id,
+                    "required_skill_version": skill.version,
+                },
                 tags=skill.tags or [],
-                dependencies=component_config.get("dependencies", []),
                 version="1.0.0",
                 is_public=False,
                 is_approved=False,
-                config={
-                    "required_skill_id": skill.id,
-                    "required_skill_version": skill.version
-                }
             )
 
             self.db.add(component)

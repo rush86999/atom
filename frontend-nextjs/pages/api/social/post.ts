@@ -74,7 +74,9 @@ export default async function handler(
 
     // Validate platforms
     const validPlatforms = ["twitter", "linkedin", "facebook"];
-    const invalidPlatforms = platforms.filter((p: string) => !validPlatforms.includes(p.toLowerCase()));
+    const invalidPlatforms = platforms.filter(
+      (p: string) => !validPlatforms.includes(String(p).toLowerCase()),
+    );
 
     if (invalidPlatforms.length > 0) {
       return res.status(400).json({
@@ -169,11 +171,11 @@ function generateSuccessMessage(platformResults: any, scheduled: boolean): strin
     return "Post scheduled successfully";
   }
 
-  const platforms = Object.keys(platformResults);
+  const platforms = Object.keys(platformResults || {});
   const successful = platforms.filter(p => platformResults[p].success);
   const failed = platforms.filter(p => !platformResults[p].success);
 
-  if (successful.length === platforms.length) {
+  if (platforms.length > 0 && successful.length === platforms.length) {
     return `Successfully posted to ${successful.length} platform${successful.length > 1 ? "s" : ""}`;
   }
 

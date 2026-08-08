@@ -695,4 +695,93 @@ describe('CanvasChart Component', () => {
       expect(queryByText('Legend')).toBeNull();
     });
   });
+
+  describe('Extended Interactions', () => {
+    test('should fire haptic feedback on long press', () => {
+      const Haptics = require('expo-haptics');
+      const { ScrollView } = require('react-native');
+      const { UNSAFE_getAllByType } = renderWithTheme(<CanvasChart data={mockLineData} />);
+
+      const scrollView = UNSAFE_getAllByType(ScrollView)[0];
+      fireEvent(scrollView, 'longPress', { nativeEvent: {} });
+
+      expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Medium);
+    });
+
+    test('should show a tooltip when a legend item is pressed', () => {
+      const { getByText, getByTestId } = renderWithTheme(
+        <CanvasChart data={mockLineData} showLegend={true} />
+      );
+
+      expect(() => getByTestId('tooltip')).toThrow();
+
+      fireEvent.press(getByText('January'));
+
+      expect(getByTestId('tooltip')).toBeTruthy();
+      expect(getByText('January: 100')).toBeTruthy();
+    });
+
+    test('should format Voronoi labels for line charts without zoom', () => {
+      const { getByTestId } = renderWithTheme(
+        <CanvasChart data={mockLineData} enableZoom={false} enablePan={false} />
+      );
+
+      const voronoi = getByTestId('victory-voronoi-container');
+      const labelFn = voronoi.props.labels;
+      expect(labelFn({ datum: { x: 'Jan', y: 100 } })).toBe('Jan: 100');
+    });
+
+    test('should format Voronoi labels for bar charts', () => {
+      const { getByTestId } = renderWithTheme(<CanvasChart data={mockBarData} />);
+
+      const voronoi = getByTestId('victory-voronoi-container');
+      const labelFn = voronoi.props.labels;
+      expect(labelFn({ datum: { x: 'Q1', y: 1000 } })).toBe('Q1: 1000');
+    });
+
+    test('should resolve bar colors from the palette by index', () => {
+      const { getByTestId } = renderWithTheme(
+        <CanvasChart data={{ ...mockBarData, colors: undefined }} />
+      );
+
+      const barChart = getByTestId('victory-bar');
+      const fillFn = barChart.props.style.data.fill;
+      expect(fillFn({ index: 2 })).toBe('#4CAF50');
+    });
+
+    test('should format pie slice labels from datum', () => {
+      const { getByTestId } = renderWithTheme(<CanvasChart data={mockPieData} />);
+
+      const pie = getByTestId('victory-pie');
+      const labelFn = pie.props.labels;
+      expect(labelFn({ datum: { x: 'Product A', y: 30 } })).toBe('Product A: 30');
+    });
+
+    test('should fall back to a line chart for unknown chart types', () => {
+      const { getByTestId } = renderWithTheme(
+        <CanvasChart data={{ ...mockLineData, type: 'radar' as any }} />
+      );
+
+      expect(getByTestId('victory-line')).toBeTruthy();
+      expect(getByTestId('victory-chart')).toBeTruthy();
+    });
+
+    test('should log and recover when CSV export fails', async () => {
+      const FileSystem = require('expo-file-system');
+      FileSystem.writeAsStringAsync.mockRejectedValueOnce(new Error('Disk full'));
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const { getByText } = renderWithTheme(<CanvasChart data={mockLineData} />);
+
+      fireEvent.press(getByText('Export CSV'));
+
+      await waitFor(() => {
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to export chart:', expect.any(Error));
+      });
+      // The toolbar recovers and re-enables the export button
+      expect(getByText('Export CSV')).toBeTruthy();
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
 });

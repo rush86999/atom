@@ -1070,7 +1070,8 @@ class DiscordAnalyticsEngine:
                     json.dumps(point.dimensions),
                     json.dumps(point.metadata)
                 ]
-                rows.append(','.join(f'"{field}"' for field in row))
+                escaped_row = [field.replace('"', '""') for field in row]
+                rows.append(','.join(f'"{field}"' for field in escaped_row))
 
             # Combine headers and rows
             csv_content = ','.join(headers) + '\n' + '\n'.join(rows)

@@ -633,4 +633,247 @@ await act(async () => {
       expect(confirmInput.props.secureTextEntry).toBe(false);
     });
   });
+
+  // ============================================================================
+  // Extended Validation & Error-Path Tests
+  // ============================================================================
+
+  describe('Extended Validation', () => {
+    it('should flag a mismatch when password changes after confirm was entered', async () => {
+      const { getByPlaceholderText, getByText, queryByText } = render(
+        <RegisterScreen navigation={mockNavigation as any} />
+      );
+
+      const confirmInput = getByPlaceholderText('Confirm Password');
+      const passwordInput = getByPlaceholderText('Password');
+
+      // Enter and touch the confirm field first
+      fireEvent.changeText(confirmInput, 'password123');
+      fireEvent(confirmInput, 'blur');
+
+      // Changing the password afterwards must flag the mismatch
+      fireEvent.changeText(passwordInput, 'different99');
+
+      await waitFor(() => {
+        expect(getByText('Passwords do not match')).toBeTruthy();
+      });
+
+      // Matching them again clears the error
+      fireEvent.changeText(passwordInput, 'password123');
+
+      await waitFor(() => {
+        expect(queryByText('Passwords do not match')).toBeNull();
+      });
+    });
+
+    it('should reject an 8+ character password that is still weak', async () => {
+      const { getByPlaceholderText, getByText, getByTestId } = render(
+        <RegisterScreen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Full Name'), 'John Doe');
+      fireEvent.changeText(getByPlaceholderText('Email'), 'test@example.com');
+      fireEvent.changeText(getByPlaceholderText('Password'), 'abcdefgh');
+      fireEvent.changeText(getByPlaceholderText('Confirm Password'), 'abcdefgh');
+      await act(async () => {
+        fireEvent.press(getByTestId('terms-checkbox'));
+      });
+      await act(async () => {
+        fireEvent.press(getByTestId('sign-up-button'));
+      });
+
+      await waitFor(() => {
+        expect(
+          getByText('Password is too weak. Try adding numbers, symbols, or uppercase letters.')
+        ).toBeTruthy();
+      });
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('should submit the form when the confirm return key is pressed', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ success: true }),
+        } as any)
+      );
+
+      const { getByPlaceholderText, getByTestId } = render(
+        <RegisterScreen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Full Name'), 'John Doe');
+      fireEvent.changeText(getByPlaceholderText('Email'), 'test@example.com');
+      fireEvent.changeText(getByPlaceholderText('Password'), 'Str0ng!P@ss');
+      fireEvent.changeText(getByPlaceholderText('Confirm Password'), 'Str0ng!P@ss');
+      await act(async () => {
+        fireEvent.press(getByTestId('terms-checkbox'));
+      });
+      await act(async () => {
+        fireEvent(getByTestId('confirm-password-input'), 'submitEditing');
+      });
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringContaining('/api/auth/register'),
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+    });
+  });
+
+  describe('Registration Error Paths', () => {
+    const fillValidForm = () => {
+      const utils = render(<RegisterScreen navigation={mockNavigation as any} />);
+      const { getByPlaceholderText, getByTestId } = utils;
+
+      fireEvent.changeText(getByPlaceholderText('Full Name'), 'John Doe');
+      fireEvent.changeText(getByPlaceholderText('Email'), 'test@example.com');
+      fireEvent.changeText(getByPlaceholderText('Password'), 'Str0ng!P@ss');
+      fireEvent.changeText(getByPlaceholderText('Confirm Password'), 'Str0ng!P@ss');
+      fireEvent.press(getByTestId('terms-checkbox'));
+      return utils;
+    };
+
+    it('shows a generic 400 message when no specific detail matches', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ detail: 'Invalid request' }),
+        } as any)
+      );
+
+      const { getByTestId } = fillValidForm();
+
+      await act(async () => {
+        fireEvent.press(getByTestId('sign-up-button'));
+      });
+
+      const { Alert } = require('react-native');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Registration Failed', 'Invalid request');
+      });
+    });
+
+    it('shows a rate-limit message for 429 responses', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 429,
+          json: () => Promise.resolve({ detail: 'Too many attempts' }),
+        } as any)
+      );
+
+      const { getByTestId } = fillValidForm();
+
+      await act(async () => {
+        fireEvent.press(getByTestId('sign-up-button'));
+      });
+
+      const { Alert } = require('react-native');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Registration Failed',
+          'Too many registration attempts. Please try again later.'
+        );
+      });
+    });
+
+    it('shows a server error message for 5xx responses', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 500,
+          json: () => Promise.resolve({ detail: 'Internal error' }),
+        } as any)
+      );
+
+      const { getByTestId } = fillValidForm();
+
+      await act(async () => {
+        fireEvent.press(getByTestId('sign-up-button'));
+      });
+
+      const { Alert } = require('react-native');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Registration Failed',
+          'Server error. Please try again later.'
+        );
+      });
+    });
+
+    it('falls back to a generic failure message for unknown errors', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 418,
+          json: () => Promise.resolve({}),
+        } as any)
+      );
+
+      const { getByTestId } = fillValidForm();
+
+      await act(async () => {
+        fireEvent.press(getByTestId('sign-up-button'));
+      });
+
+      const { Alert } = require('react-native');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Registration Failed', 'Registration failed');
+      });
+    });
+
+    it('navigates to login when the success dialog is confirmed', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ success: true }),
+        } as any)
+      );
+
+      const { getByTestId } = fillValidForm();
+
+      await act(async () => {
+        fireEvent.press(getByTestId('sign-up-button'));
+      });
+
+      const { Alert } = require('react-native');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Account Created',
+          expect.any(String),
+          expect.any(Array)
+        );
+      });
+
+      const alertCalls = Alert.alert.mock.calls;
+      const okButton = alertCalls[alertCalls.length - 1][2][0];
+
+      await act(async () => {
+        okButton.onPress();
+      });
+
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Login');
+    });
+
+    it('shows an alert when the privacy policy page fails to open', async () => {
+      const WebBrowser = require('expo-web-browser');
+      WebBrowser.openBrowserAsync.mockRejectedValue(new Error('Browser failed'));
+
+      const { getByText } = render(<RegisterScreen navigation={mockNavigation as any} />);
+      const { Alert } = require('react-native');
+
+      await act(async () => {
+        fireEvent.press(getByText('Terms of Service and Privacy Policy'));
+      });
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to open privacy policy');
+      });
+    });
+  });
 });

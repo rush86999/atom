@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
+  removeItem: jest.fn(),
 }));
 
 const mockNavigate = jest.fn();
@@ -52,6 +53,7 @@ describe('LoginScreen', () => {
     jest.clearAllMocks();
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+    (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
   });
 
   // ============================================================================
@@ -483,6 +485,192 @@ await act(async () => {
       });
 
       expect(passwordInput.props.secureTextEntry).toBe(true);
+    });
+  });
+
+  // ============================================================================
+  // Extended Validation & Error-Path Tests
+  // ============================================================================
+
+  describe('Extended Validation', () => {
+    it('should show email required error when email is empty', async () => {
+      const { getByPlaceholderText, getByText, getByTestId } = render(
+        <LoginScreen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Email'), '');
+      await act(async () => {
+        fireEvent.press(getByTestId('sign-in-button'));
+      });
+
+      await waitFor(() => {
+        expect(getByText('Email is required')).toBeTruthy();
+      });
+      expect(mockLogin).not.toHaveBeenCalled();
+    });
+
+    it('should clear the email error when a valid email is entered', async () => {
+      const { getByPlaceholderText, queryByText, getByTestId } = render(
+        <LoginScreen navigation={mockNavigation as any} />
+      );
+
+      const emailInput = getByPlaceholderText('Email');
+
+      fireEvent.changeText(emailInput, 'invalid-email');
+      await act(async () => {
+        fireEvent.press(getByTestId('sign-in-button'));
+      });
+      await waitFor(() => {
+        expect(queryByText('Please enter a valid email')).toBeTruthy();
+      });
+
+      // Fixing the email clears the error immediately
+      fireEvent.changeText(emailInput, 'valid@example.com');
+
+      await waitFor(() => {
+        expect(queryByText('Please enter a valid email')).toBeNull();
+      });
+    });
+
+    it('should clear the password error when a long enough password is entered', async () => {
+      const { getByPlaceholderText, getByTestId, getByText, queryByText } = render(
+        <LoginScreen navigation={mockNavigation as any} />
+      );
+
+      const passwordInput = getByPlaceholderText('Password');
+
+      fireEvent.changeText(passwordInput, '12345');
+      await act(async () => {
+        fireEvent.press(getByTestId('sign-in-button'));
+      });
+      await waitFor(() => {
+        expect(getByText('Password must be at least 8 characters')).toBeTruthy();
+      });
+
+      fireEvent.changeText(passwordInput, 'a-very-long-password');
+
+      await waitFor(() => {
+        expect(queryByText('Password must be at least 8 characters')).toBeNull();
+      });
+    });
+
+    it('should show errors after blurring empty fields and submitting', async () => {
+      const { getByPlaceholderText, getByText, getByTestId } = render(
+        <LoginScreen navigation={mockNavigation as any} />
+      );
+
+      const emailInput = getByPlaceholderText('Email');
+      const passwordInput = getByPlaceholderText('Password');
+
+      // Blur marks fields as touched
+      fireEvent(emailInput, 'blur');
+      fireEvent(passwordInput, 'blur');
+
+      await act(async () => {
+        fireEvent.press(getByTestId('sign-in-button'));
+      });
+
+      await waitFor(() => {
+        expect(getByText('Email is required')).toBeTruthy();
+        expect(getByText('Password is required')).toBeTruthy();
+      });
+    });
+
+    it('should submit the form when the password return key is pressed', async () => {
+      mockLogin.mockResolvedValue({ success: true });
+
+      const { getByPlaceholderText, getByTestId } = render(
+        <LoginScreen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Email'), 'test@example.com');
+      fireEvent.changeText(getByPlaceholderText('Password'), 'password123');
+
+      await act(async () => {
+        fireEvent(getByTestId('password-input'), 'submitEditing');
+      });
+
+      await waitFor(() => {
+        expect(mockLogin).toHaveBeenCalledWith({
+          email: 'test@example.com',
+          password: 'password123',
+        });
+      });
+    });
+  });
+
+  // ============================================================================
+  // Login Failure & Remember-Me Persistence Tests
+  // ============================================================================
+
+  describe('Login Failure Handling', () => {
+    it('should show the server error when login returns success=false', async () => {
+      mockLogin.mockResolvedValue({ success: false, error: 'Invalid credentials' });
+
+      const { getByPlaceholderText, getByTestId } = render(
+        <LoginScreen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Email'), 'test@example.com');
+      fireEvent.changeText(getByPlaceholderText('Password'), 'password123');
+      await act(async () => {
+        fireEvent.press(getByTestId('sign-in-button'));
+      });
+
+      const { Alert } = require('react-native');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Login Failed',
+          'Invalid credentials'
+        );
+      });
+    });
+
+    it('should clear saved credentials when remember me is unchecked', async () => {
+      mockLogin.mockResolvedValue({ success: true });
+
+      const { getByPlaceholderText, getByTestId } = render(
+        <LoginScreen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Email'), 'test@example.com');
+      fireEvent.changeText(getByPlaceholderText('Password'), 'password123');
+      await act(async () => {
+        fireEvent.press(getByTestId('sign-in-button'));
+      });
+
+      await waitFor(() => {
+        expect(AsyncStorage.removeItem).toHaveBeenCalledWith('atom_remember_me');
+        expect(AsyncStorage.removeItem).toHaveBeenCalledWith('atom_remembered_email');
+      });
+    });
+
+    it('should show biometric failure message when biometric auth returns success=false', async () => {
+      mockIsBiometricAvailable.mockResolvedValue(true);
+      mockAuthenticateWithBiometric.mockResolvedValue({
+        success: false,
+        error: 'Fingerprint not recognized',
+      });
+
+      const { getByTestId } = render(
+        <LoginScreen navigation={mockNavigation as any} />
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('biometric-button')).toBeTruthy();
+      });
+
+      await act(async () => {
+        fireEvent.press(getByTestId('biometric-button'));
+      });
+
+      const { Alert } = require('react-native');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Biometric Authentication Failed',
+          'Fingerprint not recognized'
+        );
+      });
     });
   });
 });

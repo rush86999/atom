@@ -141,6 +141,16 @@ describe("pages/api/projects/learning-plan", () => {
     });
   });
 
+  it("omits the X-User-ID header when the session user has no id or email", async () => {
+    mockFetch.mockResolvedValue(
+      backendJson({ plan_id: "p", topic: "Rust", modules: [], milestones: [], assessment_criteria: [] }),
+    );
+    const res = await invoke("POST", { topic: "Rust" }, { user: {} });
+    expect(res._getStatusCode()).toBe(200);
+    const [, init] = mockFetch.mock.calls[0];
+    expect(init.headers["X-User-ID"]).toBeUndefined();
+  });
+
   it("maps a backend 400 into a client 400 with detail", async () => {
     mockFetch.mockResolvedValue(backendJson({ detail: "Topic unsupported" }, false, 400));
     const res = await invoke("POST", { topic: "Rust" });

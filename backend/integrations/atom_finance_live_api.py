@@ -9,12 +9,12 @@ from core.auth import get_current_user
 from pydantic import BaseModel
 
 from integrations.microsoft365_service import microsoft365_service
+stripe_sdk: Any = None
 try:
-    from integrations.stripe_service import stripe_service
+    import stripe as stripe_sdk
     HAS_STRIPE = True
 except ImportError:
-    # Stripe is SaaS-specific billing integration
-    stripe_service = None
+    # Stripe SDK is SaaS-specific billing dependency
     HAS_STRIPE = False
 
 from integrations.xero_service import XeroService
@@ -120,10 +120,19 @@ async def get_live_financial_overview(
         # Check env token for now, similar to other live APIs
         stripe_token = os.getenv("STRIPE_SECRET_KEY")
         if stripe_token:
-             raw_payments = stripe_service.list_payments(stripe_token, limit=limit)
-             charges = raw_payments.get("data", [])
-             transactions.extend([map_stripe_payment(p) for p in charges])
-             providers_status["stripe"] = True
+            if stripe_sdk is not None:
+                stripe_sdk.api_key = stripe_token
+                charges = stripe_sdk.Charge.list(limit=limit).get("data", [])
+            else:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    res = await client.get(
+                        "https://api.stripe.com/v1/charges",
+                        params={"limit": limit},
+                        headers={"Authorization": f"Bearer {stripe_token}"},
+                    )
+                    charges = res.json().get("data", []) if res.status_code == 200 else []
+            transactions.extend([map_stripe_payment(p) for p in charges])
+            providers_status["stripe"] = True
     except Exception as e:
         logger.warning(f"Failed to fetch live Stripe data: {e}")
 

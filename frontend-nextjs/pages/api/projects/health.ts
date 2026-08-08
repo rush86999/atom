@@ -60,7 +60,7 @@ export default async function handler(
     } = req.body;
 
     // Validate time range
-    const timeRange = time_range_days || 7;
+    const timeRange = time_range_days ?? 7;
     if (timeRange < 1 || timeRange > 90) {
       return res.status(400).json({
         message: "Time range must be between 1 and 90 days"

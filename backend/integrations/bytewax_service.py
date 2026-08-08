@@ -245,6 +245,8 @@ class KnowledgeExtractionOperator:
             except (ValueError, TypeError):
                 logger.warning(f"[KnowledgeExtract] Invalid metadata JSON for {record.id}")
                 metadata = {}
+        if not isinstance(metadata, dict):
+            metadata = {}
         
         workspace_id = metadata.get("workspace_id") or self.workspace_id
         user_id = metadata.get("user_id")
@@ -344,6 +346,8 @@ class FormulaExtractionOperator:
             except (ValueError, TypeError):
                 logger.warning(f"[FormulaExtract] Invalid metadata JSON for {record.id}")
                 metadata = {}
+        if not isinstance(metadata, dict):
+            metadata = {}
         
         # Check for file_path
         file_path = metadata.get("file_path") or metadata.get("path")
@@ -515,7 +519,8 @@ class LanceDBStatelessSinkPartition(StatelessSinkPartition):
         
         # 1. Trigger Workflow Events
         try:
-            from advanced_workflow_orchestrator import orchestrator
+            from advanced_workflow_orchestrator import get_orchestrator
+            orchestrator = get_orchestrator()
             event_data = {
                 "text": item.content,
                 "doc_id": doc_id,
@@ -602,21 +607,30 @@ class LanceDBStatelessSinkPartition(StatelessSinkPartition):
                         self._trigger_post_ingestion_hooks(item, item.id)
                     
                 elif op_type == "UPDATE":
-                    # Update logic - use update_document
+                    # Update logic - re-persist latest content under the same doc_id
                     metadata = getattr(item, "metadata", {})
                     if isinstance(metadata, str):
                         metadata = json.loads(metadata) if metadata else {}
                     
-                    updates = {
-                        "text": item.content,
-                        "metadata": metadata
-                    }
-                    success = self.handler.update_document(self.table_name, item.id, updates)
+                    success = self.handler.add_document(
+                        table_name=self.table_name,
+                        text=item.content,
+                        metadata=metadata,
+                        user_id=metadata.get("user_id"),
+                        extract_knowledge=False,
+                        doc_id=item.id,
+                        skip_ai_triggers=True
+                    )
                     logger.info(f"[LanceDBSink] [UPDATE] Updated {item.id}: {success}")
                     
                 elif op_type == "DELETE":
-                    # Delete logic - use delete_document
-                    success = self.handler.delete_document(self.table_name, item.id)
+                    # Delete logic - remove the row by id via the underlying table
+                    table = self.handler.get_table(self.table_name)
+                    if table is None:
+                        success = False
+                    else:
+                        table.delete(f"id = '{item.id}'")
+                        success = True
                     logger.info(f"[LanceDBSink] [DELETE] Deleted {item.id}: {success}")
                     
                 else:

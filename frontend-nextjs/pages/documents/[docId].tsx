@@ -102,7 +102,7 @@ export default function DocumentDetailsPage() {
                                 <Calendar className="h-3 w-3" />
                                 {new Date(document.ingested_at).toLocaleDateString()}
                             </span>
-                            {document.metadata.author && (
+                            {document.metadata?.author && (
                                 <span className="flex items-center gap-1">
                                     <User className="h-3 w-3" />
                                     {document.metadata.author}
@@ -140,7 +140,7 @@ export default function DocumentDetailsPage() {
                                 <div className="space-y-2">
                                     <p className="text-sm font-medium">Source</p>
                                     <p className="text-sm text-muted-foreground break-all">
-                                        {document.metadata.source || "Unknown"}
+                                        {document.metadata?.source || "Unknown"}
                                     </p>
                                 </div>
                                 <div className="space-y-2">

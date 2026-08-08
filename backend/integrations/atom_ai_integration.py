@@ -43,6 +43,39 @@ except ImportError as e:
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
+def _messages_with_system(
+    messages: List[Dict[str, Any]], system_prompt: Optional[str]
+) -> List[Dict[str, Any]]:
+    """Prepend a system message if a system prompt is provided."""
+    if not system_prompt:
+        return messages
+    return [{"role": "system", "content": system_prompt}] + list(messages)
+
+
+async def _chat_completion_text(
+    llm_service: Any, messages: List[Dict[str, Any]], system_prompt: Optional[str] = None
+) -> str:
+    """Call the LLM service and return the generated text.
+
+    ``LLMService.generate_completion`` returns a dict; legacy/custom services
+    may expose ``chat_completion`` returning the text directly. Prefer
+    ``generate_completion`` and normalize both shapes to plain text.
+    """
+    if llm_service is None:
+        return ""
+    generate = getattr(llm_service, "generate_completion", None)
+    if callable(generate):
+        result = await generate(messages=_messages_with_system(messages, system_prompt))
+    else:
+        chat = getattr(llm_service, "chat_completion", None)
+        if not callable(chat):
+            return ""
+        result = await chat(messages=messages, system_prompt=system_prompt)
+    if isinstance(result, dict):
+        return result.get("content") or result.get("text") or ""
+    return result or ""
+
 @dataclass
 class AIConversationContext:
     """Context for AI conversation (Modernized)"""
@@ -427,9 +460,10 @@ class AtomAIIntegration:
                      f"Workspace: {workspace_id}. Options: {json.dumps(options)}. " \
                      "Provide insights and predictions in JSON format."
             
-            result = await self.llm_service.chat_completion(
+            result = await _chat_completion_text(
+                self.llm_service,
                 messages=[{"role": "user", "content": prompt}],
-                system_prompt="You are a predictive analytics expert for communication platforms."
+                system_prompt="You are a predictive analytics expert for communication platforms.",
             )
             
             try:
@@ -673,9 +707,10 @@ class AtomAIIntegration:
             prompt = f"Analyze the following message for sentiment and topics: {message['content']}. " \
                      "Return a JSON object with 'sentiment' (string), 'sentiment_score' (float -1 to 1), and 'key_topics' (list)."
             
-            analysis_text = await self.llm_service.chat_completion(
+            analysis_text = await _chat_completion_text(
+                self.llm_service,
                 messages=[{"role": "user", "content": prompt}],
-                system_prompt="You are a linguistic analysis agent."
+                system_prompt="You are a linguistic analysis agent.",
             )
             
             try:
@@ -718,9 +753,10 @@ class AtomAIIntegration:
             
             prompt = f"Enhance this content: {content}. Tone: {options.get('tone', 'professional')}. Platform: {options.get('platform')}."
             
-            enhanced_content = await self.llm_service.chat_completion(
+            enhanced_content = await _chat_completion_text(
+                self.llm_service,
                 messages=[{"role": "user", "content": prompt}],
-                system_prompt="You are a professional content writer and editor."
+                system_prompt="You are a professional content writer and editor.",
             )
             
             return enhanced_content or content
@@ -864,9 +900,10 @@ class AIConversationManager:
             for m in context.messages[-10:]:
                 messages.append({"role": m['role'], "content": m['content']})
             
-            response_text = await self.llm_service.chat_completion(
+            response_text = await _chat_completion_text(
+                self.llm_service,
                 messages=messages,
-                system_prompt="You are an intelligent assistant for unified communication platforms. Provide helpful, contextually relevant responses."
+                system_prompt="You are an intelligent assistant for unified communication platforms. Provide helpful, contextually relevant responses.",
             )
             
             if response_text:
@@ -900,9 +937,10 @@ class AIConversationManager:
         try:
             prompt = f"Parse and process this command: {command}. User: {user_id}. Platform: {platform}. Workspace: {workspace_id}."
             
-            result_text = await self.llm_service.chat_completion(
+            result_text = await _chat_completion_text(
+                self.llm_service,
                 messages=[{"role": "user", "content": prompt}],
-                system_prompt="You are an intelligent command processor. Return response in JSON format."
+                system_prompt="You are an intelligent command processor. Return response in JSON format.",
             )
             
             try:
@@ -950,9 +988,10 @@ class IntelligentSearchManager:
             
             prompt = f"Rank these search results for the query: '{query}'. Results: {json.dumps(base_results[:10])}."
             
-            ranked_text = await self.llm_service.chat_completion(
+            ranked_text = await _chat_completion_text(
+                self.llm_service,
                 messages=[{"role": "user", "content": prompt}],
-                system_prompt="You are a search ranking expert. return a JSON object with 'ranked_results'."
+                system_prompt="You are a search ranking expert. return a JSON object with 'ranked_results'.",
             )
             
             try:
@@ -1057,9 +1096,10 @@ class WorkflowIntelligenceManager:
             prompt = f"Enhance this workflow: {json.dumps(workflow_data)}. " \
                      "Identify optimizations and suggestions."
             
-            enhancement_text = await self.llm_service.chat_completion(
+            enhancement_text = await _chat_completion_text(
+                self.llm_service,
                 messages=[{"role": "user", "content": prompt}],
-                system_prompt="You are a workflow optimization expert."
+                system_prompt="You are a workflow optimization expert.",
             )
             
             try:
@@ -1088,9 +1128,10 @@ class WorkflowIntelligenceManager:
                     # Use AI to identify optimization opportunities
                     prompt = f"Optimize this workflow: {json.dumps(workflow)}."
                     
-                    optimization_text = await self.llm_service.chat_completion(
+                    optimization_text = await _chat_completion_text(
+                        self.llm_service,
                         messages=[{"role": "user", "content": prompt}],
-                        system_prompt="You are a workflow optimization expert."
+                        system_prompt="You are a workflow optimization expert.",
                     )
 
                     try:
@@ -1183,9 +1224,10 @@ class CrossPlatformAIManager:
             # Generate cross-platform AI analysis using LLMService
             prompt = f"Analyze these cross-platform insights: {json.dumps(all_insights)}."
             
-            analysis_text = await self.llm_service.chat_completion(
+            analysis_text = await _chat_completion_text(
+                self.llm_service,
                 messages=[{"role": "user", "content": prompt}],
-                system_prompt="You are a cross-platform data scientist."
+                system_prompt="You are a cross-platform data scientist.",
             )
             
             try:

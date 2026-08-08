@@ -81,22 +81,7 @@ const DevStudio = () => {
         if (!invoke) {
             const filePath = prompt("Enter the absolute file path to open (e.g. C:/Users/User/Desktop/New folder (2)/atom/README.md):");
             if (filePath) {
-                setSelectedFile(filePath);
-                try {
-                    const res = await fetch("/api/dev/desktop-bridge", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ command: "read_file_content", args: { path: filePath } })
-                    });
-                    const content = await res.json();
-                    if (content.success) {
-                        setFileContent(content.content);
-                    } else {
-                        toast({ title: "Error", description: content.error, variant: "error" });
-                    }
-                } catch (error) {
-                    console.error("Failed to read file:", error);
-                }
+                await readFileContent(filePath);
             }
             return;
         }
@@ -348,6 +333,36 @@ const DevStudio = () => {
         }
     };
 
+    // Read a file's content in web mode via the desktop-bridge endpoint.
+    // The Tauri `invoke` path is not available in the browser, so the
+    // file-explorer "View" button must route through the bridge too.
+    const readFileContent = async (path: string) => {
+        setSelectedFile(path);
+        if (!invoke) {
+            try {
+                const res = await fetch("/api/dev/desktop-bridge", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ command: "read_file_content", args: { path } })
+                });
+                const content = await res.json();
+                if (content.success) {
+                    setFileContent(content.content);
+                } else {
+                    toast({ title: "Error", description: content.error, variant: "error" });
+                }
+            } catch (error) {
+                console.error("Failed to read file:", error);
+            }
+            return;
+        }
+
+        const content = await invoke("read_file_content", { path });
+        if (content.success) {
+            setFileContent(content.content);
+        }
+    };
+
     useEffect(() => {
         loadSystemInfo();
     }, []);
@@ -547,16 +562,7 @@ const DevStudio = () => {
                                                                 <Button
                                                                     size="sm"
                                                                     variant="outline"
-                                                                    onClick={async () => {
-                                                                        setSelectedFile(item.path);
-                                                                        const content = await invoke(
-                                                                            "read_file_content",
-                                                                            { path: item.path },
-                                                                        );
-                                                                        if (content.success) {
-                                                                            setFileContent(content.content);
-                                                                        }
-                                                                    }}
+                                                                    onClick={() => readFileContent(item.path)}
                                                                 >
                                                                     View
                                                                 </Button>

@@ -825,3 +825,177 @@ Bug-hunt (RED→GREEN) + coverage push on `backend/integrations/` wave B. Test f
 - `tests/test_atom_saas_websocket.py` 8 DB-state failures (use real dev SQLite lacking `skill_cache`/`websocket_state` tables — need fixture/test-DB rebasing).
 - `tests/test_capability_routing.py` 9 failures (`no such table: model_catalog` — env/DB-state, pre-existing at HEAD).
 - `tests/test_covpush_miniapp.py::TestLogicHistory::test_snapshot_history_and_revert` — pre-existing at HEAD: asserts revert returns the reverted-to version, code now returns the NEW head checkpoint (intentional revert_logic fix landed without test update).
+
+### Round 2026-08-08 — chat-analytics integrations coverage push (TDD, 6 real bugs)
+| Date | File | Status | Fix |
+|---|---|---|---|
+| 2026-08-08 | `integrations/slack_enhanced_service.py` | FIXED | 27.5% → **93%** (invite_to_channel NameError: `invited_users`/`failed_users` referenced in except blocks before definition when client creation fails → 500/NameError instead of clean error; `await` on sync `redis.Redis` calls in `handle_webhook_event` lpush/ltrim + `_cache_message`/`_cache_messages`/`_cache_file` → TypeError always caught → webhook events never dispatched & message/file caching silently dead when Redis enabled; `sync_to_postgres_cache` returned `success: True` even when commit failed — fail-open reporting) |
+| 2026-08-08 | `integrations/teams_enhanced_service.py` | FIXED | 33.6% → **98%** (upload_file: missing `createdDateTime` in Graph upload response → AttributeError after file already uploaded to SharePoint → false failure + double-upload risk on retry; now defaults to now) |
+| 2026-08-08 | `integrations/discord_analytics_engine.py` | FIXED | 18.8% → **97%** (`_convert_to_csv` did not escape embedded quotes → malformed CSV output for dimensions/metadata containing quotes) |
+| 2026-08-08 | `integrations/google_chat_analytics_engine.py` | FIXED | 18.7% → **95%** (`_convert_to_csv` quote-escape bug; `get_user_activity_summary`/`get_space_activity_report` error paths leaked `str(e)` internals to clients → generic messages) |
+| 2026-08-08 | tests: `test_covpush_chatanalytics.py` | TESTED | 320 new tests (11 red→green); regression: `test_slack_workflow_actions.py` 17/17 pass; mypy 664 == baseline (0 new); ruff clean on new/changed lines |
+
+### Round 2026-08-08 — zero-cluster integrations coverage push (TDD, 12 real bugs)
+| Date | File | Status | Fix |
+|---|---|---|---|
+| 2026-08-08 | `integrations/atom_zoom_integration.py` | FIXED | 0% → **87%** (`send_intelligent_message`/`_send_chat_message`/`get_service_status` error paths leaked `str(e)` internals → generic messages) |
+| 2026-08-08 | `integrations/bytewax_service.py` | FIXED | 0% → **94%** (UPDATE/DELETE sink ops called phantom `LanceDBHandler.update_document`/`delete_document` → AttributeError, ops silently never applied → `add_document(doc_id=…, skip_ai_triggers=True)` / `get_table().delete(id=…)`; `from advanced_workflow_orchestrator import orchestrator` never resolved (module exports `get_orchestrator()`) → post-ingestion workflow triggers silently never fired; `extract_knowledge`/`FormulaExtractionOperator.extract` crashed on valid-JSON-non-dict metadata (`"[…]"` → `metadata.get` AttributeError, unguarded) |
+| 2026-08-08 | `integrations/slack_workflow_automation.py` | FIXED | 0% → **93%** (`execute_workflow` marked runs `completed` even when every action failed because `execute_action` swallows exceptions into result dicts → retry branch dead code + false success reporting; `execute_action` except handler crashed (`action.type.value` on str) → propagated uncaught; error dict leaked `str(e)`) |
+| 2026-08-08 | `integrations/atom_chat_interface.py` | FIXED | 0% → **98%** (`process_message` crashed on the default `context=None` → every bare call returned an error; `/slack-workflows` called nonexistent `SlackWorkflowAutomation.list_workspaces()` → always errored; 10 user-facing error responses leaked `str(e)` internals) |
+| 2026-08-08 | tests: `test_covpush_zerocluster.py` | TESTED | 278 new tests (12 red→green); regression: pre-existing `test_chat_interface_*.py` + `test_enhanced_workflow_automation.py` 8/8 pass; mypy: pre-existing repo-layout duplicate-module error only (`backend.integrations`/`integrations`), not introduced by these changes |
+
+## Session 2026-08-08 — tools + agents + llm coverage wave (bug hunt TDD, 24 modules ≥95%)
+
+Coverage push + bug hunt on `backend/tools/*` (16 files), `core/agents/{autoresearch,king,queen,skill_creation}_agent.py`, `core/llm/*` (11 files below 95%).
+Test files: `tests/test_bughunt_tools_agents_llm.py` (24 tests) + `tests/test_covpush_tools_agents_llm.py` (135 tests) — **159 new tests, 0 failures**.
+
+### Bugs fixed (TDD RED→GREEN, tests in test_bughunt_tools_agents_llm.py)
+| File:line | Bug | Test |
+|---|---|---|
+| `core/agents/king_agent.py:56,86,113,127,187` | execute_blueprint passed `tenant_id=` to `present_markdown`/`update_canvas` (neither accepts it) → TypeError on every canvas-backed blueprint execution (in-progress update crashed the whole run) | test_execute_blueprint_present_markdown_kwargs / test_execute_blueprint_update_canvas_kwargs |
+| `core/agents/queen_agent.py:92` | `llm.generate_response` phantom method on modern LLMService → every generate_blueprint fell back to the static fallback blueprint (architecture generation dead) → `generate()` | test_generate_blueprint_uses_real_llm_api |
+| `core/agents/autoresearch_agent.py:73` | same phantom `generate_response` → loop ran zero iterations (silently inert) → `generate()` | test_run_experiment_loop_uses_real_llm_api |
+| `core/agents/skill_creation_agent.py:430,621` | same phantom `generate_response` ×2 → LLM codegen always fell back to templates → `generate()` | test_generate_skill_code_uses_real_llm_api / test_generate_component_code_uses_real_llm_api |
+| `core/agents/skill_creation_agent.py:171` | `CanvasComponent(config=..., dependencies=...)` — model has neither column → TypeError → create_canvas_component_for_skill ALWAYS crashed; skill binding moved into `config_schema` | test_create_component_success |
+| `tools/platform_management_tool.py:133` | `set_byok_api_key` used `BYOKManager(db)` + `set_api_key()` — ctor takes no args, method is `store_api_key(provider_id, api_key, key_name, environment)` → TypeError on every call (tool could never set a key) → real API; keys now Fernet-encrypted at rest via store_api_key | test_set_byok_api_key_uses_real_manager_api |
+| `tools/platform_management_tool.py` (16 sites) | str(e) leaked into user-facing error strings (R18-31) — all now generic | TestPlatformNoStrELeak (7 tests) |
+| `tools/creative_tool.py:131,147,153,197` | FFmpegTool._run RAISED PermissionError/ValueError/RuntimeError instead of returning `{"success": False, "error": ...}` (tool-result contract violation; old test_creative_tool.py spec never passed) — now returns failure dicts; `_run` async; success wrapped `{"success": True, ...}` | TestFFmpegToolDictContract (7 tests) |
+| `tools/creative_tool.py:155` | **fail-open path traversal**: `validate_path()` returns bool (never raises) but `_run` ignored the return → traversal/out-of-scope paths reached the FFmpeg service; False now = hard block | test_traversal_rejected_when_validate_returns_false |
+| `tools/creative_tool.py:235` | dispatch-context kwargs (agent_id/db/session_id) splatted into op methods with exact signatures → TypeError on every dispatch with context → kwargs filtered to the op signature | test_dispatch_context_kwargs_do_not_crash |
+| `tools/registry.py:337` | complexity inference: CRITICAL branch (`execute_command`/`deploy`) unreachable — "execute" matched the HIGH branch first → auto-discovered command tools gated SUPERVISED instead of AUTONOMOUS; CRITICAL check moved first | test_execute_command_inferred_critical |
+
+### Existing tests updated (failed due to the fixed bugs / stale APIs — documented)
+| File | Change |
+|---|---|
+| tests/test_covpush_tools_b.py | FFmpegTool raise-asserts → dict contract (6 tests); set_byok_api_key → store_api_key mock |
+| tests/test_covpush_tools_a.py | execute_command_bar complexity 3 → 4 (CRITICAL inference fix) |
+| tests/test_queen_agent.py, tests/test_skill_creation_agent.py | mock `generate_response` → `generate` (23 sites) |
+| tests/test_platform_management_tool.py | 7 stale dict-arg tests aligned to real signatures + SessionLocal patching + async `_run()` helper; `db_session` fixture now supports context-manager protocol |
+| tests/test_creative_tool.py | TestFFmpegService: 7 stale tests → async + real param names (video_path/audio_path) + pending-dict asserts; fixture now generator (plain-`return` fixture exited its `with patch()` blocks before the test ran — patches never applied) |
+
+### Coverage AFTER (BEFORE → AFTER, lines)
+| Module | Before | After |
+|---|---|---|
+| tools/mini_app_tool | 83% | 96% |
+| tools/canvas_coding_tool | ~0% | 100% |
+| tools/canvas_crud_tool | 26% | 98% |
+| tools/canvas_docs_tool | ~0% | 100% |
+| tools/canvas_email_tool | ~0% | 100% |
+| tools/canvas_orchestration_tool | ~0% | 100% |
+| tools/canvas_sheets_tool | ~0% | 100% |
+| tools/canvas_terminal_tool | ~0% | 100% |
+| tools/creative_tool | 63% | 96% |
+| tools/data_analysis_tool | 75% | 99% |
+| tools/platform_management_tool | 8% | 99% |
+| tools/predictive_tools | 84% | 99% |
+| tools/office_tool | 0% (existing suites) | 99% |
+| tools/memory_tool | 94% | 97% |
+| tools/registry | 88% | 96% |
+| tools/agent_guidance_canvas_tool | 82% | 100% |
+| core/agents/autoresearch_agent | 17% | 100% |
+| core/agents/king_agent | 16% | 100% |
+| core/agents/queen_agent | 56% | 98% |
+| core/agents/skill_creation_agent | 84% | 97% |
+| core/llm/action_judge | 93% | 98% |
+| core/llm/cache_aware_router | 80% | 99% |
+| core/llm/cognitive_tier_service | 28% | 99% |
+| core/llm/cognitive_tier_system | 73% | 99% |
+| core/llm/escalation_manager | 31% | 100% |
+| core/llm/learning_router_registry | 84% | 97% |
+| core/llm/match_confidence_tiebreaker | 86% | 96% |
+| core/llm/minimax_integration | 92% | 100% |
+| core/llm/opencode_model_limits | 87% | 99% |
+| core/llm/rate_usage_persistence | 88% | 99% |
+| core/llm/routing_overrides | 81% | 100% |
+
+### Regression
+859 passed / 3 skipped / 0 failed (tools+agents batch incl. read-only suites); 647 passed / 0 failed (llm batch); 1,195 passed / 1 pre-existing failure / 6 skipped (combined incl. office suites).
+mypy: 60 errors on the 7 changed sources == HEAD baseline (0 new).
+Also verified ≥95%: fusion_router (97%), intent_detector (98%), response_quality (100%), self_consistency_voter (96%) — no source changes needed.
+
+### Out-of-scope / pre-existing (for coordinator)
+- `tests/test_round58_office_present_identity.py::test_present_uses_token_identity` — fails at HEAD: route-side R53 path containment (`_validate_office_path` in `api/office_routes.py`, not my scope) rejects the test's hardcoded `/data/office/doc.docx` → 400; test needs an allowlisted path. Confirmed identical failure on clean HEAD.
+- `tests/test_canvas_tool_integration.py` (13 tests) — fails at HEAD: DB fixture issue (`no such table: canvas_audit/agent_registry`) in the tools/canvas_tool.py integration suite (canvas_tool.py not in my scope).
+- `core/creative/ffmpeg_service.py` — FFmpegService constructor + methods untested beyond the aligned test_creative_tool.py suites (module not in my scope; ~50% covered by the suite fixes).
+- `tests/test_bughunt_federation.py`-style cross-suite pollution, `test_cognitive_tier_e2e.py` 32/32 verified green in my runs.
+
+## Session 2026-08-08 — pdf processing + AI integration coverage push (TDD, 7 real bugs)
+
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-08 | `integrations/pdf_processing/pdf_ocr_service.py` | FIXED | 13% → **94%**. (1) `import pypdf` fallback only — env has legacy `PyPDF2` → `PyPDF2=None` → every basic-text extraction silently failed; added `import PyPDF2` fallback. (2) `_get_available_ocr_methods` checked `"openai" in self.ocr_readers` (key never exists; reader key is `ai_vision`) → AI-vision OCR was unreachable in cascade/parallel; now checks `ai_vision` (2 sites) |
+| 2026-08-08 | `integrations/pdf_processing/pdf_memory_integration.py` | FIXED | 8% → **97%**. (3) `_get_simple_document` SELECT omitted `tags` → get_document returned inconsistent shape vs LanceDB path (KeyError for consumers). (4) `_store_simple_format` called `.isoformat()` unconditionally on `created_at` → crashed on string timestamps. (5) LanceDB filter-expression injection: `get_document`/`delete_document`/`update_document_tags`/`list_documents`/`get_user_document_stats` interpolated raw `user_id`/`doc_id`/`pdf_type`/dates (inconsistent with hardened `_search_in_lancedb`) → now quote-escaped at all 5 sites |
+| 2026-08-08 | `integrations/atom_ai_integration.py` | FIXED | 14% → **95%**. (6) 9 call sites used `llm_service.chat_completion(messages=…, system_prompt=…)` — `LLMService` has no such method (`generate_completion` returns a dict) → every AI feature (analytics, message analysis, content enhance, conversations, search ranking, workflow enhance, cross-platform sync) raised AttributeError and silently degraded; added `_chat_completion_text` adapter (generate_completion-first, legacy chat_completion fallback, dict→text normalization) |
+| 2026-08-08 | `integrations/atom_video_ai_service.py` | FIXED | 43% → **85%**. (7) `_summarize_video` referenced `AIRequest`/`AITaskType`/`AIModelType`/`AIServiceType` only defined when `ai_enhanced_service` imports → NameError → AI summary always fell back to "Unable to generate summary" even with a configured `ai_service`; functional stubs added in the ImportError fallback |
+| 2026-08-08 | tests: `test_covpush_pdfai.py` | TESTED | 281 new tests (7 real bugs red→green + branch waves); coverage: pdf_memory 97%, pdf_ocr 94%, atom_ai 95%, atom_video 85% (overall 92%); regression: `test_pdf_ocr_vision.py` 20/20, `test_docling_integration.py`/`test_bughunt_intgr_b.py` 157 passed with the same 3 pre-existing failures as HEAD (docling suite calls nonexistent `PDFOCRService(use_byok=…)`; whatsapp registry contract — other-session module); mypy: pre-existing repo-layout duplicate-module error only (`backend.core`/`core`), not introduced |
+
+## Session 2026-08-08 — FE zero-coverage pages (frontend-nextjs/pages, TDD, 12 suites / 135 tests)
+
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-08 | `frontend-nextjs/pages/agents/index.tsx` | TESTED | 0% → **88%** stmts (226 stmts). 14 tests: loading/empty/error, 401 token-clear+redirect, run/stop/edit/reasoning-feedback flows, WS step updates |
+| 2026-08-08 | `frontend-nextjs/pages/analytics.tsx` | FIXED | 0% → **98%**. Added missing `import React` (jest ts-jest `jsx:react` requires it; other pages already import React). 7 tests: KPI cards, empty/error/retry, refresh, CSV export |
+| 2026-08-08 | `frontend-nextjs/pages/canvas/[id].tsx` | TESTED | 0% → **90%** stmts. 13 tests: load/not-found, chat send (assistant reply, no_llm_provider, network error), history, delete w/ confirm gate, WS canvas:update routing |
+| 2026-08-08 | `frontend-nextjs/pages/canvas/index.tsx` | TESTED | 0% → **100%** stmts. 7 tests incl. BUG-073 filter persistence (type-count buttons survive active filter) |
+| 2026-08-08 | `frontend-nextjs/pages/dashboard/communication/index.tsx` | TESTED | 0% → **99%** stmts. 7 tests: tabs, stats aggregation, no-data refresh, error banner, implementation-switch refetch |
+| 2026-08-08 | `frontend-nextjs/pages/dashboard/risk.tsx` | TESTED | 0% → **98%** stmts. 4 tests: churn/fraud/AR/growth rendering, empty payloads, endpoint failure |
+| 2026-08-08 | `frontend-nextjs/pages/dev-status.tsx` | FIXED | 0% → **82%** stmts. `borderLeftColor: statusColor.replace('bg-','var(--')` emitted invalid CSS `var(--green-500` (missing `)`) → `var(--${color})`. 8 tests: health checks healthy/unhealthy/failing, build + system tabs |
+| 2026-08-08 | `frontend-nextjs/pages/dev-studio.tsx` | FIXED | 0% → **71%** stmts (web+tauri suites; remaining gap = dead `executeCommand` with no UI binding). (1) Explorer "View" button called Tauri `invoke` in web mode → TypeError/unhandled rejection; extracted `readFileContent(path)` routing through the desktop-bridge fetch. 18 tests across web + tauri modes |
+| 2026-08-08 | `frontend-nextjs/pages/documents.tsx` | TESTED | 0% → **93%** stmts. 10 tests: list/empty/failed-fetch, upload success/error/thrown, drag&drop, navigation |
+| 2026-08-08 | `frontend-nextjs/pages/documents/[docId].tsx` | FIXED | 0% → **96%** stmts. `document.metadata.author` / `document.metadata.source` crashed on null metadata → `?.` guards. 6 tests incl. null-metadata regression |
+| 2026-08-08 | `frontend-nextjs/pages/finance/index.tsx` | FIXED | 0% → **98%** stmts. (1) `subscriptions` TabsContent had no TabsTrigger → unreachable tab; added trigger. (2) pre-existing TS7006 `rows.map(e => …)` → `(e: any[])`. 8 tests: tab switching, create tx (event dispatch), invalid amount, backend detail, CSV export/empty/failure |
+| 2026-08-08 | `frontend-nextjs/jest.config.js` | CONFIG | Added `pages/__tests__/**/*.test.(ts|tsx|js)` to testMatch (task's stated glob was missing; tests under pages/__tests__ are ignored by Next filesystem router — underscore-prefixed dir) |
+
+Regression: `npx jest pages/__tests__ --ci --watchAll=false --maxWorkers=2` → 15 suites / **135 passed / 0 failed** (incl. the 3 pre-existing admin suites). `tsc --noEmit`: no new errors from touched files (pre-existing admin-test errors unchanged).
+
+---
+
+## Session 2026-08-08 — integrations intgr_c wave (14 atom_* modules ≥95%, 12 real bugs)
+
+### Coverage (tests/test_bughunt_intgr_c.py 66 + tests/test_covpush_intgr_c.py 275, combined 341 passed 0 failed; + test_covpush_universal.py)
+| Module | BEFORE | AFTER |
+|---|---|---|
+| atom_communication_ingestion_pipeline | 92% (r89) | **96%** |
+| atom_communication_apps_lancedb_integration | 40% | **97%** |
+| atom_communication_live_api | 49% | **99%** |
+| atom_communication_memory_api | 23% | **95%** |
+| atom_communication_memory_production_api | 48% | **98%** |
+| atom_communication_memory_webhooks | 74% | **97%** |
+| atom_ingestion_pipeline | 27% | **100%** |
+| atom_finance_live_api | 75% | **98%** |
+| atom_projects_live_api | 72% | **100%** |
+| atom_projects_memory_pipeline | 0% | **96%** |
+| atom_sales_live_api | 72% | **100%** |
+| atom_sales_memory_pipeline | 0% | **97%** |
+| atom_teams_integration | 68% | **100%** |
+| atom_whatsapp_integration | 63% | **100%** |
+| TOTAL | 66% | **98%** (2998 stmts, 63 miss — import-time fallback branches) |
+
+### Bugs fixed (TDD RED→GREEN, 36 RED tests first)
+| File:line | Bug | Test |
+|---|---|---|
+| atom_communication_memory_webhooks.py (slack/discord/telegram/gmail/outlook) | **FAIL-OPEN webhook verification** — slack/discord skipped verification when headers missing; telegram/gmail/outlook had NO verification at all → any authenticated caller could spoof messages into memory; now fail-closed per provider (secret-token headers, slack v0 HMAC + 5-min replay window) | TestMemoryWebhooksFailClosed (6) |
+| atom_communication_memory_webhooks.py:100 | whatsapp `sha256=` prefix never stripped → Meta signature ALWAYS mismatched → webhook permanently 401 | test_whatsapp_accepts_sha256_prefixed_signature |
+| atom_communication_memory_webhooks.py (all 6 endpoints) | `except Exception` swallowed own HTTPException(401) → every reject became 500 | test_whatsapp_invalid_signature_returns_401_not_500 |
+| atom_communication_memory_webhooks.py (6 `_process_*`) + memory_api (2) + production_api (2) + lancedb routes (2) | `ingestion_pipeline.ingest_message` (async) called WITHOUT await → coroutine truthy → every webhook/API ingest was a silent no-op claiming success | test_processor_awaits_ingestion (6) + ingest tests |
+| atom_communication_memory_production_api.py:151,192,279,450 | `token[:10]` on the DECODED JWT PAYLOAD dict → TypeError → every production ingest/search/analytics 500'd | TestProductionApiTokenHandling (4) |
+| atom_communication_live_api.py:189 | `UnifiedLiveMessage(..., subject=...)` — no subject param → TypeError → every Zoho message crashed | test_unified_live_message_supports_subject |
+| atom_communication_live_api.py:358,365 | phantom `fetch_gmail_recent`/`fetch_discord_recent` NameError killed the WHOLE contacts endpoint (zoho/outlook/teams never collected) → per-provider guards | test_recent_contacts_survives_missing_gmail_and_discord_fetchers |
+| atom_finance_live_api.py:153 | `httpx` never imported → Zoho Books fetch always NameError (silently swallowed) | test_zoho_books_fetch_works_with_tokens |
+| atom_finance_live_api.py (map_zoho_invoice) | missing required `platform` field → ValidationError on every Zoho invoice | (same test) |
+| atom_finance_live_api.py:175 | revenue statuses case-sensitive + `['succeeded','paid','paid']` dup → Xero "PAID" invoices excluded from total_revenue; phantom `integrations.stripe_service`/`xero_service` instances (modules export classes only) → Stripe+Xero fetches always dead → real `stripe` SDK / `XeroService` class | test_total_revenue_counts_uppercase_paid_status + endpoint tests |
+| atom_projects_live_api.py:115 | undefined `user_id` + phantom `get_user_tasks` → Asana fetch always NameError (dead); UnifiedTask missing `id` field (mappers passed id=, silently dropped) | test_asana_fetch_works_when_token_configured / test_unified_task_has_id_field |
+| atom_sales_live_api.py (3 mappers) | `status`/`stage` None → ValidationError killed the whole provider fetch; win-rate `d.status.lower()` None-crash → 500 | test_pipeline_does_not_crash_on_none_status |
+| atom_communication_apps_lancedb_integration.py | `/communications/{app_id}` registered BEFORE `/communications/timeline` → timeline route SHADOWED (404) | test_timeline_route_not_shadowed |
+| atom_communication_ingestion_pipeline.py (6 sites) | `if not memory_manager.db` / `if not connections_table` — LanceDBConnection/LanceTable are FALSY when empty (`__len__`) → re-initialized on EVERY request + searches on empty tables always returned [] | test_search_communications_filters_and_errors |
+| atom_teams_integration.py:17-28 | bare imports (`from atom_ingestion_pipeline import ...`) → ImportError → teams_enhanced_service (exists!) never loaded → whole integration permanently disabled; phantom instance import → TeamsEnhancedService class; camelCase attribute reads (`channelType`, `userName`, `threadId`, `channelIdentity`…) on snake_case dataclasses → every mapping crash | test_teams_enhanced_service_loaded_with_qualified_imports + channels/messages/search tests |
+| atom_whatsapp_integration.py:31-78 | ONE try/except for ALL enterprise imports — missing `ai_enhanced_service` poisoned the block → enterprise security/automation/AI ALL None; split into per-module guarded imports (`integrations.` prefixes); undefined AIRequest/AITaskType/etc names in fallback | test_enterprise_services_loaded_from_qualified_imports |
+| atom_ingestion_pipeline.py:62 | phantom `RecordType.RECORD` (enum has no such member) → AttributeError on every non-DEAL salesforce record; CommunicationData fallback missing 6 required fields → always crashed | test_normalize_salesforce_deal_and_record / test_ingest_record_falls_back_to_communication |
+| atom_sales_memory_pipeline.py:19 | phantom `hubspot_service` instance import → module ImportError; un-awaited async get_deals | test_ingest_hubspot_success |
+| atom_communication_memory_api / production_api / apps_lancedb_integration routers | NO auth on routers (lazy-registry mounted) → unauthenticated memory read/write; added `Depends(get_current_user)` | (router-level) |
+
+### Regression
+- Module-touching suites combined: **789 passed / 74 failed / 1 skipped** vs HEAD **782/75** — 0 NEW failures (all 74 pre-existing: round18 channel-auth, realtime slack mock target, intgr_b/todo/proactive cross-file stale-fixture failures — identical at HEAD).
+- mypy: 35 errors on the 4 sampled files — identical to HEAD baseline (0 new).
+- RED evidence: 36 bug tests failed pre-fix, all green post-fix.
+- Test-infra: `test_proactive_messaging_minimal.py` module-level `sys.modules['integrations.atom_whatsapp_integration'] = MagicMock()` (pre-existing pollution) — reload test skips when detected.

@@ -846,7 +846,7 @@ class GoogleChatAnalyticsEngine:
             logger.error(f"Error getting user activity summary: {e}", exc_info=True)
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Failed to get user activity summary",
                 "error_type": type(e).__name__,
                 "operation": "get_user_activity_summary"
             }
@@ -946,7 +946,7 @@ class GoogleChatAnalyticsEngine:
             logger.error(f"Error getting space activity report: {e}", exc_info=True)
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Failed to get space activity report",
                 "error_type": type(e).__name__,
                 "operation": "get_space_activity_report"
             }
@@ -1031,7 +1031,8 @@ class GoogleChatAnalyticsEngine:
                     json.dumps(point.dimensions),
                     json.dumps(point.metadata)
                 ]
-                rows.append(','.join(f'"{field}"' for field in row))
+                escaped_row = [field.replace('"', '""') for field in row]
+                rows.append(','.join(f'"{field}"' for field in escaped_row))
 
             # Combine headers and rows
             csv_content = ','.join(headers) + '\n' + '\n'.join(rows)

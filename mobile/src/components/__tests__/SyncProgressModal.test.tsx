@@ -697,4 +697,69 @@ describe('SyncProgressModal Component', () => {
       expect(status.props.accessibilityLiveRegion).toBe('assertive');
     });
   });
+
+  describe('Progress Log and Background Actions', () => {
+    let progressCallback: any;
+
+    beforeEach(() => {
+      progressCallback = null;
+      (offlineSyncService.subscribeToProgress as jest.Mock).mockImplementation(
+        (callback: any) => {
+          progressCallback = callback;
+          return jest.fn();
+        }
+      );
+    });
+
+    test('should record progress events as info log entries', async () => {
+      const { getByText, getByTestId } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
+      );
+
+      // Drive the progress subscription while syncing
+      act(() => {
+        progressCallback(42, 'agents');
+      });
+
+      // Complete the sync, then open the verbose log
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      fireEvent.press(getByText('Show Log'));
+
+      expect(getByText('[42%] agents')).toBeTruthy();
+      // Info-level entries use the information-circle icon
+      expect(getByTestId('icon-information-circle')).toBeTruthy();
+    });
+
+    test('should continue syncing in background and close the modal', async () => {
+      const mockClose = jest.fn();
+      const { getByText, queryByText } = render(
+        <SyncProgressModal visible={true} onClose={mockClose} />
+      );
+
+      fireEvent.press(getByText('Background'));
+
+      expect(mockClose).toHaveBeenCalled();
+
+      // The modal is still in the syncing state (not complete)
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      expect(queryByText('Done')).toBeTruthy();
+    });
+
+    test('should format elapsed time in minutes', () => {
+      jest.useFakeTimers();
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
+      );
+
+      // Re-render with 90s elapsed so the time stat recomputes
+      act(() => {
+        jest.advanceTimersByTime(90000);
+      });
+      emitSync({ ...baseSyncState, syncProgress: 50 });
+
+      expect(getByText(/Time: 1m 30s/)).toBeTruthy();
+
+      jest.useRealTimers();
+    });
+  });
 });

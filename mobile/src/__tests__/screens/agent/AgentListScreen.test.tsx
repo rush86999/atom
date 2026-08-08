@@ -770,4 +770,165 @@ describe('AgentListScreen', () => {
       });
     });
   });
+
+  describe('Student Maturity and Other Statuses', () => {
+    it('should render a STUDENT maturity agent with a gray badge', async () => {
+      mockGetAgents.mockImplementationOnce(() =>
+        Promise.resolve({
+          success: true,
+          data: [
+            {
+              id: 'agent-student',
+              name: 'Student Agent',
+              description: 'A student-level agent',
+              maturity_level: 'STUDENT',
+              status: 'busy',
+              confidence_score: 0.3,
+              created_at: new Date(MOCK_NOW - 86400000 * 10).toISOString(),
+              last_execution_at: new Date(MOCK_NOW - 86400000 * 10).toISOString(),
+              capabilities: [],
+            },
+          ],
+        })
+      );
+
+      const { getByText } = render(<AgentListScreen />);
+
+      await waitFor(() => {
+        expect(getByText('STUDENT')).toBeTruthy();
+        expect(getByText('busy')).toBeTruthy();
+      });
+    });
+
+    it('should render maintenance status and old execution dates', async () => {
+      mockGetAgents.mockImplementationOnce(() =>
+        Promise.resolve({
+          success: true,
+          data: [
+            {
+              id: 'agent-maint',
+              name: 'Maintenance Agent',
+              description: 'In maintenance',
+              maturity_level: 'SUPERVISED',
+              status: 'maintenance',
+              confidence_score: 0.5,
+              created_at: new Date(MOCK_NOW - 86400000 * 10).toISOString(),
+              last_execution_at: new Date(MOCK_NOW - 86400000 * 10).toISOString(),
+              capabilities: [],
+            },
+            {
+              id: 'agent-odd',
+              name: 'Odd Status Agent',
+              description: 'Odd status',
+              maturity_level: 'UNKNOWN_LEVEL' as any,
+              status: 'weird',
+              confidence_score: 0.5,
+              created_at: new Date(MOCK_NOW).toISOString(),
+              last_execution_at: new Date(MOCK_NOW - 86400000 * 10).toISOString(),
+              capabilities: [],
+            },
+          ],
+        })
+      );
+
+      const { getByText } = render(<AgentListScreen />);
+
+      await waitFor(() => {
+        expect(getByText('maintenance')).toBeTruthy();
+        expect(getByText('weird')).toBeTruthy();
+        // More than 7 days ago -> localized date instead of "Xd ago"
+        const expected = new Date(MOCK_NOW - 86400000 * 10).toLocaleDateString();
+        const escaped = expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        expect(screen.getAllByText(new RegExp(`Last: ${escaped}`)).length).toBe(2);
+      });
+    });
+
+    it('should filter by STUDENT maturity chip', async () => {
+      const { getByText, queryByText, getByPlaceholderText } = render(<AgentListScreen />);
+
+      await waitFor(() => {
+        expect(getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Filters'));
+      fireEvent.press(screen.getByText('Student'));
+
+      await waitFor(() => {
+        expect(queryByText('Test Agent 1')).toBeNull();
+        expect(queryByText('Test Agent 2')).toBeNull();
+        expect(queryByText('Test Agent 3')).toBeNull();
+        expect(getByText('No agents found')).toBeTruthy();
+      });
+
+      // Reset filters restores the full list
+      fireEvent.press(screen.getByText('Reset filters'));
+      await waitFor(() => {
+        expect(getByText('Test Agent 1')).toBeTruthy();
+      });
+    });
+
+    it('should restore all agents via the status All chip', async () => {
+      const { getByText } = render(<AgentListScreen />);
+
+      await waitFor(() => {
+        expect(getByText('Test Agent 3')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Filters'));
+      fireEvent.press(screen.getByText('Offline'));
+      await waitFor(() => {
+        expect(getByText('Test Agent 3')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getAllByText('All')[1]);
+      await waitFor(() => {
+        expect(getByText('Test Agent 1')).toBeTruthy();
+        expect(getByText('Test Agent 2')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Pull to Refresh and Search Clear', () => {
+    it('should reload agents when the list is refreshed', async () => {
+      const { FlatList } = require('react-native');
+      const { UNSAFE_getByType } = render(<AgentListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      const before = mockGetAgents.mock.calls.length;
+      fireEvent(UNSAFE_getByType(FlatList), 'refresh');
+
+      await waitFor(() => {
+        expect(mockGetAgents.mock.calls.length).toBeGreaterThan(before);
+      });
+    });
+
+    it('should clear the search query via the clear button', async () => {
+      const { getByText, getByPlaceholderText } = render(<AgentListScreen />);
+
+      await waitFor(() => {
+        expect(getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      const searchInput = screen.getByPlaceholderText(/search agents by name/i);
+      fireEvent.changeText(searchInput, 'Agent 1');
+
+      await waitFor(() => {
+        expect(getByText('Reset filters')).toBeTruthy();
+        expect(screen.queryByText('Test Agent 2')).toBeNull();
+      });
+
+      // The clear (close) icon's press handler bubbles to its TouchableOpacity
+      const closeIcon = screen.UNSAFE_getAllByType('Icon' as any).find(
+        (el: any) => el.props.source === 'close'
+      );
+      fireEvent.press(closeIcon);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Test Agent 2')).toBeTruthy();
+      });
+    });
+  });
 });

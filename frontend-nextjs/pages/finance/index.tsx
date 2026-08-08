@@ -58,7 +58,7 @@ const FinancePage = () => {
 
             const csvContent = "data:text/csv;charset=utf-8,"
                 + headers.join(',') + "\n"
-                + rows.map(e => e.join(',')).join("\n");
+                + rows.map((e: any[]) => e.join(',')).join("\n");
 
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
@@ -207,6 +207,7 @@ const FinancePage = () => {
                     <TabsTrigger value="transactions">Transactions</TabsTrigger>
                     <TabsTrigger value="budget">Budgeting</TabsTrigger>
                     <TabsTrigger value="invoices">Invoices</TabsTrigger>
+                    <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
                     <TabsTrigger value="review">Accounting Review</TabsTrigger>
                     <TabsTrigger value="compliance">Accountant Portal</TabsTrigger>
                     <TabsTrigger value="forecasting">Forecasting</TabsTrigger>

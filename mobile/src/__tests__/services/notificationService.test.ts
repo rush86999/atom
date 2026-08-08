@@ -922,4 +922,199 @@ describe('NotificationService', () => {
       expect(Notifications.dismissAllNotificationsAsync).toHaveBeenCalled();
     });
   });
+
+  // ========================================================================
+  // Error-Path Coverage Tests (catch blocks)
+  // ========================================================================
+
+  describe('Error-Path Coverage', () => {
+    beforeEach(() => {
+      notificationService._resetState();
+      (Device as any).isDevice = true;
+    });
+
+    test('should not throw when initialize fails', async () => {
+      (Notifications.getPermissionsAsync as jest.Mock).mockRejectedValue(
+        new Error('Permission check failed')
+      );
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await expect(notificationService.initialize()).resolves.not.toThrow();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'NotificationService: Failed to initialize:',
+        expect.any(Error)
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    test('should return denied when requestPermissions fails', async () => {
+      (Notifications.requestPermissionsAsync as jest.Mock).mockRejectedValue(
+        new Error('Request failed')
+      );
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const status = await notificationService.requestPermissions();
+
+      expect(status).toBe('denied');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'NotificationService: Failed to request permissions:',
+        expect.any(Error)
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    test('should not register when permissions not granted', async () => {
+      (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'denied',
+        canAskAgain: false,
+        granted: false,
+        expires: 'never',
+      });
+
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const token = await notificationService.registerForPushNotifications();
+
+      expect(token).toBeNull();
+      expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'NotificationService: Notification permissions not granted'
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    test('should not throw when backend registration fetch fails', async () => {
+      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network down'));
+      (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const token = await notificationService.registerForPushNotifications('user-1', 'device-1');
+
+      // Backend failure is non-blocking; the token is still returned
+      expect(token).not.toBeNull();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'NotificationService: Error registering token with backend:',
+        expect.any(Error)
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    test('should not throw when sending a local notification fails', async () => {
+      await notificationService.initialize();
+      (Notifications.scheduleNotificationAsync as jest.Mock).mockRejectedValue(
+        new Error('Schedule failed')
+      );
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await expect(
+        notificationService.sendLocalNotification({ title: 'T', body: 'B' })
+      ).resolves.not.toThrow();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'NotificationService: Failed to send local notification:',
+        expect.any(Error)
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    test('should not throw when cancelling a notification fails', async () => {
+      (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockRejectedValue(
+        new Error('Cancel failed')
+      );
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await expect(notificationService.cancelNotification('id-1')).resolves.not.toThrow();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'NotificationService: Failed to cancel notification:',
+        expect.any(Error)
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    test('should not throw when cancelling all notifications fails', async () => {
+      (Notifications.cancelAllScheduledNotificationsAsync as jest.Mock).mockRejectedValue(
+        new Error('Cancel all failed')
+      );
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await expect(notificationService.cancelAllNotifications()).resolves.not.toThrow();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'NotificationService: Failed to cancel all notifications:',
+        expect.any(Error)
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    test('should not throw when setting badge count fails', async () => {
+      (Notifications.setBadgeCountAsync as jest.Mock).mockRejectedValue(
+        new Error('Badge failed')
+      );
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await expect(notificationService.setBadgeCount(3)).resolves.not.toThrow();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'NotificationService: Failed to set badge count:',
+        expect.any(Error)
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    test('should isolate a throwing response listener from other listeners', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      let secondListenerCalled = false;
+      notificationService.onNotificationResponse(() => {
+        throw new Error('Response listener error');
+      });
+      notificationService.onNotificationResponse(() => {
+        secondListenerCalled = true;
+      });
+
+      (notificationService as any).notifyResponseListeners({ actionIdentifier: 'open' });
+
+      expect(secondListenerCalled).toBe(true);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'NotificationService: Response listener error:',
+        expect.any(Error)
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    test('should configure a working foreground notification handler', async () => {
+      let handler: any = null;
+      (Notifications.setNotificationHandler as jest.Mock).mockImplementation((h) => {
+        handler = h;
+      });
+
+      await notificationService.initialize();
+
+      expect(handler).not.toBeNull();
+      const result = await handler.handleNotification();
+      expect(result).toEqual({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      });
+    });
+  });
 });
