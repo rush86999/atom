@@ -93,6 +93,16 @@ class GenericAgent:
         self.mcp = mcp_service
         self.session_tools: List[Dict[str, Any]] = [] # Lazy-loaded tools
 
+        # Agent-extensible tool surface (W5, P5c): per-agent registered
+        # actions are added to the agent's AVAILABLE TOOLS (maturity-gated
+        # discovery) and dispatched locally in ``_step_act`` before any MCP
+        # call. Registration is additive and never touches governance.
+        self._custom_actions: Dict[str, Any] = {}
+        self._custom_action_specs: Dict[str, Dict[str, Any]] = {}
+        # Maturity floor string (STUDENT < INTERN < SUPERVISED < AUTONOMOUS);
+        # set once per execution run, None = unrestricted.
+        self._run_maturity: Optional[str] = None
+
         
         # Extract Agent Config
         self.system_prompt = self.config.get("system_prompt", f"You are {self.name}, a helpful assistant.")
@@ -154,8 +164,30 @@ class GenericAgent:
                 # as the objective's definition_of_done is satisfied — instead of
                 # always burning to max_steps. Flag off → objective is None and
                 # the loop behaves exactly as before (kill-switch parity).
-                from core.agent_objective import objective_from_context
+                from core.agent_objective import objective_from_context, objective_loop_enabled
                 _objective = objective_from_context(context or {})
+                _objective_loop = objective_loop_enabled()
+
+                # W5 (P5b/P5c): utility threading + maturity for custom-action
+                # discovery. Never raises; every measurement is best-effort.
+                _baseline_success_rate = await self._measure_success_rate()
+                _utility_delta: Optional[float] = None
+                try:
+                    from core.models import AgentRegistry as _AgentRegistryModel
+                    with get_db_session() as _mdb:
+                        _row = _mdb.query(_AgentRegistryModel).filter(
+                            _AgentRegistryModel.id == self.id
+                        ).first()
+                    if _row is not None:
+                        self._run_maturity = getattr(_row, "status", None)
+                except Exception:
+                    self._run_maturity = None
+
+                # W5 (P5c) stuck-detector: 3 consecutive identical tool+args
+                # calls → halt instead of burning the step budget in a loop.
+                from collections import deque as _deque
+                _stuck_keys: Any = _deque(maxlen=8)
+                _stuck_halts = 0
 
                 while current_step < max_steps:
                     current_step += 1
@@ -196,7 +228,7 @@ class GenericAgent:
                         break
 
                     # Plan/Think - Use instructor for structured parsing
-                    react_step = await self._react_step(task_input, memory_context, execution_history, context)
+                    react_step = await self._react_step(task_input, memory_context, execution_history, context, utility_delta=_utility_delta if _objective_loop else None)
 
                     thought = react_step.thought
                     action = react_step.action.model_dump() if react_step.action else None
@@ -237,6 +269,32 @@ class GenericAgent:
                     # in parallel with all-or-nothing HITL batch approval and
                     # stream each result. `continue` skips the single-action path.
                     if react_step.actions and _parallel_tools_enabled:
+                        # W5 (P5c) stuck-detector applies per tool in the batch.
+                        _stuck_batch = []
+                        for _pa in react_step.actions:
+                            _p_tool = getattr(_pa, "tool", None)
+                            _p_params = getattr(_pa, "params", {})
+                            if isinstance(_p_params, dict):
+                                _p_params = _p_params
+                            elif hasattr(_p_params, "model_dump"):
+                                _p_params = _p_params.model_dump()
+                            _pk = json.dumps([_p_tool, _p_params], sort_keys=True)
+                            if _objective_loop and _stuck_keys.count(_pk) >= 2:
+                                _stuck_batch.append(_pk)
+                            _stuck_keys.append(_pk)
+                        if _objective_loop and _stuck_batch:
+                            _stuck_halts += 1
+                            final_answer = (
+                                f"Execution halted: the same tool+arguments were "
+                                f"repeated 3+ times without progress "
+                                f"({', '.join(_stuck_batch[:2])})."
+                            )
+                            status = "stuck"
+                            logger.warning(
+                                f"Stuck-detector halted agent {getattr(self, 'name', '?')} "
+                                f"at step {current_step} (parallel batch)"
+                            )
+                            break
                         parallel_results = await self._execute_parallel_tools(
                             react_step.actions, context, step_callback
                         )
@@ -275,12 +333,36 @@ class GenericAgent:
                         
                         tool_name = action.get("tool")
                         tool_args = action.get("params", {})
-                        
+
+                        # W5 (P5c) stuck-detector: 3 consecutive identical
+                        # tool+args calls → halt (flag-gated, default on).
+                        _stuck_key = json.dumps([tool_name, tool_args], sort_keys=True)
+                        if _objective_loop and _stuck_keys.count(_stuck_key) >= 2:
+                            _stuck_halts += 1
+                            final_answer = (
+                                f"Execution halted: tool '{tool_name}' was called "
+                                f"with identical arguments 3+ times without "
+                                f"progress ({tool_args})."
+                            )
+                            status = "stuck"
+                            logger.warning(
+                                f"Stuck-detector halted agent {getattr(self, 'name', '?')} "
+                                f"at step {current_step} on {tool_name}"
+                            )
+                            break
+                        _stuck_keys.append(_stuck_key)
+
                         # Safety check
                         if self.allowed_tools != "*" and tool_name not in self.allowed_tools:
                             observation = f"Error: Tool '{tool_name}' is not allowed."
                         else:
                             observation = await self._step_act(tool_name, tool_args, context, step_callback)
+                            # W5 (P5b): refresh the utility delta after the
+                            # step so the next plan sees the movement.
+                            if _objective_loop:
+                                _new_rate = await self._measure_success_rate()
+                                if _baseline_success_rate is not None and _new_rate is not None:
+                                    _utility_delta = _new_rate - _baseline_success_rate
                             
                             # Phase 14: Capture screenshot for vision analysis
                             if tool_name == "browser_screenshot" and "saved to" in str(observation):
@@ -394,9 +476,13 @@ class GenericAgent:
             logger.error(f"Agent execution failed: {e}")
             final_answer = f"Error during execution: {str(e)}"
             status = "failed"
-            
+        finally:
+            # W5 (P5c): reset the per-run maturity cache (custom-action
+            # discovery floor) so it never leaks across executions.
+            self._run_maturity = None
+
         # 2.5: Generate Reflection/Critique on failure (Phase 215)
-        if status in ["failed", "timeout", "max_steps_exceeded", "budget_exceeded"]:
+        if status in ["failed", "timeout", "max_steps_exceeded", "budget_exceeded", "stuck"]:
             try:
                 await self.reflection_service.generate_critique(
                     agent_id=self.id,
@@ -587,7 +673,59 @@ class GenericAgent:
             logger.warning(f"Budget pre-check failed (fail-open): {e}")
             return {"allowed": True, "reason": "budget-check-error", "enforcement_mode": "unknown"}
 
-    async def _react_step(self, task_input: str, memory: Dict, history: str, context: Dict = None) -> ReActStep:
+    async def register_action(
+        self,
+        name: str,
+        handler: Any,
+        description: str = "",
+        min_maturity: Optional[str] = None,
+    ) -> None:
+        """Register a per-agent custom action (W5, P5c harness surface).
+
+        ``handler(args: dict, context: dict)`` may be sync or async. The
+        action is advertised in the agent's AVAILABLE TOOLS (subject to
+        ``min_maturity`` — the agent's current maturity must be >= the
+        floor, e.g. "INTERN", "SUPERVISED") and dispatched locally in
+        ``_step_act`` before any MCP tool call. Registration is additive;
+        governance/capability/sandbox layers are unaffected.
+        """
+        self._custom_actions[name] = handler
+        self._custom_action_specs[name] = {
+            "description": description,
+            "min_maturity": min_maturity,
+        }
+
+    def _custom_action_visible(self, name: str) -> bool:
+        """Maturity-gated discovery: hide actions whose floor isn't met."""
+        spec = self._custom_action_specs.get(name)
+        if not spec:
+            return False
+        floor = spec.get("min_maturity")
+        if not floor:
+            return True
+        if not self._run_maturity:
+            return False
+        order = {"STUDENT": 0, "INTERN": 1, "SUPERVISED": 2, "AUTONOMOUS": 3}
+        return order.get(str(self._run_maturity).upper(), 0) >= order.get(str(floor).upper(), 99)
+
+    async def _measure_success_rate(self) -> Optional[float]:
+        """Maturity success ratio for the current agent (never raises).
+
+        W5 (P5b): promotes the graduation success ratio to an optimization
+        target — the delta between runs is surfaced to the model each step.
+        """
+        try:
+            from core.agent_graduation_service import AgentGraduationService
+            with get_db_session() as db:
+                metrics = await AgentGraduationService(db).calculate_skill_usage_metrics(
+                    self.id, days_back=7
+                )
+                return float(metrics.get("success_rate", 0.0))
+        except Exception as e:
+            logger.debug(f"success-rate measurement skipped: {e}")
+            return None
+
+    async def _react_step(self, task_input: str, memory: Dict, history: str, context: Dict = None, utility_delta: Optional[float] = None) -> ReActStep:
         """
         Generate a single ReAct step with Pydantic validation.
         """
@@ -624,6 +762,17 @@ class GenericAgent:
                  "parameters": {"query": "string"}
              })
 
+        # W5 (P5c): agent-extensible tool surface — registered custom actions
+        # join the available tools, maturity-gated (hidden when the agent's
+        # current run maturity is below the action's floor).
+        for _cname in self._custom_action_specs:
+            if self._custom_action_visible(_cname):
+                unique_active_tools.append({
+                    "name": _cname,
+                    "description": self._custom_action_specs[_cname]["description"],
+                    "parameters": {},
+                })
+
         tool_descriptions = json.dumps([{"name": t["name"], "description": t.get("description", "")} for t in unique_active_tools], indent=2)
         
         optimization = context.get("optimization", {})
@@ -641,12 +790,27 @@ class GenericAgent:
         # workspace context is configured (additive, non-breaking).
         workspace_context = self._workspace_context_block()
 
+        # W5 (P5b): explicit utility — the maturity success ratio is an
+        # optimization target. The delta vs the run baseline is surfaced to
+        # the model so it prefers actions with verified success (which is
+        # what graduates capabilities).
+        utility_block = ""
+        if utility_delta is not None:
+            sign = "+" if utility_delta >= 0 else ""
+            utility_block = (
+                "\nOPTIMIZATION TARGET: your verified-success rate changed by "
+                f"{sign}{utility_delta:.1%} since the run baseline. Prefer "
+                "actions with historically high verified success; document "
+                "evidence so the outcome verifier can confirm it.\n"
+            )
+
         system_prompt = f"""{self.system_prompt}{mentorship_focus}
 
 {workspace_context}
 
 {skill_instructions}
 
+{utility_block}
 AVAILABLE TOOLS:
 {tool_descriptions}
 
@@ -675,7 +839,6 @@ ORCHESTRATION POWERS:
         knowledge = memory.get('knowledge', [])
         formulas = memory.get('formulas', [])
         facts = memory.get('business_facts', [])
-        
         memory_sections = []
         if experiences:
             exp_summaries = [f"- {e.get('input_summary', 'Task')[:80]}... → {e.get('outcome', 'completed')}" for e in experiences[:3]]
@@ -813,6 +976,18 @@ What is your next step?"""
         skipped — the caller (the parallel-tools batch) has already run it and
         obtained all-or-nothing approval for the whole batch.
         """
+        # W5 (P5c): agent-extensible tool surface — custom registered actions
+        # dispatch locally, before governance/MCP (they are agent-scoped and
+        # pre-authorized by registration).
+        if tool_name in self._custom_actions:
+            try:
+                result = self._custom_actions[tool_name](args or {}, context or {})
+                if asyncio.iscoroutine(result):
+                    result = await result
+                return result
+            except Exception as e:
+                logger.debug(f"Custom action {tool_name} raised: {e}")
+                return f"Error: Custom action '{tool_name}' failed: {e}"
         try:
             # 1. Governance Maturity Check
             if not pre_approved:
@@ -861,6 +1036,24 @@ What is your next step?"""
             elif "validation" in error_msg.lower() or "invalid" in error_msg.lower():
                 return f"Error: Invalid arguments for '{tool_name}': {error_msg}. Please check schema and retry."
             elif "timeout" in error_msg.lower():
+                # P3b (arXiv 2608.02645): verify-before-retry. The effect may
+                # have landed despite the timeout — re-derive against the
+                # system of record BEFORE telling the LLM to try once more,
+                # or a retry would duplicate the side effect.
+                try:
+                    from core.oracle import verify_before_retry
+                    with get_db_session() as oracle_db:
+                        postcondition_met = await verify_before_retry(
+                            tool_name, {**args, "db": oracle_db}
+                        )
+                    if postcondition_met:
+                        return (
+                            f"Tool '{tool_name}' timed out, but the oracle "
+                            f"verified its postcondition is already met. "
+                            f"Do NOT retry — treat the action as succeeded."
+                        )
+                except Exception as oracle_err:
+                    logger.debug(f"verify_before_retry skipped: {oracle_err}")
                 return f"Error: Tool '{tool_name}' timed out. You may try once more if critical."
             
             return f"Tool Execution Failed: {error_msg}. You can try to correct parameters or move to next step."

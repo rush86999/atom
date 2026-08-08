@@ -342,7 +342,9 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | Area | Status | Result |
 |---|---|---|
 | `core/agent_radio/{radio_service,radio_server,radio_guard,radio_breaker,radio_adapter}` | GREEN | 41 tests green (`pytest tests/unit/agents/test_radio_{service,server,breaker}.py test_agent_radio_tool.py`); mypy clean (10 files). Memo: `agent_messages` is LIVE board-comment storage — radio uses `lateral_messages`/`agent_threads` only |
-| `tools/agent_radio_tool.py` + `core/action_registry.py` (radio.*) | GREEN | 4 actions registered (RPC export auto); tier gates (INTERN+/STUDENT+), registry-declared maturity |
+| `core/agent_radio/radio_actions.py` (canonical `@register_action` handlers) | GREEN | Consolidation with parallel session: 4 actions (`radio.create_thread/send_message/wait_for_mention/read_inbox`) registered solely here; duplicate stubs stripped from `core/action_registry.py`. Full radio suite **86 passed** (`test_radio_{actions,adapter,guard,teams,service,breaker}_py` + `test_agent_radio_tool.py` + `test_radio_server.py`); mypy clean (10 files) |
+| `core/agent_radio/radio_teams.py` + `config/lateral_teams/coding_team.yaml` | GREEN | P4 declarative team config loader (dormant, not wired to fleet); loader + falsification prompt covered by `test_radio_teams.py` |
+| `tools/agent_radio_tool.py` (thin ToolRegistry surface) + registry wiring | GREEN | Re-exports canonical handlers; ToolRegistry listings carry maturity metadata (create/send INTERN+, wait/read STUDENT+); `tools/registry.py::_register_agent_radio_tools`; broadcast denied (mention-first) via `RadioPolicyError` |
 | `generic_agent.py` / `atom_meta_agent.py` passive drain hooks | GREEN | non-blocking `[RADIO INBOX]` injection per step; never raises |
 
 ### Resolved 2026-08-08 (R92 wave — pushed `15c6651b2` + `72d0c6c0e`)
@@ -1088,3 +1090,132 @@ Regression: `npx jest pages/__tests__ --ci --watchAll=false --maxWorkers=2` → 
 
 ### Regression / notes
 - Broader integration suite: `tests/core/integration/` + `tests/test_notion_service.py` = **89 passed** (excluding the pre-existing-broken `test_integration_data_mapper_coverage.py`, 13 failed — documented above as pre-existing, not a regression; verified against clean baseline via stash).
+
+## Session 2026-08-08 — Platform Upgrade P1 (W4 fleet wiring)
+
+### Hazard resolved
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-08 | `core/fleet_orchestration/fleet_scaler_service.py` | FIXED | `_execute_expansion` fabricated `recruited-agent-{hex}` strings + `parent_agent_id="system"` (FK violations into `agent_registry.id`; P0b `:263/:270`). Now recruits real `AgentRegistry` rows (AUTONOMOUS/SUPERVISED + enabled, excluding current chain members), falls back to registered placeholders (`flush()`-ed so `ChainLink.parent/child_agent_id` are NOT NULL-safe), parent = chain root (real agent). See docs/architecture/FLEET_ORCHESTRATION.md § Fleet scaler real recruitment. |
+| 2026-08-08 | `tests/core/test_fleet_depth_enforcement.py` | FIXED | Depth suite triage: seeded agents lacked `workspace_id` (governance lookup is workspace-scoped → not-found dict without `status_code` → `KeyError`); needed a real `workspaces` row (FK ON). Flat-chain test read `decision["status_code"]` on a success dict that has no such key → `.get()`. 5/5 GREEN. |
+| 2026-08-08 | `tests/test_fleet_scaler_service.py` | FIXED | Old tests mocked `query().filter().all()` globally; P1d code chains a second filter + `.limit()` and queries `AgentRegistry`/`DelegationChain` → `'Mock' object is not iterable`. Added `_expansion_db_mock()` helper (target-dispatched query mock) + new `test_execute_expansion_prefers_real_registry_agents`. |
+
+### Test suites (GREEN at stamp time)
+| Date | Test file(s) | Count |
+|---|---|---|
+| 2026-08-08 | `tests/core/test_fleet_depth_enforcement.py` | 5 passed (nested blocks, flat siblings don't, FK-on rejection, columns, table) |
+| 2026-08-08 | `tests/unit/test_fleet_routing_wire.py` | 4 passed (kill-switch parity, force-enforce, shadow, broken-copy gone) |
+| 2026-08-08 | `tests/core/test_specialist_matcher_real.py` | 6 passed |
+| 2026-08-08 | `tests/core/test_fleet_budget_memory_hooks.py` | 3 passed (NEW — spend gate, LLM-step halt, experience recorded) |
+| 2026-08-08 | `tests/test_fleet_scaler_service.py` + `test_bughunt_scaling_operations.py` + `test_covpush_fleet_scaling.py` | 123 passed (incl. 2 new P1d tests) |
+
+### Migration smoke (20260808_add_agent_divisions)
+- Scratch SQLite: `create_all` → `stamp 20260808_add_lateral_messaging` → `upgrade head` = OK. `agent_divisions` table + `division_id`/`parent_agent_id`/`specialty` columns created; `alembic_version` = `20260808_add_agent_divisions`.
+
+### Regression / notes
+- Pre-existing (NOT caused by P1): `tests/core/fleet_orchestration/test_fleet_orchestration_coverage.py` 2 failures — `FleetStateNotifier.__init__()` missing `redis_url` arg (ctor drift) + phantom `AutoApprovalService.check_auto_approval_eligibility`. Untouched files.
+- Doc promise fixed: FLEET_ORCHESTRATION.md referenced `test_fleet_budget_memory_hooks.py` (2) — did not exist; created (3 tests) + verified.
+
+## Session 2026-08-08 — Platform Upgrade P2 (W1 knowledge VFS)
+
+### Hazard resolved
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-08 | `core/action_registry.py` (`_canvas_read`) | FIXED | P2c insertion split `_canvas_read` — its body's tail was orphaned after `documents.grep`, so `canvas.read` returned None. Restored contiguous; regression test added. |
+| 2026-08-08 | `core/action_registry.py` (`documents.search`) | FIXED | Hybrid path used the SQL `%pattern%` string in the Python-side `in` hit test → every hit skipped, results always empty. Split `needle`/`pattern`. |
+
+### Implemented (P2c completion)
+- `core/vfs_base.py`: + `scan()` (recursive leaf walk, depth-bounded) + `ask_image()` default (vision_unavailable degrade).
+- `core/action_registry.py`: `documents.tree/head/tail/scan/map/reduce/ask_image` added; `documents.search` upgraded to weighted lexical ranking (`title 3x / content 1x`) + `since/source/author` filters behind `ATOM_KNOWLEDGE_VFS_ENABLED`; flag-off = exact legacy ILIKE parity path.
+- `documents.map` bounded fan-out (op per path, cap 50); `documents.reduce` count/concat/unique.
+
+### Deviation recorded (see docs/architecture/KNOWLEDGE_VFS.md)
+- Plan cited reusing `hybrid_retrieval_service.py` for BM25+vector fusion — verified it is agent-episode-bound (`coarse_search_fastembed(agent_id=...)`); no document embeddings/FTS exist. Semantic leg deferred (H11 follow-on); search tags `"hybrid": "lexical_ranked"` honestly.
+
+### Test suites (GREEN at stamp time)
+| Date | Test file(s) | Count |
+|---|---|---|
+| 2026-08-08 | `tests/core/test_knowledge_vfs.py` | 18 passed (was 8; +10: search parity/filters/ranking, tree, head/tail, scan, map/reduce, kill-switch all-actions, ask_image degrade, canvas.read regression) |
+| 2026-08-08 | `tests/test_action_registry.py` + `test_r79_action_registry_rpc.py` + `tests/core/test_action_registry_coverage.py` | 85 passed (registry surface intact) |
+
+## Session 2026-08-08 — Platform Upgrade P3 (W2 postcondition oracle + two-tier confidence)
+
+### Hazards found & fixed (RED→GREEN)
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-08 | `core/oracle/postcondition_verifiers.py` (`tasks.create`) | FIXED | Verifier queried phantom `AgentTask` (model never existed) → every verification errored (graceful False, but verifier was dead code). Pointed at real `BoardTask` (`core.models_board`). |
+| 2026-08-08 | `core/audit_service.py::_create_browser_audit_record` | FIXED | NEVER set `action` (NOT NULL) nor `endpoint` (NOT NULL) → every real browser-audit write raised IntegrityError, silently swallowed by `_log_with_retry` (returned None). Audit rows were never persisting. Test `test_browser_audit_denormalizes_confidence_provenance` is the red; fix maps `action`/`endpoint`. |
+
+### Implemented (P3 completion)
+- **P3c stop at INTERNAL_HIGH**: `selector_confidence_service.attach_tiebreak` now promotes LLM picks to `NEEDS_EXTERNAL_VALIDATION` (bridge), NOT `HIGH`; `requires_review`/`needs_external_validation` include the bridge tier; `browser_tool._maybe_gate_with_proposal` only bypasses for credible HIGH (`provenance != "internal"`). Shadow mode unchanged (FORCE_PROPOSAL=false proceeds).
+- **P3b verify-before-retry** (arXiv 2608.02645): `core.oracle.verify_before_retry()` (flag `ATOM_ORACLE_VERIFIER_ENABLED` default off); wired into `generic_agent._step_act` timeout branch — postcondition met ⇒ "do NOT retry" instead of "try once more".
+- **P3c migration** `20260808_add_confidence_provenance.py`: `match_level`/`match_confidence_provenance`/`match_confidence_score`/`external_validated_at` on `browser_audit` + `agent_reasoning_steps` (indexed, idempotent, `_index_exists` guard added after create_all conflict).
+- **P3c provenance denormalization**: `audit_service._create_browser_audit_record` writes level/provenance/score columns from the `match_confidence` metadata envelope.
+- **P3d TurnFact git-like versioning**: `parent_id`/`commit_message`/`author_type`/`branch_name`/`diff_summary` on `turn_facts` (+ migration `20260808_add_turn_fact_versioning.py`); `turn_fact_extractor._persist_one` writes commit metadata on create + supersede (chain: new row `parent_id=existing.id`).
+
+### Test suites (GREEN at stamp time)
+| Date | Test file(s) | Count |
+|---|---|---|
+| 2026-08-08 | `tests/core/test_oracle_and_two_tier_confidence.py` | 15 passed (was 8; +7: tiebreak bridge, bridge routing, verify_before_retry ×4, audit provenance denormalization) |
+| 2026-08-08 | `tests/test_match_confidence_proposal_gating.py` | updated `test_autonomous_agent_internal_high_routes_to_proposal` (was auto-proceed) + new `TestTwoTierCredibilityGate` ×3 (external-verified bypass / internal-high enforced / shadow) — suite 21 passed combined with oracle file |
+| 2026-08-08 | selector/matcher/tiebreaker + audit suites | 103 passed combined (oracle 15 + gating + selector bughunt + tiebreaker + audit_logger + integration_audit + knowledge_vfs 18) |
+
+### Migration smoke (20260808_add_confidence_provenance + 20260808_add_turn_fact_versioning)
+- Scratch SQLite: `create_all` (with `core.models` imported — `Base.metadata` is empty otherwise) → `stamp 20260808_add_lateral_messaging` → `upgrade head` = OK; `alembic_version` = `20260808_add_turn_fact_versioning`; all 9 columns + indexes verified. Note: `alembic/env.py` overrides URL from `DATABASE_URL` env — smoke runs never touch repo DBs.
+
+### Regression / notes
+- mypy (follow-imports=skip): changed files add ZERO new errors vs HEAD (`audit_service.py:73,235` pre-existing; oracle `__init__.py:77` pre-existing no-any-return in `validate`).
+- Pre-existing (NOT caused by P3): `tests/test_browser_tool_integration.py` 2 failures — tests create AgentRegistry WITHOUT `workspace_id`, governance lookup is workspace-scoped (filter exists at HEAD, unchanged) → "Agent not found". `tests/test_final_audit_fixes.py` 3 failures — phantom `core.skill_executor_service` module (test committed, module never landed). `tests/core/fleet_orchestration/test_fleet_orchestration_coverage.py` 2 failures (documented P1).
+
+## Session 2026-08-08 — Platform Upgrade P4a (W3 diversity-aware MoA + P4b reviewer suite)
+
+### Hazards found & fixed (RED→GREEN)
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-08 | `core/llm/byok_handler.py:2856` | FIXED | `usage = getattr(result, "_raw_response", {}).usage if hasattr(...)` raised AttributeError when `_raw_response` exists but lacks `.usage` (mocks, usage-less providers) → `usage` left unbound → :2911 NameError "cannot access local variable 'usage'" killed the ENTIRE structured attempt, not just cost attribution. Deterministic on HEAD (test_M2/test_D1). Fix: `getattr(raw_response, "usage", None)` never raises; both tests now green. |
+| 2026-08-08 | `tests/unit/llm/test_provider_family_invariant.py:89` | FIXED (test) | Stale sync mock: `get_ranked_providers = MagicMock(...)` but the real code `await`s it since the MoA round → "object list can't be used in 'await' expression" on HEAD. Now `AsyncMock`. |
+| 2026-08-08 | `tests/core/test_reviewer_and_diversity.py` | FIXED (test) | `BYOKHandler` referenced in 2 of 3 MoA-prompt tests without import (NameError). |
+
+### Implemented (P4a wiring of the P4b-era diversity helper)
+- `SelfConsistencyVoter.diversity_overlays()` existed as dead helper (P4b landed by concurrent session); now wired: both `vote()` and `vote_with_consensus()` rotate per-sample overlays via `_one(temp, idx)`; `byok_handler.generate_structured_moa` applies overlays to sample `system_instruction` and computes cross-sample `agreement` (via `SelfConsistencyVoter._hash_sample`, O(n²) vote) → `_build_moa_aggregator_prompt(prompt, samples, agreement=None)` (now staticmethod): ≥0.75 harmonize-without-invention, <0.5 resolve-contradictions, else reconcile; `None` ⇒ legacy byte-identical prompt.
+- Flag: `hallucination_config.is_moa_diversity_enabled()` = `ATOM_MOA_DIVERSITY_ENABLED` (default **false**, kill-switch parity).
+
+### Test suites (GREEN at stamp time)
+| Date | Test file(s) | Count |
+|---|---|---|
+| 2026-08-08 | `tests/core/test_reviewer_and_diversity.py` | 12 passed (incl. 5 new: vote overlay wiring, kill-switch parity, MoA prompt high/low/legacy) |
+| 2026-08-08 | `tests/unit/llm/test_moa.py` + `test_provider_family_invariant.py` | 14 passed (M2/M8/D1/D2 green after the usage fix; both suites red on HEAD before) |
+| 2026-08-08 | `tests/unit/llm/test_hallucination_config.py` + `test_cascade_routing.py` + `test_self_consistency_voter.py` | 52 passed |
+| 2026-08-08 | `tests/test_r80_self_consistency_voter.py` | 33 passed |
+
+### Regression / notes
+- mypy (follow-imports=skip): 36 errors in working tree vs 37 on HEAD for the 6 touched files (byok_handler 33→32, voter 3, oracle :77 pre-existing) — ZERO new.
+- Pre-existing on HEAD (verified via worktree, NOT caused by P4a): `tests/unit/llm/test_canvas_summary_coverage.py` 46 errors + 1 failure — test passes `byok_handler=` kwarg to `CanvasSummaryService.__init__`, constructor no longer accepts it (stale test vs committed refactor 06d432771). Also `tests/test_browser_tool_integration.py` 2, `tests/test_final_audit_fixes.py` 3, fleet coverage 2 (documented P3/P1).
+
+## Session 2026-08-08 — Platform Upgrade P4c + P5b/P5c (W3 re-delegation + W5 environment surface)
+
+### Implemented (P4c — reviewer re-delegation loop, flag `ATOM_REVIEWER_LOOP_ENABLED` default OFF)
+- `core/orchestration/reviewer_loop.py` (new): `is_review_rejection`, `attach_review_feedback`/`get_review_feedback`, `enter_review_waiting`/`resume_after_review` (RUNNING→WAITING→RUNNING parking), guard/pre/post hooks on RUNNING→WAITING (default-allow; observability + policy point), `install_state_machine_hooks` idempotent per machine.
+- `core/orchestration/conductor_agent.py`: `_execute_parallel_consensus` re-delegation loop — REVIEW rejection → park workflow WAITING → attach feedback to step (`_review_feedback` + `retry_count`+1) → re-run specialist (3-branch fan-out) → re-verify; exhausted after `MAX_REVIEWER_REDELEGATIONS`=2 → step FAILS loudly with feedback (never silent None). Deterministic executors unaffected (single-run path).
+- `core/orchestration/verification/dispatcher.py`: REVIEW rejections bypass the universal voting fallback ONLY when the loop flag is on (legacy safety net preserved flag-off).
+- Design note: the orchestrator's fallback previously SWALLOWED the reviewer's `winner=None`+`accepted=False` signal (folding into voting, dropping feedback) — the flag-conditional exception is the fix.
+- Doc: `docs/architecture/REVIEWER_LOOP.md`.
+
+### Implemented (P5b/P5c — environment surface, flag `ATOM_OBJECTIVE_LOOP_ENABLED` default ON)
+- P5b utility: `GenericAgent._measure_success_rate()` (7-day verified ratio via AgentGraduationService, never raises); `execute()` samples baseline → threads `utility_delta` into `_react_step` (new kwarg) → OPTIMIZATION TARGET block in system prompt.
+- P5c tool surface: `GenericAgent.register_action(name, handler, description, min_maturity)`; maturity-gated discovery (`_custom_action_visible`, run-scoped `_run_maturity`, reset in `finally`); local dispatch in `_step_act` before governance/MCP; advertised in AVAILABLE TOOLS.
+- P5c stuck-detector: 3× identical tool+args (single + parallel batches) → `status="stuck"`, final answer explains; flag-gated.
+- Docs: `AGENT_ENVIRONMENT.md` extended (5b/5c sections, deferred list removed), `ENVIRONMENT_VARIABLES.md` (ATOM_REVIEWER_LOOP_ENABLED + ATOM_MOA_DIVERSITY_ENABLED rows).
+- Environment hazard: venv lancedb native module (`_lancedb*.so`) vanished mid-session (no active pip; dir mtime matched the window) → reinstalled pinned `lancedb==0.25.3` (force-reinstall re-extracted pydantic deps; all suites re-verified green).
+
+### Test suites (GREEN at stamp time)
+| Date | Test file(s) | Count |
+|---|---|---|
+| 2026-08-08 | `tests/core/test_reviewer_and_diversity.py` | 16 passed (12 prior + 4 new P4c: redelegate-with-feedback, flag-off voting fallback, exhaustion→failed, WAITING parking incl. default-allow guard) |
+| 2026-08-08 | `tests/core/test_agent_environment_harness.py` (new) | 9 passed (custom dispatch async+sync, maturity-gated discovery, AVAILABLE TOOLS advertising, stuck halt / flag-off parity / different-args-not-stuck, utility-delta threading, OPTIMIZATION TARGET block) |
+| 2026-08-08 | consolidated affected sweep | 340 passed + 1 skipped (reviewer+diversity, harness, agent_objective 7, covpush generic-agent 67, enhanced orchestration 92, verification cascade unit suites, r80 voter, moa, provider-family) |
+
+### Regression / notes
+- mypy (follow-imports=skip): generic_agent 15, conductor_agent 9, dispatcher 1 — IDENTICAL to HEAD counts; reviewer_loop.py 0 errors. ZERO new.
+- P3/P4a/P4b/P5a + H6/H8/H9 were committed by the concurrent session (`3c1024b17` P3, `a000284c0` P4, `7955016f1` cross-cutting, `00b9f3c07` P5a, `aa9c999eb` flag flips — oracle/VFS/objective now default ON).
+- Pre-existing failures unchanged (browser_tool_integration 2, final_audit_fixes 3, fleet coverage 2, canvas_summary_coverage 46+1 — all verified on HEAD via worktree).

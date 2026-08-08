@@ -205,7 +205,9 @@ ActionJudge stays opt-in (`ATOM_SANDBOX_JUDGE_ENABLED`). Flags live in
 |----------|---------|-----------|-------------|
 | `ATOM_KNOWLEDGE_VFS_ENABLED` | `true` | — | Agent-native knowledge VFS: `documents.ls`/`cat`/`grep` with line-numbered content (W1). `false` = legacy ILIKE-only `documents.search`. |
 | `ATOM_ORACLE_VERIFIER_ENABLED` | `true` | — | Postcondition oracle: independently re-derives success against the system of record (W2). The oracle audits alongside self-report; set the force-enforce companion to override. |
-| `ATOM_OBJECTIVE_LOOP_ENABLED` | `true` | — | Goal-driven ReAct loop: terminate early when an Objective's `definition_of_done` is satisfied (W5). `false` = `max_steps` bound only. |
+| `ATOM_OBJECTIVE_LOOP_ENABLED` | `true` | — | Goal-driven ReAct loop: terminate early when an Objective's `definition_of_done` is satisfied (W5). `false` = `max_steps` bound only (also disables the utility-delta injection and the stuck-detector — P5b/P5c). |
+| `ATOM_REVIEWER_LOOP_ENABLED` | `false` | — | Reviewer re-delegation loop (W3/P4c): a REVIEW rejection re-delegates the step to the originating specialist with feedback (parking the workflow RUNNING→WAITING) instead of folding into the voting fallback. |
+| `ATOM_MOA_DIVERSITY_ENABLED` | `false` | — | Diversity-aware MoA init (W3/P4a): rotate per-sample perspective overlays and modulate the aggregator instruction by cross-sample agreement. Off = legacy byte-identical aggregator prompt. |
 | `ATOM_FLEET_ROUTING_ENABLED` | `false` | — | Route TASK intents through the governed fleet path (`route_with_governance` → `FleetAdmiral`). Default OFF — live-traffic behavior change; flip on after validation. |
 | `ATOM_FLEET_ROUTING_FORCE_ENFORCE` | `false` | — | Shadow mode for fleet routing: when on, return the recruitment summary; when off (default), compute telemetry but fall through to Queen→ReAct. |
 | `ATOM_MOA_ENABLED` | `true` | — | Mixture-of-Agents on hard structured tasks (Workstream F). |
