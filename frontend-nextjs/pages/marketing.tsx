@@ -59,6 +59,9 @@ const MarketingDashboard: React.FC = () => {
                     conversion_rate: "3.8%",
                     active_campaigns: 4,
                     roi: "3.2x"
+                },
+                narrative_report: {
+                    content: "AI Marketing Engine Active. Connect ad channels to stream real-time ROI analytics."
                 }
             });
         } catch (error) {

@@ -46,7 +46,7 @@ class WorkdayService(IntegrationService):
                 raise NotImplementedError(f"Operation {operation} not supported")
         except Exception as e:
             logger.error(f"Workday error for {operation}: {e}")
-            return {"success": False, "error": str(e), "details": {}}
+            return {"success": False, "error": f"Workday operation failed: {operation}", "details": {}}
 
     def _get_auth(self) -> tuple:
         if not all([self.username, self.password]):

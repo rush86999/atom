@@ -211,11 +211,12 @@ class TwilioService(IntegrationService):
                 "version": "1.0.0",
             }
         except Exception as e:
+            logger.error(f"Twilio health check failed: {e}")
             return {
                 "ok": False,
                 "status": "unhealthy",
                 "service": "twilio",
-                "error": str(e),
+                "error": "Twilio health check failed",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
@@ -265,7 +266,7 @@ class TwilioService(IntegrationService):
                 }
         except Exception as e:
             logger.error(f"Error executing Twilio operation {operation}: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Twilio operation failed"}
 
 # NOTE: Legacy singleton instance removed - use IntegrationRegistry instead
 # twilio_service = TwilioService("default", {})

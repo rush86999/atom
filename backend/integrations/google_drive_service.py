@@ -144,7 +144,7 @@ class GoogleDriveService(IntegrationService):
             return {"status": "success", "auth_url": auth_url, "state": f"google_drive_{user_id}"}
         except Exception as e:
             logger.error(f"Google Drive authentication failed: {e}")
-            return _error(f"Authentication failed: {e}")
+            return _error("Authentication failed")
 
     def _resolve_token(self, access_token: Optional[str]) -> Optional[str]:
         return access_token or self.access_token
@@ -199,7 +199,8 @@ class GoogleDriveService(IntegrationService):
                 return {"status": "unhealthy", "message": "No access token configured"}
             return {"status": "healthy", "service": "google_drive"}
         except Exception as e:
-            return {"status": "unhealthy", "message": str(e)}
+            logger.error(f"Google Drive health check failed: {e}")
+            return {"status": "unhealthy", "message": "Google Drive health check failed"}
 
     async def execute_operation(
         self,
@@ -263,7 +264,7 @@ class GoogleDriveService(IntegrationService):
             return _error(f"Failed to list files: {e.response.status_code}")
         except Exception as e:
             logger.error(f"Google Drive list_files failed: {e}")
-            return _error(f"Failed to list files: {e}")
+            return _error("Failed to list files")
 
     async def search_files(
         self,
@@ -297,7 +298,7 @@ class GoogleDriveService(IntegrationService):
             return _error(f"Search failed: {e.response.status_code}")
         except Exception as e:
             logger.error(f"Google Drive search failed: {e}")
-            return _error(f"Search failed: {e}")
+            return _error("Search failed")
 
     async def get_file_metadata(
         self, access_token: str, file_id: str
@@ -318,7 +319,7 @@ class GoogleDriveService(IntegrationService):
             return _error(f"Failed to get file metadata: {e.response.status_code}")
         except Exception as e:
             logger.error(f"Google Drive get file metadata failed: {e}")
-            return _error(f"Failed to get file metadata: {e}")
+            return _error("Failed to get file metadata")
 
     async def download_file(self, access_token: str, file_id: str) -> Dict[str, Any]:
         """Download a file from Google Drive, returning content as base64.
@@ -380,7 +381,7 @@ class GoogleDriveService(IntegrationService):
             return _error(f"Download failed: {e.response.status_code}")
         except Exception as e:
             logger.error(f"Google Drive download file failed: {e}")
-            return _error(f"Download failed: {e}")
+            return _error("Download failed")
 
     async def download_file_bytes(self, access_token: str, file_id: str) -> Optional[bytes]:
         """Download raw bytes for a file. Convenience method for ingestion paths."""
@@ -456,7 +457,7 @@ class GoogleDriveService(IntegrationService):
             return _error(f"Upload failed: {e.response.status_code}")
         except Exception as e:
             logger.error(f"Google Drive upload failed: {e}")
-            return _error(f"Upload failed: {e}")
+            return _error("Upload failed")
 
     # -------------------------------------------------------------------------
     # Sync / cache
@@ -491,7 +492,7 @@ class GoogleDriveService(IntegrationService):
                 ]
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="google_drive",
                         metric_key=key,
                     ).first()
@@ -501,7 +502,7 @@ class GoogleDriveService(IntegrationService):
                     else:
                         db.add(
                             IntegrationMetric(
-                                tenant_id=workspace_id,
+                                workspace_id=workspace_id,
                                 integration_type="google_drive",
                                 metric_key=key,
                                 value=float(value),
@@ -514,15 +515,16 @@ class GoogleDriveService(IntegrationService):
                     f"Synced {metrics_synced} Google Drive metrics for workspace {workspace_id}"
                 )
             except Exception as e:
+                logger.error(f"Error saving Google Drive metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save Google Drive metrics"}
             finally:
                 db.close()
 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Google Drive PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Google Drive cache sync failed"}
 
     async def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Google Drive."""

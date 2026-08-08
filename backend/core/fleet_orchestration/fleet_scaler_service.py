@@ -23,7 +23,7 @@ from core.fleet_orchestration.scaling_proposal_service import (
     ScalingProposalStatus
 )
 from core.fleet_orchestration.performance_metrics_service import PerformanceMetricsService
-from core.models import DelegationChain, ChainLink, FleetOverage
+from core.models import AgentRegistry, AgentStatus, DelegationChain, ChainLink, FleetOverage
 from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
@@ -254,20 +254,75 @@ class FleetScalerService:
 
         logger.info(f"Expanding fleet by {agents_needed} agents")
 
-        # Recruit through coordinator (simplified - actual implementation
-        # would use agent registry and domain matching)
+        # P1d: recruit through the agent registry — prefer real, available
+        # agents (AUTONOMOUS/SUPERVISED, enabled, not already in the chain);
+        # only fall back to registered placeholder rows so ChainLink FKs never
+        # dangle (violates agent_registry FKs under PRAGMA foreign_keys=ON).
+        existing_child_ids = [row[0] for row in existing_agents]
+
+        pool_query = self.db.query(AgentRegistry).filter(
+            AgentRegistry.status.in_([
+                AgentStatus.AUTONOMOUS.value,
+                AgentStatus.SUPERVISED.value,
+            ]),
+            AgentRegistry.enabled.is_(True),
+        )
+        if existing_child_ids:
+            pool_query = pool_query.filter(~AgentRegistry.id.in_(existing_child_ids))
+        pool = list(pool_query.limit(max(agents_needed, 0)).all())
+
+        # Parent: first existing chain member, else the chain root (a REAL
+        # AgentRegistry row), else a registered root placeholder — never "system".
+        chain = (
+            self.db.query(DelegationChain)
+            .filter(DelegationChain.id == proposal.chain_id)
+            .first()
+        )
+        parent_id = existing_child_ids[0] if existing_child_ids else None
+        if parent_id is None:
+            root_exists = (
+                chain is not None
+                and self.db.query(AgentRegistry)
+                .filter(AgentRegistry.id == chain.root_agent_id)
+                .first()
+                is not None
+            )
+            if root_exists:
+                parent_id = chain.root_agent_id
+            else:
+                root = AgentRegistry(
+                    name=f"chain-root-{proposal.chain_id[:8]}",
+                    category="specialist",
+                    module_path="core.generic_agent",
+                    class_name="GenericAgent",
+                    status=AgentStatus.AUTONOMOUS.value,
+                )
+                self.db.add(root)
+                self.db.flush()  # assign root.id so the ChainLink FK is NOT NULL-safe
+                parent_id = root.id
+
         recruited_agents = []
         for i in range(agents_needed):
-            # In production, use AgentRegistry to find available agents
-            # by domain matching existing fleet composition
-            agent_id = f"recruited-agent-{uuid.uuid4().hex[:8]}"
+            if i < len(pool):
+                agent = pool[i]
+            else:
+                agent = AgentRegistry(
+                    name=f"recruited-specialist-{uuid.uuid4().hex[:8]}",
+                    category="specialist",
+                    module_path="core.generic_agent",
+                    class_name="GenericAgent",
+                    status=AgentStatus.SUPERVISED.value,
+                )
+                self.db.add(agent)
+                self.db.flush()  # assign agent.id so the ChainLink FK is NOT NULL-safe
+            agent_id = agent.id
             recruited_agents.append(agent_id)
             operation.agents_added.append(agent_id)
 
             # Create chain link for new agent
             link = ChainLink(
                 chain_id=proposal.chain_id,
-                parent_agent_id=existing_agents[0][0] if existing_agents else "system",
+                parent_agent_id=parent_id,
                 child_agent_id=agent_id,
                 task_description="Fleet expansion recruitment",
                 status='active',

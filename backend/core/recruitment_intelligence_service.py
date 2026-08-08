@@ -141,6 +141,14 @@ Return JSON matching the RecruitmentPlan schema."""
                 )
 
             result.required_domains = valid_domains
+            # Keep suggested_specialist_count and domain_rationale consistent
+            # with the (possibly filtered) required_domains list.
+            result.suggested_specialist_count = max(1, len(valid_domains))
+            result.domain_rationale = {
+                d: result.domain_rationale[d]
+                for d in valid_domains
+                if d in result.domain_rationale
+            }
 
             return result
 
@@ -196,6 +204,11 @@ Return JSON matching the RecruitmentPlan schema."""
         if len(matched_domains) > max_specialists:
             # Sort by keyword match strength (simple heuristic)
             matched_domains = matched_domains[:max_specialists]
+
+        # Keep rationale consistent with the (possibly truncated) domain list
+        domain_rationale = {
+            d: domain_rationale[d] for d in matched_domains if d in domain_rationale
+        }
 
         return RecruitmentPlan(
             goal_analysis=f"Keyword-based analysis (LLM fallback)",

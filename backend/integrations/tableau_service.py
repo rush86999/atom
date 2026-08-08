@@ -62,7 +62,8 @@ class TableauService(IntegrationService):
             else:
                 raise NotImplementedError(f"Operation {operation} not supported for Tableau")
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logger.error(f"Tableau operation failed: {e}")
+            return {"success": False, "error": "Tableau operation failed"}
 
     async def close(self):
         """Close the HTTP client connection"""
@@ -197,12 +198,13 @@ class TableauService(IntegrationService):
                 "version": "1.0.0",
             }
         except Exception as e:
+            logger.error(f"Tableau health check failed: {e}")
             return {
                 "ok": False,
                 "status": "unhealthy",
                 "healthy": False,
                 "service": "tableau",
-                "error": str(e),
+                "error": "Tableau health check failed",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 

@@ -206,8 +206,8 @@ const LocalModelsPage: React.FC = () => {
                                             <div className="mt-4">
                                                 <CapabilityEditor
                                                     providerId={p.id}
-                                                    modelId={editingCapFor.split(':')[1]}
-                                                    existing={capabilities[p.id]?.find((c) => c.model_id === editingCapFor.split(':')[1])}
+                                                    modelId={editingCapFor.slice(`${p.id}:`.length)}
+                                                    existing={capabilities[p.id]?.find((c) => c.model_id === editingCapFor.slice(`${p.id}:`.length))}
                                                     onSaved={() => { setEditingCapFor(null); handleDiscover(p.id); }}
                                                 />
                                             </div>

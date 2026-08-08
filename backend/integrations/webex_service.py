@@ -115,8 +115,9 @@ class WebexService(IntegrationService):
                     "details": {"operation": operation}
                 }
         except Exception as e:
+            logger.error(f"Webex operation {operation} failed: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Webex operation failed",
                 "details": {"operation": operation, "tenant_id": self.tenant_id}
             }

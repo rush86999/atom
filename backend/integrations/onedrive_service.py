@@ -134,7 +134,7 @@ class OneDriveService(IntegrationService):
             return {"status": "success", "auth_url": auth_url, "state": f"onedrive_{user_id}"}
         except Exception as e:
             logger.error(f"OneDrive authentication failed: {e}")
-            return _error(f"Authentication failed: {e}")
+            return _error("Authentication failed")
 
     # -------------------------------------------------------------------------
     # Graph helpers
@@ -262,7 +262,7 @@ class OneDriveService(IntegrationService):
             return _error(f"Failed to list files: {e.response.status_code}")
         except Exception as e:
             logger.error(f"OneDrive list_files failed: {e}")
-            return _error(f"Failed to list files: {e}")
+            return _error("Failed to list files")
 
     async def list_drive_items(
         self, access_token: str, path: Optional[str] = None
@@ -312,7 +312,7 @@ class OneDriveService(IntegrationService):
             return _error(f"Search failed: {e.response.status_code}")
         except Exception as e:
             logger.error(f"OneDrive search failed: {e}")
-            return _error(f"Search failed: {e}")
+            return _error("Search failed")
 
     async def get_file_metadata(
         self, access_token: str, file_id: str
@@ -329,7 +329,7 @@ class OneDriveService(IntegrationService):
             return _error(f"Failed to get file metadata: {e.response.status_code}")
         except Exception as e:
             logger.error(f"OneDrive get file metadata failed: {e}")
-            return _error(f"Failed to get file metadata: {e}")
+            return _error("Failed to get file metadata")
 
     async def download_file(self, access_token: str, file_id: str) -> Dict[str, Any]:
         """Download a file from OneDrive, returning content as base64.
@@ -359,7 +359,7 @@ class OneDriveService(IntegrationService):
             return _error(f"Download failed: {e.response.status_code}")
         except Exception as e:
             logger.error(f"OneDrive download file failed: {e}")
-            return _error(f"Download failed: {e}")
+            return _error("Download failed")
 
     async def download_file_bytes(self, access_token: str, file_id: str) -> Optional[bytes]:
         """Download raw bytes for a file. Convenience method for ingestion paths."""
@@ -402,7 +402,7 @@ class OneDriveService(IntegrationService):
             return _error(f"Upload failed: {e.response.status_code}")
         except Exception as e:
             logger.error(f"OneDrive upload failed: {e}")
-            return _error(f"Upload failed: {e}")
+            return _error("Upload failed")
 
     # -------------------------------------------------------------------------
     # Sync / cache
@@ -432,7 +432,7 @@ class OneDriveService(IntegrationService):
 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="onedrive",
                         metric_key=key,
                     ).first()
@@ -442,7 +442,7 @@ class OneDriveService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="onedrive",
                             metric_key=key,
                             value=float(value),
@@ -458,14 +458,14 @@ class OneDriveService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving OneDrive metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save OneDrive metrics"}
             finally:
                 db.close()
 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"OneDrive PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "OneDrive cache sync failed"}
 
     async def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for OneDrive."""

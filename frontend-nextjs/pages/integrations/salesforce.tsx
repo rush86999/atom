@@ -3,7 +3,7 @@
  * Complete Salesforce CRM and sales platform integration
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   CheckCircle,
   AlertTriangle,
@@ -372,33 +372,7 @@ const SalesforceIntegration: React.FC = () => {
 
   const { toast } = useToast();
 
-  // Check connection status
-  const checkConnection = async () => {
-    try {
-      const response = await fetch("/api/integrations/salesforce/health");
-      if (response.ok) {
-        setConnected(true);
-        setHealthStatus("healthy");
-        loadUserProfile();
-        loadLeads();
-        loadOpportunities();
-        loadAccounts();
-        loadContacts();
-        loadCases();
-        loadUsers();
-      } else {
-        setConnected(false);
-        setHealthStatus("error");
-      }
-    } catch (error) {
-      console.error("Health check failed:", error);
-      setConnected(false);
-      setHealthStatus("error");
-    }
-  };
-
-  // Load Salesforce data
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     setLoading((prev) => ({ ...prev, profile: true }));
     try {
       const response = await fetch("/api/integrations/salesforce/profile", {
@@ -418,9 +392,9 @@ const SalesforceIntegration: React.FC = () => {
     } finally {
       setLoading((prev) => ({ ...prev, profile: false }));
     }
-  };
+  }, []);
 
-  const loadLeads = async () => {
+  const loadLeads = useCallback(async () => {
     setLoading((prev) => ({ ...prev, leads: true }));
     try {
       const response = await fetch("/api/integrations/salesforce/leads", {
@@ -448,9 +422,9 @@ const SalesforceIntegration: React.FC = () => {
     } finally {
       setLoading((prev) => ({ ...prev, leads: false }));
     }
-  };
+  }, [selectedStatus, toast]);
 
-  const loadOpportunities = async () => {
+  const loadOpportunities = useCallback(async () => {
     setLoading((prev) => ({ ...prev, opportunities: true }));
     try {
       const response = await fetch(
@@ -475,9 +449,9 @@ const SalesforceIntegration: React.FC = () => {
     } finally {
       setLoading((prev) => ({ ...prev, opportunities: false }));
     }
-  };
+  }, []);
 
-  const loadAccounts = async () => {
+  const loadAccounts = useCallback(async () => {
     setLoading((prev) => ({ ...prev, accounts: true }));
     try {
       const response = await fetch("/api/integrations/salesforce/accounts", {
@@ -498,9 +472,9 @@ const SalesforceIntegration: React.FC = () => {
     } finally {
       setLoading((prev) => ({ ...prev, accounts: false }));
     }
-  };
+  }, []);
 
-  const loadContacts = async () => {
+  const loadContacts = useCallback(async () => {
     setLoading((prev) => ({ ...prev, contacts: true }));
     try {
       const response = await fetch("/api/integrations/salesforce/contacts", {
@@ -522,9 +496,9 @@ const SalesforceIntegration: React.FC = () => {
     } finally {
       setLoading((prev) => ({ ...prev, contacts: false }));
     }
-  };
+  }, [selectedAccount, toast]);
 
-  const loadCases = async () => {
+  const loadCases = useCallback(async () => {
     setLoading((prev) => ({ ...prev, cases: true }));
     try {
       const response = await fetch("/api/integrations/salesforce/cases", {
@@ -546,9 +520,9 @@ const SalesforceIntegration: React.FC = () => {
     } finally {
       setLoading((prev) => ({ ...prev, cases: false }));
     }
-  };
+  }, []);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading((prev) => ({ ...prev, users: true }));
     try {
       const response = await fetch("/api/integrations/salesforce/users", {
@@ -569,7 +543,39 @@ const SalesforceIntegration: React.FC = () => {
     } finally {
       setLoading((prev) => ({ ...prev, users: false }));
     }
-  };
+  }, []);
+
+  const checkConnection = useCallback(async () => {
+    try {
+      const response = await fetch("/api/integrations/salesforce/health");
+      if (response.ok) {
+        setConnected(true);
+        setHealthStatus("healthy");
+        loadUserProfile();
+        loadLeads();
+        loadOpportunities();
+        loadAccounts();
+        loadContacts();
+        loadCases();
+        loadUsers();
+      } else {
+        setConnected(false);
+        setHealthStatus("error");
+      }
+    } catch (error) {
+      console.error("Health check failed:", error);
+      setConnected(false);
+      setHealthStatus("error");
+    }
+  }, [
+    loadUserProfile,
+    loadLeads,
+    loadOpportunities,
+    loadAccounts,
+    loadContacts,
+    loadCases,
+    loadUsers,
+  ]);
 
   // Create records
   const createLead = async () => {

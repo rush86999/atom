@@ -370,7 +370,7 @@ class OutlookCalendarService(IntegrationService):
                 "success": False,
                 "has_conflicts": False,
                 "conflicts": [],
-                "error": str(error)
+                "error": "Failed to check conflicts"
             }
     
     def _convert_outlook_to_unified(self, outlook_event: Dict) -> Dict:
@@ -461,7 +461,7 @@ class OutlookCalendarService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="outlook_calendar",
                         metric_key=key
                     ).first()
@@ -471,7 +471,7 @@ class OutlookCalendarService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="outlook_calendar",
                             metric_key=key,
                             value=float(value),
@@ -485,14 +485,14 @@ class OutlookCalendarService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Outlook Calendar metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save Outlook Calendar metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Outlook Calendar PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Outlook Calendar cache sync failed"}
 
     async def full_sync(self, workspace_id: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Outlook Calendar"""
@@ -592,4 +592,4 @@ class OutlookCalendarService(IntegrationService):
 
         except Exception as e:
             logger.error(f"Error executing Outlook Calendar operation {operation}: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Outlook Calendar operation failed"}

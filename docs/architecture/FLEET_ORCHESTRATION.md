@@ -83,6 +83,15 @@ parent→child tree from the chain root; `max_depth` gates that. Flat chains
 
 `AgentRegistry` gains `division_id`, `parent_agent_id`, `specialty`.
 
+## Fleet scaler real recruitment (P1d)
+
+`fleet_scaler_service._execute_expansion` no longer fabricates
+`recruited-agent-{hex}` strings or `parent_agent_id="system"`. Recruitment now
+queries `AgentRegistry` for real available agents (AUTONOMOUS/SUPERVISED,
+enabled, not already in the chain); when the pool is short it registers real
+placeholder `AgentRegistry` rows (`flush()`-ed so `ChainLink` FKs never dangle).
+Parent links use the chain root (a real agent) instead of the literal `"system"`.
+
 ## Fleet sub-agent budget + memory (P1d)
 
 Recruited specialists execute via `GenericAgent.execute()`, which enforces:
@@ -106,5 +115,8 @@ Recruited specialists execute via `GenericAgent.execute()`, which enforces:
   domains, unknown-domain fallback, backward compat.
 - `test_fleet_depth_enforcement.py` (5) — nested blocks, flat doesn't, FK
   (PRAGMA on), columns, table.
-- `test_fleet_budget_memory_hooks.py` (2) — spend gate halts, experience
-  recorded.
+- `test_fleet_budget_memory_hooks.py` (3) — gate denies when budget exhausted,
+  halted runs never reach the LLM step, successful runs record experiences.
+- `test_fleet_scaler_service.py` (+2) — expansion recruits registered
+  AgentRegistry rows (no fake ids / no `"system"` parent), prefers real pool
+  agents before placeholder fallback.

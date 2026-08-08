@@ -12,20 +12,33 @@ from unittest.mock import Mock, MagicMock
 import pytest
 from datetime import datetime, timezone
 
-# Mock the imports before importing the service
-sys.modules['core.agent_integration_gateway'] = MagicMock()
-sys.modules['integrations.atom_discord_integration'] = MagicMock()
-sys.modules['integrations.atom_whatsapp_integration'] = MagicMock()
-sys.modules['integrations.atom_telegram_integration'] = MagicMock()
-sys.modules['integrations.google_chat_enhanced_service'] = MagicMock()
-sys.modules['integrations.meta_business_service'] = MagicMock()
-sys.modules['integrations.marketing_unified_service'] = MagicMock()
-sys.modules['integrations.ecommerce_unified_service'] = MagicMock()
-sys.modules['integrations.slack_enhanced_service'] = MagicMock()
-sys.modules['integrations.teams_enhanced_service'] = MagicMock()
-sys.modules['integrations.document_logic_service'] = MagicMock()
-sys.modules['integrations.shopify_service'] = MagicMock()
-sys.modules['integrations.openclaw_service'] = MagicMock()
+# These mocks were previously installed at module level via sys.modules[...],
+# which polluted the interpreter for the WHOLE pytest session and broke
+# co-collected suites (e.g. test_covpush_intgr_c imports the real integration
+# modules). Scoped to an autouse fixture so monkeypatch restores the originals
+# after every test in this file.
+_MOCKED_MODULES = [
+    'core.agent_integration_gateway',
+    'integrations.atom_discord_integration',
+    'integrations.atom_whatsapp_integration',
+    'integrations.atom_telegram_integration',
+    'integrations.google_chat_enhanced_service',
+    'integrations.meta_business_service',
+    'integrations.marketing_unified_service',
+    'integrations.ecommerce_unified_service',
+    'integrations.slack_enhanced_service',
+    'integrations.teams_enhanced_service',
+    'integrations.document_logic_service',
+    'integrations.shopify_service',
+    'integrations.openclaw_service',
+]
+
+
+@pytest.fixture(autouse=True)
+def _mock_integration_modules(monkeypatch: pytest.MonkeyPatch):
+    """Scoped sys.modules mocks — monkeypatch restores originals per test."""
+    for name in _MOCKED_MODULES:
+        monkeypatch.setitem(sys.modules, name, MagicMock())
 
 from core.models import AgentStatus, ProactiveMessageStatus
 

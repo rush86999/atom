@@ -61,8 +61,14 @@ async def respond_to_approval(
     if not execution:
         raise HTTPException(status_code=404, detail="Execution not found")
         
-    if execution.status != WorkflowStatus.WAITING_APPROVAL.value:
-        raise HTTPException(status_code=400, detail="Internal error")
+    # The pending list filters on WorkflowExecutionStatus.PAUSED, so a PAUSED
+    # execution is the normal state here. Accept both the persisted PAUSED
+    # value and the orchestrator's "waiting_approval" marker (legacy runs).
+    if execution.status not in (
+        WorkflowExecutionStatus.PAUSED.value,
+        WorkflowStatus.WAITING_APPROVAL.value,
+    ):
+        raise HTTPException(status_code=400, detail="Execution is not waiting for approval")
 
     orchestrator = AdvancedWorkflowOrchestrator() # In real app, this should be a singleton/injected
     

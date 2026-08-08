@@ -110,3 +110,46 @@ class VFSProvider(ABC):
                         path=res.path, line=i + 1, snippet=line[:200],
                     ))
         return citations
+
+    async def ask_image(
+        self, path: str, prompt: str, ctx: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Ask a vision-capable model about an image at ``path``.
+
+        Default: unsupported — providers with vision support override this.
+        Never raises; returns a degrade result instead.
+        """
+        return {"success": False, "error": "vision_unavailable",
+                "message": "This VFS provider does not support image understanding."}
+
+    async def scan(
+        self, path: str, ctx: Optional[Dict[str, Any]] = None,
+        max_depth: int = 10,
+    ) -> List[VFSNode]:
+        """Recursively enumerate every leaf file node under ``path``.
+
+        Breadth-first walk via :meth:`ls` (bounded by ``max_depth``). Providers
+        may override for efficiency; the default is correct for the knowledge
+        provider (documents/<id>/ → meta.json + content.lines).
+        """
+        found: List[VFSNode] = []
+        frontier: List[VFSNode] = []
+        try:
+            frontier = list(await self.ls(path, ctx))
+        except Exception:
+            return found
+        for _depth in range(max_depth):
+            if not frontier:
+                break
+            next_level: List[VFSNode] = []
+            for node in frontier:
+                if node.type == "file":
+                    found.append(node)
+                    continue
+                try:
+                    children = await self.ls(node.path, ctx)
+                except Exception:
+                    continue
+                next_level.extend(children)
+            frontier = next_level
+        return found

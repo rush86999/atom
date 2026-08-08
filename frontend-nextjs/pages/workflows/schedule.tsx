@@ -50,7 +50,9 @@ const SchedulePage: React.FC = () => {
   const [jobs, setJobs] = useState<ScheduledJob[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = typeof window !== "undefined"
+    ? (localStorage.getItem("auth_token") || localStorage.getItem("token"))
+    : null;
   const authHeaders = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

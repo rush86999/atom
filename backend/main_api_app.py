@@ -2334,7 +2334,7 @@ try:
 
         app.include_router(shopify_wh_router)
 
-        from api.routes.integrations.atom_communication_memory_webhook_routes import (
+        from integrations.atom_communication_memory_webhooks import (
             atom_memory_webhooks_router,
         )
 
@@ -2344,21 +2344,24 @@ try:
             tags=["Communication Memory Webhooks"],
         )
 
-        from api.routes.integrations.atom_communication_memory_ingestion_routes import (
+        from integrations.atom_communication_apps_lancedb_integration import (
             communication_ingestion_router,
         )
 
         app.include_router(communication_ingestion_router)
 
-        from api.routes.integrations.razorpay_routes import razorpay_router
+        try:
+            from api.routes.integrations.razorpay_routes import razorpay_router
 
-        app.include_router(razorpay_router, prefix="/api/v1/integrations/razorpay")
+            app.include_router(razorpay_router, prefix="/api/v1/integrations/razorpay")
+        except (ImportError, TypeError) as e:
+            logger.warning(f"Razorpay routes not found, skipping: {e}")
 
         from integrations.onedrive_routes import onedrive_router
 
         app.include_router(onedrive_router, prefix="/api/v1/integrations/onedrive")
 
-        from integrations.box_routes import box_router
+        from integrations.box_routes import router as box_router
 
         app.include_router(box_router, prefix="/api/v1/integrations/box", tags=["Box"])
 
@@ -2441,9 +2444,12 @@ try:
         app.include_router(zoho_mail_router, prefix="/api/v1/integrations/zoho-mail")
 
         # HR Integrations
-        from api.routes.integrations.sagehr_routes import sagehr_router
+        try:
+            from api.routes.integrations.sagehr_routes import sagehr_router
 
-        app.include_router(sagehr_router, prefix="/api/v1/integrations/sagehr")
+            app.include_router(sagehr_router, prefix="/api/v1/integrations/sagehr")
+        except (ImportError, TypeError) as e:
+            logger.warning(f"SageHR routes not found, skipping: {e}")
 
         # Batch 2 Integrations
         # 3b. Standardized Webhooks (Phase 12)
@@ -2995,11 +3001,15 @@ try:
         )
 
         app.include_router(pdf_memory_router)
-        from api.routes.integrations.integration_data_routes import (
-            router as integration_data_router,
-        )
 
-        app.include_router(integration_data_router, tags=["Integration Data"])
+        try:
+            from api.routes.integrations.integration_data_routes import (
+                router as integration_data_router,
+            )
+
+            app.include_router(integration_data_router, tags=["Integration Data"])
+        except (ImportError, TypeError) as e:
+            logger.warning(f"Integration Data routes not found, skipping: {e}")
         logger.info("✓ Integration Data Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Integration Data Routes not found: {e}")

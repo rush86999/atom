@@ -271,9 +271,10 @@ class ZoomService(IntegrationService):
                 "last_check": datetime.now(timezone.utc).isoformat()
             }
         except Exception as e:
+            logger.error(f"Zoom health check failed: {e}")
             return {
                 "healthy": False,
-                "message": str(e),
+                "message": "Zoom health check failed",
                 "last_check": datetime.now(timezone.utc).isoformat()
             }
 
@@ -337,9 +338,10 @@ class ZoomService(IntegrationService):
                     "details": {"operation": operation}
                 }
         except Exception as e:
+            logger.error(f"Zoom operation {operation} failed: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Zoom operation failed",
                 "details": {"operation": operation, "tenant_id": self.tenant_id}
             }
 

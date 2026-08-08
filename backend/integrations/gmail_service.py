@@ -105,7 +105,7 @@ class GmailService(IntegrationService):
             logger.error(f"Gmail health check failed: {e}")
             return {
                 "healthy": False,
-                "message": str(e),
+                "message": "Gmail health check failed",
                 "last_check": datetime.now(timezone.utc).isoformat()
             }
     
@@ -204,7 +204,7 @@ class GmailService(IntegrationService):
             logger.error(f"Gmail connection test failed: {e}")
             return {
                 "status": "error",
-                "message": str(e),
+                "message": "Gmail connection test failed",
                 "authenticated": False
             }
     
@@ -717,14 +717,14 @@ class GmailService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Gmail metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save Gmail metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Gmail PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Gmail PostgreSQL cache sync failed"}
 
     async def full_sync(self, user_id: str = "me") -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Gmail"""
@@ -956,7 +956,7 @@ class GmailService(IntegrationService):
             return {
                 "success": False,
                 "error": error_code.value,
-                "message": str(e),
+                "message": "Gmail operation failed",
                 "operation": operation
             }
 
@@ -968,7 +968,7 @@ class GmailService(IntegrationService):
             messages = self.get_messages(max_results=max_results, token=token)
             pipeline = get_ingestion_pipeline()
             for msg in messages:
-                pipeline.ingest_message("google", msg)
+                await pipeline.ingest_message("google", msg)
             return messages
         except Exception as e:
             logger.error(f"Error in GmailService.fetch_recent_messages: {e}")

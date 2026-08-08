@@ -594,7 +594,8 @@ const IntegrationsPage: React.FC = () => {
       : integrations.filter((i) => i.category === selectedCategory);
 
   const connectedCount = integrations.filter((i) => i.connected).length;
-  const connectionProgress = (connectedCount / integrations.length) * 100;
+  const connectionProgress =
+    integrations.length > 0 ? (connectedCount / integrations.length) * 100 : 0;
 
   useEffect(() => {
     checkIntegrationsHealth();

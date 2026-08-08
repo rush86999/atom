@@ -24,6 +24,7 @@ System architecture, design patterns, and technical specifications.
 
 ### Memory & Context
 - **[Context Memory (Per-Turn Fact Extraction)](CONTEXT_MEMORY.md)** - Hermes-style durable-fact extraction layer; `sync_turn` + `on_pre_compress` hooks; two-tier recall (SQL + LanceDB); extraction-first over compression-first ✨
+- **[AgentRadio (Lateral Coordination)](AGENT_RADIO.md)** ✨ NEW - Passive-awareness peer-to-peer messaging between agents (3 `radio.*` actions: create_thread / send_message / wait_for_mention). Mention-first, cost-governed, breakpoint-gated; a fixed team is never the default. Complements (does not replace) Conductor/Fleet/Queen orchestration.
 - **[Atom vs. Hermes Comparison](HERMES_COMPARISON.md)** - Evidence-based capability matrix, decision log, and what Atom deliberately didn't build (and why)
 - **[Pre-Action Match-Confidence Layer](MATCH_CONFIDENCE.md)** - Pre-action selector-certainty scorer mirroring the post-action `VerifiedOutcome` tri-state; gates ambiguous/partial matches through ProposalService for ALL tiers (including AUTONOMOUS) ✨
 - **[Selector Confidence Thresholds](SELECTOR_CONFIDENCE_THRESHOLDS.md)** - One-pager on tuning env vars, score curve, per-agent opt-out

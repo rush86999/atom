@@ -23,6 +23,10 @@ from sqlalchemy.orm import Session
 from core.action_registry import ActionNotFoundError, action_registry
 from core.auth import User, get_current_user
 from core.database import get_db
+# Importing radio_actions registers the 3 `radio.*` actions via @register_action
+# (side effect at import). Kept here so the radio surface loads with the RPC
+# router and gets the same P2 capability + P9 sandbox gates as every action.
+from core.agent_radio import radio_actions  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

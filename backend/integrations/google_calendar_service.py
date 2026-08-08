@@ -384,7 +384,7 @@ class GoogleCalendarService(IntegrationService):
                 "success": False,
                 "has_conflicts": False,
                 "conflicts": [],
-                "error": str(error)
+                "error": "Failed to check conflicts",
             }
     
     def _convert_google_to_unified(self, google_event: Dict) -> Dict:
@@ -461,7 +461,7 @@ class GoogleCalendarService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="google_calendar",
                         metric_key=key
                     ).first()
@@ -471,7 +471,7 @@ class GoogleCalendarService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="google_calendar",
                             metric_key=key,
                             value=float(value),
@@ -485,14 +485,14 @@ class GoogleCalendarService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Google Calendar metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save Google Calendar metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Google Calendar PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Google Calendar cache sync failed"}
 
     async def full_sync(self, workspace_id: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Google Calendar"""
@@ -524,45 +524,69 @@ class GoogleCalendarService(IntegrationService):
                 "integration": "google_calendar"
             }
         except Exception as e:
+            logger.error(f"Google Calendar health check failed: {e}")
             return {
                 "status": "unhealthy",
-                "error": str(e),
+                "error": "Google Calendar health check failed",
                 "integration": "google_calendar"
             }
 
-    async def execute_operation(self, operation: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a calendar operation"""
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Execute a calendar operation with tenant context."""
+        if context and "tenant_id" in context and context["tenant_id"] != self.tenant_id:
+            logger.error(
+                f"Tenant ID mismatch: expected {self.tenant_id}, got {context['tenant_id']}"
+            )
+            return {
+                "success": False,
+                "error": "Tenant ID mismatch",
+                "details": {"operation": operation},
+            }
         try:
             if operation == "get_events":
                 events = await self.get_events(
-                    start_date=params.get("start_date"),
-                    end_date=params.get("end_date"),
-                    max_results=params.get("max_results", 10)
+                    calendar_id=parameters.get("calendar_id", "primary"),
+                    time_min=parameters.get("time_min"),
+                    time_max=parameters.get("time_max"),
+                    max_results=parameters.get("max_results", 100),
+                    token=parameters.get("token"),
                 )
                 return {"success": True, "data": events}
             elif operation == "create_event":
-                event = await self.create_event(params.get("event_data"))
-                return {"success": True, "data": event}
+                event = await self.create_event(
+                    parameters.get("event_data"), parameters.get("token")
+                )
+                return {"success": event is not None, "data": event}
             elif operation == "update_event":
                 event = await self.update_event(
-                    event_id=params.get("event_id"),
-                    event_data=params.get("event_data")
+                    event_id=parameters.get("event_id"),
+                    updates=parameters.get("updates", {}),
+                    calendar_id=parameters.get("calendar_id", "primary"),
                 )
-                return {"success": True, "data": event}
+                return {"success": event is not None, "data": event}
             elif operation == "delete_event":
-                success = await self.delete_event(event_id=params.get("event_id"))
+                success = await self.delete_event(
+                    event_id=parameters.get("event_id"),
+                    calendar_id=parameters.get("calendar_id", "primary"),
+                )
                 return {"success": success}
             elif operation == "check_conflicts":
                 conflicts = await self.check_conflicts(
-                    start_time=params.get("start_time"),
-                    end_time=params.get("end_time"),
-                    attendee_emails=params.get("attendee_emails", [])
+                    start_time=parameters.get("start_time"),
+                    end_time=parameters.get("end_time"),
+                    calendar_id=parameters.get("calendar_id", "primary"),
                 )
                 return {"success": True, "data": conflicts}
             else:
                 return {"success": False, "error": f"Unknown operation: {operation}"}
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logger.error(f"Error executing Google Calendar operation {operation}: {e}")
+            return {"success": False, "error": "Google Calendar operation failed"}
 
 
 # Singleton instance for backward compatibility

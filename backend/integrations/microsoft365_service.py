@@ -103,7 +103,7 @@ class Microsoft365Service(IntegrationService):
             return {
                 "status": "unhealthy",
                 "service": "microsoft365",
-                "error": str(e),
+                "error": "Health check failed",
             }
 
     async def execute_operation(self, operation: str, **kwargs) -> Dict[str, Any]:
@@ -129,7 +129,7 @@ class Microsoft365Service(IntegrationService):
                 }
         except Exception as e:
             logger.error(f"Microsoft 365 operation failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Microsoft 365 operation failed"}
 
     async def _authenticate(self, user_id: str) -> Dict[str, Any]:
         """Initialize Microsoft 365 authentication flow."""
@@ -158,7 +158,7 @@ class Microsoft365Service(IntegrationService):
             }
         except Exception as e:
             logger.error(f"Microsoft 365 authentication failed: {e}")
-            return {"status": "error", "message": f"Authentication failed: {str(e)}"}
+            return {"status": "error", "message": "Authentication failed"}
 
     async def authenticate(self, user_id: str) -> Dict[str, Any]:
         """Initialize Microsoft 365 authentication flow (legacy method)."""
@@ -174,7 +174,7 @@ class Microsoft365Service(IntegrationService):
             logger.error(f"Microsoft 365 get user profile failed: {e}")
             return {
                 "status": "error",
-                "message": f"Failed to get user profile: {str(e)}",
+                "message": f"Failed to get user profile",
             }
 
     async def list_teams(self, access_token: str) -> Dict[str, Any]:
@@ -184,7 +184,7 @@ class Microsoft365Service(IntegrationService):
             return await self._make_graph_request("GET", url, access_token)
         except Exception as e:
             logger.error(f"Microsoft 365 list teams failed: {e}")
-            return {"status": "error", "message": f"Failed to list teams: {str(e)}"}
+            return {"status": "error", "message": f"Failed to list teams"}
 
     async def list_channels(self, access_token: str, team_id: str) -> Dict[str, Any]:
         """List channels in a Microsoft Team."""
@@ -193,7 +193,7 @@ class Microsoft365Service(IntegrationService):
             return await self._make_graph_request("GET", url, access_token)
         except Exception as e:
             logger.error(f"Microsoft 365 list channels failed: {e}")
-            return {"status": "error", "message": f"Failed to list channels: {str(e)}"}
+            return {"status": "error", "message": f"Failed to list channels"}
 
     async def get_outlook_messages(
         self, access_token: str, folder_id: str = "inbox", top: int = 10
@@ -204,7 +204,7 @@ class Microsoft365Service(IntegrationService):
             return await self._make_graph_request("GET", url, access_token)
         except Exception as e:
             logger.error(f"Microsoft 365 get outlook messages failed: {e}")
-            return {"status": "error", "message": f"Failed to get messages: {str(e)}"}
+            return {"status": "error", "message": f"Failed to get messages"}
 
     async def get_calendar_events(
         self, access_token: str, start_date: str, end_date: str
@@ -215,7 +215,7 @@ class Microsoft365Service(IntegrationService):
             return await self._make_graph_request("GET", url, access_token)
         except Exception as e:
             logger.error(f"Microsoft 365 get calendar events failed: {e}")
-            return {"status": "error", "message": f"Failed to get events: {str(e)}"}
+            return {"status": "error", "message": f"Failed to get events"}
 
     async def get_planner_tasks(self, access_token: str, top: int = 10) -> Dict[str, Any]:
         """Get Microsoft Planner tasks."""
@@ -224,7 +224,7 @@ class Microsoft365Service(IntegrationService):
             return await self._make_graph_request("GET", url, access_token)
         except Exception as e:
             logger.error(f"Microsoft 365 get planner tasks failed: {e}")
-            return {"status": "error", "message": f"Failed to get planner tasks: {str(e)}"}
+            return {"status": "error", "message": f"Failed to get planner tasks"}
 
     async def get_dynamics_deals(self, access_token: str, top: int = 10) -> Dict[str, Any]:
         """Get Dynamics 365 Sales opportunities."""
@@ -237,7 +237,7 @@ class Microsoft365Service(IntegrationService):
             return await self._make_graph_request("GET", url, access_token)
         except Exception as e:
             logger.error(f"Microsoft 365 get dynamics deals failed: {e}")
-            return {"status": "error", "message": f"Failed to get dynamics deals: {str(e)}"}
+            return {"status": "error", "message": f"Failed to get dynamics deals"}
 
     async def get_dynamics_invoices(self, access_token: str, top: int = 10) -> Dict[str, Any]:
         """Get Dynamics 365 Finance invoices."""
@@ -246,7 +246,7 @@ class Microsoft365Service(IntegrationService):
             return await self._make_graph_request("GET", url, access_token)
         except Exception as e:
             logger.error(f"Microsoft 365 get dynamics invoices failed: {e}")
-            return {"status": "error", "message": f"Failed to get dynamics invoices: {str(e)}"}
+            return {"status": "error", "message": f"Failed to get dynamics invoices"}
 
     async def get_service_status(self, access_token: str) -> Dict[str, Any]:
         """Get Microsoft 365 service status for the authenticated user."""
@@ -256,7 +256,7 @@ class Microsoft365Service(IntegrationService):
             return result
         except Exception as e:
             logger.error(f"Microsoft 365 service status failed: {e}")
-            return {"status": "error", "message": f"Failed to get service status: {str(e)}"}
+            return {"status": "error", "message": f"Failed to get service status"}
 
     async def _make_graph_request(self, method: str, url: str, token: str, json_data: Any = None) -> Dict[str, Any]:
         """Make an authenticated request to Microsoft Graph API."""
@@ -270,7 +270,12 @@ class Microsoft365Service(IntegrationService):
         import os
         if token == "fake_token" and os.getenv("ATOM_ENV") == "development":
              logger.info(f"MOCK BYPASS: {method} {url}")
-             return {"status": "success", "data": {"id": "mock_id_123"}}
+             return {"status": "success", "data": {
+                 "id": "mock_id_123",
+                 "displayName": "Mock User",
+                 "mail": "mock@example.com",
+                 "userPrincipalName": "mock@example.com",
+             }}
 
         async with aiohttp.ClientSession() as session:
             async with session.request(method, url, headers=headers, json=json_data) as response:
@@ -384,7 +389,7 @@ class Microsoft365Service(IntegrationService):
             return {"status": "error", "message": f"Unknown OneDrive action: {action}. Supported: list_files, get_content, upload, delete, share, create_folder"}
         except Exception as e:
             logger.error(f"OneDrive action failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "OneDrive action failed"}
 
     async def execute_excel_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Excel action using Microsoft Graph API.
@@ -510,7 +515,7 @@ class Microsoft365Service(IntegrationService):
             return {"status": "error", "message": f"Unknown Excel action: {action}. Supported: read_range, write_range, get_tables, get_columns, append_row, create_worksheet, format_range"}
         except Exception as e:
             logger.error(f"Excel action failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Excel action failed"}
 
     async def execute_powerbi_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Power BI action using Microsoft Graph API.
@@ -573,7 +578,7 @@ class Microsoft365Service(IntegrationService):
             return {"status": "error", "message": f"Unknown Power BI action: {action}. Supported: refresh_dataset, get_reports, get_dashboards, export_report, get_datasets"}
         except Exception as e:
             logger.error(f"Power BI action failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Power BI action failed"}
 
     async def execute_teams_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Teams action using Microsoft Graph API.
@@ -623,7 +628,7 @@ class Microsoft365Service(IntegrationService):
             return {"status": "error", "message": f"Unknown Teams action: {action}. Supported: send_message, create_channel, list_teams"}
         except Exception as e:
             logger.error(f"Teams action failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Teams action failed"}
 
     async def execute_outlook_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Outlook action using Microsoft Graph API.
@@ -727,7 +732,7 @@ class Microsoft365Service(IntegrationService):
             return {"status": "error", "message": f"Unknown Outlook action: {action}. Supported: send_email, list_messages, create_event"}
         except Exception as e:
             logger.error(f"Outlook action failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Outlook action failed"}
 
     async def execute_planner_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Planner action using Microsoft Graph API.
@@ -811,11 +816,12 @@ class Microsoft365Service(IntegrationService):
             return {"status": "error", "message": f"Unknown Planner action: {action}. Supported: create_task, update_task, list_plans, list_buckets, list_tasks"}
         except Exception as e:
             logger.error(f"Planner action failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Planner action failed"}
 
     async def delete_item(self, token: str, item_type: str, item_id: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         """Delete an item (message, event, file)."""
         try:
+            params = params or {}
             url = ""
             if item_type == "message":
                 # For messages, we need user_id typically, but /me/messages works for logged in user
@@ -837,7 +843,7 @@ class Microsoft365Service(IntegrationService):
 
         except Exception as e:
             logger.error(f"Delete item failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Delete item failed"}
 
     async def create_subscription(self, token: str, resource: str, change_type: str, notification_url: str, expiration_datetime: str) -> Dict[str, Any]:
         """Create a webhook subscription."""
@@ -857,7 +863,7 @@ class Microsoft365Service(IntegrationService):
             return await self._make_graph_request("POST", url, token, payload)
         except Exception as e:
             logger.error(f"Create subscription failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Create subscription failed"}
 
     async def renew_subscription(self, token: str, subscription_id: str, expiration_datetime: str) -> Dict[str, Any]:
          """Renew a webhook subscription."""
@@ -869,7 +875,7 @@ class Microsoft365Service(IntegrationService):
             return await self._make_graph_request("PATCH", url, token, payload)
          except Exception as e:
             logger.error(f"Renew subscription failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Renew subscription failed"}
 
     async def delete_subscription(self, token: str, subscription_id: str) -> Dict[str, Any]:
         """Delete a webhook subscription."""
@@ -878,7 +884,7 @@ class Microsoft365Service(IntegrationService):
             return await self._make_graph_request("DELETE", url, token)
         except Exception as e:
             logger.error(f"Delete subscription failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Delete subscription failed"}
 
     async def _send_message(self, team_id: str, channel_id: str, content: str) -> Dict[str, Any]:
         """Send message to Microsoft Teams channel."""
@@ -893,7 +899,7 @@ class Microsoft365Service(IntegrationService):
             return await self._make_graph_request("POST", url, token, payload)
         except Exception as e:
             logger.error(f"Send message failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Send message failed"}
 
     async def _list_teams(self) -> Dict[str, Any]:
         """List Microsoft Teams for the tenant."""
@@ -906,7 +912,7 @@ class Microsoft365Service(IntegrationService):
             return await self._make_graph_request("GET", url, token)
         except Exception as e:
             logger.error(f"List teams failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "List teams failed"}
 
     async def _list_channels(self, team_id: str) -> Dict[str, Any]:
         """List channels in a Microsoft Team."""
@@ -919,7 +925,7 @@ class Microsoft365Service(IntegrationService):
             return await self._make_graph_request("GET", url, token)
         except Exception as e:
             logger.error(f"List channels failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "List channels failed"}
 
 
 # Service instance - REMOVED: Use IntegrationRegistry instead

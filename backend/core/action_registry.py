@@ -159,6 +159,9 @@ _DOCUMENTS_SEARCH_SCHEMA = {
     "properties": {
         "query": {"type": "string", "description": "Search query"},
         "limit": {"type": "integer", "description": "Max results (optional)"},
+        "since": {"type": "string", "description": "Only documents modified at/after this ISO datetime"},
+        "source": {"type": "string", "description": "Restrict to one store: 'ingested' | 'knowledge'"},
+        "author": {"type": "string", "description": "Only documents from this author/integration (e.g. a drive integration id)"},
     },
     "required": ["query"],
 }
@@ -222,10 +225,117 @@ def _context_user_id(context: Dict[str, Any]) -> Optional[str]:
 
 @register_action(
     "documents.search",
-    description="Search ingested and knowledge documents by query.",
+    description="Search ingested and knowledge documents by query. When the knowledge VFS flag is on, ranks results by weighted lexical score and honors since/source/author filters.",
     parameters_schema=_DOCUMENTS_SEARCH_SCHEMA,
 )
 async def _documents_search(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    query = (args.get("query") or "").strip()
+    limit = int(args.get("limit", 10))
+    if not query:
+        return {"success": False, "error": "query is required", "results": []}
+    try:
+        from core.database import get_db_session
+        from core.models import IngestedDocument, KnowledgeDocument
+        from sqlalchemy import or_
+
+        from core.knowledge_vfs_config import knowledge_vfs_enabled
+
+        # Kill-switch parity: flag OFF → exact legacy ILIKE behavior.
+        if not knowledge_vfs_enabled():
+            return await _documents_search_legacy(args, context)
+
+        since = args.get("since")
+        source = (args.get("source") or "").strip().lower()
+        author = (args.get("author") or "").strip().lower()
+        pattern = f"%{query.lower()}%"
+        needle = query.lower()
+
+        with get_db_session() as db:
+            results: List[Dict[str, Any]] = []
+
+            # Ingested leg: title 3x weight, content 1x — deterministic score.
+            qi = db.query(IngestedDocument)
+            if source and source != "ingested":
+                qi = qi.filter(IngestedDocument.id == "-")
+            else:
+                qi = qi.filter(
+                    or_(
+                        IngestedDocument.file_name.ilike(pattern),
+                        IngestedDocument.content_preview.ilike(pattern),
+                    )
+                )
+                if since:
+                    qi = qi.filter(
+                        or_(
+                            IngestedDocument.created_at >= since,
+                            IngestedDocument.external_modified_at >= since,
+                        )
+                    )
+                if author:
+                    qi = qi.filter(IngestedDocument.integration_id.ilike(f"%{author}%"))
+            for d in qi.limit(200).all():
+                name_hit = needle in (d.file_name or "").lower()
+                content_hit = needle in (d.content_preview or "").lower()
+                if not (name_hit or content_hit):
+                    continue
+                score = (3.0 if name_hit else 0.0) + (1.0 if content_hit else 0.0)
+                results.append({
+                    "source": "ingested",
+                    "id": d.id,
+                    "title": d.file_name,
+                    "preview": (d.content_preview or "")[:200],
+                    "score": round(score, 3),
+                    "modified": d.external_modified_at.isoformat() if d.external_modified_at else None,
+                })
+
+            # Knowledge leg: same weighting over title/content.
+            qk = db.query(KnowledgeDocument)
+            if source and source != "knowledge":
+                qk = qk.filter(KnowledgeDocument.id == "-")
+            else:
+                qk = qk.filter(
+                    or_(
+                        KnowledgeDocument.title.ilike(pattern),
+                        KnowledgeDocument.content.ilike(pattern),
+                    )
+                )
+                if since:
+                    qk = qk.filter(
+                        or_(
+                            KnowledgeDocument.created_at >= since,
+                            KnowledgeDocument.updated_at >= since,
+                        )
+                    )
+                if author:
+                    qk = qk.filter(KnowledgeDocument.metadata_json["author"].astext.ilike(f"%{author}%"))
+            for d in qk.limit(200).all():
+                title_hit = needle in (d.title or "").lower()
+                content_hit = needle in (d.content or "").lower()
+                if not (title_hit or content_hit):
+                    continue
+                score = (3.0 if title_hit else 0.0) + (1.0 if content_hit else 0.0)
+                results.append({
+                    "source": "knowledge",
+                    "id": d.id,
+                    "title": d.title,
+                    "preview": (d.content or "")[:200],
+                    "score": round(score, 3),
+                })
+
+        results.sort(key=lambda r: r.get("score", 0.0), reverse=True)
+        return {
+            "success": True,
+            "query": query,
+            "results": results[:limit],
+            "hybrid": "lexical_ranked",
+        }
+    except Exception as e:
+        logger.error("documents.search failed: %s", e)
+        return {"success": False, "error": "Document search failed", "results": []}
+
+
+async def _documents_search_legacy(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    """The pre-P2 ILIKE implementation — flag-off parity path."""
     query = (args.get("query") or "").strip()
     limit = int(args.get("limit", 10))
     if not query:
@@ -291,6 +401,14 @@ async def _documents_search(args: Dict[str, Any], context: Dict[str, Any]) -> Di
 async def _canvas_read(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.canvas_crud_tool import read_canvas
 
+    canvas_id = args.get("canvas_id")
+    if not canvas_id:
+        return {"success": False, "error": "canvas_id is required"}
+    user_id = _context_user_id(context)
+    if not user_id:
+        return {"success": False, "error": "Authenticated user is required to read a canvas"}
+    return await read_canvas(user_id, str(canvas_id))
+
 
 # ============================================================================
 # P2c (W1): Agent-native knowledge VFS actions (ls/cat/grep).
@@ -321,6 +439,64 @@ _DOCUMENTS_GREP_SCHEMA = {
         "path_prefix": {"type": "string", "description": "VFS directory to search under (e.g. 'knowledge/documents')"},
     },
     "required": ["pattern", "path_prefix"],
+}
+
+_DOCUMENTS_TREE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "path": {"type": "string", "description": "VFS directory to render as a tree (e.g. 'knowledge/documents')"},
+        "depth": {"type": "integer", "description": "Maximum tree depth (default 2)"},
+    },
+    "required": ["path"],
+}
+
+_DOCUMENTS_HEAD_TAIL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "path": {"type": "string", "description": "VFS leaf path (e.g. 'knowledge/documents/<id>/content.lines')"},
+        "lines": {"type": "integer", "description": "Number of lines to return (default 20)"},
+    },
+    "required": ["path"],
+}
+
+_DOCUMENTS_SCAN_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "path": {"type": "string", "description": "VFS directory to scan recursively"},
+        "max_depth": {"type": "integer", "description": "Maximum recursion depth (default 10)"},
+    },
+    "required": ["path"],
+}
+
+_DOCUMENTS_MAP_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "paths": {"type": "array", "items": {"type": "string"},
+                  "description": "VFS leaf paths to process, one item per path"},
+        "op": {"type": "string", "description": "Operation to apply per path: 'cat' | 'head' | 'grep'"},
+        "pattern": {"type": "string", "description": "Regex pattern when op='grep'"},
+        "lines": {"type": "integer", "description": "Line limit when op='head'"},
+        "max_items": {"type": "integer", "description": "Bounded fan-out cap (default 10, max 50)"},
+    },
+    "required": ["paths", "op"],
+}
+
+_DOCUMENTS_REDUCE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "items": {"type": "array", "description": "List of per-item map results ({'path', ...})"},
+        "mode": {"type": "string", "description": "Aggregation: 'count' | 'concat' | 'unique'"},
+    },
+    "required": ["items", "mode"],
+}
+
+_DOCUMENTS_ASK_IMAGE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "path": {"type": "string", "description": "VFS leaf path of an image"},
+        "prompt": {"type": "string", "description": "Natural-language question about the image"},
+    },
+    "required": ["path", "prompt"],
 }
 
 
@@ -409,13 +585,216 @@ async def _documents_grep(args: Dict[str, Any], context: Dict[str, Any]) -> Dict
     citations = await provider.grep(pattern, prefix, _vfs_context(context))
     return {"success": True, "pattern": pattern, "matches": [c.to_dict() for c in citations]}
 
-    canvas_id = args.get("canvas_id")
-    if not canvas_id:
-        return {"success": False, "error": "canvas_id is required"}
-    user_id = _context_user_id(context)
-    if not user_id:
-        return {"success": False, "error": "Authenticated user is required to read a canvas"}
-    return await read_canvas(user_id, str(canvas_id))
+
+@register_action(
+    "documents.tree",
+    description="Render a VFS directory as an indented tree (ls recursively, depth-limited).",
+    parameters_schema=_DOCUMENTS_TREE_SCHEMA,
+)
+async def _documents_tree(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.knowledge_vfs_config import knowledge_vfs_enabled
+    if not knowledge_vfs_enabled():
+        return _vfs_disabled()
+    _ensure_vfs_registered()
+    from core.vfs_registry import resolve_provider
+    path = (args.get("path") or "").strip()
+    depth = max(1, min(int(args.get("depth", 2)), 6))
+    provider = resolve_provider(path)
+    if provider is None:
+        return {"success": False, "error": "no_provider", "message": f"No VFS provider for path '{path}'"}
+    lines: List[str] = []
+    try:
+        frontier = await provider.ls(path, _vfs_context(context))
+    except Exception as e:
+        logger.warning(f"documents.tree ls failed: {e}")
+        frontier = []
+    lines.append(path or "/")
+    for _level in range(depth):
+        if not frontier:
+            break
+        next_level: List[Any] = []
+        for node in frontier:
+            lines.append(f"  {'└─' if _level == 0 else '  '}{node.name}/" if node.type == "dir" else f"  {node.name}")
+            if node.type == "dir":
+                try:
+                    next_level.extend(await provider.ls(node.path, _vfs_context(context)))
+                except Exception:
+                    pass
+        frontier = next_level
+    return {"success": True, "path": path, "tree": lines}
+
+
+@register_action(
+    "documents.head",
+    description="Read the first N lines of a VFS leaf (for skimming large documents).",
+    parameters_schema=_DOCUMENTS_HEAD_TAIL_SCHEMA,
+)
+async def _documents_head(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.knowledge_vfs_config import knowledge_vfs_enabled
+    if not knowledge_vfs_enabled():
+        return _vfs_disabled()
+    _ensure_vfs_registered()
+    from core.vfs_registry import resolve_provider
+    path = (args.get("path") or "").strip()
+    count = max(1, int(args.get("lines", 20)))
+    provider = resolve_provider(path)
+    if provider is None:
+        return {"success": False, "error": "no_provider", "message": f"No VFS provider for path '{path}'"}
+    res = await provider.cat(path, _vfs_context(context))
+    return {"success": True, "path": res.path, "head": res.lines[:count], "line_count": len(res.lines)}
+
+
+@register_action(
+    "documents.tail",
+    description="Read the last N lines of a VFS leaf (for skimming large documents).",
+    parameters_schema=_DOCUMENTS_HEAD_TAIL_SCHEMA,
+)
+async def _documents_tail(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.knowledge_vfs_config import knowledge_vfs_enabled
+    if not knowledge_vfs_enabled():
+        return _vfs_disabled()
+    _ensure_vfs_registered()
+    from core.vfs_registry import resolve_provider
+    path = (args.get("path") or "").strip()
+    count = max(1, int(args.get("lines", 20)))
+    provider = resolve_provider(path)
+    if provider is None:
+        return {"success": False, "error": "no_provider", "message": f"No VFS provider for path '{path}'"}
+    res = await provider.cat(path, _vfs_context(context))
+    return {"success": True, "path": res.path, "tail": res.lines[-count:], "line_count": len(res.lines)}
+
+
+@register_action(
+    "documents.scan",
+    description="Recursively enumerate every file under a VFS directory (path + size).",
+    parameters_schema=_DOCUMENTS_SCAN_SCHEMA,
+)
+async def _documents_scan(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.knowledge_vfs_config import knowledge_vfs_enabled
+    if not knowledge_vfs_enabled():
+        return _vfs_disabled()
+    _ensure_vfs_registered()
+    from core.vfs_registry import resolve_provider
+    path = (args.get("path") or "").strip()
+    max_depth = max(1, min(int(args.get("max_depth", 10)), 20))
+    provider = resolve_provider(path)
+    if provider is None:
+        return {"success": False, "error": "no_provider", "message": f"No VFS provider for path '{path}'"}
+    leaves = await provider.scan(path, _vfs_context(context), max_depth=max_depth)
+    return {
+        "success": True,
+        "path": path,
+        "files": [{"path": n.path, "size": n.size} for n in leaves],
+        "file_count": len(leaves),
+    }
+
+
+@register_action(
+    "documents.map",
+    description="Bounded fan-out over VFS leaf paths: apply one op (cat/head/grep) per item. Complexity 3 / SUPERVISED-gated at the dispatch layer.",
+    parameters_schema=_DOCUMENTS_MAP_SCHEMA,
+)
+async def _documents_map(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.knowledge_vfs_config import knowledge_vfs_enabled
+    if not knowledge_vfs_enabled():
+        return _vfs_disabled()
+    _ensure_vfs_registered()
+    from core.vfs_registry import resolve_provider
+    paths = list(args.get("paths") or [])
+    op = (args.get("op") or "").strip().lower()
+    if not paths or op not in ("cat", "head", "grep"):
+        return {"success": False, "error": "paths and op (cat|head|grep) are required"}
+    max_items = max(1, min(int(args.get("max_items", 10)), 50))
+    paths = paths[:max_items]
+    ctx = _vfs_context(context)
+    results: List[Dict[str, Any]] = []
+    for p in paths:
+        provider = resolve_provider(p)
+        if provider is None:
+            results.append({"path": p, "error": "no_provider"})
+            continue
+        try:
+            if op == "grep":
+                pattern = (args.get("pattern") or "").strip()
+                if not pattern:
+                    results.append({"path": p, "error": "pattern required for grep"})
+                    continue
+                hits = await provider.grep(pattern, p, ctx)
+                results.append({"path": p, "matches": [c.to_dict() for c in hits]})
+            else:
+                res = await provider.cat(p, ctx)
+                if op == "head":
+                    n = max(1, int(args.get("lines", 20)))
+                    results.append({"path": p, "lines": res.lines[:n]})
+                else:
+                    results.append({"path": p, "line_count": len(res.lines)})
+        except Exception as e:
+            logger.warning(f"documents.map item {p} failed: {e}")
+            results.append({"path": p, "error": "item_failed"})
+    return {"success": True, "op": op, "items_processed": len(results), "results": results}
+
+
+@register_action(
+    "documents.reduce",
+    description="Aggregate a documents.map result list (count | concat | unique).",
+    parameters_schema=_DOCUMENTS_REDUCE_SCHEMA,
+)
+async def _documents_reduce(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.knowledge_vfs_config import knowledge_vfs_enabled
+    if not knowledge_vfs_enabled():
+        return _vfs_disabled()
+    items = list(args.get("items") or [])
+    mode = (args.get("mode") or "").strip().lower()
+    if not items or mode not in ("count", "concat", "unique"):
+        return {"success": False, "error": "items and mode (count|concat|unique) are required"}
+    if mode == "count":
+        total_lines = 0
+        match_count = 0
+        for item in items:
+            lines = item.get("lines")
+            if lines is not None:
+                total_lines += len(lines)
+            elif item.get("line_count") is not None:
+                total_lines += int(item.get("line_count", 0))
+            if "matches" in item:
+                match_count += len(item.get("matches", []))
+        return {"success": True, "mode": "count", "total_lines": total_lines, "match_count": match_count}
+    if mode == "concat":
+        blobs: List[str] = []
+        for item in items:
+            blobs.extend(item.get("lines") or [])
+        return {"success": True, "mode": "concat", "lines": blobs, "line_count": len(blobs)}
+    seen: Dict[str, bool] = {}
+    unique: List[str] = []
+    for item in items:
+        for m in item.get("matches") or []:
+            key = m.get("path", "")
+            if key and key not in seen:
+                seen[key] = True
+                unique.append(key)
+    return {"success": True, "mode": "unique", "paths": unique, "unique_count": len(unique)}
+
+
+@register_action(
+    "documents.ask_image",
+    description="Ask a vision-capable model about an image in the VFS (requires a provider with vision support).",
+    parameters_schema=_DOCUMENTS_ASK_IMAGE_SCHEMA,
+)
+async def _documents_ask_image(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.knowledge_vfs_config import knowledge_vfs_enabled
+    if not knowledge_vfs_enabled():
+        return _vfs_disabled()
+    _ensure_vfs_registered()
+    from core.vfs_registry import resolve_provider
+    path = (args.get("path") or "").strip()
+    prompt = (args.get("prompt") or "").strip()
+    if not path or not prompt:
+        return {"success": False, "error": "path and prompt are required"}
+    provider = resolve_provider(path)
+    if provider is None:
+        return {"success": False, "error": "no_provider", "message": f"No VFS provider for path '{path}'"}
+    answer = await provider.ask_image(path, prompt, _vfs_context(context))
+    return {"success": answer.get("success", False), "path": path, **answer}
 
 
 @register_action(

@@ -241,11 +241,12 @@ class DiscordService(IntegrationService):
                 "version": "1.0.0",
             }
         except Exception as e:
+            logger.error(f"Discord health check failed: {e}")
             return {
                 "healthy": False,
                 "status": "unhealthy",
                 "service": "discord",
-                "error": str(e),
+                "error": "Discord health check failed",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 

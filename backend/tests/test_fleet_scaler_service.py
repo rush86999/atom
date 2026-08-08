@@ -19,11 +19,38 @@ from core.fleet_orchestration.fleet_scaler_service import (
     ScalingOperation,
     ScalingOperationStatus,
 )
+from core.models import AgentRegistry, ChainLink
 from core.fleet_orchestration.scaling_proposal_service import (
     ScalingProposal,
     ScalingProposalType,
     ScalingProposalStatus,
 )
+
+
+def _expansion_db_mock(existing=None, registry_agents=None):
+    """Build a Session mock that distinguishes ChainLink / AgentRegistry /
+    DelegationChain queries (P1d: real AgentRegistry-backed recruitment)."""
+    existing = existing or [("agent-001",)]
+    registry_agents = registry_agents or []
+
+    def _query(target, *args, **kwargs):
+        q = Mock()
+        q.filter.return_value = q
+        q.limit.return_value = q
+        if target is ChainLink.child_agent_id:
+            q.all.return_value = existing
+        elif target is AgentRegistry:
+            q.all.return_value = registry_agents
+        else:
+            q.first.return_value = None
+            q.all.return_value = []
+        return q
+
+    mock_db = Mock(spec=Session)
+    mock_db.query.side_effect = _query
+    mock_db.add = Mock()
+    mock_db.commit = Mock()
+    return mock_db
 
 
 # ============================================================================
@@ -264,8 +291,7 @@ class TestResourceManagement:
     async def test_execute_expansion_recruits_agents(self):
         """Execute expansion recruits new agents to fleet."""
         # Arrange
-        mock_db = Mock(spec=Session)
-        service = FleetScalerService(mock_db)
+        service = FleetScalerService(_expansion_db_mock())
 
         mock_proposal = ScalingProposal(
             id="prop-007",
@@ -290,12 +316,6 @@ class TestResourceManagement:
             started_at=datetime.now(timezone.utc)
         )
 
-        mock_query = Mock()
-        mock_query.all.return_value = [("agent-001",)]  # Existing agent
-        mock_db.query.return_value.filter.return_value = mock_query
-        mock_db.add = Mock()
-        mock_db.commit = Mock()
-
         with patch('core.fleet_orchestration.get_distributed_blackboard') as mock_bb:
             mock_bb.return_value.notify_state_update = AsyncMock()
 
@@ -306,6 +326,65 @@ class TestResourceManagement:
             assert "recruited_agents" in result
             assert len(result["recruited_agents"]) == 3  # 8 - 5 = 3 agents
             assert len(mock_operation.agents_added) == 3
+
+            # P1d: no fake "recruited-agent-{hex}" IDs — the registry pool was
+            # empty, so every recruit is a REAL registered AgentRegistry row.
+            added = [c.args[0] for c in service.db.add.call_args_list]
+            added_registry = [a for a in added if isinstance(a, AgentRegistry)]
+            assert len(added_registry) >= 3
+            assert all(a.name and a.module_path for a in added_registry)
+            # No string children created (every ChainLink child is a real agent id).
+            links = [a for a in added if isinstance(a, ChainLink)]
+            assert len(links) == 3
+            assert all(l.parent_agent_id == "agent-001" for l in links)
+            assert all(not (l.child_agent_id or "").startswith("recruited-agent-") for l in links)
+
+    @pytest.mark.asyncio
+    async def test_execute_expansion_prefers_real_registry_agents(self):
+        """P1d: available AgentRegistry agents are recruited before placeholders."""
+        # Arrange
+        real_agents = [
+            AgentRegistry(
+                id=f"reg-{i}", name=f"Agent {i}", category="finance",
+                module_path="core.generic_agent", class_name="GenericAgent",
+                status="autonomous", enabled=True,
+            )
+            for i in range(2)
+        ]
+        service = FleetScalerService(_expansion_db_mock(registry_agents=real_agents))
+
+        mock_proposal = ScalingProposal(
+            id="prop-777",
+            chain_id="chain-777",
+            proposal_type=ScalingProposalType.EXPANSION,
+            current_fleet_size=5,
+            proposed_fleet_size=8,
+            reason="Test expansion",
+            metrics={},
+            cost_estimate=0.72,
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
+        )
+
+        mock_operation = ScalingOperation(
+            id="op-777",
+            chain_id="chain-777",
+            proposal_id="prop-777",
+            operation_type="expand",
+            from_size=5,
+            to_size=8,
+            status=ScalingOperationStatus.IN_PROGRESS,
+            started_at=datetime.now(timezone.utc)
+        )
+
+        with patch('core.fleet_orchestration.get_distributed_blackboard') as mock_bb:
+            mock_bb.return_value.notify_state_update = AsyncMock()
+
+            # Act
+            result = await service._execute_expansion(mock_proposal, mock_operation)
+
+            # Assert
+            assert result["recruited_agents"][:2] == ["reg-0", "reg-1"]
+            assert len(result["recruited_agents"]) == 3  # 1 placeholder fallback
 
     @pytest.mark.asyncio
     async def test_execute_contraction_removes_agents(self):
@@ -570,8 +649,7 @@ class TestFleetIntegration:
     async def test_blackboard_notification_on_expansion(self):
         """Blackboard notified when agents added during expansion."""
         # Arrange
-        mock_db = Mock(spec=Session)
-        service = FleetScalerService(mock_db)
+        service = FleetScalerService(_expansion_db_mock())
 
         mock_proposal = ScalingProposal(
             id="prop-011",
@@ -595,12 +673,6 @@ class TestFleetIntegration:
             status=ScalingOperationStatus.IN_PROGRESS,
             started_at=datetime.now(timezone.utc)
         )
-
-        mock_query = Mock()
-        mock_query.all.return_value = [("agent-001",)]
-        mock_db.query.return_value.filter.return_value = mock_query
-        mock_db.add = Mock()
-        mock_db.commit = Mock()
 
         with patch('core.fleet_orchestration.get_distributed_blackboard') as mock_bb:
             mock_blackboard = AsyncMock()

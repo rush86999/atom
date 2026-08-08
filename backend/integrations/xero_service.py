@@ -162,7 +162,7 @@ class XeroService(IntegrationService):
                 result = await self.full_sync(
                     user_id=parameters.get("user_id", self.tenant_id),
                     access_token=access_token,
-                    tenant_id=xero_tenant_id
+                    xero_tenant_id=xero_tenant_id
                 )
                 return {"success": True, "result": result}
             else:
@@ -172,7 +172,7 @@ class XeroService(IntegrationService):
                 }
         except Exception as e:
             logger.error(f"Error executing Xero operation {operation}: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Xero operation failed"}
     async def sync_to_postgres_cache(self, user_id: str, access_token: str, xero_tenant_id: str = None) -> Dict[str, Any]:
         """Sync Xero analytics to PostgreSQL IntegrationMetric table."""
         try:
@@ -224,14 +224,14 @@ class XeroService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Xero metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save Xero metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Xero PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Xero cache sync failed"}
 
     async def full_sync(self, user_id: str, access_token: str, xero_tenant_id: str = None) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Xero"""

@@ -81,7 +81,7 @@ class GitHubService(IntegrationService):
             logger.error(f"GitHub health check failed: {e}")
             return {
                 "healthy": False,
-                "message": str(e),
+                "message": "GitHub health check failed",
                 "last_check": datetime.now(timezone.utc).isoformat()
             }
 
@@ -189,7 +189,7 @@ class GitHubService(IntegrationService):
             logger.error(f"Error executing GitHub operation {operation}: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": f"GitHub operation failed: {operation}",
                 "operation": operation
             }
 
@@ -215,7 +215,7 @@ class GitHubService(IntegrationService):
             logger.error(f"GitHub connection test failed: {e}")
             return {
                 "status": "error",
-                "message": str(e),
+                "message": "GitHub connection test failed",
                 "authenticated": False
             }
     
@@ -390,7 +390,7 @@ class GitHubService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="github",
                         metric_key=key
                     ).first()
@@ -400,7 +400,7 @@ class GitHubService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="github",
                             metric_key=key,
                             value=float(value),
@@ -414,14 +414,14 @@ class GitHubService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving GitHub metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save GitHub metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"GitHub PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "GitHub cache sync failed"}
 
     def full_sync(self, workspace_id: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for GitHub"""

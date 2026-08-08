@@ -69,9 +69,10 @@ class NotionService(IntegrationService):
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         except Exception as e:
+            logger.error(f"Notion health check failed: {e}")
             return {
                 "healthy": False,
-                "message": str(e),
+                "message": "Notion health check failed",
                 "service": "notion",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
@@ -121,7 +122,7 @@ class NotionService(IntegrationService):
             logger.error(f"Notion operation {operation} failed: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": f"Notion operation failed: {operation}",
                 "operation": operation,
             }
 
@@ -147,7 +148,7 @@ class NotionService(IntegrationService):
             logger.error(f"Notion connection test failed: {e}")
             return {
                 "status": "error",
-                "message": str(e),
+                "message": "Notion connection test failed",
                 "authenticated": False
             }
     
@@ -460,7 +461,7 @@ class NotionService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="notion",
                         metric_key=key
                     ).first()
@@ -470,7 +471,7 @@ class NotionService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="notion",
                             metric_key=key,
                             value=float(value),
@@ -484,14 +485,14 @@ class NotionService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Notion metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save Notion metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Notion PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Notion cache sync failed"}
 
     async def full_sync(self) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Notion"""

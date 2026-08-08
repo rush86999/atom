@@ -123,7 +123,7 @@ class GitLabService(IntegrationService):
             logger.error(f"Error executing GitLab operation {operation}: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": f"GitLab operation failed: {operation}",
                 "operation": operation
             }
 
@@ -240,7 +240,7 @@ class GitLabService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="gitlab",
                         metric_key=key
                     ).first()
@@ -250,7 +250,7 @@ class GitLabService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="gitlab",
                             metric_key=key,
                             value=float(value),
@@ -264,14 +264,14 @@ class GitLabService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving GitLab metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save GitLab metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"GitLab PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "GitLab cache sync failed"}
 
     async def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for GitLab"""

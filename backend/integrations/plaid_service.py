@@ -175,7 +175,7 @@ class PlaidService(IntegrationService):
                 raise NotImplementedError(f"Operation {operation} not supported for Plaid")
         except Exception as e:
             logger.error(f"Plaid operation {operation} failed for tenant {self.tenant_id}: {e}")
-            return {"success": False, "error": str(e), "details": {"service": "plaid", "tenant_id": self.tenant_id}}
+            return {"success": False, "error": "Plaid operation failed", "details": {"service": "plaid", "tenant_id": self.tenant_id}}
 
     async def close(self):
         """Close the HTTP client connection"""
@@ -438,12 +438,13 @@ class PlaidService(IntegrationService):
                 "version": "1.0.0",
             }
         except Exception as e:
+            logger.error(f"Plaid health check failed: {e}")
             return {
                 "ok": False,
                 "status": "unhealthy",
                 "healthy": False,
                 "service": "plaid",
-                "error": str(e),
+                "error": "Plaid health check failed",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
@@ -472,7 +473,7 @@ class PlaidService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="plaid",
                         metric_key=key
                     ).first()
@@ -482,7 +483,7 @@ class PlaidService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="plaid",
                             metric_key=key,
                             value=float(value),
@@ -496,14 +497,14 @@ class PlaidService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Plaid metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save Plaid metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Plaid PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Plaid cache sync failed"}
 
     async def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Plaid"""

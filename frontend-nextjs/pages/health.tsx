@@ -104,20 +104,26 @@ const BusinessHealthDashboard: React.FC = () => {
 
             if (dRes && prRes && wRes) {
                 try {
+                    const drift = await dRes.json();
+                    const pricing = await prRes.json();
+                    const waste = await wRes.json();
                     setForensics({
-                        drift: await dRes.json(),
-                        pricing: await prRes.json(),
-                        waste: await wRes.json()
+                        drift: { data: drift?.data ?? [], is_mock: drift?.is_mock ?? false },
+                        pricing: { data: pricing?.data ?? [], is_mock: pricing?.is_mock ?? false },
+                        waste: { data: waste?.data ?? [], is_mock: waste?.is_mock ?? false }
                     });
                 } catch {}
             }
 
             if (cRes && ewRes && fRes) {
                 try {
+                    const churn = await cRes.json();
+                    const alerts = await ewRes.json();
+                    const fraud = await fRes.json();
                     setRiskData({
-                        churn: await cRes.json(),
-                        alerts: await ewRes.json(),
-                        fraud: await fRes.json()
+                        churn: { churn_risk: churn?.churn_risk ?? [], vip_opportunities: churn?.vip_opportunities ?? [], is_mock: churn?.is_mock ?? false },
+                        alerts: { ar_alerts: alerts?.ar_alerts ?? [], is_mock: alerts?.is_mock ?? false },
+                        fraud: { anomalies: fraud?.anomalies ?? [], is_mock: fraud?.is_mock ?? false }
                     });
                 } catch {}
             }
