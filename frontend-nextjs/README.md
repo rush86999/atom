@@ -34,6 +34,40 @@ You can start editing the page by modifying `pages/index.tsx`. The page auto-upd
 
 The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
 
+## Testing
+
+### 🚫 Never put test files under `pages/`
+
+**Next.js' filesystem router treats EVERY file under `pages/` as a route** and tries to collect page data for it during `next build`. Test files (`.test.tsx`, `.test.ts`, `.spec.ts`) placed under `pages/` — including in `pages/__tests__/` — crash the build:
+
+```
+Error: Failed to collect page data for /__tests__/admin/skills/new.test
+```
+
+> ⚠️ **Common misconception:** `__tests__` directories under `pages/` are **NOT** ignored by Next.js. Only `_document.tsx` and `_app.tsx` (single-underscore files) are special-cased. The double-underscore `__tests__` prefix has no effect on the router.
+
+### ✅ Correct test locations
+
+| Test type | Location | Example |
+|-----------|----------|---------|
+| Page / API route tests | `tests/pages/**/*.test.{ts,tsx}` | `tests/pages/api/__tests__/auth.test.ts` |
+| Component tests | `components/**/__tests__/**/*.test.tsx` | `components/Button/__tests__/Button.test.tsx` |
+| Hook tests | `hooks/**/__tests__/**/*.test.ts` | `hooks/useAuth/__tests__/useAuth.test.ts` |
+| Lib/utility tests | `lib/**/__tests__/**/*.test.ts` | `lib/api/__tests__/api.test.ts` |
+| Shared property tests | `shared/property-tests/**/*.test.ts` | `shared/property-tests/invariants.test.ts` |
+
+Page/API tests use the `@/` path alias for imports (e.g. `import handler from "@/pages/api/auth/login"`), which is location-independent.
+
+### Safety net
+
+The `prebuild` npm script (runs automatically before `build`) removes any stray `__tests__` directories under `pages/` as a guard, but **please put tests in the correct location in the first place.**
+
+```bash
+npm test              # run all jest tests
+npm run test:watch    # watch mode
+npm run test:coverage # with coverage report
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

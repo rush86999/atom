@@ -148,6 +148,18 @@ Following them prevents the most common regressions:
   before hydration; visibility can lag and produce false negatives.
 - **Don't guess the DB path from tests.** Use the backend's own
   `core.database.SessionLocal`, and in CI use an absolute `DATABASE_URL`.
+- **Never put frontend test files under `pages/`.** Next.js' filesystem router
+  treats *every* file under `frontend-nextjs/pages/` as a route and tries to
+  collect page data for it during `next build`, so a `.test.tsx` in
+  `pages/__tests__/` crashes the build (`Failed to collect page data for
+  /__tests__/...`) and breaks the Docker image. The `__tests__` underscore
+  prefix is **not** respected by the router (only `_document`/`_app` are).
+  Page/API tests go in `frontend-nextjs/tests/pages/`; component/hook/lib tests
+  go in their respective `__tests__/` dirs *outside* `pages/`. A `prebuild`
+  script removes stray `pages/__tests__` as a safety net, but place tests
+  correctly to begin with. See
+  [`frontend-nextjs/README.md#testing`](frontend-nextjs/README.md#testing).
+
 
 ### Areas Where We Need Help
 
