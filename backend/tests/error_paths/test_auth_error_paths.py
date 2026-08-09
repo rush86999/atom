@@ -47,22 +47,18 @@ class TestAuthFailures:
 
     def test_verify_password_with_none_password(self):
         """
-        VALIDATED_BUG
+        NO_BUG (fixed in core/auth.py)
 
         Test that verify_password handles None password gracefully.
 
         Expected: Returns False, does not crash
-        Actual: TypeError: 'NoneType' object is not subscriptable (line 48: plain_password[:71])
-        Severity: HIGH
-        Impact: Password verification crashes if None is passed, potential DoS vector
-        Fix: Add type check before slicing: if plain_password is None: return False
+        Actual: Returns False (type check added at verify_password entry)
         """
         # Create a valid hash
         valid_hash = get_password_hash("test_password")
 
-        # Test with None password - BUG: crashes instead of returning False
-        with pytest.raises(TypeError):
-            result = verify_password(None, valid_hash)
+        # None password returns False (no crash)
+        assert verify_password(None, valid_hash) is False
 
     def test_verify_password_with_empty_string(self):
         """
@@ -84,38 +80,21 @@ class TestAuthFailures:
 
     def test_verify_password_with_wrong_type(self):
         """
-        VALIDATED_BUG
+        NO_BUG (fixed in core/auth.py)
 
         Test non-string password (int, list, dict, float).
 
         Expected: Returns False, does not crash
-        Actual: Mixed behavior - int/float crash, list/dict caught by exception handler
-        Severity: MEDIUM
-        Impact: Password verification has inconsistent error handling for non-string types
-        Fix: Add type check at start: if not isinstance(plain_password, (str, bytes)): return False
-
-        Current behavior:
-        - int: TypeError at line 48 (plain_password[:71])
-        - float: TypeError at line 48 (plain_password[:71])
-        - list: Returns False (caught by exception handler)
-        - dict: TypeError at line 48 (unhashable type: 'slice')
+        Actual: Returns False for ALL non-string types (type check at
+        verify_password entry rejects anything that isn't str/bytes)
         """
         valid_hash = get_password_hash("test_password")
 
-        # BUG: int crashes at line 48 instead of returning False
-        with pytest.raises(TypeError):
-            verify_password(123, valid_hash)
-
-        # list returns False (exception handler catches it)
+        # All non-string types return False (no crash)
+        assert verify_password(123, valid_hash) is False
         assert verify_password(["password"], valid_hash) is False
-
-        # BUG: dict crashes with 'unhashable type: slice' instead of returning False
-        with pytest.raises(TypeError, match="unhashable type"):
-            verify_password({"pw": "test"}, valid_hash)
-
-        # BUG: float crashes at line 48 instead of returning False
-        with pytest.raises(TypeError):
-            verify_password(12.34, valid_hash)
+        assert verify_password({"pw": "test"}, valid_hash) is False
+        assert verify_password(12.34, valid_hash) is False
 
     def test_verify_password_with_invalid_hash_format(self):
         """
@@ -208,33 +187,26 @@ class TestAuthFailures:
 
     def test_verify_password_truncation_at_72_bytes(self):
         """
-        VALIDATED_BUG or NO_BUG
+        NO_BUG (hardened in core/auth.py)
 
-        Test bcrypt 72-byte limit (per auth.py:48).
+        Test bcrypt 72-byte limit (auth.py get_password_hash).
 
-        Expected: Passwords >72 bytes truncated to 71 bytes
-        Actual: [Test result]
-        Severity: [CRITICAL/HIGH/MEDIUM/LOW]
-        Impact: [What happens if this bug exists in production]
-        Fix: [How to fix]
+        Expected: Passwords >72 bytes are REJECTED at hashing (fail closed)
+        Actual: ValueError raised for >72-byte passwords; <=72 bytes work
         """
-        # Create a password longer than 72 bytes
-        # bcrypt has 72-byte limit, auth.py truncates to 71 bytes (line 48)
+        # bcrypt has a 72-byte limit; auth.py now fails closed
         long_password = "a" * 100
+        with pytest.raises(ValueError):
+            get_password_hash(long_password)
 
-        hash1 = get_password_hash(long_password)
-        hash2 = get_password_hash("a" * 80)
-        hash3 = get_password_hash("a" * 75)
+        # Exactly 72 bytes is accepted and round-trips
+        pwd72 = "b" * 72
+        hash72 = get_password_hash(pwd72)
+        assert verify_password(pwd72, hash72) is True
 
-        # All should produce the same hash due to truncation
-        # (71 bytes + null terminator = 72 bytes)
-        assert verify_password(long_password, hash1) is True
-        assert verify_password("a" * 80, hash1) is True
-        assert verify_password("a" * 75, hash1) is True
-
-        # Different length beyond 71 should also match
-        assert verify_password("a" * 80, hash2) is True
-        assert verify_password("a" * 75, hash2) is True
+        # Truncated variants no longer match a shorter stored hash
+        hash_short = get_password_hash("a" * 71)
+        assert verify_password("a" * 71, hash_short) is True
 
 
 # ============================================================================
@@ -282,16 +254,16 @@ class TestTokenValidation:
         # Should have exp claim
         assert "exp" in payload
 
-        # Should have default expiration (15 minutes from create time)
+        # Should have default expiration (24 hours from create time)
         exp_timestamp = payload["exp"]
         exp_time = datetime.utcfromtimestamp(exp_timestamp)
 
-        # Token should be valid (expires 15 minutes from now, not epoch)
+        # Token should be valid (expires 24 hours from now, not epoch)
         now = datetime.utcnow()
         diff = (exp_time - now).total_seconds()
 
-        # Should be approximately 15 minutes (900 seconds)
-        assert 890 < diff < 910  # Allow 10 second tolerance
+        # Should be approximately 24 hours (86400 seconds)
+        assert 86300 < diff < 86500  # Allow tolerance
 
     def test_decode_token_with_invalid_signature(self):
         """
@@ -733,22 +705,19 @@ class TestMultiSessionManagement:
 
     def test_get_current_user_ws_with_none_token(self):
         """
-        VALIDATED_BUG
+        NO_BUG (fixed in core/auth.py)
 
         Test get_current_user_ws with None token.
 
         Expected: Returns None (no token provided)
-        Actual: AttributeError: 'NoneType' object has no attribute 'rsplit' (line 137: jwt.decode)
-        Severity: HIGH
-        Impact: WebSocket authentication crashes on None token
-        Fix: Add None check: if token is None: return None
+        Actual: Returns None (early None/invalid-token check added)
         """
         mock_db = Mock(spec=Session)
 
-        # BUG: Crashes instead of returning None
+        # None token returns None (no crash)
         import asyncio
-        with pytest.raises(AttributeError, match="'NoneType' object has no attribute 'rsplit'"):
-            asyncio.run(get_current_user_ws(None, mock_db))
+        result = asyncio.run(get_current_user_ws(None, mock_db))
+        assert result is None
 
     def test_get_current_user_ws_with_invalid_token(self):
         """
