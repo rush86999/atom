@@ -6,6 +6,12 @@
  * - OAuth connect flow
  * - Profile, email, calendar event, and team data loading
  * - Email search filtering and compose-email dialog
+ * - Calendar tab flows (render, search, create event, delete event)
+ * - Delete flows (email/event) with confirmation
+ * - Automation tab actions (Excel / Outlook / OneDrive / Teams)
+ * - Webhook subscription flows
+ * - Crash-safety on partial API data (draft email without sender, team
+ *   without description)
  *
  * Uses the shared MSW server (tests/mocks/server.ts) registered in
  * tests/setup.ts — per-file setupServer() does NOT override the global server.
@@ -14,7 +20,14 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import Microsoft365Integration from '@/components/Microsoft365Integration';
 import { rest } from 'msw';
@@ -64,6 +77,16 @@ const m365Handlers = [
             isRead: true,
             receivedDateTime: '2024-01-14T10:00:00Z',
           },
+          {
+            // Draft email: the Graph API leaves `sender` null for drafts.
+            // The email list + search filter must not crash on it.
+            id: 'e3',
+            subject: 'Draft Note',
+            from: { emailAddress: { name: '', address: '' } },
+            bodyPreview: 'Unsent draft',
+            isRead: false,
+            receivedDateTime: '2024-01-16T10:00:00Z',
+          },
         ],
       })
     );
@@ -80,6 +103,44 @@ const m365Handlers = [
             start: { dateTime: '2024-01-15T09:00:00Z' },
             end: { dateTime: '2024-01-15T09:30:00Z' },
           },
+          {
+            id: 'ev2',
+            subject: 'All-hands Sync',
+            body: {
+              contentType: 'text',
+              content: 'Quarterly all-hands with product updates',
+            },
+            start: { dateTime: '2026-09-15T09:00:00Z' },
+            end: { dateTime: '2026-09-15T10:30:00Z' },
+            location: { displayName: 'Main Auditorium' },
+            attendees: [
+              {
+                type: 'required',
+                status: { response: 'accepted', time: '2026-09-01T09:00:00Z' },
+                emailAddress: { name: 'Eve Adams', address: 'eve@example.com' },
+              },
+              {
+                type: 'required',
+                status: { response: 'accepted', time: '2026-09-01T09:00:00Z' },
+                emailAddress: { name: 'Frank Lee', address: 'frank@example.com' },
+              },
+              {
+                type: 'required',
+                status: { response: 'tentative', time: '2026-09-01T09:00:00Z' },
+                emailAddress: { name: 'Grace Wu', address: 'grace@example.com' },
+              },
+              {
+                type: 'required',
+                status: { response: 'notResponded', time: '2026-09-01T09:00:00Z' },
+                emailAddress: { name: 'Hank Ito', address: 'hank@example.com' },
+              },
+            ],
+            organizer: { emailAddress: { name: 'Rushi Parikh', address: 'rushi@example.com' } },
+            isOnlineMeeting: true,
+            onlineMeetingUrl: 'https://teams.example.com/join/abc',
+            createdDateTime: '2026-09-01T09:00:00Z',
+            lastModifiedDateTime: '2026-09-01T09:00:00Z',
+          },
         ],
       })
     );
@@ -92,9 +153,48 @@ const m365Handlers = [
         teams: [
           { id: 't1', displayName: 'Engineering', description: 'Core engineering team' },
           { id: 't2', displayName: 'Design', description: 'Design team' },
+          // Graph returns `description` as nullable — the search filter must
+          // tolerate its absence.
+          { id: 't3', displayName: 'Data' },
         ],
       })
     );
+  }),
+
+  rest.post('/api/integrations/microsoft365/emails/send', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
+  }),
+
+  rest.post('/api/integrations/microsoft365/calendars/create', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
+  }),
+
+  rest.post('/api/integrations/microsoft365/subscriptions', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
+  }),
+
+  rest.delete('/api/integrations/microsoft365/outlook/messages/:id', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
+  }),
+
+  rest.delete('/api/integrations/microsoft365/calendar/events/:id', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
+  }),
+
+  rest.post('/api/integrations/microsoft365/excel/execute', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
+  }),
+
+  rest.post('/api/integrations/microsoft365/outlook/execute', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
+  }),
+
+  rest.post('/api/integrations/microsoft365/onedrive/execute', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
+  }),
+
+  rest.post('/api/integrations/microsoft365/teams/execute', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
   }),
 ];
 
@@ -250,6 +350,541 @@ describe('Microsoft365Integration', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /refresh status/i })).toBeInTheDocument();
+    });
+  });
+
+  // Test 12: calendar tab renders events with details
+  test('displays calendar events on the Calendar tab', async () => {
+    render(<Microsoft365Integration />);
+
+    await settleData(/Hello World/);
+
+    fireEvent.click(screen.getByRole('button', { name: /calendar/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Team Standup')).toBeInTheDocument();
+      expect(screen.getByText('All-hands Sync')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Online Meeting')).toBeInTheDocument();
+    expect(
+      screen.getByText((content) => content.includes('Main Auditorium'))
+    ).toBeInTheDocument();
+    // 4 attendees → 3 badges + "+1 more" (Hank Ito is the hidden 4th)
+    expect(screen.getByText('Eve Adams')).toBeInTheDocument();
+    expect(screen.getByText('Grace Wu')).toBeInTheDocument();
+    expect(screen.getByText('+1 more')).toBeInTheDocument();
+  });
+
+  // Test 13: filters calendar events by search query
+  test('filters calendar events by search query', async () => {
+    render(<Microsoft365Integration />);
+
+    await settleData(/Hello World/);
+
+    fireEvent.click(screen.getByRole('button', { name: /calendar/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Team Standup')).toBeInTheDocument();
+    });
+
+    fireEvent.change(
+      screen.getByPlaceholderText(/search calendar events/i),
+      { target: { value: 'all-hands' } }
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('All-hands Sync')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Team Standup')).not.toBeInTheDocument();
+  });
+
+  // Test 14: filters teams by search query
+  test('filters teams by search query', async () => {
+    render(<Microsoft365Integration />);
+
+    await settleData(/Hello World/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Teams' }));
+    await waitFor(() => {
+      expect(screen.getByText('Engineering')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/search teams/i), {
+      target: { value: 'eng' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Engineering')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Design')).not.toBeInTheDocument();
+  });
+
+  // Test 15: draft email without a sender does not crash the email list
+  test('renders draft emails without a sender without crashing', async () => {
+    render(<Microsoft365Integration />);
+
+    // The draft ("Draft Note") has no `sender` — the list and the search
+    // filter must tolerate it
+    await waitFor(() => {
+      expect(screen.getByText('Draft Note')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/search emails/i), {
+      target: { value: 'zzz' },
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Hello World')).not.toBeInTheDocument();
+    });
+  });
+
+  // Test 16: team without a description does not crash team search
+  test('does not crash searching teams missing descriptions', async () => {
+    render(<Microsoft365Integration />);
+
+    await settleData(/Hello World/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Teams' }));
+    await waitFor(() => {
+      expect(screen.getByText('Data')).toBeInTheDocument();
+    });
+
+    // 'zzz' matches nothing — the filter must still evaluate the
+    // description-less "Data" team without throwing
+    fireEvent.change(screen.getByPlaceholderText(/search teams/i), {
+      target: { value: 'zzz' },
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Engineering')).not.toBeInTheDocument();
+    });
+  });
+
+  // Test 17: composes and sends an email
+  test('sends an email through the compose dialog', async () => {
+    const user = userEvent.setup();
+    const fetchSpy = jest.spyOn(global, 'fetch');
+
+    render(<Microsoft365Integration />);
+
+    const composeButton = await screen.findByRole('button', {
+      name: /compose email/i,
+    });
+    await user.click(composeButton);
+
+    const dialogContent = document.getElementById('dialog-content') as HTMLElement;
+
+    await user.type(
+      within(dialogContent).getByPlaceholderText(/recipient@example.com/),
+      'bob@example.com'
+    );
+    await user.type(
+      within(dialogContent).getByPlaceholderText(/email subject/i),
+      'Hello Bob'
+    );
+    await user.type(
+      within(dialogContent).getByPlaceholderText(/your message/i),
+      'Testing the send flow'
+    );
+
+    fetchSpy.mockClear();
+    await user.click(
+      within(dialogContent).getByRole('button', { name: /send email/i })
+    );
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/integrations/microsoft365/emails/send'),
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('Hello Bob'),
+        })
+      );
+    });
+    const bodyCall = fetchSpy.mock.calls.find(([url]) =>
+      String(url).includes('/api/integrations/microsoft365/emails/send')
+    );
+    expect(String(bodyCall![1]!.body)).toContain('bob@example.com');
+    // dialog closes on success
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  // Test 18: send email stays disabled until all fields are filled
+  test('send email is disabled until all fields are filled', async () => {
+    const user = userEvent.setup();
+    render(<Microsoft365Integration />);
+
+    const composeButton = await screen.findByRole('button', {
+      name: /compose email/i,
+    });
+    await user.click(composeButton);
+    const dialogContent = document.getElementById('dialog-content') as HTMLElement;
+
+    const sendButton = () =>
+      within(dialogContent).getByRole('button', { name: /send email/i });
+
+    expect(sendButton()).toBeDisabled();
+
+    await user.type(
+      within(dialogContent).getByPlaceholderText(/recipient@example.com/),
+      'bob@example.com'
+    );
+    expect(sendButton()).toBeDisabled();
+
+    await user.type(
+      within(dialogContent).getByPlaceholderText(/email subject/i),
+      'Subject'
+    );
+    expect(sendButton()).toBeDisabled();
+
+    await user.type(
+      within(dialogContent).getByPlaceholderText(/your message/i),
+      'Body'
+    );
+    expect(sendButton()).toBeEnabled();
+  });
+
+  // Test 19: creates a calendar event
+  test('creates a calendar event through the dialog', async () => {
+    const user = userEvent.setup();
+    const fetchSpy = jest.spyOn(global, 'fetch');
+
+    render(<Microsoft365Integration />);
+
+    await settleData(/Hello World/);
+    fireEvent.click(screen.getByRole('button', { name: /calendar/i }));
+
+    await user.click(
+      await screen.findByRole('button', { name: /create event/i })
+    );
+    const dialogContent = document.getElementById('dialog-content') as HTMLElement;
+
+    await user.type(
+      within(dialogContent).getByPlaceholderText(/event subject/i),
+      'Design Review'
+    );
+    await user.type(
+      within(dialogContent).getByPlaceholderText(/event location/i),
+      'Room 42'
+    );
+    const dateInputs = dialogContent.querySelectorAll('input[type="datetime-local"]');
+    fireEvent.change(dateInputs[0], { target: { value: '2026-09-20T09:00' } });
+    fireEvent.change(dateInputs[1], { target: { value: '2026-09-20T10:00' } });
+
+    fetchSpy.mockClear();
+    await user.click(
+      within(dialogContent).getByRole('button', { name: /create event/i })
+    );
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/integrations/microsoft365/calendars/create'),
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('Design Review'),
+        })
+      );
+    });
+  });
+
+  // Test 20: deletes an email with confirmation
+  test('deletes an email when confirmed', async () => {
+    const user = userEvent.setup();
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+    const fetchSpy = jest.spyOn(global, 'fetch');
+
+    render(<Microsoft365Integration />);
+
+    await settleData(/Hello World/);
+
+    const trashButtons = document.querySelectorAll('.lucide-trash-2');
+    const trashButton = trashButtons[0].closest('button') as HTMLElement;
+    await user.click(trashButton);
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/integrations/microsoft365/outlook/messages/e1'),
+        expect.objectContaining({ method: 'DELETE' })
+      );
+    });
+    // list is refreshed after deletion
+    await waitFor(() => {
+      const refreshCalls = fetchSpy.mock.calls.filter(([url]) =>
+        String(url).includes('/outlook/messages')
+      );
+      expect(refreshCalls.length).toBeGreaterThan(2);
+    });
+
+    confirmSpy.mockRestore();
+  });
+
+  // Test 21: delete is skipped when confirmation is dismissed
+  test('does not delete when confirmation is dismissed', async () => {
+    const user = userEvent.setup();
+    jest.spyOn(window, 'confirm').mockReturnValue(false);
+    const fetchSpy = jest.spyOn(global, 'fetch');
+
+    render(<Microsoft365Integration />);
+
+    await settleData(/Hello World/);
+    fetchSpy.mockClear();
+
+    const trashButtons = document.querySelectorAll('.lucide-trash-2');
+    const trashButton = trashButtons[0].closest('button') as HTMLElement;
+    await user.click(trashButton);
+
+    await new Promise((r) => setTimeout(r, 100));
+    expect(
+      fetchSpy.mock.calls.some(([url, init]) =>
+        String(url).includes('/outlook/messages/e1') &&
+        (init as RequestInit)?.method === 'DELETE'
+      )
+    ).toBe(false);
+  });
+
+  // Test 22: deletes a calendar event
+  test('deletes a calendar event when confirmed', async () => {
+    const user = userEvent.setup();
+    jest.spyOn(window, 'confirm').mockReturnValue(true);
+    const fetchSpy = jest.spyOn(global, 'fetch');
+
+    render(<Microsoft365Integration />);
+
+    await settleData(/Hello World/);
+    fireEvent.click(screen.getByRole('button', { name: /calendar/i }));
+    await waitFor(() => {
+      expect(screen.getByText('All-hands Sync')).toBeInTheDocument();
+    });
+
+    // Outlook tab is unmounted — only calendar rows have trash buttons now.
+    // Target the trash button inside the "All-hands Sync" row.
+    const allHandsRow = screen
+      .getByText('All-hands Sync')
+      .closest('.flex.items-start') as HTMLElement;
+    const trashButton = allHandsRow
+      .querySelector('.lucide-trash-2')!
+      .closest('button') as HTMLElement;
+    await user.click(trashButton);
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/integrations/microsoft365/calendar/events/ev2'),
+        expect.objectContaining({ method: 'DELETE' })
+      );
+    });
+  });
+
+  describe('Automation tab', () => {
+    const openAutomation = async () => {
+      render(<Microsoft365Integration />);
+      await settleData(/Hello World/);
+      fireEvent.click(screen.getByRole('button', { name: /automation/i }));
+      await waitFor(() => {
+        expect(
+          screen.getByText(/advanced automation control/i)
+        ).toBeInTheDocument();
+      });
+    };
+
+    test('runs Excel worksheet creation', async () => {
+      const fetchSpy = jest.spyOn(global, 'fetch');
+      await openAutomation();
+
+      fireEvent.change(document.getElementById('excel-sheet-name')!, {
+        target: { value: 'Report_2026' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^run$/i }));
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          expect.stringContaining('/api/integrations/microsoft365/excel/execute'),
+          expect.objectContaining({
+            method: 'POST',
+            body: expect.stringContaining('Report_2026'),
+          })
+        );
+      });
+    });
+
+    test('runs Excel column mapping test', async () => {
+      const fetchSpy = jest.spyOn(global, 'fetch');
+      await openAutomation();
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /test column mapping/i })
+      );
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          expect.stringContaining('/api/integrations/microsoft365/excel/execute'),
+          expect.objectContaining({
+            method: 'POST',
+            body: expect.stringContaining('append_row'),
+          })
+        );
+      });
+    });
+
+    test('runs Outlook auto-archive action', async () => {
+      const fetchSpy = jest.spyOn(global, 'fetch');
+      await openAutomation();
+
+      fireEvent.click(screen.getByRole('button', { name: /auto-archive/i }));
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          expect.stringContaining('/api/integrations/microsoft365/outlook/execute'),
+          expect.objectContaining({
+            method: 'POST',
+            body: expect.stringContaining('move_email'),
+          })
+        );
+      });
+    });
+
+    test('runs OneDrive new-project workflow', async () => {
+      const fetchSpy = jest.spyOn(global, 'fetch');
+      await openAutomation();
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /new project/i })
+      );
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          expect.stringContaining('/api/integrations/microsoft365/onedrive/execute'),
+          expect.objectContaining({
+            method: 'POST',
+            body: expect.stringContaining('create_folder'),
+          })
+        );
+      });
+    });
+
+    test('provisions a team from the Teams automation panel', async () => {
+      const fetchSpy = jest.spyOn(global, 'fetch');
+      await openAutomation();
+
+      fireEvent.change(document.getElementById('team-name')!, {
+        target: { value: 'Project Atlas' },
+      });
+      fireEvent.click(
+        screen.getByRole('button', { name: /provision team/i })
+      );
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          expect.stringContaining('/api/integrations/microsoft365/teams/execute'),
+          expect.objectContaining({
+            method: 'POST',
+            body: expect.stringContaining('Project Atlas'),
+          })
+        );
+      });
+    });
+  });
+
+  describe('Webhooks', () => {
+    test('webhooks tab is reachable and exposes the subscription form', async () => {
+      render(<Microsoft365Integration />);
+
+      await settleData(/Hello World/);
+
+      fireEvent.click(screen.getByRole('button', { name: /webhooks/i }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /enable notifications/i })
+        ).toBeInTheDocument();
+      });
+      expect(document.getElementById('webhook-url')).toHaveValue(
+        'https://api.atom.com/webhook'
+      );
+      expect(screen.getByLabelText(/notification url/i)).toBeInTheDocument();
+    });
+
+    test('creates a webhook subscription', async () => {
+      const fetchSpy = jest.spyOn(global, 'fetch');
+      render(<Microsoft365Integration />);
+
+      await settleData(/Hello World/);
+      fireEvent.click(screen.getByRole('button', { name: /webhooks/i }));
+      await screen.findByRole('button', { name: /enable notifications/i });
+
+      fireEvent.change(document.getElementById('webhook-url')!, {
+        target: { value: 'https://hooks.example.com/callback' },
+      });
+
+      fetchSpy.mockClear();
+      fireEvent.click(
+        screen.getByRole('button', { name: /enable notifications/i })
+      );
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          expect.stringContaining('/api/integrations/microsoft365/subscriptions'),
+          expect.objectContaining({
+            method: 'POST',
+            body: expect.stringContaining('https://hooks.example.com/callback'),
+          })
+        );
+      });
+      const bodyCall = fetchSpy.mock.calls.find(([url]) =>
+        String(url).includes('/subscriptions')
+      );
+      expect(String(bodyCall![1]!.body)).toContain("me/mailFolders('Inbox')/messages");
+    });
+
+    test('handles webhook subscription failure without crashing', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      server.use(
+        rest.post('/api/integrations/microsoft365/subscriptions', (req, res, ctx) => {
+          return res(ctx.status(500), ctx.json({ error: 'boom' }));
+        })
+      );
+      const fetchSpy = jest.spyOn(global, 'fetch');
+
+      render(<Microsoft365Integration />);
+
+      await settleData(/Hello World/);
+      fireEvent.click(screen.getByRole('button', { name: /webhooks/i }));
+      await screen.findByRole('button', { name: /enable notifications/i });
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /enable notifications/i })
+      );
+
+      await waitFor(() => {
+        expect(consoleErrorSpy).toHaveBeenCalled();
+      });
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/integrations/microsoft365/subscriptions'),
+        expect.objectContaining({ method: 'POST' })
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe('Empty states', () => {
+    test('renders empty email list without crashing', async () => {
+      server.use(
+        rest.get('/api/integrations/microsoft365/outlook/messages', (req, res, ctx) => {
+          return res(ctx.status(200), ctx.json({ messages: [] }));
+        })
+      );
+
+      render(<Microsoft365Integration />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Connected')).toBeInTheDocument();
+      });
+      // no email rows, no crash, stats reflect the empty list
+      expect(screen.queryByText('Hello World')).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getAllByText('0 unread').length).toBeGreaterThan(0);
+      });
     });
   });
 });

@@ -31,6 +31,21 @@ _TITLE_WEIGHT = 3.0
 _CONTENT_WEIGHT = 1.0
 _MAX_PREFILTER = 200
 
+# English stopwords (Postgres 'english' snowball list — the common denominator
+# of both engines). FTS5/tsvector engines silently drop these from queries: PG
+# returns zero rows for e.g. "and" (plainto_tsquery produces an empty tsquery)
+# and FTS5 prefix "and*" only matches words STARTING with "and" — while the
+# ILIKE fallback matches "and" inside "understand". A query made entirely of
+# stopwords therefore returned [] (FTS present) vs matches (FTS absent) for the
+# same function — DB-state-dependent results. Route stopword-only queries to
+# the ILIKE path so behavior is consistent regardless of FTS availability.
+_ENGLISH_STOPWORDS = frozenset({
+    "a", "an", "and", "are", "as", "at", "be", "but", "by",
+    "for", "if", "in", "into", "is", "it", "no", "not", "of",
+    "on", "or", "such", "that", "the", "their", "then", "there",
+    "these", "they", "this", "to", "was", "will", "with",
+})
+
 
 def _query_safe_tokens(query: str) -> List[str]:
     """Split a user query into FTS-safe alphanumeric tokens (>= 2 chars)."""
@@ -318,6 +333,13 @@ def search_documents_lexical(
         tokens = [t for t in _query_safe_tokens(query) if t]
         if not tokens:
             return []
+        # Stopword-only queries: FTS5/tsvector engines drop these tokens
+        # (PG's english config produces an empty tsquery; FTS5 prefix "and*"
+        # misses "understand"-style substring occurrences), returning [] where
+        # the ILIKE fallback matches. Route to ILIKE so the same query gives
+        # the same answer whether or not the FTS tables exist.
+        if all(t in _ENGLISH_STOPWORDS for t in tokens):
+            return _search_iliike_fallback(db, query, limit, since, source, author)
         fts_query = " ".join(f"{t}*" for t in tokens)
 
         bind = db.bind

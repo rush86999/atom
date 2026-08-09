@@ -21,8 +21,19 @@ class TestFeedbackAnalyticsEndpoints:
 
     @pytest.fixture
     def client(self):
-        """Create test client."""
-        return TestClient(app)
+        """Create test client with an authenticated user override."""
+        from core.auth import get_current_user
+        from core.models import User
+        app.dependency_overrides[get_current_user] = lambda: User(
+            id="feedback-api-test-user",
+            email="feedback-api@test.com",
+            first_name="Feedback",
+            last_name="Api",
+            role="super_admin",
+            status="active",
+        )
+        yield TestClient(app)
+        app.dependency_overrides.pop(get_current_user, None)
 
     @pytest.fixture
     def db_session(self, request):

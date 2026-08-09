@@ -2179,10 +2179,13 @@ class BYOKHandler:
         error. ``options`` is a list of ``(provider_id, model)`` tuples from
         ``get_ranked_providers``.
 
-        ``intent`` (when present) becomes a third dimension in the predictor
-        cache key so per-model predictors learn intent-specific preferences
-        (e.g. DeepSeek winning coding intents within the same task_type).
+        ``intent`` is accepted for observability/forward-compat but is NOT part
+        of the predictor cache key: training (record_feedback) carries no
+        intent dimension, so an intent-scoped key would never hit a trained
+        predictor (the live path was dead whenever ATOM_LEARNING_ROUTER=true).
+        Predictors are tenant/task-scoped, matching the route() path.
         """
+        del intent  # kept for call-site compatibility; not part of the key
         if not options or len(options) <= 1:
             # Re-ranking needs at least 2 candidates to matter. Single-provider
             # setups yield 1 — log so operators can diagnose why learning had
@@ -2202,7 +2205,17 @@ class BYOKHandler:
             if learning_router is None:
                 return options
 
-            cache_key = f"{self.tenant_id or 'default'}:{self._adapt_task_type(task_type)}:{intent or '_'}"
+            # NOTE: the predictor cache key MUST match the training side
+            # (record_feedback -> _retrain_router -> _get_per_model_router),
+            # which keys per-model predictors under "{tenant}:{task}" — the
+            # feedback pipeline has no intent dimension (RoutingFeedback /
+            # llm_routing_feedback carry no intent column). An earlier revision
+            # appended ":{intent or '_'}" here as a third dimension, but
+            # training never wrote that key, so the live path always missed
+            # ("cold start") and ATOM_LEARNING_ROUTER=true never re-ranked —
+            # the feature was inert in the production path. The 2-part key
+            # keeps predictors tenant/task-scoped, consistent with route().
+            cache_key = f"{self.tenant_id or 'default'}:{self._adapt_task_type(task_type)}"
             per_model = learning_router._per_model_routers.get(cache_key)
             if per_model is None:
                 return options  # cold start — no predictor for this tenant/task

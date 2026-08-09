@@ -744,7 +744,7 @@ class TestRerankWithLearning:
         per_model = Mock()
         per_model.predict_satisfaction = Mock(return_value=None)
         per_model.confidence = Mock(return_value=0.0)
-        router._per_model_routers = {"t-1:question_answering:_": per_model}
+        router._per_model_routers = {"t-1:question_answering": per_model}
         router._extract_request_features = Mock(return_value={"f": 1})
         router.stash_decision = Mock(return_value="dec-1")
         router._ema_scores = {"t-1:question_answering:m1": {"success": 0.8},
@@ -767,7 +767,7 @@ class TestRerankWithLearning:
         per_model = Mock()
         per_model.predict_satisfaction = Mock(return_value=None)
         per_model.confidence = Mock(return_value=0.0)
-        router._per_model_routers = {"t-1:question_answering:_": per_model}
+        router._per_model_routers = {"t-1:question_answering": per_model}
         router._extract_request_features = Mock(return_value={"f": 1})
         router._ema_scores = {}
         with patch("core.llm.learning_router_registry.get_learning_router_instance",
@@ -777,6 +777,8 @@ class TestRerankWithLearning:
             result = await h._rerank_with_learning(
                 [("a", "m1"), ("b", "m2")], "p", "chat")
         assert result == [("a", "m1"), ("b", "m2")]
+        # no learned signal (predictor returns None) -> BPC order preserved
+        per_model.predict_satisfaction.assert_called()
 
     @pytest.mark.asyncio
     async def test_error_returns_options(self, monkeypatch):

@@ -40,12 +40,16 @@ def app():
 @pytest.fixture
 def client(app, db):
     """Create test client with authentication and database overrides."""
-    from core.security_dependencies import require_permission, Permission
     from core.database import get_db
 
-    # Override authentication dependency
-    async def override_require_permission(permission: Permission):
-        # Return mock admin user
+    # The route's require_permission dependency delegates to
+    # core.auth.get_current_user internally — override THAT (overriding
+    # require_permission itself is a no-op: FastAPI captured the original
+    # function object when the router was built).
+    from core.auth import get_current_user
+
+    # Return mock admin user (ADMIN role carries AGENT_VIEW/RUN/MANAGE)
+    async def override_get_current_user():
         mock_user = Mock(spec=User)
         mock_user.id = "test-admin-123"
         mock_user.email = "admin@test.com"
@@ -56,7 +60,7 @@ def client(app, db):
     def override_get_db():
         return db
 
-    app.dependency_overrides[require_permission] = override_require_permission
+    app.dependency_overrides[get_current_user] = override_get_current_user
     app.dependency_overrides[get_db] = override_get_db
 
     client = TestClient(app)

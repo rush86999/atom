@@ -443,6 +443,19 @@ class AtomMetaAgent:
         start_time = datetime.now(timezone.utc)
         execution_id = execution_id or str(uuid.uuid4())
 
+        # P9: thread the run identity + tier into the dispatch context. Without
+        # run_id/tier, the shared sandbox gate (and _meta_agent_sandbox_check)
+        # returns None — "no policy in scope" — so the default-on sandbox never
+        # engaged on this, the primary agent surface: every tool call ran
+        # ungated. setdefault keeps caller-supplied values authoritative.
+        try:
+            _tier = (self._get_atom_registry().status or "autonomous").lower()
+        except Exception:  # noqa: BLE001 — a registry hiccup must not break runs
+            _tier = "autonomous"
+        context.setdefault("run_id", execution_id)
+        context.setdefault("execution_id", execution_id)
+        context.setdefault("tier_at_issuance", _tier)
+
         # 0. Get Tenant ID and Create Execution Record
         tenant_id = None
         try:
@@ -483,6 +496,10 @@ class AtomMetaAgent:
         # entirely, orphaning the AgentExecution row in "running" forever (Bug 4).
         status = "failed"
         final_answer = ""
+
+        # KillRunAborted handling (below) references this name at except-match
+        # time — import it before the body's try so the branch is reachable.
+        from core.sandbox_killrun import KillRunAborted
 
         # Wrap the body so an escaping exception finalizes the execution
         # as failed instead of orphaning it in 'running' (Bug 4).
@@ -1074,6 +1091,17 @@ class AtomMetaAgent:
                 except Exception as e:
                     logger.debug(f"on_session_end extraction dispatch failed: {e}")
 
+        except KillRunAborted as _kill:
+            # A tripwire kill reached the top of the body: finalize the run as
+            # killed_sandbox and return a killed payload — do NOT re-raise
+            # (that would 500 the API) and do NOT mark it 'failed' (the
+            # trigger_killrun path already set the row to killed_sandbox).
+            logger.warning(
+                "Agent run %s killed by sandbox: %s", execution_id, _kill
+            )
+            status = "killed_sandbox"
+            final_answer = f"Agent run killed by sandbox: {_kill}"
+
         except Exception as _body_err:
             logger.error(f"Agent body raised, finalizing execution as failed: {_body_err}", exc_info=True)
             status = 'failed'
@@ -1414,10 +1442,10 @@ What is your next step?"""
         """Execute a tool via MCP with governance checks
 
         ``pre_approved`` (Workstream G): when True, the governance/HITL check is
-        skipped — the caller (the parallel-tools batch) has already run it and
-        obtained all-or-nothing approval for the whole batch. Byte-identical to
-        the previous behavior when False.
+        skipped (already granted by the parallel-batch approval).
         """
+        from core.sandbox_killrun import KillRunAborted
+
         try:
             # 1. Governance Check
             if not pre_approved:
@@ -1596,6 +1624,11 @@ What is your next step?"""
             result = await self.mcp.call_tool(tool_name, args, context=context)
             return str(result)
 
+        except KillRunAborted:
+            # KillRun must ABORT the run, not degrade to a "Tool error" string.
+            # Swallowing it here let a tripwire-killed run keep iterating (LLM
+            # spend) and finalize as "success", overwriting killed_sandbox.
+            raise
         except Exception as e:
             logger.error(f"Tool error: {e}")
             return "Tool error. Please try again."
@@ -2083,6 +2116,11 @@ Provide your Mentorship Guidance:"""
         records: List[Dict[str, Any]] = []
         for act, res in zip(parallel_actions, results):
             if isinstance(res, Exception):
+                # KillRun must abort the whole run, not become a per-tool
+                # "Tool error" record in the batch.
+                from core.sandbox_killrun import KillRunAborted
+                if isinstance(res, KillRunAborted):
+                    raise res
                 observation = f"Tool error for {act.tool}. Please try again."
                 verified_kind = "error"
                 verified_evidence = None

@@ -19,6 +19,7 @@ from fastapi import Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.orm.query import Query as QueryType
 
 from core.base_routes import BaseAPIRouter
 from core.auth import get_current_user, User
@@ -30,11 +31,26 @@ from core.deeplinks import (
     generate_deep_link,
     parse_deep_link,
 )
-from core.models import AgentRegistry, DeepLinkAudit
+from core.models import AgentRegistry, DeepLinkAudit, UserRole
 
 logger = logging.getLogger(__name__)
 
 DEEPLINK_ENABLED = os.getenv("DEEPLINK_ENABLED", "true").lower() == "true"
+
+# Roles that may view cross-user deep-link aggregates (admin+).
+ADMIN_ROLES = {
+    UserRole.ADMIN.value,
+    UserRole.WORKSPACE_ADMIN.value,
+    UserRole.OWNER.value,
+    UserRole.SUPER_ADMIN.value,
+}
+
+
+def _is_admin_user(current_user: User) -> bool:
+    role = getattr(current_user, "role", None)
+    if isinstance(role, UserRole):
+        role = role.value
+    return role in ADMIN_ROLES
 
 router = BaseAPIRouter(prefix="/api/deeplinks", tags=["Deep Links"])
 
@@ -332,40 +348,46 @@ async def get_deeplink_stats(
     Returns:
         DeepLinkStatsResponse with aggregate statistics
     """
+    # Bughunt 2026-08-09: /stats mirrored the pre-R37 /audit IDOR — the
+    # aggregates covered ALL users' deep-link usage. Scope every aggregate to
+    # the current user; admin+ roles (the audit-viewers) see all.
+    def _base_query() -> QueryType:
+        q = db.query(DeepLinkAudit)
+        if not _is_admin_user(current_user):
+            q = q.filter(DeepLinkAudit.user_id == current_user.id)
+        return q
+
     # Total executions
-    total_executions = db.query(DeepLinkAudit).count()
+    total_executions = _base_query().count()
 
     # Successful vs failed
-    successful_executions = db.query(DeepLinkAudit).filter(
+    successful_executions = _base_query().filter(
         DeepLinkAudit.status == "success"
     ).count()
 
-    failed_executions = db.query(DeepLinkAudit).filter(
+    failed_executions = _base_query().filter(
         DeepLinkAudit.status.in_(["failed", "error"])
     ).count()
 
     # By resource type
     by_resource_type = {}
     for rt in ['agent', 'workflow', 'canvas', 'tool']:
-        count = db.query(DeepLinkAudit).filter(
+        count = _base_query().filter(
             DeepLinkAudit.resource_type == rt
         ).count()
         by_resource_type[rt] = count
 
     # By source
     by_source = {}
-    sources = db.query(DeepLinkAudit.source).distinct().all()
+    sources = _base_query().with_entities(DeepLinkAudit.source).distinct().all()
     for (source,) in sources:
-        count = db.query(DeepLinkAudit).filter(
+        count = _base_query().filter(
             DeepLinkAudit.source == source
         ).count()
         by_source[source] = count
 
     # Top agents by usage
-    top_agents_query = db.query(
-        DeepLinkAudit.agent_id,
-        AgentRegistry.name
-    ).join(
+    top_agents_query = _base_query().join(
         AgentRegistry, DeepLinkAudit.agent_id == AgentRegistry.id
     ).filter(
         DeepLinkAudit.agent_id.isnot(None)
@@ -382,18 +404,18 @@ async def get_deeplink_stats(
 
     # Fill in execution counts
     for i, (agent_id, _) in enumerate(top_agents_query):
-        count = db.query(DeepLinkAudit).filter(
+        count = _base_query().filter(
             DeepLinkAudit.agent_id == agent_id
         ).count()
         top_agents[i]["execution_count"] = count
 
     # Recent activity
     now = datetime.now()
-    last_24h_executions = db.query(DeepLinkAudit).filter(
+    last_24h_executions = _base_query().filter(
         DeepLinkAudit.created_at >= now - timedelta(hours=24)
     ).count()
 
-    last_7d_executions = db.query(DeepLinkAudit).filter(
+    last_7d_executions = _base_query().filter(
         DeepLinkAudit.created_at >= now - timedelta(days=7)
     ).count()
 

@@ -1205,9 +1205,13 @@ class WorkflowEngine:
                     "execution_id": step.get("execution_id")
                 }
 
+                # P9: the mcp executor consumes the step's run identity so its
+                # tool dispatch goes through the shared sandbox gate.
+                mcp_kwargs = {"step": step} if service == "mcp" else {}
+
                 if timeout is not None and timeout > 0:
                     try:
-                        result = await asyncio.wait_for(executor(action, params, connection_id=step.get("connection_id")), timeout=timeout)
+                        result = await asyncio.wait_for(executor(action, params, connection_id=step.get("connection_id"), **mcp_kwargs), timeout=timeout)
                     except asyncio.TimeoutError:
                         raise StepTimeoutError(
                             f"Step {step['id']} timed out after {timeout} seconds",
@@ -1215,7 +1219,7 @@ class WorkflowEngine:
                             timeout=timeout
                         )
                 else:
-                    result = await executor(action, params, connection_id=step.get("connection_id"))
+                    result = await executor(action, params, connection_id=step.get("connection_id"), **mcp_kwargs)
                 # Executors that return a non-success status envelope (e.g.
                 # MCP {"status": "error"}, sub-workflow {"status": "timeout"})
                 # must surface as failures, not be wrapped as a successful
@@ -1248,9 +1252,10 @@ class WorkflowEngine:
             logger.info(f"Attempting fallback service {fallback_service}.{action}")
             try:
                 fallback_executor = service_registry[fallback_service]
+                fallback_mcp_kwargs = {"step": step} if fallback_service == "mcp" else {}
                 if timeout is not None and timeout > 0:
                     try:
-                        result = await asyncio.wait_for(fallback_executor(action, params, connection_id=step.get("connection_id")), timeout=timeout)
+                        result = await asyncio.wait_for(fallback_executor(action, params, connection_id=step.get("connection_id"), **fallback_mcp_kwargs), timeout=timeout)
                     except asyncio.TimeoutError:
                         raise StepTimeoutError(
                             message=f"Fallback service {fallback_service}.{action} timed out after {timeout}s",
@@ -1258,7 +1263,7 @@ class WorkflowEngine:
                             timeout=timeout,
                         )
                 else:
-                    result = await fallback_executor(action, params, connection_id=step.get("connection_id"))
+                    result = await fallback_executor(action, params, connection_id=step.get("connection_id"), **fallback_mcp_kwargs)
                 if isinstance(result, dict) and result.get("status") and result.get("status") != "success":
                     raise ValueError(
                         f"Fallback service {fallback_service}.{action} returned error: "
@@ -1818,7 +1823,7 @@ class WorkflowEngine:
             "status": "success"
         }
 
-    async def _execute_mcp_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
+    async def _execute_mcp_action(self, action: str, params: dict, connection_id: Optional[str] = None, step: Optional[dict] = None) -> dict:
         """Execute MCP server actions"""
         try:
             from integrations.mcp_service import mcp_service
@@ -1830,8 +1835,26 @@ class WorkflowEngine:
             if not server_id:
                 raise ValueError("server_id is required for MCP actions")
 
-            # Execute MCP tool
-            result = await mcp_service.execute_tool(server_id, tool_name, tool_args)
+            # P9: dispatch through call_tool — the shared sandbox-gated entry
+            # point — NOT the raw execute_tool helper. execute_tool skips the
+            # P9 sandbox gate + P2 capability gate that every other dispatch
+            # path (agent loop, fleet, business agents) goes through, so a
+            # workflow MCP node executed tools with no blast-radius bound.
+            # The workflow's run identity is threaded through so the gate can
+            # issue a policy (KillRun, caps, FS scope all key on run_id).
+            context: Dict[str, Any] = {}
+            if step:
+                context["run_id"] = step.get("execution_id")
+                context["execution_id"] = step.get("execution_id")
+                context["workspace_id"] = step.get("workspace_id")
+                context["tenant_id"] = step.get("tenant_id")
+                context["agent_id"] = params.get("agent_id") or step.get("agent_id")
+                tier = params.get("tier") or step.get("tier")
+                if tier:
+                    context["tier_at_issuance"] = tier
+
+            # Execute MCP tool through the gated entry point
+            result = await mcp_service.call_tool(tool_name, tool_args, context)
 
             return {
                 "action": action,

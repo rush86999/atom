@@ -67,6 +67,9 @@ def app(db, canvas):
         blueprint_canvas_id=canvas.id, status="draft", runtime_version=0,
     )
     db.add(a)
+    # run_stateful now gates on canvas.mini_app_id ("not a mini-app instance")
+    # — an instance canvas must point back at its app.
+    canvas.mini_app_id = a.id
     db.commit()
     return a
 
@@ -1277,9 +1280,10 @@ class TestScaffold:
 class TestLlmScaffold:
     def test_returns_generated_code(self):
         # _llm_scaffold builds a coroutine, runs it via _run_async, then
-        # syntax-checks the result. Patch _run_async to return the LLM payload
-        # directly (avoids spawning a worker thread under coverage).
-        with patch("core.mini_app_service._run_async", return_value={"content": "state['x'] = 1\n"}):
+        # syntax-checks the result. The coroutine returns the generated code
+        # as a plain string (current contract), so patch _run_async to return
+        # the code directly (avoids spawning a worker thread under coverage).
+        with patch("core.mini_app_service._run_async", return_value="state['x'] = 1\n"):
             code = svc._llm_scaffold("App", {})
         assert "state['x']" in code
 
@@ -1288,15 +1292,15 @@ class TestLlmScaffold:
             assert svc._llm_scaffold("App", {}) is None
 
     def test_returns_none_on_syntax_error(self):
-        with patch("core.mini_app_service._run_async", return_value={"content": "def f(:"}):
+        with patch("core.mini_app_service._run_async", return_value="def f(:"):
             assert svc._llm_scaffold("App", {}) is None
 
     def test_returns_none_on_empty_content(self):
-        with patch("core.mini_app_service._run_async", return_value={"content": ""}):
+        with patch("core.mini_app_service._run_async", return_value=""):
             assert svc._llm_scaffold("App", {}) is None
 
     def test_returns_none_when_content_missing(self):
-        with patch("core.mini_app_service._run_async", return_value={}):
+        with patch("core.mini_app_service._run_async", return_value="   "):
             assert svc._llm_scaffold("App", {}) is None
 
 
@@ -1413,7 +1417,9 @@ class TestRunStatefulFull:
              patch("core.mini_app_service._inject_integration_sources", new=AsyncMock(return_value={})):
             r = await svc.run_stateful(canvas.id)
         assert r["success"] is False
-        assert "FC unavailable" in r["error"]
+        # Runtime failures are generic in the response on purpose — the raised
+        # message can carry env var names/values and FS paths.
+        assert "Mini-app runtime unavailable" in r["error"]
 
     @pytest.mark.asyncio
     async def test_legacy_stdout_envelope_fallback(self, db, canvas, app):

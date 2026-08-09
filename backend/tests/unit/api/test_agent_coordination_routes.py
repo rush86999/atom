@@ -28,10 +28,13 @@ def app():
     """Create test FastAPI app with coordination routes."""
     from fastapi import FastAPI
 
-    # Mock the problematic imports
-    with patch('api.auth_routes'):
-        with patch('core.rbac_service'):
-            with patch('core.security_dependencies'):
+    # Mock the problematic imports. create=True: `api.auth_routes` is only an
+    # attribute of the `api` package once something imports it — in isolation
+    # the attribute doesn't exist yet, so the plain patch() raises
+    # AttributeError at setup (order-dependent collection failure).
+    with patch('api.auth_routes', create=True):
+        with patch('core.rbac_service', create=True):
+            with patch('core.security_dependencies', create=True):
                 # Import router after mocking dependencies
                 from api.agent_coordination_routes import router
 

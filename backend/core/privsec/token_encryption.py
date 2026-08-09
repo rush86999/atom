@@ -132,11 +132,15 @@ def get_encryption_key() -> bytes:
         key_str = _load_persisted_key()
 
     if not key_str:
-        env = os.getenv("ENVIRONMENT", "development")
-        if env == "production":
+        env = (os.getenv("ENVIRONMENT", "development") or "").strip().lower()
+        if env in {"production", "prod"}:
             # Fail closed: refusing to mint a throwaway key that would brick all
             # stored tokens on restart is preferable to silently storing
             # undecryptable ciphertext (mirrors llm_oauth_handler R61 policy).
+            # Bughunt 2026-08-09: the check used to be an exact-match
+            # `env == "production"` — "Production"/"prod"/" PRODUCTION " all
+            # slipped through and minted a dev key in a production-shaped
+            # deployment. Normalize (strip + lower) and accept "prod" too.
             raise MissingKeyError(
                 "BYOK_ENCRYPTION_KEY not configured. Set it (or ensure the "
                 "persisted key file at ./data/byok_encryption_key exists) for "

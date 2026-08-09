@@ -13,6 +13,8 @@ recipient has read it.
 from __future__ import annotations
 
 import logging
+import math
+import threading
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -37,7 +39,17 @@ class RadioPolicyError(RadioError):
 
 
 class RadioBudgetExceeded(RadioError):
-    """Thread's cumulative message budget is exhausted."""
+    """Thread's cumulative message budget is exhausted (or unreadable)."""
+
+
+class RadioBudgetCorrupted(RadioError):
+    """Thread budget metadata is unreadable — enforcement fails CLOSED."""
+
+
+# In-process serialization of the budget check->update critical section. The
+# DB-level ``with_for_update`` row lock closes the race on PostgreSQL; SQLite
+# ignores it, so this lock guarantees atomic accounting on the embedded store.
+_RADIO_BUDGET_LOCK = threading.Lock()
 
 
 def _utcnow() -> datetime:
@@ -84,11 +96,26 @@ def is_member(thread: AgentThread, agent_id: str) -> bool:
 
 
 def thread_budget_used_usd(thread: AgentThread) -> float:
+    """Read the thread's used budget.
+
+    Fail-CLOSED: corrupted/unreadable ``used_budget_usd`` metadata raises
+    ``RadioBudgetCorrupted`` instead of silently returning 0.0 — returning
+    0.0 would let an agent mint unlimited budget by corrupting its own
+    thread metadata.
+    """
     meta = thread.metadata_json or {}
+    raw = meta.get("used_budget_usd", 0.0)
     try:
-        return float(meta.get("used_budget_usd", 0.0))
+        used = float(raw)
     except (TypeError, ValueError):
-        return 0.0
+        raise RadioBudgetCorrupted(
+            "Radio thread budget metadata is corrupted; refusing to send."
+        )
+    if not math.isfinite(used) or used < 0.0:
+        raise RadioBudgetCorrupted(
+            "Radio thread budget metadata is corrupted; refusing to send."
+        )
+    return used
 
 
 def send_message(
@@ -118,35 +145,66 @@ def send_message(
             "(mention-first; no broadcast)."
         )
 
+    # Fast-fail outside the lock: thread existence/open/membership. The
+    # authoritative check happens again under the budget lock so a concurrent
+    # close cannot race past it.
     thread = db.query(AgentThread).filter(AgentThread.id == thread_id).first()
     if thread is None or thread.status != "open":
         raise RadioAccessError("Radio thread not found or closed.")
     if not is_member(thread, from_agent_id):
         raise RadioAccessError("Sender is not a member of this radio thread.")
 
-    used = thread_budget_used_usd(thread)
-    if used + max(0.0, cost_usd) > radio_config.team_budget_usd():
-        raise RadioBudgetExceeded("Radio thread message budget exhausted.")
+    cost = cost_usd if isinstance(cost_usd, (int, float)) and math.isfinite(cost_usd) else 0.0
+    cost = max(0.0, cost)
 
-    meta = dict(metadata_json or {})
-    meta["read_by"] = []
-    message = LateralMessage(
-        thread_id=thread.id,
-        from_agent_id=from_agent_id,
-        to_agent_id=to_agent_id,
-        content=content,
-        mentions=mentions,
-        delivered=False,
-        metadata_json=meta,
-    )
-    db.add(message)
+    # Atomic budget accounting: check + increment under the in-process lock,
+    # re-reading the thread with FOR UPDATE so PostgreSQL serializes
+    # concurrent sends on the same thread (SQLite: lock covers it).
+    # populate_existing() is required — the fast-fail read above may already
+    # have loaded this thread into the session identity map with a stale
+    # budget; without a forced re-select the race would not actually close.
+    with _RADIO_BUDGET_LOCK:
+        thread = (
+            db.query(AgentThread)
+            .filter(AgentThread.id == thread_id)
+            .with_for_update()
+            .populate_existing()
+            .first()
+        )
+        if thread is None or thread.status != "open":
+            raise RadioAccessError("Radio thread not found or closed.")
+        if not is_member(thread, from_agent_id):
+            raise RadioAccessError("Sender is not a member of this radio thread.")
 
-    if cost_usd > 0.0:
-        thread_meta = dict(thread.metadata_json or {})
-        thread_meta["used_budget_usd"] = round(used + cost_usd, 6)
-        thread.metadata_json = thread_meta
+        try:
+            used = thread_budget_used_usd(thread)
+        except RadioBudgetCorrupted:
+            # Fail closed: an unreadable budget must reject, never spend.
+            raise RadioBudgetExceeded(
+                "Radio thread budget metadata is corrupted; refusing to send."
+            )
+        if used + cost > radio_config.team_budget_usd():
+            raise RadioBudgetExceeded("Radio thread message budget exhausted.")
 
-    db.commit()
+        meta = dict(metadata_json or {})
+        meta["read_by"] = []
+        message = LateralMessage(
+            thread_id=thread.id,
+            from_agent_id=from_agent_id,
+            to_agent_id=to_agent_id,
+            content=content,
+            mentions=mentions,
+            delivered=False,
+            metadata_json=meta,
+        )
+        db.add(message)
+
+        if cost > 0.0:
+            thread_meta = dict(thread.metadata_json or {})
+            thread_meta["used_budget_usd"] = round(used + cost, 6)
+            thread.metadata_json = thread_meta
+
+        db.commit()
     db.refresh(message)
     logger.info(f"radio: {from_agent_id} -> {mentions} on {thread_id}")
     return message
@@ -240,6 +298,10 @@ def get_thread_snapshot(
             if agent_id in (m.mentions or []) and agent_id not in _read_by(m)
         ]
     )
+    try:
+        budget_used = thread_budget_used_usd(thread)
+    except RadioBudgetCorrupted:
+        budget_used = None  # display-only: never substitutes for enforcement
     return {
         "thread_id": thread.id,
         "name": thread.name,
@@ -257,7 +319,7 @@ def get_thread_snapshot(
             for m in messages
         ],
         "unread_mentions": unread,
-        "budget_used_usd": thread_budget_used_usd(thread),
+        "budget_used_usd": budget_used,
         "found": True,
     }
 

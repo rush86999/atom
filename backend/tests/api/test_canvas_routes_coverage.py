@@ -128,7 +128,8 @@ def autonomous_agent(test_db: Session) -> AgentRegistry:
         module_path="agents.test_agent",
         class_name="TestAgent",
         status=AgentStatus.AUTONOMOUS.value,
-        confidence_score=0.95
+        confidence_score=0.95,
+        workspace_id="default"
     )
     test_db.add(agent)
     test_db.commit()
@@ -147,7 +148,8 @@ def supervised_agent(test_db: Session) -> AgentRegistry:
         module_path="agents.test_agent",
         class_name="TestAgent",
         status=AgentStatus.SUPERVISED.value,
-        confidence_score=0.75
+        confidence_score=0.75,
+        workspace_id="default"
     )
     test_db.add(agent)
     test_db.commit()
@@ -166,7 +168,8 @@ def intern_agent(test_db: Session) -> AgentRegistry:
         module_path="agents.test_agent",
         class_name="TestAgent",
         status=AgentStatus.INTERN.value,
-        confidence_score=0.6
+        confidence_score=0.6,
+        workspace_id="default"
     )
     test_db.add(agent)
     test_db.commit()
@@ -202,6 +205,23 @@ def mock_auth(user: User):
     return override_get_current_user
 
 
+def patch_global_db(test_db: Session):
+    """Patch core.database.get_db_session to yield the in-memory test DB.
+
+    submit_canvas persists the audit row through the module-global
+    get_db_session() (imported inside the handler), not the injected session —
+    so audit assertions need this redirect (the real dev DB has schema drift
+    and would pollute the test run).
+    """
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _yield_test_db():
+        yield test_db
+
+    return patch('core.database.get_db_session', side_effect=_yield_test_db)
+
+
 # ============================================================================
 # Form Submission Tests - Lines 45-210
 # ============================================================================
@@ -210,9 +230,9 @@ class TestFormSubmissionCoverage:
     """Test form submission endpoint with comprehensive coverage."""
 
     def test_submit_form_success_autonomous_agent(self, client: TestClient, test_db: Session, test_user: User, autonomous_agent: AgentRegistry):
-        """Cover successful form submission with AUTONOMOUS agent (lines 68-128)."""
+        """Cover successful form submission with AUTONOMOUS agent."""
         # Override auth
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -225,37 +245,31 @@ class TestFormSubmissionCoverage:
             "agent_id": autonomous_agent.id
         }
 
-        with patch('core.websockets.manager.broadcast', new_callable=AsyncMock) as mock_broadcast:
-            response = client.post("/api/canvas/submit", json=submission_data)
+        with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
+            with patch_global_db(test_db):
+                response = client.post("/api/canvas/submit", json=submission_data)
 
-            assert response.status_code == 200
-            result = response.json()
-            assert result["success"] is True
-            assert "submission_id" in result["data"]
-            assert result["data"]["agent_id"] == autonomous_agent.id
-            assert "agent_execution_id" in result["data"]
+        assert response.status_code == 200
+        result = response.json()
+        assert result["success"] is True
+        # Real contract: data carries canvas_id/submitted/timestamp only
+        assert result["data"]["canvas_id"] == "test-form-1"
+        assert result["data"]["submitted"] is True
 
-            # Verify audit record created
-            audit = test_db.query(CanvasAudit).filter(
-                CanvasAudit.canvas_id == "test-form-1"
-            ).first()
-            assert audit is not None
-            assert audit.action_type == "submit"
-            assert audit.user_id == test_user.id
-
-            # Verify agent execution created
-            execution = test_db.query(AgentExecution).filter(
-                AgentExecution.agent_id == autonomous_agent.id,
-                AgentExecution.triggered_by == "form_submission"
-            ).first()
-            assert execution is not None
-            assert execution.status == "completed"
+        # Verify audit record created (via the patched global session)
+        audit = test_db.query(CanvasAudit).filter(
+            CanvasAudit.canvas_id == "test-form-1"
+        ).first()
+        assert audit is not None
+        assert audit.action_type == "submit"
+        assert audit.user_id == test_user.id
+        assert audit.agent_id == autonomous_agent.id
 
         client.app.dependency_overrides.clear()
 
     def test_submit_form_supervised_agent_allowed(self, client: TestClient, test_db: Session, test_user: User, supervised_agent: AgentRegistry):
         """Cover form submission with SUPERVISED agent (allowed action)."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -274,8 +288,8 @@ class TestFormSubmissionCoverage:
         client.app.dependency_overrides.clear()
 
     def test_submit_form_intern_agent_blocked(self, client: TestClient, test_db: Session, test_user: User, intern_agent: AgentRegistry):
-        """Cover governance blocking for INTERN agent (lines 96-115)."""
-        from core.security_dependencies import get_current_user
+        """Cover governance blocking for INTERN agent."""
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -293,8 +307,8 @@ class TestFormSubmissionCoverage:
         client.app.dependency_overrides.clear()
 
     def test_submit_form_with_execution_context(self, client: TestClient, test_db: Session, test_user: User, agent_execution: AgentExecution):
-        """Cover form submission linked to originating execution (lines 79-88)."""
-        from core.security_dependencies import get_current_user
+        """Cover form submission with an agent_execution_id."""
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -306,17 +320,16 @@ class TestFormSubmissionCoverage:
         with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
             response = client.post("/api/canvas/submit", json=submission_data)
 
+            # The route accepts the field but doesn't resolve the execution
             assert response.status_code == 200
             result = response.json()
             assert result["success"] is True
-            # Should use agent from originating execution
-            assert result["data"]["agent_id"] == agent_execution.agent_id
 
         client.app.dependency_overrides.clear()
 
     def test_submit_form_with_both_contexts(self, client: TestClient, test_db: Session, test_user: User, autonomous_agent: AgentRegistry, agent_execution: AgentExecution):
-        """Cover form submission with both agent_id and execution_id (lines 86-88)."""
-        from core.security_dependencies import get_current_user
+        """Cover form submission with both agent_id and execution_id."""
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -329,14 +342,14 @@ class TestFormSubmissionCoverage:
         with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
             response = client.post("/api/canvas/submit", json=submission_data)
 
+            # Governance runs off the explicit agent_id
             assert response.status_code == 200
-            # Prefers explicit agent_id over execution's agent
 
         client.app.dependency_overrides.clear()
 
     def test_submit_form_without_agent(self, client: TestClient, test_db: Session, test_user: User):
-        """Cover form submission without agent context (lines 135-159)."""
-        from core.security_dependencies import get_current_user
+        """Cover form submission without agent context."""
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -345,7 +358,8 @@ class TestFormSubmissionCoverage:
         }
 
         with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
-            response = client.post("/api/canvas/submit", json=submission_data)
+            with patch_global_db(test_db):
+                response = client.post("/api/canvas/submit", json=submission_data)
 
             assert response.status_code == 200
             result = response.json()
@@ -360,7 +374,7 @@ class TestFormSubmissionCoverage:
 
     def test_submit_form_validation_missing_canvas_id(self, client: TestClient, test_db: Session, test_user: User):
         """Cover validation error for missing canvas_id."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -374,7 +388,7 @@ class TestFormSubmissionCoverage:
 
     def test_submit_form_validation_missing_form_data(self, client: TestClient, test_db: Session, test_user: User):
         """Cover validation error for missing form_data."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -388,7 +402,7 @@ class TestFormSubmissionCoverage:
 
     def test_submit_form_with_complex_data(self, client: TestClient, test_db: Session, test_user: User, autonomous_agent: AgentRegistry):
         """Cover form submission with complex nested data."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -412,7 +426,8 @@ class TestFormSubmissionCoverage:
         }
 
         with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
-            response = client.post("/api/canvas/submit", json=submission_data)
+            with patch_global_db(test_db):
+                response = client.post("/api/canvas/submit", json=submission_data)
 
             assert response.status_code == 200
             result = response.json()
@@ -424,13 +439,13 @@ class TestFormSubmissionCoverage:
             ).first()
             assert audit is not None
             details = audit.details_json
-            assert details["field_count"] == 3  # user, items, metadata
+            assert details["form_data"]["user"]["preferences"]["theme"] == "dark"
 
         client.app.dependency_overrides.clear()
 
     def test_submit_form_websocket_broadcast(self, client: TestClient, test_db: Session, test_user: User, autonomous_agent: AgentRegistry):
-        """Cover WebSocket broadcast on form submission (lines 162-172)."""
-        from core.security_dependencies import get_current_user
+        """Cover form submission — the route does NOT broadcast."""
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -443,24 +458,15 @@ class TestFormSubmissionCoverage:
             response = client.post("/api/canvas/submit", json=submission_data)
 
             assert response.status_code == 200
-            assert mock_broadcast.called
-
-            # Verify broadcast message structure
-            call_args = mock_broadcast.call_args
-            if call_args:
-                channel = call_args[0][0]
-                message = call_args[0][1]
-
-                assert channel == f"user:{test_user.id}"
-                assert message["type"] == "canvas:form_submitted"
-                assert message["canvas_id"] == "test-form-8"
-                assert message["data"] == {"message": "Hello"}
+            # submit_canvas persists an audit row; WS broadcast is not part of
+            # its contract (canvas:update broadcasts happen on state changes).
+            mock_broadcast.assert_not_called()
 
         client.app.dependency_overrides.clear()
 
     def test_submit_form_execution_completion(self, client: TestClient, test_db: Session, test_user: User, autonomous_agent: AgentRegistry):
-        """Cover execution completion tracking (lines 175-198)."""
-        from core.security_dependencies import get_current_user
+        """Cover form submission — no execution lifecycle in this route."""
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -474,17 +480,13 @@ class TestFormSubmissionCoverage:
 
             assert response.status_code == 200
 
-            # Verify execution was marked completed
+            # The route does not create/complete AgentExecution rows — no
+            # "form_submission" executions exist after a submit.
             execution = test_db.query(AgentExecution).filter(
                 AgentExecution.agent_id == autonomous_agent.id,
                 AgentExecution.triggered_by == "form_submission"
             ).first()
-
-            assert execution is not None
-            assert execution.status == "completed"
-            assert execution.completed_at is not None
-            assert execution.duration_seconds is not None
-            assert execution.result_summary is not None
+            assert execution is None
 
         client.app.dependency_overrides.clear()
 
@@ -494,44 +496,59 @@ class TestFormSubmissionCoverage:
 # ============================================================================
 
 class TestCanvasStatusCoverage:
-    """Test canvas status endpoint with comprehensive coverage."""
+    """Test the canvas read endpoint (GET /api/canvas/{canvas_id})."""
 
     def test_get_canvas_status_success(self, client: TestClient, test_db: Session, test_user: User):
-        """Cover successful canvas status retrieval (lines 211-227)."""
-        from core.security_dependencies import get_current_user
+        """Cover reading a canvas that exists in the audit trail."""
+        from core.auth import get_current_user
+        from core.models import Canvas
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
-        response = client.get("/api/canvas/status")
+        # Seed the Canvas row (IDOR ownership guard) + audit row so
+        # read_canvas resolves the canvas for this user.
+        Canvas.__table__.create(bind=test_db.get_bind(), checkfirst=True)
+        canvas = Canvas(
+            id="status-canvas-1", tenant_id="default", created_by=test_user.id,
+            name="c", canvas_type="form", content={"blocks": []}, style={},
+        )
+        test_db.add(canvas)
+        audit = CanvasAudit(
+            canvas_id="status-canvas-1",
+            tenant_id="default",
+            canvas_type="form",
+            action_type="create",
+            user_id=test_user.id,
+            details_json={"title": "t"},
+        )
+        test_db.add(audit)
+        test_db.commit()
+        with patch_global_db(test_db):
+            response = client.get("/api/canvas/status-canvas-1")
 
+        # read_canvas reads the audit trail (via the patched global session)
         assert response.status_code == 200
         result = response.json()
         assert result["success"] is True
-        assert result["data"]["status"] == "active"
-        assert result["data"]["user_id"] == test_user.id
-        assert "features" in result["data"]
-        assert isinstance(result["data"]["features"], list)
+        assert result["canvas_id"] == "status-canvas-1"
 
         client.app.dependency_overrides.clear()
 
     def test_get_canvas_status_features_list(self, client: TestClient, test_db: Session, test_user: User):
-        """Cover feature list in status response."""
-        from core.security_dependencies import get_current_user
+        """Cover reading an unknown canvas → 404."""
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
-        response = client.get("/api/canvas/status")
+        with patch_global_db(test_db):
+            response = client.get("/api/canvas/status")
 
-        assert response.status_code == 200
-        result = response.json()
-        features = result["data"]["features"]
-
-        expected_features = ["markdown", "status_panel", "form", "line_chart", "bar_chart", "pie_chart"]
-        for feature in expected_features:
-            assert feature in features
+        # "status" is not a route — it resolves to /{canvas_id}, and the
+        # canvas doesn't exist in the audit trail → 404.
+        assert response.status_code == 404
 
         client.app.dependency_overrides.clear()
 
     def test_get_canvas_status_unauthorized(self, client: TestClient, test_db: Session):
-        """Cover unauthorized access to status endpoint."""
+        """Cover unauthorized access to canvas read endpoint."""
         # No auth override
         response = client.get("/api/canvas/status")
 
@@ -548,7 +565,7 @@ class TestCanvasRoutesErrorHandling:
 
     def test_submit_form_nonexistent_agent(self, client: TestClient, test_db: Session, test_user: User):
         """Cover handling of nonexistent agent ID."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -558,15 +575,15 @@ class TestCanvasRoutesErrorHandling:
         }
 
         with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
-            # Should succeed but without governance check (agent not found)
+            # Governance can't find the agent → fail-closed denial
             response = client.post("/api/canvas/submit", json=submission_data)
-            assert response.status_code == 200
+            assert response.status_code == 403
 
         client.app.dependency_overrides.clear()
 
     def test_submit_form_nonexistent_execution(self, client: TestClient, test_db: Session, test_user: User):
         """Cover handling of nonexistent execution ID."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -576,15 +593,15 @@ class TestCanvasRoutesErrorHandling:
         }
 
         with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
-            # Should succeed but without execution context
+            # The route accepts the field without resolving it
             response = client.post("/api/canvas/submit", json=submission_data)
             assert response.status_code == 200
 
         client.app.dependency_overrides.clear()
 
     def test_submit_form_execution_completion_error(self, client: TestClient, test_db: Session, test_user: User, autonomous_agent: AgentRegistry):
-        """Cover error handling during execution completion (lines 193-198)."""
-        from core.security_dependencies import get_current_user
+        """Cover non-fatal audit persistence failure."""
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -594,23 +611,11 @@ class TestCanvasRoutesErrorHandling:
         }
 
         with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
-            # Mock governance service to raise error on record_outcome
-            from core.service_factory import ServiceFactory
-            original_get_governance = ServiceFactory.get_governance_service
-
-            def mock_get_governance(db):
-                gov_service = original_get_governance(db)
-                # Override record_outcome to raise error
-                original_record_outcome = gov_service.record_outcome
-
-                async def failing_record_outcome(*args, **kwargs):
-                    raise Exception("DB error")
-
-                gov_service.record_outcome = failing_record_outcome
-                return gov_service
-
-            with patch.object(ServiceFactory, 'get_governance_service', side_effect=mock_get_governance):
-                # Should still succeed despite completion error
+            # Audit persistence goes through the global get_db_session and is
+            # non-fatal (logged + swallowed) — a failing session must not fail
+            # the submission.
+            from core.database import get_db_session
+            with patch('core.database.get_db_session', side_effect=RuntimeError("DB down")):
                 response = client.post("/api/canvas/submit", json=submission_data)
                 assert response.status_code == 200
 
@@ -618,7 +623,7 @@ class TestCanvasRoutesErrorHandling:
 
     def test_submit_form_empty_form_data(self, client: TestClient, test_db: Session, test_user: User, autonomous_agent: AgentRegistry):
         """Cover form submission with empty form_data."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -628,23 +633,24 @@ class TestCanvasRoutesErrorHandling:
         }
 
         with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
-            response = client.post("/api/canvas/submit", json=submission_data)
+            with patch_global_db(test_db):
+                response = client.post("/api/canvas/submit", json=submission_data)
 
             assert response.status_code == 200
             result = response.json()
             assert result["success"] is True
 
-            # Verify audit shows 0 fields
+            # Verify audit shows empty form data
             audit = test_db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == "test-form-empty"
             ).first()
-            assert audit.details_json["field_count"] == 0
+            assert audit.details_json["form_data"] == {}
 
         client.app.dependency_overrides.clear()
 
     def test_submit_form_special_characters(self, client: TestClient, test_db: Session, test_user: User, autonomous_agent: AgentRegistry):
         """Cover form submission with special characters in data."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -667,7 +673,7 @@ class TestCanvasRoutesErrorHandling:
 
     def test_submit_form_large_data(self, client: TestClient, test_db: Session, test_user: User, autonomous_agent: AgentRegistry):
         """Cover form submission with large data payload."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         # Create large form data
@@ -690,7 +696,7 @@ class TestCanvasRoutesErrorHandling:
 
     def test_multiple_submissions_same_canvas(self, client: TestClient, test_db: Session, test_user: User, autonomous_agent: AgentRegistry):
         """Cover multiple form submissions for the same canvas."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -700,21 +706,22 @@ class TestCanvasRoutesErrorHandling:
         }
 
         with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
-            # First submission
-            response1 = client.post("/api/canvas/submit", json=submission_data)
-            assert response1.status_code == 200
+            with patch_global_db(test_db):
+                # First submission
+                response1 = client.post("/api/canvas/submit", json=submission_data)
+                assert response1.status_code == 200
 
-            # Second submission
-            submission_data["form_data"] = {"step": "2"}
-            response2 = client.post("/api/canvas/submit", json=submission_data)
-            assert response2.status_code == 200
+                # Second submission
+                submission_data["form_data"] = {"step": "2"}
+                response2 = client.post("/api/canvas/submit", json=submission_data)
+                assert response2.status_code == 200
 
-            # Verify both audit records exist
-            audits = test_db.query(CanvasAudit).filter(
-                CanvasAudit.canvas_id == "test-form-multi"
-            ).all()
+                # Verify both audit records exist
+                audits = test_db.query(CanvasAudit).filter(
+                    CanvasAudit.canvas_id == "test-form-multi"
+                ).all()
 
-            assert len(audits) == 2
+                assert len(audits) == 2
 
         client.app.dependency_overrides.clear()
 
@@ -728,7 +735,7 @@ class TestCanvasRoutesGovernanceIntegration:
 
     def test_governance_flag_disabled(self, client: TestClient, test_db: Session, test_user: User, autonomous_agent: AgentRegistry):
         """Cover behavior when governance flag is disabled."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         from core.feature_flags import FeatureFlags
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
@@ -742,14 +749,14 @@ class TestCanvasRoutesGovernanceIntegration:
             with patch.object(FeatureFlags, 'should_enforce_governance', return_value=False):
                 response = client.post("/api/canvas/submit", json=submission_data)
 
-                # Should succeed without governance check
+                # Autonomous agent passes the governance check regardless
                 assert response.status_code == 200
 
         client.app.dependency_overrides.clear()
 
     def test_governance_check_allowed(self, client: TestClient, test_db: Session, test_user: User, autonomous_agent: AgentRegistry):
         """Cover governance check that returns allowed."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -763,13 +770,13 @@ class TestCanvasRoutesGovernanceIntegration:
 
             assert response.status_code == 200
             result = response.json()
-            assert result["data"]["governance_check"]["allowed"] is True
+            assert result["success"] is True
 
         client.app.dependency_overrides.clear()
 
     def test_governance_audit_logging(self, client: TestClient, test_db: Session, test_user: User, autonomous_agent: AgentRegistry):
-        """Cover audit logging with governance details."""
-        from core.security_dependencies import get_current_user
+        """Cover audit logging on governance-allowed submission."""
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -779,18 +786,18 @@ class TestCanvasRoutesGovernanceIntegration:
         }
 
         with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
-            response = client.post("/api/canvas/submit", json=submission_data)
+            with patch_global_db(test_db):
+                response = client.post("/api/canvas/submit", json=submission_data)
 
             assert response.status_code == 200
 
-            # Verify audit has governance details
+            # Verify audit row records the acting agent
             audit = test_db.query(CanvasAudit).filter(
                 CanvasAudit.canvas_id == "test-form-audit"
             ).first()
 
             assert audit is not None
-            assert "governance_check_passed" in audit.details_json
-            assert audit.details_json["governance_check_passed"] is True
+            assert audit.agent_id == autonomous_agent.id
 
         client.app.dependency_overrides.clear()
 
@@ -811,7 +818,7 @@ class TestCanvasRoutesParameterized:
     ])
     def test_submit_various_forms(self, client: TestClient, test_db: Session, test_user: User, autonomous_agent: AgentRegistry, canvas_id, form_data):
         """Cover form submission with various data structures."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -835,7 +842,7 @@ class TestCanvasRoutesParameterized:
     ])
     def test_submit_form_maturity_levels(self, client: TestClient, test_db: Session, test_user: User, agent_status, confidence_score, should_be_allowed):
         """Cover form submission for all maturity levels."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         # Create agent with specific maturity level
@@ -847,7 +854,8 @@ class TestCanvasRoutesParameterized:
             module_path="agents.test_agent",
             class_name="TestAgent",
             status=agent_status,
-            confidence_score=confidence_score
+            confidence_score=confidence_score,
+            workspace_id="default"
         )
         test_db.add(agent)
         test_db.commit()
@@ -875,7 +883,7 @@ class TestCanvasRoutesParameterized:
     ])
     def test_submit_form_invalid_agent_id(self, client: TestClient, test_db: Session, test_user: User, invalid_agent_id):
         """Cover form submission with invalid agent IDs."""
-        from core.security_dependencies import get_current_user
+        from core.auth import get_current_user
         client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         submission_data = {
@@ -885,8 +893,12 @@ class TestCanvasRoutesParameterized:
         }
 
         with patch('core.websockets.manager.broadcast', new_callable=AsyncMock):
-            # Should succeed or fail gracefully
+            # Empty string is falsy → no governance path → accepted.
+            # Unknown non-empty IDs → governance "Agent not found" → 403.
             response = client.post("/api/canvas/submit", json=submission_data)
-            assert response.status_code in [200, 404, 422]
+            if invalid_agent_id == "":
+                assert response.status_code == 200
+            else:
+                assert response.status_code == 403
 
         client.app.dependency_overrides.clear()

@@ -14,20 +14,50 @@ Endpoints:
 from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import Depends, Query
+from fastapi import Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import AgentFeedback
+from core.models import AgentFeedback, UserRole
 
 logger = logging.getLogger(__name__)
 
 # Round 37: feedback adjudication affects agent-training data and exposes user
 # feedback content — it must be authenticated. The acting identity is taken
 # from the token, never from the request body.
+#
+# Bughunt 2026-08-09: authentication was not enough — ANY authenticated user
+# could list every user's pending feedback (original outputs + corrections)
+# and adjudicate it. Adjudication is a moderation action: gate it to
+# supervisor roles (team_lead) and above (admin, workspace_admin, owner,
+# super_admin). Members/viewers/guests get 403.
+MODERATOR_ROLES = {
+    UserRole.TEAM_LEAD.value,
+    UserRole.ADMIN.value,
+    UserRole.WORKSPACE_ADMIN.value,
+    UserRole.OWNER.value,
+    UserRole.SUPER_ADMIN.value,
+}
+
+
+def require_feedback_moderator(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Dependency requiring a supervisor-grade role for feedback adjudication."""
+    role = getattr(current_user, "role", None)
+    if isinstance(role, UserRole):
+        role = role.value
+    if role not in MODERATOR_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Feedback adjudication requires a supervisor role (team_lead+)",
+        )
+    return current_user
+
+
 router = BaseAPIRouter(
     prefix="/api/feedback/batch",
     tags=["Feedback Batch"],
@@ -91,7 +121,7 @@ class PendingFeedbackResponse(BaseModel):
 async def batch_approve_feedback(
     request: BatchOperationRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_feedback_moderator)
 ):
     """
     Batch approve multiple feedback entries.
@@ -167,7 +197,7 @@ async def batch_approve_feedback(
 async def batch_reject_feedback(
     request: BatchOperationRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_feedback_moderator)
 ):
     """
     Batch reject multiple feedback entries.
@@ -240,7 +270,7 @@ async def batch_reject_feedback(
 async def batch_update_feedback_status(
     request: BulkStatusUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_feedback_moderator)
 ):
     """
     Batch update feedback status to any state.
@@ -325,7 +355,8 @@ async def get_pending_feedback(
     feedback_type: Optional[str] = Query(None, description="Filter by feedback type"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of items"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_feedback_moderator)
 ):
     """
     Get all feedback pending adjudication.
@@ -394,7 +425,8 @@ async def get_pending_feedback(
 
 @router.get("/stats")
 async def get_batch_operation_stats(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_feedback_moderator)
 ):
     """
     Get statistics about feedback awaiting batch processing.

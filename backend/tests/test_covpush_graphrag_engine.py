@@ -725,7 +725,9 @@ class TestOps:
                    side_effect=RuntimeError("no detector")):
             result = g.build_communities("ws-1")
         assert result["success"] is False
-        assert "no detector" in result["error"]
+        # Never leak internal exception text to the client (str(e) sweep).
+        assert result["error"] == "Community detection failed"
+        assert "no detector" not in result["error"]
 
     async def test_discover_patterns_with_db(self, g, session):
         with _db_ctx(session):

@@ -5,7 +5,7 @@
  * context explanations, and live operation logs.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
 export interface OperationLog {
@@ -55,6 +55,17 @@ export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
   const [logsExpanded, setLogsExpanded] = useState(false);
   const { lastMessage } = useWebSocket();
 
+  // Reset when the requested operation changes so stale data for a previous
+  // operation is never shown under a different operationId.
+  const trackedOperationId = useRef(operationId);
+  useEffect(() => {
+    if (trackedOperationId.current !== operationId) {
+      trackedOperationId.current = operationId;
+      setOperation(null);
+      setLogsExpanded(false);
+    }
+  }, [operationId]);
+
   useEffect(() => {
     if (!lastMessage || lastMessage.type !== 'canvas:update') return;
 
@@ -71,19 +82,20 @@ export const AgentOperationTracker: React.FC<AgentOperationTrackerProps> = ({
         }
       }
 
-      // Handle operation updates
+      // Handle operation updates. Matching happens inside the functional
+      // updater so the effect never re-triggers itself: `operation` must NOT
+      // be in the dependency array, otherwise merging updates creates a new
+      // object every run -> effect re-runs -> infinite update loop.
       if (data?.action === 'update') {
-        if (data.operation_id === operation?.operation_id) {
-          setOperation((prev) => ({
-            ...prev!,
-            ...data.updates
-          }));
-        }
+        setOperation((prev) => {
+          if (!prev || data.operation_id !== prev.operation_id) return prev;
+          return { ...prev, ...data.updates };
+        });
       }
     } catch (error) {
       console.error('Failed to parse WebSocket message:', error);
     }
-  }, [lastMessage, operationId, operation]);
+  }, [lastMessage, operationId]);
 
   if (!operation) {
     return (

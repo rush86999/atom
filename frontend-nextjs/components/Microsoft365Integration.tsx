@@ -606,11 +606,11 @@ const Microsoft365Integration: React.FC = () => {
     const filteredEmails = emails.filter(
         (email) =>
             email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            email.sender.emailAddress.name
-                .toLowerCase()
+            email.sender?.emailAddress?.name
+                ?.toLowerCase()
                 .includes(searchQuery.toLowerCase()) ||
-            email.sender.emailAddress.address
-                .toLowerCase()
+            email.sender?.emailAddress?.address
+                ?.toLowerCase()
                 .includes(searchQuery.toLowerCase()),
     );
 
@@ -639,7 +639,9 @@ const Microsoft365Integration: React.FC = () => {
     const filteredTeams = teams.filter(
         (team) =>
             team.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            team.description.toLowerCase().includes(searchQuery.toLowerCase()),
+            team.description
+                ?.toLowerCase()
+                .includes(searchQuery.toLowerCase()),
     );
 
     // Stats calculations
@@ -843,6 +845,7 @@ const Microsoft365Integration: React.FC = () => {
                                     <Zap className="w-4 h-4 mr-1" />
                                     Automation
                                 </TabsTrigger>
+                                <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
                             </TabsList>
 
                             {/* Outlook Tab */}
@@ -894,8 +897,8 @@ const Microsoft365Integration: React.FC = () => {
                                                                 </div>
                                                             </div>
                                                             <span className="text-sm text-muted-foreground">
-                                                                From: {email.sender.emailAddress.name} (
-                                                                {email.sender.emailAddress.address})
+                                                                From: {email.sender?.emailAddress?.name} (
+                                                                {email.sender?.emailAddress?.address})
                                                             </span>
                                                             <div className="flex items-center space-x-2">
                                                                 <span className="text-xs text-muted-foreground">

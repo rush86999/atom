@@ -97,7 +97,7 @@ class TestFeedbackAnalyticsDashboard:
 
     def test_get_feedback_dashboard_summary(self, feedback_analytics_client: TestClient):
         """Test dashboard includes summary section."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -112,7 +112,7 @@ class TestFeedbackAnalyticsDashboard:
 
     def test_get_feedback_dashboard_top_agents(self, feedback_analytics_client: TestClient):
         """Test dashboard includes top_performing_agents."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -130,7 +130,7 @@ class TestFeedbackAnalyticsDashboard:
 
     def test_get_feedback_dashboard_most_corrected(self, feedback_analytics_client: TestClient):
         """Test dashboard includes most_corrected_agents."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -147,7 +147,7 @@ class TestFeedbackAnalyticsDashboard:
 
     def test_get_feedback_dashboard_breakdown(self, feedback_analytics_client: TestClient):
         """Test dashboard includes feedback_by_type breakdown."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -159,7 +159,7 @@ class TestFeedbackAnalyticsDashboard:
 
     def test_get_feedback_dashboard_trends(self, feedback_analytics_client: TestClient):
         """Test dashboard includes trends section."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -206,7 +206,7 @@ class TestFeedbackAnalyticsValidation:
 
     def test_get_feedback_dashboard_default_values(self, feedback_analytics_client: TestClient):
         """Test uses defaults (days=30, limit=10) when not specified."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -415,7 +415,7 @@ class TestFeedbackStatisticsContent:
 
     def test_feedback_stats_includes_total_count(self, feedback_analytics_client: TestClient):
         """Test total feedback count is included."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -426,7 +426,7 @@ class TestFeedbackStatisticsContent:
 
     def test_feedback_stats_includes_ratio(self, feedback_analytics_client: TestClient):
         """Test positive/negative ratio is included."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -437,7 +437,7 @@ class TestFeedbackStatisticsContent:
 
     def test_feedback_stats_includes_average_rating(self, feedback_analytics_client: TestClient):
         """Test average rating is included."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -448,7 +448,7 @@ class TestFeedbackStatisticsContent:
 
     def test_feedback_stats_includes_thumbs_counts(self, feedback_analytics_client: TestClient):
         """Test thumbs up/down counts are included."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -459,7 +459,7 @@ class TestFeedbackStatisticsContent:
 
     def test_feedback_stats_breakdown_by_type(self, feedback_analytics_client: TestClient):
         """Test feedback type breakdown is included."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -478,7 +478,7 @@ class TestTopPerformingAgents:
 
     def test_top_performing_agents_returns_list(self, feedback_analytics_client: TestClient):
         """Test returns list of agents."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -488,7 +488,7 @@ class TestTopPerformingAgents:
 
     def test_top_performing_agents_sorted(self, feedback_analytics_client: TestClient):
         """Test agents are sorted by performance metric."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -516,7 +516,7 @@ class TestTopPerformingAgents:
             mock_service.get_top_performing_agents.return_value = []
             mock_service_class.return_value = mock_service
 
-            response = feedback_analytics_client.get("/api/feedback/analytics")
+            response = feedback_analytics_client.get("/api/feedback/analytics/")
 
             assert response.status_code == 200
             data = response.json()
@@ -533,7 +533,7 @@ class TestMostCorrectedAgents:
 
     def test_most_corrected_agents_returns_list(self, feedback_analytics_client: TestClient):
         """Test returns list of agents."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -543,7 +543,7 @@ class TestMostCorrectedAgents:
 
     def test_most_corrected_agents_sorted(self, feedback_analytics_client: TestClient):
         """Test agents are sorted by correction count."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -571,7 +571,7 @@ class TestMostCorrectedAgents:
             mock_service.get_most_corrected_agents.return_value = []
             mock_service_class.return_value = mock_service
 
-            response = feedback_analytics_client.get("/api/feedback/analytics")
+            response = feedback_analytics_client.get("/api/feedback/analytics/")
 
             assert response.status_code == 200
             data = response.json()
@@ -594,7 +594,7 @@ class TestErrorHandling:
             mock_service.get_feedback_statistics.side_effect = Exception("Service unavailable")
             mock_service_class.return_value = mock_service
 
-            response = feedback_analytics_client.get("/api/feedback/analytics")
+            response = feedback_analytics_client.get("/api/feedback/analytics/")
 
             # Should handle error gracefully
             assert response.status_code in [500, 503]
@@ -630,6 +630,6 @@ class TestErrorHandling:
     def test_database_session_handling(self, feedback_analytics_client: TestClient):
         """Test handles get_db dependency correctly."""
         # Test should pass without database session errors
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200

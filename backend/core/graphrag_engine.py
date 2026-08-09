@@ -1276,7 +1276,7 @@ class GraphRAGEngine:
             }
         except Exception as e:
             logger.error(f"Community detection failed: {e}")
-            return {"success": False, "error": str(e), "communities": 0}
+            return {"success": False, "error": "Community detection failed", "communities": 0}
 
     async def discover_failed_hypotheses_patterns(
         self,

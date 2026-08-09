@@ -688,13 +688,17 @@ const TeamsIntegration: React.FC = () => {
     const filteredTeams = teams.filter(
         (team) =>
             team.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            team.description.toLowerCase().includes(searchQuery.toLowerCase()),
+            team.description
+                ?.toLowerCase()
+                .includes(searchQuery.toLowerCase()),
     );
 
     const filteredChannels = channels.filter(
         (channel) =>
             channel.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            channel.description.toLowerCase().includes(searchQuery.toLowerCase()),
+            channel.description
+                ?.toLowerCase()
+                .includes(searchQuery.toLowerCase()),
     );
 
     const filteredMessages = messages.filter(

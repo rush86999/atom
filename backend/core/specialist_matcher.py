@@ -106,13 +106,19 @@ def _recency_bonus(last_request_date: Optional[datetime]) -> float:
 
 
 def _verified_episode_ratio(db: Session, agent_id: str) -> float:
-    """Fraction of an agent's episodes that are verified (0.0–1.0).
+    """Fraction of an agent's episodes whose execution carries at least one
+    outcome-verified reasoning step (0.0–1.0).
 
-    Defensive: if AgentEpisode/verified outcomes aren't available, returns 0.5
-    (neutral) so the term neither rewards nor penalizes an unknown agent.
+    Uses the real tri-state ``AgentReasoningStep.verified`` flag
+    (models.py:1056, written by tool_outcome_verifier) instead of a
+    ``confidence_score >= 0.8`` proxy — high-confidence self-reports without
+    external verification must not count (graduation policy, R35).
+
+    Defensive: if the tables aren't available, returns 0.5 (neutral) so the
+    term neither rewards nor penalizes an unknown agent.
     """
     try:
-        from core.models import AgentEpisode  # local import to avoid cycles
+        from core.models import AgentEpisode, AgentReasoningStep  # local import to avoid cycles
     except Exception:
         return 0.5
     try:
@@ -121,8 +127,13 @@ def _verified_episode_ratio(db: Session, agent_id: str) -> float:
             return 0.5  # neutral — no evidence either way
         verified = (
             db.query(AgentEpisode)
+            .join(
+                AgentReasoningStep,
+                AgentReasoningStep.execution_id == AgentEpisode.execution_id,
+            )
             .filter(AgentEpisode.agent_id == agent_id)
-            .filter(AgentEpisode.confidence_score >= 0.8)  # verified proxy
+            .filter(AgentReasoningStep.verified == "verified")
+            .distinct()
             .count()
         )
         return verified / total

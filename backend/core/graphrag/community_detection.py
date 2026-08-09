@@ -228,11 +228,15 @@ class LeidenAlgorithm:
         """Fallback to NetworkX Louvain"""
         import networkx.algorithms.community as nx_comm
 
-        # Use greedy modularity optimization
+        # Use greedy modularity optimization. NOTE: nx.Graph has no
+        # is_weighted() method (AttributeError — the fallback crashed for any
+        # deployment without python-leiden/igraph, which is the default pip
+        # install). Detect edge weights directly.
+        has_weights = any("weight" in d for _, _, d in graph.edges(data=True))
         communities = list(nx_comm.greedy_modularity_communities(
             graph,
             resolution=resolution,
-            weight='weight' if graph.is_weighted() else None
+            weight='weight' if has_weights else None
         ))
 
         result = DetectionResult(
@@ -531,36 +535,59 @@ class CommunityDetectionService:
     ) -> None:
         """Store detected communities in database"""
         try:
-            # Clear existing communities for this workspace
+            # Clear existing communities for this workspace. Capture the ids
+            # BEFORE deleting so the membership cleanup can target them (the
+            # delete below removes the rows the subquery would read).
+            old_ids = [
+                r[0]
+                for r in session.query(GraphCommunity.id).filter(
+                    GraphCommunity.workspace_id == workspace_id
+                ).all()
+            ]
+            if old_ids:
+                session.query(CommunityMembership).filter(
+                    CommunityMembership.community_id.in_(old_ids)
+                ).delete(synchronize_session=False)
             session.query(GraphCommunity).filter(
                 GraphCommunity.workspace_id == workspace_id
             ).delete()
 
-            session.query(CommunityMembership).filter(
-                CommunityMembership.workspace_id == workspace_id
-            ).delete()
-
             # Store new communities
             for community in result.communities:
+                # Generated ids ("comm_<i>", "leiden_comm_<i>") are per-run
+                # counters, NOT unique across workspaces — but GraphCommunity.id
+                # is a global PK, so the second workspace's insert would
+                # collide and roll back the whole store. Mint a fresh UUID for
+                # persistence; the in-memory id keeps its display value.
+                import uuid as _uuid
+
+                comm_id = (
+                    str(_uuid.uuid4())
+                    if community.id.startswith(("comm_", "leiden_comm_"))
+                    else community.id
+                )
                 db_comm = GraphCommunity(
-                    id=community.id,
+                    id=comm_id,
                     workspace_id=workspace_id,
                     level=community.level,
-                    name=community.name,
-                    description=community.description,
+                    # Model columns only (create_all authority): summary is the
+                    # single free-text field — fall back to description/name so
+                    # the community's identity survives persistence.
+                    summary=(
+                        community.summary
+                        or community.description
+                        or community.name
+                        or "community"
+                    ),
                     keywords=community.keywords,
-                    summary=community.summary,
-                    modularity_score=community.modularity,
-                    size=community.size
                 )
                 session.add(db_comm)
 
                 # Store memberships
                 for node_id in community.nodes:
                     membership = CommunityMembership(
-                        community_id=community.id,
+                        community_id=comm_id,
                         node_id=node_id,
-                        workspace_id=workspace_id
                     )
                     session.add(membership)
 

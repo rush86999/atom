@@ -28,32 +28,33 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 import sys
 
-# Define UserRole enum first
+# Define UserRole enum first (auth fixtures only — the route uses the real
+# core.models.UserRole, which exports the same members)
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
     MEMBER = "member"
     SUPER_ADMIN = "super_admin"
 
-# Mock the problematic models import before importing router
-orig_core_models = sys.modules.get('core.models')
-orig_storage = sys.modules.get('core.storage')
-orig_extractor = sys.modules.get('core.policy_fact_extractor')
+# NOTE: no sys.modules mocks here. The route imports get_policy_fact_extractor
+# at module level, so tests patch the ROUTE's binding
+# (api.admin.business_facts_routes.get_policy_fact_extractor); storage is
+# imported locally inside handlers, patched by the autouse
+# _patch_storage_getter fixture. Module-level sys.modules replacement used to
+# poison every module imported during the mock window (cross-suite
+# TypeError: issubclass() arg 1 must be a class).
 
-mock_models = MagicMock()
-mock_models.UserRole = UserRole  # Use our real UserRole
-sys.modules['core.models'] = mock_models
+# Import business facts routes router
+from api.admin.business_facts_routes import router
 
-# Mock storage module to prevent boto3 import error
-mock_storage_module = MagicMock()
+# Import BusinessFact from agent_world_model
+from core.agent_world_model import BusinessFact
+
+# Shared mock instances (plain objects — no sys.modules replacement)
 mock_storage_service_instance = MagicMock()
 mock_storage_service_instance.upload_file.return_value = "s3://atom-business-facts/workspace-123/doc.pdf"
 mock_storage_service_instance.bucket = "atom-business-facts"
 mock_storage_service_instance.check_exists.return_value = True
-mock_storage_module.get_storage_service.return_value = mock_storage_service_instance
-sys.modules['core.storage'] = mock_storage_module
 
-# Mock policy_fact_extractor module
-mock_policy_extractor_module = MagicMock()
 mock_policy_extractor_instance = AsyncMock()
 from core.policy_fact_extractor import ExtractionResult, ExtractedFact
 mock_policy_extractor_instance.extract_facts_from_document.return_value = ExtractionResult(
@@ -78,35 +79,24 @@ mock_policy_extractor_instance.extract_facts_from_document.return_value = Extrac
     extraction_time=1.5,
     source_document="test-policy.pdf"
 )
-mock_policy_extractor_module.get_policy_fact_extractor.return_value = mock_policy_extractor_instance
-sys.modules['core.policy_fact_extractor'] = mock_policy_extractor_module
-
-# Import business facts routes router
-from api.admin.business_facts_routes import router
-
-# Restore original modules in sys.modules to prevent test pollution
-if orig_core_models:
-    sys.modules['core.models'] = orig_core_models
-else:
-    del sys.modules['core.models']
-
-if orig_storage:
-    sys.modules['core.storage'] = orig_storage
-else:
-    del sys.modules['core.storage']
-
-if orig_extractor:
-    sys.modules['core.policy_fact_extractor'] = orig_extractor
-else:
-    del sys.modules['core.policy_fact_extractor']
-
-# Import BusinessFact from agent_world_model
-from core.agent_world_model import BusinessFact
 
 
 # ============================================================================
 # Test Database Setup
 # ============================================================================
+
+@pytest.fixture(autouse=True)
+def _patch_storage_getter():
+    """Patch the storage-service getter for every test.
+
+    The upload/verify-citation routes import ``get_storage_service`` LOCALLY
+    inside the handler, so the module-level sys.modules mock above is restored
+    before the request runs — every such call would hit the real S3 client
+    ("Unable to locate credentials" → 500). Patch the getter at call time
+    instead, returning the shared mock instance the test fixtures configure.
+    """
+    with patch('core.storage.get_storage_service', return_value=mock_storage_service_instance):
+        yield
 
 @pytest.fixture(scope="function")
 def test_db():
@@ -830,7 +820,7 @@ class TestUploadAndExtractSuccess:
         """Test upload DOCX file succeeds."""
         docx_content = b"PK\x03\x04"  # DOCX header
 
-        with patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+        with patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
                 files={"file": ("test.docx", io.BytesIO(docx_content), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
@@ -849,7 +839,7 @@ class TestUploadAndExtractSuccess:
         """Test upload TXT file succeeds."""
         txt_content = b"Test policy content"
 
-        with patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+        with patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
                 files={"file": ("test.txt", io.BytesIO(txt_content), "text/plain")},
@@ -868,7 +858,7 @@ class TestUploadAndExtractSuccess:
         """Test upload PNG file succeeds."""
         png_content = b"\x89PNG\r\n\x1a\n" + b"\x00" * 100  # PNG header
 
-        with patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+        with patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
                 files={"file": ("test.png", io.BytesIO(png_content), "image/png")},
@@ -887,7 +877,7 @@ class TestUploadAndExtractSuccess:
         """Test upload with custom domain parameter."""
         pdf_content = b"%PDF-1.4\nTest\n%%EOF"
 
-        with patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+        with patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
                 files={"file": ("test.pdf", io.BytesIO(pdf_content), "application/pdf")},
@@ -906,7 +896,7 @@ class TestUploadAndExtractSuccess:
         """Test upload calls storage service upload_file."""
         pdf_content = b"%PDF-1.4\nTest\n%%EOF"
 
-        with patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+        with patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
                 files={"file": ("test.pdf", io.BytesIO(pdf_content), "application/pdf")},
@@ -927,7 +917,7 @@ class TestUploadAndExtractSuccess:
         """Test upload calls policy fact extractor."""
         pdf_content = b"%PDF-1.4\nTest\n%%EOF"
 
-        with patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+        with patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
                 files={"file": ("test.pdf", io.BytesIO(pdf_content), "application/pdf")},
@@ -948,7 +938,7 @@ class TestUploadAndExtractSuccess:
         """Test upload calls bulk_record_facts with extracted facts."""
         pdf_content = b"%PDF-1.4\nTest\n%%EOF"
 
-        with patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+        with patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
                 files={"file": ("test.pdf", io.BytesIO(pdf_content), "application/pdf")},
@@ -969,7 +959,7 @@ class TestUploadAndExtractSuccess:
         """Test upload returns proper ExtractionResponse structure."""
         pdf_content = b"%PDF-1.4\nTest\n%%EOF"
 
-        with patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+        with patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
                 files={"file": ("test.pdf", io.BytesIO(pdf_content), "application/pdf")},
@@ -997,7 +987,7 @@ class TestUploadAndExtractSuccess:
         pdf_content = b"%PDF-1.4\nTest\n%%EOF"
 
         with patch('core.storage.get_storage_service', return_value=mock_storage_service):
-            with patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+            with patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
                 with patch('os.unlink') as mock_unlink:
                     response = authenticated_admin_client.post(
                     "/api/admin/governance/facts/upload",
@@ -1026,7 +1016,7 @@ class TestUploadAndExtractFileTypes:
         """Test upload JPEG file succeeds."""
         jpeg_content = b"\xff\xd8\xff\xe0" + b"\x00" * 100  # JPEG header
 
-        with patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+        with patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
                 files={"file": ("test.jpg", io.BytesIO(jpeg_content), "image/jpeg")},
@@ -1045,7 +1035,7 @@ class TestUploadAndExtractFileTypes:
         """Test upload TIFF file succeeds."""
         tiff_content = b"II\x2a\x00" + b"\x00" * 100  # TIFF header (little-endian)
 
-        with patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+        with patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
                 files={"file": ("test.tiff", io.BytesIO(tiff_content), "image/tiff")},
@@ -1064,7 +1054,7 @@ class TestUploadAndExtractFileTypes:
         """Test upload .jpg file with image/jpeg content-type succeeds."""
         jpg_content = b"\xff\xd8\xff\xe1" + b"\x00" * 100  # JPEG header
 
-        with patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+        with patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
                 files={"file": ("test.jpg", io.BytesIO(jpg_content), "image/jpeg")},
@@ -1083,7 +1073,7 @@ class TestUploadAndExtractFileTypes:
         """Test upload .doc file with application/msword content-type succeeds."""
         doc_content = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"  # DOC header
 
-        with patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+        with patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
                 files={"file": ("test.doc", io.BytesIO(doc_content), "application/msword")},

@@ -229,7 +229,7 @@ async def upload_document(
 @router.get("/search", response_model=SearchResponse)
 async def search_documents(
     q: str, 
-    limit: int = 10,
+    limit: int = Query(10, ge=1, le=200, description="Max results (capped at 200)"),
     current_user: User = Depends(get_current_user)
 ):
     """Search ingested documents"""
@@ -249,7 +249,6 @@ async def search_documents(
             table_name="documents",
             query=q,
             limit=limit,
-            min_score=0.0 # Allow all results for now
         )
         
         results = []

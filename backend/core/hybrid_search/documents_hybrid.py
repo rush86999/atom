@@ -59,7 +59,7 @@ class DocumentsHybridSearch:
                 asyncio.to_thread(
                     self._lexical_leg, query, limit, since, source, author
                 ),
-                self._vector_leg(query, limit),
+                self._vector_leg(query, limit, source),
             )
         except Exception as e:
             logger.error("DocumentsHybridSearch.search failed: %s", e)
@@ -109,10 +109,16 @@ class DocumentsHybridSearch:
                 db, query, limit=limit * _VECTOR_LIMIT_MULTIPLIER, since=since, source=source, author=author
             )
 
-    async def _vector_leg(self, query: str, limit: int) -> List[Dict[str, Any]]:
+    async def _vector_leg(self, query: str, limit: int, source: Optional[str] = None) -> List[Dict[str, Any]]:
         # Kill-switch: hermetic tests + embedding-cost control. Flag off → the
         # service degrades to the lexical leg (label "lexical_only").
         if not _vector_leg_enabled():
+            return []
+        # The vector store (LanceDB `documents` table) only holds ingested-doc
+        # rows — hydration bridges exclusively to IngestedDocument. Surfacing
+        # those hits in a source="knowledge" search violates the filter (an
+        # ingested doc returned for a knowledge-only query); skip the leg.
+        if source and str(source).strip().lower() == "knowledge":
             return []
         try:
             lancedb = self._lancedb

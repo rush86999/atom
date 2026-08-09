@@ -25,6 +25,17 @@ from core.models import User
 from core.models import AuditEventType, SecurityLevel
 
 
+@pytest.fixture(autouse=True)
+def _bypass_2fa_rate_limit():
+    """The 2FA limiter is a process-wide singleton (5 attempts/60s) — the
+    suite makes more enable/disable calls than that across tests, so earlier
+    attempts would 429 later ones. Patch check() per test (same pattern as
+    test_auth_routes_coverage.py's login/register limiter bypass)."""
+    from api.auth_2fa_routes import _2fa_limiter
+    with patch.object(_2fa_limiter, "check", return_value=(True, 5)):
+        yield
+
+
 # ============================================================================
 # FastAPI Test App
 # ============================================================================

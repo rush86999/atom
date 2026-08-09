@@ -21,8 +21,26 @@ class TestCanvasSheetsRoutes:
 
     @pytest.fixture
     def client(self):
-        """Create test client."""
-        return TestClient(app)
+        """Create test client with an authenticated user.
+
+        The sheets router enforces router-level auth (Depends(get_current_user)
+        on every route) — the raw app 401s without an override. The override
+        user id is "user-test", matching the ids asserted in the service-call
+        tests (the routes attribute via current_user.id, not the body user_id).
+        """
+        from core.auth import get_current_user
+
+        user = Mock()
+        user.id = "user-test"
+        user.email = "sheets@test.com"
+        user.tenant_id = "default"
+        user.workspace_id = "default"
+
+        app.dependency_overrides[get_current_user] = lambda: user
+        try:
+            yield TestClient(app)
+        finally:
+            app.dependency_overrides.pop(get_current_user, None)
 
     @patch('api.canvas_sheets_routes.SpreadsheetCanvasService')
     def test_create_spreadsheet_success(self, mock_service_class, client):
