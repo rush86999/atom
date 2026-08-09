@@ -26,7 +26,8 @@ class TestBrowserToolSessionManagement:
             module_path="test.module",
             class_name="TestClass",
             status=AgentStatus.INTERN.value,
-            confidence_score=0.6
+            confidence_score=0.6,
+            workspace_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -89,7 +90,8 @@ class TestBrowserToolSessionManagement:
             module_path="test.module",
             class_name="TestClass",
             status=AgentStatus.INTERN.value,
-            confidence_score=0.6
+            confidence_score=0.6,
+            workspace_id="default"
         )
         db_session.add(agent)
         db_session.commit()

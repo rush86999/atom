@@ -32,6 +32,7 @@ from core.financial_audit_service import (
 from core.models import (
     FinancialAudit,
     FinancialAccount,
+    Tenant,
     AgentRegistry,
     AgentStatus,
 )
@@ -65,15 +66,30 @@ def audit_service():
 
 
 @pytest.fixture
-def test_account(db_session):
-    """Create a test financial account."""
+def test_tenant(db_session):
+    """Create a test tenant for financial account ownership."""
+    tenant = Tenant(
+        name="audit-service-tenant",
+        subdomain="audit-service.example.com",
+        edition="personal",
+    )
+    db_session.add(tenant)
+    db_session.commit()
+    return tenant
+
+
+@pytest.fixture
+def test_account(db_session, test_tenant):
+    """Create a test financial account (current tenant-scoped schema)."""
     account = FinancialAccount(
         id="account-1",
-        workspace_id="workspace-1",
-        account_name="Test Account",
+        tenant_id=test_tenant.id,
+        name="Test Account",
         account_type="asset",
-        balance=Decimal("10000.00"),
+        balance=10000.00,
         currency="USD",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
     )
     db_session.add(account)
     db_session.commit()
@@ -118,7 +134,7 @@ class TestRegisterFinancialModels:
 class TestGetLinkedAudits:
     """Tests for get_linked_audits method."""
 
-    def test_get_linked_audits_direct(self, audit_service, db_session, test_account):
+    def test_get_linked_audits_direct(self, audit_service, db_session, test_account, test_tenant):
         """Test getting direct linked audits."""
         # Create audit entries
         for i in range(3):
@@ -127,10 +143,10 @@ class TestGetLinkedAudits:
                 account_id=test_account.id,
                 timestamp=datetime.utcnow() - timedelta(hours=i),
                 user_id="test-user",
-                agent_id="test-agent",
                 agent_maturity="AUTONOMOUS",
-                action_type="create" if i == 0 else "update",
-                changes={},
+                operation_type="create" if i == 0 else "update",
+                table_name="FinancialAccount",
+                record_id=test_account.id,
                 old_values=None,
                 new_values={"balance": float(10000 + i * 100)},
                 sequence_number=i + 1,
@@ -145,26 +161,31 @@ class TestGetLinkedAudits:
         )
 
         assert test_account.id in result
-        assert len(result[test_account.id]) == 3
+        # Auto-logged create entry (after_flush listener) + 3 manual entries
+        assert len(result[test_account.id]) == 4
 
-    def test_get_linked_audits_recursive(self, audit_service, db_session):
+    def test_get_linked_audits_recursive(self, audit_service, db_session, test_tenant):
         """Test getting linked audits recursively."""
         # Create accounts and audits with links
         account1 = FinancialAccount(
             id="account-a",
-            workspace_id="workspace-1",
-            account_name="Account A",
+            tenant_id=test_tenant.id,
+            name="Account A",
             account_type="asset",
-            balance=Decimal("5000.00"),
+            balance=5000.00,
             currency="USD",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
         )
         account2 = FinancialAccount(
             id="account-b",
-            workspace_id="workspace-1",
-            account_name="Account B",
+            tenant_id=test_tenant.id,
+            name="Account B",
             account_type="liability",
-            balance=Decimal("3000.00"),
+            balance=3000.00,
             currency="USD",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
         )
         db_session.add_all([account1, account2])
         db_session.commit()
@@ -175,8 +196,9 @@ class TestGetLinkedAudits:
             account_id=account1.id,
             timestamp=datetime.utcnow(),
             user_id="test-user",
-            action_type="update",
-            changes={},
+            operation_type="update",
+            table_name="FinancialAccount",
+            record_id=account1.id,
             old_values=None,
             new_values={"linked_account_id": "account-b"},
             sequence_number=1,
@@ -199,19 +221,20 @@ class TestReconstructTransaction:
 
     def test_reconstruct_transaction(self, audit_service, db_session, test_account):
         """Test reconstructing a transaction from audit."""
-        # Create audit entry
+        # Create audit entry (seq 2 — seq 1 was auto-logged on fixture create)
         audit = FinancialAudit(
             id="audit-reconstruct",
             account_id=test_account.id,
             timestamp=datetime.utcnow(),
             user_id="test-user",
-            agent_id="test-agent",
             agent_maturity="AUTONOMOUS",
-            action_type="update",
-            changes={"balance": {"old": 9000, "new": 10000}},
+            operation_type="update",
+            table_name="FinancialAccount",
+            record_id=test_account.id,
             old_values={"balance": 9000.0},
             new_values={"balance": 10000.0},
-            sequence_number=1,
+            sequence_number=2,
+            audit_metadata={"agent_id": "test-agent"},
         )
         db_session.add(audit)
         db_session.commit()
@@ -219,19 +242,20 @@ class TestReconstructTransaction:
         result = audit_service.reconstruct_transaction(
             db=db_session,
             account_id=test_account.id,
-            sequence_number=1
+            sequence_number=2
         )
 
         assert result["audit_id"] == "audit-reconstruct"
         assert result["action"] == "update"
         assert result["state"]["before"]["balance"] == 9000.0
         assert result["state"]["after"]["balance"] == 10000.0
+        assert result["actor"]["agent_id"] == "test-agent"
 
-    def test_reconstruct_transaction_not_found(self, audit_service, test_account):
+    def test_reconstruct_transaction_not_found(self, audit_service, db_session):
         """Test reconstructing non-existent transaction."""
         result = audit_service.reconstruct_transaction(
-            db=None,  # Won't be used
-            account_id=test_account.id,
+            db=db_session,
+            account_id="nonexistent-account",
             sequence_number=999
         )
 
@@ -243,18 +267,19 @@ class TestGetFullAuditTrail:
 
     def test_get_full_audit_trail(self, audit_service, db_session, test_account):
         """Test getting full audit trail."""
-        # Create multiple audit entries
+        # Create multiple audit entries (seq 2-6; seq 1 was auto-logged)
         for i in range(5):
             audit = FinancialAudit(
                 id=f"audit-trail-{i}",
                 account_id=test_account.id,
                 timestamp=datetime.utcnow() - timedelta(days=i),
                 user_id="test-user",
-                action_type="update",
-                changes={},
+                operation_type="update",
+                table_name="FinancialAccount",
+                record_id=test_account.id,
                 old_values=None,
                 new_values={"balance": float(10000 - i * 100)},
-                sequence_number=i + 1,
+                sequence_number=i + 2,
             )
             db_session.add(audit)
         db_session.commit()
@@ -264,7 +289,7 @@ class TestGetFullAuditTrail:
             account_id=test_account.id
         )
 
-        assert len(result) == 5
+        assert len(result) == 6
         assert all("action" in r for r in result)
 
 
@@ -295,20 +320,22 @@ class TestExtractValues:
         """Test extracting values from instance."""
         values = _extract_values(test_account, "create", "new")
 
-        assert "account_name" in values
-        assert values["account_name"] == "Test Account"
+        assert "name" in values
+        assert values["name"] == "Test Account"
         assert "balance" in values
         assert isinstance(values["balance"], float)  # Decimal converted to float
 
-    def test_extract_values_decimal_conversion(self, db_session):
+    def test_extract_values_decimal_conversion(self, db_session, test_tenant):
         """Test Decimal to float conversion."""
         account = FinancialAccount(
             id="decimal-test",
-            workspace_id="workspace-1",
-            account_name="Decimal Test",
+            tenant_id=test_tenant.id,
+            name="Decimal Test",
             account_type="asset",
             balance=Decimal("12345.67"),
             currency="USD",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
         )
         db_session.add(account)
 
@@ -355,9 +382,10 @@ class TestGetNextSequence:
 
     def test_get_next_sequence_first(self, db_session, test_account):
         """Test getting next sequence for first audit."""
+        # Fixture creation auto-logs a create entry (seq 1), so next is 2
         seq = _get_next_sequence(db_session, test_account.id)
 
-        assert seq == 1
+        assert seq == 2
 
     def test_get_next_sequence_existing(self, db_session, test_account):
         """Test getting next sequence with existing audits."""
@@ -367,7 +395,9 @@ class TestGetNextSequence:
             account_id=test_account.id,
             timestamp=datetime.utcnow(),
             user_id="test-user",
-            action_type="create",
+            operation_type="create",
+            table_name="FinancialAccount",
+            record_id=test_account.id,
             sequence_number=3,
         )
         db_session.add(audit)
@@ -437,33 +467,40 @@ class TestVerifyAuditChain:
 
     def test_verify_audit_chain_valid(self, db_session, test_account):
         """Test verifying valid audit chain."""
-        # Create audits with proper chain
-        prev_hash = ""
+        # Chain must start from the auto-logged create entry (seq 1)
+        auto = db_session.query(FinancialAudit).filter(
+            FinancialAudit.account_id == test_account.id
+        ).order_by(FinancialAudit.sequence_number).first()
+        prev_hash = auto.hash_chain if auto else ""
+        start_seq = (auto.sequence_number + 1) if auto else 1
+
         for i in range(3):
             from core.hash_chain_integrity import HashChainIntegrity
+            ts = datetime.utcnow()
             entry_hash = HashChainIntegrity.compute_entry_hash(
                 account_id=test_account.id,
                 action_type="update",
-                old_values={},
+                old_values=None,
                 new_values={"balance": float(i * 100)},
-                timestamp=datetime.utcnow(),
-                sequence_number=i + 1,
+                timestamp=ts,
+                sequence_number=start_seq + i,
                 prev_hash=prev_hash,
-                user_id="test"
+                user_id="test-user"
             )
 
             audit = FinancialAudit(
                 id=f"chain-audit-{i}",
                 account_id=test_account.id,
-                timestamp=datetime.utcnow(),
+                timestamp=ts,
                 user_id="test-user",
-                action_type="update",
-                changes={},
+                operation_type="update",
+                table_name="FinancialAccount",
+                record_id=test_account.id,
                 old_values=None,
                 new_values={"balance": float(i * 100)},
-                sequence_number=i + 1,
-                entry_hash=entry_hash,
-                prev_hash=prev_hash,
+                sequence_number=start_seq + i,
+                hash_chain=entry_hash,
+                previous_hash=prev_hash,
             )
             db_session.add(audit)
             db_session.commit()
@@ -473,24 +510,26 @@ class TestVerifyAuditChain:
         result = verify_audit_chain(db_session, test_account.id)
 
         assert result["is_valid"] is True
-        assert result["total_entries"] == 3
+        assert result["total_entries"] == 4
 
 
 class TestEventListeners:
     """Tests for SQLAlchemy event listeners."""
 
-    def test_log_financial_operations_on_create(self, audit_service, db_session):
+    def test_log_financial_operations_on_create(self, audit_service, db_session, test_tenant):
         """Test that creating account triggers audit logging."""
         # This test verifies the event listener is registered
         # Actual logging happens during flush/commit
 
         account = FinancialAccount(
             id="new-account",
-            workspace_id="workspace-1",
-            account_name="New Account",
+            tenant_id=test_tenant.id,
+            name="New Account",
             account_type="asset",
-            balance=Decimal("5000.00"),
+            balance=5000.00,
             currency="USD",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
         )
         db_session.add(account)
         db_session.commit()
@@ -501,7 +540,7 @@ class TestEventListeners:
         ).all()
 
         assert len(audits) >= 1
-        assert audits[0].action_type == "create"
+        assert audits[0].operation_type == "create"
 
 
 class TestErrorHandling:

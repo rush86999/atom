@@ -108,34 +108,11 @@ class TestSecurityMiddlewareFailClosed:
 
 # ---------------------------------------------------------------------------
 # ISSUE 6: skill_executor_service correct import
+# NOTE: `core.skill_executor_service` was deleted as dead code in ba32b1905
+# ("cleanup: remove 46 dead core/ai/services files (zero references, round 5)").
+# No live importer exists; the old TestSkillExecutorImport class was removed
+# (DEAD status per TESTED_FILES_TRACKER convention).
 # ---------------------------------------------------------------------------
-
-
-class TestSkillExecutorImport:
-    """The import must reference the actual module and class name."""
-
-    def test_imports_from_sandbox_executor(self):
-        """Must import from core.sandbox_executor, not sandbox_execution_service."""
-        from core import skill_executor_service as mod
-
-        src = inspect.getsource(mod)
-        assert "from core.sandbox_executor import" in src, (
-            "Must import from core.sandbox_executor (actual module name), "
-            "not core.sandbox_execution_service (nonexistent)"
-        )
-
-    def test_imports_sandbox_executor_class(self):
-        """Must import SandboxExecutor, not SandboxExecutionService."""
-        from core import skill_executor_service as mod
-
-        src = inspect.getsource(mod)
-        assert "SandboxExecutor" in src and "SandboxExecutionService" not in src, (
-            "Must use SandboxExecutor (actual class name)"
-        )
-
-    def test_skill_executor_service_imports_cleanly(self):
-        """The module must import without ModuleNotFoundError."""
-        __import__("core.skill_executor_service")
 
 
 if __name__ == "__main__":

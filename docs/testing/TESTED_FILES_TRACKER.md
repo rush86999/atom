@@ -1243,3 +1243,44 @@ Regression: `npx jest pages/__tests__ --ci --watchAll=false --maxWorkers=2` → 
 ### Regression / notes
 - mypy (`--explicit-package-bases`): `core/hybrid_search/` 0 errors (fixes: `db.bind` None guards, fallback loop var rename, `bind` reuse in `_fts_table_exists`); `core/auto_document_ingestion.py` :106/:108 `DoclingDocumentProcessor` errors pre-existing on HEAD (verified via stash) — not introduced.
 - Tests use hermetic StaticPool in-memory engines; vector leg disabled via monkeypatch in fixtures (dev DB is schema-drifted from concurrent sessions' unapplied migrations: `source_url`/`thread_id`/`division_id` missing).
+
+## Session 2026-08-08 — Stale-suite sweep + dev-DB schema reconciliation
+
+### Backend source fixed (RED→GREEN)
+| Date | File | Status | Note |
+|---|---|---|---|
+| 2026-08-08 | `core/integration_data_mapper.py` | FIXED | `validate_data` had `# Type validation would go here` stub → type mismatches passed validation; added `_value_matches_type` static helper + real type validation (`_validate_field_value` path). Callers (`core/bulk_operations_processor.py:247`, `core/integration_enhancement_endpoints.py:274`) catch exceptions, so raising on unknown schema is safe. mypy delta: 0 new (baseline 8 = HEAD) |
+
+### Backend test suites (RED→GREEN)
+| Date | Test file(s) | Count | Note |
+|---|---|---|---|
+| 2026-08-08 | `tests/core/fleet_orchestration/test_fleet_orchestration_coverage.py` | 55 passed | (pre-existing 2 fails — verified fixed in earlier wave) |
+| 2026-08-08 | `tests/unit/llm/test_canvas_summary_coverage.py` | 46 passed | (pre-existing 46+1 fails — verified fixed in earlier wave) |
+| 2026-08-08 | `tests/test_browser_tool_integration.py` | 21 passed | (pre-existing 2 fails) |
+| 2026-08-08 | `tests/test_final_audit_fixes.py` | 5 passed | (pre-existing 3 fails) |
+| 2026-08-08 | `tests/core/services/test_financial_audit_service.py` | 29 passed | rewritten against current `FinancialAccount`/`FinancialAudit` schema: `test_tenant` fixture, `tenant_id` on all accounts, explicit `created_at`/`updated_at`, real audit columns (`operation_type`, `table_name`, `record_id`, `hash_chain`, `previous_hash`, `audit_metadata`), after_flush auto-log listener accounted for in sequence/hash asserts; `user_id`/timestamp consistency for `compute_entry_hash` |
+| 2026-08-08 | `tests/core/test_workflow_debugger_bughunt2.py` | 17 passed | `test_trace_stream_helpers` assertion fixed to `startswith("trace_s1_e1_")` (impl: `trace_{session}_{execution}_{uuid8}` at `core/workflow_debugger.py:1189`) |
+| 2026-08-08 | `tests/core/integration/test_integration_data_mapper_coverage.py` | 46 passed | 13 failed → green; phantom-contract tests rewritten to real API: `validated_count` (not `total_records`), unknown schema → `ValueError`, `export_mapping` returns `{mapping_id, field_mappings, exported_at}`, `_convert_type` DATE/DATETIME → ISO strings, JSON unsupported → `ValueError`, `_evaluate_condition` operators `equals/greater_than/less_than/contains` |
+| 2026-08-08 | `tests/test_browser_agent_ai.py` | 17 passed | 12 failed → green; rewrote `TestLuxModelActionPlanning`/`TestBrowserAgentIntegration`/`TestActionPlanningPerformance`/`TestErrorHandling` against current `ai/lux_model.py` contract (`llm_service.generate_completion` AsyncMock, no `api_key`/`client`); added `_TEST_PNG` (valid 2×2 PNG — `execute_task` does `Image.open()`); module-level `_mock_llm_model`; retry test uses `{`-prefixed malformed JSON (real code retries only on `JSONDecodeError`); screenshot message key `'image_url'`; API-connection error: no retry, call_count == 1 |
+| 2026-08-08 | `tests/test_ab_testing.py` | 21 passed | `test_statistical_significance` was stochastic — success tied to loop index `i` but hash-based variant assignment splits users per fresh test_id uuid, so B's bucket could contain all three `i%10==0` failure-users → rate ≤0.8 → ~20–30% flake rate; fixed by (1) success from `sha256(user_id)` hash (decoupled from split) + (2) 300 users (binomial noise ~0.9±2% B, 0.5±4% A → bounds A<0.6/B>0.8 are ~4–6σ stable). 21 passed ×4 consecutive runs |
+| 2026-08-08 | combined re-run (all 9 suites above) | 236 passed | single-process, no cross-suite pollution |
+| 2026-08-08 | combined re-run (all 10 suites incl. ab_testing + lancedb) | 261 passed | single-process; pre-existing flake fixed (see ab_testing row) |
+
+### Dead code removed
+| Date | File | Status | Note |
+|---|---|---|---|
+| 2026-08-08 | `tests/integration/finance/test_audit_api_endpoints.py` | DEAD | `git rm`'d — router `backend/api/financial_audit_routes.py` deleted in `8bf4e3237` (dead-file cleanup); `FinancialAuditOrchestrator` + `/api/v1/financial-audit` referenced nowhere; zero importers verified. Guard `tests/unit/api/test_financial_audit_routes.py` self-skips (1 skipped) |
+
+### Dev-DB schema reconciliation (not code fixes)
+- `agent_registry` missing `division_id`/`parent_agent_id`/`specialty` + `agent_divisions` table missing → `test_ab_testing.py` errored (`table agent_registry has no column named division_id`). Alembic CLI unusable (local `alembic/` scripts dir shadows installed package from backend cwd; revision chain also broken: missing down_revision `0e360bb1a3d3_agent_message_from_user`; `batch_alter_table` FK add fails "Constraint must have a name").
+- Applied guarded migration DDL directly to `backend/atom_dev.db` (raw SQL, mirrors `20260808_add_agent_divisions.py`, `20260808_add_lateral_messaging.py`, `20260808_add_confidence_provenance.py`, `20260808_add_turn_fact_versioning.py`): created `agent_divisions`, `agent_threads`, `lateral_messages`; added `agent_executions.thread_id`, `browser_audit`+`agent_reasoning_steps` (`match_level`, `match_confidence_provenance`, `match_confidence_score`, `external_validated_at`), `turn_facts` (`parent_id`, `commit_message`, `author_type`, `branch_name`, `diff_summary`) + indexes.
+- Post-reconciliation full-model scan: 0 missing tables, 0 stale columns. Backup of pre-fix DB at `/var/folders/.../opencode/atom_dev.db.bak`.
+- `tests/test_ab_testing.py` 21 passed, `tests/test_lancedb_connectivity.py` 4 passed after reconciliation.
+- ⚠️ Full-suite run (6h43m) DROPPED tables in the dev DB (18 tables left, `agent_registry` gone) — some suite runs `drop_all`/wipe against `SessionLocal`'s real DB; restored from backup + re-applied reconciliation DDL (356 tables, `agent_registry` present). Keep a backup before any full-suite run on this machine.
+
+## Session 2026-08-09 — Parallel bug-hunt wave (agents)
+
+### Backend source fixed (RED→GREEN)
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `main_api_app.py` | FIXED | **Full-suite collection ERROR**: app emitted OpenAPI 3.1.0 → `schemathesis.exceptions.SchemaError: The provided schema uses Open API 3.1.0, which is currently not fully supported` blew up `tests/contract/conftest.py:17` (module-import `schemathesis.openapi.from_dict(app.openapi())`) → EVERY pytest run failed collection. Root cause: `custom_openapi()` called `get_openapi(...)` without `openapi_version`, so FastAPI default 3.1.0 leaked even though `app.openapi_version="3.0.3"` was set post-construction. Fix: pass `openapi_version=app.openapi_version` (3.0.3) into `get_openapi`. Verified: `schemathesis.openapi.from_dict(app.openapi())` loads (schema 3.0.3, ~all operations). Note: FastAPI ignores `openapi_version` as a constructor kwarg — must set as attribute or pass to `get_openapi` |

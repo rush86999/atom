@@ -18,10 +18,10 @@ class TestSummaryGeneration:
     def service_with_mock_llm(self):
         from core.llm.canvas_summary_service import CanvasSummaryService
         mock_byok = Mock()
-        mock_byok.generate_response = AsyncMock(
+        mock_byok.generate = AsyncMock(
             return_value="Agent presented generic canvas with key information"
         )
-        return CanvasSummaryService(byok_handler=mock_byok)
+        return CanvasSummaryService(llm_service=mock_byok)
 
     @pytest.mark.asyncio
     async def test_generate_summary_generic_canvas(self, service_with_mock_llm):
@@ -35,15 +35,15 @@ class TestSummaryGeneration:
         )
 
         assert "generic" in result.lower() or "canvas" in result.lower()
-        assert service_with_mock_llm.byok_handler.generate_response.called
+        assert service_with_mock_llm.llm_service.generate.called
         # Verify system instruction was passed
-        call_args = service_with_mock_llm.byok_handler.generate_response.call_args
+        call_args = service_with_mock_llm.llm_service.generate.call_args
         assert call_args.kwargs['system_instruction'] == "You are a canvas presentation analyzer. Generate concise semantic summaries (50-100 words)."
 
     @pytest.mark.asyncio
     async def test_generate_summary_sheets_canvas(self, service_with_mock_llm):
         """Test generate_summary for sheets canvas with revenue data"""
-        service_with_mock_llm.byok_handler.generate_response = AsyncMock(
+        service_with_mock_llm.llm_service.generate = AsyncMock(
             return_value="Agent presented Q4 revenue of $1.2M with 15% growth, highlighting key metrics."
         )
 
@@ -57,9 +57,9 @@ class TestSummaryGeneration:
         )
 
         assert "revenue" in result.lower() or "1.2M" in result.lower()
-        assert service_with_mock_llm.byok_handler.generate_response.called
+        assert service_with_mock_llm.llm_service.generate.called
         # Verify sheets-specific prompt includes revenue
-        call_args = service_with_mock_llm.byok_handler.generate_response.call_args
+        call_args = service_with_mock_llm.llm_service.generate.call_args
         prompt = call_args.kwargs['prompt']
         assert "sheets" in prompt.lower()
         assert "1200000" in prompt
@@ -67,7 +67,7 @@ class TestSummaryGeneration:
     @pytest.mark.asyncio
     async def test_generate_summary_orchestration_canvas(self, service_with_mock_llm):
         """Test generate_summary for orchestration canvas with workflow"""
-        service_with_mock_llm.byok_handler.generate_response = AsyncMock(
+        service_with_mock_llm.llm_service.generate = AsyncMock(
             return_value="Agent presented workflow wf-123 requiring $50K approval with 3 stakeholders."
         )
 
@@ -81,9 +81,9 @@ class TestSummaryGeneration:
         )
 
         assert "workflow" in result.lower() or "wf-123" in result.lower()
-        assert service_with_mock_llm.byok_handler.generate_response.called
+        assert service_with_mock_llm.llm_service.generate.called
         # Verify workflow-specific prompt
-        call_args = service_with_mock_llm.byok_handler.generate_response.call_args
+        call_args = service_with_mock_llm.llm_service.generate.call_args
         prompt = call_args.kwargs['prompt']
         assert "orchestration" in prompt.lower()
         assert "wf-123" in prompt
@@ -92,7 +92,7 @@ class TestSummaryGeneration:
     @pytest.mark.asyncio
     async def test_generate_summary_terminal_canvas(self, service_with_mock_llm):
         """Test generate_summary for terminal canvas with command"""
-        service_with_mock_llm.byok_handler.generate_response = AsyncMock(
+        service_with_mock_llm.llm_service.generate = AsyncMock(
             return_value="Agent presented terminal output from pytest command with exit code 0."
         )
 
@@ -106,9 +106,9 @@ class TestSummaryGeneration:
         )
 
         assert "command" in result.lower() or "pytest" in result.lower()
-        assert service_with_mock_llm.byok_handler.generate_response.called
+        assert service_with_mock_llm.llm_service.generate.called
         # Verify terminal-specific prompt
-        call_args = service_with_mock_llm.byok_handler.generate_response.call_args
+        call_args = service_with_mock_llm.llm_service.generate.call_args
         prompt = call_args.kwargs['prompt']
         assert "terminal" in prompt.lower()
         assert "pytest" in prompt
@@ -117,7 +117,7 @@ class TestSummaryGeneration:
     @pytest.mark.asyncio
     async def test_generate_summary_docs_canvas(self, service_with_mock_llm):
         """Test generate_summary for docs canvas with document"""
-        service_with_mock_llm.byok_handler.generate_response = AsyncMock(
+        service_with_mock_llm.llm_service.generate = AsyncMock(
             return_value="Agent presented document 'Q4 Report' with 5 sections covering financial results."
         )
 
@@ -131,9 +131,9 @@ class TestSummaryGeneration:
         )
 
         assert "document" in result.lower() or "report" in result.lower()
-        assert service_with_mock_llm.byok_handler.generate_response.called
+        assert service_with_mock_llm.llm_service.generate.called
         # Verify docs-specific prompt
-        call_args = service_with_mock_llm.byok_handler.generate_response.call_args
+        call_args = service_with_mock_llm.llm_service.generate.call_args
         prompt = call_args.kwargs['prompt']
         assert "docs" in prompt.lower()
         assert "Q4 Report" in prompt
@@ -141,7 +141,7 @@ class TestSummaryGeneration:
     @pytest.mark.asyncio
     async def test_generate_summary_email_canvas(self, service_with_mock_llm):
         """Test generate_summary for email canvas"""
-        service_with_mock_llm.byok_handler.generate_response = AsyncMock(
+        service_with_mock_llm.llm_service.generate = AsyncMock(
             return_value="Agent presented email draft to team@company.com regarding project update."
         )
 
@@ -155,9 +155,9 @@ class TestSummaryGeneration:
         )
 
         assert "email" in result.lower()
-        assert service_with_mock_llm.byok_handler.generate_response.called
+        assert service_with_mock_llm.llm_service.generate.called
         # Verify email-specific prompt
-        call_args = service_with_mock_llm.byok_handler.generate_response.call_args
+        call_args = service_with_mock_llm.llm_service.generate.call_args
         prompt = call_args.kwargs['prompt']
         assert "email" in prompt.lower()
         assert "team@company.com" in prompt
@@ -165,7 +165,7 @@ class TestSummaryGeneration:
     @pytest.mark.asyncio
     async def test_generate_summary_coding_canvas(self, service_with_mock_llm):
         """Test generate_summary for coding canvas"""
-        service_with_mock_llm.byok_handler.generate_response = AsyncMock(
+        service_with_mock_llm.llm_service.generate = AsyncMock(
             return_value="Agent presented Python code with 150 lines including 5 functions."
         )
 
@@ -179,9 +179,9 @@ class TestSummaryGeneration:
         )
 
         assert "python" in result.lower() or "code" in result.lower()
-        assert service_with_mock_llm.byok_handler.generate_response.called
+        assert service_with_mock_llm.llm_service.generate.called
         # Verify coding-specific prompt
-        call_args = service_with_mock_llm.byok_handler.generate_response.call_args
+        call_args = service_with_mock_llm.llm_service.generate.call_args
         prompt = call_args.kwargs['prompt']
         assert "coding" in prompt.lower()
         assert "python" in prompt.lower()
@@ -189,7 +189,7 @@ class TestSummaryGeneration:
     @pytest.mark.asyncio
     async def test_generate_summary_with_agent_task(self, service_with_mock_llm):
         """Test generate_summary includes agent task in context"""
-        service_with_mock_llm.byok_handler.generate_response = AsyncMock(
+        service_with_mock_llm.llm_service.generate = AsyncMock(
             return_value="Agent reviewed financials showing $1.2M revenue."
         )
 
@@ -199,9 +199,9 @@ class TestSummaryGeneration:
             agent_task="Review financials"
         )
 
-        assert service_with_mock_llm.byok_handler.generate_response.called
+        assert service_with_mock_llm.llm_service.generate.called
         # Verify agent task included in prompt
-        call_args = service_with_mock_llm.byok_handler.generate_response.call_args
+        call_args = service_with_mock_llm.llm_service.generate.call_args
         prompt = call_args.kwargs['prompt']
         assert "Review financials" in prompt
         assert "Agent Task" in prompt and "Review financials" in prompt
@@ -209,7 +209,7 @@ class TestSummaryGeneration:
     @pytest.mark.asyncio
     async def test_generate_summary_with_user_interaction(self, service_with_mock_llm):
         """Test generate_summary includes user interaction"""
-        service_with_mock_llm.byok_handler.generate_response = AsyncMock(
+        service_with_mock_llm.llm_service.generate = AsyncMock(
             return_value="Agent presented workflow approval which user submitted."
         )
 
@@ -219,9 +219,9 @@ class TestSummaryGeneration:
             user_interaction="submit"
         )
 
-        assert service_with_mock_llm.byok_handler.generate_response.called
+        assert service_with_mock_llm.llm_service.generate.called
         # Verify user interaction included in prompt
-        call_args = service_with_mock_llm.byok_handler.generate_response.call_args
+        call_args = service_with_mock_llm.llm_service.generate.call_args
         prompt = call_args.kwargs['prompt']
         assert "submit" in prompt
         assert "User Interaction" in prompt and "submit" in prompt
@@ -243,10 +243,10 @@ class TestCaching:
     def service_with_mock_llm(self):
         from core.llm.canvas_summary_service import CanvasSummaryService
         mock_byok = Mock()
-        mock_byok.generate_response = AsyncMock(
+        mock_byok.generate = AsyncMock(
             return_value="Agent presented canvas with data"
         )
-        return CanvasSummaryService(byok_handler=mock_byok)
+        return CanvasSummaryService(llm_service=mock_byok)
 
     @pytest.mark.asyncio
     async def test_generate_summary_cache_hit(self, service_with_mock_llm):
@@ -266,7 +266,7 @@ class TestCaching:
         )
 
         # BYOK should only be called once (cache hit on second call)
-        assert service_with_mock_llm.byok_handler.generate_response.call_count == 1
+        assert service_with_mock_llm.llm_service.generate.call_count == 1
         assert result1 == result2
 
     @pytest.mark.asyncio
@@ -285,7 +285,7 @@ class TestCaching:
         )
 
         # BYOK should be called twice (cache miss)
-        assert service_with_mock_llm.byok_handler.generate_response.call_count == 2
+        assert service_with_mock_llm.llm_service.generate.call_count == 2
 
     @pytest.mark.asyncio
     async def test_cache_key_includes_canvas_type(self, service_with_mock_llm):
@@ -304,7 +304,7 @@ class TestCaching:
         )
 
         # Should call LLM twice (different cache keys due to canvas_type)
-        assert service_with_mock_llm.byok_handler.generate_response.call_count == 2
+        assert service_with_mock_llm.llm_service.generate.call_count == 2
 
     @pytest.mark.asyncio
     async def test_cache_key_includes_agent_task(self, service_with_mock_llm):
@@ -325,7 +325,7 @@ class TestCaching:
         )
 
         # Should call LLM twice (different cache keys due to agent_task)
-        assert service_with_mock_llm.byok_handler.generate_response.call_count == 2
+        assert service_with_mock_llm.llm_service.generate.call_count == 2
 
     @pytest.mark.asyncio
     async def test_cache_key_includes_user_interaction(self, service_with_mock_llm):
@@ -346,7 +346,7 @@ class TestCaching:
         )
 
         # Should call LLM twice (different cache keys due to user_interaction)
-        assert service_with_mock_llm.byok_handler.generate_response.call_count == 2
+        assert service_with_mock_llm.llm_service.generate.call_count == 2
 
     @pytest.mark.asyncio
     async def test_clear_cache_empties_cache(self, service_with_mock_llm):
@@ -420,10 +420,10 @@ class TestErrorHandling:
     def service_with_mock_llm(self):
         from core.llm.canvas_summary_service import CanvasSummaryService
         mock_byok = Mock()
-        mock_byok.generate_response = AsyncMock(
+        mock_byok.generate = AsyncMock(
             return_value="Agent presented canvas"
         )
-        return CanvasSummaryService(byok_handler=mock_byok)
+        return CanvasSummaryService(llm_service=mock_byok)
 
     @pytest.mark.asyncio
     async def test_generate_summary_timeout_raises(self, service_with_mock_llm):
@@ -433,7 +433,7 @@ class TestErrorHandling:
             await asyncio.sleep(3)
             return "Slow response"
 
-        service_with_mock_llm.byok_handler.generate_response = AsyncMock(
+        service_with_mock_llm.llm_service.generate = AsyncMock(
             side_effect=slow_generate
         )
 
@@ -453,7 +453,7 @@ class TestErrorHandling:
             await asyncio.sleep(1)
             return "Agent presented canvas with delay"
 
-        service_with_mock_llm.byok_handler.generate_response = AsyncMock(
+        service_with_mock_llm.llm_service.generate = AsyncMock(
             side_effect=delayed_generate
         )
 
@@ -469,7 +469,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_generate_summary_llm_error_raises(self, service_with_mock_llm):
         """Test LLM error propagates to caller"""
-        service_with_mock_llm.byok_handler.generate_response = AsyncMock(
+        service_with_mock_llm.llm_service.generate = AsyncMock(
             side_effect=Exception("LLM API error")
         )
 
@@ -503,7 +503,7 @@ class TestErrorHandling:
         )
 
         assert result is not None
-        assert service_with_mock_llm.byok_handler.generate_response.called
+        assert service_with_mock_llm.llm_service.generate.called
 
     def test_fallback_to_metadata_with_components(self, service_with_mock_llm):
         """Test fallback extracts component types"""
@@ -571,7 +571,7 @@ class TestUtilityMethods:
     def service(self):
         from core.llm.canvas_summary_service import CanvasSummaryService
         mock_byok = Mock()
-        return CanvasSummaryService(byok_handler=mock_byok)
+        return CanvasSummaryService(llm_service=mock_byok)
 
     def test_get_supported_canvas_types(self, service):
         """Test get_supported_canvas_types returns all 7 types"""

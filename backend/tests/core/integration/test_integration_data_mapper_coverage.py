@@ -337,9 +337,9 @@ class TestIntegrationDataMapperCoverage:
             transformation=TransformationType.CONDITIONAL,
             transformation_config={
                 "conditions": [
-                    {"operator": ">=", "value": 90, "result": "A"},
-                    {"operator": ">=", "value": 80, "result": "B"},
-                    {"operator": ">=", "value": 70, "result": "C"}
+                    {"field": "score", "operator": "greater_than", "expected": 90, "result": "A"},
+                    {"field": "score", "operator": "greater_than", "expected": 80, "result": "B"},
+                    {"field": "score", "operator": "greater_than", "expected": 70, "result": "C"}
                 ]
             }
         )
@@ -399,15 +399,15 @@ class TestIntegrationDataMapperCoverage:
 
         result = mapper.validate_data(data, "asana_task")
         assert result["valid"] is True
-        assert result["total_records"] == 3
+        assert result["validated_count"] == 3
 
     def test_validate_data_schema_not_found(self):
         """Cover validation with nonexistent schema (lines 485-487)"""
         mapper = IntegrationDataMapper()
         data = {"name": "Test"}
 
-        result = mapper.validate_data(data, "nonexistent_schema")
-        assert result["valid"] is False
+        with pytest.raises(ValueError):
+            mapper.validate_data(data, "nonexistent_schema")
 
     # ========== Schema Info Tests ==========
 
@@ -485,15 +485,16 @@ class TestIntegrationDataMapperCoverage:
 
         exported = mapper.export_mapping("test_mapping")
         assert exported["mapping_id"] == "test_mapping"
-        assert exported["source_schema"] == "asana_task"
-        assert exported["target_schema"] == "jira_issue"
+        assert exported["exported_at"] is not None
         assert len(exported["field_mappings"]) == 1
+        assert exported["field_mappings"][0]["source_field"] == "name"
+        assert exported["field_mappings"][0]["target_field"] == "summary"
 
     def test_export_mapping_not_found(self):
         """Cover exporting nonexistent mapping"""
         mapper = IntegrationDataMapper()
-        exported = mapper.export_mapping("nonexistent_mapping")
-        assert exported["error"] is not None
+        with pytest.raises(ValueError):
+            mapper.export_mapping("nonexistent_mapping")
 
     def test_import_mapping(self):
         """Cover importing mapping (lines 544-557)"""
@@ -544,51 +545,47 @@ class TestIntegrationDataMapperCoverage:
         """Cover string to datetime conversion (lines 305-315)"""
         transformer = DataTransformer()
         result = transformer._convert_type("2026-03-14", FieldType.DATETIME)
-        assert isinstance(result, datetime)
-        assert result.year == 2026
-        assert result.month == 3
-        assert result.day == 14
+        assert isinstance(result, str)
+        assert result.startswith("2026-03-14")
 
     def test_convert_type_string_to_date(self):
         """Cover string to date conversion (lines 317-320)"""
         transformer = DataTransformer()
         result = transformer._convert_type("2026-03-14", FieldType.DATE)
-        assert isinstance(result, date)
-        assert result.year == 2026
-        assert result.month == 3
-        assert result.day == 14
+        assert isinstance(result, str)
+        assert result == "2026-03-14"
 
     def test_convert_type_unsupported(self):
         """Cover unsupported type conversion (lines 320-323)"""
         transformer = DataTransformer()
-        with pytest.raises(ValueError, match="Unsupported target type"):
-            transformer._convert_type("data", FieldType.JSON)
+        with pytest.raises(ValueError):
+            transformer._convert_type("not-json", FieldType.JSON)
 
     # ========== Condition Evaluation Tests ==========
 
     def test_evaluate_condition_equal(self):
         """Cover equal condition evaluation (lines 239-258)"""
         transformer = DataTransformer()
-        assert transformer._evaluate_condition("test", "==", "test") is True
-        assert transformer._evaluate_condition("test", "==", "other") is False
+        assert transformer._evaluate_condition("test", "equals", "test") is True
+        assert transformer._evaluate_condition("test", "equals", "other") is False
 
     def test_evaluate_condition_greater_than(self):
         """Cover greater than condition evaluation"""
         transformer = DataTransformer()
-        assert transformer._evaluate_condition(10, ">", 5) is True
-        assert transformer._evaluate_condition(5, ">", 10) is False
+        assert transformer._evaluate_condition(10, "greater_than", 5) is True
+        assert transformer._evaluate_condition(5, "greater_than", 10) is False
 
     def test_evaluate_condition_less_than(self):
         """Cover less than condition evaluation"""
         transformer = DataTransformer()
-        assert transformer._evaluate_condition(5, "<", 10) is True
-        assert transformer._evaluate_condition(10, "<", 5) is False
+        assert transformer._evaluate_condition(5, "less_than", 10) is True
+        assert transformer._evaluate_condition(10, "less_than", 5) is False
 
     def test_evaluate_condition_in_list(self):
-        """Cover 'in' condition evaluation (lines 252-258)"""
+        """Cover 'contains' condition evaluation (lines 252-258)"""
         transformer = DataTransformer()
-        assert transformer._evaluate_condition("apple", "in", ["apple", "banana"]) is True
-        assert transformer._evaluate_condition("orange", "in", ["apple", "banana"]) is False
+        assert transformer._evaluate_condition("apple banana", "contains", "apple") is True
+        assert transformer._evaluate_condition("orange", "contains", "apple") is False
 
     def test_evaluate_condition_invalid_operator(self):
         """Cover invalid condition operator (lines 256-258)"""

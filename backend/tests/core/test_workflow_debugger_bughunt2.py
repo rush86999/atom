@@ -355,7 +355,7 @@ class TestWorkflowDebuggerCoverage:
     def test_trace_stream_helpers(self, db_session):
         debugger = WorkflowDebugger(db=db_session)
         stream_id = debugger.create_trace_stream("s1", "e1")
-        assert stream_id.startswith("trace_e1_s1_")
+        assert stream_id.startswith("trace_s1_e1_")
 
         # with websocket manager
         wm = MagicMock()

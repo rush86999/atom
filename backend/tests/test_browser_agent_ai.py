@@ -34,6 +34,18 @@ def _mock_optional_deps():
         yield
 
 
+def _make_test_png() -> bytes:
+    """Return a valid 1x1 PNG for mocked page.screenshot() calls."""
+    import io as _io
+    from PIL import Image as _PILImage
+    buf = _io.BytesIO()
+    _PILImage.new('RGB', (2, 2), color='white').save(buf, format='PNG')
+    return buf.getvalue()
+
+
+_TEST_PNG = _make_test_png()
+
+
 class TestComputerAction:
     """Test ComputerAction dataclass"""
 
@@ -66,49 +78,46 @@ class TestComputerAction:
         assert action.parameters["text"] == "hello world"
 
 
+def _mock_llm_model(content: str):
+    """Build a LuxModel with a mocked LLMService returning given content."""
+    from ai.lux_model import LuxModel
+    model = LuxModel()
+    model.llm_service = MagicMock()
+    model.llm_service.generate_completion = AsyncMock(return_value={
+        "success": True,
+        "content": content
+    })
+    return model
+
+
 class TestLuxModelActionPlanning:
     """Test Lux Model action planning with mocked dependencies"""
 
     def test_lux_model_initialization(self):
-        """Test LuxModel initializes with API key"""
+        """Test LuxModel initializes with LLMService"""
         from ai.lux_model import LuxModel
 
-        # Mock config
-        with patch('ai.lux_model.lux_config') as mock_config:
-            mock_config.get_anthropic_key.return_value = "test-key-123"
+        model = LuxModel()
 
-            model = LuxModel()
-
-            assert model.api_key == "test-key-123"
-            assert model.client is not None
+        assert model.llm_service is not None
+        assert model.tenant_id == "default"
 
     def test_lux_model_without_api_key(self):
-        """Test LuxModel initialization without API key"""
+        """Test LuxModel initialization without LLM service"""
         from ai.lux_model import LuxModel
 
-        with patch('ai.lux_model.lux_config') as mock_config:
-            mock_config.get_anthropic_key.return_value = None
-            # Remove environment variables entirely
-            with patch.dict('os.environ', {}, clear=True):
-                model = LuxModel()
-
-                # api_key will be None (no environment vars to check)
-                assert model.client is None
+        with patch('ai.lux_model.LLM_SERVICE_AVAILABLE', False):
+            model = LuxModel()
+            assert model.llm_service is None
 
     @pytest.mark.asyncio
     async def test_interpret_command_returns_actions(self):
         """Test that interpret_command returns list of actions"""
         from ai.lux_model import LuxModel
 
-        model = LuxModel()
-        model.client = Mock()
-
-        # Mock successful API response
-        mock_response = Mock()
-        mock_response.content = [
-            Mock(text='{"actions": [{"action_type": "click", "parameters": {"coordinates": [100, 100]}, "confidence": 0.95, "description": "Click button"}]}')
-        ]
-        model.client.messages.create = Mock(return_value=mock_response)
+        model = _mock_llm_model(
+            '{"actions": [{"action_type": "click", "parameters": {"coordinates": [100, 100]}, "confidence": 0.95, "description": "Click button"}]}'
+        )
 
         actions = await model.interpret_command("Click the button")
 
@@ -122,17 +131,10 @@ class TestLuxModelActionPlanning:
         """Test parsing multiple actions from response"""
         from ai.lux_model import LuxModel
 
-        model = LuxModel()
-        model.client = Mock()
-
-        mock_response = Mock()
-        mock_response.content = [
-            Mock(text='''{"actions": [
-                {"action_type": "type", "parameters": {"text": "username"}, "confidence": 0.95, "description": "Type username"},
-                {"action_type": "click", "parameters": {"coordinates": [200, 300]}, "confidence": 0.90, "description": "Click login"}
-            ]}''')
-        ]
-        model.client.messages.create = Mock(return_value=mock_response)
+        model = _mock_llm_model('''{"actions": [
+            {"action_type": "type", "parameters": {"text": "username"}, "confidence": 0.95, "description": "Type username"},
+            {"action_type": "click", "parameters": {"coordinates": [200, 300]}, "confidence": 0.90, "description": "Click login"}
+        ]}''')
 
         actions = await model.interpret_command("Login")
 
@@ -145,21 +147,13 @@ class TestLuxModelActionPlanning:
         """Test parsing JSON from markdown code blocks"""
         from ai.lux_model import LuxModel
 
-        model = LuxModel()
-        model.client = Mock()
-
-        # Response with markdown formatting
-        mock_response = Mock()
-        mock_response.content = [
-            Mock(text='''Here's the plan:
+        model = _mock_llm_model('''Here's the plan:
 
 ```json
 {"actions": [{"action_type": "click", "parameters": {"coordinates": [100, 100]}, "confidence": 0.95, "description": "Click"}]}
 ```
 
 Done!''')
-        ]
-        model.client.messages.create = Mock(return_value=mock_response)
 
         actions = await model.interpret_command("Click button")
 
@@ -169,18 +163,19 @@ Done!''')
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_interpret_command_fallback_without_client(self):
-        """Test fallback behavior when no API client"""
+        """Test fallback behavior when no LLM service"""
         from ai.lux_model import LuxModel
 
-        model = LuxModel(api_key=None)
-        assert model.client is None
+        with patch('ai.lux_model.LLM_SERVICE_AVAILABLE', False):
+            model = LuxModel()
+            assert model.llm_service is None
 
-        actions = await model.interpret_command("Open calculator")
+            actions = await model.interpret_command("Open calculator")
 
-        # Should return basic fallback action
-        assert len(actions) == 1
-        assert actions[0].action_type.value == "open_app"
-        assert actions[0].parameters["app_name"] == "Calculator"
+            # Should return basic fallback action
+            assert len(actions) == 1
+            assert actions[0].action_type.value == "open_app"
+            assert actions[0].parameters["app_name"] == "Calculator"
 
     @pytest.mark.asyncio
     async def test_interpret_command_retry_on_parse_error(self):
@@ -188,22 +183,17 @@ Done!''')
         from ai.lux_model import LuxModel
 
         model = LuxModel()
-        model.client = Mock()
-
-        # First call returns invalid JSON, second returns valid JSON
+        model.llm_service = MagicMock()
         call_count = 0
 
         def side_effect(*args, **kwargs):
             nonlocal call_count
             call_count += 1
-            mock_resp = Mock()
             if call_count == 1:
-                mock_resp.content = [Mock(text='Invalid response')]
-            else:
-                mock_resp.content = [Mock(text='{"actions": []}')]
-            return mock_resp
+                return {"success": True, "content": '{"actions": [incomplete json'}
+            return {"success": True, "content": '{"actions": []}'}
 
-        model.client.messages.create = Mock(side_effect=side_effect)
+        model.llm_service.generate_completion = AsyncMock(side_effect=side_effect)
 
         actions = await model.interpret_command("Test")
 
@@ -255,7 +245,7 @@ class TestBrowserAgentIntegration:
             mock_context = AsyncMock()
             mock_page = AsyncMock()
             mock_page.url = "https://example.com"
-            mock_page.screenshot = AsyncMock(return_value=b"fake_screenshot")
+            mock_page.screenshot = AsyncMock(return_value=_TEST_PNG)
             mock_context.new_page = AsyncMock(return_value=mock_page)
 
             agent.manager.new_context = AsyncMock(return_value=mock_context)
@@ -299,7 +289,7 @@ class TestBrowserAgentIntegration:
             mock_context = AsyncMock()
             mock_page = AsyncMock()
             mock_page.url = "https://example.com"
-            mock_page.screenshot = AsyncMock(return_value=b"fake")
+            mock_page.screenshot = AsyncMock(return_value=_TEST_PNG)
             mock_context.new_page = AsyncMock(return_value=mock_page)
 
             agent.manager.new_context = AsyncMock(return_value=mock_context)
@@ -333,14 +323,9 @@ class TestActionPlanningPerformance:
         import time
         from ai.lux_model import LuxModel
 
-        model = LuxModel()
-        model.client = Mock()
-
-        mock_response = Mock()
-        mock_response.content = [
-            Mock(text='{"actions": [{"action_type": "click", "parameters": {"coordinates": [100, 100]}, "confidence": 0.95, "description": "Click"}]}')
-        ]
-        model.client.messages.create = Mock(return_value=mock_response)
+        model = _mock_llm_model(
+            '{"actions": [{"action_type": "click", "parameters": {"coordinates": [100, 100]}, "confidence": 0.95, "description": "Click"}]}'
+        )
 
         start = time.time()
         actions = await model.interpret_command("Click button")
@@ -356,14 +341,9 @@ class TestActionPlanningPerformance:
         from ai.lux_model import LuxModel
         from PIL import Image
 
-        model = LuxModel()
-        model.client = Mock()
-
-        mock_response = Mock()
-        mock_response.content = [
-            Mock(text='{"actions": [{"action_type": "click", "parameters": {"coordinates": [500, 500]}, "confidence": 0.90, "description": "Click center"}]}')
-        ]
-        model.client.messages.create = Mock(return_value=mock_response)
+        model = _mock_llm_model(
+            '{"actions": [{"action_type": "click", "parameters": {"coordinates": [500, 500]}, "confidence": 0.90, "description": "Click center"}]}'
+        )
 
         # Create test screenshot
         screenshot = Image.new('RGB', (1920, 1080), color='white')
@@ -372,14 +352,14 @@ class TestActionPlanningPerformance:
 
         assert len(actions) == 1
         # Verify screenshot was encoded and sent
-        assert model.client.messages.create.called
-        call_args = model.client.messages.create.call_args
+        assert model.llm_service.generate_completion.called
+        call_args = model.llm_service.generate_completion.call_args
         message = call_args[1]['messages'][0]
 
         # Should have both text and image
         assert len(message['content']) == 2
         assert message['content'][0]['type'] == 'text'
-        assert message['content'][1]['type'] == 'image'
+        assert message['content'][1]['type'] == 'image_url'
 
 
 class TestErrorHandling:
@@ -390,15 +370,9 @@ class TestErrorHandling:
         """Test graceful handling of unknown action types"""
         from ai.lux_model import LuxModel
 
-        model = LuxModel()
-        model.client = Mock()
-
-        # Response with invalid action type
-        mock_response = Mock()
-        mock_response.content = [
-            Mock(text='{"actions": [{"action_type": "invalid_type", "parameters": {}, "confidence": 0.5, "description": "Invalid"}]}')
-        ]
-        model.client.messages.create = Mock(return_value=mock_response)
+        model = _mock_llm_model(
+            '{"actions": [{"action_type": "invalid_type", "parameters": {}, "confidence": 0.5, "description": "Invalid"}]}'
+        )
 
         actions = await model.interpret_command("Test")
 
@@ -411,12 +385,10 @@ class TestErrorHandling:
         from ai.lux_model import LuxModel
 
         model = LuxModel()
-        model.client = Mock()
-
-        # Response with malformed JSON
-        mock_response = Mock()
-        mock_response.content = [Mock(text='{"actions": [incomplete json')]
-        model.client.messages.create = Mock(return_value=mock_response)
+        model.llm_service = MagicMock()
+        model.llm_service.generate_completion = AsyncMock(
+            return_value={"success": True, "content": '{"actions": [incomplete json'}
+        )
 
         actions = await model.interpret_command("Test")
 
@@ -425,30 +397,26 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     async def test_handles_api_connection_error(self):
-        """Test retry on API connection errors"""
+        """Test graceful handling of API connection errors"""
         from ai.lux_model import LuxModel
 
         model = LuxModel()
-        model.client = Mock()
-
-        # Simulate generic exception then success
+        model.llm_service = MagicMock()
         call_count = 0
+
         def side_effect(*args, **kwargs):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
                 raise Exception("Connection failed")
-            mock_resp = Mock()
-            mock_resp.content = [Mock(text='{"actions": []}')]
-            return mock_resp
+            return {"success": True, "content": '{"actions": []}'}
 
-        model.client.messages.create = Mock(side_effect=side_effect)
+        model.llm_service.generate_completion = AsyncMock(side_effect=side_effect)
 
         actions = await model.interpret_command("Test")
 
         # Should return empty list (exception handled)
         assert actions == []
-        # Should not retry for generic exceptions, only connection errors
         assert call_count == 1
 
 

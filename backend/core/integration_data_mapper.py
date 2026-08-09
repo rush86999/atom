@@ -495,8 +495,73 @@ class IntegrationDataMapper:
 
         return transformed_data
 
+    @staticmethod
+    def _value_matches_type(value: Any, field_type: Optional[str]) -> bool:
+        """Check whether a value matches the expected schema field type."""
+        try:
+            target = FieldType(field_type)
+        except ValueError:
+            return True  # Unknown type; enum validation handled separately
+        if target == FieldType.STRING:
+            return isinstance(value, str)
+        if target == FieldType.INTEGER:
+            return isinstance(value, bool) or isinstance(value, int) or (
+                isinstance(value, str) and value.strip().lstrip("-").isdigit()
+            )
+        if target == FieldType.FLOAT:
+            if isinstance(value, bool):
+                return False
+            if isinstance(value, (int, float)):
+                return True
+            if isinstance(value, str):
+                try:
+                    float(value.strip())
+                    return True
+                except ValueError:
+                    return False
+            return False
+        if target == FieldType.BOOLEAN:
+            if isinstance(value, bool):
+                return True
+            if isinstance(value, str):
+                return value.strip().lower() in {"true", "false", "1", "0", "yes", "no", "on", "off"}
+            return False
+        if target in (FieldType.DATE, FieldType.DATETIME):
+            if isinstance(value, datetime):
+                return True
+            if isinstance(value, str):
+                try:
+                    datetime.fromisoformat(value.strip().replace('Z', '+00:00'))
+                    return True
+                except ValueError:
+                    return False
+            return False
+        if target == FieldType.EMAIL:
+            if not isinstance(value, str):
+                return False
+            email_str = value.strip().lower()
+            return "@" in email_str and "." in email_str.split("@")[-1]
+        if target == FieldType.URL:
+            if not isinstance(value, str):
+                return False
+            return value.startswith(("http://", "https://"))
+        if target == FieldType.JSON:
+            if isinstance(value, (dict, list)):
+                return True
+            if isinstance(value, str):
+                try:
+                    json.loads(value)
+                    return True
+                except (ValueError, TypeError):
+                    return False
+            return False
+        if target == FieldType.ARRAY:
+            return isinstance(value, list)
+        if target == FieldType.OBJECT:
+            return isinstance(value, dict)
+        return True
+
     def validate_data(self, data: Union[Dict, List[Dict]], schema_id: str) -> Dict[str, Any]:
-        """Validate data against schema"""
         if schema_id not in self.schemas:
             raise ValueError(f"Schema {schema_id} not found")
 
@@ -522,12 +587,18 @@ class IntegrationDataMapper:
                 if is_required and (field_value is None or field_value == ""):
                     item_errors.append(f"Required field '{field_name}' is missing")
                 elif field_value is not None:
-                    # Type validation would go here
+                    # Type validation of the actual value against the schema
                     field_type = field_config.get("type")
                     try:
                         FieldType(field_type)  # Validate enum
                     except ValueError:
                         item_warnings.append(f"Unknown field type '{field_type}' for '{field_name}'")
+                        continue
+                    if not self._value_matches_type(field_value, field_type):
+                        item_errors.append(
+                            f"Field '{field_name}' has invalid type "
+                            f"'{type(field_value).__name__}' (expected {field_type})"
+                        )
 
             if item_errors:
                 validation_results["valid"] = False

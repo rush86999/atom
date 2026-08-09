@@ -10,6 +10,7 @@ Comprehensive test suite for A/B testing functionality including:
 """
 
 import uuid
+import hashlib
 from datetime import datetime, timedelta
 import pytest
 from sqlalchemy.orm import Session
@@ -583,16 +584,22 @@ class TestResultsAnalytics:
         service.start_test(test_id)
 
         # Add participants with clear winner
-        for i in range(30):
+        # Success depends on the user_id hash, not the loop index, so the
+        # expected rates hold regardless of how the hash-based variant
+        # assignment splits users between A and B. 300 users keeps the
+        # binomial noise small enough that the tight rate bounds below are
+        # stable across runs (test_id is a fresh uuid each run, so the
+        # variant split itself is not deterministic).
+        for i in range(300):
             user_id = f"user-{i}"
             variant_result = service.assign_variant(test_id, user_id)
             variant = variant_result["variant"]
 
-            # Variant B: 90% success, Variant A: 50% success
+            user_hash = int(hashlib.sha256(user_id.encode()).hexdigest(), 16)
             if variant == "B":
-                success = (i % 10 != 0)  # 90% success
+                success = (user_hash % 10 != 0)  # 90% success
             else:
-                success = (i % 2 == 0)  # 50% success
+                success = (user_hash % 2 == 0)  # 50% success
 
             service.record_metric(test_id, user_id, success=success)
 
