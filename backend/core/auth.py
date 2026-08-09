@@ -54,8 +54,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     if isinstance(hashed_password, str):
         hashed_password = hashed_password.encode('utf-8')
 
-    # Truncate to 71 bytes as bcrypt has a 72-byte limit and includes a null terminator
-    plain_password = plain_password[:71]
+    # Truncate to 72 bytes to match bcrypt's hard 72-byte input limit
+    # (hashpw/checkpw both accept exactly 72 bytes). Truncating to 71 here
+    # made a valid 72-byte password hash (accepted by get_password_hash)
+    # never verify — 72-byte registration succeeded but login always failed.
+    plain_password = plain_password[:72]
 
     try:
         return bcrypt.checkpw(plain_password, hashed_password)

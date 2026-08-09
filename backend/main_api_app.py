@@ -768,6 +768,9 @@ try:
             "syntaxHighlight": {"activate": True, "theme": "monokai"},  # Dark theme for code blocks
         },
     )
+    # Some tools (e.g. schemathesis) don't recognize OpenAPI 3.1.0 as valid;
+    # emit a 3.0.3 schema since the API avoids 3.1-only features.
+    app.openapi_version = "3.0.3"
     startup_logger.info("✓ FastAPI app instance created")
 
     # Initialize connection leak detector
@@ -902,6 +905,7 @@ def custom_openapi():
     openapi_schema = get_openapi(
         title="ATOM SaaS Platform API",
         version="8.0.0",
+        openapi_version=app.openapi_version,
         routes=app.routes,
         description="""
 # ATOM SaaS Platform API
@@ -1135,6 +1139,12 @@ CORE_API_MODULES = {
     "team_messaging",
     "voice",
     "integration_health",
+    # slack declares its own /api/slack root prefix (slack_routes.py); the
+    # frontend proxy pages (pages/api/integrations/slack/*) and generated API
+    # types call /api/slack/* directly. Mounting it under the unified
+    # /api/v1/integrations/slack prefix double-prefixes every route
+    # (/api/v1/integrations/slack/api/slack/...) and 404s all Slack calls.
+    "slack",
 }
 
 # Load essential integrations immediately to ensure they are available in the route table

@@ -48,9 +48,13 @@ def test_password_reset_flow():
         token_hash = hashlib.sha256(token.encode()).hexdigest()
         expires_at = datetime.utcnow() + timedelta(hours=1)
         
+        # Mirror core/auth_endpoints.py: SHA-256 digest at rest in the `token`
+        # column, single-use tracked via the `used` flag, tenant_id required.
+        from core.personal_scope import PERSONAL_TENANT_ID
         reset_token = PasswordResetToken(
             user_id=user.id,
-            token_hash=token_hash,
+            token=token_hash,
+            tenant_id=user.tenant_id or PERSONAL_TENANT_ID,
             expires_at=expires_at
         )
         db.add(reset_token)
@@ -59,8 +63,8 @@ def test_password_reset_flow():
 
         # 3. Verify token
         db_token = db.query(PasswordResetToken).filter(
-            PasswordResetToken.token_hash == token_hash,
-            PasswordResetToken.is_used == False,
+            PasswordResetToken.token == token_hash,
+            PasswordResetToken.used == False,
             PasswordResetToken.expires_at > datetime.utcnow()
         ).first()
         assert db_token is not None, "Token not found in DB"
@@ -70,7 +74,7 @@ def test_password_reset_flow():
         # 4. Reset password
         new_password = "newpassword456"
         user.hashed_password = get_password_hash(new_password)
-        db_token.is_used = True
+        db_token.used = True
         db.commit()
         print("  [✓] Password reset in DB successful")
 

@@ -704,7 +704,9 @@ class TestUserPatterns:
 
     def test_get_user_patterns_success(self, analytics_routes_client):
         """Test successful user patterns retrieval"""
-        response = analytics_routes_client.get("/api/analytics/patterns/user123")
+        # Ownership gate: only the user themself (or an admin) may read their
+        # patterns, so query the override user's own id.
+        response = analytics_routes_client.get("/api/analytics/patterns/analytics-test-user")
 
         assert response.status_code == 200
         json_response = response.json()
@@ -737,13 +739,15 @@ class TestUserPatterns:
 
         with patch('api.analytics_dashboard_routes.get_predictive_insights_engine', return_value=mock_engine):
             client = TestClient(app)
-            response = client.get("/api/analytics/patterns/nonexistent")
+            # Use the override user's own id so the ownership gate passes and
+            # the (None) pattern drives the 404.
+            response = client.get("/api/analytics/patterns/analytics-test-user")
             # This should return 404 when the pattern is None
             assert response.status_code in [404, 500]  # Accept either due to async handling
 
     def test_get_user_patterns_response_probability(self, analytics_routes_client):
         """Test user patterns includes response probability by hour"""
-        response = analytics_routes_client.get("/api/analytics/patterns/user123")
+        response = analytics_routes_client.get("/api/analytics/patterns/analytics-test-user")
         assert response.status_code == 200
         json_response = response.json()
         data = json_response["data"]
@@ -761,7 +765,7 @@ class TestUserPatterns:
             _override_auth(app)
             client = TestClient(app)
             
-            response = client.get("/api/analytics/patterns/user123")
+            response = client.get("/api/analytics/patterns/analytics-test-user")
             assert response.status_code == 500
 
 

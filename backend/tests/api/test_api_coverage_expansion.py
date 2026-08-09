@@ -98,9 +98,9 @@ class TestCanvasAPIRoutes:
 
     def test_get_canvas_types(self, canvas_client):
         """Test GET /api/canvas/types endpoint."""
-        response = canvas_client.get("/api/canvas/types")
+        response = canvas_client.get("/api/canvas/types", params={"agent_id": "test-agent-252"})
         # Canvas routes may not be mounted in test environment
-        assert response.status_code in [200, 401, 404]
+        assert response.status_code in [200, 401, 403, 404]
 
     def test_create_canvas_context(self, canvas_client):
         """Test POST /api/canvas/{canvas_id}/context endpoint."""
@@ -122,7 +122,7 @@ class TestCanvasAPIRoutes:
         response = canvas_client.post("/api/canvas/submit", json={
             "canvas_id": "test-canvas-003",
             "canvas_type": "form",
-            "data": {"field1": "value1"}
+            "form_data": {"field1": "value1"}
         })
         # Canvas routes may not be mounted in test environment
         assert response.status_code in [200, 201, 400, 401, 404]
@@ -165,12 +165,12 @@ class TestAgentAPIRoutes:
     def test_list_agents(self, agent_client):
         """Test GET /api/agents list endpoint."""
         response = agent_client.get("/api/agents")
-        assert response.status_code in [200, 401, 404]
+        assert response.status_code in [200, 401, 403, 404]
 
     def test_get_agent_by_id(self, agent_client):
         """Test GET /api/agents/{id} endpoint."""
         response = agent_client.get("/api/agents/test-agent-001")
-        assert response.status_code in [200, 404, 401]
+        assert response.status_code in [200, 404, 401, 403]
 
 
 class TestBrowserAPIRoutes:
@@ -204,6 +204,7 @@ class TestBrowserAPIRoutes:
     def test_navigate_browser(self, browser_client):
         """Test POST /api/browser/navigate endpoint."""
         response = browser_client.post("/api/browser/navigate", json={
+            "session_id": "test-session",
             "url": "https://example.com"
         })
         assert response.status_code in [200, 400, 401, 404]

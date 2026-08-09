@@ -4845,5 +4845,16 @@
     "metadata": {},
     "message_count": 0,
     "history": []
+  },
+  {
+    "session_id": "test-session",
+    "user_id": "default",
+    "created_at": "2026-08-09T13:41:53.104644+00:00",
+    "last_active": "2026-08-09T13:44:16.830469+00:00",
+    "metadata": {
+      "source": "recovered"
+    },
+    "message_count": 0,
+    "history": []
   }
 ]

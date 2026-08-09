@@ -629,7 +629,9 @@ async def slack_oauth_callback(
             logger.info(f"OAuth state validated for user {current_user.id}")
         except ValueError as e:
             logger.warning(f"OAuth state validation failed: {e}")
-            raise HTTPException(status_code=400, detail="Internal error")
+            # Generic-but-informative message: surfaces the state-validation
+            # failure without leaking internals (tampered/expired/replayed).
+            raise HTTPException(status_code=400, detail="Invalid or expired state parameter")
 
         # Exchange code for tokens
         handler = OAuthHandler(SLACK_OAUTH_CONFIG)

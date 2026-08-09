@@ -36,19 +36,20 @@ class TestSecurityFixes(unittest.TestCase):
         self.assertFalse(verify_password("password", "password"))
 
     def test_password_truncation(self):
-        """Ensure passwords are truncated to 71 bytes for bcrypt safety"""
+        """Passwords over 72 bytes are rejected fail-closed (no silent truncation)"""
         from core.auth import get_password_hash, verify_password
-        long_password = "a" * 100
-        password_hash = get_password_hash(long_password)
-        
-        # Should verify with the full long password (because it's truncated consistently)
-        self.assertTrue(verify_password(long_password, password_hash))
-        
-        # Should also verify with just the first 71 characters
-        self.assertTrue(verify_password("a" * 71, password_hash))
-        
-        # Should NOT verify if even one character in the first 71 is wrong
-        self.assertFalse(verify_password("b" + "a" * 70, password_hash))
+
+        # SECURITY: bcrypt truncates silently past 72 bytes; get_password_hash
+        # raises instead (core/auth.py) so distinct long passwords can't collide.
+        with self.assertRaises(ValueError):
+            get_password_hash("a" * 100)
+
+        # 72-byte boundary still hashes and verifies consistently
+        password_hash = get_password_hash("a" * 72)
+        self.assertTrue(verify_password("a" * 72, password_hash))
+
+        # Should NOT verify if even one character is wrong
+        self.assertFalse(verify_password("b" + "a" * 71, password_hash))
 
 if __name__ == "__main__":
     unittest.main()

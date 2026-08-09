@@ -130,8 +130,11 @@ async def mobile_login(
         )
 
         if not result:
-            raise router.validation_error(
-                "credentials",
+            # Invalid credentials are an authentication failure (401), not a
+            # schema validation error (422): the mobile client maps 400/401 to
+            # "Invalid credentials" but falls through to a generic message on
+            # 422, and the documented contract is 401.
+            raise router.unauthorized_error(
                 "Invalid email or password"
             )
 
@@ -195,7 +198,10 @@ async def register_biometric(
 
         # Store public key (in production, this should be encrypted)
         # For now, we'll store it in device_info
-        device_info = device.device_info or {}
+        # NOTE: copy the dict before mutating — SQLAlchemy holds the committed
+        # JSON value by reference, so in-place mutation is never detected and
+        # the UPDATE silently omits device_info (row never changes).
+        device_info = dict(device.device_info or {})
         device_info["biometric_public_key"] = request.public_key
         device_info["biometric_challenge"] = challenge
         device_info["biometric_enabled"] = False  # Will be enabled after first successful auth
@@ -255,9 +261,12 @@ async def authenticate_with_biometric(
         stored_challenge = device_info.get("biometric_challenge")
 
         if not public_key:
-            raise router.validation_error(
-                "biometric",
-                "Biometric not registered for this device"
+            # Well-formed request but the device has no biometric registration
+            # yet — a client state error (400), not a schema violation (422).
+            raise router.error_response(
+                error_code="BIOMETRIC_NOT_REGISTERED",
+                message="Biometric not registered for this device",
+                status_code=status.HTTP_400_BAD_REQUEST
             )
 
         # SECURITY: the signature must be over the challenge the server issued
@@ -293,7 +302,9 @@ async def authenticate_with_biometric(
         # Generate tokens
         tokens = create_mobile_token(user, device.id)
 
-        # Mark biometric as enabled
+        # Mark biometric as enabled (copy first — see register_biometric note:
+        # in-place JSON mutation is invisible to SQLAlchemy's change detection)
+        device_info = dict(device.device_info or {})
         device_info["biometric_enabled"] = True
         device_info["last_biometric_auth"] = datetime.now(timezone.utc).isoformat()
         device.device_info = device_info
@@ -345,14 +356,14 @@ async def refresh_mobile_token(
                 algorithms=["HS256"]
             )
         except JWTError:
-            raise router.validation_error("token", "Invalid refresh token")
+            raise router.unauthorized_error("Invalid refresh token")
 
         user_id = payload.get("sub")
         token_type = payload.get("type")
         device_id = payload.get("device_id")
 
         if not user_id or token_type != "refresh":
-            raise router.validation_error("token", "Invalid refresh token")
+            raise router.unauthorized_error("Invalid refresh token")
 
         # Get user
         user = db.query(User).filter(User.id == user_id).first()
@@ -369,7 +380,11 @@ async def refresh_mobile_token(
         # Verify device exists and is active
         device = get_mobile_device(device_id, user_id, db)
         if not device:
-            raise router.validation_error("device", "Device not found or inactive")
+            raise router.error_response(
+                error_code="INVALID_DEVICE",
+                message="Device not found or inactive",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
 
         # Generate new tokens
         tokens = create_mobile_token(user, device_id)

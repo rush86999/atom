@@ -233,8 +233,14 @@ class TestSlackOAuthCallbackSecurity:
     @pytest.fixture
     def authenticated_user(self, db_session: Session):
         """Create an authenticated user for testing."""
+        from core.models import UserStatus
         from tests.factories.user_factory import UserFactory
-        return UserFactory(_session=db_session)
+        # SECURITY: UserFactory randomizes status across all UserStatus values;
+        # get_current_user rejects non-ACTIVE users (R43), so force ACTIVE.
+        return UserFactory(
+            status=UserStatus.ACTIVE.value,
+            _session=db_session
+        )
 
     def test_callback_requires_state_parameter(self, client: TestClient, authenticated_user):
         """Test that callback requires state parameter."""
@@ -290,8 +296,10 @@ class TestSlackOAuthCallbackSecurity:
         assert "state" in response.json()["detail"].lower() or "invalid" in response.json()["detail"].lower()
 
     @patch('core.oauth_handler.OAuthHandler.exchange_code_for_tokens')
-    def test_callback_succeeds_with_valid_state(self, mock_exchange, client: TestClient, authenticated_user, db_session: Session):
+    @patch('core.connection_service.ConnectionService.save_connection')
+    def test_callback_succeeds_with_valid_state(self, mock_save, mock_exchange, client: TestClient, authenticated_user, db_session: Session):
         """Test that callback succeeds with valid state."""
+        from types import SimpleNamespace
         from tests.security.conftest import create_test_token
 
         # Mock successful token exchange
@@ -300,6 +308,13 @@ class TestSlackOAuthCallbackSecurity:
             "refresh_token": "slack_refresh_token",
             "expires_in": 3600
         }
+
+        # ConnectionService.save_connection opens its own SQLite session; the
+        # fixture session's open read transaction blocks that write
+        # ("database is locked" — same contention pattern handled with fakes in
+        # tests/core/test_workflow_engine_core_execution.py). Persistence is
+        # covered elsewhere; here we assert the OAuth state gate passes.
+        mock_save.return_value = SimpleNamespace(id="conn_123")
 
         # Generate valid state
         manager = get_oauth_state_manager()
@@ -362,11 +377,16 @@ class TestCSRFPrevention:
         2. Attacker tries to send that code to victim's callback
         3. Should fail because state doesn't match victim's session
         """
+        from core.models import UserStatus
         from tests.factories.user_factory import UserFactory
         from tests.security.conftest import create_test_token
 
-        # Create victim user
-        victim = UserFactory(email="victim@example.com", _session=db_session)
+        # Create victim user (forced ACTIVE — get_current_user rejects others)
+        victim = UserFactory(
+            email="victim@example.com",
+            status=UserStatus.ACTIVE.value,
+            _session=db_session
+        )
 
         # Attacker generates their own state
         manager = get_oauth_state_manager()

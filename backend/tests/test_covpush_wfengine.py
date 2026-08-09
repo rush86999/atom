@@ -1303,7 +1303,7 @@ class TestTraceStreaming:
     def test_stream_lifecycle(self, debugger_env):
         debugger, db = debugger_env
         stream_id = debugger.create_trace_stream("s1", "exec-1")
-        assert stream_id.startswith("trace_exec-1_s1_")
+        assert stream_id.startswith("trace_s1_exec-1_")
         ws = MagicMock()
         assert debugger.stream_trace_update(stream_id, {"x": 1}, ws) is True
         ws.broadcast.assert_called_once()

@@ -77,7 +77,7 @@ class TestSkillCreationSuccess:
     def test_create_skill_success(self, client, mock_admin_user, mock_skill_builder):
         """Cover successful skill creation (lines 24-98)."""
         # Mock static analyzer to find no critical issues
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []  # No findings
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -103,7 +103,7 @@ class TestSkillCreationSuccess:
 
     def test_create_skill_with_minimal_data(self, client, mock_skill_builder):
         """Cover skill creation with minimal required fields."""
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -121,7 +121,7 @@ class TestSkillCreationSuccess:
 
     def test_create_skill_without_capabilities(self, client, mock_skill_builder):
         """Cover skill creation with empty capabilities list."""
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -140,7 +140,7 @@ class TestSkillCreationSuccess:
 
     def test_create_skill_with_multiple_scripts(self, client, mock_skill_builder):
         """Cover skill creation with multiple script files."""
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -167,7 +167,7 @@ class TestSkillCreationSuccess:
         from core.admin_endpoints import get_super_admin
         from core.models import User, UserRole
 
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -208,7 +208,7 @@ class TestSkillCreationSuccess:
 
     def test_create_skill_with_admin_author(self, client, mock_skill_builder, mock_admin_user):
         """Cover SkillMetadata construction with admin email as author."""
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -231,7 +231,7 @@ class TestSkillCreationSuccess:
 
     def test_create_skill_complex_instructions(self, client, mock_skill_builder):
         """Cover skill creation with complex multi-line instructions."""
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -254,7 +254,7 @@ class TestSkillCreationSuccess:
 
     def test_create_skill_special_characters_in_name(self, client, mock_skill_builder):
         """Cover skill creation with special characters in name."""
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -288,7 +288,7 @@ class TestSecurityScanning:
         critical_finding.dict.return_value = {"severity": "CRITICAL", "message": "Dangerous code"}
 
         # Patch StaticAnalyzer class to return our mock instance
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_instance = Mock()
             mock_instance.scan_content.return_value = [critical_finding]
             MockStaticAnalyzer.return_value = mock_instance
@@ -316,7 +316,7 @@ class TestSecurityScanning:
         high_finding.severity = Severity.HIGH
         high_finding.dict.return_value = {"severity": "HIGH", "message": "Suspicious pattern"}
 
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_instance = Mock()
             mock_instance.scan_content.return_value = [high_finding]
             MockStaticAnalyzer.return_value = mock_instance
@@ -339,7 +339,7 @@ class TestSecurityScanning:
         low_finding.severity = Severity.LOW
         low_finding.dict.return_value = {"severity": "LOW", "message": "Code smell"}
 
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_instance = Mock()
             mock_instance.scan_content.return_value = [low_finding]
             MockStaticAnalyzer.return_value = mock_instance
@@ -367,7 +367,7 @@ class TestSecurityScanning:
         critical_2.severity = Severity.HIGH
         critical_2.dict.return_value = {"severity": "HIGH", "message": "Suspicious import"}
 
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_instance = Mock()
             mock_instance.scan_content.return_value = [critical_1, critical_2]
             MockStaticAnalyzer.return_value = mock_instance
@@ -392,7 +392,7 @@ class TestSecurityScanning:
         from atom_security.analyzers.llm import LLMAnalyzer
 
         # Mock static analyzer (no findings)
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_static = Mock()
             mock_static.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_static
@@ -413,7 +413,7 @@ class TestSecurityScanning:
     @patch.dict(os.environ, {'ATOM_SECURITY_ENABLE_LLM_SCAN': 'false'})
     def test_llm_security_scan_disabled(self, client, mock_skill_builder):
         """Cover that LLM scan is skipped when disabled."""
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -431,7 +431,7 @@ class TestSecurityScanning:
 
     def test_security_scan_failure_does_not_block(self, client, mock_skill_builder):
         """Cover that security scan failure logs warning but doesn't block (lines 71-73)."""
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             MockStaticAnalyzer.side_effect = Exception("Security module failed")
 
             request_data = {
@@ -452,7 +452,7 @@ class TestSecurityScanning:
         from atom_security.analyzers.llm import LLMAnalyzer
 
         # Mock static analyzer (no findings)
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_static = Mock()
             mock_static.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_static
@@ -473,7 +473,7 @@ class TestSecurityScanning:
 
     def test_static_analyzer_scans_combined_content(self, client, mock_skill_builder):
         """Cover that static analyzer scans instructions + scripts combined."""
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -562,7 +562,7 @@ class TestRequestValidation:
     ])
     def test_skill_name_validation(self, client, mock_skill_builder, name, should_pass):
         """Cover skill name validation."""
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -609,7 +609,7 @@ class TestSkillBuilderIntegration:
 
     def test_skill_builder_called_with_correct_metadata(self, client, mock_admin_user, mock_skill_builder):
         """Cover that skill builder receives correct metadata."""
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -641,7 +641,7 @@ class TestSkillBuilderIntegration:
 
     def test_skill_builder_failure_handling(self, client, mock_skill_builder):
         """Cover handling when skill builder fails."""
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -668,7 +668,7 @@ class TestSkillBuilderIntegration:
 
     def test_skill_builder_called_with_scripts_dict(self, client, mock_skill_builder):
         """Cover that skill builder receives scripts dictionary."""
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -695,7 +695,7 @@ class TestSkillBuilderIntegration:
 
     def test_skill_builder_exception_handling(self, client, mock_skill_builder):
         """Cover handling when skill builder raises exception."""
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_analyzer = Mock()
             mock_analyzer.scan_content.return_value = []
             MockStaticAnalyzer.return_value = mock_analyzer
@@ -809,7 +809,7 @@ class TestErrorHandling:
         # Mock static analyzer to raise an error
         # But the security scan failure is caught and logged, not raised
         # So we need to make something else fail
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_instance = Mock()
             mock_instance.scan_content.side_effect = RuntimeError("Unexpected error in scan")
             MockStaticAnalyzer.return_value = mock_instance
@@ -835,7 +835,7 @@ class TestErrorHandling:
         critical_finding.severity = Severity.CRITICAL
         critical_finding.dict.return_value = {"severity": "CRITICAL", "message": "Dangerous"}
 
-        with patch('atom_security.analyzers.static.StaticAnalyzer') as MockStaticAnalyzer:
+        with patch('api.admin.skill_routes.StaticAnalyzer') as MockStaticAnalyzer:
             mock_instance = Mock()
             mock_instance.scan_content.return_value = [critical_finding]
             MockStaticAnalyzer.return_value = mock_instance

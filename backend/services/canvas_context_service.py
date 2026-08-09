@@ -28,7 +28,7 @@ class CanvasContextService:
             tenant_id: Optional tenant ID for multi-tenant filtering
         """
         self.db = db
-        self.tenant_id = tenant_id
+        self.tenant_id = tenant_id or "default"
     
     def create_context(
         self,

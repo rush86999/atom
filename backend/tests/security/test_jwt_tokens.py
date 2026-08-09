@@ -399,12 +399,19 @@ class TestJWTTokenAlgorithmSecurity:
 
     def test_none_algorithm_rejected(self, client):
         """Test tokens with 'none' algorithm are rejected"""
-        # Create malicious token with 'none' algorithm
+        # python-jose refuses to encode with algorithm="none", so build the
+        # classic alg:none attack token by hand: base64url(header).base64url(payload).
+        import base64
+        import json
+
+        def _b64url(data: dict) -> str:
+            return base64.urlsafe_b64encode(
+                json.dumps(data).encode()
+            ).rstrip(b"=").decode()
+
         header = {"alg": "none", "typ": "JWT"}
         payload = {"sub": "admin", "exp": int(time.time()) + 3600}
-
-        # Encode with 'none' algorithm
-        none_token = jwt.encode(payload, "", algorithm="none")
+        none_token = f"{_b64url(header)}.{_b64url(payload)}."
 
         # Try to use token
         response = client.get(

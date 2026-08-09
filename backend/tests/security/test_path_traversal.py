@@ -16,6 +16,23 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 
+@pytest.fixture(scope="function")
+def admin_user(db_session: Session):
+    """Admin user forced to ACTIVE status.
+
+    AdminUserFactory randomizes status across all UserStatus values (like
+    UserFactory), but get_current_user rejects tokens for non-ACTIVE users
+    (Round 43). Without forcing ACTIVE, auth-gated endpoints (e.g. GET
+    /api/canvas) flakily return 401.
+    """
+    from core.models import UserStatus
+    from tests.factories.user_factory import AdminUserFactory
+
+    user = AdminUserFactory(_session=db_session, status=UserStatus.ACTIVE.value)
+    db_session.flush()
+    return user
+
+
 # ============================================================================
 # Path Traversal Payloads
 # ============================================================================
@@ -139,6 +156,8 @@ class TestPathTraversalInCanvasTemplates:
         ATTACK: Attempt to access sensitive files using template parameter
         EXPECTED: Template validation rejects path traversal attempts
         """
+        # NOTE: There is no POST /api/canvas route — canvas creation is
+        # agent-tool-driven. FastAPI answers 405 for the missing method.
         response = client.post(
             "/api/canvas",
             json={
@@ -149,7 +168,7 @@ class TestPathTraversalInCanvasTemplates:
             headers={"Authorization": f"Bearer {admin_token}"}
         )
 
-        assert response.status_code in [400, 403, 404, 422, 200]
+        assert response.status_code in [400, 403, 404, 405, 422, 200]
         assert "root:" not in response.text
 
     @pytest.mark.parametrize("payload", ["../../../sensitive/config.json", r"..\..\..\sensitive\api_keys.txt"])
@@ -170,7 +189,7 @@ class TestPathTraversalInCanvasTemplates:
             headers={"Authorization": f"Bearer {admin_token}"}
         )
 
-        assert response.status_code in [400, 403, 404, 422, 200]
+        assert response.status_code in [400, 403, 404, 405, 422, 200]
         # Should not leak sensitive data
         assert "api_key" not in response.text.lower()
         assert "secret" not in response.text.lower()
@@ -328,7 +347,7 @@ class TestPathTraversalInRequestBody:
             headers={"Authorization": f"Bearer {admin_token}"}
         )
 
-        assert response.status_code in [200, 400, 403, 404, 422]
+        assert response.status_code in [200, 400, 403, 404, 405, 422]
         if response.status_code == 200:
             assert "root:" not in response.text
 
@@ -480,11 +499,12 @@ class TestPathTraversalInSpecificEndpoints:
         """Test path traversal in template rendering."""
         payload = "../../../etc/passwd"
 
+        # NOTE: No /api/canvas/render route exists — FastAPI answers 405.
         response = client.post(
             "/api/canvas/render",
             json={"template": payload, "data": {}},
             headers={"Authorization": f"Bearer {admin_token}"}
         )
 
-        assert response.status_code in [400, 403, 404, 422]
+        assert response.status_code in [400, 403, 404, 405, 422]
         assert "root:" not in response.text

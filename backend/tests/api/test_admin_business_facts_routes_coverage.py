@@ -759,8 +759,8 @@ class TestUploadEndpoint:
                 # Should pass validation (may fail later for other reasons)
                 assert response.status_code in [200, 500]
             else:
-                # Should fail validation with 400 (validation error)
-                assert response.status_code == 400
+                # Should fail validation with 422 (router.validation_error)
+                assert response.status_code == 422
                 # Just check status code, error message format may vary
 
     @patch('api.admin.business_facts_routes.get_policy_fact_extractor')

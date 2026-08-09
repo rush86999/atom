@@ -211,22 +211,23 @@ class TestCommandInjectionPrevention:
     """Test command injection attempts are blocked."""
 
     @pytest.mark.parametrize("payload", COMMAND_INJECTION_PAYLOADS[:5])  # Test subset
-    def test_command_injection_blocked(self, client: TestClient, admin_token: str, payload):
+    def test_command_injection_blocked(self, payload):
         """
         Test command injection in shell operations is blocked.
-        
-        This tests that ; | & ` $ are properly escaped.
-        """
-        response = client.post(
-            "/api/tools/execute",
-            json={"command": payload},
-            headers={"Authorization": f"Bearer {admin_token}"}
-        )
 
-        # Should reject or sanitize
-        assert response.status_code in [400, 403, 422, 401, 404]
-        assert "root:" not in response.text
-        assert "uid=" not in response.text
+        The former POST /api/tools/execute endpoint was removed in the Feb 2026
+        API refactor (it now exists only as a GET /api/tools/{name} resource
+        route, so POSTs 405). The live enforcement point for shell-command
+        validation is core.command_whitelist.validate_command, used by
+        host_shell_service and local_agent_service before any execution.
+        """
+        from core.command_whitelist import validate_command
+
+        # Injection payloads (; | & ` $) never resolve to a whitelisted base
+        # command, so they must be rejected as invalid/not executable.
+        result = validate_command(payload, "AUTONOMOUS")
+        assert result["valid"] is False
+        assert result["whitelisted"] is False
 
 
 class TestInputValidationWithPydantic:

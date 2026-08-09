@@ -86,6 +86,7 @@ async def list_facts(
     domain: Optional[str] = None,
     limit: int = 100,
     current_user = Depends(get_current_user),
+    _ = Depends(require_role(UserRole.ADMIN)),
 ):
     """
     List all business facts with optional filters.
@@ -115,6 +116,7 @@ async def list_facts(
 async def get_fact(
     fact_id: str,
     current_user = Depends(get_current_user),
+    _ = Depends(require_role(UserRole.ADMIN)),
 ):
     """
     Get a specific fact by ID.

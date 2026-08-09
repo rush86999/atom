@@ -229,18 +229,17 @@ class TestPasswordSecurity:
         assert verify_password("WrongPassword", hashed) is False
 
     def test_password_truncation_at_72_bytes(self):
-        """Test bcrypt truncates passwords at 72 bytes (security invariant)."""
-        # Bcrypt truncates at 72 bytes
+        """Test passwords over 72 bytes are rejected fail-closed (no silent truncation)."""
+        # SECURITY: bcrypt silently truncates past 72 bytes, which makes distinct
+        # long passwords collide to the same hash. get_password_hash now fails
+        # closed instead of truncating (core/auth.py).
         long_password = "a" * 100
-        hashed = get_password_hash(long_password)
+        with pytest.raises(ValueError):
+            get_password_hash(long_password)
 
-        # Should still verify (with truncation)
-        assert verify_password(long_password, hashed) is True
-
-        # Password longer than 72 chars but same first 72 should also verify
-        # (because of truncation)
-        longer_password = "a" * 150
-        assert verify_password(longer_password, hashed) is True
+        # 72-byte boundary password still hashes and verifies normally
+        hashed = get_password_hash("a" * 72)
+        assert verify_password("a" * 72, hashed) is True
 
     def test_password_hash_is_deterministic_for_same_password(self):
         """Test password hashing generates different hashes for same password (salt)."""

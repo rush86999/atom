@@ -20,6 +20,31 @@ from typing import Dict, Any
 
 # Import the router from atom_agent_endpoints
 from core.atom_agent_endpoints import router, ChatRequest, ChatMessage
+from core.auth import get_current_user
+from core.models import User
+
+
+@pytest.fixture
+def mocker(monkeypatch):
+    """Minimal pytest-mock shim (pytest-mock not installed in this env)."""
+    class _MockerShim:
+        def patch(self, target, *args, **kwargs):
+            if args:
+                new_value = args[0]
+            elif "return_value" in kwargs:
+                new_value = MagicMock(return_value=kwargs["return_value"])
+            elif "side_effect" in kwargs:
+                new_value = MagicMock(side_effect=kwargs["side_effect"])
+            else:
+                new_value = MagicMock()
+            monkeypatch.setattr(target, new_value)
+            return new_value
+
+        @staticmethod
+        def MagicMock(*args, **kwargs):
+            return MagicMock(*args, **kwargs)
+
+    return _MockerShim()
 
 
 @pytest.fixture
@@ -27,13 +52,25 @@ def app():
     """Create test FastAPI app with atom_agent router"""
     app = FastAPI()
     app.include_router(router)
+
+    def override_get_current_user():
+        return User(
+            id="test-user",
+            email="test-user@example.com",
+            role="user",
+            first_name="Test",
+            last_name="User",
+            status="active",
+        )
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
     return app
 
 
 @pytest.fixture
 def client(app):
     """Create test client"""
-    return TestClient(app)
+    return TestClient(app, raise_server_exceptions=False)
 
 
 class TestAtomAgentEndpointsExtended:
@@ -41,11 +78,6 @@ class TestAtomAgentEndpointsExtended:
 
     def test_chat_endpoint_success(self, client, monkeypatch):
         """Cover chat endpoint success path (lines 80-200)"""
-        # Mock LLM handler
-        mock_llm = AsyncMock()
-        mock_llm.complete.return_value = "Hello! How can I help you?"
-        monkeypatch.setattr("core.atom_agent_endpoints.get_llm_handler", lambda x: mock_llm)
-
         # Mock session manager
         mock_session_mgr = AsyncMock()
         mock_session_mgr.get_or_create_session.return_value = "test-session-123"
@@ -534,7 +566,7 @@ class TestAtomAgentEndpointsExtended:
             "database": {"status": "healthy"},
             "redis": {"status": "healthy"}
         }
-        mocker.patch("core.atom_agent_endpoints.SystemStatus", return_value=mock_status)
+        mocker.patch("core.atom_agent_endpoints.SystemStatus", mock_status)
 
         from core.atom_agent_endpoints import handle_system_status, ChatRequest
 

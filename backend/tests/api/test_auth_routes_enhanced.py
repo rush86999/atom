@@ -18,7 +18,7 @@ Test Count: 30+ tests
 
 import os
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -81,10 +81,12 @@ def test_user(db_session: Session):
 def test_device(db_session: Session, test_user: User):
     """Create test mobile device."""
     import uuid
+    # Unique device_token per test: the token column is UNIQUE across the
+    # shared dev DB, so a fixed value collides with rows left by prior runs.
     device = MobileDevice(
         id=str(uuid.uuid4()),
         user_id=str(test_user.id),
-        device_token="test_device_token_123",
+        device_token=f"test_device_token_{uuid.uuid4().hex}",
         platform="ios",
         status="active",
         notification_enabled=True,
@@ -101,7 +103,18 @@ def test_device(db_session: Session, test_user: User):
 @pytest.fixture(scope="function")
 def client():
     """Create TestClient for auth routes."""
+    from core.security.auth_rate_limit import login_rate_limit
+
     app = create_auth_test_app()
+
+    def no_limit(request):
+        return None
+
+    # The route resolves the limiter via request.app.dependency_overrides —
+    # bypass it so a full-suite run (40+ login posts) doesn't trip the
+    # real 10/min per-IP limiter and return 429.
+    app.dependency_overrides[login_rate_limit] = no_limit
+
     with TestClient(app) as test_client:
         yield test_client
 
@@ -325,8 +338,12 @@ class TestBiometricRegistration:
 
     def test_register_biometric_success(self, client: TestClient, test_user: User, test_device: MobileDevice):
         """Test successful biometric registration returns challenge."""
-        with patch('api.auth_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = test_user
+        # NOTE: patching api.auth_routes.get_current_user does NOT work —
+        # FastAPI captures the dependency callable at route definition time.
+        # Use the dependency override instead.
+        from core.auth import get_current_user
+
+        client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         response = client.post(
             "/api/auth/mobile/biometric/register",
@@ -362,8 +379,9 @@ class TestBiometricRegistration:
 
     def test_register_device_not_found(self, client: TestClient, test_user: User):
         """Test biometric registration with non-existent device returns 404."""
-        with patch('api.auth_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = test_user
+        from core.auth import get_current_user
+
+        client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         response = client.post(
             "/api/auth/mobile/biometric/register",
@@ -379,8 +397,9 @@ class TestBiometricRegistration:
 
     def test_register_saves_public_key(self, client: TestClient, test_user: User, test_device: MobileDevice, db_session: Session):
         """Test biometric registration saves public_key to device_info."""
-        with patch('api.auth_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = test_user
+        from core.auth import get_current_user
+
+        client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         public_key = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA" + "B" * 100
 
@@ -402,8 +421,9 @@ class TestBiometricRegistration:
 
     def test_register_generates_challenge(self, client: TestClient, test_user: User, test_device: MobileDevice):
         """Test biometric registration generates and returns challenge token."""
-        with patch('api.auth_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = test_user
+        from core.auth import get_current_user
+
+        client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         response = client.post(
             "/api/auth/mobile/biometric/register",
@@ -422,8 +442,9 @@ class TestBiometricRegistration:
 
     def test_register_enables_after_auth(self, client: TestClient, test_user: User, test_device: MobileDevice):
         """Test biometric_enabled=False initially, True after first auth."""
-        with patch('api.auth_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = test_user
+        from core.auth import get_current_user
+
+        client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         response = client.post(
             "/api/auth/mobile/biometric/register",
@@ -459,44 +480,44 @@ class TestBiometricAuthentication:
         with patch('api.auth_routes.get_mobile_device') as mock_get_device:
             mock_get_device.return_value = test_device
 
-        with patch('api.auth_routes.verify_biometric_signature') as mock_verify:
-            mock_verify.return_value = True
+            with patch('api.auth_routes.verify_biometric_signature') as mock_verify:
+                mock_verify.return_value = True
 
-        with patch('api.auth_routes.create_mobile_token') as mock_token:
-            mock_token.return_value = {
-                "access_token": "biometric_access_token",
-                "refresh_token": "biometric_refresh_token"
-            }
+                with patch('api.auth_routes.create_mobile_token') as mock_token:
+                    mock_token.return_value = {
+                        "access_token": "biometric_access_token",
+                        "refresh_token": "biometric_refresh_token"
+                    }
 
-        response = client.post(
-            "/api/auth/mobile/biometric/authenticate",
-            json={
-                "device_id": test_device.id,
-                "signature": "valid_signature",
-                "challenge": "test_challenge"
-            }
-        )
+                    response = client.post(
+                        "/api/auth/mobile/biometric/authenticate",
+                        json={
+                            "device_id": test_device.id,
+                            "signature": "valid_signature",
+                            "challenge": "test_challenge"
+                        }
+                    )
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["access_token"] == "biometric_access_token"
+                    assert response.status_code == 200
+                    data = response.json()
+                    assert data["success"] is True
+                    assert data["access_token"] == "biometric_access_token"
 
     def test_biometric_auth_device_not_found(self, client: TestClient):
         """Test biometric authentication with invalid device_id returns 404."""
         with patch('api.auth_routes.get_mobile_device') as mock_get_device:
             mock_get_device.return_value = None
 
-        response = client.post(
-            "/api/auth/mobile/biometric/authenticate",
-            json={
-                "device_id": "nonexistent_device_id",
-                "signature": "signature",
-                "challenge": "challenge"
-            }
-        )
+            response = client.post(
+                "/api/auth/mobile/biometric/authenticate",
+                json={
+                    "device_id": "nonexistent_device_id",
+                    "signature": "signature",
+                    "challenge": "challenge"
+                }
+            )
 
-        assert response.status_code == 404
+            assert response.status_code == 404
 
     def test_biometric_auth_not_registered(self, client: TestClient, test_device: MobileDevice):
         """Test biometric authentication when device not registered returns 400."""
@@ -506,16 +527,16 @@ class TestBiometricAuthentication:
         with patch('api.auth_routes.get_mobile_device') as mock_get_device:
             mock_get_device.return_value = test_device
 
-        response = client.post(
-            "/api/auth/mobile/biometric/authenticate",
-            json={
-                "device_id": test_device.id,
-                "signature": "signature",
-                "challenge": "challenge"
-            }
-        )
+            response = client.post(
+                "/api/auth/mobile/biometric/authenticate",
+                json={
+                    "device_id": test_device.id,
+                    "signature": "signature",
+                    "challenge": "challenge"
+                }
+            )
 
-        assert response.status_code == 400
+            assert response.status_code == 400
 
     def test_biometric_auth_invalid_signature(self, client: TestClient, test_device: MobileDevice):
         """Test biometric authentication with invalid signature returns success=False."""
@@ -527,22 +548,22 @@ class TestBiometricAuthentication:
         with patch('api.auth_routes.get_mobile_device') as mock_get_device:
             mock_get_device.return_value = test_device
 
-        with patch('api.auth_routes.verify_biometric_signature') as mock_verify:
-            mock_verify.return_value = False  # Invalid signature
+            with patch('api.auth_routes.verify_biometric_signature') as mock_verify:
+                mock_verify.return_value = False  # Invalid signature
 
-        response = client.post(
-            "/api/auth/mobile/biometric/authenticate",
-            json={
-                "device_id": test_device.id,
-                "signature": "invalid_signature",
-                "challenge": "challenge"
-            }
-        )
+                response = client.post(
+                    "/api/auth/mobile/biometric/authenticate",
+                    json={
+                        "device_id": test_device.id,
+                        "signature": "invalid_signature",
+                        "challenge": "challenge"
+                    }
+                )
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is False
-        assert data.get("access_token") is None
+                assert response.status_code == 200
+                data = response.json()
+                assert data["success"] is False
+                assert data.get("access_token") is None
 
     def test_biometric_auth_returns_tokens(self, client: TestClient, test_device: MobileDevice):
         """Test valid biometric authentication returns access_token and refresh_token."""
@@ -554,30 +575,30 @@ class TestBiometricAuthentication:
         with patch('api.auth_routes.get_mobile_device') as mock_get_device:
             mock_get_device.return_value = test_device
 
-        with patch('api.auth_routes.verify_biometric_signature') as mock_verify:
-            mock_verify.return_value = True
+            with patch('api.auth_routes.verify_biometric_signature') as mock_verify:
+                mock_verify.return_value = True
 
-        with patch('api.auth_routes.create_mobile_token') as mock_token:
-            mock_token.return_value = {
-                "access_token": "new_access_token",
-                "refresh_token": "new_refresh_token",
-                "expires_at": "2026-03-13T00:00:00Z"
-            }
+                with patch('api.auth_routes.create_mobile_token') as mock_token:
+                    mock_token.return_value = {
+                        "access_token": "new_access_token",
+                        "refresh_token": "new_refresh_token",
+                        "expires_at": "2026-03-13T00:00:00Z"
+                    }
 
-        response = client.post(
-            "/api/auth/mobile/biometric/authenticate",
-            json={
-                "device_id": test_device.id,
-                "signature": "valid_signature",
-                "challenge": "challenge"
-            }
-        )
+                    response = client.post(
+                        "/api/auth/mobile/biometric/authenticate",
+                        json={
+                            "device_id": test_device.id,
+                            "signature": "valid_signature",
+                            "challenge": "challenge"
+                        }
+                    )
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "access_token" in data
-        assert "refresh_token" in data
+                    assert response.status_code == 200
+                    data = response.json()
+                    assert data["success"] is True
+                    assert "access_token" in data
+                    assert "refresh_token" in data
 
     def test_biometric_auth_updates_last_used(self, client: TestClient, test_device: MobileDevice, db_session: Session):
         """Test biometric authentication updates last_biometric_auth timestamp."""
@@ -589,28 +610,29 @@ class TestBiometricAuthentication:
         with patch('api.auth_routes.get_mobile_device') as mock_get_device:
             mock_get_device.return_value = test_device
 
-        with patch('api.auth_routes.verify_biometric_signature') as mock_verify:
-            mock_verify.return_value = True
+            with patch('api.auth_routes.verify_biometric_signature') as mock_verify:
+                mock_verify.return_value = True
 
-        with patch('api.auth_routes.create_mobile_token') as mock_token:
-            mock_token.return_value = {
-                "access_token": "token",
-                "refresh_token": "refresh"
-            }
+                with patch('api.auth_routes.create_mobile_token') as mock_token:
+                    mock_token.return_value = {
+                        "access_token": "token",
+                        "refresh_token": "refresh"
+                    }
 
-        response = client.post(
-            "/api/auth/mobile/biometric/authenticate",
-            json={
-                "device_id": test_device.id,
-                "signature": "valid_signature",
-                "challenge": "challenge"
-            }
-        )
+                    response = client.post(
+                        "/api/auth/mobile/biometric/authenticate",
+                        json={
+                            "device_id": test_device.id,
+                            "signature": "valid_signature",
+                            "challenge": "challenge"
+                        }
+                    )
 
-        if response.status_code == 200:
-            db_session.refresh(test_device)
-            assert test_device.device_info is not None
-            assert "last_biometric_auth" in test_device.device_info
+                    if response.status_code == 200:
+                        # The route mutates the (mocked) device object in
+                        # place; note db.commit() cannot persist it because
+                        # the object belongs to a different session.
+                        assert "last_biometric_auth" in test_device.device_info
 
 
 # ============================================================================
@@ -628,7 +650,7 @@ class TestTokenRefresh:
                 "sub": test_device.user_id,
                 "type": "refresh",
                 "device_id": test_device.id,
-                "exp": (datetime.utcnow() + timedelta(days=30)).timestamp()
+                "exp": (datetime.now(timezone.utc) + timedelta(days=30)).timestamp()
             },
             secret_key,
             algorithm="HS256"
@@ -637,19 +659,19 @@ class TestTokenRefresh:
         with patch('api.auth_routes.get_mobile_device') as mock_get_device:
             mock_get_device.return_value = test_device
 
-        with patch('api.auth_routes.create_mobile_token') as mock_token:
-            mock_token.return_value = {
-                "access_token": "new_access_token",
-                "refresh_token": "new_refresh_token"
-            }
+            with patch('api.auth_routes.create_mobile_token') as mock_token:
+                mock_token.return_value = {
+                    "access_token": "new_access_token",
+                    "refresh_token": "new_refresh_token"
+                }
 
-        response = client.post(
-            "/api/auth/mobile/refresh",
-            json={"refresh_token": refresh_token}
-        )
+                response = client.post(
+                    "/api/auth/mobile/refresh",
+                    json={"refresh_token": refresh_token}
+                )
 
-        # May succeed or fail depending on SECRET_KEY configuration
-        assert response.status_code in [200, 400, 401]
+                # May succeed or fail depending on SECRET_KEY configuration
+                assert response.status_code in [200, 400, 401]
 
     def test_refresh_expired_token(self, client: TestClient):
         """Test refresh with expired JWT returns 401."""
@@ -659,7 +681,10 @@ class TestTokenRefresh:
                 "sub": "user_id",
                 "type": "refresh",
                 "device_id": "device_id",
-                "exp": (datetime.utcnow() - timedelta(hours=1)).timestamp()  # Expired
+                # timezone-aware: naive datetime.utcnow().timestamp() is
+                # interpreted as LOCAL time, so on UTC-negative timezones the
+                # token was not actually expired and decode succeeded (404).
+                "exp": (datetime.now(timezone.utc) - timedelta(hours=1)).timestamp()
             },
             secret_key,
             algorithm="HS256"
@@ -709,47 +734,47 @@ class TestTokenRefresh:
                 "sub": test_device.user_id,
                 "type": "refresh",
                 "device_id": test_device.id,
-                "exp": int(datetime.utcnow().timestamp()) + 3600
+                "exp": int(datetime.now(timezone.utc).timestamp()) + 3600
             }
 
-        with patch('api.auth_routes.get_mobile_device') as mock_get_device:
-            mock_get_device.return_value = test_device
+            with patch('api.auth_routes.get_mobile_device') as mock_get_device:
+                mock_get_device.return_value = test_device
 
-        with patch('api.auth_routes.create_mobile_token') as mock_token:
-            mock_token.return_value = {
-                "access_token": "brand_new_access_token",
-                "refresh_token": "brand_new_refresh_token",
-                "expires_at": "2026-03-13T00:00:00Z"
-            }
+                with patch('api.auth_routes.create_mobile_token') as mock_token:
+                    mock_token.return_value = {
+                        "access_token": "brand_new_access_token",
+                        "refresh_token": "brand_new_refresh_token",
+                        "expires_at": "2026-03-13T00:00:00Z"
+                    }
 
-        response = client.post(
-            "/api/auth/mobile/refresh",
-            json={"refresh_token": "fake_refresh_token"}
-        )
+                    response = client.post(
+                        "/api/auth/mobile/refresh",
+                        json={"refresh_token": "fake_refresh_token"}
+                    )
 
-        if response.status_code == 200:
-            data = response.json()
-            assert "access_token" in data
-            assert "refresh_token" in data
+                    if response.status_code == 200:
+                        data = response.json()
+                        assert "access_token" in data
+                        assert "refresh_token" in data
 
-    def test_refresh_validates_device(self, client: TestClient):
+    def test_refresh_validates_device(self, client: TestClient, test_user: User):
         """Test refresh validates device exists and is active (400 if not)."""
         with patch('jose.jwt.decode') as mock_decode:
             mock_decode.return_value = {
-                "sub": "user_id",
+                "sub": test_user.id,  # real user so the lookup reaches the device check
                 "type": "refresh",
                 "device_id": "device_id"
             }
 
-        with patch('api.auth_routes.get_mobile_device') as mock_get_device:
-            mock_get_device.return_value = None  # Device not found
+            with patch('api.auth_routes.get_mobile_device') as mock_get_device:
+                mock_get_device.return_value = None  # Device not found
 
-        response = client.post(
-            "/api/auth/mobile/refresh",
-            json={"refresh_token": "fake_token"}
-        )
+                response = client.post(
+                    "/api/auth/mobile/refresh",
+                    json={"refresh_token": "fake_token"}
+                )
 
-        assert response.status_code == 400
+                assert response.status_code == 400
 
 
 # ============================================================================
@@ -761,38 +786,40 @@ class TestDeviceManagement:
 
     def test_get_device_info(self, client: TestClient, test_user: User, test_device: MobileDevice):
         """Test successful device info retrieval."""
-        with patch('api.auth_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = test_user
+        from core.auth import get_current_user
+
+        client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         with patch('api.auth_routes.get_mobile_device') as mock_get_device:
             mock_get_device.return_value = test_device
 
-        response = client.get(
-            f"/api/auth/mobile/device?device_id={test_device.id}",
-            headers={"Authorization": "Bearer fake_token"}
-        )
+            response = client.get(
+                f"/api/auth/mobile/device?device_id={test_device.id}",
+                headers={"Authorization": "Bearer fake_token"}
+            )
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["device_id"] == test_device.id
-        assert data["platform"] == test_device.platform
-        assert "status" in data
-        assert "notification_enabled" in data
+            assert response.status_code == 200
+            data = response.json()
+            assert data["device_id"] == test_device.id
+            assert data["platform"] == test_device.platform
+            assert "status" in data
+            assert "notification_enabled" in data
 
     def test_get_device_not_found(self, client: TestClient, test_user: User):
         """Test getting info for non-existent device returns 404."""
-        with patch('api.auth_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = test_user
+        from core.auth import get_current_user
+
+        client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         with patch('api.auth_routes.get_mobile_device') as mock_get_device:
             mock_get_device.return_value = None
 
-        response = client.get(
-            "/api/auth/mobile/device?device_id=nonexistent_device_id",
-            headers={"Authorization": "Bearer fake_token"}
-        )
+            response = client.get(
+                "/api/auth/mobile/device?device_id=nonexistent_device_id",
+                headers={"Authorization": "Bearer fake_token"}
+            )
 
-        assert response.status_code == 404
+            assert response.status_code == 404
 
     def test_get_device_requires_auth(self, client: TestClient, test_device: MobileDevice):
         """Test getting device info requires authentication (401)."""
@@ -804,70 +831,76 @@ class TestDeviceManagement:
 
     def test_get_device_returns_correct_fields(self, client: TestClient, test_user: User, test_device: MobileDevice):
         """Test device info response includes all expected fields."""
-        with patch('api.auth_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = test_user
+        from core.auth import get_current_user
+
+        client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         with patch('api.auth_routes.get_mobile_device') as mock_get_device:
             mock_get_device.return_value = test_device
 
-        response = client.get(
-            f"/api/auth/mobile/device?device_id={test_device.id}",
-            headers={"Authorization": "Bearer fake_token"}
-        )
+            response = client.get(
+                f"/api/auth/mobile/device?device_id={test_device.id}",
+                headers={"Authorization": "Bearer fake_token"}
+            )
 
-        assert response.status_code == 200
-        data = response.json()
-        expected_fields = ["device_id", "platform", "status", "notification_enabled", "last_active", "created_at"]
-        for field in expected_fields:
-            assert field in data, f"Missing field: {field}"
+            assert response.status_code == 200
+            data = response.json()
+            expected_fields = ["device_id", "platform", "status", "notification_enabled", "last_active", "created_at"]
+            for field in expected_fields:
+                assert field in data, f"Missing field: {field}"
 
     def test_delete_device(self, client: TestClient, test_user: User, test_device: MobileDevice):
         """Test successful device deletion (soft delete)."""
-        with patch('api.auth_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = test_user
+        from core.auth import get_current_user
+
+        client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         with patch('api.auth_routes.get_mobile_device') as mock_get_device:
             mock_get_device.return_value = test_device
 
-        response = client.delete(
-            f"/api/auth/mobile/device?device_id={test_device.id}",
-            headers={"Authorization": "Bearer fake_token"}
-        )
+            response = client.delete(
+                f"/api/auth/mobile/device?device_id={test_device.id}",
+                headers={"Authorization": "Bearer fake_token"}
+            )
 
-        assert response.status_code == 200
+            assert response.status_code == 200
 
     def test_delete_device_not_found(self, client: TestClient, test_user: User):
         """Test deleting non-existent device returns 404."""
-        with patch('api.auth_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = test_user
+        from core.auth import get_current_user
+
+        client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         with patch('api.auth_routes.get_mobile_device') as mock_get_device:
             mock_get_device.return_value = None
 
-        response = client.delete(
-            "/api/auth/mobile/device?device_id=nonexistent_device_id",
-            headers={"Authorization": "Bearer fake_token"}
-        )
+            response = client.delete(
+                "/api/auth/mobile/device?device_id=nonexistent_device_id",
+                headers={"Authorization": "Bearer fake_token"}
+            )
 
-        assert response.status_code == 404
+            assert response.status_code == 404
 
     def test_delete_marks_inactive(self, client: TestClient, test_user: User, test_device: MobileDevice, db_session: Session):
         """Test device deletion marks status=inactive and notification_enabled=False."""
-        with patch('api.auth_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = test_user
+        from core.auth import get_current_user
+
+        client.app.dependency_overrides[get_current_user] = lambda: test_user
 
         with patch('api.auth_routes.get_mobile_device') as mock_get_device:
             mock_get_device.return_value = test_device
 
-        response = client.delete(
-            f"/api/auth/mobile/device?device_id={test_device.id}",
-            headers={"Authorization": "Bearer fake_token"}
-        )
+            response = client.delete(
+                f"/api/auth/mobile/device?device_id={test_device.id}",
+                headers={"Authorization": "Bearer fake_token"}
+            )
 
-        if response.status_code == 200:
-            db_session.refresh(test_device)
-            assert test_device.status == "inactive"
-            assert test_device.notification_enabled is False
+            if response.status_code == 200:
+                # The route mutates the (mocked) device object in place; the
+                # commit cannot persist it because the object belongs to a
+                # different session.
+                assert test_device.status == "inactive"
+                assert test_device.notification_enabled is False
 
 
 # ============================================================================
@@ -882,17 +915,17 @@ class TestAuthErrorPaths:
         with patch('api.auth_routes.authenticate_mobile_user') as mock_auth:
             mock_auth.side_effect = Exception("Database connection failed")
 
-        response = client.post(
-            "/api/auth/mobile/login",
-            json={
-                "email": test_user.email,
-                "password": "password",
-                "device_token": "token",
-                "platform": "ios"
-            }
-        )
+            response = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": test_user.email,
+                    "password": "password",
+                    "device_token": "token",
+                    "platform": "ios"
+                }
+            )
 
-        assert response.status_code == 500
+            assert response.status_code == 500
 
     def test_concurrent_login_same_device(self, client: TestClient, test_user: User):
         """Test concurrent login requests for same device handled correctly."""
@@ -905,22 +938,22 @@ class TestAuthErrorPaths:
                 "user": {"id": test_user.id, "email": test_user.email}
             }
 
-        # Send multiple concurrent requests
-        responses = []
-        for _ in range(3):
-            response = client.post(
-                "/api/auth/mobile/login",
-                json={
-                    "email": test_user.email,
-                    "password": "password",
-                    "device_token": "same_device_token",
-                    "platform": "ios"
-                }
-            )
-            responses.append(response)
+            # Send multiple concurrent requests
+            responses = []
+            for _ in range(3):
+                response = client.post(
+                    "/api/auth/mobile/login",
+                    json={
+                        "email": test_user.email,
+                        "password": "password",
+                        "device_token": "same_device_token",
+                        "platform": "ios"
+                    }
+                )
+                responses.append(response)
 
-        # All should succeed or fail consistently
-        assert all(r.status_code == 200 for r in responses) or all(r.status_code in [400, 401] for r in responses)
+            # All should succeed or fail consistently
+            assert all(r.status_code == 200 for r in responses) or all(r.status_code in [400, 401] for r in responses)
 
     def test_device_info_json_parsing(self, client: TestClient, test_user: User):
         """Test invalid JSON in device_info field handled gracefully."""
@@ -933,19 +966,19 @@ class TestAuthErrorPaths:
                 "user": {"id": test_user.id, "email": test_user.email}
             }
 
-        response = client.post(
-            "/api/auth/mobile/login",
-            json={
-                "email": test_user.email,
-                "password": "password",
-                "device_token": "token",
-                "platform": "ios",
-                "device_info": {"model": "iPhone 14", "invalid_json": "{bad}"}  # Invalid JSON in field
-            }
-        )
+            response = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": test_user.email,
+                    "password": "password",
+                    "device_token": "token",
+                    "platform": "ios",
+                    "device_info": {"model": "iPhone 14", "invalid_json": "{bad}"}  # Invalid JSON in field
+                }
+            )
 
-        # Should handle gracefully (success or validation error, not 500)
-        assert response.status_code in [200, 400, 422]
+            # Should handle gracefully (success or validation error, not 500)
+            assert response.status_code in [200, 400, 422]
 
     def test_missing_user_after_auth(self, client: TestClient):
         """Test race condition where auth succeeds but user not found."""
@@ -961,18 +994,18 @@ class TestAuthErrorPaths:
                 "user": {"id": non_existent_user_id, "email": "ghost@example.com"}
             }
 
-        response = client.post(
-            "/api/auth/mobile/login",
-            json={
-                "email": "ghost@example.com",
-                "password": "password",
-                "device_token": "token",
-                "platform": "ios"
-            }
-        )
+            response = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": "ghost@example.com",
+                    "password": "password",
+                    "device_token": "token",
+                    "platform": "ios"
+                }
+            )
 
-        # Should handle missing user gracefully
-        assert response.status_code in [200, 404, 500]
+            # Should handle missing user gracefully
+            assert response.status_code in [200, 404, 500]
 
 
 class TestAuthEdgeCases:
@@ -989,20 +1022,20 @@ class TestAuthEdgeCases:
                 "user": {"id": test_user.id, "email": test_user.email}
             }
 
-        long_token = "A" * 1000
+            long_token = "A" * 1000
 
-        response = client.post(
-            "/api/auth/mobile/login",
-            json={
-                "email": test_user.email,
-                "password": "password",
-                "device_token": long_token,
-                "platform": "ios"
-            }
-        )
+            response = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": test_user.email,
+                    "password": "password",
+                    "device_token": long_token,
+                    "platform": "ios"
+                }
+            )
 
-        # Should handle long token gracefully
-        assert response.status_code in [200, 400, 422]
+            # Should handle long token gracefully
+            assert response.status_code in [200, 400, 422]
 
     @pytest.mark.parametrize("email", [
         "user+tag@example.com",
@@ -1021,17 +1054,17 @@ class TestAuthEdgeCases:
                 "user": {"id": test_user.id, "email": email}
             }
 
-        response = client.post(
-            "/api/auth/mobile/login",
-            json={
-                "email": email,
-                "password": "password",
-                "device_token": "token",
-                "platform": "ios"
-            }
-        )
+            response = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": email,
+                    "password": "password",
+                    "device_token": "token",
+                    "platform": "ios"
+                }
+            )
 
-        assert response.status_code == 200
+            assert response.status_code == 200
 
     def test_unicode_in_device_info(self, client: TestClient, test_user: User):
         """Test Unicode characters in platform and device_info."""
@@ -1044,18 +1077,18 @@ class TestAuthEdgeCases:
                 "user": {"id": test_user.id, "email": test_user.email}
             }
 
-        response = client.post(
-            "/api/auth/mobile/login",
-            json={
-                "email": test_user.email,
-                "password": "password",
-                "device_token": "token",
-                "platform": "ios",
-                "device_info": {"model": "iPhone 日本語", "region": "Español"}
-            }
-        )
+            response = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": test_user.email,
+                    "password": "password",
+                    "device_token": "token",
+                    "platform": "ios",
+                    "device_info": {"model": "iPhone 日本語", "region": "Español"}
+                }
+            )
 
-        assert response.status_code == 200
+            assert response.status_code == 200
 
     def test_multiple_devices_same_user(self, client: TestClient, test_user: User, db_session: Session):
         """Test user with multiple registered devices."""
@@ -1065,7 +1098,7 @@ class TestAuthEdgeCases:
         device1 = MobileDevice(
             id=str(uuid.uuid4()),
             user_id=str(test_user.id),
-            device_token="device1_token",
+            device_token=f"device1_token_{uuid.uuid4().hex}",
             platform="ios",
             status="active",
             notification_enabled=True,
@@ -1076,7 +1109,7 @@ class TestAuthEdgeCases:
         device2 = MobileDevice(
             id=str(uuid.uuid4()),
             user_id=str(test_user.id),
-            device_token="device2_token",
+            device_token=f"device2_token_{uuid.uuid4().hex}",
             platform="android",
             status="active",
             notification_enabled=True,
@@ -1097,31 +1130,31 @@ class TestAuthEdgeCases:
                 "user": {"id": test_user.id, "email": test_user.email}
             }
 
-        # Login with device1
-        response1 = client.post(
-            "/api/auth/mobile/login",
-            json={
-                "email": test_user.email,
-                "password": "password",
-                "device_token": "device1_token",
-                "platform": "ios"
-            }
-        )
+            # Login with device1
+            response1 = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": test_user.email,
+                    "password": "password",
+                    "device_token": "device1_token",
+                    "platform": "ios"
+                }
+            )
 
-        # Login with device2
-        response2 = client.post(
-            "/api/auth/mobile/login",
-            json={
-                "email": test_user.email,
-                "password": "password",
-                "device_token": "device2_token",
-                "platform": "android"
-            }
-        )
+            # Login with device2
+            response2 = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": test_user.email,
+                    "password": "password",
+                    "device_token": "device2_token",
+                    "platform": "android"
+                }
+            )
 
-        # Both should succeed
-        assert response1.status_code == 200
-        assert response2.status_code == 200
+            # Both should succeed
+            assert response1.status_code == 200
+            assert response2.status_code == 200
 
     def test_device_already_registered(self, client: TestClient, test_user: User, test_device: MobileDevice):
         """Test re-login with existing device_token updates device."""
@@ -1134,30 +1167,30 @@ class TestAuthEdgeCases:
                 "user": {"id": test_user.id, "email": test_user.email}
             }
 
-        # First login
-        response1 = client.post(
-            "/api/auth/mobile/login",
-            json={
-                "email": test_user.email,
-                "password": "password",
-                "device_token": test_device.device_token,
-                "platform": "ios",
-                "device_info": {"model": "iPhone 14"}
-            }
-        )
+            # First login
+            response1 = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": test_user.email,
+                    "password": "password",
+                    "device_token": test_device.device_token,
+                    "platform": "ios",
+                    "device_info": {"model": "iPhone 14"}
+                }
+            )
 
-        # Second login with same device_token but updated info
-        response2 = client.post(
-            "/api/auth/mobile/login",
-            json={
-                "email": test_user.email,
-                "password": "password",
-                "device_token": test_device.device_token,
-                "platform": "ios",
-                "device_info": {"model": "iPhone 15", "os_version": "17.0"}
-            }
-        )
+            # Second login with same device_token but updated info
+            response2 = client.post(
+                "/api/auth/mobile/login",
+                json={
+                    "email": test_user.email,
+                    "password": "password",
+                    "device_token": test_device.device_token,
+                    "platform": "ios",
+                    "device_info": {"model": "iPhone 15", "os_version": "17.0"}
+                }
+            )
 
-        # Both should succeed
-        assert response1.status_code == 200
-        assert response2.status_code == 200
+            # Both should succeed
+            assert response1.status_code == 200
+            assert response2.status_code == 200

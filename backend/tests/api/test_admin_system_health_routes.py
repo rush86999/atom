@@ -168,15 +168,18 @@ def mock_psutil():
 class TestAdminSystemHealth:
     """Tests for GET /api/admin/health endpoint - Admin system health check."""
 
-    def test_admin_system_health_all_operational(self, authenticated_admin_client, test_db):
+    def test_admin_system_health_all_operational(self, authenticated_admin_client, mock_db):
         """Test system health check when all services are operational."""
         from core.cache import cache
+        from core.database import get_db
 
         # Mock database to be fast
-        def fast_db_execute(query):
-            return MagicMock()  # Return mock result
+        mock_db.execute.return_value = MagicMock()
 
-        test_db.execute.side_effect = fast_db_execute if hasattr(test_db, 'execute') else None
+        def mock_get_db():
+            yield mock_db
+
+        authenticated_admin_client.app.dependency_overrides[get_db] = mock_get_db
 
         # Mock Redis ping success
         with patch.object(cache, 'redis_client', create=True) as mock_redis_client:
@@ -239,13 +242,18 @@ class TestAdminSystemHealth:
         assert data["data"]["status"] == "degraded"
         assert data["data"]["services"]["database"] == "degraded"
 
-    def test_admin_system_health_degraded_redis(self, authenticated_admin_client, test_db):
+    def test_admin_system_health_degraded_redis(self, authenticated_admin_client, mock_db):
         """Test system health check returns degraded when Redis is down."""
         from core.cache import cache
+        from core.database import get_db
 
         # Mock database operational
-        mock_result = MagicMock()
-        test_db.execute.return_value = mock_result if hasattr(test_db, 'execute') else None
+        mock_db.execute.return_value = MagicMock()
+
+        def mock_get_db():
+            yield mock_db
+
+        authenticated_admin_client.app.dependency_overrides[get_db] = mock_get_db
 
         # Mock Redis ping failure
         with patch.object(cache, 'redis_client', create=True) as mock_redis_client:
@@ -264,13 +272,18 @@ class TestAdminSystemHealth:
         assert data["data"]["status"] == "degraded"
         assert data["data"]["services"]["redis"] == "degraded"
 
-    def test_admin_system_health_degraded_vector(self, authenticated_admin_client, test_db):
+    def test_admin_system_health_degraded_vector(self, authenticated_admin_client, mock_db):
         """Test system health check returns degraded when vector store is down."""
         from core.cache import cache
+        from core.database import get_db
 
         # Mock database operational
-        mock_result = MagicMock()
-        test_db.execute.return_value = mock_result if hasattr(test_db, 'execute') else None
+        mock_db.execute.return_value = MagicMock()
+
+        def mock_get_db():
+            yield mock_db
+
+        authenticated_admin_client.app.dependency_overrides[get_db] = mock_get_db
 
         # Mock Redis operational
         with patch.object(cache, 'redis_client', create=True) as mock_redis_client:
@@ -297,7 +310,7 @@ class TestAdminSystemHealth:
         mock_result = MagicMock()
 
         # Mock Redis disabled (no client and config.redis.enabled = False)
-        with patch.object(cache, 'redis_client', None):
+        with patch.object(cache, 'redis_client', None, create=True):
             with patch.object(cache, 'config', create=True) as mock_config:
                 mock_config.redis.enabled = False
 
@@ -322,7 +335,7 @@ class TestAdminSystemHealth:
         mock_result = MagicMock()
 
         # Mock Redis enabled but no client
-        with patch.object(cache, 'redis_client', None):
+        with patch.object(cache, 'redis_client', None, create=True):
             with patch.object(cache, 'config', create=True) as mock_config:
                 mock_config.redis.enabled = True
 
@@ -516,7 +529,7 @@ class TestRedisHealth:
         from core.cache import cache
 
         # Mock no Redis client but enabled in config
-        with patch.object(cache, 'redis_client', None):
+        with patch.object(cache, 'redis_client', None, create=True):
             with patch.object(cache, 'config', create=True) as mock_config:
                 mock_config.redis.enabled = True
                 # Should return degraded when enabled but no client
@@ -529,7 +542,7 @@ class TestRedisHealth:
         from core.cache import cache
 
         # Mock no Redis client and disabled in config
-        with patch.object(cache, 'redis_client', None):
+        with patch.object(cache, 'redis_client', None, create=True):
             with patch.object(cache, 'config', create=True) as mock_config:
                 mock_config.redis.enabled = False
                 # Should return unknown when disabled
