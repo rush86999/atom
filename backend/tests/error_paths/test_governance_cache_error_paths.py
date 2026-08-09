@@ -17,7 +17,7 @@ import asyncio
 import threading
 import time
 from typing import Dict, Any
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 from core.governance_cache import (
     GovernanceCache,
@@ -544,7 +544,7 @@ class TestAsyncCacheWrapperErrors:
         EXPECTED: Exception propagates to caller.
         """
         sync_cache = MagicMock()
-        sync_cache.get = MagicMock(side_effect=RuntimeError("Sync cache error"))
+        sync_cache.get_async = AsyncMock(side_effect=RuntimeError("Sync cache error"))
 
         async_cache = AsyncGovernanceCache(cache=sync_cache)
 
@@ -560,7 +560,7 @@ class TestAsyncCacheWrapperErrors:
         EXPECTED: Exception propagates to caller.
         """
         sync_cache = MagicMock()
-        sync_cache.set = MagicMock(side_effect=RuntimeError("Sync cache error"))
+        sync_cache.set_async = AsyncMock(side_effect=RuntimeError("Sync cache error"))
 
         async_cache = AsyncGovernanceCache(cache=sync_cache)
 
@@ -576,7 +576,7 @@ class TestAsyncCacheWrapperErrors:
         EXPECTED: Exception propagates to caller.
         """
         sync_cache = MagicMock()
-        sync_cache.invalidate = MagicMock(side_effect=RuntimeError("Sync cache error"))
+        sync_cache.invalidate_async = AsyncMock(side_effect=RuntimeError("Sync cache error"))
 
         async_cache = AsyncGovernanceCache(cache=sync_cache)
 
@@ -592,7 +592,7 @@ class TestAsyncCacheWrapperErrors:
         EXPECTED: Exception propagates to caller.
         """
         sync_cache = MagicMock()
-        sync_cache.get_stats = MagicMock(side_effect=RuntimeError("Stats error"))
+        sync_cache.get_stats_async = AsyncMock(side_effect=RuntimeError("Stats error"))
 
         async_cache = AsyncGovernanceCache(cache=sync_cache)
 
