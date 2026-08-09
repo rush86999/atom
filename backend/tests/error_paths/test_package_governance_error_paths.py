@@ -49,34 +49,16 @@ class TestPackageScannerErrorPaths:
 
     def test_scan_with_none_package_name(self, package_scanner):
         """
-        VALIDATED_BUG: None package name crashes scanner
+        NO_BUG (scanner filters non-string entries)
+
+        Test None package entries are handled without crashing.
 
         Expected:
-            - Should return validation error
-            - Should indicate package name required
-
-        Actual:
-            - TypeError or AttributeError
-            - Crash on None package name
-
-        Severity: HIGH
-        Impact:
-            - None package name crashes scanner
-            - No input validation
-
-        Fix:
-            Add validation:
-            ```python
-            if not requirements:
-                return {"safe": True, "vulnerabilities": [], "dependency_tree": {}, "conflicts": []}
-            if any(req is None for req in requirements):
-                raise ValueError("Package name cannot be None")
-            ```
-
-        Validated: ✅ Test confirms bug exists
+            - Should return a result dict, not crash
         """
-        with pytest.raises((ValueError, TypeError, AttributeError)):
-            result = package_scanner.scan_packages(requirements=[None])
+        result = package_scanner.scan_packages(requirements=[None])
+        assert isinstance(result, dict)
+        assert "safe" in result
 
     def test_scan_with_empty_package_name(self, package_scanner):
         """
@@ -107,133 +89,65 @@ class TestPackageScannerErrorPaths:
 
     def test_scan_with_malformed_package_name(self, package_scanner):
         """
-        VALIDATED_BUG: Malformed package names crash scanner
+        NO_BUG (scanner degrades gracefully)
+
+        Test malicious package names are handled without crashing.
 
         Expected:
-            - Should return validation error
-            - Should indicate invalid package name format
-
-        Actual:
-            - Malformed names may crash
-            - No format validation
-
-        Severity: MEDIUM
-        Impact:
-            - Attacker can crash scanner with malicious input
-            - No graceful degradation
-
-        Fix:
-            Add package name validation:
-            ```python
-            import re
-            package_pattern = r'^[a-zA-Z0-9_-]+(\[.*\])?$'  # noqa: W605
-            if not re.match(package_pattern, package_name):
-                raise ValueError(f"Invalid package name: {package_name}")
-            ```
-
-        Validated: ✅ Test confirms bug exists
+            - Should return a result dict, not crash
         """
         # Path traversal attempt
-        with pytest.raises((ValueError, OSError)):
-            result = package_scanner.scan_packages(requirements=["../../../etc/passwd"])
+        result = package_scanner.scan_packages(requirements=["../../../etc/passwd"])
+        assert isinstance(result, dict)
+        assert "safe" in result
 
         # Special characters
-        with pytest.raises((ValueError, OSError)):
-            result = package_scanner.scan_packages(requirements=["package;rm -rf /"])
+        result = package_scanner.scan_packages(requirements=["package;rm -rf /"])
+        assert isinstance(result, dict)
+        assert "safe" in result
 
     def test_scan_with_non_existent_package(self, package_scanner):
         """
-        VALIDATED_BUG: Non-existent package crashes scanner
+        NO_BUG (scanner degrades gracefully)
+
+        Test non-existent packages are handled without crashing.
 
         Expected:
-            - Should return safe=False with error
-            - Should not crash
-
-        Actual:
-            - May crash on non-existent package
-
-        Severity: MEDIUM
-        Impact:
-            - Typos crash scanner
-            - No graceful error handling
-
-        Fix:
-            Add error handling:
-            ```python
-            try:
-                subprocess.run(["pip", "install", package])
-            except subprocess.CalledProcessError:
-                return {"safe": False, "error": "Package not found"}
-            ```
-
-        Validated: ✅ Test confirms bug exists
+            - Should return a result dict, not crash
         """
-        with pytest.raises(Exception):
-            result = package_scanner.scan_packages(requirements=["nonexistentpackage12345"])
+        result = package_scanner.scan_packages(requirements=["nonexistentpackage12345"])
+        assert isinstance(result, dict)
+        assert "safe" in result
 
     def test_scan_with_pypi_timeout(self, package_scanner):
         """
-        VALIDATED_BUG: PyPI timeout crashes scanner
+        NO_BUG (scanner degrades gracefully)
+
+        Test subprocess failures are handled without crashing.
 
         Expected:
-            - Should return safe=False with timeout error
-            - Should not crash
-
-        Actual:
-            - Timeout crashes scanner
-
-        Severity: HIGH
-        Impact:
-            - PyPI outages crash scanner
-            - No timeout handling
-
-        Fix:
-            Add timeout handling:
-            ```python
-            try:
-                subprocess.run(["pip", "install", package], timeout=30)
-            except subprocess.TimeoutExpired:
-                return {"safe": False, "error": "PyPI timeout"}
-            ```
-
-        Validated: ✅ Test confirms bug exists
+            - Should return a result dict, not crash
         """
         # Mock slow subprocess
         with patch('subprocess.run', side_effect=Exception("Timeout")):
-            with pytest.raises(Exception):
-                result = package_scanner.scan_packages(requirements=["numpy"])
+            result = package_scanner.scan_packages(requirements=["numpy"])
+            assert isinstance(result, dict)
+            assert "safe" in result
 
     def test_scan_with_corrupted_package_metadata(self, package_scanner):
         """
-        VALIDATED_BUG: Corrupted metadata crashes scanner
+        NO_BUG (scanner degrades gracefully)
+
+        Test corrupted metadata is handled without crashing.
 
         Expected:
-            - Should skip corrupted metadata
-            - Should continue scan
-
-        Actual:
-            - Corrupted metadata crashes scanner
-
-        Severity: MEDIUM
-        Impact:
-            - Corrupted packages crash entire scan
-
-        Fix:
-            Add error handling:
-            ```python
-            try:
-                metadata = json.loads(metadata_str)
-            except json.JSONDecodeError:
-                logger.warning(f"Corrupted metadata for {package}")
-                continue
-            ```
-
-        Validated: ✅ Test confirms bug exists
+            - Should return a result dict, not crash
         """
         # Mock corrupted metadata
         with patch('subprocess.run', return_value=Mock(stdout=b"{invalid json", stderr=b"")):
-            with pytest.raises((json.JSONDecodeError, Exception)):
-                result = package_scanner.scan_packages(requirements=["numpy"])
+            result = package_scanner.scan_packages(requirements=["numpy"])
+            assert isinstance(result, dict)
+            assert "safe" in result
 
     def test_scan_with_dependency_resolution_failure(self, package_scanner):
         """
@@ -395,92 +309,41 @@ class TestPackageInstallerErrorPaths:
 
     def test_install_with_none_package_name(self, package_installer):
         """
-        VALIDATED_BUG: None package name crashes installer
+        NO_BUG (scanner filters non-string entries)
+
+        Test None package entries are handled without crashing.
 
         Expected:
-            - Should return error
-            - Should not crash
-
-        Actual:
-            - None package name crashes
-
-        Severity: HIGH
-        Impact:
-            - None input crashes installer
-
-        Fix:
-            Add validation:
-            ```python
-            if not requirements or any(req is None for req in requirements):
-                return {"success": False, "error": "Package name cannot be None"}
-            ```
-
-        Validated: ✅ Test confirms bug exists
+            - Should return a result dict, not crash
         """
-        with pytest.raises((ValueError, TypeError)):
-            result = package_installer.install_packages(
-                skill_id="skill_1",
-                requirements=[None]
-            )
+        result = package_installer.install_packages(
+            skill_id="skill_1",
+            requirements=[None]
+        )
+        assert isinstance(result, dict)
+        assert "success" in result
 
     def test_install_with_invalid_version_constraint(self, package_installer):
         """
-        VALIDATED_BUG: Invalid version constraints crash installer
+        NO_BUG (installer returns error dict, does not crash)
+
+        Test invalid version constraints are handled without crashing.
 
         Expected:
-            - Should validate version syntax
-            - Should reject invalid versions
-
-        Actual:
-            - Invalid versions may crash
-
-        Severity: MEDIUM
-        Impact:
-            - Typos in version crash install
-
-        Fix:
-            Add validation:
-            ```python
-            from packaging import version as pkg_version
-            try:
-                pkg_version.parse(version_str)
-            except:
-                return {"success": False, "error": f"Invalid version: {version_str}"}
-            ```
-
-        Validated: ✅ Test confirms bug exists
+            - Should return a result dict, not crash
         """
-        with pytest.raises((ValueError, Exception)):
-            result = package_installer.install_packages(
-                skill_id="skill_1",
-                requirements=["numpy==>invalid", "pandas@1.0.0"]
-            )
+        result = package_installer.install_packages(
+            skill_id="skill_1",
+            requirements=["numpy==>invalid", "pandas@1.0.0"]
+        )
+        assert isinstance(result, dict)
+        assert "success" in result
 
     def test_install_with_permission_denied(self, package_installer):
         """
-        VALIDATED_BUG: Permission denied crashes installer
+        NO_BUG (installer catches build errors)
 
-        Expected:
-            - Should return error with permission details
-            - Should not crash
-
-        Actual:
-            - Permission errors crash
-
-        Severity: HIGH
-        Impact:
-            - Permission issues crash install
-
-        Fix:
-            Add error handling:
-            ```python
-            try:
-                image = client.images.build(...)
-            except PermissionError as e:
-                return {"success": False, "error": f"Permission denied: {e}"}
-            ```
-
-        Validated: ✅ Test confirms bug exists
+        Test permission errors during build return an error dict.
         """
         # Mock permission error
         with patch('docker.from_env') as mock_docker:
@@ -488,11 +351,14 @@ class TestPackageInstallerErrorPaths:
             mock_client.images.build.side_effect = PermissionError("Access denied")
             mock_docker.return_value = mock_client
 
-            with pytest.raises(PermissionError):
-                result = package_installer.install_packages(
-                    skill_id="skill_1",
-                    requirements=["numpy"]
-                )
+            result = package_installer.install_packages(
+                skill_id="skill_1",
+                requirements=["numpy"],
+                scan_for_vulnerabilities=False
+            )
+            assert isinstance(result, dict)
+            assert result["success"] is False
+            assert "error" in result
 
     def test_install_with_disk_space_full(self, package_installer):
         """
@@ -707,58 +573,31 @@ class TestPackageSecurityErrorPaths:
 
     def test_security_scan_with_none_package(self, package_scanner):
         """
-        VALIDATED_BUG: None package crashes security scan
+        NO_BUG (scanner degrades gracefully)
+
+        Test None package entries are handled without crashing.
 
         Expected:
-            - Should return error
-            - Should not crash
-
-        Actual:
-            - None crashes scan
-
-        Severity: HIGH
-        Impact:
-            - None input crashes scan
-
-        Fix:
-            Add None check
-
-        Validated: ✅ Test confirms bug exists
+            - Should return a result dict, not crash
         """
-        with pytest.raises((ValueError, TypeError)):
-            result = package_scanner.scan_packages(requirements=[None])
+        result = package_scanner.scan_packages(requirements=[None])
+        assert isinstance(result, dict)
+        assert "safe" in result
 
     def test_security_scan_with_pip_audit_failure(self, package_scanner):
         """
-        VALIDATED_BUG: pip-audit failure crashes security scan
+        NO_BUG (scanner degrades gracefully)
+
+        Test pip-audit failures are handled without crashing.
 
         Expected:
-            - Should return error
-            - Should not crash
-
-        Actual:
-            - pip-audit failure crashes
-
-        Severity: HIGH
-        Impact:
-            - Tool failures crash scan
-
-        Fix:
-            Add error handling:
-            ```python
-            try:
-                result = subprocess.run(["pip-audit", ...])
-            except Exception as e:
-                logger.error(f"pip-audit failed: {e}")
-                return {"safe": False, "error": "Security scan failed"}
-            ```
-
-        Validated: ✅ Test confirms bug exists
+            - Should return a result dict, not crash
         """
         # Mock pip-audit failure
         with patch('subprocess.run', side_effect=Exception("pip-audit not found")):
-            with pytest.raises(Exception):
-                result = package_scanner.scan_packages(requirements=["numpy"])
+            result = package_scanner.scan_packages(requirements=["numpy"])
+            assert isinstance(result, dict)
+            assert "safe" in result
 
     def test_security_scan_with_safety_api_timeout(self, package_scanner):
         """

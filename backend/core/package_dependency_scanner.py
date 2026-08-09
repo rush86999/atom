@@ -69,6 +69,17 @@ class PackageDependencyScanner:
                 "conflicts": []
             }
 
+        # Defensive: drop non-string entries (None etc.) instead of crashing
+        # on '\n'.join(requirements).
+        requirements = [r for r in requirements if isinstance(r, str)]
+        if not requirements:
+            return {
+                "safe": True,
+                "vulnerabilities": [],
+                "dependency_tree": {},
+                "conflicts": []
+            }
+
         # Step 1: Create temporary requirements.txt
         with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
             f.write('\n'.join(requirements))
