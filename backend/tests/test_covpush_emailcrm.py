@@ -8,6 +8,7 @@ TDD: each REAL bug found has a failing test first, then a minimal fix.
 """
 import json
 import sys
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -18,6 +19,8 @@ import aiohttp
 
 import integrations.microsoft365_service as m365
 import integrations.gmail_service as gs
+import integrations.atom_hubspot_integration_service as hs
+import integrations.chat_orchestrator as co
 
 
 # =========================================================================
@@ -249,7 +252,9 @@ async def test_m365_get_service_status_ok_error(monkeypatch, dev_env):
 
 async def test_m365_make_graph_request_bypass(dev_env):
     result = await make_service()._make_graph_request("GET", "http://x", "fake_token")
-    assert result == {"status": "success", "data": {"id": "mock_id_123"}}
+    assert result["status"] == "success"
+    assert result["data"]["id"] == "mock_id_123"
+    assert result["data"]["displayName"] == "Mock User"
 
 
 async def test_m365_make_graph_request_4xx(monkeypatch):
@@ -302,13 +307,13 @@ async def test_m365_onedrive_upload(monkeypatch, dev_env):
     result = await svc.execute_onedrive_action("fake_token", "upload", {"path": "x", "file_content": None})
     assert result["status"] == "error"
 
-    session = FakeAioSession(FakeAioResponse(200, data={"id": "f1"}))
+    session = FakeAioSession(put_response=FakeAioResponse(200, data={"id": "f1"}))
     monkeypatch.setattr(aiohttp, "ClientSession", lambda *a, **k: session)
     result = await svc.execute_onedrive_action("real_token", "upload", {"path": "x", "file_content": b"data", "content_type": "text/plain"})
     assert result["status"] == "success"
     assert result["data"]["id"] == "f1"
 
-    monkeypatch.setattr(aiohttp, "ClientSession", lambda *a, **k: FakeAioSession(FakeAioResponse(400, body="upload rejected")))
+    monkeypatch.setattr(aiohttp, "ClientSession", lambda *a, **k: FakeAioSession(put_response=FakeAioResponse(400, body="upload rejected")))
     result = await svc.execute_onedrive_action("real_token", "upload", {"path": "x", "file_content": b"data"})
     assert result["status"] == "error"
     assert result["code"] == 400
@@ -621,9 +626,9 @@ async def test_m365_delete_item_exception(monkeypatch):
 
 async def test_m365_create_subscription(dev_env):
     svc = make_service()
-    result = await svc.create_subscription("fake_token", "created", "http://hook", "2026-12-31T00:00:00Z")
+    result = await svc.create_subscription("fake_token", "message", "created", "http://hook", "2026-12-31T00:00:00Z")
     assert result["status"] == "success"
-    result = await svc.create_subscription("fake_token", "updated", "http://hook", "2026-12-31T00:00:00Z")
+    result = await svc.create_subscription("fake_token", "message", "updated", "http://hook", "2026-12-31T00:00:00Z")
     assert result["status"] == "success"
 
 
@@ -634,7 +639,7 @@ async def test_m365_subscriptions_exception(monkeypatch):
         raise RuntimeError("sub-leak")
 
     monkeypatch.setattr(svc, "_make_graph_request", boom)
-    result = await svc.create_subscription("t", "created", "h", "d")
+    result = await svc.create_subscription("t", "message", "created", "h", "d")
     assert result["status"] == "error"
     assert "sub-leak" not in json.dumps(result)
     result = await svc.renew_subscription("t", "s1", "d")
@@ -1247,7 +1252,9 @@ async def test_gmail_delete_message(gmail_env):
     assert bad.delete_message("m1") is False
 
 
-async def test_gmail_get_labels(gmail_env):
+async def test_gmail_get_labels(gmail_env, monkeypatch):
+    labels_svc = make_gmail_svc(labels={"labels": [{"id": "L1"}]})
+    monkeypatch.setattr(gs, "build", lambda *a, **k: labels_svc)
     svc = make_service_with(make_gmail_svc(labels={"labels": [{"id": "L1"}]}))
     assert svc.get_labels() == [{"id": "L1"}]
     assert svc.get_labels(token="tok") == [{"id": "L1"}]
@@ -1278,10 +1285,12 @@ class FakeMetric:
 
 
 class FakeHubDB:
-    def __init__(self, existing=None, commit_error=None):
+    def __init__(self, existing=None, commit_error=None, existing_factory=None):
         self.existing = existing
+        self.existing_factory = existing_factory
         self.commit_error = commit_error
         self.added = []
+        self.updated = []
         self.closed = False
 
     def query(self, model):
@@ -1291,6 +1300,10 @@ class FakeHubDB:
         return self
 
     def first(self):
+        if self.existing_factory is not None:
+            obj = self.existing_factory()
+            self.updated.append(obj)
+            return obj
         return self.existing
 
     def add(self, obj):
@@ -1318,11 +1331,13 @@ async def test_gmail_sync_to_postgres_cache(gmail_env, monkeypatch):
     assert len(db.added) == 3
     assert db.closed
 
-    db2 = FakeHubDB(existing=FakeMetric(value=0))
+    db2 = FakeHubDB(existing_factory=lambda: FakeMetric(value=0))
     monkeypatch.setattr("core.database.SessionLocal", lambda: db2)
     result = await svc.sync_to_postgres_cache(user_id="u1")
     assert result["success"] is True
-    assert db2.existing.value == 10.0
+    assert len(db2.updated) == 3
+    assert db2.updated[0].value == 10.0
+    assert db2.updated[1].value == 3.0
 
 
 async def test_gmail_sync_to_postgres_cache_errors(gmail_env, monkeypatch):
@@ -1359,6 +1374,7 @@ async def test_gmail_sync_calendar_events(gmail_env, monkeypatch):
     pipeline = SimpleNamespace(ingest_message=AsyncMock())
     monkeypatch.setattr("integrations.atom_communication_ingestion_pipeline.get_ingestion_pipeline", lambda: pipeline)
     svc = make_service_with(MagicMock())
+    monkeypatch.setattr(gs, "build", lambda *a, **k: svc.service)
     svc.service.events.return_value.list.return_value.execute.return_value = {
         "items": [
             {"id": "ev1", "summary": "Meeting", "description": "desc", "organizer": {"email": "o@x.com"},
@@ -1440,7 +1456,7 @@ async def test_gmail_execute_operation_dispatch(gmail_env, monkeypatch):
     assert result["success"] is True
 
     events = []
-    async def fake_sync(**kw):
+    async def fake_sync(self, **kw):
         events.append(kw)
     monkeypatch.setattr(gs.GmailService, "sync_calendar_events", fake_sync)
     result = await svc.execute_operation("sync_calendar", {})
@@ -1494,7 +1510,7 @@ async def test_gmail_get_attachment_metadata_download(gmail_env):
     gs2 = gs
     monkeypatch_orig = None
 
-    async def fake_get_message(mid):
+    def fake_get_message(mid):
         return {"attachments": [{"attachmentId": "a1", "filename": "f.txt", "size": 3, "mimeType": "text/plain"}]}
 
     with patch.object(gs.GmailService, "get_message", side_effect=fake_get_message):
@@ -1511,3 +1527,1238 @@ async def test_gmail_get_attachment_metadata_download(gmail_env):
 async def test_gmail_factory(gmail_env):
     svc = gs.get_gmail_service(tenant_id="t2", config={})
     assert svc.tenant_id == "t2"
+
+
+# =========================================================================
+# HubSpot (atom_hubspot_integration_service)
+# =========================================================================
+
+def hubspot_svc(**config):
+    cfg = {
+        "hubspot_access_token": "tok",
+        "hubspot_api_key": "",
+        "hubspot_client_id": "cid",
+        "hubspot_client_secret": "cs",
+        "hubspot_environment": "production",
+        "enable_lead_scoring": True,
+        "enable_analytics": True,
+        "automation_workflows": True,
+        "campaign_management": True,
+        "real_time_tracking": True,
+        "enable_enterprise_features": False,
+    }
+    cfg.update(config)
+    return hs.AtomHubSpotIntegrationService(tenant_id="t1", config=cfg)
+
+
+def hubspot_http_client(post_result=None, get_result=None):
+    client = MagicMock()
+    client.post = AsyncMock(return_value=post_result if post_result is not None else MagicMock(status_code=500, text="boom"))
+    client.get = AsyncMock(return_value=get_result if get_result is not None else MagicMock(status_code=500, text="boom"))
+    ac = MagicMock()
+    ac.__aenter__ = AsyncMock(return_value=client)
+    ac.__aexit__ = AsyncMock(return_value=False)
+    return ac
+
+
+def ok_response(status, body):
+    resp = MagicMock()
+    resp.status_code = status
+    resp.text = "{}"
+    resp.json = MagicMock(return_value=body)
+    return resp
+
+
+CONTACT_BODY = {"id": "c1", "properties": {"firstname": "Jane", "lastname": "Doe", "company": "ACME"}}
+CAMPAIGN_BODY = {"id": "cp1", "name": "Launch", "type": "email"}
+
+
+class TestHubSpotInit:
+    def test_init_defaults(self):
+        svc = hubspot_svc()
+        assert svc.tenant_id == "t1"
+        assert svc.hubspot_config["base_url"] == "https://api.hubapi.com"
+        assert svc.hubspot_config["api_version"] == "v3"
+        assert svc.hubspot_config["access_token"] == "tok"
+        assert svc.is_initialized is False
+        assert svc.api_endpoints["contacts"] == "/crm/v3/objects/contacts"
+        assert set(svc.platform_integrations.keys()) >= {"slack", "teams", "telegram"}
+        assert svc.analytics_metrics["total_contacts"] == 0
+        assert svc.performance_metrics["api_response_time"] == 0.0
+
+    def test_init_enterprise_config(self):
+        svc = hubspot_svc(enable_enterprise_features=True, hubspot_api_version="v2")
+        assert svc.hubspot_config["enable_enterprise_features"] is True
+        assert svc.hubspot_config["api_version"] == "v2"
+
+    async def test_get_auth_headers(self):
+        svc = hubspot_svc()
+        headers = await svc._get_auth_headers()
+        assert headers["Authorization"] == "Bearer tok"
+
+        svc2 = hubspot_svc(hubspot_access_token="", hubspot_api_key="apikey")
+        headers = await svc2._get_auth_headers()
+        assert headers["Authorization"] == "Bearer apikey"
+
+        svc3 = hubspot_svc(hubspot_access_token="", hubspot_api_key="")
+        with pytest.raises(Exception):
+            await svc3._get_auth_headers()
+
+
+class TestHubSpotInitialize:
+    async def test_initialize_success(self):
+        svc = hubspot_svc()
+        with patch("httpx.AsyncClient") as ac:
+            ac.return_value = hubspot_http_client(get_result=ok_response(200, {"results": []}))
+            assert await svc.initialize() is True
+        assert svc.is_initialized is True
+
+    async def test_initialize_connection_failure(self):
+        svc = hubspot_svc()
+        with patch("httpx.AsyncClient") as ac:
+            ac.return_value.__aenter__ = AsyncMock(side_effect=RuntimeError("conn-fail"))
+            ac.return_value.__aexit__ = AsyncMock(return_value=False)
+            assert await svc.initialize() is False
+        assert svc.is_initialized is False
+
+    async def test_initialize_non_200(self):
+        svc = hubspot_svc()
+        with patch("httpx.AsyncClient") as ac:
+            ac.return_value = hubspot_http_client(get_result=ok_response(500, {}))
+            assert await svc.initialize() is False
+
+    async def test_test_hubspot_connection(self):
+        svc = hubspot_svc()
+        with patch("httpx.AsyncClient") as ac:
+            ac.return_value = hubspot_http_client(get_result=ok_response(200, {}))
+            assert await svc._test_hubspot_connection() is True
+        with patch("httpx.AsyncClient") as ac:
+            ac.return_value = hubspot_http_client(get_result=ok_response(401, {}))
+            with pytest.raises(Exception):
+                await svc._test_hubspot_connection()
+
+    async def test_setup_methods(self):
+        svc = hubspot_svc()
+        await svc._setup_webhooks()
+        await svc._setup_lead_scoring()
+        await svc._setup_marketing_automation()
+        await svc._setup_campaign_management()
+        assert svc.webhook_handlers == {}
+        assert svc.lead_scoring_rules == {}
+        assert svc.automation_flows == {}
+        assert svc.campaign_workflows == {}
+        assert await svc._setup_real_time_tracking() is True
+        assert await svc._setup_enterprise_features() is True
+        assert await svc._setup_security_and_compliance() is True
+        assert await svc._load_existing_data() is True
+        assert await svc._start_monitoring() is True
+
+
+class TestHubSpotCreateContact:
+    async def test_create_contact_success(self):
+        svc = hubspot_svc()
+        with patch("httpx.AsyncClient") as ac:
+            ac.return_value = hubspot_http_client(post_result=ok_response(201, CONTACT_BODY))
+            result = await svc.create_contact({
+                "email": "jane@acme.com", "first_name": "Jane", "last_name": "Doe",
+                "company": "ACME", "job_title": "CEO", "phone": "+1",
+                "website": "acme.com", "source": "referral", "medium": "email",
+            })
+        assert result["success"] is True
+        assert result["contact_id"] == "c1"
+        assert svc.analytics_metrics["total_contacts"] == 1
+        assert svc.analytics_metrics["lead_sources"]["referral"] == 1
+        assert result["lead_score"] >= 0
+        assert svc.analytics_metrics["lead_stages"]["lead"] == 1
+
+    async def test_create_contact_with_properties_and_cache(self):
+        cache = SimpleNamespace(set=AsyncMock())
+        svc = hubspot_svc(cache=cache)
+        with patch("httpx.AsyncClient") as ac:
+            ac.return_value = hubspot_http_client(post_result=ok_response(201, CONTACT_BODY))
+            result = await svc.create_contact({
+                "email": "a@b.c", "properties": {"custom_field": "x"}, "lead_score": 90,
+            })
+        assert result["success"] is True
+        cache.set.assert_awaited()
+        assert cache.set.call_args[0][0] == "hubspot_contact:c1"
+
+    async def test_create_contact_platform_notification(self):
+        integration = MagicMock(send_notification=AsyncMock())
+        svc = hubspot_svc()
+        svc.platform_integrations = {"slack": integration}
+        with patch("httpx.AsyncClient") as ac:
+            ac.return_value = hubspot_http_client(post_result=ok_response(201, CONTACT_BODY))
+            result = await svc.create_contact({"email": "a@b.c"}, platform="slack")
+        assert result["success"] is True
+        integration.send_notification.assert_awaited_once()
+
+    async def test_create_contact_security_blocked(self):
+        security = SimpleNamespace(check=AsyncMock(return_value={"allowed": False, "reason": "blocked by policy"}))
+        svc = hubspot_svc(enable_enterprise_features=True, security_service=security)
+        with patch("httpx.AsyncClient") as ac:
+            ac.return_value = hubspot_http_client(post_result=ok_response(201, CONTACT_BODY))
+            result = await svc.create_contact({"email": "a@b.c"})
+        assert result["success"] is False
+        assert "blocked by policy" in result["error"]
+
+    async def test_create_contact_api_error_and_exception(self):
+        svc = hubspot_svc()
+        with patch("httpx.AsyncClient") as ac:
+            ac.return_value = hubspot_http_client(post_result=ok_response(400, {}))
+            result = await svc.create_contact({"email": "a@b.c"})
+        assert result["success"] is False
+        assert "400" in result["error"]
+
+        with patch("httpx.AsyncClient") as ac:
+            ac.return_value.__aenter__ = AsyncMock(side_effect=RuntimeError("net-detail"))
+            ac.return_value.__aexit__ = AsyncMock(return_value=False)
+            result = await svc.create_contact({"email": "a@b.c"})
+        assert result["success"] is False
+        assert "net-detail" not in json.dumps(result)
+
+    async def test_create_contact_circuit_breaker_open(self):
+        svc = hubspot_svc()
+        with patch.object(hs.circuit_breaker, "is_enabled", AsyncMock(return_value=False)):
+            result = await svc.create_contact({"email": "a@b.c"})
+        assert result["success"] is False
+
+    async def test_create_contact_rate_limited(self):
+        svc = hubspot_svc()
+        with patch.object(hs.rate_limiter, "is_rate_limited", AsyncMock(return_value=(True, 0))):
+            result = await svc.create_contact({"email": "a@b.c"})
+        assert result["success"] is False
+
+
+class TestHubSpotCreateCampaign:
+    async def test_create_campaign_success(self):
+        svc = hubspot_svc()
+        campaign_data = {
+            "name": "Launch", "campaign_type": "email", "start_date": datetime.now(timezone.utc),
+            "end_date": None, "description": "d", "budget": 1000, "target_audience": ["a"],
+            "content": {}, "assets": [],
+        }
+        with patch("httpx.AsyncClient") as ac:
+            ac.return_value = hubspot_http_client(post_result=ok_response(201, CAMPAIGN_BODY))
+            result = await svc.create_campaign(campaign_data)
+        assert result["success"] is True
+        assert result["campaign_id"] == "cp1"
+        assert svc.analytics_metrics["total_campaigns"] == 1
+        assert svc.analytics_metrics["campaign_types"]["email"] == 1
+        assert svc.campaign_performance["cp1"]["status"] is None
+
+    async def test_create_campaign_with_end_date_and_platform(self):
+        integration = MagicMock(send_notification=AsyncMock())
+        svc = hubspot_svc()
+        svc.platform_integrations = {"teams": integration}
+        campaign_data = {
+            "name": "L2", "campaign_type": "webinar", "status": "active",
+            "start_date": datetime.now(timezone.utc), "end_date": datetime.now(timezone.utc),
+        }
+        with patch("httpx.AsyncClient") as ac:
+            ac.return_value = hubspot_http_client(post_result=ok_response(201, CAMPAIGN_BODY))
+            result = await svc.create_campaign(campaign_data, platform="teams")
+        assert result["success"] is True
+        integration.send_notification.assert_awaited_once()
+
+    async def test_create_campaign_missing_start_date(self):
+        svc = hubspot_svc()
+        result = await svc.create_campaign({"name": "L3"})
+        assert result["success"] is False
+
+    async def test_create_campaign_api_error(self):
+        svc = hubspot_svc()
+        campaign_data = {"name": "L4", "start_date": datetime.now(timezone.utc)}
+        with patch("httpx.AsyncClient") as ac:
+            ac.return_value = hubspot_http_client(post_result=ok_response(422, {}))
+            result = await svc.create_campaign(campaign_data)
+        assert result["success"] is False
+        assert "422" in result["error"]
+
+    async def test_create_campaign_circuit_breaker_raises_503(self):
+        svc = hubspot_svc()
+        with patch.object(hs.circuit_breaker, "is_enabled", AsyncMock(return_value=False)):
+            with pytest.raises(HTTPException) as exc:
+                await svc.create_campaign({"name": "L5", "start_date": datetime.now(timezone.utc)})
+        assert exc.value.status_code == 503
+
+    async def test_create_campaign_rate_limited_raises_429(self):
+        svc = hubspot_svc()
+        with patch.object(hs.rate_limiter, "is_rate_limited", AsyncMock(return_value=(True, 0))):
+            with pytest.raises(HTTPException) as exc:
+                await svc.create_campaign({"name": "L6", "start_date": datetime.now(timezone.utc)})
+        assert exc.value.status_code == 429
+
+
+class TestHubSpotLeadScoring:
+    async def test_rule_based_scoring_variants(self):
+        svc = hubspot_svc()
+        score = await svc._rule_based_lead_scoring({
+            "company": "ACME", "job_title": "CEO", "email": "ceo@acme.com",
+            "phone": "+1", "website": "acme.com", "source": "referral",
+        })
+        assert score == 10 + 20 + 5 + 5 + 5 + 10
+        score = await svc._rule_based_lead_scoring({
+            "job_title": "Manager", "email": "m@acme.com", "source": "website",
+        })
+        assert score == 15 + 5 + 5
+        score = await svc._rule_based_lead_scoring({"job_title": "Senior Dev", "email": "s@gmail.com", "source": ""})
+        assert score == 10
+        score = await svc._rule_based_lead_scoring({"job_title": "Intern"})
+        assert score == 5
+        score = await svc._rule_based_lead_scoring({})
+        assert score == 5
+        assert await svc._rule_based_lead_scoring(None) == 50.0
+
+    async def test_score_lead_rule_based(self):
+        svc = hubspot_svc()
+        svc.analytics_metrics["total_contacts"] = 1
+        score = await svc._score_lead({"company": "ACME", "job_title": "VP Sales", "email": "v@sales.co"})
+        assert 0 <= score <= 100
+        assert svc.performance_metrics["lead_scoring_time"] >= 0
+        assert svc.analytics_metrics["average_lead_score"] == score
+
+    async def test_score_lead_ai_path(self, monkeypatch):
+        ai = MagicMock()
+        ai.process_ai_request = AsyncMock(return_value=SimpleNamespace(
+            ok=True, output_data={"lead_score": 85, "scoring_factors": {"x": 1}}
+        ))
+        svc = hubspot_svc(ai_service=ai)
+        monkeypatch.setattr(hs, "AIRequest", lambda **kw: kw)
+        monkeypatch.setattr(hs, "AITaskType", SimpleNamespace(PREDICTION="prediction"))
+        monkeypatch.setattr(hs, "AIModelType", SimpleNamespace(GPT_4="gpt4"))
+        monkeypatch.setattr(hs, "AIServiceType", SimpleNamespace(OPENAI="openai"))
+        score = await svc._score_lead({"company": "ACME"})
+        assert score == 85.0
+
+    async def test_score_lead_ai_not_ok_falls_back(self, monkeypatch):
+        ai = MagicMock()
+        ai.process_ai_request = AsyncMock(return_value=SimpleNamespace(ok=False, output_data=None))
+        svc = hubspot_svc(ai_service=ai)
+        monkeypatch.setattr(hs, "AIRequest", lambda **kw: kw)
+        monkeypatch.setattr(hs, "AITaskType", SimpleNamespace(PREDICTION="p"))
+        monkeypatch.setattr(hs, "AIModelType", SimpleNamespace(GPT_4="g"))
+        monkeypatch.setattr(hs, "AIServiceType", SimpleNamespace(OPENAI="o"))
+        score = await svc._score_lead({"company": "ACME", "job_title": "CEO"})
+        assert score == 30.0
+
+    async def test_score_lead_ai_error_default(self, monkeypatch):
+        ai = MagicMock()
+        ai.process_ai_request = AsyncMock(side_effect=RuntimeError("ai-down"))
+        svc = hubspot_svc(ai_service=ai)
+        svc._rule_based_lead_scoring = AsyncMock(side_effect=RuntimeError("rule-down"))
+        score = await svc._score_lead({})
+        assert score == 50.0
+
+    async def test_optimize_campaign_with_ai(self, monkeypatch):
+        svc = hubspot_svc()
+        result = await svc._optimize_campaign_with_ai({"subject": "S"})
+        assert result["optimized_subject"] == "S"
+        assert result["content_tone_suggestion"] == "professional"
+
+        ai = MagicMock()
+        ai.process_ai_request = AsyncMock(return_value=SimpleNamespace(
+            ok=True, output_data={"optimized_subject": "New", "content_tone_suggestion": "friendly",
+                                  "call_to_action_suggestion": "Buy", "optimal_send_time": "9AM",
+                                  "audience_segmentation": ["x"], "budget_allocation": {"a": 1},
+                                  "predicted_performance": {"open": 0.5}}
+        ))
+        svc2 = hubspot_svc(ai_service=ai)
+        monkeypatch.setattr(hs, "AIRequest", lambda **kw: kw)
+        monkeypatch.setattr(hs, "AITaskType", SimpleNamespace(CONTENT_ANALYSIS="ca"))
+        monkeypatch.setattr(hs, "AIModelType", SimpleNamespace(GPT_4="g"))
+        monkeypatch.setattr(hs, "AIServiceType", SimpleNamespace(OPENAI="o"))
+        result = await svc2._optimize_campaign_with_ai({"subject": "S"})
+        assert result["optimized_subject"] == "New"
+        assert svc2.performance_metrics["analytics_generation_time"] >= 0
+
+    async def test_optimize_campaign_with_ai_not_ok(self, monkeypatch):
+        ai = MagicMock()
+        ai.process_ai_request = AsyncMock(return_value=SimpleNamespace(ok=False, output_data=None))
+        svc = hubspot_svc(ai_service=ai)
+        monkeypatch.setattr(hs, "AIRequest", lambda **kw: kw)
+        result = await svc._optimize_campaign_with_ai({"subject": "X"})
+        assert result["optimized_subject"] == "X"
+
+
+class TestHubSpotAnalytics:
+    async def test_generate_marketing_analytics_all_types(self):
+        for atype in list(hs.AnalyticsType):
+            svc = hubspot_svc()
+            result = await svc.generate_marketing_analytics(atype, time_period="30d")
+            assert result["success"] is True
+            assert result["analytics"]["analytics_type"] == atype
+            assert result["analytics"]["time_period"] == "30d"
+
+    async def test_generate_analytics_with_ai_insights(self, monkeypatch):
+        ai = MagicMock()
+        ai.process_ai_request = AsyncMock(return_value=SimpleNamespace(
+            ok=True, output_data={"insights": ["ai insight"]}
+        ))
+        svc = hubspot_svc(ai_service=ai)
+        monkeypatch.setattr(hs, "AIRequest", lambda **kw: kw)
+        monkeypatch.setattr(hs, "AITaskType", SimpleNamespace(CONTENT_ANALYSIS="ca"))
+        monkeypatch.setattr(hs, "AIModelType", SimpleNamespace(GPT_4="g"))
+        monkeypatch.setattr(hs, "AIServiceType", SimpleNamespace(OPENAI="o"))
+        result = await svc.generate_marketing_analytics(hs.AnalyticsType.EMAIL_PERFORMANCE)
+        assert result["success"] is True
+        assert result["analytics"]["metrics"]["ai_insights"]["insights"] == ["ai insight"]
+
+    async def test_generate_ai_insights_fallback(self):
+        svc = hubspot_svc()
+        assert await svc._generate_ai_insights({}, hs.AnalyticsType.CAMPAIGN_PERFORMANCE) == {"insights": [], "recommendations": []}
+        ai = MagicMock()
+        ai.process_ai_request = AsyncMock(return_value=SimpleNamespace(ok=True, output_data=None))
+        svc2 = hubspot_svc(ai_service=ai)
+        assert await svc2._generate_ai_insights({}, hs.AnalyticsType.LEAD_CONVERSION) == {"insights": [], "recommendations": []}
+
+    async def test_generate_analytics_helpers(self):
+        svc = hubspot_svc()
+        start, end = datetime.now(timezone.utc) - timedelta(days=7), datetime.now(timezone.utc)
+        assert (await svc._generate_campaign_performance_analytics(start, end))["total_campaigns"] == 0
+        svc.campaign_performance = {"c1": {"status": "active"}, "c2": {"status": "draft"}}
+        data = await svc._generate_campaign_performance_analytics(start, end)
+        assert data["active_campaigns"] == 1
+        assert (await svc._generate_lead_conversion_analytics(start, end))["leads_generated"] == 0
+        assert (await svc._generate_email_performance_analytics(start, end))["open_rate"] == 0.0
+        assert (await svc._generate_social_media_analytics(start, end))["engagement_total"] == 0
+        assert (await svc._generate_website_traffic_analytics(start, end))["visits"] == 0
+        assert (await svc._generate_marketing_roi_analytics(start, end))["roi"] == 0.0
+        assert (await svc._generate_lead_scoring_analytics(start, end))["average_lead_score"] == 0.0
+        assert (await svc._generate_ab_testing_analytics(start, end))["tests_run"] == 0
+
+    async def test_generate_marketing_analytics_error(self):
+        svc = hubspot_svc()
+        svc._generate_campaign_performance_analytics = AsyncMock(side_effect=RuntimeError("analytics-down"))
+        result = await svc.generate_marketing_analytics(hs.AnalyticsType.CAMPAIGN_PERFORMANCE)
+        assert result["success"] is False
+        assert "analytics-down" not in json.dumps(result)
+
+    async def test_generate_marketing_analytics_rate_limited(self):
+        svc = hubspot_svc()
+        with patch.object(hs.rate_limiter, "is_rate_limited", AsyncMock(return_value=(True, 0))):
+            with pytest.raises(HTTPException) as exc:
+                await svc.generate_marketing_analytics(hs.AnalyticsType.CAMPAIGN_PERFORMANCE)
+        assert exc.value.status_code == 429
+
+
+class TestHubSpotSecurityAndCache:
+    async def test_perform_security_check(self):
+        svc = hubspot_svc()
+        assert (await svc._perform_security_check({}))["passed"] is True
+
+        security = SimpleNamespace(check=AsyncMock(return_value={"allowed": False, "reason": "nope"}))
+        svc2 = hubspot_svc(security_service=security)
+        result = await svc2._perform_security_check({})
+        assert result["passed"] is False and result["reason"] == "nope"
+
+        security = SimpleNamespace(check=AsyncMock(return_value={"allowed": True}))
+        svc3 = hubspot_svc(security_service=security)
+        assert (await svc3._perform_security_check({}))["passed"] is True
+
+        security = SimpleNamespace(check=AsyncMock(side_effect=RuntimeError("sec-down")))
+        svc4 = hubspot_svc(security_service=security)
+        assert (await svc4._perform_security_check({}))["passed"] is True
+
+    async def test_cache_contact_campaign(self):
+        cache = SimpleNamespace(set=AsyncMock())
+        svc = hubspot_svc(cache=cache)
+        await svc._cache_contact({"id": "c1"})
+        cache.set.assert_awaited_once()
+        cache.set.reset_mock()
+        await svc._cache_campaign({"id": "cp1"})
+        assert cache.set.call_args[0][0] == "hubspot_campaign:cp1"
+
+        no_cache = hubspot_svc()
+        await no_cache._cache_contact({"id": "c1"})
+        await no_cache._cache_campaign({"id": "c1"})
+
+        bad_cache = SimpleNamespace(set=AsyncMock(side_effect=RuntimeError("cache-down")))
+        svc3 = hubspot_svc(cache=bad_cache)
+        await svc3._cache_contact({"id": "c1"})
+        await svc3._cache_campaign({"id": "c1"})
+
+
+class TestHubSpotWorkflows:
+    async def test_trigger_automation_workflows_disabled(self):
+        svc = hubspot_svc(automation_workflows=False)
+        svc._execute_workflow = AsyncMock()
+        await svc._trigger_automation_workflows({"id": "c1"}, "contact_created")
+        svc._execute_workflow.assert_not_awaited()
+
+    async def test_trigger_automation_workflows_matching(self):
+        svc = hubspot_svc()
+        executed = []
+        svc.automation_flows = {
+            "wf1": {"trigger_event": "contact_created", "conditions": {"lifecycle_stage": "lead"}, "actions": []},
+            "wf2": {"trigger_event": "other", "conditions": {}, "actions": []},
+        }
+        svc._execute_workflow = AsyncMock(side_effect=lambda wf, contact: executed.append(wf["trigger_event"]))
+        await svc._trigger_automation_workflows({"properties": {"lifecyclestage": "lead"}}, "contact_created")
+        assert executed == ["contact_created"]
+
+    async def test_evaluate_workflow_conditions(self):
+        svc = hubspot_svc()
+        assert svc._evaluate_workflow_conditions({"lifecycle_stage": "lead"}, {"properties": {"lifecyclestage": "lead"}}) is True
+        assert svc._evaluate_workflow_conditions({"lifecycle_stage": "lead"}, {"properties": {"lifecyclestage": "customer"}}) is False
+        assert svc._evaluate_workflow_conditions({"lead_score_min": 50}, {"properties": {"hs_lead_score": "70"}}) is True
+        assert svc._evaluate_workflow_conditions({"lead_score_min": 50}, {"properties": {"hs_lead_score": "30"}}) is False
+        assert svc._evaluate_workflow_conditions({}, {}) is True
+        assert svc._evaluate_workflow_conditions({"lead_score_min": 50}, {"properties": {"hs_lead_score": "abc"}}) is False
+
+    async def test_execute_workflow_actions(self):
+        svc = hubspot_svc()
+        svc._send_automated_email = AsyncMock()
+        svc._add_contact_to_list = AsyncMock()
+        svc._create_marketing_task = AsyncMock()
+        svc._update_contact_properties = AsyncMock()
+        workflow = {"actions": [
+            {"type": "send_email"}, {"type": "add_to_list", "list_id": "L1"},
+            {"type": "create_task"}, {"type": "update_properties"}, {"type": "unknown"},
+        ]}
+        await svc._execute_workflow(workflow, {"id": "c1"})
+        svc._send_automated_email.assert_awaited_once()
+        svc._add_contact_to_list.assert_awaited_once()
+        svc._create_marketing_task.assert_awaited_once()
+        svc._update_contact_properties.assert_awaited_once()
+        assert svc.performance_metrics["workflow_execution_time"] >= 0
+
+    async def test_workflow_action_handlers(self):
+        svc = hubspot_svc()
+        await svc._send_automated_email({"id": "c1"}, {})
+        await svc._add_contact_to_list({"id": "c1"}, {"list_id": "L1"})
+        await svc._create_marketing_task({"id": "c1"}, {})
+        await svc._update_contact_properties({"id": "c1"}, {})
+
+    async def test_trigger_campaign_workflows(self):
+        svc = hubspot_svc()
+        await svc._trigger_campaign_workflows({"id": "cp1", "status": "active"}, "created")
+        assert svc.campaign_performance["cp1"]["status"] == "active"
+        await svc._trigger_campaign_workflows({}, "created")
+
+    async def test_notify_platforms(self):
+        integration = MagicMock(send_notification=AsyncMock())
+        svc = hubspot_svc()
+        svc.platform_integrations = {"slack": integration}
+        await svc._notify_platform_lead_created({"id": "c1", "properties": {}}, "slack")
+        integration.send_notification.assert_awaited_once()
+        integration.send_notification.reset_mock()
+        await svc._notify_platform_campaign_created({"id": "cp1", "name": "N"}, "slack")
+        integration.send_notification.assert_awaited_once()
+        await svc._notify_platform_lead_created({"id": "c1"}, "unknown_platform")
+        await svc._notify_platform_campaign_created({"id": "cp1"}, "unknown_platform")
+
+        integration.send_notification = AsyncMock(side_effect=RuntimeError("notify-down"))
+        await svc._notify_platform_lead_created({"id": "c1", "properties": {}}, "slack")
+        await svc._notify_platform_campaign_created({"id": "cp1"}, "slack")
+
+
+class TestHubSpotStatusAndClose:
+    async def test_get_service_status(self):
+        svc = hubspot_svc()
+        status = await svc.get_service_status()
+        assert status["service"] == "hubspot_integration"
+        assert status["status"] == "inactive"
+        assert "analytics_metrics" in status
+
+        svc.is_initialized = True
+        status = await svc.get_service_status()
+        assert status["status"] == "active"
+
+        svc.hubspot_config = None
+        status = await svc.get_service_status()
+        assert "error" in status
+        assert status["service"] == "hubspot_integration"
+        assert "Service status unavailable" in status["error"]
+
+    async def test_close(self):
+        svc = hubspot_svc()
+        await svc.close()
+
+        with patch.object(hs.circuit_breaker, "is_enabled", AsyncMock(return_value=False)):
+            with pytest.raises(HTTPException) as exc:
+                await svc.close()
+        assert exc.value.status_code == 503
+
+
+# =========================================================================
+# chat_orchestrator
+# =========================================================================
+
+def make_orch(**attrs):
+    orch = object.__new__(co.ChatOrchestrator)
+    orch.tenant_id = "t1"
+    orch.conversation_sessions = {}
+    orch.feature_handlers = {}
+    orch.platform_connectors = {}
+    orch.ai_engines = {}
+    orch.llm_service = None
+    orch.session_manager = None
+    orch._cancelled_sessions = set()
+    orch.__dict__.update(attrs)
+    return orch
+
+
+class TestChatSessions:
+    async def test_get_or_create_session_new(self):
+        orch = make_orch()
+        session = orch._get_or_create_session("u1", "s1", None)
+        assert session["user_id"] == "u1"
+        assert session["id"] == "s1"
+        assert session["history"] == []
+        assert "channel_id" in session
+
+    async def test_get_or_create_session_new_persists(self):
+        manager = MagicMock()
+        orch = make_orch(session_manager=manager)
+        orch._get_or_create_session("u1", "s1", {"channel_id": "ch1", "thread_id": "th1"})
+        manager.create_session.assert_called_once_with(user_id="u1", session_id="s1", channel_id="ch1", thread_id="th1")
+
+    async def test_get_or_create_session_persist_failure_nonfatal(self):
+        manager = MagicMock()
+        manager.create_session.side_effect = RuntimeError("db-down")
+        orch = make_orch(session_manager=manager)
+        session = orch._get_or_create_session("u1", "s1", None)
+        assert session["id"] == "s1"
+
+    async def test_get_or_create_session_existing(self):
+        orch = make_orch()
+        orch.conversation_sessions["s1"] = {"id": "s1", "user_id": "u1", "history": [1]}
+        session = orch._get_or_create_session("u1", "s1", None)
+        assert session["history"] == [1]
+
+    async def test_get_or_create_session_cross_user_isolated(self):
+        orch = make_orch()
+        orch.conversation_sessions["s1"] = {"id": "s1", "user_id": "other", "history": []}
+        session = orch._get_or_create_session("u1", "s1", None)
+        assert session["id"] != "s1"
+        assert session["user_id"] == "u1"
+
+    async def test_update_session_history_and_db(self, monkeypatch):
+        db = MagicMock()
+        db.__enter__ = MagicMock(return_value=db)
+        db.__exit__ = MagicMock(return_value=False)
+        db.query.return_value.filter.return_value.first.return_value = None
+
+        class FakeChatMessage:
+            def __init__(self, **kw):
+                self.__dict__.update(kw)
+
+        class FakeChatSession:
+            def __init__(self, **kw):
+                self.__dict__.update(kw)
+
+        monkeypatch.setattr("core.database.get_db_session", lambda: db)
+        monkeypatch.setattr("core.models.ChatMessage", FakeChatMessage)
+        monkeypatch.setattr("core.models.ChatSession", FakeChatSession)
+        orch = make_orch()
+        session = orch._get_or_create_session("u1", "s1", None)
+        orch._update_session(session, "hi", {"message": "hello"}, {"primary_intent": "x"})
+        assert len(session["history"]) == 1
+        assert session["history"][0]["message"] == "hi"
+        assert db.add.call_count == 2
+
+    async def test_update_session_db_error_nonfatal(self, monkeypatch):
+        def boom():
+            raise RuntimeError("db-leak")
+        monkeypatch.setattr("core.database.get_db_session", boom)
+        orch = make_orch()
+        session = orch._get_or_create_session("u1", "s1", None)
+        orch._update_session(session, "hi", {"message": "hello"}, {"primary_intent": "x"})
+        assert len(session["history"]) == 1
+
+    async def test_update_session_dedup_index(self, monkeypatch):
+        idx = MagicMock()
+        idx.index_text = MagicMock()
+        monkeypatch.setattr("core.llm.compression.SESSION_DEDUP_ENABLED", True)
+        monkeypatch.setattr("core.llm.compression.session_dedup.get_or_create_dedup_index", lambda s: idx)
+        orch = make_orch()
+        session = orch._get_or_create_session("u1", "s1", None)
+        orch._update_session(session, "hi", {"message": "hello"}, {"primary_intent": "x"})
+        assert idx.index_text.call_count == 2
+
+    async def test_generate_error_response(self):
+        orch = make_orch()
+        resp = orch._generate_error_response("bad", "s1")
+        assert resp["success"] is False
+        assert resp["error"] == "bad"
+        assert resp["session_id"] == "s1"
+
+    async def test_cancellation(self):
+        orch = make_orch()
+        assert orch._is_cancelled("s1") is False
+        orch.request_cancellation("s1")
+        assert orch._is_cancelled("s1") is True
+        assert orch._is_cancelled("s1") is False
+
+    async def test_emit_agent_step(self, monkeypatch):
+        manager = MagicMock()
+        manager.broadcast_event = AsyncMock()
+        monkeypatch.setattr("core.websockets.get_connection_manager", lambda: manager)
+        orch = make_orch()
+        await orch._emit_agent_step(1, "thought", "action", "obs")
+        assert manager.broadcast_event.await_count == 1
+
+        manager.broadcast_event = AsyncMock(side_effect=RuntimeError("ws-down"))
+        await orch._emit_agent_step(1, "t", "a", "o")
+
+    async def test_get_user_sessions_memory_fallback(self):
+        orch = make_orch()
+        orch.conversation_sessions["s1"] = {"id": "s1", "user_id": "u1"}
+        result = orch.get_user_sessions("u1")
+        assert "s1" in result
+
+    async def test_get_user_sessions_manager(self):
+        manager = MagicMock()
+        manager.list_user_sessions.return_value = [{
+            "session_id": "s1", "user_id": "u1", "title": "T", "created_at": "c",
+            "last_active": "l", "history": [], "metadata": {},
+        }]
+        orch = make_orch(session_manager=manager)
+        result = orch.get_user_sessions("u1")
+        assert result["s1"]["id"] == "s1"
+        assert "s1" in orch.conversation_sessions
+
+
+class TestChatIntent:
+    async def test_fallback_intent_analysis(self):
+        orch = make_orch()
+        assert orch._fallback_intent_analysis("find the file")["primary_intent"] == co.ChatIntent.SEARCH_REQUEST
+        assert orch._fallback_intent_analysis("email bob")["primary_intent"] == co.ChatIntent.MESSAGE_SEND
+        assert orch._fallback_intent_analysis("create task")["primary_intent"] == co.ChatIntent.TASK_MANAGEMENT
+        assert orch._fallback_intent_analysis("build workflow")["primary_intent"] == co.ChatIntent.WORKFLOW_CREATION
+        assert orch._fallback_intent_analysis("schedule meeting")["primary_intent"] == co.ChatIntent.SCHEDULING
+        assert orch._fallback_intent_analysis("what should i do today")["primary_intent"] == co.ChatIntent.BUSINESS_HEALTH
+        assert orch._fallback_intent_analysis("what if i hire")["primary_intent"] == co.ChatIntent.BUSINESS_HEALTH
+        assert orch._fallback_intent_analysis("show me deals")["primary_intent"] == co.ChatIntent.CRM
+        result = orch._fallback_intent_analysis("random words")
+        assert result["primary_intent"] == co.ChatIntent.SEARCH_REQUEST
+        assert result["confidence"] == 0.6
+
+    async def test_analyze_intent_nlp(self):
+        orch = make_orch()
+        nlp_result = SimpleNamespace(confidence=0.9, entities=["e"], platforms=["slack"], command_type="search")
+        orch.ai_engines = {"nlp": SimpleNamespace(parse_command=AsyncMock(return_value=nlp_result))}
+        result = await orch._analyze_intent("find x", {})
+        assert result["confidence"] == 0.9
+        assert result["primary_intent"] == co.ChatIntent.SEARCH_REQUEST
+        assert result["raw_nlp"] is nlp_result
+
+    async def test_analyze_intent_nlp_failure(self):
+        orch = make_orch()
+        orch.ai_engines = {"nlp": SimpleNamespace(parse_command=AsyncMock(side_effect=RuntimeError("nlp-down")))}
+        result = await orch._analyze_intent("find x", {})
+        assert result["primary_intent"] == co.ChatIntent.SEARCH_REQUEST
+
+    async def test_analyze_intent_fallback(self):
+        orch = make_orch()
+        result = await orch._analyze_intent("email bob", {})
+        assert result["primary_intent"] == co.ChatIntent.MESSAGE_SEND
+
+    async def test_classify_intent(self):
+        from ai.nlp_engine import CommandType
+        orch = make_orch()
+        mapping = [
+            (CommandType.SEARCH, co.ChatIntent.SEARCH_REQUEST),
+            (CommandType.CREATE, co.ChatIntent.TASK_MANAGEMENT),
+            (CommandType.UPDATE, co.ChatIntent.TASK_MANAGEMENT),
+            (CommandType.SCHEDULE, co.ChatIntent.SCHEDULING),
+            (CommandType.ANALYZE, co.ChatIntent.DATA_ANALYSIS),
+            (CommandType.BUSINESS_HEALTH, co.ChatIntent.BUSINESS_HEALTH),
+            (CommandType.TRIGGER, co.ChatIntent.AUTOMATION_TRIGGER),
+            (CommandType.WORKFLOW_CREATION, co.ChatIntent.WORKFLOW_CREATION),
+        ]
+        for cmd, intent in mapping:
+            assert orch._classify_intent(SimpleNamespace(command_type=cmd)) == intent
+        assert orch._classify_intent(SimpleNamespace(command_type=CommandType.DELETE)) == co.ChatIntent.SEARCH_REQUEST
+
+
+class TestChatQwen:
+    async def test_get_qwen_response_none_service(self):
+        orch = make_orch()
+        assert await orch._get_qwen_response("hi", []) is None
+
+    async def test_get_qwen_response_success(self):
+        llm = MagicMock()
+        llm.generate_completion = AsyncMock(return_value={
+            "success": True, "content": "  hello there  ", "model": "m1", "provider": "p1",
+        })
+        orch = make_orch(llm_service=llm)
+        result = await orch._get_qwen_response("hi", [], routing_overrides={"model": "x", "tier": "t", "intent": "i"}, sticky_hint=("p1", "m1"))
+        assert result == {"content": "hello there", "model": "m1", "provider": "p1"}
+        kwargs = llm.generate_completion.call_args[1]
+        assert kwargs["model"] == "x"
+        assert kwargs["cognitive_tier"] == "t"
+        assert kwargs["intent_override"] == "i"
+        assert kwargs["sticky_hint"] == ("p1", "m1")
+
+    async def test_get_qwen_response_failure_and_exception(self):
+        llm = MagicMock()
+        llm.generate_completion = AsyncMock(return_value={"success": False})
+        orch = make_orch(llm_service=llm)
+        assert await orch._get_qwen_response("hi", []) is None
+
+        llm.generate_completion = AsyncMock(side_effect=RuntimeError("llm-down"))
+        assert await orch._get_qwen_response("hi", []) is None
+
+
+class TestChatProcessMessage:
+    async def test_process_chat_message_success(self, monkeypatch):
+        llm = MagicMock()
+        llm.generate_completion = AsyncMock(return_value={
+            "success": True, "content": "AI answer", "model": "gpt-x", "provider": "openai",
+        })
+        orch = make_orch(llm_service=llm)
+        orch._initialize_feature_handlers()
+        result = await orch.process_chat_message("u1", "find reports", context={})
+        assert result["success"] is True
+        assert result["message"] == "AI answer"
+        assert result["model"] == "gpt-x"
+        assert result["provider"] == "openai"
+        assert result["intent"] == "search_request"
+        assert result["session_id"]
+        session = orch.conversation_sessions[result["session_id"]]
+        assert len(session["history"]) == 1
+        assert session["last_known_good_model"] == "gpt-x"
+
+    async def test_process_chat_message_template_path(self):
+        orch = make_orch()
+        orch._initialize_feature_handlers()
+        result = await orch.process_chat_message("u1", "find reports")
+        assert result["success"] is True
+        assert result["model"] == "template"
+        assert result["provider"] == "template"
+        assert "results" in result["message"] or "searched" in result["message"]
+
+    async def test_process_chat_message_cancelled(self):
+        orch = make_orch()
+        orch._initialize_feature_handlers()
+        orch.request_cancellation("sess-c")
+        result = await orch.process_chat_message("u1", "find reports", session_id="sess-c")
+        assert result["success"] is False
+        assert result["cancelled"] is True
+
+    async def test_process_chat_message_budget_failure(self):
+        async def budget_handler(message, intent_analysis, session, context):
+            return {"success": True, "error_code": "budget_exceeded", "message": "budget used up", "failure_reason": "cap reached", "data": {}}
+
+        async def noop_handler(*a, **k):
+            return None
+
+        orch = make_orch()
+        orch._initialize_feature_handlers()
+        orch.feature_handlers[co.FeatureType.SEARCH] = budget_handler
+        orch.feature_handlers[co.FeatureType.AI_ANALYTICS] = noop_handler
+        agent = MagicMock()
+        agent.execute_task = AsyncMock(return_value={"id": "t1", "status": "started"})
+        with patch.object(co, "agent_service", agent):
+            result = await orch.process_chat_message("u1", "find reports")
+        assert result["success"] is False
+        assert result["error_code"] == "budget_exceeded"
+        assert result["recovery_url"] == "/settings/billing"
+        assert result["message"] == "budget used up"
+
+    async def test_process_chat_message_error_path(self):
+        def boom(self, *a, **k):
+            raise RuntimeError("session-detail")
+        with patch.object(co.ChatOrchestrator, "_get_or_create_session", boom):
+            orch = co.ChatOrchestrator.__new__(co.ChatOrchestrator)
+            orch.conversation_sessions = {}
+            orch.llm_service = None
+            orch.ai_engines = {}
+            orch.feature_handlers = {}
+            orch.session_manager = None
+            orch._cancelled_sessions = set()
+            orch.tenant_id = "t1"
+            result = await orch.process_chat_message("u1", "find reports")
+        assert result["success"] is False
+        assert "error" in result
+
+    async def test_process_chat_message_dedup(self, monkeypatch):
+        idx = MagicMock()
+        idx.deduplicate = MagicMock(side_effect=lambda text: (text, False))
+        monkeypatch.setattr("core.llm.compression.SESSION_DEDUP_ENABLED", True)
+        monkeypatch.setattr("core.llm.compression.session_dedup.get_or_create_dedup_index", lambda s: idx)
+        llm = MagicMock()
+        llm.generate_completion = AsyncMock(return_value={
+            "success": True, "content": "hi", "model": "m", "provider": "p",
+        })
+        orch = make_orch(llm_service=llm)
+        orch._initialize_feature_handlers()
+        orch.conversation_sessions["s1"] = {
+            "id": "s1", "user_id": "u1", "history": [{"message": "old", "response": {"message": "old reply"}}],
+        }
+        result = await orch.process_chat_message("u1", "find reports", session_id="s1")
+        assert result["success"] is True
+
+
+class TestChatRouting:
+    async def test_route_to_features_success(self):
+        orch = make_orch()
+        orch._initialize_feature_handlers()
+        intent = {"primary_intent": co.ChatIntent.MESSAGE_SEND, "confidence": 0.6, "entities": [], "platforms": []}
+        responses = await orch._route_to_features("email bob", intent, {"id": "s1"}, None)
+        assert co.FeatureType.COMMUNICATION in responses
+        assert responses[co.FeatureType.COMMUNICATION]["success"] is True
+
+    async def test_route_to_features_crm(self):
+        orch = make_orch()
+        orch._initialize_feature_handlers()
+        agent = MagicMock()
+        agent.execute_task = AsyncMock(return_value={"id": "t1", "status": "started"})
+        with patch.object(co, "agent_service", agent), \
+             patch.object(co, "get_automation_settings", return_value=SimpleNamespace(is_sales_enabled=lambda: False)):
+            intent = {"primary_intent": co.ChatIntent.CRM}
+            responses = await orch._route_to_features("show deals", intent, {"id": "s1"}, None)
+        assert co.FeatureType.AGENT in responses
+
+    async def test_route_to_features_handler_error(self):
+        orch = make_orch()
+        orch._initialize_feature_handlers()
+
+        async def boom(message, intent_analysis, session, context):
+            raise RuntimeError("handler-down")
+        orch.feature_handlers[co.FeatureType.SEARCH] = boom
+        orch.feature_handlers[co.FeatureType.AI_ANALYTICS] = boom
+        agent = MagicMock()
+        agent.execute_task = AsyncMock(return_value={"id": "t1", "status": "started"})
+        with patch.object(co, "agent_service", agent):
+            intent = {"primary_intent": co.ChatIntent.SEARCH_REQUEST}
+            responses = await orch._route_to_features("find x", intent, {"id": "s1"}, None)
+        assert responses[co.FeatureType.SEARCH] == {"error": "internal_error"}
+        assert responses[co.FeatureType.AI_ANALYTICS] == {"error": "internal_error"}
+        assert co.FeatureType.AGENT in responses
+
+    async def test_route_to_features_agent_fallback(self):
+        orch = make_orch()
+        orch._initialize_feature_handlers()
+        agent = MagicMock()
+        agent.execute_task = AsyncMock(return_value={"id": "t1", "status": "started"})
+        with patch.object(co, "agent_service", agent):
+            intent = {"primary_intent": co.ChatIntent.BUSINESS_HEALTH}
+            responses = await orch._route_to_features("what should i do", intent, {"id": "s1"}, None)
+        assert co.FeatureType.AGENT in responses
+        assert responses[co.FeatureType.AGENT]["data"]["task_id"] == "t1"
+
+    async def test_route_to_features_agent_fallback_failure(self):
+        orch = make_orch()
+        orch._initialize_feature_handlers()
+        agent = MagicMock()
+        agent.execute_task = AsyncMock(side_effect=RuntimeError("agent-down"))
+        with patch.object(co, "agent_service", agent):
+            intent = {"primary_intent": co.ChatIntent.AGENT_REQUEST}
+            responses = await orch._route_to_features("do something", intent, {"id": "s1"}, None)
+        assert co.FeatureType.AGENT not in responses
+
+    async def test_route_to_features_multi_step(self):
+        orch = make_orch()
+        orch._initialize_feature_handlers()
+        intent = {"primary_intent": co.ChatIntent.MULTI_STEP_PROCESS}
+        responses = await orch._route_to_features("everything", intent, {"id": "s1"}, None)
+        assert co.FeatureType.AI_ANALYTICS in responses
+
+
+class TestChatResponseGen:
+    async def test_generate_main_message_all_intents(self):
+        orch = make_orch()
+        intent = {"primary_intent": co.ChatIntent.SEARCH_REQUEST}
+        msg = orch._generate_main_message("q", intent, {co.FeatureType.SEARCH: {"data": {"results": [1, 2, 3]}}})
+        assert "3 results" in msg
+        msg = orch._generate_main_message("q", intent, {co.FeatureType.SEARCH: {}})
+        assert "searched" in msg
+        intent = {"primary_intent": co.ChatIntent.MESSAGE_SEND}
+        assert "sent successfully" in orch._generate_main_message("q", intent, {co.FeatureType.COMMUNICATION: {"success": True}})
+        assert "send that message" in orch._generate_main_message("q", intent, {})
+        intent = {"primary_intent": co.ChatIntent.TASK_MANAGEMENT}
+        assert "processed" in orch._generate_main_message("q", intent, {co.FeatureType.TASKS: {"success": True, "data": {"message": "processed"}}})
+        assert "manage those tasks" in orch._generate_main_message("q", intent, {})
+        intent = {"primary_intent": co.ChatIntent.WORKFLOW_CREATION}
+        assert "created successfully" in orch._generate_main_message("q", intent, {co.FeatureType.WORKFLOWS: {"data": {"id": 1}}})
+        assert "automation workflow" in orch._generate_main_message("q", intent, {})
+        intent = {"primary_intent": co.ChatIntent.SCHEDULING}
+        assert "updated successfully" in orch._generate_main_message("q", intent, {co.FeatureType.SCHEDULING: {"data": {"x": 1}}})
+        assert "scheduling" in orch._generate_main_message("q", intent, {})
+        intent = {"primary_intent": co.ChatIntent.CRM}
+        assert orch._generate_main_message("q", intent, {co.FeatureType.CRM: {"success": True, "data": {"answer": "CRM answer"}}}) == "CRM answer"
+        assert "help you with your CRM" in orch._generate_main_message("q", intent, {})
+        intent = {"primary_intent": co.ChatIntent.BUSINESS_HEALTH}
+        assert orch._generate_main_message("q", intent, {co.FeatureType.BUSINESS_HEALTH: {"success": True, "message": "all good"}}) == "all good"
+        assert "business health query" in orch._generate_main_message("q", intent, {})
+        agent_resp = {"success": True, "message": "agent handled it"}
+        assert orch._generate_main_message("q", {"primary_intent": co.ChatIntent.SEARCH_REQUEST}, {co.FeatureType.AGENT: agent_resp}) == "agent handled it"
+
+    async def test_generate_next_steps(self):
+        orch = make_orch()
+        for intent in [co.ChatIntent.SEARCH_REQUEST, co.ChatIntent.WORKFLOW_CREATION, co.ChatIntent.TASK_MANAGEMENT, co.ChatIntent.CRM, co.ChatIntent.SCHEDULING]:
+            steps = orch._generate_next_steps({"primary_intent": intent}, {})
+            assert len(steps) <= 3
+            assert steps
+
+    async def test_generate_coordinated_response(self):
+        orch = make_orch()
+        resp = orch._generate_coordinated_response(
+            "q",
+            {"primary_intent": co.ChatIntent.SEARCH_REQUEST, "confidence": 0.5},
+            {co.FeatureType.SEARCH: {"data": {"results": []}, "suggested_actions": ["a"], "ui_updates": ["u"], "requires_confirmation": True}},
+            {"id": "s1"},
+        )
+        assert resp["success"] is True
+        assert resp["requires_confirmation"] is True
+        assert resp["ui_updates"] == ["u"]
+
+
+class TestChatFeatureHandlers:
+    async def test_search_handler(self):
+        orch = make_orch()
+        orch.ai_engines = {"data_intelligence": SimpleNamespace(search_unified_entities=lambda m: [{"id": 1}])}
+        result = await orch._handle_search_request("find x", {"platforms": ["slack"]}, {"id": "s1"}, None)
+        assert result["success"] is True
+        assert result["data"]["results"] == [{"id": 1}]
+
+        orch.ai_engines = {}
+        result = await orch._handle_search_request("find x", {}, {"id": "s1"}, None)
+        assert result["success"] is True
+
+        orch.ai_engines = {"data_intelligence": SimpleNamespace(search_unified_entities=lambda m: (_ for _ in ()).throw(RuntimeError("search-down")))}
+        result = await orch._handle_search_request("find x", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+
+    async def test_simple_handlers(self):
+        orch = make_orch()
+        assert (await orch._handle_communication_request("m", {}, {"id": "s1"}, None))["success"] is True
+        assert (await orch._handle_integration_request("m", {}, {"id": "s1"}, None))["success"] is True
+        assert (await orch._handle_ai_analytics_request("m", {}, {"id": "s1"}, None))["success"] is True
+        assert (await orch._handle_document_request("m", {}, {"id": "s1"}, None))["success"] is True
+        assert (await orch._handle_social_media_request("m", {}, {"id": "s1"}, None))["success"] is True
+        assert (await orch._handle_hr_request("m", {}, {"id": "s1"}, None))["success"] is True
+        assert (await orch._handle_ecommerce_request("m", {}, {"id": "s1"}, None))["success"] is True
+        result = await orch._handle_scheduling_request("schedule the report", {}, {"id": "s1"}, None)
+        assert result["success"] is True
+        assert "schedule workflows" in result["message"]
+        result = await orch._handle_scheduling_request("what time is it", {}, {"id": "s1"}, None)
+        assert result["success"] is True
+
+    async def test_task_handler(self, monkeypatch):
+        create_task = AsyncMock(return_value={"success": True, "task": SimpleNamespace(id="t1")})
+        monkeypatch.setattr("core.unified_task_endpoints.create_task", create_task)
+        orch = make_orch()
+        result = await orch._handle_task_request("create task: buy milk", {}, {"id": "s1", "user_id": "u1"}, None)
+        assert result["success"] is True
+        assert result["data"]["task_id"] == "t1"
+
+        create_task.return_value = {"success": False}
+        result = await orch._handle_task_request("create task: buy milk", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+
+        create_task.side_effect = RuntimeError("task-down")
+        result = await orch._handle_task_request("create task: buy milk", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+
+    async def test_task_handler_long_title(self, monkeypatch):
+        create_task = AsyncMock(return_value={"success": True, "task": SimpleNamespace(id="t1")})
+        monkeypatch.setattr("core.unified_task_endpoints.create_task", create_task)
+        orch = make_orch()
+        long_msg = "please make a task to review the quarterly financial report and prepare a summary for the board meeting tomorrow morning"
+        result = await orch._handle_task_request(long_msg, {}, {"id": "s1"}, None)
+        assert result["success"] is True
+
+    async def test_workflow_handler(self, monkeypatch):
+        orch = make_orch()
+        monkeypatch.setattr(co, "load_workflows", lambda: [{"name": "Daily Report", "workflow_id": "w1"}])
+        monkeypatch.setattr(co, "AutomationEngine", MagicMock(return_value=MagicMock(execute_workflow_definition=AsyncMock(return_value={"ok": True}))))
+        result = await orch._handle_workflow_request("list workflows", {}, {"id": "s1"}, None)
+        assert result["success"] is True
+        assert "Daily Report" in result["message"]
+
+        monkeypatch.setattr(co, "load_workflows", lambda: [])
+        result = await orch._handle_workflow_request("list workflows", {}, {"id": "s1"}, None)
+        assert "No workflows found" in result["message"]
+
+        monkeypatch.setattr(co, "load_workflows", lambda: [{"name": "Daily Report", "workflow_id": "w1"}])
+        result = await orch._handle_workflow_request("run daily", {}, {"id": "s1"}, None)
+        assert result["success"] is True
+        assert "started" in result["message"]
+
+        result = await orch._handle_workflow_request("run nonexistent_workflow", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+
+        engine = MagicMock(execute_workflow_definition=AsyncMock(side_effect=RuntimeError("wf-down")))
+        monkeypatch.setattr(co, "AutomationEngine", MagicMock(return_value=engine))
+        result = await orch._handle_workflow_request("run daily", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+
+        result = await orch._handle_workflow_request("hello there", {}, {"id": "s1"}, None)
+        assert result["success"] is True
+
+    async def test_automation_handler(self):
+        orch = make_orch()
+        result = await orch._handle_automation_request("what's up", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+
+        with patch.object(co, "execute_agent_task", None):
+            result = await orch._handle_automation_request("run inventory check", {}, {"id": "s1"}, None)
+            assert result["success"] is False
+            assert "not available" in result["message"]
+
+        execute = AsyncMock()
+        with patch.object(co, "execute_agent_task", execute):
+            result = await orch._handle_automation_request("check competitor prices", {}, {"id": "s1"}, None)
+            assert result["success"] is True
+            assert result["data"]["agent_id"] == "competitive_intel"
+            result = await orch._handle_automation_request("run inventory check", {}, {"id": "s1"}, None)
+            assert result["success"] is True
+            result = await orch._handle_automation_request("run payroll", {}, {"id": "s1"}, None)
+            assert result["success"] is True
+
+        execute = AsyncMock(side_effect=RuntimeError("agent-exec-down"))
+        with patch.object(co, "execute_agent_task", execute):
+            result = await orch._handle_automation_request("check competitor prices", {}, {"id": "s1"}, None)
+            assert result["success"] is False
+
+    async def test_finance_handler_disabled_and_missing_services(self):
+        orch = make_orch()
+        settings = SimpleNamespace(is_accounting_enabled=lambda: False)
+        with patch.object(co, "get_automation_settings", return_value=settings):
+            result = await orch._handle_finance_request("payroll", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+        assert "disabled" in result["message"]
+
+        with patch.object(co, "get_automation_settings", None):
+            result = await orch._handle_finance_request("payroll", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+
+        with patch.object(co, "get_automation_settings", return_value=SimpleNamespace(is_accounting_enabled=lambda: True)), \
+             patch.object(co, "AccountingAssistant", None):
+            result = await orch._handle_finance_request("payroll", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+        assert "not available" in result["message"]
+
+    async def test_finance_handler_intents(self):
+        db = MagicMock()
+        db.__enter__ = MagicMock(return_value=db)
+        db.__exit__ = MagicMock(return_value=False)
+        orch = make_orch()
+        settings = SimpleNamespace(is_accounting_enabled=lambda: True)
+
+        cases = [
+            ({"intent": "check_overdue", "answer": "a"}, "CollectionAgent", "check_overdue_invoices", "overdue invoices"),
+            ({"intent": "get_aging", "answer": "a"}, "CollectionAgent", "generate_aging_report", "aging"),
+            ({"intent": "check_close_readiness", "answer": "a", "params": {}}, "CloseChecklistAgent", "run_close_check", "close readiness"),
+            ({"intent": "get_tax_estimate", "answer": "a"}, "TaxService", "estimate_tax_liability", "tax"),
+            ({"intent": "get_cash_forecast", "answer": "a"}, "FPAService", "get_13_week_forecast", "13-week"),
+            ({"intent": "run_scenario", "answer": "a", "params": {}}, "FPAService", "run_scenario", "scenario"),
+            ({"intent": "get_intercompany_report", "answer": "a"}, "IntercompanyManager", "generate_elimination_report", "intercompany"),
+            ({"intent": "other", "answer": "plain answer"}, None, None, "plain answer"),
+        ]
+        for result_data, agent_cls, method, expected in cases:
+            assistant = MagicMock()
+            assistant.process_query = AsyncMock(return_value=result_data)
+            agent_obj = MagicMock()
+            if method:
+                if method in ("check_overdue_invoices", "run_close_check"):
+                    setattr(agent_obj, method, AsyncMock(return_value=[]))
+                else:
+                    setattr(agent_obj, method, MagicMock(return_value=[]))
+            patch_map = {
+                "get_automation_settings": lambda: settings,
+                "AccountingAssistant": lambda db: assistant,
+                "SessionLocal": lambda: db,
+            }
+            if agent_cls:
+                patch_map[agent_cls] = lambda db, _obj=agent_obj: _obj
+            patches = [patch.object(co, k, v) for k, v in patch_map.items()]
+            for p in patches:
+                p.start()
+            try:
+                result = await orch._handle_finance_request("query", {}, {"id": "s1"}, {"workspace_id": "w1"})
+            finally:
+                for p in patches:
+                    p.stop()
+            assert result["success"] is True, f"{agent_cls}: {result}"
+            assert expected in result["message"]
+            assert "Disclaimer" in result["message"]
+
+    async def test_finance_handler_exception(self):
+        orch = make_orch()
+        settings = SimpleNamespace(is_accounting_enabled=lambda: True)
+        assistant = MagicMock()
+        assistant.process_query = AsyncMock(side_effect=RuntimeError("fin-down"))
+        with patch.object(co, "get_automation_settings", return_value=settings), \
+             patch.object(co, "AccountingAssistant", return_value=assistant), \
+             patch.object(co, "SessionLocal", lambda: MagicMock()):
+            result = await orch._handle_finance_request("payroll", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+
+    async def test_crm_handler(self):
+        orch = make_orch()
+        with patch.object(co, "get_automation_settings", None):
+            result = await orch._handle_crm_request("show pipeline", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+
+        settings = SimpleNamespace(is_sales_enabled=lambda: False)
+        with patch.object(co, "get_automation_settings", return_value=settings):
+            result = await orch._handle_crm_request("show pipeline", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+
+        db = MagicMock()
+        db.__enter__ = MagicMock(return_value=db)
+        db.__exit__ = MagicMock(return_value=False)
+        sales = MagicMock()
+        sales.answer_sales_query = AsyncMock(return_value="Sales answer text")
+        with patch.object(co, "get_automation_settings", return_value=SimpleNamespace(is_sales_enabled=lambda: True)), \
+             patch.object(co, "SessionLocal", return_value=db), \
+             patch("sales.assistant.SalesAssistant", return_value=sales):
+            result = await orch._handle_crm_request("show pipeline", {}, {"id": "s1"}, {"workspace_id": "w1"})
+        assert result["success"] is True
+        assert result["data"]["answer"] == "Sales answer text"
+
+        sales.answer_sales_query = AsyncMock(side_effect=RuntimeError("sales-down"))
+        with patch.object(co, "get_automation_settings", return_value=SimpleNamespace(is_sales_enabled=lambda: True)), \
+             patch.object(co, "SessionLocal", return_value=db), \
+             patch("sales.assistant.SalesAssistant", return_value=sales):
+            result = await orch._handle_crm_request("show pipeline", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+
+    async def test_business_health_handler(self, monkeypatch):
+        svc = SimpleNamespace()
+        svc.simulate_decision = AsyncMock(return_value={"prediction": "impact", "roi": 0.5, "breakeven": "12mo"})
+        svc.get_daily_priorities = AsyncMock(return_value={"priorities": [], "owner_advice": "advice"})
+        monkeypatch.setattr("core.business_health_service.business_health_service", svc)
+        orch = make_orch()
+        result = await orch._handle_business_health_request("what if we hire 5 people", {}, {"id": "s1"}, {"workspace_id": "w1"})
+        assert result["success"] is True
+        assert "ROI" in result["message"]
+
+        result = await orch._handle_business_health_request("what should i do today", {}, {"id": "s1"}, {"workspace_id": "w1"})
+        assert result["success"] is True
+        assert "great" in result["message"]
+
+        svc.get_daily_priorities = AsyncMock(return_value={"priorities": [{"priority": "P1", "title": "T", "description": "D"}], "owner_advice": "a"})
+        result = await orch._handle_business_health_request("what should i do today", {}, {"id": "s1"}, None)
+        assert result["success"] is True
+        assert "Top Priorities" in result["message"]
+
+        svc.simulate_decision = AsyncMock(side_effect=RuntimeError("bh-down"))
+        result = await orch._handle_business_health_request("what if we hire", {}, {"id": "s1"}, None)
+        assert result["success"] is False
+
+    async def test_agent_request_handler(self, monkeypatch):
+        atom = MagicMock()
+        atom.execute = AsyncMock(return_value={
+            "final_output": "done", "actions_executed": [{"a": 1}], "spawned_agent": "sp", "failure_reason": None,
+        })
+        monkeypatch.setattr("core.atom_meta_agent.get_atom_agent", lambda: atom)
+        orch = make_orch()
+        result = await orch._handle_agent_request("do it", {}, {"id": "s1", "user_id": "u1"}, None)
+        assert result["success"] is True
+        assert result["status"] == "success"
+        assert result["spawned_agent"] == "sp"
+
+        atom.execute = AsyncMock(return_value={"final_output": "halted", "failure_reason": "budget cap", "actions_executed": []})
+        result = await orch._handle_agent_request("do it", {}, {"id": "s1", "user_id": "u1"}, None)
+        assert result["success"] is False
+        assert result["error_code"] == "budget_exceeded"
+
+        atom.execute = AsyncMock(side_effect=RuntimeError("atom-down"))
+        result = await orch._handle_agent_request("do it", {}, {"id": "s1", "user_id": "u1"}, None)
+        assert result["status"] == "error"

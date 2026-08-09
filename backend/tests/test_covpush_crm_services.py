@@ -1758,7 +1758,9 @@ class TestAtomHubspotDeep:
         with patch("integrations.atom_hubspot_integration_service.circuit_breaker") as cb:
             cb.is_enabled = AsyncMock(return_value=False)
             r = await svc.create_contact({"email": "a@b.c"})
-            assert not r["success"] and "503" in r["error"]
+            # R87: str(e) leaks removed — error is generic, no 503 detail leaked
+            assert not r["success"] and r["error"] == "Contact creation failed"
+            assert "temporarily disabled" not in r["error"]
             with pytest.raises(HTTPException) as ei:
                 await svc.create_campaign({"name": "C"})
             assert ei.value.status_code == 503
@@ -1772,7 +1774,9 @@ class TestAtomHubspotDeep:
         with patch("integrations.atom_hubspot_integration_service.rate_limiter") as rl:
             rl.is_rate_limited = AsyncMock(return_value=(True, 0))
             r = await svc.create_contact({"email": "a@b.c"})
-            assert not r["success"] and "429" in r["error"]
+            # R87: str(e) leaks removed — error is generic, no 429 detail leaked
+            assert not r["success"] and r["error"] == "Contact creation failed"
+            assert "Rate limit exceeded" not in r["error"]
             with pytest.raises(HTTPException) as ei:
                 await svc.create_campaign({"name": "C"})
             assert ei.value.status_code == 429

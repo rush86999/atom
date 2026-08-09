@@ -209,6 +209,7 @@ class AtomHubSpotIntegrationService:
     def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
         if config is None:
             config = {}
+        self.tenant_id = tenant_id
         self.config = config
         self.db = config.get('database')
         self.cache = config.get('cache')
@@ -469,7 +470,7 @@ class AtomHubSpotIntegrationService:
             logger.error(f"Operation failed: {e}")
             log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error creating contact: {e}")
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'Contact creation failed'}
     
     async def create_campaign(self, campaign_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new campaign in HubSpot"""
@@ -576,7 +577,7 @@ class AtomHubSpotIntegrationService:
             logger.error(f"Operation failed: {e}")
             log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error creating campaign: {e}")
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'Campaign creation failed'}
     
     async def generate_marketing_analytics(self, analytics_type: AnalyticsType,
                                          time_period: str = '7d') -> Dict[str, Any]:
@@ -658,7 +659,7 @@ class AtomHubSpotIntegrationService:
             
         except Exception as e:
             logger.error(f"Error generating marketing analytics: {e}")
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'Marketing analytics generation failed'}
     
     async def _generate_campaign_performance_analytics(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Generate campaign performance analytics"""
@@ -756,8 +757,8 @@ class AtomHubSpotIntegrationService:
 
     async def _score_lead(self, contact_data: Dict[str, Any]) -> float:
         """Score lead using AI-powered lead scoring"""
+        start_time = time.time()
         try:
-            start_time = time.time()
             # Prepare AI request for lead scoring
             ai_request = AIRequest(
                 request_id=f"lead_scoring_{int(time.time())}",
@@ -800,9 +801,18 @@ class AtomHubSpotIntegrationService:
         except Exception as e:
             logger.error(f"Error scoring lead: {e}")
             try:
-                return await self._rule_based_lead_scoring(contact_data)
+                lead_score = await self._rule_based_lead_scoring(contact_data)
             except Exception:
-                return 50.0  # Default score
+                lead_score = 50.0  # Default score
+            # Update performance metrics
+            self.performance_metrics['lead_scoring_time'] = time.time() - start_time
+            # Update analytics
+            if self.analytics_metrics['total_contacts'] > 0:
+                self.analytics_metrics['average_lead_score'] = (
+                    (self.analytics_metrics['average_lead_score'] * (self.analytics_metrics['total_contacts'] - 1) + lead_score) /
+                    self.analytics_metrics['total_contacts']
+                )
+            return float(min(max(lead_score, 0), 100))
     
     async def _rule_based_lead_scoring(self, contact_data: Dict[str, Any]) -> float:
         """Fallback rule-based lead scoring"""
@@ -1156,7 +1166,7 @@ class AtomHubSpotIntegrationService:
             }
         except Exception as e:
             logger.error(f"Error getting service status: {e}")
-            return {'error': str(e), 'service': 'hubspot_integration'}
+            return {'error': 'Service status unavailable', 'service': 'hubspot_integration'}
     
     async def close(self):
         """Close HubSpot Integration Service"""

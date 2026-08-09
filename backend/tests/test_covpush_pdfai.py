@@ -2824,7 +2824,9 @@ class TestVideoHelpers:
     @pytest.mark.asyncio
     async def test_extract_frames_error(self):
         service = make_video_service()
-        with patch("cv2.VideoCapture", side_effect=RuntimeError("no cv2")):
+        fake_cv2 = MagicMock()
+        fake_cv2.VideoCapture.side_effect = RuntimeError("no cv2")
+        with patch.dict(sys.modules, {"cv2": fake_cv2}):
             frames = await service._extract_frames(b"data")
         assert frames == []
 
@@ -2840,7 +2842,9 @@ class TestVideoHelpers:
     @pytest.mark.asyncio
     async def test_analyze_video_quality_error(self):
         service = make_video_service()
-        with patch("cv2.VideoCapture", side_effect=RuntimeError("no cv2")):
+        fake_cv2 = MagicMock()
+        fake_cv2.VideoCapture.side_effect = RuntimeError("no cv2")
+        with patch.dict(sys.modules, {"cv2": fake_cv2}):
             score = await service._analyze_video_quality(b"data")
         assert score == 50.0
 
