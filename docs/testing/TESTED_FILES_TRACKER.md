@@ -1668,3 +1668,8 @@ Methodology: previous combined full-suite data + wave test files (1,081 tests, 0
 | ALL | ~30% | 56.9% | **56.6%** |
 
 (Flat vs wave 7: wave-8 fixes added +223 stmts; per-layer drift is incremental-methodology noise. Cumulative campaign: ~30% → 56.6%.)
+
+### Round 2026-08-09 — proposal action wiring (product decision)
+| Date | File | Status | Change |
+|---|---|---|---|
+| 2026-08-09 | `core/proposal_service.py` | FIXED | All 4 dead action types wired to real APIs (TDD, 6 new tests + 16 realigned): agent_execute → GenericAgent(agent_model).execute (registry lookup, missing-agent ValueError); workflow_trigger → load_workflows by id + WorkflowEngine().start_workflow; integration_connect → UniversalIntegrationService().execute (ok→success mapping); browser_automate → browser_create_session/navigate/click/fill/script/close loop (url-or-session ValueError). Dispatch wrapper + integration handler stop leaking str(e) (generic 'Action execution failed'). Proposal suites 307 passed / 0 failed |
