@@ -413,6 +413,21 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | Frontend | **68.0%** lines (7,786 passed / 0 failures) | 735 files | 2026-08-09 |
 | Backend | 54.0% (r80 full-ish); 32.8% chunked-scope (r84) | 158k stmts / ~1,015 files | 2026-08-07 |
 
+### Resolved 2026-08-09 (R97 wave — pushed `2f5cc9b38`)
+| Date | Area | Status | Result |
+|---|---|---|---|
+| 2026-08-09 | FE Trello/Box/Outlook (92 tests, 96–99%) | TESTED/FIXED | Box Share modal Create Link was dead UI (createSharedLink never callable) → wired full share flow |
+| 2026-08-09 | FE Voice/Schema/Workspace/Chat (332 tests, 90–100%) | TESTED/FIXED | VoiceCommands SpeechRecognition session leaked after unmount (cleanup over mount-time null); AgentWorkspace bare-number steps → 'Step undefined' badges; VisualSchemaBuilder fabricated junk fields from string schema.properties |
+| 2026-08-09 | FE WorkflowAutomation/HubSpot/hook (83 tests, 96–99%) | TESTED/FIXED | **handleGenerativeCreate had zero call sites** — AI prompt→builder flow unreachable; added Generate-with-AI form |
+| 2026-08-09 | FE full suite + coverage | GREEN | **8,137 passed / 0 failed; 71.4% lines** (was 69.2%) — **70%+ crossed** |
+
+## Coverage stamps (latest)
+| Surface | Coverage | Tests | Date |
+|---|---|---|---|
+| Mobile | **87.5%** lines (3,843 passed / 115 suites, 0 failures) | 7,365 stmts / 80 files | 2026-08-08 |
+| Frontend | **71.4%** lines (8,137 passed / 0 failures) | 735 files | 2026-08-09 |
+| Backend | 54.0% (r80 full-ish); 32.8% chunked-scope (r84) | 158k stmts / ~1,015 files | 2026-08-07 |
+
 ## Known remaining work (verified at last run — updated 2026-08-09)
 - `core/models.py` `OAuthToken` — server-side model; verify `api/oauth` routes don't use stale columns (Notion/Spotify moved to IntegrationToken; sweep remaining writers)
 - `tests/test_cognitive_tier_e2e.py` — 11 collection ERRORS remain after the survey-sweep alignment (23 pass / 11 error; the stale `CognitiveTierPreference` kwargs were fixed but 11 tests still fail at setup — next target)
