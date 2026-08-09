@@ -29,6 +29,18 @@ const initialNodes: Node[] = [];
 
 const initialEdges: Edge[] = [];
 
+// Numeric node-id generator. `nodes.length + 1` collides with existing ids
+// after mid-list deletions (e.g. nodes [1,3] + add -> "3" duplicates node "3"),
+// which corrupts React keys / ReactFlow identity and causes state loss.
+const nextNodeId = (list: Node[]): string => {
+    let max = 0;
+    list.forEach((n) => {
+        const num = Number(n.id);
+        if (Number.isFinite(num) && num > max) max = num;
+    });
+    return String(max + 1);
+};
+
 
 const edgeTypes = {
     addStepEdge: AddStepEdge,
@@ -81,7 +93,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                 steps: nodes.map(node => ({
                     step_id: node.id,
                     step_type: node.type, // Map to backend type if needed
-                    description: node.data.label || node.id,
+                    description: node.data?.label || node.id,
                     parameters: node.data, // Pass full data as parameters for now (contains inputs)
                     next_steps: nextStepsMap[node.id] || []
                 }))
@@ -158,7 +170,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
         }
 
         setNodes((nds) => nds.map((node) => {
-            const stats = analyticsData[node.id] || analyticsData[node.data.action] || analyticsData[node.data.label];
+            const stats = analyticsData[node.id] || analyticsData[node.data?.action] || analyticsData[node.data?.label];
 
             if (stats) {
                 return {
@@ -393,7 +405,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
     }, [toast]);
 
     const addNode = (type: string) => {
-        const id = `${nodes.length + 1}`;
+        const id = nextNodeId(nodes);
         let data: any = { label: `${type} node` };
 
         // Set default data based on node type
@@ -455,7 +467,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
     };
 
     const addServiceNode = (service: string) => {
-        const id = `${nodes.length + 1}`;
+        const id = nextNodeId(nodes);
         const newNode: Node = {
             id,
             type: 'action',
@@ -558,7 +570,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
 
                 // Helper to add node with auto-layout
                 const addNodeAuto = (label: string, service: string, index: number, total: number) => {
-                    const id = (currentNodes.length + 1).toString();
+                    const id = nextNodeId(currentNodes);
                     const isTrigger = index === 0 && total > 1; // Assume first node is trigger for multi-step
                     const type = isTrigger ? 'trigger' : 'action';
 

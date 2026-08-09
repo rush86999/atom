@@ -5,6 +5,16 @@ import HarnessEvolutionPage from "@/pages/settings/harness-evolution";
 import { apiClient } from "@/lib/api-client";
 import { useToast } from "@/components/ui/use-toast";
 
+// Chakra v3 recipes clone their default recipe objects with structuredClone
+// during render. The jest jsdom sandbox does not expose the Node global, so
+// provide a JSON-based fallback (recipes are plain serializable objects).
+if (typeof globalThis.structuredClone !== "function") {
+  (globalThis as any).structuredClone = (value: unknown) => {
+    if (typeof value !== "object" || value === null) return value;
+    return JSON.parse(JSON.stringify(value));
+  };
+}
+
 jest.mock("@/lib/api-client", () => ({
   apiClient: { get: jest.fn() },
 }));

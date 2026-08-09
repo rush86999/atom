@@ -83,9 +83,10 @@ const SchedulePage: React.FC = () => {
       return;
     }
 
+    const parsedMinutes = parseInt(intervalMinutes, 10);
     const trigger_config =
       triggerType === "interval"
-        ? { minutes: Math.max(1, parseInt(intervalMinutes || "30", 10) || 30) }
+        ? { minutes: Number.isFinite(parsedMinutes) ? Math.max(1, parsedMinutes) : 30 }
         : { cron_expr: cronExpr.trim() };
 
     setSubmitting(true);

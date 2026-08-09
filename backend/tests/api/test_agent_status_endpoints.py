@@ -36,6 +36,9 @@ def client():
     """Create test client with router"""
     app = FastAPI()
     app.include_router(router)
+    # Auth: routes require a Bearer user — override to a test user.
+    from core.auth import get_current_user
+    app.dependency_overrides[get_current_user] = lambda: Mock(id="status-test-user", role="member", status="active")
     return TestClient(app)
 
 @pytest.fixture

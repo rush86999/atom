@@ -180,6 +180,18 @@ def client(mock_analytics_engine, mock_correlation_engine, mock_predictive_engin
     app.dependency_overrides[get_cross_platform_correlation_engine] = override_correlation
     app.dependency_overrides[get_predictive_insights_engine] = override_predictive
 
+    # Auth: routes require a Bearer user (R38+ sweep) — override to a test user.
+    from core.auth import get_current_user
+    from core.models import User
+    app.dependency_overrides[get_current_user] = lambda: User(
+        id="analytics-test-user",
+        email="analytics@test.com",
+        first_name="Analytics",
+        last_name="Tester",
+        role="super_admin",
+        status="active",
+    )
+
     test_client = TestClient(app)
     yield test_client
 

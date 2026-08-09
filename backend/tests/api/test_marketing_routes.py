@@ -24,7 +24,11 @@ class TestMarketingRoutes:
     @pytest.fixture
     def mock_db(self):
         """Mock database session"""
-        return Mock(spec=Session)
+        mock = Mock(spec=Session)
+        # Default query chain resolves to no rows — summary route iterates
+        # high_intent_leads; an unconfigured Mock would TypeError -> 500.
+        mock.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+        return mock
 
     @pytest.fixture
     def mock_user(self):
@@ -70,10 +74,21 @@ class TestMarketingRoutes:
         return service
 
     @pytest.fixture
-    def client(self):
+    def client(self, mock_db):
         """Create test client"""
         from main_api_app import app as main_app
-        return TestClient(main_app)
+        # Auth override via the dependency table — the per-test
+        # `patch("api.marketing_routes.get_current_user")` calls are ineffective
+        # because FastAPI resolves the dependency object captured at route
+        # definition, not the patched module attribute.
+        from core.auth import get_current_user
+        main_app.dependency_overrides[get_current_user] = lambda: Mock(id="marketing-test-user", role="member", status="active")
+        # DB: same — route dependency is resolved by object, not module attr.
+        from core.database import get_db
+        main_app.dependency_overrides[get_db] = lambda: mock_db
+        yield TestClient(main_app)
+        main_app.dependency_overrides.pop(get_current_user, None)
+        main_app.dependency_overrides.pop(get_db, None)
 
     def test_get_marketing_summary_success(self, client, mock_db, mock_user, mock_lead):
         """Test GET /api/marketing/dashboard/summary - successful retrieval"""
@@ -83,7 +98,7 @@ class TestMarketingRoutes:
         mock_db.query.return_value = mock_query
 
         with patch("api.marketing_routes.get_current_user", return_value=mock_user):
-            with patch("api.marketing_routes.MarketingIntelligenceService") as mock_service_class:
+            with patch("marketing.intelligence_service.MarketingIntelligenceService") as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_channel_performance.return_value = [
                     {
@@ -96,7 +111,7 @@ class TestMarketingRoutes:
                 ]
                 mock_service_class.return_value = mock_service
 
-                with patch("api.marketing_routes.os.getenv") as mock_getenv:
+                with patch("os.getenv") as mock_getenv:
                     mock_getenv.side_effect = lambda x, y=None: {
                         "MOCK_MODE_ENABLED": "true",
                         "GOOGLE_BUSINESS_API_KEY": None,
@@ -125,12 +140,12 @@ class TestMarketingRoutes:
         mock_db.query.return_value = mock_query
 
         with patch("api.marketing_routes.get_current_user", return_value=mock_user):
-            with patch("api.marketing_routes.MarketingIntelligenceService") as mock_service_class:
+            with patch("marketing.intelligence_service.MarketingIntelligenceService") as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_channel_performance.return_value = []
                 mock_service_class.return_value = mock_service
 
-                with patch("api.marketing_routes.os.getenv") as mock_getenv:
+                with patch("os.getenv") as mock_getenv:
                     mock_getenv.side_effect = lambda x, y=None: {
                         "MOCK_MODE_ENABLED": "false",
                         "GOOGLE_BUSINESS_API_KEY": None,
@@ -156,12 +171,12 @@ class TestMarketingRoutes:
         mock_db.query.return_value = mock_query
 
         with patch("api.marketing_routes.get_current_user", return_value=mock_user):
-            with patch("api.marketing_routes.MarketingIntelligenceService") as mock_service_class:
+            with patch("marketing.intelligence_service.MarketingIntelligenceService") as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_channel_performance.return_value = []
                 mock_service_class.return_value = mock_service
 
-                with patch("api.marketing_routes.os.getenv") as mock_getenv:
+                with patch("os.getenv") as mock_getenv:
                     mock_getenv.side_effect = lambda x, y=None: {
                         "MOCK_MODE_ENABLED": "false",
                         "GOOGLE_BUSINESS_API_KEY": "test-key",
@@ -180,7 +195,7 @@ class TestMarketingRoutes:
     def test_get_marketing_summary_service_error(self, client, mock_db, mock_user):
         """Test GET /api/marketing/dashboard/summary - service error"""
         with patch("api.marketing_routes.get_current_user", return_value=mock_user):
-            with patch("api.marketing_routes.MarketingIntelligenceService") as mock_service_class:
+            with patch("marketing.intelligence_service.MarketingIntelligenceService") as mock_service_class:
                 mock_service_class.side_effect = Exception("Service unavailable")
 
                 response = client.get("/api/marketing/dashboard/summary")
@@ -346,12 +361,30 @@ class TestMarketingDataValidation:
     """Test data validation and edge cases"""
 
     @pytest.fixture
-    def client(self):
+    def mock_db(self):
+        """Mock database session"""
+        mock = Mock(spec=Session)
+        mock.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+        return mock
+
+    @pytest.fixture
+    def client(self, mock_db):
         """Create test client"""
         from main_api_app import app as main_app
-        return TestClient(main_app)
+        # Auth override via the dependency table — the per-test
+        # `patch("api.marketing_routes.get_current_user")` calls are ineffective
+        # because FastAPI resolves the dependency object captured at route
+        # definition, not the patched module attribute.
+        from core.auth import get_current_user
+        main_app.dependency_overrides[get_current_user] = lambda: Mock(id="marketing-test-user", role="member", status="active")
+        # DB: same — route dependency is resolved by object, not module attr.
+        from core.database import get_db
+        main_app.dependency_overrides[get_db] = lambda: mock_db
+        yield TestClient(main_app)
+        main_app.dependency_overrides.pop(get_current_user, None)
+        main_app.dependency_overrides.pop(get_db, None)
 
-    def test_marketing_summary_high_intent_leads_format(self, client):
+    def test_marketing_summary_high_intent_leads_format(self, client, mock_db):
         """Test that high intent leads are properly formatted"""
         mock_lead = Mock(spec=Lead)
         mock_lead.id = "lead-123"
@@ -361,7 +394,6 @@ class TestMarketingDataValidation:
         mock_lead.ai_score = 92.0
         mock_lead.ai_qualification_summary = "Very high intent"
 
-        mock_db = Mock(spec=Session)
         mock_query = MagicMock()
         mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_lead]
         mock_db.query.return_value = mock_query
@@ -370,12 +402,12 @@ class TestMarketingDataValidation:
         mock_user.id = "test-user"
 
         with patch("api.marketing_routes.get_current_user", return_value=mock_user):
-            with patch("api.marketing_routes.MarketingIntelligenceService") as mock_service_class:
+            with patch("marketing.intelligence_service.MarketingIntelligenceService") as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_channel_performance.return_value = []
                 mock_service_class.return_value = mock_service
 
-                with patch("api.marketing_routes.os.getenv") as mock_getenv:
+                with patch("os.getenv") as mock_getenv:
                     mock_getenv.return_value = "true"
 
                     with patch("api.marketing_routes.reporter") as mock_reporter:
@@ -392,7 +424,7 @@ class TestMarketingDataValidation:
         assert leads[0]["score"] == 92.0
         assert leads[0]["summary"] == "Very high intent"
 
-    def test_marketing_summary_lead_without_first_name(self, client):
+    def test_marketing_summary_lead_without_first_name(self, client, mock_db):
         """Test that leads without first_name fall back to email"""
         mock_lead = Mock(spec=Lead)
         mock_lead.id = "lead-456"
@@ -402,7 +434,6 @@ class TestMarketingDataValidation:
         mock_lead.ai_score = 75.0
         mock_lead.ai_qualification_summary = "Medium intent"
 
-        mock_db = Mock(spec=Session)
         mock_query = MagicMock()
         mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_lead]
         mock_db.query.return_value = mock_query
@@ -411,12 +442,12 @@ class TestMarketingDataValidation:
         mock_user.id = "test-user"
 
         with patch("api.marketing_routes.get_current_user", return_value=mock_user):
-            with patch("api.marketing_routes.MarketingIntelligenceService") as mock_service_class:
+            with patch("marketing.intelligence_service.MarketingIntelligenceService") as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_channel_performance.return_value = []
                 mock_service_class.return_value = mock_service
 
-                with patch("api.marketing_routes.os.getenv") as mock_getenv:
+                with patch("os.getenv") as mock_getenv:
                     mock_getenv.return_value = "true"
 
                     with patch("api.marketing_routes.reporter") as mock_reporter:
@@ -429,9 +460,8 @@ class TestMarketingDataValidation:
         leads = data["high_intent_leads"]
         assert leads[0]["name"] == "no-name@example.com"
 
-    def test_channel_performance_metrics_format(self, client):
+    def test_channel_performance_metrics_format(self, client, mock_db):
         """Test that channel performance is correctly formatted"""
-        mock_db = Mock(spec=Session)
         mock_query = MagicMock()
         mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
         mock_db.query.return_value = mock_query
@@ -440,7 +470,7 @@ class TestMarketingDataValidation:
         mock_user.id = "test-user"
 
         with patch("api.marketing_routes.get_current_user", return_value=mock_user):
-            with patch("api.marketing_routes.MarketingIntelligenceService") as mock_service_class:
+            with patch("marketing.intelligence_service.MarketingIntelligenceService") as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_channel_performance.return_value = [
                     {
@@ -453,7 +483,7 @@ class TestMarketingDataValidation:
                 ]
                 mock_service_class.return_value = mock_service
 
-                with patch("api.marketing_routes.os.getenv") as mock_getenv:
+                with patch("os.getenv") as mock_getenv:
                     mock_getenv.return_value = "true"
 
                     with patch("api.marketing_routes.reporter") as mock_reporter:

@@ -238,7 +238,8 @@ describe("SessionSettings", () => {
     fireEvent.click(screen.getByRole("button", { name: /sign out everywhere/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("Failed to revoke sessions")).toBeInTheDocument();
+      // Page surfaces the thrown error message ('Failed to revoke all sessions')
+      expect(screen.getByText("Failed to revoke all sessions")).toBeInTheDocument();
     });
     expect(mockPush).not.toHaveBeenCalledWith("/api/auth/signout");
   });

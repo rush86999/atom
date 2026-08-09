@@ -100,7 +100,11 @@ def client(mock_template_manager):
     app.dependency_overrides[get_current_user] = lambda: MagicMock(id="test-user")
 
     # Mock the template manager directly
-    with patch('api.workflow_template_routes.get_template_manager', return_value=lambda: mock_template_manager):
+    # The route calls get_template_manager() (a factory), so the patch must
+    # return the manager instance itself — not a lambda, which would make
+    # `manager = get_template_manager()` bind the function and crash on
+    # `.create_template` (AttributeError -> 500).
+    with patch('api.workflow_template_routes.get_template_manager', return_value=mock_template_manager):
         yield TestClient(app)
 
 
@@ -152,7 +156,7 @@ class TestTemplateCreation:
             "steps": []
         }
 
-        response = client.post("/", json=request)
+        response = client.post("/api/workflow-templates/", json=request)
 
         assert response.status_code == 200
 
@@ -165,7 +169,7 @@ class TestTemplateCreation:
             "steps": []
         }
 
-        response = client.post("/", json=request)
+        response = client.post("/api/workflow-templates/", json=request)
 
         assert response.status_code == 200
 
@@ -181,7 +185,7 @@ class TestTemplateCreation:
             ]
         }
 
-        response = client.post("/", json=request)
+        response = client.post("/api/workflow-templates/", json=request)
 
         assert response.status_code == 200
 
@@ -189,6 +193,7 @@ class TestTemplateCreation:
         """Test creating template with step dependencies."""
         request = {
             "name": "Template with Dependencies",
+            "description": "Template with step dependencies",
             "steps": [
                 {"step_id": "step_1", "name": "Step 1", "depends_on": []},
                 {"step_id": "step_2", "name": "Step 2", "depends_on": ["step_1"]},
@@ -196,7 +201,7 @@ class TestTemplateCreation:
             ]
         }
 
-        response = client.post("/", json=request)
+        response = client.post("/api/workflow-templates/", json=request)
 
         assert response.status_code == 200
 
@@ -210,7 +215,7 @@ class TestTemplateCreation:
             "steps": []
         }
 
-        response = client.post("/", json=request)
+        response = client.post("/api/workflow-templates/", json=request)
 
         assert response.status_code == 500
 
@@ -268,7 +273,7 @@ class TestTemplateListing:
 
         mock_template_manager.list_templates.return_value = [mock_template1, mock_template2]
 
-        response = client.get("/")
+        response = client.get("/api/workflow-templates/")
 
         assert response.status_code == 200
         data = response.json()
@@ -277,14 +282,14 @@ class TestTemplateListing:
 
     def test_list_templates_with_category_filter(self, client, mock_template_manager):
         """Test listing templates filtered by category."""
-        response = client.get("/?category=automation")
+        response = client.get("/api/workflow-templates/?category=automation")
 
         assert response.status_code == 200
         mock_template_manager.list_templates.assert_called_once()
 
     def test_list_templates_with_limit(self, client, mock_template_manager):
         """Test listing templates with limit."""
-        response = client.get("/?limit=10")
+        response = client.get("/api/workflow-templates/?limit=10")
 
         assert response.status_code == 200
 
@@ -292,7 +297,7 @@ class TestTemplateListing:
         """Test listing templates when none exist."""
         mock_template_manager.list_templates.return_value = []
 
-        response = client.get("/")
+        response = client.get("/api/workflow-templates/")
 
         assert response.status_code == 200
         data = response.json()
@@ -300,7 +305,7 @@ class TestTemplateListing:
 
     def test_list_templates_invalid_category(self, client):
         """Test listing templates with invalid category."""
-        response = client.get("/?category=invalid_category")
+        response = client.get("/api/workflow-templates/?category=invalid_category")
 
         assert response.status_code == 422
 
@@ -308,7 +313,7 @@ class TestTemplateListing:
         """Test error handling when listing fails."""
         mock_template_manager.list_templates.side_effect = Exception("Server error")
 
-        response = client.get("/")
+        response = client.get("/api/workflow-templates/")
 
         assert response.status_code == 500
 
@@ -334,7 +339,7 @@ class TestTemplateRetrieval:
 
         mock_template_manager.get_template.return_value = mock_template
 
-        response = client.get(f"/{sample_template_id}")
+        response = client.get(f"/api/workflow-templates/{sample_template_id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -344,7 +349,7 @@ class TestTemplateRetrieval:
         """Test getting non-existent template."""
         mock_template_manager.get_template.return_value = None
 
-        response = client.get(f"/{sample_template_id}")
+        response = client.get(f"/api/workflow-templates/{sample_template_id}")
 
         assert response.status_code == 404
 
@@ -362,7 +367,7 @@ class TestTemplateUpdate:
             "name": "Updated Name"
         }
 
-        response = client.put(f"/{sample_template_id}", json=request)
+        response = client.put(f"/api/workflow-templates/{sample_template_id}", json=request)
 
         assert response.status_code == 200
         mock_template_manager.update_template.assert_called_once()
@@ -373,7 +378,7 @@ class TestTemplateUpdate:
             "description": "Updated description"
         }
 
-        response = client.put(f"/{sample_template_id}", json=request)
+        response = client.put(f"/api/workflow-templates/{sample_template_id}", json=request)
 
         assert response.status_code == 200
 
@@ -385,7 +390,7 @@ class TestTemplateUpdate:
             ]
         }
 
-        response = client.put(f"/{sample_template_id}", json=request)
+        response = client.put(f"/api/workflow-templates/{sample_template_id}", json=request)
 
         assert response.status_code == 200
 
@@ -395,7 +400,7 @@ class TestTemplateUpdate:
             "tags": ["updated", "tags"]
         }
 
-        response = client.put(f"/{sample_template_id}", json=request)
+        response = client.put(f"/api/workflow-templates/{sample_template_id}", json=request)
 
         assert response.status_code == 200
 
@@ -403,7 +408,7 @@ class TestTemplateUpdate:
         """Test updating template with no updates provided."""
         request = {}
 
-        response = client.put(f"/{sample_template_id}", json=request)
+        response = client.put(f"/api/workflow-templates/{sample_template_id}", json=request)
 
         assert response.status_code == 422
 
@@ -413,7 +418,7 @@ class TestTemplateUpdate:
 
         request = {"name": "Updated Name"}
 
-        response = client.put(f"/{sample_template_id}", json=request)
+        response = client.put(f"/api/workflow-templates/{sample_template_id}", json=request)
 
         assert response.status_code == 404
 
@@ -423,7 +428,7 @@ class TestTemplateUpdate:
 
         request = {"name": "Updated Name"}
 
-        response = client.put(f"/{sample_template_id}", json=request)
+        response = client.put(f"/api/workflow-templates/{sample_template_id}", json=request)
 
         assert response.status_code == 500
 
@@ -446,7 +451,7 @@ class TestTemplateInstantiation:
             "status": "created"
         }
 
-        response = client.post(f"/{sample_template_id}/instantiate", json=request)
+        response = client.post(f"/api/workflow-templates/{sample_template_id}/instantiate", json=request)
 
         assert response.status_code == 200
         data = response.json()
@@ -463,7 +468,7 @@ class TestTemplateInstantiation:
             }
         }
 
-        response = client.post(f"/{sample_template_id}/instantiate", json=request)
+        response = client.post(f"/api/workflow-templates/{sample_template_id}/instantiate", json=request)
 
         assert response.status_code == 200
 
@@ -477,7 +482,7 @@ class TestTemplateInstantiation:
             }
         }
 
-        response = client.post(f"/{sample_template_id}/instantiate", json=request)
+        response = client.post(f"/api/workflow-templates/{sample_template_id}/instantiate", json=request)
 
         assert response.status_code == 200
 
@@ -487,7 +492,7 @@ class TestTemplateInstantiation:
 
         request = {"workflow_name": "Test Workflow"}
 
-        response = client.post(f"/{sample_template_id}/instantiate", json=request)
+        response = client.post(f"/api/workflow-templates/{sample_template_id}/instantiate", json=request)
 
         assert response.status_code == 422
 
@@ -497,7 +502,7 @@ class TestTemplateInstantiation:
 
         request = {"workflow_name": "Test Workflow"}
 
-        response = client.post(f"/{sample_template_id}/instantiate", json=request)
+        response = client.post(f"/api/workflow-templates/{sample_template_id}/instantiate", json=request)
 
         assert response.status_code == 500
 
@@ -521,7 +526,7 @@ class TestTemplateSearch:
 
         mock_template_manager.search_templates.return_value = [mock_template]
 
-        response = client.get("/search?query=automation")
+        response = client.get("/api/workflow-templates/search?query=automation")
 
         assert response.status_code == 200
         data = response.json()
@@ -530,7 +535,7 @@ class TestTemplateSearch:
 
     def test_search_templates_with_limit(self, client, mock_template_manager):
         """Test search with limit parameter."""
-        response = client.get("/search?query=test&limit=5")
+        response = client.get("/api/workflow-templates/search?query=test&limit=5")
 
         assert response.status_code == 200
         mock_template_manager.search_templates.assert_called_once()
@@ -539,7 +544,7 @@ class TestTemplateSearch:
         """Test search with no results."""
         mock_template_manager.search_templates.return_value = []
 
-        response = client.get("/search?query=nonexistent")
+        response = client.get("/api/workflow-templates/search?query=nonexistent")
 
         assert response.status_code == 200
         data = response.json()
@@ -568,8 +573,8 @@ class TestTemplateExecution:
 
         mock_orchestrator.execute_workflow = AsyncMock(return_value=mock_context)
 
-        with patch('api.workflow_template_routes.get_orchestrator', return_value=mock_orchestrator):
-            response = client.post(f"/{sample_template_id}/execute?param1=value1")
+        with patch('advanced_workflow_orchestrator.get_orchestrator', return_value=mock_orchestrator):
+            response = client.post(f"/api/workflow-templates/{sample_template_id}/execute?param1=value1")
 
         # The endpoint might fail due to async complexity, but we test the flow
         # Just ensure it doesn't crash completely
@@ -579,7 +584,7 @@ class TestTemplateExecution:
         """Test executing non-existent template."""
         mock_template_manager.create_workflow_from_template.side_effect = ValueError("Template not found")
 
-        response = client.post(f"/{sample_template_id}/execute")
+        response = client.post(f"/api/workflow-templates/{sample_template_id}/execute")
 
         assert response.status_code == 404
 
@@ -597,7 +602,7 @@ class TestRequestValidation:
             "description": "No name provided"
         }
 
-        response = client.post("/", json=request)
+        response = client.post("/api/workflow-templates/", json=request)
 
         assert response.status_code == 422
 
@@ -607,7 +612,7 @@ class TestRequestValidation:
             "name": "Template without description"
         }
 
-        response = client.post("/", json=request)
+        response = client.post("/api/workflow-templates/", json=request)
 
         assert response.status_code == 422
 
@@ -615,7 +620,7 @@ class TestRequestValidation:
         """Test instantiate template fails without workflow name."""
         request = {}
 
-        response = client.post(f"/{sample_template_id}/instantiate", json=request)
+        response = client.post(f"/api/workflow-templates/{sample_template_id}/instantiate", json=request)
 
         assert response.status_code == 422
 
@@ -638,7 +643,7 @@ class TestTemplateCreationErrorPaths:
             "steps": []
         }
 
-        response = client.post("/", json=request)
+        response = client.post("/api/workflow-templates/", json=request)
 
         # Should return 500 with error details
         assert response.status_code == 500
@@ -653,7 +658,7 @@ class TestTemplateCreationErrorPaths:
             "steps": []
         }
 
-        response = client.post("/", json=request)
+        response = client.post("/api/workflow-templates/", json=request)
 
         # Pydantic validation error
         assert response.status_code == 422
@@ -667,7 +672,7 @@ class TestTemplateCreationErrorPaths:
             "steps": []
         }
 
-        response = client.post("/", json=request)
+        response = client.post("/api/workflow-templates/", json=request)
 
         # Pydantic validation error
         assert response.status_code == 422
@@ -682,7 +687,7 @@ class TestTemplateCreationErrorPaths:
             "steps": []
         }
 
-        response = client.post("/", json=request)
+        response = client.post("/api/workflow-templates/", json=request)
 
         assert response.status_code == 500
 
@@ -699,7 +704,7 @@ class TestTemplateCreationErrorPaths:
             "steps": []
         }
 
-        response = client.post("/", json=request)
+        response = client.post("/api/workflow-templates/", json=request)
 
         assert response.status_code == 200
 
@@ -715,7 +720,7 @@ class TestTemplateExecutionErrorPaths:
         """Test executing non-existent template returns 404."""
         mock_template_manager.create_workflow_from_template.side_effect = ValueError("Template not found")
 
-        response = client.post(f"/{sample_template_id}/execute")
+        response = client.post(f"/api/workflow-templates/{sample_template_id}/execute")
 
         assert response.status_code == 404
 
@@ -730,8 +735,8 @@ class TestTemplateExecutionErrorPaths:
         mock_orchestrator = MagicMock()
         mock_orchestrator.execute_workflow = AsyncMock(side_effect=Exception("Invalid parameters"))
 
-        with patch('api.workflow_template_routes.get_orchestrator', return_value=mock_orchestrator):
-            response = client.post(f"/{sample_template_id}/execute", json={"invalid": "params"})
+        with patch('advanced_workflow_orchestrator.get_orchestrator', return_value=mock_orchestrator):
+            response = client.post(f"/api/workflow-templates/{sample_template_id}/execute", json={"invalid": "params"})
 
         # Should return 500 due to orchestrator error
         assert response.status_code == 500
@@ -740,7 +745,7 @@ class TestTemplateExecutionErrorPaths:
         """Test workflow instantiation failure handled gracefully."""
         mock_template_manager.create_workflow_from_template.side_effect = Exception("Instantiation failed")
 
-        response = client.post(f"/{sample_template_id}/execute")
+        response = client.post(f"/api/workflow-templates/{sample_template_id}/execute")
 
         assert response.status_code == 500
 
@@ -754,8 +759,8 @@ class TestTemplateExecutionErrorPaths:
         mock_orchestrator = MagicMock()
         mock_orchestrator.execute_workflow = AsyncMock(side_effect=Exception("Orchestrator error"))
 
-        with patch('api.workflow_template_routes.get_orchestrator', return_value=mock_orchestrator):
-            response = client.post(f"/{sample_template_id}/execute")
+        with patch('advanced_workflow_orchestrator.get_orchestrator', return_value=mock_orchestrator):
+            response = client.post(f"/api/workflow-templates/{sample_template_id}/execute")
 
         assert response.status_code == 500
 
@@ -779,7 +784,7 @@ class TestTemplateImport:
             "status": "created"
         }
 
-        response = client.post(f"/{sample_template_id}/import")
+        response = client.post(f"/api/workflow-templates/{sample_template_id}/import")
 
         assert response.status_code == 200
         data = response.json()
@@ -790,7 +795,7 @@ class TestTemplateImport:
         """Test importing non-existent template returns 404."""
         mock_template_manager.get_template.return_value = None
 
-        response = client.post(f"/{sample_template_id}/import")
+        response = client.post(f"/api/workflow-templates/{sample_template_id}/import")
 
         assert response.status_code == 404
 
@@ -807,7 +812,7 @@ class TestTemplateImport:
         }
 
         response = client.post(
-            f"/{sample_template_id}/import",
+            f"/api/workflow-templates/{sample_template_id}/import",
             json={"customizations": {"timeout": 300}}
         )
 
@@ -821,7 +826,7 @@ class TestTemplateImport:
 
         mock_template_manager.create_workflow_from_template.side_effect = Exception("Import failed")
 
-        response = client.post(f"/{sample_template_id}/import")
+        response = client.post(f"/api/workflow-templates/{sample_template_id}/import")
 
         assert response.status_code == 500
 
@@ -841,7 +846,7 @@ class TestTemplateSearchErrorPaths:
         mock_templates[0].tags = []
         mock_template_manager.search_templates.return_value = mock_templates
 
-        response = client.get("/search?query=")
+        response = client.get("/api/workflow-templates/search?query=")
 
         assert response.status_code == 200
         data = response.json()
@@ -851,7 +856,7 @@ class TestTemplateSearchErrorPaths:
         """Test search with non-matching query returns empty list."""
         mock_template_manager.search_templates.return_value = []
 
-        response = client.get("/search?query=nonexistent_xyz_123")
+        response = client.get("/api/workflow-templates/search?query=nonexistent_xyz_123")
 
         assert response.status_code == 200
         data = response.json()
@@ -861,7 +866,7 @@ class TestTemplateSearchErrorPaths:
         """Test search service exception handled gracefully."""
         mock_template_manager.search_templates.side_effect = Exception("Search service error")
 
-        response = client.get("/search?query=test")
+        response = client.get("/api/workflow-templates/search?query=test")
 
         # FastAPI global error handler catches exception
         assert response.status_code == 500
@@ -870,7 +875,7 @@ class TestTemplateSearchErrorPaths:
         """Test search behavior when combined with category."""
         mock_template_manager.search_templates.return_value = []
 
-        response = client.get("/search?query=automation&category=data_processing")
+        response = client.get("/api/workflow-templates/search?query=automation&category=data_processing")
 
         # Note: Search endpoint doesn't have category parameter (list endpoint does)
         # This validates that query parameter is processed

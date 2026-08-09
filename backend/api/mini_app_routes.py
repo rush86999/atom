@@ -644,10 +644,20 @@ async def append_instance_record(
     if not validate_record_data(body.data, max_bytes):
         raise HTTPException(status_code=400, detail="record data must be an object within the size cap")
     app = db.query(MiniApp).filter(MiniApp.id == canvas.mini_app_id).first()
-    row = append_record(
-        db, canvas.id, canvas.tenant_id, app.id if app is not None else canvas.mini_app_id,
-        s, body.data, created_by=str(current_user.id),
-    )
+    from core.mini_app_db_service import DEFAULT_MAX_RECORDS_PER_SERIES
+
+    max_records = cfg.get("max_records_per_series", DEFAULT_MAX_RECORDS_PER_SERIES)
+    try:
+        row = append_record(
+            db, canvas.id, canvas.tenant_id, app.id if app is not None else canvas.mini_app_id,
+            s, body.data, created_by=str(current_user.id),
+            max_records=max_records,
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"series record cap reached ({max_records} rows); append rejected",
+        )
     return {"success": True, "record": row}
 
 
@@ -730,7 +740,13 @@ async def update_instance_record(
     max_bytes = cfg.get("max_record_bytes", DEFAULT_MAX_RECORD_BYTES)
     if not validate_record_data(body.data, max_bytes):
         raise HTTPException(status_code=400, detail="record data must be an object within the size cap")
-    row = update_record(db, canvas.id, s, record_id, body.data)
+    try:
+        row = update_record(db, canvas.id, s, record_id, body.data, max_bytes=max_bytes)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="merged record data exceeds the size cap; update rejected",
+        )
     if row is None:
         raise HTTPException(status_code=404, detail="Record not found")
     return {"success": True, "record": row}

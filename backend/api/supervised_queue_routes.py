@@ -86,6 +86,11 @@ async def get_user_queue(
     service = SupervisedQueueService(db)
 
     try:
+        # The `status` query param shadows the `fastapi.status` module within
+        # this function — alias it once so both the 400 raise below and the
+        # error handlers reference the real module.
+        from fastapi import status as http_status
+
         # Parse status if provided
         status_filter = None
         if status:
@@ -93,7 +98,7 @@ async def get_user_queue(
                 status_filter = QueueStatus(status)
             except ValueError:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=http_status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid status: {status}"
                 )
 
@@ -101,12 +106,21 @@ async def get_user_queue(
 
         entry_responses = []
         for entry in entries:
-            # Get agent name
-            agent = db.query(service.db.query(
-                __import__('core.models', fromlist=['AgentRegistry']).AgentRegistry
-            ).filter(
-                __import__('core.models', fromlist=['AgentRegistry']).AgentRegistry.id == entry.agent_id
-            ).first()).first() if hasattr(service, 'db') else None
+            # Get agent name. The old nested `db.query(service.db.query(...))`
+            # double-query crashed (UnmappedInstanceError) whenever an agent
+            # row was found — resolving the name now uses the service's own
+            # session directly, and degrades to None on any lookup failure.
+            agent = None
+            agent_db = getattr(service, 'db', None)
+            if agent_db is not None:
+                try:
+                    agent = agent_db.query(
+                        __import__('core.models', fromlist=['AgentRegistry']).AgentRegistry
+                    ).filter(
+                        __import__('core.models', fromlist=['AgentRegistry']).AgentRegistry.id == entry.agent_id
+                    ).first()
+                except Exception:
+                    agent = None
 
             entry_responses.append(QueueEntryResponse(
                 id=entry.id,
@@ -132,8 +146,12 @@ async def get_user_queue(
     except HTTPException:
         raise
     except Exception as e:
+        # The `status` query param shadows the `fastapi.status` module here —
+        # reference it via an alias so error responses stay 500 instead of
+        # crashing with AttributeError inside the handler.
+        from fastapi import status as http_status
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal error"
         )
 

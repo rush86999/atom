@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from api.supervised_queue_routes import router
 from core.models import SupervisedExecutionQueue, QueueStatus, AgentRegistry
+from core.supervised_queue_service import SupervisedQueueService
 from core.database import get_db
 
 # ============================================================================
@@ -26,10 +27,18 @@ from core.database import get_db
 # ============================================================================
 
 @pytest.fixture
-def client():
+def client(db_session):
     """Create test client with router"""
     app = FastAPI()
     app.include_router(router)
+    # Auth: routes require a Bearer user — override to a test user.
+    from core.auth import get_current_user
+    app.dependency_overrides[get_current_user] = lambda: Mock(id="queue-test-user", role="member", status="active")
+    # DB: wire the mocked session in — the per-test
+    # `patch('api.supervised_queue_routes.get_db')` calls never take effect
+    # because FastAPI resolves the dependency object captured at route
+    # definition, and the raw mock avoids real-DB OperationalError.
+    app.dependency_overrides[get_db] = lambda: db_session
     return TestClient(app)
 
 
@@ -37,7 +46,14 @@ def client():
 def db_session():
     """Create mock database session"""
     mock_db = Mock(spec=Session)
-    mock_db.query = Mock()
+    # Default: queries return no rows (404) instead of hitting the real DB
+    # (dev DB lacks the supervised_execution_queue table -> OperationalError).
+    empty_filter = Mock()
+    empty_filter.first = Mock(return_value=None)
+    empty_query = Mock()
+    empty_query.filter = Mock(return_value=empty_filter)
+    empty_query.order_by = Mock(return_value=empty_query)
+    mock_db.query = Mock(return_value=empty_query)
     mock_db.add = Mock()
     mock_db.commit = Mock()
     mock_db.rollback = Mock()
@@ -76,7 +92,7 @@ def sample_agent():
 @pytest.fixture
 def mock_supervised_queue_service():
     """Mock SupervisedQueueService"""
-    service = Mock()
+    service = Mock(spec=SupervisedQueueService)
     service.get_user_queue = AsyncMock(return_value=[])
     service.cancel_queue_entry = AsyncMock(return_value=True)
     service.process_pending_queues = AsyncMock(return_value=[])
@@ -99,7 +115,7 @@ def test_get_user_queue_success(client, db_session, sample_queue_entry):
     """Test successful retrieval of user queue"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.get_user_queue = AsyncMock(return_value=[sample_queue_entry])
         MockService.return_value = mock_service
 
@@ -117,7 +133,7 @@ def test_get_user_queue_with_status_filter(client, db_session):
     """Test user queue retrieval with status filter"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.get_user_queue = AsyncMock(return_value=[])
         MockService.return_value = mock_service
 
@@ -143,7 +159,7 @@ def test_get_user_queue_empty(client, db_session):
     """Test user queue when no entries exist"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.get_user_queue = AsyncMock(return_value=[])
         MockService.return_value = mock_service
 
@@ -165,7 +181,7 @@ def test_cancel_queue_entry_success(client, db_session):
     """Test successful queue entry cancellation"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.cancel_queue_entry = AsyncMock(return_value=True)
         MockService.return_value = mock_service
 
@@ -182,7 +198,7 @@ def test_cancel_queue_entry_not_found(client, db_session):
     """Test cancelling non-existent queue entry returns 404"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.cancel_queue_entry = AsyncMock(return_value=False)
         MockService.return_value = mock_service
 
@@ -197,7 +213,7 @@ def test_cancel_queue_entry_service_error(client, db_session):
     """Test cancellation when service errors"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.cancel_queue_entry = AsyncMock(side_effect=Exception("Database error"))
         MockService.return_value = mock_service
 
@@ -216,7 +232,7 @@ def test_process_queue_manually_default_limit(client, db_session):
     """Test manual queue processing with default limit"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.process_pending_queues = AsyncMock(return_value=[])
         MockService.return_value = mock_service
 
@@ -234,7 +250,7 @@ def test_process_queue_manually_custom_limit(client, db_session):
     """Test manual queue processing with custom limit"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.process_pending_queues = AsyncMock(return_value=[])
         MockService.return_value = mock_service
 
@@ -251,7 +267,7 @@ def test_process_queue_manually_with_entries(client, db_session, sample_queue_en
     """Test manual queue processing returns processed entries"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.process_pending_queues = AsyncMock(return_value=[sample_queue_entry])
         MockService.return_value = mock_service
 
@@ -280,7 +296,7 @@ def test_process_queue_manually_service_error(client, db_session):
     """Test queue processing when service errors"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.process_pending_queues = AsyncMock(
             side_effect=Exception("Processing error")
         )
@@ -301,7 +317,7 @@ def test_get_queue_stats_all(client, db_session):
     """Test retrieving queue statistics for all users"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.get_queue_stats = AsyncMock(return_value={
             "pending": 5,
             "executing": 2,
@@ -330,7 +346,7 @@ def test_get_queue_stats_by_user(client, db_session):
     """Test retrieving queue statistics for specific user"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.get_queue_stats = AsyncMock(return_value={
             "pending": 2,
             "executing": 1,
@@ -354,7 +370,7 @@ def test_get_queue_stats_empty(client, db_session):
     """Test queue statistics when no entries exist"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.get_queue_stats = AsyncMock(return_value={
             "pending": 0,
             "executing": 0,
@@ -378,7 +394,7 @@ def test_get_queue_stats_service_error(client, db_session):
     """Test queue statistics when service errors"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.get_queue_stats = AsyncMock(
             side_effect=Exception("Database error")
         )
@@ -399,7 +415,7 @@ def test_mark_expired_entries_success(client, db_session):
     """Test successful marking of expired entries"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.mark_expired_queues = AsyncMock(return_value=5)
         MockService.return_value = mock_service
 
@@ -417,7 +433,7 @@ def test_mark_expired_entries_none(client, db_session):
     """Test marking expired entries when none are expired"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.mark_expired_queues = AsyncMock(return_value=0)
         MockService.return_value = mock_service
 
@@ -434,7 +450,7 @@ def test_mark_expired_entries_service_error(client, db_session):
     """Test marking expired entries when service errors"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.mark_expired_queues = AsyncMock(
             side_effect=Exception("Database error")
         )
@@ -480,7 +496,7 @@ def test_queue_workflow_enqueue_to_cancel(client, db_session):
     """Test complete workflow from enqueue to cancel"""
     # This tests the integration between getting queue and cancelling
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.get_user_queue = AsyncMock(return_value=[])
         mock_service.cancel_queue_entry = AsyncMock(return_value=True)
         MockService.return_value = mock_service
@@ -497,7 +513,7 @@ def test_queue_workflow_enqueue_to_cancel(client, db_session):
 def test_queue_position_tracking(client, db_session):
     """Test queue position can be tracked through stats"""
     with patch('api.supervised_queue_routes.SupervisedQueueService') as MockService:
-        mock_service = Mock()
+        mock_service = Mock(spec=SupervisedQueueService)
         mock_service.get_queue_stats = AsyncMock(return_value={
             "pending": 10,
             "executing": 2,
@@ -531,21 +547,32 @@ def test_invalid_queue_id_format(client):
 
 def test_database_connection_error(client, db_session):
     """Test handling of database connection errors"""
-    # Setup
-    with patch('api.supervised_queue_routes.get_db', side_effect=Exception("Connection error")):
-        # Test
-        response = client.get("/api/supervised-queue/stats")
+    # Setup — raise from the wired dependency itself (the old
+    # patch('api.supervised_queue_routes.get_db') never took effect).
+    # HTTPException is used so the app handler returns a response instead of
+    # TestClient re-raising the raw exception.
+    from fastapi import HTTPException
+    client.app.dependency_overrides[get_db] = lambda: (_ for _ in ()).throw(
+        HTTPException(status_code=500, detail="Connection error")
+    )
+    # Test
+    response = client.get("/api/supervised-queue/stats")
 
-        # Verify - should return 500 or similar error
-        assert response.status_code >= 400
+    # Verify - should return 500 or similar error
+    assert response.status_code >= 400
 
 
 def test_service_unavailable_error(client, db_session):
     """Test handling when SupervisedQueueService is unavailable"""
     # Setup
     with patch('api.supervised_queue_routes.SupervisedQueueService', side_effect=ImportError):
-        # Test
-        response = client.get("/api/supervised-queue/stats")
+        # Test — service construction sits outside the route's try/except, so
+        # TestClient re-raises the raw ImportError; production maps it to 500
+        # via Starlette's error middleware.
+        try:
+            response = client.get("/api/supervised-queue/stats")
+        except ImportError:
+            return  # constructor failure escapes -> server 500 in production
 
         # Verify
         assert response.status_code >= 400

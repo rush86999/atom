@@ -107,11 +107,32 @@ def append_record(
     data: Dict[str, Any],
     record_id: Optional[str] = None,
     created_by: Optional[str] = None,
+    *,
+    max_records: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Append one record; ``seq`` = max(seq)+1 within (canvas, series)."""
+    """Append one record; ``seq`` = max(seq)+1 within (canvas, series).
+
+    Enforces the per-series row cap (``max_records``, defaulting to
+    ``DEFAULT_MAX_RECORDS_PER_SERIES``): once a (canvas, series) holds
+    ``max_records`` rows, further appends raise ``ValueError`` and nothing is
+    inserted — fail-closed, so runaway app logic / agents cannot grow the
+    record store without bound.
+    """
     from sqlalchemy import func
 
     from core.models import CanvasRecord
+
+    cap = DEFAULT_MAX_RECORDS_PER_SERIES if max_records is None else max_records
+    if cap > 0:
+        existing = (
+            db.query(CanvasRecord.id)
+            .filter(CanvasRecord.canvas_id == canvas_id, CanvasRecord.series == series)
+            .count()
+        )
+        if existing >= cap:
+            raise ValueError(
+                f"series record cap reached ({cap} rows for {series!r}); append rejected"
+            )
 
     max_seq = (
         db.query(func.max(CanvasRecord.seq))
@@ -204,8 +225,17 @@ def update_record(
     series: str,
     record_id: str,
     data: Dict[str, Any],
+    *,
+    max_bytes: int = DEFAULT_MAX_RECORD_BYTES,
 ) -> Optional[Dict[str, Any]]:
-    """Deep-merge ``data`` into the record's payload; returns the row or None."""
+    """Deep-merge ``data`` into the record's payload; returns the row or None.
+
+    The merged payload is re-validated against the per-record size cap before
+    being written — a delta that is individually within ``max_bytes`` can push
+    the merged record past it, which the incoming-only validation would miss.
+    Raises ``ValueError`` when the merged payload exceeds the cap (row left
+    untouched).
+    """
     from core.models import CanvasRecord
 
     row = (
@@ -221,6 +251,10 @@ def update_record(
         return None
     merged = dict(row.data or {})
     merged.update(data)
+    if not validate_record_data(merged, max_bytes):
+        raise ValueError(
+            "merged record data exceeds the size cap; update rejected"
+        )
     row.data = merged
     db.commit()
     return _row_to_dict(row)
@@ -232,8 +266,15 @@ def update_many_records(
     series: str,
     f: Dict[str, Any],
     data: Dict[str, Any],
+    *,
+    max_bytes: int = DEFAULT_MAX_RECORD_BYTES,
 ) -> int:
-    """Merge ``data`` into every matching row; returns the number updated."""
+    """Merge ``data`` into every matching row; returns the number updated.
+
+    All matching rows are validated BEFORE any is mutated: if any merged
+    payload would exceed the per-record size cap, ``ValueError`` is raised and
+    no row is written (no partial application).
+    """
     from core.models import CanvasRecord
 
     rows = (
@@ -243,6 +284,13 @@ def update_many_records(
     )
     if f:
         rows = [r for r in rows if _matches(r.data or {}, f)]
+    for r in rows:
+        merged = dict(r.data or {})
+        merged.update(data)
+        if not validate_record_data(merged, max_bytes):
+            raise ValueError(
+                "merged record data exceeds the size cap; update_many rejected"
+            )
     for r in rows:
         merged = dict(r.data or {})
         merged.update(data)

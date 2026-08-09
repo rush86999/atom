@@ -1240,12 +1240,16 @@ async def run_stateful(
             record_results: List[Dict[str, Any]] = []
             if envelope is not None:
                 from core.mini_app_db_service import (
-                    DEFAULT_MAX_RECORD_BYTES, db_store_enabled,
+                    DEFAULT_MAX_RECORD_BYTES, DEFAULT_MAX_RECORDS_PER_SERIES,
+                    db_store_enabled,
                 )
 
                 db_cfg = manifest.get("db") or {}
                 store_ok = db_store_enabled() and bool(db_cfg.get("enabled", True))
                 max_record_bytes = db_cfg.get("max_record_bytes", DEFAULT_MAX_RECORD_BYTES)
+                max_records = db_cfg.get(
+                    "max_records_per_series", DEFAULT_MAX_RECORDS_PER_SERIES
+                )
                 for raw_op in envelope.get("record_ops") or []:
                     if not store_ok:
                         record_results.append({
@@ -1260,7 +1264,9 @@ async def run_stateful(
                         continue
                     if persist:
                         record_results.append(_execute_record_op(
-                            valid, db, canvas, app, created_by=user_id
+                            valid, db, canvas, app, created_by=user_id,
+                            max_records=max_records,
+                            max_record_bytes=max_record_bytes,
                         ))
                     else:
                         record_results.append({
@@ -1462,11 +1468,20 @@ def _execute_record_op(
     canvas: Any,
     app: Any,
     created_by: Optional[str],
+    *,
+    max_records: Optional[int] = None,
+    max_record_bytes: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Execute a validated record op against the mini-app DB store."""
+    """Execute a validated record op against the mini-app DB store.
+
+    ``max_records`` / ``max_record_bytes`` carry the manifest-declared caps so
+    the store's limits (rows/series, per-record size after merge) hold on this
+    path too.
+    """
     from core.mini_app_db_service import (
-        append_record, clear_records, count_records, delete_record, delete_series,
-        get_record, list_series, query_records, update_many_records, update_record,
+        DEFAULT_MAX_RECORD_BYTES, append_record, clear_records, count_records,
+        delete_record, delete_series, get_record, list_series, query_records,
+        update_many_records, update_record,
     )
 
     op = valid_op["op"]
@@ -1480,6 +1495,7 @@ def _execute_record_op(
                 db, canvas.id, canvas.tenant_id, app.id,
                 series, valid_op["data"], record_id=valid_op.get("id"),
                 created_by=created_by,
+                max_records=max_records,
             )
             return {**base, "ok": True, "id": row["id"], "seq": row["seq"]}
         if op == "get":
@@ -1498,13 +1514,17 @@ def _execute_record_op(
             n = count_records(db, canvas.id, series=series, f=valid_op.get("filter"))
             return {**base, "ok": True, "count": n}
         if op == "update":
-            row = update_record(db, canvas.id, series, valid_op["id"], valid_op["data"])
+            row = update_record(
+                db, canvas.id, series, valid_op["id"], valid_op["data"],
+                max_bytes=max_record_bytes or DEFAULT_MAX_RECORD_BYTES,
+            )
             if row is None:
                 return {**base, "ok": False, "error": "not_found"}
             return {**base, "ok": True, "record": row}
         if op == "update_many":
             n = update_many_records(
-                db, canvas.id, series, valid_op.get("filter") or {}, valid_op["data"]
+                db, canvas.id, series, valid_op.get("filter") or {}, valid_op["data"],
+                max_bytes=max_record_bytes or DEFAULT_MAX_RECORD_BYTES,
             )
             return {**base, "ok": True, "updated": n}
         if op == "delete":
@@ -1518,6 +1538,15 @@ def _execute_record_op(
             return {**base, "ok": True, "deleted": n}
         if op == "list_series":
             return {**base, "ok": True, "series": list_series(db, canvas.id)}
+    except ValueError as e:
+        # Store-cap enforcement (rows/series, post-merge size) — fail closed
+        # with a structured error, never a generic 500.
+        logger.warning("record_op %s cap hit for %s: %s", op, canvas.id, e)
+        return {
+            **base,
+            "ok": False,
+            "error": "series_cap" if op == "append" else "size_cap",
+        }
     except Exception as e:  # noqa: BLE001
         logger.warning("record_op %s failed for %s: %s", op, canvas.id, e)
         return {**base, "ok": False, "error": "failed"}

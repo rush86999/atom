@@ -11,7 +11,7 @@ Endpoints Covered:
 - GET /api/deeplinks/stats - Get deep link statistics
 """
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
 from datetime import datetime, timedelta
@@ -104,6 +104,10 @@ def deeplink_client(test_db, mock_execute_deep_link):
     app = FastAPI()
     app.include_router(router)
 
+    # Auth: routes require a Bearer user — override to a test user.
+    from core.auth import get_current_user
+    app.dependency_overrides[get_current_user] = lambda: Mock(id="deeplink-test-user", role="member", status="active")
+
     # Override get_db dependency
     def override_get_db():
         try:
@@ -151,7 +155,7 @@ def sample_audit_entries(test_db):
     for i in range(5):
         entry = DeepLinkAudit(
             id=f"audit-{i}",
-            user_id=f"user-{i % 2}",  # Alternating users
+            user_id="deeplink-test-user",  # R37: audit reads are scoped to the authenticated user
             agent_id=f"agent-{i % 3}" if i < 3 else None,  # Some with agents
             agent_execution_id=f"exec-{i}" if i < 3 else None,
             resource_type=["agent", "workflow", "canvas", "tool"][i % 4],
@@ -375,8 +379,9 @@ class TestDeepLinkAudit:
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
-        # Should only return entries with user_id=user-0
-        assert all(entry["user_id"] == "user-0" for entry in data)
+        # R37: a client-supplied user_id for another user is IGNORED — audit
+        # reads are always scoped to the authenticated user.
+        assert all(entry["user_id"] == "deeplink-test-user" for entry in data)
 
     def test_get_audit_filter_by_agent(self, deeplink_client, sample_audit_entries):
         """Test GET /api/deeplinks/audit?agent_id={id} filters by agent."""
@@ -859,7 +864,7 @@ class TestDeepLinkErrorPaths:
                     "source": "external"
                 }
             )
-            assert response.status_code == 400
+            assert response.status_code == 422
             data = response.json()
             # Error should mention validation issue
 
@@ -879,7 +884,7 @@ class TestDeepLinkErrorPaths:
                     "source": "external"
                 }
             )
-            assert response.status_code == 400
+            assert response.status_code == 422
             data = response.json()
             # Error should mention security/validation
 
@@ -971,7 +976,8 @@ class TestDeepLinkErrorPaths:
         data = response.json()
 
     def test_execute_missing_user_id(self, deeplink_client):
-        """Test POST /api/deeplinks/execute without user_id returns 422."""
+        """Test POST /api/deeplinks/execute without user_id succeeds — user_id
+        is Optional (identity comes from the auth token)."""
         response = deeplink_client.post(
             "/api/deeplinks/execute",
             json={
@@ -979,7 +985,7 @@ class TestDeepLinkErrorPaths:
                 "source": "external"
             }
         )
-        assert response.status_code == 422
+        assert response.status_code == 200
         data = response.json()
 
     def test_audit_limit_validation(self, deeplink_client):

@@ -78,7 +78,10 @@ describe("WorkflowBuilder", () => {
       back: jest.fn(),
     });
     global.fetch = mockFetch;
-    mockFetch.mockImplementation((url: string) => {
+    mockFetch.mockImplementation((url: string, opts?: any) => {
+      if (url === "/api/workflow-templates" && opts?.method === "POST") {
+        return Promise.resolve(okResponse({ template_id: "tpl-new" }));
+      }
       if (url === "/api/workflow-templates") return Promise.resolve(okResponse(TEMPLATES));
       if (url === "/api/workflow-templates/tpl-2") return Promise.resolve(okResponse(TEMPLATE_2));
       if (url.includes("/execute")) return Promise.resolve(okResponse({ workflow_status: "completed" }));
@@ -197,7 +200,10 @@ describe("WorkflowBuilder", () => {
   });
 
   it("shows an execution-failed toast when running fails", async () => {
-    mockFetch.mockImplementation((url: string) => {
+    mockFetch.mockImplementation((url: string, opts?: any) => {
+      if (url === "/api/workflow-templates" && opts?.method === "POST") {
+        return Promise.resolve(okResponse({ template_id: "tpl-new" }));
+      }
       if (url.includes("/execute")) return Promise.resolve(errResponse(500, {}));
       if (url === "/api/workflow-templates") return Promise.resolve(okResponse(TEMPLATES));
       return Promise.resolve(okResponse({ template_id: "tpl-new" }));
@@ -229,9 +235,10 @@ describe("WorkflowBuilder", () => {
         expect.objectContaining({ title: "Loaded", description: 'Template "Sales Intel" loaded.' })
       );
     });
-    // Both agent nodes now on canvas
+    // Both agent nodes now on canvas (sidebar cards also render the names,
+    // so use the all-query for the one that is also a sidebar agent)
     expect(screen.getAllByText("Competitive Intel").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Inventory Check")).toBeInTheDocument();
+    expect(screen.getAllByText("Inventory Check").length).toBeGreaterThanOrEqual(1);
     // Workflow name updated
     expect(screen.getByPlaceholderText("Workflow Name")).toHaveValue("Sales Intel");
 

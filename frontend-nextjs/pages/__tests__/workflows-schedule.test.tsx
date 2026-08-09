@@ -111,7 +111,7 @@ describe("SchedulePage", () => {
     fireEvent.click(screen.getByRole("button", { name: /schedule workflow/i }));
     expect(mockToast).not.toHaveBeenCalled();
     expect(mockFetch).not.toHaveBeenCalledWith(
-      expect.stringMatching(/\/schedule[\/$]/),
+      expect.stringMatching(/\/schedule(\/|$)/),
       expect.anything()
     );
 
@@ -124,7 +124,7 @@ describe("SchedulePage", () => {
       );
     });
     expect(mockFetch).not.toHaveBeenCalledWith(
-      expect.stringMatching(/\/schedule[\/$]/),
+      expect.stringMatching(/\/schedule(\/|$)/),
       expect.anything()
     );
   });
@@ -172,7 +172,7 @@ describe("SchedulePage", () => {
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringMatching(/\/schedule[\/$]/),
+        expect.stringMatching(/\/schedule(\/|$)/),
         expect.objectContaining({
           body: JSON.stringify({
             trigger_type: "interval",

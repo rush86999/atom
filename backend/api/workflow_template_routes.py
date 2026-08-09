@@ -60,6 +60,29 @@ async def create_template(
     - Requires INTERN maturity or higher
     """
     try:
+        from core.workflow_template_system import TemplateCategory, TemplateComplexity
+
+        # R71: reject invalid category/complexity at the API boundary (422),
+        # mirroring the category validation already done by list_templates.
+        # Previously arbitrary strings were accepted and only failed later
+        # inside the manager (or never, when mocked).
+        try:
+            TemplateCategory(request.category)
+        except ValueError:
+            raise router.validation_error(
+                field="category",
+                message=f"Invalid category: {request.category}",
+                details={"provided_category": request.category}
+            )
+        try:
+            TemplateComplexity(request.complexity)
+        except ValueError:
+            raise router.validation_error(
+                field="complexity",
+                message=f"Invalid complexity: {request.complexity}",
+                details={"provided_complexity": request.complexity}
+            )
+
         manager = get_template_manager()
 
         template_data = {
@@ -90,6 +113,10 @@ async def create_template(
             "message": f"Template '{template.name}' created successfully"
         }
 
+    except HTTPException:
+        # R71: re-raise our own validation errors (invalid category/complexity
+        # -> 422) instead of the bare `except Exception` masking them as 500.
+        raise
     except Exception as e:
         logger.error(f"Failed to create template: {e}")
         raise router.internal_error(
@@ -132,6 +159,11 @@ async def list_templates(category: Optional[str] = None, limit: int = 50, curren
             }
             for t in templates
         ]
+    except HTTPException:
+        # R71: re-raise our own validation errors (invalid category -> 422).
+        # Previously the bare `except Exception` swallowed the 422 raised
+        # above and converted it into a 500 internal error.
+        raise
     except Exception as e:
         logger.error(f"Failed to list templates: {e}")
         raise router.internal_error(
@@ -145,9 +177,15 @@ async def search_templates(
     current_user: User = Depends(get_current_user),
 ):
     """Search templates by text query"""
-    manager = get_template_manager()
-    templates = manager.search_templates(query, limit=limit)
-    
+    try:
+        manager = get_template_manager()
+        templates = manager.search_templates(query, limit=limit)
+    except Exception as e:
+        logger.error(f"Failed to search templates: {e}")
+        raise router.internal_error(
+            message="Failed to search templates"
+        )
+
     return [
         {
             "template_id": t.template_id,
@@ -223,6 +261,11 @@ async def update_template_endpoint(template_id: str, request: UpdateTemplateRequ
             "template": updated_template.dict()
         }
         
+    except HTTPException:
+        # R71: re-raise our own validation errors (e.g. "No updates provided"
+        # -> 422) instead of letting the bare `except Exception` below mask
+        # them as 500 internal errors.
+        raise
     except ValueError as e:
         raise router.not_found_error(
             "Template",
@@ -297,6 +340,10 @@ async def import_template(
             message=str(e),
             details={"template_id": template_id}
         )
+    except HTTPException:
+        # R71: re-raise our own errors (template not found -> 404) instead of
+        # masking them as 500 internal errors.
+        raise
     except Exception as e:
         logger.error(f"Failed to import template: {e}")
         raise router.internal_error(

@@ -745,7 +745,7 @@ async def mini_app_db_write(args: Dict[str, Any], context: Dict[str, Any]) -> Di
             if op != "clear" and validate_series(series) is None:
                 return {"success": False, "error": "series must match ^[a-z0-9_]{1,64}$"}
             from core.mini_app_service import _validate_record_op
-            from core.mini_app_db_service import DEFAULT_MAX_RECORD_BYTES
+            from core.mini_app_db_service import DEFAULT_MAX_RECORD_BYTES, DEFAULT_MAX_RECORDS_PER_SERIES
 
             manifest = (app.manifest or {}) if app is not None else {}
             db_cfg = manifest.get("db") or {}
@@ -766,7 +766,11 @@ async def mini_app_db_write(args: Dict[str, Any], context: Dict[str, Any]) -> Di
                 return {"success": False, "error": "invalid record op (bad data/series/filter shape)"}
             from core.mini_app_service import _execute_record_op
 
-            result = _execute_record_op(valid, db, canvas, app, created_by=viewer.id)
+            result = _execute_record_op(
+                valid, db, canvas, app, created_by=viewer.id,
+                max_records=db_cfg.get("max_records_per_series", DEFAULT_MAX_RECORDS_PER_SERIES),
+                max_record_bytes=max_bytes,
+            )
             return {"success": bool(result.get("ok")), **result}
     except Exception as e:  # noqa: BLE001
         logger.error("mini_app_db_write failed: %s", e)

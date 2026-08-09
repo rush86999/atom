@@ -1162,6 +1162,82 @@ const SalesforceIntegration: React.FC = () => {
                 </Card>
               </TabsContent>
 
+              {/* Opportunities Tab */}
+              <TabsContent value="opportunities" className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search opportunities..."
+                      value={searchQuery}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                      className="pl-8 w-[300px]"
+                    />
+                  </div>
+                  <div className="flex-1" />
+                  <Button onClick={onOpportunityOpen} className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Create Opportunity
+                  </Button>
+                </div>
+
+                <Card>
+                  <CardContent className="p-0">
+                    <div className="rounded-md border">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-muted/50 text-muted-foreground">
+                          <tr>
+                            <th className="h-12 px-4 align-middle font-medium">Name</th>
+                            <th className="h-12 px-4 align-middle font-medium">Account</th>
+                            <th className="h-12 px-4 align-middle font-medium">Stage</th>
+                            <th className="h-12 px-4 align-middle font-medium">Amount</th>
+                            <th className="h-12 px-4 align-middle font-medium">Close Date</th>
+                            <th className="h-12 px-4 align-middle font-medium">Owner</th>
+                            <th className="h-12 px-4 align-middle font-medium">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {loading.opportunities ? (
+                            <tr>
+                              <td colSpan={7} className="p-4 text-center">
+                                <div className="flex justify-center">
+                                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                                </div>
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredOpportunities.map((opp) => (
+                              <tr key={opp.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                <td className="p-4 align-middle font-medium">{opp.Name}</td>
+                                <td className="p-4 align-middle">{opp.AccountName}</td>
+                                <td className="p-4 align-middle">
+                                  <Badge variant="outline">
+                                    {opp.StageName}
+                                  </Badge>
+                                </td>
+                                <td className="p-4 align-middle">{formatCurrency(opp.Amount ?? 0)}</td>
+                                <td className="p-4 align-middle">{formatDate(opp.CloseDate)}</td>
+                                <td className="p-4 align-middle">{opp.Owner?.Name}</td>
+                                <td className="p-4 align-middle">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-2"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                    Details
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               {/* Accounts Tab */}
               <TabsContent value="accounts" className="space-y-6">
                 <div className="flex items-center gap-4">

@@ -6,7 +6,7 @@
 // prerender pass for client components with module-scoped refs).
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -76,10 +76,6 @@ export default function MarketplacePage() {
     const [previewTemplate, setPreviewTemplate] = useState<WorkflowTemplate | null>(null)
     const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
-    useEffect(() => {
-        fetchTemplates()
-    }, [fetchTemplates])
-
     const fetchTemplates = useCallback(async () => {
         try {
             setLoading(true)
@@ -117,6 +113,10 @@ export default function MarketplacePage() {
             setLoading(false)
         }
     }, [selectedCategory])
+
+    useEffect(() => {
+        fetchTemplates()
+    }, [fetchTemplates])
 
     const handleImport = async (id: string) => {
         try {
