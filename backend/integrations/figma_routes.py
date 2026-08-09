@@ -226,6 +226,6 @@ async def list_figma_items(user_id: str = "test_user"):
 async def figma_health():
     """Health check for Figma integration"""
     service = get_figma_service()
-    return await service.health_check()
+    return service.health_check()
 
 

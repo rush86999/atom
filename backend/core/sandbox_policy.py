@@ -540,7 +540,11 @@ class PolicyIssuer:
         try:
             redacted = _redact(args or {})
             payload = json.dumps(redacted, sort_keys=True, default=str)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, RecursionError):
+            # RecursionError: cyclic structures (e.g. an object that
+            # references itself) — _redact recurses infinitely and
+            # json.dumps rejects cycles. Never raise: check() promises
+            # a decision for ANY args.
             payload = "unhashable"
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 

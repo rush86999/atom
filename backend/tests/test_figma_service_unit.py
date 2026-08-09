@@ -1,6 +1,6 @@
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
@@ -107,7 +107,7 @@ async def test_get_file_success(figma_service):
 async def test_ensure_valid_token_refresh(figma_service):
     # Setup expired token
     figma_service.access_token = "expired_token"
-    figma_service.token_expires_at = datetime.now() - timedelta(minutes=10)
+    figma_service.token_expires_at = datetime.now(timezone.utc) - timedelta(minutes=10)
     figma_service.refresh_token = "valid_refresh_token"
 
     # Mock refresh call

@@ -1,8 +1,8 @@
 from datetime import datetime
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ async def handle_oauth_callback(code: str):
 class GmailSearchRequest(BaseModel):
     query: str
     user_id: str = "test_user"
-    max_results: int = 10
+    max_results: int = Field(default=10, ge=1, le=100)
 
 class GmailSearchResponse(BaseModel):
     ok: bool
@@ -85,3 +85,22 @@ async def gmail_search(request: GmailSearchRequest):
         total_results=len(mock_results),
         timestamp=datetime.now().isoformat(),
     )
+
+
+async def create_gmail_draft(
+    user_id: str, thread_id: Optional[str] = None, body: str = ""
+) -> str:
+    """Create a Gmail draft for a user (mock)."""
+    return f"draft_{user_id}_{datetime.now().timestamp()}"
+
+
+async def send_gmail_message(
+    user_id: str, thread_id: Optional[str] = None, body: str = ""
+) -> Dict[str, Any]:
+    """Send a Gmail message for a user (mock)."""
+    return {
+        "ok": True,
+        "user_id": user_id,
+        "thread_id": thread_id,
+        "message_id": f"msg_{user_id}_{datetime.now().timestamp()}",
+    }

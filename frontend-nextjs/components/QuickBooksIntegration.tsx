@@ -595,6 +595,12 @@ const QuickBooksIntegration: React.FC = () => {
                     },
                 });
                 loadCustomers();
+            } else {
+                toast({
+                    title: "Error",
+                    description: "Failed to create customer",
+                    variant: "error",
+                });
             }
         } catch (error) {
             console.error("Failed to create customer:", error);
@@ -635,6 +641,12 @@ const QuickBooksIntegration: React.FC = () => {
                     Line: [],
                 });
                 loadInvoices();
+            } else {
+                toast({
+                    title: "Error",
+                    description: "Failed to create invoice",
+                    variant: "error",
+                });
             }
         } catch (error) {
             console.error("Failed to create invoice:", error);
@@ -675,6 +687,12 @@ const QuickBooksIntegration: React.FC = () => {
                     Line: [],
                 });
                 loadBills();
+            } else {
+                toast({
+                    title: "Error",
+                    description: "Failed to create bill",
+                    variant: "error",
+                });
             }
         } catch (error) {
             console.error("Failed to create bill:", error);

@@ -5,7 +5,7 @@ Aggregates data from Amazon Seller, Etsy, WooCommerce, and Shopify.
 
 import logging
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from enum import Enum
 from dataclasses import dataclass
 
@@ -37,9 +37,10 @@ class EcommerceUnifiedService:
     def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
         if config is None:
             config = {}
+        self.tenant_id = tenant_id
         self.config = config
         
-    async def sync_orders(self, platform: EcommercePlatform) -> List[Dict[str, Any]]:
+    async def sync_orders(self, platform: EcommercePlatform) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
         """Syncs latest orders and ingests to memory."""
         logger.info(f"Syncing {platform.value} orders")
         # Simulator
@@ -51,7 +52,11 @@ class EcommerceUnifiedService:
             "status": "paid"
         }
         
-        atom_ingestion_pipeline.ingest_record(
+        if atom_ingestion_pipeline is None:
+            logger.error("Order ingestion skipped: atom_ingestion_pipeline unavailable")
+            return {"success": False, "error": "Ingestion pipeline unavailable", "details": {}}
+
+        await atom_ingestion_pipeline.ingest_record(
             app_type=platform.value,
             record_type="deal", # Mapping 'order' to 'deal' or adding a new type
             data=mock_order
@@ -66,4 +71,4 @@ class EcommerceUnifiedService:
             # API Implementation target
 
 # Global singleton
-ecommerce_service = EcommerceUnifiedService({})
+ecommerce_service = EcommerceUnifiedService(config={})

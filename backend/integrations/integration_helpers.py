@@ -70,11 +70,11 @@ def create_execution_record(
     execution = AgentExecution(
         id=str(uuid.uuid4()),
         agent_id=agent_id,
-        user_id=user_id,
         workspace_id="default",
         status=status,
         input_summary=f"Integration action: {action}",
-        triggered_by="integration_route"
+        triggered_by="integration_route",
+        metadata_json={"user_id": user_id}
     )
     db.add(execution)
     db.commit()
@@ -87,7 +87,7 @@ def standard_error_response(e: Exception, operation: str) -> Dict[str, Any]:
     logger.error(f"Error in {operation}: {e}", exc_info=True)
     return {
         "success": False,
-        "error": str(e),
+        "error": f"Operation {operation} failed",
         "error_type": type(e).__name__,
         "operation": operation
     }

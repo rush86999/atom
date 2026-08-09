@@ -353,12 +353,17 @@ class GoogleCalendarService(IntegrationService):
                 time_min=start_time,
                 time_max=end_time
             )
-            
+
+            if start_time.tzinfo is None:
+                start_time = start_time.replace(tzinfo=timezone.utc)
+            if end_time.tzinfo is None:
+                end_time = end_time.replace(tzinfo=timezone.utc)
+
             conflicts = []
             for event in events:
-                # Parse event times
-                event_start = datetime.fromisoformat(event['start_time'].replace('Z', '+00:00'))
-                event_end = datetime.fromisoformat(event['end_time'].replace('Z', '+00:00'))
+                # Parse event times (handles date-only all-day events)
+                event_start = self._parse_event_time(event['start_time'])
+                event_end = self._parse_event_time(event['end_time'])
                 
                 # Check for overlap
                 if (start_time < event_end and end_time > event_start):
@@ -387,6 +392,17 @@ class GoogleCalendarService(IntegrationService):
                 "error": "Failed to check conflicts",
             }
     
+    def _parse_event_time(self, value: str) -> datetime:
+        """Parse an event time string into an aware UTC datetime.
+
+        Handles both full ISO datetimes ('2025-11-01T09:30:00Z') and
+        date-only all-day values ('2025-11-01'), defaulting to UTC midnight.
+        """
+        parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed
+
     def _convert_google_to_unified(self, google_event: Dict) -> Dict:
         """Convert Google Calendar event to unified format"""
         start = google_event.get('start', {})

@@ -583,14 +583,21 @@ describe('SyncProgressModal Component', () => {
 
   describe('Sync Statistics', () => {
     test('should show sync statistics when complete', () => {
-      const { queryByText } = render(
+      const { getByText, queryByText } = render(
         <SyncProgressModal visible={true} onClose={mockOnClose} />
       );
 
+      // In-progress emission first so the completion summary has data
+      emitSync({ ...baseSyncState, syncProgress: 50 });
+
       emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
 
-      // Sync summary is only rendered once a result object is available
-      expect(queryByText('Sync Summary')).toBeNull();
+      // Summary derives from the entity progress snapshot (50% -> 24 items)
+      expect(getByText('Sync Summary')).toBeTruthy();
+      expect(getByText('24 items synced')).toBeTruthy();
+      // No failures or conflicts were reported
+      expect(queryByText(/items failed/)).toBeNull();
+      expect(queryByText(/conflicts/)).toBeNull();
     });
 
     test('should show time elapsed', () => {
@@ -760,6 +767,132 @@ describe('SyncProgressModal Component', () => {
       expect(getByText(/Time: 1m 30s/)).toBeTruthy();
 
       jest.useRealTimers();
+    });
+  });
+
+  describe('Completion Summary (derived from entity progress)', () => {
+    test('shows synced counts derived from the entity progress snapshot', () => {
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
+      );
+
+      // 75% progress -> 7 agents + 15 workflows + 11 canvases + 3 episodes
+      emitSync({ ...baseSyncState, syncProgress: 75 });
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
+      expect(getByText('36 items synced')).toBeTruthy();
+    });
+
+    test('shows a zero-item summary when completing without prior progress', () => {
+      const { getByText, queryByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
+      );
+
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
+      expect(getByText('0 items synced')).toBeTruthy();
+      // Zero transferred bytes means the stat row stays hidden
+      expect(queryByText(/Transferred:/)).toBeNull();
+    });
+
+    test('shows transferred bytes derived from the synced count', () => {
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
+      );
+
+      // 50% -> 24 items -> 24KB at the placeholder rate
+      emitSync({ ...baseSyncState, syncProgress: 50 });
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+
+      expect(getByText('Transferred: 24.0KB')).toBeTruthy();
+    });
+
+    test('logs an error-level entry when the sync finishes with failures', () => {
+      const { getByText, getByTestId } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
+      );
+
+      emitSync({
+        ...baseSyncState,
+        syncInProgress: false,
+        syncProgress: 100,
+        consecutiveFailures: 2,
+      });
+      fireEvent.press(getByText('Show Log'));
+
+      expect(getByText('Sync finished with errors')).toBeTruthy();
+      expect(getByTestId('icon-alert-circle')).toBeTruthy();
+    });
+
+    test('does not log an error entry when finishing cleanly', () => {
+      const { getByText, queryByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} />
+      );
+
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      fireEvent.press(getByText('Show Log'));
+
+      expect(queryByText('Sync finished with errors')).toBeNull();
+    });
+  });
+
+  describe('onComplete contract', () => {
+    test('calls onComplete with the derived result when Done is pressed', () => {
+      const onComplete = jest.fn();
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onClose={mockOnClose} onComplete={onComplete} />
+      );
+
+      emitSync({ ...baseSyncState, syncProgress: 50 });
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      fireEvent.press(getByText('Done'));
+
+      expect(onComplete).toHaveBeenCalledWith(
+        expect.objectContaining({
+          synced: 24,
+          failed: 0,
+          conflicts: 0,
+          bytesTransferred: 24 * 1024,
+        })
+      );
+    });
+
+    test('does not call onComplete when closing mid-sync (no result yet)', () => {
+      const onComplete = jest.fn();
+      const onClose = jest.fn();
+      const { getAllByTestId } = render(
+        <SyncProgressModal
+          visible={true}
+          onClose={onClose}
+          onComplete={onComplete}
+        />
+      );
+
+      // Header close button while still syncing
+      fireEvent.press(getAllByTestId('icon-close')[0]);
+
+      expect(onClose).toHaveBeenCalled();
+      expect(onComplete).not.toHaveBeenCalled();
+    });
+
+    test('works without an onClose handler (Done still reports the result)', () => {
+      const onComplete = jest.fn();
+      const { getByText } = render(
+        <SyncProgressModal visible={true} onComplete={onComplete} />
+      );
+
+      emitSync({ ...baseSyncState, syncInProgress: false, syncProgress: 100 });
+      fireEvent.press(getByText('Done'));
+
+      expect(onComplete).toHaveBeenCalled();
+    });
+
+    test('background sync closes without an onClose handler', () => {
+      const { getByText } = render(<SyncProgressModal visible={true} />);
+
+      expect(() => {
+        fireEvent.press(getByText('Background'));
+      }).not.toThrow();
     });
   });
 });

@@ -21,7 +21,7 @@ from ipaddress import ip_address, ip_network
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import HTTPException, Security
+from fastapi import HTTPException, Request, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import jwt
 from sqlalchemy.orm import Session
@@ -34,6 +34,28 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
+
+
+def _client_ip_from_request(request: Request) -> str:
+    """Derive the client IP for the debug-whitelist check.
+
+    Default: the TCP peer (``request.client.host``) — never spoofable.
+    ``X-Forwarded-For`` is only trusted when ``TRUST_X_FORWARDED_FOR=1`` is
+    set explicitly (deployments behind a proxy that appends the peer IP),
+    and then the LAST entry (closest proxy) is used. Round 44 pattern from
+    ``core.security.auth_rate_limit._client_ip`` — applied here so the
+    debug-mode unverified-decode path cannot be reached by spoofing
+    ``X-Forwarded-For``/``X-Real-IP`` headers against a whitelisted value.
+    """
+    import os
+
+    if os.getenv("TRUST_X_FORWARDED_FOR") == "1":
+        xff = request.headers.get("x-forwarded-for")
+        if xff:
+            # Last entry is the closest proxy — most trustworthy.
+            return xff.split(",")[-1].strip()
+    host = request.client.host if request.client else None
+    return host if host is not None else "unknown"
 
 
 class JWTVerificationError(Exception):
@@ -391,6 +413,7 @@ def get_jwt_verifier() -> JWTVerifier:
 
 def verify_token(
     credentials: HTTPAuthorizationCredentials = Security(security),
+    request: Optional[Request] = None,
     client_ip: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
@@ -404,7 +427,14 @@ def verify_token(
 
     Args:
         credentials: HTTPAuthorizationCredentials from FastAPI
-        client_ip: Client IP address for DEBUG whitelist
+        request: FastAPI Request — the debug-whitelist IP is derived from
+            ``request.client.host`` (TCP peer); spoofed X-Forwarded-For is
+            never trusted unless ``TRUST_X_FORWARDED_FOR=1`` (see
+            ``_client_ip_from_request``).
+        client_ip: OPTIONAL override for direct (non-HTTP) callers. HTTP
+            callers must NOT pass a header-derived value here — the debug
+            bypass would become spoofable; the dependency always derives
+            the IP from the request when ``request`` is present.
 
     Returns:
         Decoded JWT payload
@@ -412,6 +442,10 @@ def verify_token(
     Raises:
         HTTPException: If token is invalid (401)
     """
+    from fastapi import Request as _Request  # noqa: F401  (annotation compat)
+
+    if request is not None and client_ip is None:
+        client_ip = _client_ip_from_request(request)
     verifier = get_jwt_verifier()
     return verifier.verify_token(credentials, client_ip=client_ip)
 

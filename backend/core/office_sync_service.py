@@ -140,15 +140,19 @@ class OfficeSyncService:
             # remembers quotes/POs/price-lists/invoices it just generated or edited.
             # Fire-and-forget (async) to avoid blocking the Canvas update.
             import asyncio
+            ingest_coro = self._ingest_document_to_memory(file_path, user_id)
             try:
-                asyncio.create_task(self._ingest_document_to_memory(file_path, user_id))
+                asyncio.create_task(ingest_coro)
             except RuntimeError:
-                # No running loop (rare sync caller) — fall back to running it directly.
+                # No running loop (rare sync caller) — close the abandoned
+                # coroutine (else it leaks with a "never awaited" warning) and
+                # fall back to running it directly.
+                ingest_coro.close()
                 self._ingest_document_to_memory_sync(file_path, user_id)
 
             # Push live update via WebSocket manager
             try:
-                asyncio.create_task(ws_manager.broadcast(
+                broadcast_coro = ws_manager.broadcast(
                     f"canvas:{canvas_id}",
                     {
                         "type": "canvas:update",
@@ -163,10 +167,12 @@ class OfficeSyncService:
                             }
                         }
                     }
-                ))
+                )
+                asyncio.create_task(broadcast_coro)
             except RuntimeError:
-                # No running loop — skip async broadcast (rare sync caller).
-                pass
+                # No running loop — close the abandoned coroutine, skip async
+                # broadcast (rare sync caller).
+                broadcast_coro.close()
 
         except Exception as e:
             logger.error(f"Failed to broadcast file update: {e}")

@@ -38,6 +38,9 @@ def make_client(monkeypatch, user_id="u-58"):
 
 class TestOfficePresentIdentity:
     def test_present_uses_token_identity(self, monkeypatch):
+        # R53 path containment: /present validates file_path against
+        # ATOM_OFFICE_DIR (default ./data/office) before broadcasting.
+        monkeypatch.setenv("ATOM_OFFICE_DIR", "/")
         client = make_client(monkeypatch)
 
         from core.office_sync_service import OfficeSyncService

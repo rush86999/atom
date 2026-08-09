@@ -151,7 +151,7 @@ class TestLearningRouterRerank:
     async def test_learned_rerank_applies(self):
         h = _handler()
         pm = {
-            "default:question_answering:_": self._per_model_router(
+            "default:question_answering": self._per_model_router(
                 {"gpt-4o": (0.9, 0.8), "deepseek-chat": (0.2, 0.6)}
             ),
         }
@@ -169,7 +169,7 @@ class TestLearningRouterRerank:
     async def test_ema_term_steers_when_predictor_cold(self):
         h = _handler()
         pm = {
-            "default:question_answering:_": self._per_model_router(
+            "default:question_answering": self._per_model_router(
                 {"gpt-4o": (None, 0.0), "deepseek-chat": (0.8, 0.5)}
             ),
         }

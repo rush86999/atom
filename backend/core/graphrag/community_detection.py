@@ -502,7 +502,7 @@ class CommunityDetectionService:
         for community in result.communities:
             # Get node names
             node_names = []
-            entity_types = defaultdict(int)
+            entity_types: "defaultdict[str, int]" = defaultdict(int)
 
             for node_id in community.nodes:
                 node = session.query(GraphNode).filter(

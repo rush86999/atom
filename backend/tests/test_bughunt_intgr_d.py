@@ -320,7 +320,7 @@ class TestEcommerceUnifiedService:
     def test_sync_orders_with_pipeline(self):
         from integrations import ecommerce_unified_service as mod
 
-        with mock.patch.object(mod, "atom_ingestion_pipeline") as m_pipe:
+        with mock.patch.object(mod, "atom_ingestion_pipeline", new=mock.AsyncMock()) as m_pipe:
             svc = mod.EcommerceUnifiedService()
             result = asyncio.run(svc.sync_orders(mod.EcommercePlatform.SHOPIFY))
         assert result and result[0]["id"] == "shopify_ord_999"

@@ -287,7 +287,7 @@ class WorkbookRuntime:
             return {"success": True, "pivot_sheet": pivot_sheet_name}
         except Exception as e:
             logger.error(f"Failed to generate pivot table: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Failed to generate pivot table"}
 
     # ------------------------------------------------------------------
     # Render
@@ -354,7 +354,8 @@ class WorkbookRuntime:
             html_parts.append("</table>")
             return "".join(html_parts)
         except Exception as e:
-            return f"<p>Error rendering: {e}</p>"
+            logger.warning(f"Workbook HTML render failed: {e}")
+            return "<p>Error rendering workbook</p>"
 
     # ------------------------------------------------------------------
     # Structural operations

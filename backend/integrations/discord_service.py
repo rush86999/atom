@@ -7,6 +7,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
+from urllib.parse import urlencode
 import httpx
 from fastapi import HTTPException
 
@@ -62,11 +63,14 @@ class DiscordService(IntegrationService):
         if state:
             params["state"] = state
         
-        query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+        query_string = urlencode(params)
         return f"{self.auth_url}?{query_string}"
 
     async def exchange_token(self, code: str, redirect_uri: str) -> Dict[str, Any]:
         """Exchange authorization code for access token"""
+        if not self.client_id or not self.client_secret:
+            logger.error("Discord client credentials not configured")
+            raise HTTPException(status_code=400, detail="Internal error")
         try:
             data = {
                 "grant_type": "authorization_code",
@@ -242,12 +246,17 @@ class DiscordService(IntegrationService):
             }
         except Exception as e:
             logger.error(f"Discord health check failed: {e}")
+            timestamp = None
+            try:
+                timestamp = datetime.now(timezone.utc).isoformat()
+            except Exception:
+                pass
             return {
                 "healthy": False,
                 "status": "unhealthy",
                 "service": "discord",
                 "error": "Discord health check failed",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": timestamp,
             }
 
     def get_capabilities(self) -> Dict[str, Any]:

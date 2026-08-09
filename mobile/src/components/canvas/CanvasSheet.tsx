@@ -218,6 +218,40 @@ export const CanvasSheet: React.FC<CanvasSheetProps> = ({
   }, []);
 
   /**
+   * Distinct values per column (for the filter panel)
+   */
+  const columnOptions = React.useMemo(() => {
+    const options: Record<string, string[]> = {};
+    data.columns.forEach(col => {
+      const values = new Set<string>();
+      data.rows.forEach(row => {
+        const value = row.data[col.key];
+        if (value !== undefined && value !== null && value !== '') {
+          values.add(String(value));
+        }
+      });
+      options[col.key] = Array.from(values).sort();
+    });
+    return options;
+  }, [data.columns, data.rows]);
+
+  /**
+   * Toggle a column filter value
+   */
+  const applyColumnFilter = (columnKey: string, value: string | null) => {
+    setFilters(prev => {
+      const next = { ...prev };
+      if (value === null) {
+        delete next[columnKey];
+      } else {
+        next[columnKey] = value;
+      }
+      onFilter?.(next);
+      return next;
+    });
+  };
+
+  /**
    * Export to CSV
    */
   const exportCSV = useCallback(async () => {
@@ -343,7 +377,13 @@ export const CanvasSheet: React.FC<CanvasSheetProps> = ({
     const isSelected = selectedRows.has(row.id);
 
     return (
-      <View key={row.id} style={styles.row}>
+      <TouchableOpacity
+        key={row.id}
+        testID={`sheet-row-${row.id}`}
+        style={styles.row}
+        activeOpacity={1}
+        onPress={() => handleRowPressInternal(row, rowIndex)}
+      >
         {enableSelection && (
           <View style={[styles.selectionCell, { borderRightColor: theme.colors.outline }]}>
             <Checkbox
@@ -355,7 +395,7 @@ export const CanvasSheet: React.FC<CanvasSheetProps> = ({
         {data.columns.map((column, colIndex) =>
           renderDataCell(row, column, rowIndex, colIndex)
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -437,7 +477,7 @@ export const CanvasSheet: React.FC<CanvasSheetProps> = ({
           <IconButton
             icon="filter-outline"
             size={20}
-            onPress={() => setShowFilterModal(true)}
+            onPress={() => setShowFilterModal(!showFilterModal)}
           />
         )}
 
@@ -450,6 +490,44 @@ export const CanvasSheet: React.FC<CanvasSheetProps> = ({
           {filteredRows.length} rows
         </Text>
       </View>
+
+      {/* Filter panel */}
+      {showFilterModal && enableFilter && (
+        <View style={styles.filterPanel}>
+          {data.columns.map(col => (
+            <View key={col.key} style={styles.filterSection}>
+              <Text style={[styles.filterTitle, { color: theme.colors.onSurfaceVariant }]}>
+                {col.label}
+              </Text>
+              <View style={styles.filterChips}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterChip,
+                    filters[col.key] === undefined && styles.filterChipActive,
+                  ]}
+                  onPress={() => applyColumnFilter(col.key, null)}
+                >
+                  <Text style={styles.filterChipText}>All</Text>
+                </TouchableOpacity>
+                {(columnOptions[col.key] || []).map(value => (
+                  <TouchableOpacity
+                    key={value}
+                    style={[
+                      styles.filterChip,
+                      filters[col.key] === value && styles.filterChipActive,
+                    ]}
+                    onPress={() =>
+                      applyColumnFilter(col.key, filters[col.key] === value ? null : value)
+                    }
+                  >
+                    <Text style={styles.filterChipText}>{value}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Header */}
       <ScrollView
@@ -559,6 +637,41 @@ const styles = StyleSheet.create({
   },
   spacer: {
     flex: 1,
+  },
+  filterPanel: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  filterSection: {
+    marginTop: 12,
+  },
+  filterTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  filterChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  filterChipActive: {
+    backgroundColor: '#2196F3',
+    borderColor: '#2196F3',
+  },
+  filterChipText: {
+    fontSize: 12,
+    color: '#333',
   },
   rowCount: {
     fontSize: 12,

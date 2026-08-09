@@ -357,12 +357,12 @@ describe('CanvasSheet Component', () => {
     });
 
     test('opens the filter button without disrupting the sheet', () => {
-      const { getByTestId, getByText } = render(<CanvasSheet data={baseSheet} />);
+      const { getAllByText, getByText, getByTestId } = render(<CanvasSheet data={baseSheet} />);
 
       fireEvent.press(getByTestId('icon-filter-outline'));
 
-      // The sheet still renders its rows after the filter modal state flips
-      expect(getByText('North')).toBeTruthy();
+      // The sheet still renders its rows after the filter panel opens
+      expect(getAllByText('North').length).toBeGreaterThanOrEqual(1);
       expect(getByText('3 rows')).toBeTruthy();
     });
 
@@ -400,6 +400,159 @@ describe('CanvasSheet Component', () => {
           'Could not export sheet data'
         );
       });
+    });
+  });
+
+  describe('Row press', () => {
+    test('calls onRowPress with the row when a row is pressed', () => {
+      const onRowPress = jest.fn();
+      const { getByTestId } = render(<CanvasSheet data={baseSheet} onRowPress={onRowPress} />);
+
+      fireEvent.press(getByTestId('sheet-row-r2'));
+
+      expect(onRowPress).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'r2' })
+      );
+    });
+
+    test('row press selects the row in selection mode instead of firing onRowPress', () => {
+      const onRowPress = jest.fn();
+      const { getByTestId, getByText } = render(
+        <CanvasSheet data={baseSheet} onRowPress={onRowPress} />
+      );
+
+      fireEvent.press(getByTestId('icon-checkbox-multiple-marked-outline'));
+      fireEvent.press(getByTestId('sheet-row-r1'));
+
+      expect(onRowPress).not.toHaveBeenCalled();
+      expect(getByText('1 selected')).toBeTruthy();
+    });
+
+    test('renders rows without a selection column when selection is disabled', () => {
+      const { queryByTestId, UNSAFE_queryAllByType } = render(
+        <CanvasSheet data={baseSheet} enableSelection={false} />
+      );
+
+      expect(queryByTestId('icon-checkbox-multiple-marked-outline')).toBeNull();
+      expect(UNSAFE_queryAllByType(Checkbox).length).toBe(0);
+    });
+  });
+
+  describe('Filter panel', () => {
+    test('opens a panel listing distinct values per column', () => {
+      const { getByTestId, getAllByText, getByText } = render(<CanvasSheet data={baseSheet} />);
+
+      fireEvent.press(getByTestId('icon-filter-outline'));
+
+      // Column labels become filter section titles (duplicated with headers)
+      expect(getAllByText('Region').length).toBeGreaterThanOrEqual(2);
+      // Distinct values render as chips (sorted, duplicated with row cells)
+      expect(getAllByText('North').length).toBeGreaterThanOrEqual(2);
+      expect(getAllByText('South').length).toBeGreaterThanOrEqual(2);
+      expect(getAllByText('West').length).toBeGreaterThanOrEqual(2);
+      expect(getAllByText('0').length).toBeGreaterThanOrEqual(1);
+    });
+
+    test('filters rows by the selected column value and notifies onFilter', () => {
+      const onFilter = jest.fn();
+      const { getByTestId, getAllByText, getAllByTestId } = render(
+        <CanvasSheet data={baseSheet} onFilter={onFilter} />
+      );
+
+      fireEvent.press(getByTestId('icon-filter-outline'));
+      // Filter panel renders before the table, so [0] is the chip
+      fireEvent.press(getAllByText('North')[0]);
+
+      const rows = getAllByTestId(/sheet-row-/);
+      expect(rows.map(row => row.props.testID)).toEqual(['sheet-row-r1']);
+      expect(onFilter).toHaveBeenCalledWith({ region: 'North' });
+    });
+
+    test('toggling the same chip removes the filter', () => {
+      const { getByTestId, getByText, getAllByText } = render(
+        <CanvasSheet data={baseSheet} />
+      );
+
+      fireEvent.press(getByTestId('icon-filter-outline'));
+      fireEvent.press(getAllByText('North')[0]);
+      expect(getByText('1 rows')).toBeTruthy();
+
+      fireEvent.press(getAllByText('North')[0]);
+      expect(getByText('3 rows')).toBeTruthy();
+    });
+
+    test('the All chip clears the column filter', () => {
+      const { getByTestId, getByText, getAllByText } = render(
+        <CanvasSheet data={baseSheet} />
+      );
+
+      fireEvent.press(getByTestId('icon-filter-outline'));
+      fireEvent.press(getAllByText('West')[0]);
+      expect(getByText('1 rows')).toBeTruthy();
+
+      fireEvent.press(getAllByText('All')[0]);
+      expect(getByText('3 rows')).toBeTruthy();
+    });
+
+    test('combined filters yield the no-match empty state', () => {
+      const { getByTestId, getByText, getAllByText } = render(
+        <CanvasSheet data={baseSheet} />
+      );
+
+      fireEvent.press(getByTestId('icon-filter-outline'));
+      fireEvent.press(getAllByText('North')[0]);
+      fireEvent.press(getAllByText('200')[0]);
+
+      // No row has region North AND amount 200
+      expect(getByText('No matching results')).toBeTruthy();
+    });
+
+    test('hides the filter button when filtering is disabled', () => {
+      const { queryByTestId } = render(<CanvasSheet data={baseSheet} enableFilter={false} />);
+      expect(queryByTestId('icon-filter-outline')).toBeNull();
+    });
+  });
+
+  describe('Sort edge cases', () => {
+    test('keeps rows stable when sorted values are equal', () => {
+      const tieSheet: SheetData = {
+        title: 'Ties',
+        columns: [{ key: 'score', label: 'Score', type: 'number' }],
+        rows: [
+          { id: 'r1', data: { score: 5 } },
+          { id: 'r2', data: { score: 3 } },
+          { id: 'r3', data: { score: 5 } },
+        ],
+      };
+      const { getByText, getAllByTestId } = render(<CanvasSheet data={tieSheet} />);
+
+      // Ascending: 3, 5, 5 — the two 5s keep insertion order
+      fireEvent.press(getByText('Score'));
+
+      const rows = getAllByTestId(/sheet-row-/);
+      expect(rows.map(row => row.props.testID)).toEqual([
+        'sheet-row-r2',
+        'sheet-row-r1',
+        'sheet-row-r3',
+      ]);
+    });
+  });
+
+  describe('Export guards', () => {
+    test('skips export when there are no rows to export', async () => {
+      const { getByPlaceholderText, getByText } = render(<CanvasSheet data={baseSheet} />);
+
+      fireEvent.changeText(getByPlaceholderText('Search...'), 'zzz-nonexistent');
+
+      // The empty state replaces the toolbar entirely, so there is no export
+      // button and nothing is written
+      expect(getByText('No matching results')).toBeTruthy();
+      expect(mockWriteAsStringAsync).not.toHaveBeenCalled();
+    });
+
+    test('hides the export button when export is disabled', () => {
+      const { queryByTestId } = render(<CanvasSheet data={baseSheet} enableExport={false} />);
+      expect(queryByTestId('icon-download-outline')).toBeNull();
     });
   });
 });

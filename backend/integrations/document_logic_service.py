@@ -11,9 +11,13 @@ from core.integration_service import IntegrationService
 
 try:
     from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
-    from ai_enhanced_service import ai_enhanced_service, AIRequest, AITaskType
 except ImportError:
     logging.warning("Core services not available for Document Logic Service")
+    atom_ingestion_pipeline = None
+try:
+    from ai_enhanced_service import ai_enhanced_service, AIRequest, AITaskType
+except ImportError:
+    logging.warning("AI enhanced service not available for Document Logic Service")
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +48,12 @@ class DocumentLogicService(IntegrationService):
         logic_snippets = await self._extract_logic_with_ai(content)
         
         # 3. Ingest to Memory
+        if atom_ingestion_pipeline is None:
+            logger.error("Document ingestion skipped: atom_ingestion_pipeline unavailable")
+            return {"snippets_extracted": len(logic_snippets), "ingestion": "disabled"}
+
         for snippet in logic_snippets:
-            atom_ingestion_pipeline.ingest_record(
+            await atom_ingestion_pipeline.ingest_record(
                 app_type=doc_type.value,
                 record_type="document",
                 data={
@@ -222,7 +230,7 @@ class DocumentLogicService(IntegrationService):
             logger.error(f"Error executing operation {operation}: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Operation failed",
                 "details": {"operation": operation}
             }
 
@@ -255,9 +263,10 @@ class DocumentLogicService(IntegrationService):
                 "details": {"valid_types": [dt.value for dt in DocumentType]}
             }
         except Exception as e:
+            logger.error(f"Error parsing document {file_path}: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Document parsing failed",
                 "details": {"file_path": file_path}
             }
 
@@ -289,9 +298,10 @@ class DocumentLogicService(IntegrationService):
                 "details": {}
             }
         except Exception as e:
+            logger.error(f"Error extracting text from {file_path}: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Text extraction failed",
                 "details": {"file_path": file_path}
             }
 

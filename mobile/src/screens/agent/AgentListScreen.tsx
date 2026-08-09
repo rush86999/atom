@@ -286,7 +286,7 @@ export function AgentListScreen() {
         <Icon source="filter-variant" size={18} color={MD3Colors.primary50} />
         <Text style={styles.filterToggleText}>Filters</Text>
         {(maturityFilter !== 'ALL' ||
-          statusFilter !== 'online' ||
+          statusFilter !== 'ALL' ||
           capabilityFilter !== null) && (
           <View style={styles.filterActiveBadge}>
             <Text style={styles.filterActiveBadgeText}>Active</Text>
@@ -336,6 +336,21 @@ export function AgentListScreen() {
               )}
               {renderFilterChip('All', 'ALL', statusFilter === 'ALL', () =>
                 setStatusFilter('ALL')
+              )}
+            </View>
+          </View>
+
+          {/* Capability Filter */}
+          <View style={styles.filterSection}>
+            <Text style={styles.filterSectionTitle}>Capability</Text>
+            <View style={styles.filterChips}>
+              {renderFilterChip('All', '__all__', capabilityFilter === null, () =>
+                setCapabilityFilter(null)
+              )}
+              {getAllCapabilities().map((cap) =>
+                renderFilterChip(cap, cap, capabilityFilter === cap, () =>
+                  setCapabilityFilter(cap === capabilityFilter ? null : cap)
+                )
               )}
             </View>
           </View>

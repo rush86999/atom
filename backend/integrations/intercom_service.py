@@ -215,3 +215,13 @@ class IntercomService(IntegrationService):
             "configured": has_credentials,
             "last_check": datetime.now(timezone.utc).isoformat()
         }
+
+
+_intercom_service_instance: Optional[IntercomService] = None
+
+
+def get_intercom_service() -> IntercomService:
+    global _intercom_service_instance
+    if _intercom_service_instance is None:
+        _intercom_service_instance = IntercomService()
+    return _intercom_service_instance

@@ -78,12 +78,16 @@ describe('TaskManagement', () => {
   let postedBodies: any[];
   let updatedIds: string[];
   let deletedIds: string[];
+  let postedProjectBodies: any[];
+  let updatedProjectIds: string[];
 
   beforeEach(() => {
     jest.clearAllMocks();
     postedBodies = [];
     updatedIds = [];
     deletedIds = [];
+    postedProjectBodies = [];
+    updatedProjectIds = [];
 
     server.resetHandlers();
     server.use(
@@ -119,8 +123,8 @@ describe('TaskManagement', () => {
           ctx.json({
             task: {
               id: String(req.params.id),
-              title: 'Write launch post',
-              status: 'completed',
+              title: (req.body as any)?.title ?? 'Write launch post',
+              status: (req.body as any)?.status ?? 'todo',
               priority: 'high',
               dueDate: '2026-08-20T00:00:00.000Z',
               createdAt: '2026-08-01T00:00:00.000Z',
@@ -133,6 +137,36 @@ describe('TaskManagement', () => {
       rest.delete('/api/v1/tasks/:id', (req, res, ctx) => {
         deletedIds.push(String(req.params.id));
         return res(ctx.status(200), ctx.json({ success: true }));
+      }),
+      rest.post('/api/v1/projects', async (req, res, ctx) => {
+        postedProjectBodies.push(req.body);
+        return res(
+          ctx.status(201),
+          ctx.json({
+            project: {
+              id: 'p-new',
+              name: (req.body as any)?.name,
+              description: (req.body as any)?.description,
+              color: (req.body as any)?.color,
+              progress: 0,
+            },
+          })
+        );
+      }),
+      rest.put('/api/v1/projects/:id', async (req, res, ctx) => {
+        updatedProjectIds.push(String(req.params.id));
+        return res(
+          ctx.status(200),
+          ctx.json({
+            project: {
+              id: String(req.params.id),
+              name: (req.body as any)?.name ?? 'Website Launch',
+              description: (req.body as any)?.description ?? 'Marketing site',
+              color: (req.body as any)?.color ?? '#3182CE',
+              progress: 40,
+            },
+          })
+        );
       })
     );
   });
@@ -253,5 +287,170 @@ describe('TaskManagement', () => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Error fetching data' }));
     });
     expect(screen.getByText('Task Management')).toBeInTheDocument();
+  });
+
+  it('edits a task via the dialog and PUTs the update', async () => {
+    render(<TaskManagementWrapper />);
+    await screen.findAllByText('Write launch post');
+
+    fireEvent.click(screen.getAllByText('Write launch post')[0].closest('.cursor-pointer') as HTMLElement);
+    await screen.findByRole('dialog');
+    expect(screen.getByText('Edit Task')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId('task-title'), { target: { value: 'Rewrite launch post' } });
+    fireEvent.click(screen.getByTestId('task-submit'));
+
+    await waitFor(() => {
+      expect(updatedIds).toContain('t-1');
+    });
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Task updated' }));
+    await waitFor(() => {
+      expect(screen.getAllByText('Rewrite launch post').length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it('creates a project via the dialog, POSTs and shows it', async () => {
+    render(<TaskManagementWrapper />);
+    await screen.findByText('Task Management');
+
+    fireEvent.click(screen.getByRole('button', { name: /new project/i }));
+    await screen.findByRole('dialog');
+    fireEvent.change(screen.getByPlaceholderText('Project name'), { target: { value: 'Q4 Rebrand' } });
+    fireEvent.change(screen.getByPlaceholderText('Project description'), {
+      target: { value: 'Brand refresh' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create Project' }));
+
+    await waitFor(() => {
+      expect(postedProjectBodies).toHaveLength(1);
+    });
+    expect((postedProjectBodies[0] as any).name).toBe('Q4 Rebrand');
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Project created' }));
+    await waitFor(() => {
+      expect(screen.getAllByText('Q4 Rebrand').length).toBeGreaterThanOrEqual(1);
+    });
+    expect(screen.getByText(/0 tasks • 0% complete/)).toBeInTheDocument();
+  });
+
+  it('edits a project via the project card and PUTs the update', async () => {
+    render(<TaskManagementWrapper />);
+    await screen.findByText('Website Launch');
+
+    fireEvent.click(screen.getByText('Website Launch').closest('.cursor-pointer') as HTMLElement);
+    await screen.findByRole('dialog');
+    expect(screen.getByText('Edit Project')).toBeInTheDocument();
+    expect((screen.getByPlaceholderText('Project name') as HTMLInputElement).value).toBe(
+      'Website Launch',
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Project name'), { target: { value: 'Rebrand 2026' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Update Project' }));
+
+    await waitFor(() => {
+      expect(updatedProjectIds).toContain('p-1');
+    });
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Project updated' }));
+    await waitFor(() => {
+      expect(screen.getAllByText('Rebrand 2026').length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it('toasts failure when task creation fails', async () => {
+    server.use(
+      rest.post('/api/v1/tasks', (req, res, ctx) => {
+        return res(ctx.status(500));
+      })
+    );
+    render(<TaskManagementWrapper />);
+    await screen.findByText('Task Management');
+
+    fireEvent.click(screen.getByTestId('new-task-btn'));
+    await screen.findByRole('dialog');
+    fireEvent.change(screen.getByTestId('task-title'), { target: { value: 'Doomed' } });
+    fireEvent.change(document.querySelector('input[type="date"]') as HTMLInputElement, {
+      target: { value: '2026-12-01' },
+    });
+    fireEvent.click(screen.getByTestId('task-submit'));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Failed to create task' }));
+    });
+  });
+
+  it('toasts failure when task update fails', async () => {
+    server.use(
+      rest.put('/api/v1/tasks/:id', (req, res, ctx) => {
+        return res(ctx.status(500));
+      })
+    );
+    render(<TaskManagementWrapper />);
+    await screen.findAllByText('Write launch post');
+
+    const todoCol = screen.getByText('TODO (1)').parentElement as HTMLElement;
+    const completeBtn = todoCol.querySelector('button svg[class*="check"]')?.closest('button');
+    fireEvent.click(completeBtn as HTMLElement);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Failed to update task' }));
+    });
+  });
+
+  it('toasts failure when task deletion fails', async () => {
+    server.use(
+      rest.delete('/api/v1/tasks/:id', (req, res, ctx) => {
+        return res(ctx.status(500));
+      })
+    );
+    render(<TaskManagementWrapper />);
+    await screen.findAllByText('Write launch post');
+
+    const upcomingRow = screen
+      .getAllByText('Write launch post')
+      .map((el) => el.closest('.flex.justify-between'))
+      .find((el) => el && el.querySelector('svg.lucide-trash')) as HTMLElement;
+    const deleteBtn = upcomingRow.querySelector('button svg.lucide-trash')?.closest('button');
+    fireEvent.click(deleteBtn as HTMLElement);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Failed to delete task' }));
+    });
+  });
+
+  it('toasts failure when project creation fails', async () => {
+    server.use(
+      rest.post('/api/v1/projects', (req, res, ctx) => {
+        return res(ctx.status(500));
+      })
+    );
+    render(<TaskManagementWrapper />);
+    await screen.findByText('Task Management');
+
+    fireEvent.click(screen.getByRole('button', { name: /new project/i }));
+    await screen.findByRole('dialog');
+    fireEvent.change(screen.getByPlaceholderText('Project name'), { target: { value: 'Doomed' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create Project' }));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Failed to create project' }));
+    });
+  });
+
+  it('toasts failure when project update fails', async () => {
+    server.use(
+      rest.put('/api/v1/projects/:id', (req, res, ctx) => {
+        return res(ctx.status(500));
+      })
+    );
+    render(<TaskManagementWrapper />);
+    await screen.findByText('Website Launch');
+
+    fireEvent.click(screen.getByText('Website Launch').closest('.cursor-pointer') as HTMLElement);
+    await screen.findByRole('dialog');
+    fireEvent.change(screen.getByPlaceholderText('Project name'), { target: { value: 'Doomed' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Update Project' }));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Failed to update project' }));
+    });
   });
 });

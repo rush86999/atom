@@ -697,6 +697,8 @@ describe('AgentListScreen', () => {
   });
 
   describe('Error Handling', () => {
+    const { Alert } = require('react-native');
+
     it('should handle API errors gracefully', async () => {
       mockGetAgents.mockImplementationOnce(() =>
         Promise.resolve({
@@ -711,6 +713,7 @@ describe('AgentListScreen', () => {
       await waitFor(() => {
         expect(getByText('No agents found')).toBeTruthy();
       });
+      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to load agents');
     });
 
     it('should handle network errors gracefully', async () => {
@@ -723,6 +726,28 @@ describe('AgentListScreen', () => {
       // Should show empty state on error
       await waitFor(() => {
         expect(getByText('No agents found')).toBeTruthy();
+      });
+      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to load agents');
+    });
+
+    it('should pass the active filters to the service on load', async () => {
+      const { FlatList } = require('react-native');
+      render(<AgentListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      // Apply a maturity filter, then refresh
+      fireEvent.press(screen.getByText('Filters'));
+      fireEvent.press(screen.getByText('Autonomous'));
+      fireEvent(screen.UNSAFE_getByType(FlatList), 'refresh');
+
+      await waitFor(() => {
+        const lastCall = mockGetAgents.mock.calls[mockGetAgents.mock.calls.length - 1][0];
+        expect(lastCall.maturity).toBe('AUTONOMOUS');
+        expect(lastCall.sort_by).toBe('name');
+        expect(lastCall.sort_order).toBe('asc');
       });
     });
   });
@@ -928,6 +953,259 @@ describe('AgentListScreen', () => {
 
       await waitFor(() => {
         expect(screen.queryByText('Test Agent 2')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Filter Active Badge', () => {
+    it('should not show the Active badge when no filters are applied', async () => {
+      render(<AgentListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      expect(screen.queryByText('Active')).toBeNull();
+    });
+
+    it('should show the Active badge after a status filter is applied', async () => {
+      render(<AgentListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 3')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Filters'));
+      fireEvent.press(screen.getByText('Offline'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Active')).toBeTruthy();
+      });
+    });
+
+    it('should hide the Active badge after resetting filters', async () => {
+      render(<AgentListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      // Apply a maturity filter (search text alone does not activate the badge)
+      fireEvent.press(screen.getByText('Filters'));
+      fireEvent.press(screen.getByText('Autonomous'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Active')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Reset filters'));
+
+      await waitFor(() => {
+        expect(screen.queryByText('Active')).toBeNull();
+        expect(screen.getByText('Test Agent 2')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Capability Filter', () => {
+    const renderLoaded = async () => {
+      render(<AgentListScreen />);
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+      fireEvent.press(screen.getByText('Filters'));
+      await waitFor(() => {
+        expect(screen.getByText('Capability')).toBeTruthy();
+      });
+    };
+
+    it('should list enabled capabilities as filter chips', async () => {
+      await renderLoaded();
+
+      // Enabled capabilities across all agents (sorted). Each appears twice:
+      // once as a filter chip, once as a chip on the agent card. Disabled
+      // capabilities (api_integration on agent 1) only appear on the card.
+      expect(screen.getAllByText('basic_tasks').length).toBe(2);
+      expect(screen.getAllByText('data_extraction').length).toBe(2);
+      expect(screen.getAllByText('data_processing').length).toBe(2);
+      expect(screen.getAllByText('reporting').length).toBe(2);
+      expect(screen.getAllByText('web_automation').length).toBe(2);
+      expect(screen.getAllByText('api_integration').length).toBe(1);
+    });
+
+    it('should filter agents by a selected capability', async () => {
+      await renderLoaded();
+
+      fireEvent.press(screen.getAllByText('web_automation')[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+        expect(screen.queryByText('Test Agent 2')).toBeNull();
+        expect(screen.queryByText('Test Agent 3')).toBeNull();
+      });
+    });
+
+    it('should toggle the capability filter off on second press', async () => {
+      await renderLoaded();
+
+      fireEvent.press(screen.getAllByText('web_automation')[0]);
+      await waitFor(() => {
+        expect(screen.queryByText('Test Agent 2')).toBeNull();
+      });
+
+      fireEvent.press(screen.getAllByText('web_automation')[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 2')).toBeTruthy();
+      });
+    });
+
+    it('should clear the capability filter via its All chip', async () => {
+      await renderLoaded();
+
+      fireEvent.press(screen.getAllByText('web_automation')[0]);
+      await waitFor(() => {
+        expect(screen.queryByText('Test Agent 2')).toBeNull();
+      });
+
+      // Capability All is the third "All" chip (maturity, status, capability)
+      fireEvent.press(screen.getAllByText('All')[2]);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 2')).toBeTruthy();
+      });
+    });
+
+    it('should show the empty state when the capability filter matches nothing', async () => {
+      await renderLoaded();
+
+      // Combined filters: web_automation belongs to agent 1, but agent 1 is
+      // online and the status filter is offline -> nothing matches
+      fireEvent.press(screen.getByText('Offline'));
+      fireEvent.press(screen.getAllByText('web_automation')[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText('No agents found')).toBeTruthy();
+        expect(screen.getByText('Try adjusting your filters or search query')).toBeTruthy();
+      });
+
+      // Reset restores the full list
+      fireEvent.press(screen.getByText('Reset filters'));
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Sorting Order', () => {
+    const { FlatList } = require('react-native');
+
+    const getSortedIds = () => {
+      const flatList = screen.UNSAFE_getByType(FlatList);
+      return flatList.props.data.map((agent: any) => agent.id);
+    };
+
+    it('should sort by name alphabetically by default', async () => {
+      mockGetAgents.mockImplementationOnce(() =>
+        Promise.resolve({
+          success: true,
+          data: [
+            {
+              id: 'zebra',
+              name: 'Zebra Agent',
+              description: 'Z',
+              maturity_level: 'INTERN',
+              status: 'offline',
+              created_at: new Date(MOCK_NOW - 1000).toISOString(),
+              capabilities: [],
+            },
+            {
+              id: 'alpha',
+              name: 'Alpha Agent',
+              description: 'A',
+              maturity_level: 'INTERN',
+              status: 'offline',
+              created_at: new Date(MOCK_NOW - 2000).toISOString(),
+              capabilities: [],
+            },
+          ],
+        })
+      );
+
+      render(<AgentListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Zebra Agent')).toBeTruthy();
+      });
+
+      expect(getSortedIds()).toEqual(['alpha', 'zebra']);
+    });
+
+    it('should sort by created date newest first', async () => {
+      render(<AgentListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Agent 1')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Filters'));
+      fireEvent.press(screen.getByText('Created'));
+
+      await waitFor(() => {
+        // agent-3 is 1d old, agent-2 3d, agent-1 7d -> newest first
+        expect(getSortedIds()).toEqual(['agent-3', 'agent-2', 'agent-1']);
+      });
+    });
+
+    it('should sort by last execution with never-run agents last', async () => {
+      mockGetAgents.mockImplementationOnce(() =>
+        Promise.resolve({
+          success: true,
+          data: [
+            {
+              id: 'never-ran-1',
+              name: 'Never Ran 1',
+              description: 'N1',
+              maturity_level: 'INTERN',
+              status: 'online',
+              created_at: new Date(MOCK_NOW - 1000).toISOString(),
+              capabilities: [],
+            },
+            {
+              id: 'ran-recently',
+              name: 'Ran Recently',
+              description: 'RR',
+              maturity_level: 'INTERN',
+              status: 'online',
+              created_at: new Date(MOCK_NOW - 2000).toISOString(),
+              last_execution_at: new Date(MOCK_NOW - 1000 * 60).toISOString(),
+              capabilities: [],
+            },
+            {
+              id: 'never-ran-2',
+              name: 'Never Ran 2',
+              description: 'N2',
+              maturity_level: 'INTERN',
+              status: 'online',
+              created_at: new Date(MOCK_NOW - 3000).toISOString(),
+              capabilities: [],
+            },
+          ],
+        })
+      );
+
+      render(<AgentListScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Ran Recently')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Filters'));
+      fireEvent.press(screen.getByText('Recent'));
+
+      await waitFor(() => {
+        // Agents without a last execution sort last
+        expect(getSortedIds()).toEqual(['ran-recently', 'never-ran-1', 'never-ran-2']);
       });
     });
   });

@@ -223,7 +223,7 @@ class GoogleDriveService(IntegrationService):
             return {"success": False, "error": result.get("message", "Unknown error")}
         except Exception as e:
             logger.error(f"Google Drive operation {operation} failed: {e}")
-            return {"success": False, "error": str(e), "details": {"operation": operation}}
+            return {"success": False, "error": "Google Drive operation failed", "details": {"operation": operation}}
 
     # -------------------------------------------------------------------------
     # File operations (real Drive API v3)

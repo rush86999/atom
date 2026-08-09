@@ -213,18 +213,11 @@ await act(async () => {
     });
 
     it('should show loading indicator during request', async () => {
-      jest.useRealTimers();
-      global.fetch = jest.fn(() =>
-        new Promise(resolve => setTimeout(() =>
-          resolve({
-            ok: true,
-            status: 200,
-            json: () => Promise.resolve({
-              success: true,
-              message: 'Password reset link sent',
-            }),
-          } as any)
-        , 200))
+      // Controlled promise so the in-flight window is deterministic (no
+      // wall-clock timing, which starves under parallel test load)
+      let resolveFetch: (value: any) => void;
+      global.fetch = jest.fn(
+        () => new Promise(resolve => { resolveFetch = resolve; })
       );
 
       const { getByPlaceholderText, getByTestId, queryByTestId } = render(
@@ -235,31 +228,30 @@ await act(async () => {
       const sendButton = getByTestId('send-reset-button');
 
       fireEvent.changeText(emailInput, 'test@example.com');
-await act(async () => {
+      await act(async () => {
         fireEvent.press(sendButton);
       });
 
-      // Loading should be shown
-      await waitFor(() => {
-        expect(getByTestId('activity-indicator')).toBeTruthy();
+      // Loading should be shown while the request is in flight
+      expect(getByTestId('activity-indicator')).toBeTruthy();
+
+      // Resolving the request clears the loading state
+      await act(async () => {
+        resolveFetch({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ success: true }),
+        });
       });
 
-      // Loading should disappear
-      await waitFor(() => {
-        expect(queryByTestId('activity-indicator')).toBeNull();
-      }, { timeout: 2000 });
+      expect(queryByTestId('activity-indicator')).toBeNull();
     });
 
     it('should disable send button during request', async () => {
-      jest.useRealTimers();
-      global.fetch = jest.fn(() =>
-        new Promise(resolve => setTimeout(() =>
-          resolve({
-            ok: true,
-            status: 200,
-            json: () => Promise.resolve({ success: true }),
-          } as any)
-        , 200))
+      // Controlled promise keeps the in-flight window deterministic
+      let resolveFetch: (value: any) => void;
+      global.fetch = jest.fn(
+        () => new Promise(resolve => { resolveFetch = resolve; })
       );
 
       const { getByPlaceholderText, getByTestId, getByText } = render(
@@ -277,11 +269,15 @@ await act(async () => {
       // During the request the button is disabled
       expect(getByTestId('send-reset-button').props.accessibilityState.disabled).toBe(true);
 
+      // After the request completes the success screen replaces the form
       await act(async () => {
-        jest.advanceTimersByTime(200);
+        resolveFetch({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ success: true }),
+        });
       });
 
-      // After the request completes the success screen replaces the form
       await waitFor(() => {
         expect(getByText('Check Your Email')).toBeTruthy();
       });
@@ -425,7 +421,6 @@ await act(async () => {
     });
 
     it('should show countdown timer', async () => {
-      jest.useRealTimers();
       const pastTime = Date.now() - 30000; // 30 seconds ago
       (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(String(pastTime));
 
@@ -444,14 +439,15 @@ await act(async () => {
         <ForgotPasswordScreen navigation={mockNavigation as any} />
       );
 
-      // The resend section (with cooldown) shows on the success screen
+      // Submit before the mount effect's cooldown read lands (the send
+      // itself is what surfaces the success screen with the countdown)
       fireEvent.changeText(getByPlaceholderText('Email'), 'test@example.com');
       await act(async () => {
         fireEvent.press(getByTestId('send-reset-button'));
       });
 
       await waitFor(() => {
-        expect(getByText(/Resend in/)).toBeTruthy();
+        expect(getByText('Resend in 30s')).toBeTruthy();
       });
     });
 
@@ -725,6 +721,183 @@ await act(async () => {
       await waitFor(() => {
         expect(getByText('Email is required')).toBeTruthy();
       });
+    });
+
+    it('surfaces the server detail for other non-2xx statuses (e.g. 403)', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 403,
+          json: () => Promise.resolve({ detail: 'Reset is disabled for this workspace' }),
+        } as any)
+      );
+
+      const { getByPlaceholderText, getByTestId } = render(
+        <ForgotPasswordScreen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Email'), 'test@example.com');
+      await act(async () => {
+        fireEvent.press(getByTestId('send-reset-button'));
+      });
+
+      const { Alert } = require('react-native');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Error',
+          'Reset is disabled for this workspace'
+        );
+      });
+    });
+
+    it('falls back to a generic message when the response has no detail', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 422,
+          json: () => Promise.resolve({}),
+        } as any)
+      );
+
+      const { getByPlaceholderText, getByTestId } = render(
+        <ForgotPasswordScreen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Email'), 'test@example.com');
+      await act(async () => {
+        fireEvent.press(getByTestId('send-reset-button'));
+      });
+
+      const { Alert } = require('react-native');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to send reset link');
+      });
+    });
+  });
+
+  // ============================================================================
+  // Resend Link Flow (post-success)
+  // ============================================================================
+
+  describe('Resend Link Flow', () => {
+    it('re-sends the reset link once the cooldown has expired', async () => {
+      const mockFetch = jest.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ success: true }),
+        } as any)
+      );
+      global.fetch = mockFetch;
+
+      const { getByPlaceholderText, getByText, getByTestId, queryByText } = render(
+        <ForgotPasswordScreen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Email'), 'test@example.com');
+      await act(async () => {
+        fireEvent.press(getByTestId('send-reset-button'));
+      });
+
+      await waitFor(() => {
+        expect(getByText('Check Your Email')).toBeTruthy();
+      });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      // Let the 60s cooldown expire, then resend
+      act(() => {
+        jest.advanceTimersByTime(61000);
+      });
+      await waitFor(() => {
+        expect(getByText('Resend Email')).toBeTruthy();
+      });
+
+      fireEvent.press(getByText('Resend Email'));
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+        expect(getByText('Check Your Email')).toBeTruthy();
+      });
+      // A fresh cooldown timestamp is persisted on resend
+      expect(SecureStore.setItemAsync).toHaveBeenCalledTimes(2);
+    });
+
+    it('re-sends with the same email address', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ success: true }),
+        } as any)
+      );
+
+      const { getByPlaceholderText, getByText, getByTestId } = render(
+        <ForgotPasswordScreen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Email'), 'resend@example.com');
+      await act(async () => {
+        fireEvent.press(getByTestId('send-reset-button'));
+      });
+      act(() => {
+        jest.advanceTimersByTime(61000);
+      });
+      await waitFor(() => {
+        expect(getByText('Resend Email')).toBeTruthy();
+      });
+
+      fireEvent.press(getByText('Resend Email'));
+
+      await waitFor(() => {
+        const lastCall = (global.fetch as jest.Mock).mock.calls[1];
+        expect(lastCall[1].body).toContain('resend@example.com');
+      });
+    });
+  });
+
+  // ============================================================================
+  // Submit Guard
+  // ============================================================================
+
+  describe('Submit Guard', () => {
+    it('ignores repeated submits while a request is in flight', async () => {
+      jest.useFakeTimers();
+      global.fetch = jest.fn(() =>
+        new Promise(resolve =>
+          setTimeout(
+            () =>
+              resolve({
+                ok: true,
+                status: 200,
+                json: () => Promise.resolve({ success: true }),
+              } as any),
+            1000
+          )
+        )
+      );
+
+      const { getByPlaceholderText, getByTestId } = render(
+        <ForgotPasswordScreen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Email'), 'test@example.com');
+
+      // First submit starts the request and disables the button
+      await act(async () => {
+        fireEvent.press(getByTestId('send-reset-button'));
+      });
+      expect(getByTestId('send-reset-button').props.accessibilityState.disabled).toBe(true);
+
+      // A second submit while loading is a no-op
+      await act(async () => {
+        fireEvent.press(getByTestId('send-reset-button'));
+      });
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+      expect(global.fetch).toHaveBeenCalledTimes(1);
     });
   });
 });

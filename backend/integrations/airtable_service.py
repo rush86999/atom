@@ -228,6 +228,103 @@ class AirtableService(IntegrationService):
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return Airtable integration capabilities"""
+        return {
+            "operations": [
+                {"id": "get_bases", "description": "List all bases"},
+                {"id": "get_tables", "description": "List tables in a base"},
+                {"id": "list_records", "description": "List records from a table"},
+                {"id": "get_record", "description": "Get a specific record"},
+                {"id": "create_record", "description": "Create a new record"},
+                {"id": "update_record", "description": "Update a record"},
+                {"id": "delete_record", "description": "Delete a record"},
+            ],
+            "required_params": ["api_key"],
+            "optional_params": ["base_id", "table_name", "record_id"],
+            "rate_limits": {"requests_per_minute": 5},
+            "supports_webhooks": False
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute an Airtable operation with tenant context"""
+        if context and 'tenant_id' in context:
+            tenant_id = context.get('tenant_id')
+            if tenant_id != self.tenant_id:
+                logger.error(f"Tenant ID mismatch: expected {self.tenant_id}, got {tenant_id}")
+                return {
+                    "success": False,
+                    "error": "Tenant ID mismatch",
+                    "operation": operation
+                }
+
+        try:
+            if operation == "get_bases":
+                bases = await self.get_bases(parameters.get('token'))
+                return {"success": True, "result": bases}
+            elif operation == "get_tables":
+                tables = await self.get_tables(
+                    base_id=parameters.get('base_id'),
+                    token=parameters.get('token')
+                )
+                return {"success": True, "result": tables}
+            elif operation == "list_records":
+                records = await self.list_records(
+                    base_id=parameters.get('base_id'),
+                    table_name=parameters.get('table_name'),
+                    max_records=parameters.get('max_records', 100),
+                    view=parameters.get('view'),
+                    filter_formula=parameters.get('filter_formula')
+                )
+                return {"success": True, "result": records}
+            elif operation == "get_record":
+                record = await self.get_record(
+                    base_id=parameters.get('base_id'),
+                    table_name=parameters.get('table_name'),
+                    record_id=parameters.get('record_id')
+                )
+                return {"success": bool(record), "result": record}
+            elif operation == "create_record":
+                record = await self.create_record(
+                    base_id=parameters.get('base_id'),
+                    table_name=parameters.get('table_name'),
+                    fields=parameters.get('fields', {})
+                )
+                return {"success": bool(record), "result": record}
+            elif operation == "update_record":
+                record = await self.update_record(
+                    base_id=parameters.get('base_id'),
+                    table_name=parameters.get('table_name'),
+                    record_id=parameters.get('record_id'),
+                    fields=parameters.get('fields', {})
+                )
+                return {"success": bool(record), "result": record}
+            elif operation == "delete_record":
+                result = await self.delete_record(
+                    base_id=parameters.get('base_id'),
+                    table_name=parameters.get('table_name'),
+                    record_id=parameters.get('record_id')
+                )
+                return {"success": bool(result), "result": result}
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown operation: {operation}",
+                    "operation": operation
+                }
+        except Exception as e:
+            logger.error(f"Error executing Airtable operation {operation}: {e}")
+            return {
+                "success": False,
+                "error": f"Airtable operation failed: {operation}",
+                "operation": operation
+            }
+
     async def sync_to_postgres_cache(self, workspace_id: str, base_id: str = None) -> Dict[str, Any]:
         """Sync Airtable analytics to PostgreSQL IntegrationMetric table."""
         try:
@@ -247,7 +344,7 @@ class AirtableService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="airtable",
                         metric_key=key
                     ).first()
@@ -257,7 +354,7 @@ class AirtableService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="airtable",
                             metric_key=key,
                             value=float(value),
@@ -271,14 +368,14 @@ class AirtableService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Airtable metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save Airtable metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Airtable PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Airtable cache sync failed"}
 
     async def full_sync(self, workspace_id: str, base_id: str = None) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Airtable"""
@@ -290,5 +387,9 @@ class AirtableService(IntegrationService):
             "postgres_cache": cache_result,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
+
+
+# Global integration instance
+airtable_service = AirtableService()
 
 

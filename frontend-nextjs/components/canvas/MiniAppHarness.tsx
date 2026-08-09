@@ -101,8 +101,10 @@ export function MiniAppHarness({ canvasId, lastMessage, agentId }: MiniAppHarnes
         if (cancelled) return;
         setSource(resp.data?.data?.source ?? "");
       })
-      .catch(() => {
-        if (!cancelled) setSource(""); // 404 = no logic yet
+      .catch((err) => {
+        // 404 = no logic yet on this canvas; any other failure must not wipe
+        // the source the user is editing (transient errors are not "no logic").
+        if (!cancelled && (err as { response?: { status?: number } })?.response?.status === 404) setSource("");
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -155,7 +157,7 @@ export function MiniAppHarness({ canvasId, lastMessage, agentId }: MiniAppHarnes
       );
     } catch (e) {
       const err = e as { message?: string };
-      setError(err?.message ?? "Failed to scaffold mini-app");
+      setError(err?.message || "Failed to scaffold mini-app");
     } finally {
       setScaffolding(false);
     }
@@ -205,7 +207,7 @@ export function MiniAppHarness({ canvasId, lastMessage, agentId }: MiniAppHarnes
       }
     } catch (e) {
       const err = e as { message?: string };
-      setError(err?.message ?? "Dev-run failed");
+      setError(err?.message || "Dev-run failed");
     } finally {
       setRunning(false);
     }
@@ -228,7 +230,7 @@ export function MiniAppHarness({ canvasId, lastMessage, agentId }: MiniAppHarnes
       setNotice(`Published v${(res as any).version ?? ""}. Snapshot is credential-stripped; installs are immutable.`);
     } catch (e) {
       const err = e as { message?: string };
-      setError(err?.message ?? "Publish failed");
+      setError(err?.message || "Publish failed");
     } finally {
       setPublishing(false);
     }
@@ -257,7 +259,7 @@ export function MiniAppHarness({ canvasId, lastMessage, agentId }: MiniAppHarnes
       setNotice(`Installed → instance canvas ${res.canvas_id}. Runs will broadcast state here.`);
     } catch (e) {
       const err = e as { message?: string };
-      setError(err?.message ?? "Install failed");
+      setError(err?.message || "Install failed");
     } finally {
       setInstalling(false);
     }
@@ -397,13 +399,16 @@ export function MiniAppHarness({ canvasId, lastMessage, agentId }: MiniAppHarnes
           {/* Dev-run result (stdout/stderr + state) */}
           {result && (
             <div className="px-2 py-2 text-xs font-mono border border-zinc-200 dark:border-zinc-700 rounded space-y-1">
+              {result.error && (
+                <pre className="whitespace-pre-wrap text-red-600 dark:text-red-400">{result.error}</pre>
+              )}
               {result.stdout && (
                 <pre className="whitespace-pre-wrap text-emerald-600 dark:text-emerald-400">{result.stdout}</pre>
               )}
               {result.stderr && (
                 <pre className="whitespace-pre-wrap text-red-600 dark:text-red-400">{result.stderr}</pre>
               )}
-              <div className="text-zinc-400">exit code: {result.exit_code} · state_changed: {String(!!result.state_changed)}</div>
+              <div className="text-zinc-400">exit code: {result.exit_code ?? "—"} · state_changed: {String(!!result.state_changed)}</div>
               {result.state !== undefined && (
                 <pre className="whitespace-pre-wrap text-zinc-300 bg-zinc-900/60 p-2 rounded">
                   {JSON.stringify({ state: result.state, proposed_ops: result.proposed_ops ?? [] }, null, 2)}

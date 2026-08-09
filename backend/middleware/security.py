@@ -70,15 +70,22 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return response
 
     def _get_client_ip(self, request: Request) -> str:
-        """Get client IP from request"""
-        # Check for forwarded IP
-        forwarded_for = request.headers.get("x-forwarded-for")
-        if forwarded_for:
-            return forwarded_for.split(",")[0].strip()
+        """Get client IP for rate-limit bucketing.
 
-        real_ip = request.headers.get("x-real-ip")
-        if real_ip:
-            return real_ip
+        Default: the TCP peer (``request.client.host``) — never spoofable.
+        ``X-Forwarded-For`` is only trusted when ``TRUST_X_FORWARDED_FOR=1``
+        is set explicitly (deployments behind a proxy that appends the peer
+        IP); the LAST entry (closest proxy) is then used. Round 44 fix:
+        previously X-Forwarded-For and X-Real-IP were trusted
+        unconditionally, so a client rotating those headers got a fresh
+        rate-limit bucket per request and bypassed the RPM limit entirely.
+        """
+        import os
+
+        if os.getenv("TRUST_X_FORWARDED_FOR") == "1":
+            forwarded_for = request.headers.get("x-forwarded-for")
+            if forwarded_for:
+                return forwarded_for.split(",")[-1].strip()
 
         return request.client.host if request.client else "unknown"
 

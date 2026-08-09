@@ -238,6 +238,29 @@ class FigmaService(IntegrationService):
             logger.error(f"Failed to get comments: {e}")
             raise HTTPException(status_code=400, detail="Internal error")
 
+    async def search_files(
+        self,
+        query: str,
+        team_id: Optional[str] = None,
+        access_token: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Search files by name within a team's projects"""
+        try:
+            if not query or not team_id:
+                return []
+            results: List[Dict[str, Any]] = []
+            projects = await self.get_team_projects(team_id, access_token)
+            for project in projects:
+                project_files = await self.get_project_files(project["id"], access_token)
+                for file in project_files:
+                    if query.lower() in file.get("name", "").lower():
+                        file["project_id"] = project["id"]
+                        results.append(file)
+            return results
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to search Figma files: {e}")
+            raise HTTPException(status_code=400, detail="Internal error")
+
     def health_check(self) -> Dict[str, Any]:
         """Synchronous health check for Figma service"""
         import requests
@@ -263,12 +286,13 @@ class FigmaService(IntegrationService):
                 "version": "1.0.0",
             }
         except Exception as e:
+            logger.error(f"Figma health check failed: {e}")
             return {
                 "ok": False,
                 "status": "unhealthy",
                 "healthy": False,
                 "service": "figma",
-                "error": str(e),
+                "error": "Health check failed",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
@@ -369,3 +393,12 @@ class FigmaService(IntegrationService):
 
 # Singleton instance removed - use IntegrationRegistry instead
 # figma_service = FigmaService(tenant_id="system", config={})
+
+_figma_service_instance: Optional[FigmaService] = None
+
+
+def get_figma_service() -> FigmaService:
+    global _figma_service_instance
+    if _figma_service_instance is None:
+        _figma_service_instance = FigmaService()
+    return _figma_service_instance

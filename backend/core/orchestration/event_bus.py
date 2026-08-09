@@ -540,7 +540,19 @@ class EventBus:
 
         Returns:
             Subscription ID
+
+        Raises:
+            ValueError: if ``condition`` uses syntax ``safe_eval`` cannot
+                evaluate (method calls / attribute access like
+                ``data.get('x')`` — use subscript syntax
+                ``data['x']`` instead). The condition is validated AT
+                REGISTRATION so an unusable condition fails loudly instead
+                of silently never firing (latent footgun: ``.get()``
+                conditions were accepted and then silently dropped at
+                every event delivery).
         """
+        self._validate_trigger_condition(condition)
+
         def trigger_handler(event: WorkflowEvent):
             """Handler that triggers workflow"""
             # Check condition
@@ -575,6 +587,98 @@ class EventBus:
             event_types=[trigger_event],
             handler=trigger_handler
         )
+
+    @staticmethod
+    def _validate_trigger_condition(condition: Optional[str]) -> None:
+        """Fail loudly at registration when a condition can never evaluate.
+
+        ``safe_eval`` blocks attribute access and non-whitelisted function
+        calls, so the natural Python idiom ``data.get("key") == x`` is
+        silently rejected at every delivery — the trigger registers fine and
+        then NEVER fires (silent no-op footgun). Reject method-call /
+        attribute syntax here and dry-run the evaluator so the user learns
+        immediately.
+
+        Raises:
+            ValueError: when the condition uses attribute/method-call
+                syntax or fails the safe_eval dry-run.
+        """
+        if not condition:
+            return
+        import ast
+
+        try:
+            tree = ast.parse(condition, mode="eval")
+        except SyntaxError as e:
+            raise ValueError(
+                f"Invalid trigger condition syntax: {e}"
+            ) from e
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute):
+                raise ValueError(
+                    "Trigger condition uses attribute/method-call syntax "
+                    f"(e.g. '{condition.strip()}') — safe_eval blocks it and the "
+                    "trigger would silently never fire. Use subscript syntax "
+                    "instead: data['key'] / data[0]."
+                )
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                from core.safe_evaluator import SafeEvaluator
+
+                if node.func.id not in SafeEvaluator.SAFE_FUNCTIONS:
+                    raise ValueError(
+                        f"Trigger condition calls '{node.func.id}' which safe_eval "
+                        "does not allow (whitelist: sum, min, max, abs, round, len, "
+                        "sqrt, pow, log, int, float, str, bool, ...). "
+                        "The condition would silently never fire."
+                    )
+
+        # Dry-run against representative context to surface any other
+        # rejection (e.g. unsupported operators, non-whitelisted calls) at
+        # registration. Values are probe objects that compare/arithmetize
+        # against anything, so well-formed subscript conditions evaluate
+        # without real event data.
+        from core.safe_evaluator import safe_eval, SafeEvalError
+
+        class _Probe:
+            def __eq__(self, other): return True
+            def __ne__(self, other): return False
+            def __lt__(self, other): return False
+            def __le__(self, other): return True
+            def __gt__(self, other): return False
+            def __ge__(self, other): return True
+            def __add__(self, other): return self
+            def __radd__(self, other): return self
+            def __sub__(self, other): return self
+            def __rsub__(self, other): return self
+            def __mul__(self, other): return self
+            def __rmul__(self, other): return self
+            def __truediv__(self, other): return self
+            def __mod__(self, other): return self
+            def __pow__(self, other): return self
+            def __neg__(self): return self
+            def __abs__(self): return 0
+            def __int__(self): return 0
+            def __float__(self): return 0.0
+            def __len__(self): return 0
+            def __bool__(self): return True
+            def __contains__(self, other): return True
+            def __getitem__(self, key): return self
+
+        class _ProbeDict(dict):
+            def __missing__(self, key):  # pragma: no cover - probe path
+                return _Probe()
+
+        try:
+            safe_eval(condition, {"event": _ProbeDict(), "data": _ProbeDict()})
+        except SafeEvalError as e:
+            raise ValueError(
+                f"Trigger condition rejected by safe evaluator: {e}"
+            ) from e
+        except Exception as e:  # noqa: BLE001 — dry-run quirks (e.g. patched
+            # evaluator) are not structural rejections; registration proceeds
+            # and the delivery-time guard still skips on any runtime failure.
+            logger.debug("trigger condition dry-run raised for %r: %s", condition, e)
 
     def get_statistics(self) -> Dict[str, Any]:
         """Get event bus statistics"""

@@ -42,18 +42,35 @@ logger = logging.getLogger(__name__)
 # ===========================================================================
 
 # Tools known to write to the filesystem. Mirrors
-# sandbox_fs._DEFAULT_WRITE_TOOLS plus the productivity/office writers; a
-# tool NOT in this set never accrues bytes_written.
+# sandbox_fs._DEFAULT_WRITE_TOOLS plus the productivity/office writers,
+# command-exec and browser file tools; a tool NOT in this set never accrues
+# bytes_written. Sweep 2026-08-09: added the real MCP tool names
+# (browser_download_file / browser_upload_file — the legacy
+# browser_download alias never matched a registered tool), command-exec
+# surfaces (device_execute_command / execute_command / shell — writes via
+# redirect), folder creation, PDF report generation, and knowledge
+# ingestion — all previously a free pass past max_bytes_written.
 _WRITE_TOOLS: Tuple[str, ...] = (
     "write_code_file",
     "browser_download",
+    "browser_download_file",
+    "browser_upload_file",
     "device_save_photo",
     "device_take_screenshot",
+    "device_execute_command",
+    "execute_command",
+    "shell",
+    "terminal",
     "memory_remember",
     "canvas_export",
     "atom_cli_skill",
     "productivity_write",
     "office_save",
+    "create_folder",
+    "create_storage_folder",
+    "generate_pdf_report",
+    "ingest_knowledge_from_file",
+    "ingest_knowledge_from_text",
 )
 
 # Arg keys that carry the payload being written / sent to an LLM.
@@ -115,15 +132,38 @@ def _payload_char_count(args: Dict[str, Any], keys: Tuple[str, ...]) -> int:
     return total
 
 
+def _serialized_char_count(args: Dict[str, Any]) -> int:
+    """Fallback: full JSON-serialized size of the call args.
+
+    Used when a write tool's payload arrives under an arg key that is not in
+    the known content-key set (e.g. ``device_execute_command``'s ``command``
+    or a base64 ``bytes`` blob). A 0-usage estimate for a giant payload is a
+    free pass past ``max_bytes_written`` — fail closed instead.
+    """
+    try:
+        import json
+
+        return len(json.dumps(args or {}, default=str))
+    except Exception:  # noqa: BLE001
+        return 0
+
+
 def estimate_write_bytes(tool_name: str, args: Dict[str, Any]) -> int:
     """Best-effort bytes this call will write, from the args alone.
 
     Only write-capable tools accrue; the payload is the content-bearing
     args. Returns 0 for read-only tools and tools without a payload.
+
+    When a write tool's payload is not under any known content key, falls
+    back to the full serialized args size so an unmapped-key giant payload
+    cannot sail past the cap (0-estimate free pass — swept 2026-08-09).
     """
     if tool_name not in _WRITE_TOOLS:
         return 0
-    return _payload_char_count(args, _WRITE_CONTENT_KEYS)
+    mapped = _payload_char_count(args, _WRITE_CONTENT_KEYS)
+    if mapped > 0:
+        return mapped
+    return _serialized_char_count(args)
 
 
 def estimate_cost_usd(tool_name: str, args: Dict[str, Any]) -> float:

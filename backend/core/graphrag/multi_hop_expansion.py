@@ -137,12 +137,21 @@ class ExpansionPath:
     total_relevance: float = 1.0
     confidence: float = 1.0
 
-    def add_hop(self, node: ExpansionNode, relationship: str):
-        """Add a hop to this path"""
+    def add_hop(self, node: ExpansionNode, relationship: str, decay: Optional[float] = None):
+        """Add a hop to this path
+
+        ``decay`` is the relevance-decay factor applied per hop; when omitted
+        it falls back to the default ``ExpansionConfig`` value. Callers with a
+        custom config MUST pass their own decay, otherwise the path's
+        relevance accumulates with the wrong factor (a fresh default config
+        was previously built here, silently ignoring the expander's config).
+        """
         self.nodes.append(node)
         self.relationships.append(relationship)
         # Relevance decays with each hop
-        self.total_relevance *= node.relevance_score * ExpansionConfig().relevance_decay
+        if decay is None:
+            decay = ExpansionConfig().relevance_decay
+        self.total_relevance *= node.relevance_score * decay
         self.confidence *= node.confidence
 
 
@@ -247,13 +256,13 @@ class MultiHopExpander:
         ]
 
         # Expand hop by hop
+        limit_reached = False
         for hop in range(1, self.config.max_hop_depth + 1):
             if not current_level:
                 break
 
             next_level: List[ExpansionNode] = []
             new_paths: List[ExpansionPath] = []
-            result.max_depth_reached = hop
 
             # Expand each node at current level
             for current_node in current_level:
@@ -311,10 +320,17 @@ class MultiHopExpander:
                             result.paths.append(new_path)
                             new_paths.append(new_path)
 
-                    # Check node limit
+                    # Check node limit. The cap is a HARD ceiling: previously
+                    # this `break` only exited the neighbor loop while the
+                    # outer node loop and the hop loop kept expanding, so
+                    # max_total_nodes was exceeded by up to a full extra hop.
                     if len(result.nodes) >= self.config.max_total_nodes:
                         logger.info(f"Reached max total nodes {self.config.max_total_nodes}")
+                        limit_reached = True
                         break
+
+                if limit_reached:
+                    break
 
                 # Early termination if enabled
                 if self.config.enable_early_termination and next_level:
@@ -322,6 +338,14 @@ class MultiHopExpander:
                     if avg_relevance < self.config.min_relevance_score:
                         logger.debug(f"Early termination at hop {hop}: avg relevance {avg_relevance:.2f}")
                         break
+
+            # max_depth_reached reflects the deepest hop that actually found
+            # nodes (previously it recorded the last *attempted* hop, which
+            # over-reported by one when the final hop came up empty).
+            if next_level:
+                result.max_depth_reached = hop
+            if limit_reached:
+                break
 
             current_level = next_level[:self.config.max_nodes_per_hop]
             if new_paths:
@@ -394,7 +418,8 @@ class MultiHopExpander:
 
             # Calculate activation score based on cues
             activation_score = self._calculate_activation_score(
-                node, neighbor, rel_type, direction, query_context
+                node, neighbor, rel_type, direction, query_context,
+                edge_properties=edge.properties or {}
             )
 
             neighbors.append((neighbor, rel_type, activation_score))
@@ -412,7 +437,8 @@ class MultiHopExpander:
         to_node: GraphNode,
         rel_type: str,
         direction: str,
-        query_context: Optional[Dict[str, Any]] = None
+        query_context: Optional[Dict[str, Any]] = None,
+        edge_properties: Optional[Dict[str, Any]] = None
     ) -> float:
         """
         Calculate activation score for expanding to a neighbor.
@@ -421,6 +447,13 @@ class MultiHopExpander:
         - Relationship type priority
         - Entity type priority
         - Direction preference (outgoing > incoming)
+
+        Cue 4 multiplies by the edge confidence. The edge (GraphEdge) is the
+        natural carrier of confidence/weight — previously the NEIGHBOR NODE's
+        properties were read instead, so edge confidence never influenced
+        scoring (nodes rarely carry a ``confidence`` key, so the multiplier
+        silently defaulted to 1.0). Edge properties win when present; node
+        properties are kept as a fallback for legacy data.
         """
         score = 0.5  # Base score
 
@@ -442,10 +475,10 @@ class MultiHopExpander:
         if direction == "outgoing":
             score += 0.1
 
-        # Cue 4: Confidence from edge properties
-        if to_node.properties:
-            edge_confidence = to_node.properties.get("confidence", 1.0)
-            score *= edge_confidence
+        # Cue 4: Confidence from edge properties (node properties fallback)
+        confidence_source = edge_properties if edge_properties else (to_node.properties or {})
+        edge_confidence = confidence_source.get("confidence", 1.0)
+        score *= edge_confidence
 
         return min(score, 1.0)
 

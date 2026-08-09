@@ -262,7 +262,7 @@ class GitHubService(IntegrationService):
             logger.error(f"Failed to get pull requests for {owner}/{repo}: {e}")
             return []
     
-    def create_issue(self, owner: str, repo: str, title: str, body: str, labels: List[str] = None) -> Optional[Dict[str, Any]]:
+    def create_issue(self, owner: str, repo: str, title: str, body: str = "", labels: List[str] = None) -> Optional[Dict[str, Any]]:
         """Create a new issue"""
         try:
             data = {

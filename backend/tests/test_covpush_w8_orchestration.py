@@ -379,21 +379,28 @@ class TestEventBusBasics:
 
     def test_trigger_condition_safe_eval_rejected(self):
         bus = EventBus()
-        # Malicious condition — safe_eval must reject (no code execution).
+        # Malicious condition — must fail LOUDLY at registration (R97-wave
+        # footgun: unsafe conditions were accepted and then silently dropped
+        # at every delivery). No code execution at any point.
+        with pytest.raises(ValueError):
+            bus.create_workflow_trigger(
+                "wf-9", EventType.WEBHOOK_TRIGGER, condition="__import__('os').system('true')"
+            )
+        # And a benign condition on an unsafe-namespace still registers.
         bus.create_workflow_trigger(
-            "wf-9", EventType.WEBHOOK_TRIGGER, condition="__import__('os').system('true')"
+            "wf-9", EventType.WEBHOOK_TRIGGER, condition="data['status'] == 'done'"
         )
         got = []
         bus.subscribe("wf-9", [EventType.WORKFLOW_STARTED], lambda e: got.append(e))
-        bus.publish(EventType.WEBHOOK_TRIGGER, "x", {})
+        bus.publish(EventType.WEBHOOK_TRIGGER, "x", {"status": "done"})
         self._drain(bus)
-        assert got == []
+        assert len(got) == 1, "benign subscript condition must fire"
 
     def test_trigger_condition_exception_skips(self):
         bus = EventBus()
         with patch("core.safe_evaluator.safe_eval", side_effect=RuntimeError("boom")):
             bus.create_workflow_trigger(
-                "wf-9", EventType.WEBHOOK_TRIGGER, condition="event.data['missing']"
+                "wf-9", EventType.WEBHOOK_TRIGGER, condition="data['missing']"
             )
             got = []
             bus.subscribe("wf-9", [EventType.WORKFLOW_STARTED], lambda e: got.append(e))

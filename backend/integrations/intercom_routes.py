@@ -148,6 +148,7 @@ async def intercom_health():
     """Health check for Intercom integration"""
     try:
         service = get_intercom_service()
-        return await service.health_check()
+        return service.health_check()
     except Exception as e:
-        return {"ok": False, "status": "unhealthy", "error": str(e), "timestamp": datetime.now().isoformat()}
+        logger.error(f"Intercom health check failed: {e}")
+        return {"ok": False, "status": "unhealthy", "error": "Health check failed", "timestamp": datetime.now().isoformat()}

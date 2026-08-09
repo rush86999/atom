@@ -265,27 +265,24 @@ class TestDocumentsSearchAction:
 
     @pytest.mark.asyncio
     async def test_successful_search_combines_sources(self):
-        ingested_doc = MagicMock(id="i1", file_name="f.txt", content_preview="hello world")
-        knowledge_doc = MagicMock(id="k1", title="kb", content="deep knowledge")
+        """documents.search delegates to DocumentsHybridSearch (envelope
+        preserved); the old ILIKE db-query path is the flag-off legacy path."""
+        from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
 
-        ingested_q = MagicMock()
-        ingested_q.all.return_value = [ingested_doc]
-        knowledge_q = MagicMock()
-        knowledge_q.all.return_value = [knowledge_doc]
-        # .limit() returns the query itself so .all() resolves.
-        ingested_q.limit.return_value = ingested_q
-        knowledge_q.limit.return_value = knowledge_q
-
-        db = MagicMock()
-        # First .query() -> IngestedDocument, second -> KnowledgeDocument.
-        db.query.side_effect = [MagicMock(filter=MagicMock(return_value=ingested_q)),
-                                MagicMock(filter=MagicMock(return_value=knowledge_q))]
-
-        ctx_manager = MagicMock()
-        ctx_manager.return_value.__enter__.return_value = db
-        ctx_manager.return_value.__exit__.return_value = False
-
-        with patch("core.database.get_db_session", ctx_manager):
+        svc_instance = MagicMock()
+        svc_instance.search = AsyncMock(
+            return_value={
+                "success": True,
+                "query": "world",
+                "results": [
+                    {"source": "ingested", "id": "i1", "title": "f.txt", "preview": "hello world"},
+                    {"source": "knowledge", "id": "k1", "title": "kb", "preview": "deep knowledge"},
+                ],
+                "hybrid": True,
+                "stats": {"total": 2},
+            }
+        )
+        with patch.object(DocumentsHybridSearch, "search", svc_instance.search):
             result = await action_registry.execute_action(
                 "documents.search", {"query": "world", "limit": 10}, {}
             )
@@ -294,10 +291,51 @@ class TestDocumentsSearchAction:
         assert len(result["results"]) == 2
         assert result["results"][0]["source"] == "ingested"
         assert result["results"][1]["source"] == "knowledge"
+        svc_instance.search.assert_awaited_once_with(
+            query="world", limit=10, since=None, source=None, author=None
+        )
 
     @pytest.mark.asyncio
-    async def test_search_skips_knowledge_when_limit_filled(self):
-        ingested_doc = MagicMock(id="i1", file_name="f", content_preview="p")
+    async def test_search_passes_filters(self):
+        from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+        svc_instance = MagicMock()
+        svc_instance.search = AsyncMock(
+            return_value={"success": True, "query": "x", "results": [], "hybrid": True}
+        )
+        with patch.object(DocumentsHybridSearch, "search", svc_instance.search):
+            result = await action_registry.execute_action(
+                "documents.search",
+                {"query": "x", "limit": 5, "since": "2026-01-01", "source": "Knowledge", "author": "Drive"},
+                {},
+            )
+        assert result["success"] is True
+        svc_instance.search.assert_awaited_once_with(
+            query="x", limit=5, since="2026-01-01", source="knowledge", author="drive"
+        )
+
+    @pytest.mark.asyncio
+    async def test_search_exception_returns_failure(self):
+        from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+        with patch.object(
+            DocumentsHybridSearch, "search",
+            AsyncMock(side_effect=RuntimeError("db down")),
+        ):
+            result = await action_registry.execute_action(
+                "documents.search", {"query": "x"}, {}
+            )
+        assert result["success"] is False
+        assert result["error"] == "Document search failed"
+        assert result["results"] == []
+
+    @pytest.mark.asyncio
+    async def test_search_legacy_path_flag_off(self):
+        """ATOM_KNOWLEDGE_VFS_ENABLED=false → legacy ILIKE path, no hybrid call."""
+        from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+        ingested_doc = MagicMock(id="i1", file_name="f.txt", content_preview="hello world")
+
         ingested_q = MagicMock()
         ingested_q.all.return_value = [ingested_doc]
         ingested_q.limit.return_value = ingested_q
@@ -309,27 +347,18 @@ class TestDocumentsSearchAction:
         ctx_manager.return_value.__enter__.return_value = db
         ctx_manager.return_value.__exit__.return_value = False
 
-        with patch("core.database.get_db_session", ctx_manager):
+        hybrid_search = AsyncMock(return_value={"success": True, "results": []})
+        with patch(
+            "core.database.get_db_session", ctx_manager
+        ), patch.object(DocumentsHybridSearch, "search", hybrid_search), patch(
+            "core.knowledge_vfs_config.knowledge_vfs_enabled", return_value=False
+        ):
             result = await action_registry.execute_action(
-                "documents.search", {"query": "x", "limit": 1}, {}
+                "documents.search", {"query": "world", "limit": 10}, {}
             )
         assert result["success"] is True
-        # Only one query should have been issued (ingested filled the limit).
-        assert db.query.call_count == 1
-
-    @pytest.mark.asyncio
-    async def test_search_exception_returns_failure(self):
-        ctx_manager = MagicMock()
-        ctx_manager.return_value.__enter__.side_effect = RuntimeError("db down")
-        ctx_manager.return_value.__exit__.return_value = False
-
-        with patch("core.database.get_db_session", ctx_manager):
-            result = await action_registry.execute_action(
-                "documents.search", {"query": "x"}, {}
-            )
-        assert result["success"] is False
-        assert result["error"] == "Document search failed"
-        assert result["results"] == []
+        assert result["results"][0]["source"] == "ingested"
+        hybrid_search.assert_not_awaited()
 
 
 class TestCanvasActions:

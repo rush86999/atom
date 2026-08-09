@@ -183,6 +183,20 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
     });
   };
 
+  const handleUpdateProject = (projectId: string, updates: Partial<Project>) => {
+    setProjects((prev) =>
+      prev.map((project) =>
+        project.id === projectId ? { ...project, ...updates } : project,
+      ),
+    );
+    onProjectUpdate?.(projectId, updates);
+    toast({
+      title: "Project updated",
+      description: "Your project has been successfully updated.",
+      duration: 2000,
+    });
+  };
+
   const formatDate = (date: Date) => {
     return date.toLocaleDateString([], { month: "short", day: "numeric" });
   };
@@ -289,7 +303,9 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
           | "in-progress"
           | "completed"
           | "blocked",
-        project: formData.project || undefined,
+        project: formData.project && formData.project !== "no-project"
+          ? formData.project
+          : undefined,
         tags: formData.tags
           ? formData.tags.split(",").map((tag) => tag.trim())
           : undefined,
@@ -647,6 +663,29 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
                   <span className="text-sm font-bold">
                     {filteredTasks.length} tasks
                   </span>
+                  <Select
+                    value={view.filter.status?.[0] || "all"}
+                    onValueChange={(value) =>
+                      setView((prev) => ({
+                        ...prev,
+                        filter:
+                          value === "all"
+                            ? { ...prev.filter, status: undefined }
+                            : { ...prev.filter, status: [value] },
+                      }))
+                    }
+                  >
+                    <SelectTrigger data-testid="status-filter" className="w-[130px]">
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="todo">To Do</SelectItem>
+                      <SelectItem value="in-progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="blocked">Blocked</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardContent>
@@ -668,7 +707,7 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
                     style={{ borderLeftColor: project.color }}
                     onClick={() => {
                       setSelectedProject(project);
-                      // TODO: Filter tasks by project
+                      setIsProjectDialogOpen(true);
                     }}
                   >
                     <div className={`font-bold ${compactView ? "text-sm" : "text-base"}`}>
@@ -771,6 +810,49 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
                       </div>
                     );
                   },
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Task List View */}
+        {view.type === "list" && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className={compactView ? "text-lg" : "text-xl"}>Task List</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-2">
+                {filteredTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex justify-between items-center p-2 border rounded-md hover:bg-accent cursor-pointer transition-colors"
+                    onClick={() => {
+                      setSelectedTask(task);
+                      setIsTaskDialogOpen(true);
+                    }}
+                  >
+                    <div>
+                      <div className={`font-bold ${compactView ? "text-sm" : "text-base"}`}>
+                        {task.title}
+                      </div>
+                      <div className={`text-muted-foreground ${compactView ? "text-xs" : "text-sm"}`}>
+                        Due {formatDate(task.dueDate)} •{" "}
+                        {task.project
+                          ? projects.find((p) => p.id === task.project)?.name
+                          : "No Project"}
+                      </div>
+                    </div>
+                    <Badge variant={getStatusColor(task.status) as any}>
+                      {task.status}
+                    </Badge>
+                  </div>
+                ))}
+                {filteredTasks.length === 0 && (
+                  <p className="text-muted-foreground text-sm py-4 text-center">
+                    No tasks match the current filters.
+                  </p>
                 )}
               </div>
             </CardContent>
@@ -883,7 +965,7 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
             project={selectedProject || undefined}
             onSubmit={(data) => {
               if (selectedProject) {
-                // TODO: Implement project update
+                handleUpdateProject(selectedProject.id, data);
               } else {
                 handleCreateProject(data);
               }

@@ -17,7 +17,7 @@
  * - Error details for failed items
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -75,6 +75,10 @@ export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
   const [bytesTransferred, setBytesTransferred] = useState(0);
   const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState(0);
 
+  // Mirrors entityProgress so the subscribe callback (which closes over the
+  // initial state) can read the latest snapshot when the sync completes.
+  const entityProgressRef = useRef<EntityProgress[]>([]);
+
   useEffect(() => {
     if (!visible) {
       return;
@@ -92,6 +96,25 @@ export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
 
       if (state.syncProgress === 100 || !state.syncInProgress) {
         setIsComplete(true);
+
+        if (state.consecutiveFailures > 0) {
+          addSyncLog('Sync finished with errors', 'error');
+        }
+
+        // Derive the completion summary from the last entity-progress
+        // snapshot. This is a mock layer today (real app would source the
+        // result from the sync service), but it keeps the summary + onComplete
+        // contract functional instead of permanently dead.
+        const synced = entityProgressRef.current.reduce((sum, e) => sum + e.synced, 0);
+        const failed = entityProgressRef.current.reduce((sum, e) => sum + e.failed, 0);
+        const result = {
+          synced,
+          failed,
+          conflicts: 0,
+          bytesTransferred: synced * 1024,
+        };
+        setSyncResult(result);
+        setBytesTransferred(result.bytesTransferred);
       }
 
       // Update entity progress (mock for now)
@@ -123,33 +146,38 @@ export const SyncProgressModal: React.FC<SyncProgressModalProps> = ({
   }, [visible, startTime]);
 
   const updateEntityProgress = (state: SyncState) => {
-    // Mock entity progress - in real app, this would come from sync service
-    setEntityProgress([
+    // Mock entity progress - scaled from the overall sync progress so the
+    // per-entity rows stay consistent with the progress bar. In the real
+    // app this would come from the sync service.
+    const ratio = Math.min(state.syncProgress, 100) / 100;
+    const entities: EntityProgress[] = [
       {
         type: 'Agents',
         total: 10,
-        synced: Math.floor(Math.random() * 10),
+        synced: Math.floor(10 * ratio),
         failed: 0,
       },
       {
         type: 'Workflows',
         total: 20,
-        synced: Math.floor(Math.random() * 20),
+        synced: Math.floor(20 * ratio),
         failed: 0,
       },
       {
         type: 'Canvases',
         total: 15,
-        synced: Math.floor(Math.random() * 15),
+        synced: Math.floor(15 * ratio),
         failed: 0,
       },
       {
         type: 'Episodes',
         total: 5,
-        synced: Math.floor(Math.random() * 5),
+        synced: Math.floor(5 * ratio),
         failed: 0,
       },
-    ]);
+    ];
+    entityProgressRef.current = entities;
+    setEntityProgress(entities);
   };
 
   const addSyncLog = (message: string, level: 'info' | 'warn' | 'error') => {

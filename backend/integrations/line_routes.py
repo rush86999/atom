@@ -1,11 +1,9 @@
 """
-import asyncio
-_bg_tasks: set = set()
-
 Line Routes for ATOM Platform
 Exposes Line webhook functionality
 """
 
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -18,6 +16,8 @@ from .line_service import LineService
 from .universal_webhook_bridge import universal_webhook_bridge
 
 logger = logging.getLogger(__name__)
+
+_bg_tasks: set = set()
 
 # The module previously imported ``line_service`` as an instance, but
 # line_service.py only defines the ``LineService`` class — the import failed
@@ -55,11 +55,10 @@ async def line_webhook(request: Request, x_line_signature: str = Header(None)):
     
     for event in data.get("events", []):
         if event.get("type") == "message" and event.get("message", {}).get("type") == "text":
-            import asyncio
             _t = asyncio.create_task(universal_webhook_bridge.process_incoming_message("line", event)); _bg_tasks.add(_t); _t.add_done_callback(_bg_tasks.discard)
             
     return {"status": "OK"}
 
 @router.get("/health")
 async def line_health():
-    return await line_service.health_check()
+    return line_service.health_check()

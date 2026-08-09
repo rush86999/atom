@@ -27,12 +27,18 @@ class GMBAutomation:
         """
         
         if self.ai:
-            from integrations.ai_enhanced_service import (
-                AIModelType,
-                AIRequest,
-                AIServiceType,
-                AITaskType,
-            )
+            try:
+                from integrations.ai_enhanced_service import (
+                    AIModelType,
+                    AIRequest,
+                    AIServiceType,
+                    AITaskType,
+                )
+            except ImportError:
+                logger.warning(
+                    "ai_enhanced_service unavailable; using template GMB post"
+                )
+                return f"Auto-generated post for {business_info['name']}: Check out our latest services in {business_info['location']}!"
             request = AIRequest(
                 request_id=f"gmb_{datetime.now().timestamp()}",
                 task_type=AITaskType.CONTENT_GENERATION,
@@ -58,12 +64,18 @@ class GMBAutomation:
         """
         
         if self.ai:
-            from integrations.ai_enhanced_service import (
-                AIModelType,
-                AIRequest,
-                AIServiceType,
-                AITaskType,
-            )
+            try:
+                from integrations.ai_enhanced_service import (
+                    AIModelType,
+                    AIRequest,
+                    AIServiceType,
+                    AITaskType,
+                )
+            except ImportError:
+                logger.warning(
+                    "ai_enhanced_service unavailable; using template review response"
+                )
+                return "Thank you for your feedback! We appreciate your business."
             request = AIRequest(
                 request_id=f"review_{datetime.now().timestamp()}",
                 task_type=AITaskType.CONTENT_GENERATION,
