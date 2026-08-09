@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
 from core.models import AgentRegistry, AgentStatus, ChatSession, User
+from core.personal_scope import PERSONAL_TENANT_ID, PERSONAL_WORKSPACE_ID  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +151,20 @@ class AgentContextResolver:
             ).first()
 
             if agent:
+                # Heal legacy rows created before workspace scoping: a
+                # Chat Assistant with workspace_id=None is invisible to
+                # AgentGovernanceService (which filters workspace_id="default"),
+                # so every governance check fails with "Agent not found".
+                if agent.workspace_id is None or agent.tenant_id is None:
+                    if agent.workspace_id is None:
+                        agent.workspace_id = PERSONAL_WORKSPACE_ID
+                    if agent.tenant_id is None:
+                        agent.tenant_id = PERSONAL_TENANT_ID
+                    self.db.commit()
+                    logger.info(
+                        "Backfilled workspace/tenant scope on system default agent: %s",
+                        agent.id,
+                    )
                 return agent
 
             # Create system default agent
@@ -162,6 +177,8 @@ class AgentContextResolver:
                 class_name="ChatAssistant",
                 status=AgentStatus.STUDENT.value,
                 confidence_score=0.5,
+                workspace_id=PERSONAL_WORKSPACE_ID,
+                tenant_id=PERSONAL_TENANT_ID,
                 configuration={
                     "system_prompt": "You are a helpful assistant for business automation and integrations.",
                     "capabilities": ["chat", "stream_chat", "present_chart", "present_markdown"]

@@ -433,7 +433,7 @@ class AgentGovernanceService:
             logger.info(f"Agent {agent.name} transitioned: {prev_status} -> {agent.status}")
             if self.activity_publisher:
                 self.activity_publisher.publish_activity(
-                    workspace_id=self.workspace_id,
+                    tenant_id=self.workspace_id,
                     agent_id=agent_id,
                     activity_type='learning',
                     state='adapted',

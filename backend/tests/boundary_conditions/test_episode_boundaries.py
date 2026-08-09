@@ -556,7 +556,7 @@ class TestCosineSimilarityBoundaries:
 
         similarity = detector._cosine_similarity(vec1, vec2)
 
-        assert similarity == 1.0
+        assert similarity == pytest.approx(1.0)
 
     def test_cosine_similarity_with_negative_values(self):
         """

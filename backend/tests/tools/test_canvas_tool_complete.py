@@ -20,6 +20,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from core.models import AgentRegistry, AgentStatus, AgentExecution, CanvasAudit
+from core.canvas_type_registry import MaturityLevel
 from core.database import get_db_session
 from tools.canvas_tool import (
     present_chart,
@@ -47,6 +48,10 @@ def mock_db():
     db.refresh = MagicMock()
     db.query = MagicMock()
     db.rollback = MagicMock()
+    # canvas_tool uses `with get_db_session() as db:` — the context manager
+    # must yield the same mock or asserts on db.* see a different child mock.
+    db.__enter__.return_value = db
+    db.__exit__.return_value = False
     return db
 
 
@@ -118,8 +123,14 @@ def mock_agent_context_resolver(mock_agent_factory):
 
 @pytest.fixture
 def mock_service_factory(mock_governance_service):
-    """Mock service factory."""
-    with patch('tools.canvas_tool.ServiceFactory') as mock:
+    """Mock service factory.
+
+    NOTE: canvas_tool imports ServiceFactory inside functions via
+    ``from core.service_factory import ServiceFactory``, so the patch
+    target must be the source module, not tools.canvas_tool (which has
+    no ServiceFactory attribute).
+    """
+    with patch('core.service_factory.ServiceFactory') as mock:
         mock.get_governance_service = MagicMock(return_value=mock_governance_service)
         yield mock
 
@@ -288,7 +299,7 @@ class TestPresentChart:
     @pytest.mark.asyncio
     async def test_present_chart_audit_entry_created(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory, mock_db):
         """Test that canvas audit entry is created."""
-        with patch('tools.canvas_tool.get_db_session', return_value=mock_db):
+        with patch('core.database.get_db_session', return_value=mock_db):
             with patch('tools.canvas_tool._create_canvas_audit', new_callable=AsyncMock) as mock_audit:
                 mock_audit.return_value = MagicMock(id="audit-123")
 
@@ -307,7 +318,7 @@ class TestPresentChart:
     @pytest.mark.asyncio
     async def test_present_chart_agent_execution_tracking(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory, mock_db):
         """Test that agent execution is tracked."""
-        with patch('tools.canvas_tool.get_db_session', return_value=mock_db):
+        with patch('core.database.get_db_session', return_value=mock_db):
             await present_chart(
                 user_id="user-123",
                 chart_type="line_chart",
@@ -476,7 +487,7 @@ class TestPresentMarkdown:
     @pytest.mark.asyncio
     async def test_present_markdown_audit_entry(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory, mock_db):
         """Test markdown creates audit entry."""
-        with patch('tools.canvas_tool.get_db_session', return_value=mock_db):
+        with patch('core.database.get_db_session', return_value=mock_db):
             with patch('tools.canvas_tool._create_canvas_audit', new_callable=AsyncMock) as mock_audit:
                 mock_audit.return_value = MagicMock(id="audit-456")
 
@@ -493,7 +504,7 @@ class TestPresentMarkdown:
     @pytest.mark.asyncio
     async def test_present_markdown_execution_tracking(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory, mock_db):
         """Test markdown execution tracking."""
-        with patch('tools.canvas_tool.get_db_session', return_value=mock_db):
+        with patch('core.database.get_db_session', return_value=mock_db):
             await present_markdown(
                 user_id="user-123",
                 content="# Test",
@@ -665,7 +676,7 @@ class TestPresentForm:
     @pytest.mark.asyncio
     async def test_present_form_audit_entry(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory, mock_db):
         """Test form creates audit entry."""
-        with patch('tools.canvas_tool.get_db_session', return_value=mock_db):
+        with patch('core.database.get_db_session', return_value=mock_db):
             with patch('tools.canvas_tool._create_canvas_audit', new_callable=AsyncMock) as mock_audit:
                 mock_audit.return_value = MagicMock(id="audit-form")
 
@@ -682,7 +693,7 @@ class TestPresentForm:
     @pytest.mark.asyncio
     async def test_present_form_execution_tracking(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory, mock_db):
         """Test form execution tracking."""
-        with patch('tools.canvas_tool.get_db_session', return_value=mock_db):
+        with patch('core.database.get_db_session', return_value=mock_db):
             result = await present_form(
                 user_id="user-123",
                 form_schema={"fields": []},
@@ -1014,7 +1025,7 @@ class TestUpdateCanvas:
     @pytest.mark.asyncio
     async def test_update_canvas_audit_entry(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory, mock_db):
         """Test canvas update creates audit entry."""
-        with patch('tools.canvas_tool.get_db_session', return_value=mock_db):
+        with patch('core.database.get_db_session', return_value=mock_db):
             with patch('tools.canvas_tool._create_canvas_audit', new_callable=AsyncMock) as mock_audit:
                 mock_audit.return_value = MagicMock(id="audit-update")
 
@@ -1032,7 +1043,7 @@ class TestUpdateCanvas:
     @pytest.mark.asyncio
     async def test_update_canvas_execution_tracking(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory, mock_db):
         """Test canvas update execution tracking."""
-        with patch('tools.canvas_tool.get_db_session', return_value=mock_db):
+        with patch('core.database.get_db_session', return_value=mock_db):
             result = await update_canvas(
                 user_id="user-123",
                 canvas_id="canvas-abc",
@@ -1419,7 +1430,7 @@ class TestCanvasExecuteJavaScript:
             {}
         ))
 
-        with patch('tools.canvas_tool.get_db_session', return_value=mock_db):
+        with patch('core.database.get_db_session', return_value=mock_db):
             with patch('tools.canvas_tool._create_canvas_audit', new_callable=AsyncMock) as mock_audit:
                 mock_audit.return_value = MagicMock(id="audit-js")
 
@@ -1443,7 +1454,7 @@ class TestCanvasExecuteJavaScript:
             {}
         ))
 
-        with patch('tools.canvas_tool.get_db_session', return_value=mock_db):
+        with patch('core.database.get_db_session', return_value=mock_db):
             with patch('tools.canvas_tool._create_canvas_audit', new_callable=AsyncMock) as mock_audit:
                 mock_audit.return_value = MagicMock(id="audit-js")
 
@@ -1521,8 +1532,10 @@ class TestPresentSpecializedCanvas:
         assert result["component_type"] == "rich_editor"
 
     @pytest.mark.asyncio
-    async def test_present_email_canvas_success(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory):
+    async def test_present_email_canvas_success(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory, mock_agent_factory):
         """Test presenting email canvas successfully."""
+        # Email canvas requires SUPERVISED maturity (registry contract)
+        mock_agent_factory.status = AgentStatus.SUPERVISED.value
         result = await present_specialized_canvas(
             user_id="user-123",
             canvas_type="email",
@@ -1601,8 +1614,10 @@ class TestPresentSpecializedCanvas:
             assert "Layout" in result["error"]
 
     @pytest.mark.asyncio
-    async def test_present_orchestration_canvas(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory):
+    async def test_present_orchestration_canvas(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory, mock_agent_factory):
         """Test presenting orchestration canvas."""
+        # Orchestration canvas requires SUPERVISED maturity (registry contract)
+        mock_agent_factory.status = AgentStatus.SUPERVISED.value
         result = await present_specialized_canvas(
             user_id="user-123",
             canvas_type="orchestration",
@@ -1614,20 +1629,25 @@ class TestPresentSpecializedCanvas:
         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_present_terminal_canvas(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory):
+    async def test_present_terminal_canvas(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory, mock_agent_factory):
         """Test presenting terminal canvas."""
+        # Terminal canvas requires SUPERVISED maturity (registry contract);
+        # "shell_output" is the registered component (not command_output).
+        mock_agent_factory.status = AgentStatus.SUPERVISED.value
         result = await present_specialized_canvas(
             user_id="user-123",
             canvas_type="terminal",
-            component_type="command_output",
+            component_type="shell_output",
             data={"output": "Command completed successfully"}
         )
 
         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_present_coding_canvas(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory):
+    async def test_present_coding_canvas(self, mock_ws_manager, mock_agent_context_resolver, mock_service_factory, mock_agent_factory):
         """Test presenting coding canvas."""
+        # Coding canvas requires SUPERVISED maturity (registry contract)
+        mock_agent_factory.status = AgentStatus.SUPERVISED.value
         result = await present_specialized_canvas(
             user_id="user-123",
             canvas_type="coding",
@@ -1707,6 +1727,7 @@ class TestPresentSpecializedCanvas:
         with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
             mock_registry.validate_canvas_type.return_value = True
             mock_registry.validate_component.return_value = True
+            mock_registry.get_min_maturity.return_value = MaturityLevel.INTERN  # docs contract
 
             result = await present_specialized_canvas(
                 user_id="user-123",
@@ -1724,8 +1745,9 @@ class TestPresentSpecializedCanvas:
         with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
             mock_registry.validate_canvas_type.return_value = True
             mock_registry.validate_component.return_value = True
+            mock_registry.get_min_maturity.return_value = MaturityLevel.INTERN  # docs contract
 
-            with patch('tools.canvas_tool.get_db_session', return_value=mock_db):
+            with patch('core.database.get_db_session', return_value=mock_db):
                 with patch('tools.canvas_tool._create_canvas_audit', new_callable=AsyncMock) as mock_audit:
                     mock_audit.return_value = MagicMock(id="audit-special")
 
@@ -1748,8 +1770,9 @@ class TestPresentSpecializedCanvas:
         with patch('tools.canvas_tool.canvas_type_registry') as mock_registry:
             mock_registry.validate_canvas_type.return_value = True
             mock_registry.validate_component.return_value = True
+            mock_registry.get_min_maturity.return_value = MaturityLevel.INTERN  # docs contract
 
-            with patch('tools.canvas_tool.get_db_session', return_value=mock_db):
+            with patch('core.database.get_db_session', return_value=mock_db):
                 result = await present_specialized_canvas(
                     user_id="user-123",
                     canvas_type="docs",

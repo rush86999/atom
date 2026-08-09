@@ -550,7 +550,7 @@ class TestAgentSocialLayerCoverageFix:
             )
 
             assert reply is not None
-            assert reply["post_type"] in ["status", "insight"]  # create_post uses "response" but it maps to valid enum
+            assert reply["post_type"] == "response"  # add_reply posts as a "response"
 
     @pytest.mark.asyncio
     async def test_add_reply_student_agent_blocked(self, db_session):

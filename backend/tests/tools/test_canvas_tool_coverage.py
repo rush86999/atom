@@ -129,7 +129,7 @@ class TestCanvasPresentation:
         with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=True), \
              patch('core.database.get_db_session') as mock_get_db, \
              patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class, \
-             patch('tools.canvas_tool.ServiceFactory.get_governance_service') as mock_gov_factory, \
+             patch('core.service_factory.ServiceFactory.get_governance_service') as mock_gov_factory, \
              patch('tools.canvas_tool.ws_manager.broadcast', new_callable=AsyncMock):
 
             # Setup mocks
@@ -167,7 +167,7 @@ class TestCanvasPresentation:
         with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=True), \
              patch('core.database.get_db_session') as mock_get_db, \
              patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class, \
-             patch('tools.canvas_tool.ServiceFactory.get_governance_service') as mock_gov_factory, \
+             patch('core.service_factory.ServiceFactory.get_governance_service') as mock_gov_factory, \
              patch('tools.canvas_tool.ws_manager.broadcast', new_callable=AsyncMock):
 
             # Setup mocks
@@ -203,7 +203,7 @@ class TestCanvasPresentation:
         with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=True), \
              patch('core.database.get_db_session') as mock_get_db, \
              patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class, \
-             patch('tools.canvas_tool.ServiceFactory.get_governance_service') as mock_gov_factory, \
+             patch('core.service_factory.ServiceFactory.get_governance_service') as mock_gov_factory, \
              patch('tools.canvas_tool.ws_manager.broadcast', new_callable=AsyncMock):
 
             # Setup mocks
@@ -245,7 +245,7 @@ class TestCanvasPresentation:
         with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=True), \
              patch('core.database.get_db_session') as mock_get_db, \
              patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class, \
-             patch('tools.canvas_tool.ServiceFactory.get_governance_service') as mock_gov_factory, \
+             patch('core.service_factory.ServiceFactory.get_governance_service') as mock_gov_factory, \
              patch('tools.canvas_tool.ws_manager.broadcast', new_callable=AsyncMock):
 
             # Setup mocks
@@ -282,7 +282,7 @@ class TestCanvasPresentation:
         with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=True), \
              patch('core.database.get_db_session') as mock_get_db, \
              patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class, \
-             patch('tools.canvas_tool.ServiceFactory.get_governance_service') as mock_gov_factory:
+             patch('core.service_factory.ServiceFactory.get_governance_service') as mock_gov_factory:
 
             # Setup mocks
             mock_db = MagicMock()
@@ -334,7 +334,7 @@ class TestCanvasPresentation:
         with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=True), \
              patch('core.database.get_db_session') as mock_get_db, \
              patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class, \
-             patch('tools.canvas_tool.ServiceFactory.get_governance_service') as mock_gov_factory, \
+             patch('core.service_factory.ServiceFactory.get_governance_service') as mock_gov_factory, \
              patch('tools.canvas_tool.ws_manager.broadcast', new_callable=AsyncMock), \
              patch('tools.canvas_tool._create_canvas_audit', new_callable=AsyncMock) as mock_audit:
 
@@ -378,7 +378,7 @@ class TestCanvasLifecycle:
         with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=True), \
              patch('core.database.get_db_session') as mock_get_db, \
              patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class, \
-             patch('tools.canvas_tool.ServiceFactory.get_governance_service') as mock_gov_factory, \
+             patch('core.service_factory.ServiceFactory.get_governance_service') as mock_gov_factory, \
              patch('tools.canvas_tool.ws_manager.broadcast', new_callable=AsyncMock):
 
             # Setup mocks
@@ -418,7 +418,7 @@ class TestCanvasLifecycle:
         with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=True), \
              patch('core.database.get_db_session') as mock_get_db, \
              patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class, \
-             patch('tools.canvas_tool.ServiceFactory.get_governance_service') as mock_gov_factory:
+             patch('core.service_factory.ServiceFactory.get_governance_service') as mock_gov_factory:
 
             # Setup mocks
             mock_db = MagicMock()
@@ -464,7 +464,7 @@ class TestCanvasLifecycle:
         with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=True), \
              patch('core.database.get_db_session') as mock_get_db, \
              patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class, \
-             patch('tools.canvas_tool.ServiceFactory.get_governance_service') as mock_gov_factory, \
+             patch('core.service_factory.ServiceFactory.get_governance_service') as mock_gov_factory, \
              patch('tools.canvas_tool.canvas_type_registry') as mock_registry, \
              patch('tools.canvas_tool.ws_manager.broadcast', new_callable=AsyncMock):
 
@@ -532,7 +532,7 @@ class TestCanvasLifecycle:
         with patch('tools.canvas_tool.FeatureFlags.should_enforce_governance', return_value=True), \
              patch('core.database.get_db_session') as mock_get_db, \
              patch('tools.canvas_tool.AgentContextResolver') as mock_resolver_class, \
-             patch('tools.canvas_tool.ServiceFactory.get_governance_service') as mock_gov_factory, \
+             patch('core.service_factory.ServiceFactory.get_governance_service') as mock_gov_factory, \
              patch('tools.canvas_tool.ws_manager.broadcast', new_callable=AsyncMock), \
              patch('tools.canvas_tool._create_canvas_audit', new_callable=AsyncMock):
 
