@@ -399,6 +399,20 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | Frontend | 65.8% lines (7,658 passed / 0 failures) — R94 Automations wave pending re-measure | ~735 files | 2026-08-09 |
 | Backend | 54.0% (r80 full-ish); 32.8% chunked-scope (r84) | 158k stmts / ~1,015 files | 2026-08-07 |
 
+### Resolved 2026-08-09 (R96 wave — pushed `89054e4f8` + `861e3d41e`)
+| Date | Area | Status | Result |
+|---|---|---|---|
+| 2026-08-09 | FE CustomNodes (61 tests, 18.4→98.4%) + AgentOperationTracker (37.5→95.2%) + login (44.4→100%) | TESTED/FIXED | **2 real bugs**: AgentOperationTracker infinite setState loop (operation in WS-effect deps + spread-merge) + stale operation data after operationId switch; login open-redirect guard verified |
+| 2026-08-09 | FE TeamsIntegration (27 tests, 0→85.3%) + Microsoft365Integration (31 tests, 56.6→78.9%) | TESTED/FIXED | **4 real bugs**: nullable team/channel `description` TypeError; crash on draft emails (Graph `sender` null); teams missing description; **Webhooks tab content existed with NO TabsTrigger (dead UI)** |
+| 2026-08-09 | FE full suite | GREEN | 7,786 passed / 0 failures; **68.0% lines** (R96 additions pending next full re-measure) |
+
+## Coverage stamps (latest)
+| Surface | Coverage | Tests | Date |
+|---|---|---|---|
+| Mobile | **87.5%** lines (3,843 passed / 115 suites, 0 failures) | 7,365 stmts / 80 files | 2026-08-08 |
+| Frontend | **68.0%** lines (7,786 passed / 0 failures) | 735 files | 2026-08-09 |
+| Backend | 54.0% (r80 full-ish); 32.8% chunked-scope (r84) | 158k stmts / ~1,015 files | 2026-08-07 |
+
 ## Known remaining work (verified at last run — updated 2026-08-09)
 - `core/models.py` `OAuthToken` — server-side model; verify `api/oauth` routes don't use stale columns (Notion/Spotify moved to IntegrationToken; sweep remaining writers)
 - `tests/test_cognitive_tier_e2e.py` — 11 collection ERRORS remain after the survey-sweep alignment (23 pass / 11 error; the stale `CognitiveTierPreference` kwargs were fixed but 11 tests still fail at setup — next target)
