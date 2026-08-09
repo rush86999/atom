@@ -13,8 +13,9 @@ executed in normal operation but critical for production reliability.
 """
 
 import pytest
+from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError, DataError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 
@@ -35,11 +36,12 @@ class TestConnectionErrors:
         ERROR PATH: Database server not reachable (connection refused).
         EXPECTED: OperationalError raised or connection retry logic.
         """
-        # Patch create_engine to raise connection error
-        with patch('core.database.create_engine', side_effect=OperationalError("Connection refused", {}, None)):
+        # SessionLocal is bound to the import-time engine, so surface the
+        # failure at session creation (the real contract).
+        with patch('core.database.SessionLocal', side_effect=OperationalError("Connection refused", {}, None)):
             with pytest.raises(OperationalError):
-                from core.database import engine
-                # Try to connect, should fail
+                from core.database import get_db_session
+                get_db_session().__enter__()
 
     def test_invalid_connection_string(self):
         """
@@ -68,10 +70,8 @@ class TestConnectionErrors:
         ERROR PATH: Database connection timeout.
         EXPECTED: TimeoutError or OperationalError with timeout message.
         """
-        # Patch create_engine to raise timeout
-        with patch('core.database.create_engine', side_effect=OperationalError("timeout expired", {}, None)):
+        with patch('core.database.SessionLocal', side_effect=OperationalError("timeout expired", {}, None)):
             with pytest.raises((OperationalError, Exception)):
-                # Try to use engine
                 from core.database import get_db_session
                 get_db_session().__enter__()
 
@@ -94,8 +94,9 @@ class TestQueryErrors:
             id="duplicate-id",
             name="Agent One",
             status=AgentStatus.STUDENT,
-            category="general"
-        , module_path="test.module", class_name="TestAgent")
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent1)
         db_session.commit()
 
@@ -104,8 +105,9 @@ class TestQueryErrors:
             id="duplicate-id",
             name="Agent Two",
             status=AgentStatus.INTERN,
-            category="general"
-        , module_path="test.module", class_name="TestAgent")
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent2)
 
         # Should raise IntegrityError
@@ -185,23 +187,17 @@ class TestQueryErrors:
         ERROR PATH: Value exceeds column max length.
         EXPECTED: DataError raised or value truncated.
         """
-        # Try to insert very long string into short column
-        agent = AgentRegistry(
-            id="a" * 1000,  # Very long ID
-            name="Test Agent",
-            status=AgentStatus.STUDENT
-        , module_path="test.module", class_name="TestAgent")
-        db_session.add(agent)
-
-        # May raise DataError or succeed (if no length constraint)
-        try:
+        # Model-level validation rejects IDs over 255 chars (ValueError)
+        with pytest.raises((DataError, IntegrityError, ValueError)):
+            agent = AgentRegistry(
+                id="a" * 1000,  # Very long ID
+                name="Test Agent",
+                status=AgentStatus.STUDENT,
+                category="general",
+                module_path="test.module", class_name="TestAgent"
+            )
+            db_session.add(agent)
             db_session.commit()
-            # If succeeded, no length constraint on ID
-            db_session.rollback()
-        except (DataError, IntegrityError):
-            # Length constraint enforced
-            db_session.rollback()
-            assert True
 
 
 # ============================================================================
@@ -222,8 +218,9 @@ class TestTransactionErrors:
             id="agent-1",
             name="Agent One",
             status=AgentStatus.STUDENT,
-            category="general"
-        , module_path="test.module", class_name="TestAgent")
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent1)
         db_session.commit()
 
@@ -231,15 +228,19 @@ class TestTransactionErrors:
         agent2 = AgentRegistry(
             id="agent-1",  # Duplicate ID
             name="Agent Two",
-            status=AgentStatus.INTERN
-        , module_path="test.module", class_name="TestAgent")
+            status=AgentStatus.INTERN,
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent2)
 
         agent3 = AgentRegistry(
             id="agent-3",
             name="Agent Three",
-            status=AgentStatus.INTERN
-        , module_path="test.module", class_name="TestAgent")
+            status=AgentStatus.INTERN,
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent3)
 
         # Commit should fail
@@ -263,8 +264,9 @@ class TestTransactionErrors:
             id="agent-1",
             name="Agent One",
             status=AgentStatus.STUDENT,
-            category="general"
-        , module_path="test.module", class_name="TestAgent")
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent1)
         db_session.flush()  # Creates savepoint in some DBs
 
@@ -272,8 +274,10 @@ class TestTransactionErrors:
         agent2 = AgentRegistry(
             id="agent-1",  # Duplicate
             name="Agent Two",
-            status=AgentStatus.INTERN
-        , module_path="test.module", class_name="TestAgent")
+            status=AgentStatus.INTERN,
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent2)
 
         # Flush should fail
@@ -287,8 +291,10 @@ class TestTransactionErrors:
         agent3 = AgentRegistry(
             id="agent-3",
             name="Agent Three",
-            status=AgentStatus.INTERN
-        , module_path="test.module", class_name="TestAgent")
+            status=AgentStatus.INTERN,
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent3)
         db_session.commit()  # Should succeed
 
@@ -311,8 +317,9 @@ class TestTransactionErrors:
             id="agent-1",
             name="Agent One",
             status=AgentStatus.STUDENT,
-            category="general"
-        , module_path="test.module", class_name="TestAgent")
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent1)
         db_session.commit()
 
@@ -320,8 +327,10 @@ class TestTransactionErrors:
         agent2 = AgentRegistry(
             id="agent-1",  # Duplicate
             name="Agent Two",
-            status=AgentStatus.INTERN
-        , module_path="test.module", class_name="TestAgent")
+            status=AgentStatus.INTERN,
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent2)
 
         with pytest.raises(IntegrityError):
@@ -334,8 +343,10 @@ class TestTransactionErrors:
         agent3 = AgentRegistry(
             id="agent-3",
             name="Agent Three",
-            status=AgentStatus.INTERN
-        , module_path="test.module", class_name="TestAgent")
+            status=AgentStatus.INTERN,
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent3)
         db_session.commit()  # Should succeed
 
@@ -354,50 +365,55 @@ class TestSessionManagementErrors:
     def test_session_closed_during_operation(self, db_session):
         """
         ERROR PATH: Session closed before operation completes.
-        EXPECTED: Exception raised, session state invalid.
+        EXPECTED: Session releases resources; a new query re-acquires a
+        connection (SQLAlchemy sessions are reusable after close()).
         """
         # Create agent
         agent = AgentRegistry(
             id="agent-1",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-            category="general"
-        , module_path="test.module", class_name="TestAgent")
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent)
         db_session.commit()
 
         # Close session
         db_session.close()
 
-        # Try to use closed session
-        with pytest.raises(Exception):
-            db_session.query(AgentRegistry).all()
+        # Session reconnects on next use and sees the committed row
+        assert db_session.query(AgentRegistry).filter(AgentRegistry.id == "agent-1").count() == 1
 
     def test_multiple_concurrent_sessions_same_object(self, db_session):
         """
         ERROR PATH: Multiple sessions accessing same object.
         EXPECTED: Concurrent modification or stale data detected.
         """
+        from sqlalchemy.orm import sessionmaker
+
         # Create agent in session 1
         agent1 = AgentRegistry(
             id="agent-1",
             name="Agent One",
             status=AgentStatus.STUDENT,
-            category="general"
-        , module_path="test.module", class_name="TestAgent")
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent1)
         db_session.commit()
 
-        # Get new session
-        session2 = get_db_session().__enter__()
+        # Get new session over the same (in-memory) database
+        session2 = sessionmaker(bind=db_session.bind)()
 
         # Load same agent in session 2
         agent2 = session2.query(AgentRegistry).filter(AgentRegistry.id == "agent-1").first()
+        assert agent2 is not None
         agent2.name = "Agent Two"
 
         # Commit in session 2
         session2.commit()
-        session2.__exit__(None, None, None)
+        session2.close()
 
         # Try to modify in session 1 (stale data)
         agent1.name = "Agent One Updated"
@@ -407,25 +423,25 @@ class TestSessionManagementErrors:
 
     def test_detached_instance_error(self, db_session):
         """
-        ERROR PATH: Accessing detached instance after session closed.
-        EXPECTED: DetachedInstanceError or AttributeError.
+        ERROR PATH: Accessing instance after session closed.
+        EXPECTED: Session remains usable; queries re-connect and succeed.
         """
         # Create agent
         agent = AgentRegistry(
             id="agent-1",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-            category="general"
-        , module_path="test.module", class_name="TestAgent")
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent)
         db_session.commit()
         db_session.close()
 
-        # Try to access lazy-loaded attribute (if any)
-        # AgentRegistry doesn't have relationships, so no lazy loading
-        # But trying to query will fail
-        with pytest.raises(Exception):
-            db_session.query(AgentRegistry).filter(AgentRegistry.id == "agent-1").first()
+        # Querying a closed session re-acquires a connection (no raise)
+        row = db_session.query(AgentRegistry).filter(AgentRegistry.id == "agent-1").first()
+        assert row is not None
+        assert row.name == "Test Agent"
 
 
 # ============================================================================
@@ -438,25 +454,18 @@ class TestORMSpecificErrors:
 
     def test_flush_failure_validation_error(self, db_session):
         """
-        ERROR PATH: Flush fails due to validation error.
-        EXPECTED: Exception raised before database hit.
+        ERROR PATH: Model-level validation failure.
+        EXPECTED: ValueError raised at construction (before database hit).
         """
-        # Try to create invalid agent (if schema has validation)
-        agent = AgentRegistry(
-            id="agent-1",
-            name=None,  # Invalid if name is required
-            status=AgentStatus.STUDENT
-        , module_path="test.module", class_name="TestAgent")
-        db_session.add(agent)
-
-        # Flush may fail if name is NOT NULL
-        try:
-            db_session.flush()
-            db_session.rollback()
-        except (IntegrityError, Exception):
-            # Validation enforced
-            db_session.rollback()
-            assert True
+        # Agent name is validated by the model (empty/None rejected)
+        with pytest.raises(ValueError):
+            AgentRegistry(
+                id="agent-1",
+                name=None,  # Invalid if name is required
+                status=AgentStatus.STUDENT,
+                category="general",
+                module_path="test.module", class_name="TestAgent"
+            )
 
     def test_commit_failure_constraint_violation(self, db_session):
         """
@@ -468,8 +477,9 @@ class TestORMSpecificErrors:
             id="agent-1",
             name="Agent One",
             status=AgentStatus.STUDENT,
-            category="general"
-        , module_path="test.module", class_name="TestAgent")
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent1)
         db_session.commit()
 
@@ -477,8 +487,10 @@ class TestORMSpecificErrors:
         agent2 = AgentRegistry(
             id="agent-1",
             name="Agent Two",
-            status=AgentStatus.INTERN
-        , module_path="test.module", class_name="TestAgent")
+            status=AgentStatus.INTERN,
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
         db_session.add(agent2)
 
         # Commit should fail
@@ -499,8 +511,9 @@ class TestORMSpecificErrors:
             id="agent-1",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-            category="general"
-        , module_path="test.module", class_name="TestAgent")
+            category="general",
+            module_path="test.module", class_name="TestAgent"
+        )
 
         # Try to refresh (not in DB yet)
         # This may succeed (no-op) or fail
@@ -521,6 +534,25 @@ class TestORMSpecificErrors:
 class TestContextManagerErrors:
     """Test get_db_session context manager error handling"""
 
+    @pytest.fixture(autouse=True)
+    def _in_memory_db(self, monkeypatch):
+        """
+        Point core.database.SessionLocal at a fresh in-memory DB so the
+        context-manager tests never touch the shared dev database.
+        """
+        from sqlalchemy.pool import StaticPool
+        from core.models_registration import Base
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        Base.metadata.create_all(engine)
+        monkeypatch.setattr("core.database.SessionLocal", sessionmaker(bind=engine))
+        yield
+        engine.dispose()
+
     def test_context_manager_exception_in_block(self):
         """
         ERROR PATH: Exception raised within context manager block.
@@ -531,8 +563,10 @@ class TestContextManagerErrors:
                 agent = AgentRegistry(
                     id="agent-1",
                     name="Test Agent",
-                    status=AgentStatus.STUDENT
-                , module_path="test.module", class_name="TestAgent")
+                    status=AgentStatus.STUDENT,
+                    category="general",
+                    module_path="test.module", class_name="TestAgent"
+                )
                 db.add(agent)
 
                 # Raise exception
@@ -551,23 +585,24 @@ class TestContextManagerErrors:
     def test_context_manager_exit_with_open_transaction(self):
         """
         ERROR PATH: Context manager exits with uncommitted transaction.
-        EXPECTED: Automatic rollback or warning.
+        EXPECTED: get_db_session auto-commits on clean exit (core/database.py
+        commits after the yield), so the agent IS persisted.
         """
         with get_db_session() as db:
             agent = AgentRegistry(
                 id="agent-1",
                 name="Test Agent",
-                status=AgentStatus.STUDENT
-            , module_path="test.module", class_name="TestAgent")
+                status=AgentStatus.STUDENT,
+                category="general",
+                module_path="test.module", class_name="TestAgent"
+            )
             db.add(agent)
-            # No commit, transaction left open
+            # No explicit commit — context manager commits on clean exit
 
-        # Context manager should rollback automatically
-
-        # Verify agent not in database
+        # Verify agent was committed by the context manager
         with get_db_session() as db:
             count = db.query(AgentRegistry).filter(AgentRegistry.id == "agent-1").count()
-            assert count == 0  # Rolled back
+            assert count == 1  # Auto-committed on clean exit
 
 
 # ============================================================================
@@ -607,8 +642,8 @@ class TestBulkOperationErrors:
         EXPECTED: Partial update or complete rollback.
         """
         # Create agents first
-        agent1 = AgentRegistry(id="agent-1", name="Agent One", status=AgentStatus.STUDENT, module_path="test.module", class_name="TestAgent")
-        agent2 = AgentRegistry(id="agent-2", name="Agent Two", status=AgentStatus.INTERN, module_path="test.module", class_name="TestAgent")
+        agent1 = AgentRegistry(id="agent-1", name="Agent One", status=AgentStatus.STUDENT, category="general", module_path="test.module", class_name="TestAgent")
+        agent2 = AgentRegistry(id="agent-2", name="Agent Two", status=AgentStatus.INTERN, category="general", module_path="test.module", class_name="TestAgent")
         db_session.add(agent1)
         db_session.add(agent2)
         db_session.commit()
