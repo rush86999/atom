@@ -1473,10 +1473,14 @@ class TestWhatsAppCoverage:
         wa.http_session = Mock()
         wa.http_session.get = AsyncMock(return_value=resp)
         asyncio.run(wa._verify_api_connection())
+        # Fail-closed: non-200 or transport error must raise so initialize()
+        # cannot claim success over a dead API connection.
         resp.status_code = 401
-        asyncio.run(wa._verify_api_connection())
+        with pytest.raises(RuntimeError):
+            asyncio.run(wa._verify_api_connection())
         wa.http_session.get = AsyncMock(side_effect=RuntimeError("boom"))
-        asyncio.run(wa._verify_api_connection())
+        with pytest.raises(RuntimeError):
+            asyncio.run(wa._verify_api_connection())
 
     def test_setup_webhook_paths(self):
         wa = self._wa()

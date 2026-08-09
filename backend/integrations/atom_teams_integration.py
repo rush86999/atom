@@ -180,7 +180,7 @@ class AtomTeamsIntegration:
                     'type': channel.channel_type,
                     'platform': 'Microsoft Teams',
                     'workspace_id': workspace_id,
-                    'workspace_name': channel.workspaceName,
+                    'workspace_name': channel.workspace_id,
                     'status': 'active' if not channel.is_archived else 'archived',
                     'member_count': channel.member_count,
                     'message_count': channel.message_count,
@@ -267,7 +267,7 @@ class AtomTeamsIntegration:
             
         except Exception as e:
             logger.error(f"Error sending unified Teams message: {e}")
-            return {'ok': False, 'error': str(e)}
+            return {'ok': False, 'error': 'Failed to send message'}
     
     async def get_unified_messages(self, workspace_id: str, channel_id: str,
                                 limit: int = 100, options: Dict[str, Any] = None) -> List[Dict[str, Any]]:
@@ -363,7 +363,7 @@ class AtomTeamsIntegration:
             self.unified_messages.extend(unified_messages)
             
             # Sort by timestamp (newest first)
-            unified_messages.sort(key=lambda x: x['timestamp'], reverse=True)
+            unified_messages.sort(key=lambda x: x['timestamp'] or '', reverse=True)
             
             return unified_messages[:limit]
             
@@ -488,7 +488,7 @@ class AtomTeamsIntegration:
             
         except Exception as e:
             logger.error(f"Error creating unified Teams workflow: {e}")
-            return {'ok': False, 'error': str(e)}
+            return {'ok': False, 'error': 'Failed to create Teams workflow'}
     
     async def get_unified_analytics(self, metric: str, time_range: str,
                                  workspace_id: str = None, options: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -528,7 +528,7 @@ class AtomTeamsIntegration:
             
         except Exception as e:
             logger.error(f"Error getting unified Teams analytics: {e}")
-            return {'ok': False, 'error': str(e)}
+            return {'ok': False, 'error': 'Failed to get analytics'}
     
     # Private helper methods
     async def _start_integration_workers(self):

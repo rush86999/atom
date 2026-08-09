@@ -475,6 +475,8 @@ class AtomQuickBooksIntegrationService:
                     error_msg = f"Failed to create invoice: {response.status_code} - {response.text}"
                     logger.error(error_msg)
                     return {'success': False, 'error': error_msg}
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error creating invoice: {e}")
             return {'success': False, 'error': str(e)}
@@ -602,6 +604,8 @@ class AtomQuickBooksIntegrationService:
                     
                     return {'success': False, 'error': error_msg}
                     
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error creating payment: {e}")
             return {'success': False, 'error': str(e)}
@@ -728,6 +732,8 @@ class AtomQuickBooksIntegrationService:
                     logger.error(error_msg)
                     return {'success': False, 'error': error_msg}
                     
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error creating expense: {e}")
             return {'success': False, 'error': str(e)}
@@ -778,6 +784,8 @@ class AtomQuickBooksIntegrationService:
                 else:
                     logger.error(f"Failed to create QuickBooks customer: {response.status_code} - {response.text}")
                     return {'success': False, 'error': response.text}
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error creating QuickBooks customer: {e}")
             return {'success': False, 'error': str(e)}
@@ -858,6 +866,8 @@ class AtomQuickBooksIntegrationService:
                 'generation_time': generation_time
             }
             
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error generating financial report: {e}")
             return {'success': False, 'error': str(e)}
@@ -962,9 +972,11 @@ class AtomQuickBooksIntegrationService:
             from atom_stripe_integration import atom_stripe_integration
             self.stripe_integration = atom_stripe_integration
             logger.info("Stripe integration initialized")
+            return atom_stripe_integration
         except ImportError:
             logger.warning("Stripe integration not available")
             self.stripe_integration = None
+            return None
 
     async def _perform_security_check(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Perform security and compliance check on financial data."""
@@ -1304,6 +1316,8 @@ class AtomQuickBooksIntegrationService:
                 )
             logger.info("QuickBooks Integration Service closed")
             
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error closing QuickBooks Integration Service: {e}")
 

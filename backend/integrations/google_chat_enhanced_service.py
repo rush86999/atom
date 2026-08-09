@@ -417,7 +417,7 @@ class GoogleChatEnhancedService(IntegrationService):
                         member_count, message_count, files_count, is_archived, is_active,
                         external_user_permission, access_token, refresh_token, scopes,
                         user_id, tenant_id, integration_data)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         space.space_id,
                         space.name,
@@ -448,13 +448,16 @@ class GoogleChatEnhancedService(IntegrationService):
                     )
                 )
                 self.db.commit()
-            else:
+            elif self.redis_client:
                 # Save to cache (development)
                 self.redis_client.setex(
                     f"gc_space_user:{space.user_id}",
                     3600,  # 1 hour
                     json.dumps(asdict(space), default=str)
                 )
+            else:
+                # No persistence backend configured — keep state in memory only.
+                logger.debug("No db/redis configured — saving space in memory only")
             
             # Update connection status
             self.connection_status[space.space_id] = GoogleChatConnectionStatus.CONNECTED
@@ -573,7 +576,7 @@ class GoogleChatEnhancedService(IntegrationService):
             logger.error(f"Error exchanging Google Chat code for tokens: {e}")
             return {
                 'ok': False,
-                'error': str(e),
+                'error': 'Google Chat token exchange failed',
                 'message': 'Google Chat token exchange failed'
             }
     
@@ -615,7 +618,7 @@ class GoogleChatEnhancedService(IntegrationService):
             self.connection_status[space_id] = GoogleChatConnectionStatus.ERROR
             return {
                 'connected': False,
-                'error': str(e),
+                'error': 'Google Chat connection test failed',
                 'status': 'error'
             }
     
@@ -764,7 +767,7 @@ class GoogleChatEnhancedService(IntegrationService):
             logger.error(f"Error sending Google Chat message: {e}")
             return {
                 'ok': False,
-                'error': str(e),
+                'error': 'Failed to send message',
                 'message': 'Failed to send message'
             }
     
@@ -847,7 +850,7 @@ class GoogleChatEnhancedService(IntegrationService):
                 self.redis_client.setex(
                     cache_key,
                     1800,  # 30 minutes
-                    json.dumps([asdict(m) for m in messages])
+                    json.dumps([asdict(m) for m in messages], default=str)
                 )
             
             return messages
@@ -936,7 +939,7 @@ class GoogleChatEnhancedService(IntegrationService):
             logger.error(f"Error searching Google Chat messages: {e}")
             return {
                 'ok': False,
-                'error': str(e),
+                'error': 'Google Chat search failed',
                 'messages': []
             }
     
@@ -1103,7 +1106,7 @@ class GoogleChatEnhancedService(IntegrationService):
             logger.error(f"Error executing Google Chat operation {operation}: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": f"Failed to execute Google Chat operation: {operation}",
                 "details": {"operation": operation, "tenant_id": self.tenant_id}
             }
 

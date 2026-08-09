@@ -447,7 +447,7 @@ class AtomWhatsAppIntegration:
             logger.error(f"Error sending intelligent message: {e}")
             return {
                 'success': False,
-                'error': str(e),
+                'error': 'Failed to send message',
                 'platform': 'whatsapp'
             }
     
@@ -547,7 +547,7 @@ class AtomWhatsAppIntegration:
             }
         except Exception as e:
             logger.error(f"Error getting service status: {e}")
-            return {'error': str(e), 'platform': 'whatsapp'}
+            return {'error': 'Failed to get service status', 'platform': 'whatsapp'}
     
     # Private helper methods
     async def _verify_api_connection(self):
@@ -555,14 +555,15 @@ class AtomWhatsAppIntegration:
         try:
             api_url = f"{self.whatsapp_config['api_base_url']}/{self.whatsapp_config['api_version']}/me"
             response = await self.http_session.get(api_url)
-            
-            if response.status_code == 200:
-                logger.info("WhatsApp API connection verified")
-            else:
-                logger.error(f"WhatsApp API connection failed: {response.status_code}")
-                
         except Exception as e:
             logger.error(f"Error verifying API connection: {e}")
+            raise RuntimeError("WhatsApp API connection verification failed") from e
+
+        if response.status_code == 200:
+            logger.info("WhatsApp API connection verified")
+        else:
+            logger.error(f"WhatsApp API connection failed: {response.status_code}")
+            raise RuntimeError(f"WhatsApp API connection failed with status {response.status_code}")
     
     async def _setup_webhook(self):
         """Setup webhook"""

@@ -477,7 +477,7 @@ class BitbucketService(IntegrationService):
             else:
                 raise NotImplementedError(f"Operation {operation} not supported for Bitbucket")
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Bitbucket operation failed"}
 
     def sync_to_postgres_cache(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
         """Sync Bitbucket analytics to PostgreSQL IntegrationMetric table."""
@@ -498,7 +498,7 @@ class BitbucketService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="bitbucket",
                         metric_key=key
                     ).first()
@@ -508,7 +508,7 @@ class BitbucketService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="bitbucket",
                             metric_key=key,
                             value=float(value),
@@ -522,21 +522,21 @@ class BitbucketService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Bitbucket metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save Bitbucket metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Bitbucket PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Bitbucket cache sync failed"}
 
     def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Bitbucket"""
         cache_result = self.sync_to_postgres_cache(workspace_id, access_token)
         
         return {
-            "success": True,
+            "success": cache_result.get("success", False),
             "workspace_id": workspace_id,
             "postgres_cache": cache_result,
             "timestamp": datetime.now(timezone.utc).isoformat()

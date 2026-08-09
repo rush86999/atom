@@ -105,7 +105,7 @@ def teams_workspace(**kw):
 def teams_channel(**kw):
     o = SimpleNamespace(
         channel_id="c1", display_name="General", description="desc",
-        channel_type="standard", workspaceName="Team One", is_archived=False,
+        channel_type="standard", workspace_id="t1", is_archived=False,
         member_count=5, message_count=3, unread_count=0, last_activity_at=None,
         is_muted=False, membership_type="standard", email=None, web_url=None,
         allow_cross_team_posts=False,
@@ -588,7 +588,7 @@ class TestTeamsIntegrationServices:
         svc.teams_service = Mock()
         result = asyncio.run(svc.send_unified_message("slack_w", "teams_c1", "hello"))
         assert result["ok"] is False
-        assert "Invalid workspace ID" in result["error"]
+        assert "Invalid workspace ID" not in result["error"]  # no str(e) leak
 
     def test_send_unified_message_non_teams_channel(self):
         svc = teams_mod.AtomTeamsIntegration({})

@@ -334,6 +334,11 @@ class OutlookCalendarService(IntegrationService):
             return {"has_conflicts": False, "conflicts": [], "error": "Not authenticated"}
         
         try:
+            if start_time.tzinfo is None:
+                start_time = start_time.replace(tzinfo=timezone.utc)
+            if end_time.tzinfo is None:
+                end_time = end_time.replace(tzinfo=timezone.utc)
+
             # Get events in the time range
             events = await self.get_events(
                 time_min=start_time,
@@ -398,7 +403,7 @@ class OutlookCalendarService(IntegrationService):
                 for attendee in outlook_event.get('attendees', [])
                 if attendee.get('emailAddress', {}).get('address')
             ],
-            "location": outlook_event.get('location', {}).get('displayName', ''),
+            "location": (outlook_event.get('location') or {}).get('displayName', ''),
             "created_at": outlook_event.get('createdDateTime'),
             "updated_at": outlook_event.get('lastModifiedDateTime'),
         }
@@ -550,7 +555,11 @@ class OutlookCalendarService(IntegrationService):
         # Validate tenant context
         if context and "tenant_id" in context:
             if context["tenant_id"] != self.tenant_id:
-                raise ValueError(f"Tenant ID mismatch: expected {self.tenant_id}, got {context['tenant_id']}")
+                logger.error(
+                    f"Tenant ID mismatch: expected {self.tenant_id}, "
+                    f"got {context['tenant_id']}"
+                )
+                return {"success": False, "error": "Tenant ID mismatch", "operation": operation}
 
         try:
             if operation == "get_events":

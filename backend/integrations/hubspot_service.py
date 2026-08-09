@@ -54,26 +54,6 @@ class HubSpotService(IntegrationService):
             "supports_webhooks": True,
         }
 
-    async def health_check(self) -> Dict[str, Any]:
-        """Health check for HubSpot service"""
-        try:
-            # Basic health check - verify service can be initialized
-            return {
-                "ok": True,
-                "status": "healthy",
-                "service": "hubspot",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "version": "1.0.0",
-            }
-        except Exception as e:
-            return {
-                "ok": False,
-                "status": "unhealthy",
-                "service": "hubspot",
-                "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-
     async def execute_operation(
         self,
         operation: str,
@@ -136,7 +116,13 @@ class HubSpotService(IntegrationService):
         """
         try:
             # 1. Normalize entity type
-            entity = entity_type.lower().rstrip('s') # contact, company, deal
+            entity = entity_type.lower()
+            if entity.endswith("companies"):
+                entity = "company"
+            elif entity.endswith("ies"):
+                entity = entity[:-3] + "y"
+            elif entity.endswith("s"):
+                entity = entity[:-1]
             
             # 2. Get active token
             token = context.get("token") if context else None

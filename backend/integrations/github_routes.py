@@ -19,8 +19,10 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 try:
-    from .github_service import github_service
+    from .github_service import GitHubService
+
     GITHUB_AVAILABLE = True
+    github_service = GitHubService()
 except ImportError as e:
     logger.warning(f"GitHub service not available: {e}")
     GITHUB_AVAILABLE = False
@@ -57,7 +59,7 @@ def get_github_tokens(user_id: str, db: Optional[Session] = None) -> Optional[Di
     Get GitHub tokens for user from database.
 
     Priority order:
-    1. Database token (GitHubToken model) - if OAUTH_STRICT_MODE is true
+    1. Database token (IntegrationToken, provider="github") - if OAUTH_STRICT_MODE is true
     2. Environment variable fallback - if OAUTH_STRICT_MODE is false (for testing)
 
     Args:
@@ -70,53 +72,50 @@ def get_github_tokens(user_id: str, db: Optional[Session] = None) -> Optional[Di
     Raises:
         HTTPException: If OAUTH_STRICT_MODE is true and no token found
     """
+    owns_db = False
     try:
-        # Try to get token from database first
-        if db:
-            # Try to import GitHubToken model (may not exist yet)
-            try:
-                from core.models import GitHubToken
+        if db is None:
+            db_gen = get_db_session()
+            db = next(db_gen)
+            owns_db = True
+        try:
+            from core.models import IntegrationToken
+            from core.privsec.token_encryption import decrypt_token
 
-                token_record = db.query(GitHubToken).filter(
-                    GitHubToken.user_id == user_id,
-                    GitHubToken.status == "active"
-                ).first()
+            token_record = db.query(IntegrationToken).filter(
+                IntegrationToken.user_id == user_id,
+                IntegrationToken.provider == "github",
+                IntegrationToken.status == "active"
+            ).first()
 
-                if token_record:
-                    # Check if token is expired
-                    if token_record.expires_at and token_record.expires_at < datetime.now(timezone.utc):
-                        logger.warning(f"GitHub token for user {user_id} is expired")
-                        if OAUTH_STRICT_MODE:
-                            raise HTTPException(
-                                status_code=401,
-                                detail={
-                                    "ok": False,
-                                    "error": "GitHub token expired",
-                                    "error_code": "OAUTH_TOKEN_EXPIRED",
-                                    "timestamp": datetime.now(timezone.utc).isoformat()
-                                }
-                            )
-                        return None
+            if token_record:
+                if token_record.expires_at and token_record.expires_at < datetime.now(timezone.utc):
+                    logger.warning(f"GitHub token for user {user_id} is expired")
+                    if OAUTH_STRICT_MODE:
+                        raise HTTPException(
+                            status_code=401,
+                            detail={
+                                "ok": False,
+                                "error": "GitHub token expired",
+                                "error_code": "OAUTH_TOKEN_EXPIRED",
+                                "timestamp": datetime.now(timezone.utc).isoformat()
+                            }
+                        )
+                    return None
 
-                    # Update last_used timestamp
-                    token_record.last_used = datetime.now(timezone.utc)
-                    db.commit()
+                logger.info(f"Using GitHub token from database for user {user_id}")
+                return {
+                    'access_token': decrypt_token(token_record.access_token, allow_plaintext=True),
+                    'token_type': token_record.token_type or 'bearer',
+                    'scope': token_record.scope or 'repo,user:email,read:org',
+                    'user_info': getattr(token_record, 'user_info', None) or {},
+                    'source': 'database'
+                }
 
-                    logger.info(f"Using GitHub token from database for user {user_id}")
-                    return {
-                        'access_token': token_record.access_token,
-                        'token_type': token_record.token_type or 'bearer',
-                        'scope': token_record.scope or 'repo,user:email,read:org',
-                        'user_info': token_record.user_info or {},
-                        'source': 'database'
-                    }
-
-            except ImportError:
-                # GitHubToken model doesn't exist yet, fall through to env var
-                logger.debug("GitHubToken model not found, falling back to environment variable")
-
-            except Exception as e:
-                logger.error(f"Error querying GitHub token from database: {e}")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error querying GitHub token from database: {e}")
 
         # Fallback to environment variable if strict mode is disabled
         if not OAUTH_STRICT_MODE:
@@ -159,6 +158,9 @@ def get_github_tokens(user_id: str, db: Optional[Session] = None) -> Optional[Di
                 detail="Failed to retrieve GitHub token"
             )
         return None
+    finally:
+        if owns_db:
+            db.close()
 
 # Request/Response Models
 class UserRequest(BaseModel):
@@ -171,6 +173,10 @@ class RepoRequest(UserRequest):
     limit: int = 50
     page: int = 1
     operation: str = "list"
+    name: Optional[str] = None
+    description: Optional[str] = ""
+    private: bool = False
+    auto_init: bool = True
 
 class CreateRepoRequest(UserRequest):
     name: str
@@ -187,6 +193,10 @@ class IssueRequest(UserRequest):
     limit: int = 50
     page: int = 1
     operation: str = "list"
+    title: Optional[str] = None
+    body: Optional[str] = ""
+    labels: Optional[List[str]] = []
+    assignees: Optional[List[str]] = []
 
 class CreateIssueRequest(UserRequest):
     owner: str = "developer"
@@ -205,6 +215,10 @@ class PullRequestRequest(UserRequest):
     limit: int = 50
     page: int = 1
     operation: str = "list"
+    title: Optional[str] = None
+    head: Optional[str] = None
+    base: str = "main"
+    body: Optional[str] = ""
 
 class CreatePullRequestRequest(UserRequest):
     owner: str = "developer"
@@ -250,7 +264,7 @@ async def health_check():
             return {
                 "ok": False,
                 "status": "degraded",
-                "error": f"GitHub service error: {str(e)}",
+                "error": "GitHub service error",
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
     
@@ -258,7 +272,7 @@ async def health_check():
         return {
             "ok": False,
             "status": "unhealthy",
-            "error": str(e),
+            "error": "GitHub health check failed",
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
@@ -275,7 +289,9 @@ async def list_repositories(request: RepoRequest, current_user: User = Depends(g
             raise HTTPException(status_code=401, detail="GitHub tokens not found")
         
         if request.operation == "create":
-            return await create_repository(CreateRepoRequest(**request.dict()))
+            if not request.name:
+                raise HTTPException(status_code=422, detail="name is required for repository creation")
+            return await create_repository(CreateRepoRequest(**request.dict()), current_user)
         
         # Get repositories using GitHub service
         # Note: github_service methods are synchronous and don't take user_id
@@ -284,32 +300,32 @@ async def list_repositories(request: RepoRequest, current_user: User = Depends(g
         )
         
         repos_data = [{
-            'repo_id': repo.id,
-            'name': repo.name,
-            'full_name': repo.full_name,
-            'description': repo.description,
-            'private': repo.private,
-            'fork': repo.fork,
-            'html_url': repo.html_url,
-            'clone_url': repo.clone_url,
-            'ssh_url': repo.ssh_url,
-            'language': repo.language,
-            'stargazers_count': repo.stargazers_count,
-            'watchers_count': repo.watchers_count,
-            'forks_count': repo.forks_count,
-            'open_issues_count': repo.open_issues_count,
-            'default_branch': repo.default_branch,
-            'created_at': repo.created_at,
-            'updated_at': repo.updated_at,
-            'pushed_at': repo.pushed_at,
-            'size': repo.size,
+            'repo_id': repo.get('id'),
+            'name': repo.get('name'),
+            'full_name': repo.get('full_name'),
+            'description': repo.get('description'),
+            'private': repo.get('private'),
+            'fork': repo.get('fork'),
+            'html_url': repo.get('html_url'),
+            'clone_url': repo.get('clone_url'),
+            'ssh_url': repo.get('ssh_url'),
+            'language': repo.get('language'),
+            'stargazers_count': repo.get('stargazers_count'),
+            'watchers_count': repo.get('watchers_count'),
+            'forks_count': repo.get('forks_count'),
+            'open_issues_count': repo.get('open_issues_count'),
+            'default_branch': repo.get('default_branch'),
+            'created_at': repo.get('created_at'),
+            'updated_at': repo.get('updated_at'),
+            'pushed_at': repo.get('pushed_at'),
+            'size': repo.get('size'),
             'owner': {
-                'login': repo.owner.get('login') if repo.owner else None,
-                'avatar_url': repo.owner.get('avatar_url') if repo.owner else None
+                'login': (repo.get('owner') or {}).get('login'),
+                'avatar_url': (repo.get('owner') or {}).get('avatar_url')
             },
-            'topics': repo.topics,
-            'license': repo.license,
-            'visibility': 'private' if repo.private else 'public'
+            'topics': repo.get('topics'),
+            'license': repo.get('license'),
+            'visibility': 'private' if repo.get('private') else 'public'
         } for repo in repos]
         
         return {
@@ -333,6 +349,23 @@ async def list_repositories(request: RepoRequest, current_user: User = Depends(g
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error listing repositories")
 
+def _create_github_repository(
+    name: str, description: str, private: bool, auto_init: bool
+) -> Dict[str, Any]:
+    """Create a GitHub repository via the service's authenticated session."""
+    response = github_service.session.post(
+        f"{github_service.base_url}/user/repos",
+        json={
+            "name": name,
+            "description": description,
+            "private": private,
+            "auto_init": auto_init,
+        },
+    )
+    response.raise_for_status()
+    return response.json()
+
+
 @router.post("/repositories/create")
 async def create_repository(request: CreateRepoRequest, current_user: User = Depends(get_current_user)):
     """Create a new GitHub repository"""
@@ -346,8 +379,7 @@ async def create_repository(request: CreateRepoRequest, current_user: User = Dep
             raise HTTPException(status_code=401, detail="GitHub tokens not found")
         
         # Create repository using GitHub service
-        result = await github_service.create_repository(
-            request.user_id,
+        result = _create_github_repository(
             request.name,
             request.description or '',
             request.private,
@@ -358,41 +390,41 @@ async def create_repository(request: CreateRepoRequest, current_user: User = Dep
             raise HTTPException(status_code=500, detail="Failed to create repository")
         
         repo_data = {
-            'repo_id': result.id,
-            'name': result.name,
-            'full_name': result.full_name,
-            'description': result.description,
-            'private': result.private,
-            'fork': result.fork,
-            'html_url': result.html_url,
-            'clone_url': result.clone_url,
-            'ssh_url': result.ssh_url,
-            'language': result.language,
-            'stargazers_count': result.stargazers_count,
-            'watchers_count': result.watchers_count,
-            'forks_count': result.forks_count,
-            'open_issues_count': result.open_issues_count,
-            'default_branch': result.default_branch,
-            'created_at': result.created_at,
-            'updated_at': result.updated_at,
-            'pushed_at': result.pushed_at,
-            'size': result.size,
+            'repo_id': result.get('id'),
+            'name': result.get('name'),
+            'full_name': result.get('full_name'),
+            'description': result.get('description'),
+            'private': result.get('private'),
+            'fork': result.get('fork'),
+            'html_url': result.get('html_url'),
+            'clone_url': result.get('clone_url'),
+            'ssh_url': result.get('ssh_url'),
+            'language': result.get('language'),
+            'stargazers_count': result.get('stargazers_count'),
+            'watchers_count': result.get('watchers_count'),
+            'forks_count': result.get('forks_count'),
+            'open_issues_count': result.get('open_issues_count'),
+            'default_branch': result.get('default_branch'),
+            'created_at': result.get('created_at'),
+            'updated_at': result.get('updated_at'),
+            'pushed_at': result.get('pushed_at'),
+            'size': result.get('size'),
             'owner': {
-                'login': result.owner.get('login') if result.owner else None,
-                'avatar_url': result.owner.get('avatar_url') if result.owner else None
+                'login': (result.get('owner') or {}).get('login'),
+                'avatar_url': (result.get('owner') or {}).get('avatar_url')
             },
-            'topics': result.topics,
-            'license': result.license,
-            'visibility': 'private' if result.private else 'public'
+            'topics': result.get('topics'),
+            'license': result.get('license'),
+            'visibility': 'private' if result.get('private') else 'public'
         }
         
         return {
             'ok': True,
             'data': {
                 'repository': repo_data,
-                'url': result.html_url,
-                'clone_url': result.clone_url,
-                'ssh_url': result.ssh_url,
+                'url': result.get('html_url'),
+                'clone_url': result.get('clone_url'),
+                'ssh_url': result.get('ssh_url'),
                 'message': 'Repository created successfully'
             },
             'endpoint': 'create_repository',
@@ -418,46 +450,45 @@ async def list_issues(request: IssueRequest, current_user: User = Depends(get_cu
             raise HTTPException(status_code=401, detail="GitHub tokens not found")
         
         if request.operation == "create":
-            return await create_issue(CreateIssueRequest(**request.dict()))
+            if not request.title:
+                raise HTTPException(status_code=422, detail="title is required for issue creation")
+            return await create_issue(CreateIssueRequest(**request.dict()), current_user)
         
         # Get issues using GitHub service
-        issues = await github_service.get_user_issues(
-            request.user_id,
-            request.state,
-            request.sort,
-            request.direction,
-            request.limit,
-            request.page
+        issues = github_service.get_repository_issues(
+            request.owner,
+            request.repo,
+            request.state
         )
         
         issues_data = [{
-            'issue_id': issue.id,
-            'number': issue.number,
-            'title': issue.title,
-            'body': issue.body,
-            'state': issue.state,
-            'locked': issue.locked,
-            'comments': issue.comments,
-            'created_at': issue.created_at,
-            'updated_at': issue.updated_at,
-            'closed_at': issue.closed_at,
+            'issue_id': issue.get('id'),
+            'number': issue.get('number'),
+            'title': issue.get('title'),
+            'body': issue.get('body'),
+            'state': issue.get('state'),
+            'locked': issue.get('locked'),
+            'comments': issue.get('comments'),
+            'created_at': issue.get('created_at'),
+            'updated_at': issue.get('updated_at'),
+            'closed_at': issue.get('closed_at'),
             'user': {
-                'login': issue.user.get('login') if issue.user else None,
-                'avatar_url': issue.user.get('avatar_url') if issue.user else None
+                'login': (issue.get('user') or {}).get('login'),
+                'avatar_url': (issue.get('user') or {}).get('avatar_url')
             },
             'assignee': {
-                'login': issue.assignee.get('login') if issue.assignee else None,
-                'avatar_url': issue.assignee.get('avatar_url') if issue.assignee else None
-            } if issue.assignee else None,
+                'login': (issue.get('assignee') or {}).get('login'),
+                'avatar_url': (issue.get('assignee') or {}).get('avatar_url')
+            } if issue.get('assignee') else None,
             'assignees': [{
-                'login': assignee.get('login') if assignee else None,
-                'avatar_url': assignee.get('avatar_url') if assignee else None
-            } for assignee in (issue.assignees or [])],
-            'labels': issue.labels,
-            'milestone': issue.milestone,
-            'html_url': issue.html_url,
-            'reactions': issue.reactions,
-            'repository_url': issue.repository_url
+                'login': (assignee or {}).get('login'),
+                'avatar_url': (assignee or {}).get('avatar_url')
+            } for assignee in (issue.get('assignees') or [])],
+            'labels': issue.get('labels'),
+            'milestone': issue.get('milestone'),
+            'html_url': issue.get('html_url'),
+            'reactions': issue.get('reactions'),
+            'repository_url': issue.get('repository_url')
         } for issue in issues]
         
         return {
@@ -494,45 +525,43 @@ async def create_issue(request: CreateIssueRequest, current_user: User = Depends
             raise HTTPException(status_code=401, detail="GitHub tokens not found")
         
         # Create issue using GitHub service
-        result = await github_service.create_issue(
-            request.user_id,
+        result = github_service.create_issue(
             request.owner,
             request.repo,
             request.title,
             request.body or '',
-            request.labels or [],
-            request.assignees or []
+            request.labels or []
         )
         
         if not result:
             raise HTTPException(status_code=500, detail="Failed to create issue")
         
         issue_data = {
-            'issue_id': result.id,
-            'number': result.number,
-            'title': result.title,
-            'body': result.body,
-            'state': result.state,
-            'locked': result.locked,
-            'comments': result.comments,
-            'created_at': result.created_at,
-            'updated_at': result.updated_at,
-            'closed_at': result.closed_at,
-            'user': result.user,
-            'assignee': result.assignee,
-            'assignees': result.assignees,
-            'labels': result.labels,
-            'milestone': result.milestone,
-            'html_url': result.html_url,
-            'reactions': result.reactions,
-            'repository_url': result.repository_url
+            'issue_id': result.get('id'),
+            'number': result.get('number'),
+            'title': result.get('title'),
+            'body': result.get('body'),
+            'state': result.get('state'),
+            'locked': result.get('locked'),
+            'comments': result.get('comments'),
+            'created_at': result.get('created_at'),
+            'updated_at': result.get('updated_at'),
+            'closed_at': result.get('closed_at'),
+            'user': result.get('user'),
+            'assignee': result.get('assignee'),
+            'assignees': result.get('assignees'),
+            'labels': result.get('labels'),
+            'milestone': result.get('milestone'),
+            'html_url': result.get('html_url'),
+            'reactions': result.get('reactions'),
+            'repository_url': result.get('repository_url')
         }
         
         return {
             'ok': True,
             'data': {
                 'issue': issue_data,
-                'url': result.html_url,
+                'url': result.get('html_url'),
                 'message': 'Issue created successfully'
             },
             'endpoint': 'create_issue',
@@ -558,46 +587,43 @@ async def list_pull_requests(request: PullRequestRequest, current_user: User = D
             raise HTTPException(status_code=401, detail="GitHub tokens not found")
         
         if request.operation == "create":
-            return await create_pull_request(CreatePullRequestRequest(**request.dict()))
+            if not request.title or not request.head:
+                raise HTTPException(status_code=422, detail="title and head are required for pull request creation")
+            return await create_pull_request(CreatePullRequestRequest(**request.dict()), current_user)
         
         # Get pull requests using GitHub service
-        prs = await github_service.get_pull_requests(
-            request.user_id,
+        prs = github_service.get_repository_pulls(
             request.owner,
             request.repo,
-            request.state,
-            request.sort,
-            request.direction,
-            request.limit,
-            request.page
+            request.state
         )
         
         prs_data = [{
-            'pr_id': pr.id,
-            'number': pr.number,
-            'title': pr.title,
-            'body': pr.body,
-            'state': pr.state,
-            'locked': pr.locked,
-            'created_at': pr.created_at,
-            'updated_at': pr.updated_at,
-            'closed_at': pr.closed_at,
-            'merged_at': pr.merged_at,
-            'merge_commit_sha': pr.merge_commit_sha,
-            'head': pr.head,
-            'base': pr.base,
-            'user': pr.user,
-            'assignees': pr.assignees,
-            'requested_reviewers': pr.requested_reviewers,
-            'labels': pr.labels,
-            'milestone': pr.milestone,
-            'commits': pr.commits,
-            'additions': pr.additions,
-            'deletions': pr.deletions,
-            'changed_files': pr.changed_files,
-            'html_url': pr.html_url,
-            'diff_url': pr.diff_url,
-            'patch_url': pr.patch_url
+            'pr_id': pr.get('id'),
+            'number': pr.get('number'),
+            'title': pr.get('title'),
+            'body': pr.get('body'),
+            'state': pr.get('state'),
+            'locked': pr.get('locked'),
+            'created_at': pr.get('created_at'),
+            'updated_at': pr.get('updated_at'),
+            'closed_at': pr.get('closed_at'),
+            'merged_at': pr.get('merged_at'),
+            'merge_commit_sha': pr.get('merge_commit_sha'),
+            'head': pr.get('head'),
+            'base': pr.get('base'),
+            'user': pr.get('user'),
+            'assignees': pr.get('assignees'),
+            'requested_reviewers': pr.get('requested_reviewers'),
+            'labels': pr.get('labels'),
+            'milestone': pr.get('milestone'),
+            'commits': pr.get('commits'),
+            'additions': pr.get('additions'),
+            'deletions': pr.get('deletions'),
+            'changed_files': pr.get('changed_files'),
+            'html_url': pr.get('html_url'),
+            'diff_url': pr.get('diff_url'),
+            'patch_url': pr.get('patch_url')
         } for pr in prs]
         
         return {
@@ -635,8 +661,7 @@ async def create_pull_request(request: CreatePullRequestRequest, current_user: U
             raise HTTPException(status_code=401, detail="GitHub tokens not found")
         
         # Create pull request using GitHub service
-        result = await github_service.create_pull_request(
-            request.user_id,
+        result = github_service.create_pull_request(
             request.owner,
             request.repo,
             request.title,
@@ -649,39 +674,39 @@ async def create_pull_request(request: CreatePullRequestRequest, current_user: U
             raise HTTPException(status_code=500, detail="Failed to create pull request")
         
         pr_data = {
-            'pr_id': result.id,
-            'number': result.number,
-            'title': result.title,
-            'body': result.body,
-            'state': result.state,
-            'locked': result.locked,
-            'created_at': result.created_at,
-            'updated_at': result.updated_at,
-            'closed_at': result.closed_at,
-            'merged_at': result.merged_at,
-            'merge_commit_sha': result.merge_commit_sha,
-            'head': result.head,
-            'base': result.base,
-            'user': result.user,
-            'assignees': result.assignees,
-            'requested_reviewers': result.requested_reviewers,
-            'labels': result.labels,
-            'milestone': result.milestone,
-            'commits': result.commits,
-            'additions': result.additions,
-            'deletions': result.deletions,
-            'changed_files': result.changed_files,
-            'html_url': result.html_url,
-            'diff_url': result.diff_url,
-            'patch_url': result.patch_url
+            'pr_id': result.get('id'),
+            'number': result.get('number'),
+            'title': result.get('title'),
+            'body': result.get('body'),
+            'state': result.get('state'),
+            'locked': result.get('locked'),
+            'created_at': result.get('created_at'),
+            'updated_at': result.get('updated_at'),
+            'closed_at': result.get('closed_at'),
+            'merged_at': result.get('merged_at'),
+            'merge_commit_sha': result.get('merge_commit_sha'),
+            'head': result.get('head'),
+            'base': result.get('base'),
+            'user': result.get('user'),
+            'assignees': result.get('assignees'),
+            'requested_reviewers': result.get('requested_reviewers'),
+            'labels': result.get('labels'),
+            'milestone': result.get('milestone'),
+            'commits': result.get('commits'),
+            'additions': result.get('additions'),
+            'deletions': result.get('deletions'),
+            'changed_files': result.get('changed_files'),
+            'html_url': result.get('html_url'),
+            'diff_url': result.get('diff_url'),
+            'patch_url': result.get('patch_url')
         }
         
         return {
             'ok': True,
             'data': {
                 'pull_request': pr_data,
-                'url': result.html_url,
-                'diff_url': result.diff_url,
+                'url': result.get('html_url'),
+                'diff_url': result.get('diff_url'),
                 'message': 'Pull request created successfully'
             },
             'endpoint': 'create_pull_request',
@@ -707,13 +732,10 @@ async def search_github(request: SearchRequest, current_user: User = Depends(get
             raise HTTPException(status_code=401, detail="GitHub tokens not found")
         
         # Search repositories using GitHub service
-        result = await github_service.search_repositories(
-            request.user_id,
+        result = github_service.search_repositories(
             request.query,
             request.sort,
-            request.order,
-            request.limit,
-            request.page
+            request.order
         )
         
         return result
