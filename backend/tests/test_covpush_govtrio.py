@@ -1400,43 +1400,37 @@ class TestExecuteProposedAction:
         assert result["success"] is False
 
     def test_browser_action_success(self):
-        proposal = _proposal(proposal_data={"action_type": "browser_automate", "url": "https://x.com", "actions": [{"type": "click"}]})
+        proposal = _proposal(proposal_data={"action_type": "browser_automate", "url": "https://x.com", "actions": [{"type": "click", "selector": "#b"}]})
         db = _mock_db(proposal)
         service = ProposalService(db)
-        with patch("tools.browser_tool.execute_browser_automation", new_callable=AsyncMock, create=True) as m:
-            m.return_value = {"success": True, "screenshots": []}
+        with patch("tools.browser_tool.browser_create_session", new_callable=AsyncMock) as cs, \
+             patch("tools.browser_tool.browser_navigate", new_callable=AsyncMock) as nav, \
+             patch("tools.browser_tool.browser_click", new_callable=AsyncMock) as click, \
+             patch("tools.browser_tool.browser_close_session", new_callable=AsyncMock):
+            cs.return_value = {"session_id": "s-1"}
             result = asyncio.run(service._execute_proposed_action(proposal))
         assert result["success"] is True
         assert result["action_type"] == "browser_automate"
-        m.assert_awaited_once()
+        nav.assert_awaited_once()
+        click.assert_awaited_once()
 
-    def test_browser_action_failure(self):
-        proposal = _proposal(proposal_data={"action_type": "browser_automate", "url": "https://x.com"})
-        db = _mock_db(proposal)
-        service = ProposalService(db)
-        with patch("tools.browser_tool.execute_browser_automation", new_callable=AsyncMock, create=True) as m:
-            m.return_value = {"success": False}
-            result = asyncio.run(service._execute_proposed_action(proposal))
-        assert result["success"] is False
-        assert result["execution_id"]
-
-    def test_browser_action_import_error(self):
+    def test_browser_action_requires_url_or_session(self):
         proposal = _proposal(proposal_data={"action_type": "browser_automate"})
         db = _mock_db(proposal)
         service = ProposalService(db)
         result = asyncio.run(service._execute_proposed_action(proposal))
         assert result["success"] is False
-        assert "not available" in result["error"]
+        assert "url or session_id" not in result["error"]
 
-    def test_browser_action_runtime_error_caught(self):
-        proposal = _proposal(proposal_data={"action_type": "browser_automate"})
+    def test_browser_action_runtime_error_returns_failure(self):
+        proposal = _proposal(proposal_data={"action_type": "browser_automate", "url": "https://x.com"})
         db = _mock_db(proposal)
         service = ProposalService(db)
-        with patch("tools.browser_tool.execute_browser_automation", new_callable=AsyncMock, create=True) as m:
-            m.side_effect = RuntimeError("cdp down")
+        with patch("tools.browser_tool.browser_create_session", new_callable=AsyncMock) as cs:
+            cs.side_effect = RuntimeError("cdp down")
             result = asyncio.run(service._execute_proposed_action(proposal))
         assert result["success"] is False
-        assert "cdp down" in result["error"]
+        assert "cdp down" not in result["error"]
 
     def test_canvas_action(self):
         proposal = _proposal(proposal_data={"action_type": "canvas_present", "canvas_type": "markdown", "content": {"text": "hi"}})
@@ -1456,15 +1450,15 @@ class TestExecuteProposedAction:
             m.side_effect = RuntimeError("canvas down")
             result = asyncio.run(service._execute_proposed_action(proposal))
         assert result["success"] is False
-        assert "canvas down" in result["error"]
+        assert "canvas down" not in result["error"]
 
     def test_integration_action(self):
         proposal = _proposal(proposal_data={"action_type": "integration_connect", "integration_type": "slack", "operation": "send_message", "parameters": {"text": "hi"}})
         db = _mock_db(proposal)
         service = ProposalService(db)
-        svc = MagicMock()
-        svc.execute_operation = AsyncMock(return_value={"success": True})
-        with patch("core.integrations.get_integration_service", return_value=svc, create=True):
+        inst = MagicMock()
+        inst.execute = AsyncMock(return_value={"ok": True})
+        with patch("integrations.universal_integration_service.UniversalIntegrationService", return_value=inst):
             result = asyncio.run(service._execute_proposed_action(proposal))
         assert result["success"] is True
         assert result["integration_type"] == "slack"
@@ -1473,9 +1467,9 @@ class TestExecuteProposedAction:
         proposal = _proposal(proposal_data={"action_type": "integration_connect", "integration_type": "slack"})
         db = _mock_db(proposal)
         service = ProposalService(db)
-        svc = MagicMock()
-        svc.execute_operation = AsyncMock(return_value={"success": False})
-        with patch("core.integrations.get_integration_service", return_value=svc, create=True):
+        inst = MagicMock()
+        inst.execute = AsyncMock(return_value={"ok": False})
+        with patch("integrations.universal_integration_service.UniversalIntegrationService", return_value=inst):
             result = asyncio.run(service._execute_proposed_action(proposal))
         assert result["success"] is False
 
@@ -1483,39 +1477,47 @@ class TestExecuteProposedAction:
         proposal = _proposal(proposal_data={"action_type": "integration_connect", "integration_type": "slack"})
         db = _mock_db(proposal)
         service = ProposalService(db)
-        with patch("core.integrations.get_integration_service", side_effect=RuntimeError("svc down"), create=True):
+        inst = MagicMock()
+        inst.execute = AsyncMock(side_effect=RuntimeError("svc down"))
+        with patch("integrations.universal_integration_service.UniversalIntegrationService", return_value=inst):
             result = asyncio.run(service._execute_proposed_action(proposal))
         assert result["success"] is False
-        assert result["error"] == "svc down"
+        assert "svc down" not in result["error"]
 
     def test_workflow_action(self):
         proposal = _proposal(proposal_data={"action_type": "workflow_trigger", "workflow_id": "wf-1", "parameters": {"a": 1}})
         db = _mock_db(proposal)
         service = ProposalService(db)
-        with patch("core.workflow_engine.trigger_workflow", new_callable=AsyncMock, create=True) as m:
-            m.return_value = {"success": True}
+        with patch("core.workflow_endpoints.load_workflows", return_value=[{"id": "wf-1", "steps": []}]), \
+             patch("core.workflow_engine.WorkflowEngine") as we_cls:
+            engine = MagicMock()
+            engine.start_workflow = AsyncMock(return_value="exec-1")
+            we_cls.return_value = engine
             result = asyncio.run(service._execute_proposed_action(proposal))
         assert result["success"] is True
         assert result["workflow_id"] == "wf-1"
 
-    def test_workflow_action_failure(self):
+    def test_workflow_action_missing_workflow(self):
         proposal = _proposal(proposal_data={"action_type": "workflow_trigger", "workflow_id": "wf-1"})
         db = _mock_db(proposal)
         service = ProposalService(db)
-        with patch("core.workflow_engine.trigger_workflow", new_callable=AsyncMock, create=True) as m:
-            m.return_value = {"success": False}
+        with patch("core.workflow_endpoints.load_workflows", return_value=[]):
             result = asyncio.run(service._execute_proposed_action(proposal))
         assert result["success"] is False
+        assert "not found" not in result["error"]
 
-    def test_workflow_action_exception_caught(self):
+    def test_workflow_action_exception_returns_failure(self):
         proposal = _proposal(proposal_data={"action_type": "workflow_trigger", "workflow_id": "wf-1"})
         db = _mock_db(proposal)
         service = ProposalService(db)
-        with patch("core.workflow_engine.trigger_workflow", new_callable=AsyncMock, create=True) as m:
-            m.side_effect = RuntimeError("wf down")
+        with patch("core.workflow_endpoints.load_workflows", return_value=[{"id": "wf-1", "steps": []}]), \
+             patch("core.workflow_engine.WorkflowEngine") as we_cls:
+            engine = MagicMock()
+            engine.start_workflow = AsyncMock(side_effect=RuntimeError("wf down"))
+            we_cls.return_value = engine
             result = asyncio.run(service._execute_proposed_action(proposal))
         assert result["success"] is False
-        assert "wf down" in result["error"]
+        assert "wf down" not in result["error"]
 
     def test_device_action(self):
         proposal = _proposal(proposal_data={"action_type": "device_command", "device_id": "dev-1", "command_type": "camera"})
@@ -1534,27 +1536,35 @@ class TestExecuteProposedAction:
             m.side_effect = RuntimeError("device down")
             result = asyncio.run(service._execute_proposed_action(proposal))
         assert result["success"] is False
-        assert "device down" in result["error"]
+        assert "device down" not in result["error"]
 
     def test_agent_action(self):
         proposal = _proposal(proposal_data={"action_type": "agent_execute", "target_agent_id": "agent-2", "prompt": "do it"})
         db = _mock_db(proposal)
+        db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
+            id="agent-2"
+        )
         service = ProposalService(db)
-        with patch("core.generic_agent.execute_agent", new_callable=AsyncMock, create=True) as m:
-            m.return_value = {"success": True}
+        agent = MagicMock()
+        agent.execute = AsyncMock(return_value={"success": True})
+        with patch("core.generic_agent.GenericAgent", return_value=agent):
             result = asyncio.run(service._execute_proposed_action(proposal))
         assert result["success"] is True
         assert result["target_agent_id"] == "agent-2"
 
-    def test_agent_action_exception_caught(self):
+    def test_agent_action_exception_returns_failure(self):
         proposal = _proposal(proposal_data={"action_type": "agent_execute", "target_agent_id": "agent-2"})
         db = _mock_db(proposal)
+        db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
+            id="agent-2"
+        )
         service = ProposalService(db)
-        with patch("core.generic_agent.execute_agent", new_callable=AsyncMock, create=True) as m:
-            m.side_effect = RuntimeError("agent down")
+        agent = MagicMock()
+        agent.execute = AsyncMock(side_effect=RuntimeError("agent down"))
+        with patch("core.generic_agent.GenericAgent", return_value=agent):
             result = asyncio.run(service._execute_proposed_action(proposal))
         assert result["success"] is False
-        assert "agent down" in result["error"]
+        assert "agent down" not in result["error"]
 
     def test_execute_with_prepared_action_swaps_and_restores(self):
         proposal = _proposal(proposal_data={"action_type": "canvas_present"})

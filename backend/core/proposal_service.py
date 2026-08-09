@@ -475,7 +475,7 @@ Please review and approve or reject this proposal.
             logger.error(f"Failed to execute action {action_type}: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Action execution failed",
                 "action_type": action_type,
                 "executed_at": datetime.now().isoformat(),
                 "proposal_id": proposal.id
@@ -496,7 +496,14 @@ Please review and approve or reject this proposal.
         """
         try:
             # Import here to avoid circular dependency
-            from tools.browser_tool import execute_browser_automation
+            from tools.browser_tool import (
+                browser_click,
+                browser_close_session,
+                browser_create_session,
+                browser_execute_script,
+                browser_fill_form,
+                browser_navigate,
+            )
 
             user_id = proposal.approved_by  # User who approved
             agent_id = proposal.agent_id
@@ -516,16 +523,32 @@ Please review and approve or reject this proposal.
             self.db.add(execution)
             self.db.commit()
 
-            # Execute browser automation
-            result = await execute_browser_automation(
-                db=self.db,
-                user_id=user_id,
-                agent_id=agent_id,
-                url=action.get("url"),
-                actions=action.get("actions", []),
-                session_id=action.get("session_id"),
-                execution_id=execution.id
+            # Execute browser automation (real API: session + action loop)
+            if not action.get("url") and not action.get("session_id"):
+                raise ValueError("Browser automation requires a url or session_id")
+            session = await browser_create_session(
+                user_id=user_id, agent_id=agent_id, db=self.db
             )
+            session_id = session.get("session_id") or session.get("id")
+            if action.get("url"):
+                await browser_navigate(
+                    session_id=session_id, url=action["url"], user_id=user_id
+                )
+            for step in action.get("actions", []):
+                step_type = step.get("type", "")
+                if step_type == "click":
+                    await browser_click(session_id=session_id, user_id=user_id, **{
+                        k: v for k, v in step.items() if k != "type"
+                    })
+                elif step_type == "fill":
+                    await browser_fill_form(session_id=session_id, user_id=user_id, **{
+                        k: v for k, v in step.items() if k != "type"
+                    })
+                elif step_type == "script":
+                    await browser_execute_script(
+                        session_id=session_id, script=step.get("script", ""), user_id=user_id
+                    )
+            result = {"success": True, "session_id": session_id}
 
             # Update execution
             execution.status = "completed" if result.get("success") else "failed"
@@ -633,7 +656,9 @@ Please review and approve or reject this proposal.
         - parameters: Operation parameters
         """
         try:
-            from core.integrations import get_integration_service
+            from integrations.universal_integration_service import (
+                UniversalIntegrationService,
+            )
 
             user_id = proposal.approved_by
             agent_id = proposal.agent_id
@@ -654,13 +679,16 @@ Please review and approve or reject this proposal.
             self.db.add(execution)
             self.db.commit()
 
-            # Get integration service and execute
-            service = get_integration_service(integration_type)
-            result = await service.execute_operation(
-                user_id=user_id,
-                operation=action.get("operation"),
-                parameters=action.get("parameters", {})
+            # Get integration service and execute (real API: unified dispatch)
+            service = UniversalIntegrationService()
+            result = await service.execute(
+                service=integration_type,
+                action=action.get("operation", "execute"),
+                params=action.get("parameters", {}),
+                context={"user_id": user_id, "agent_id": agent_id, "proposal_id": proposal.id},
             )
+            if not isinstance(result, dict):
+                result = {"ok": True, "data": result}
 
             # Update execution
             execution.status = "completed" if result.get("success") else "failed"
@@ -669,7 +697,7 @@ Please review and approve or reject this proposal.
             self.db.commit()
 
             return {
-                "success": result.get("success", False),
+                "success": result.get("success", result.get("ok", False)),
                 "action_type": "integration_connect",
                 "integration_type": integration_type,
                 "execution_id": execution.id,
@@ -682,7 +710,7 @@ Please review and approve or reject this proposal.
             logger.error(f"Integration action failed: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Integration action failed",
                 "action_type": "integration_connect"
             }
 
@@ -699,7 +727,8 @@ Please review and approve or reject this proposal.
         - parameters: Workflow parameters
         """
         try:
-            from core.workflow_engine import trigger_workflow
+            from core.workflow_endpoints import load_workflows
+            from core.workflow_engine import WorkflowEngine
 
             user_id = proposal.approved_by
             agent_id = proposal.agent_id
@@ -720,15 +749,18 @@ Please review and approve or reject this proposal.
             self.db.add(execution)
             self.db.commit()
 
-            # Trigger workflow
-            result = await trigger_workflow(
-                db=self.db,
-                user_id=user_id,
-                workflow_id=workflow_id,
-                parameters=action.get("parameters", {}),
-                triggered_by_agent=agent_id,
-                execution_id=execution.id
+            # Trigger workflow (real API: load def by id -> start_workflow)
+            wf_def = next(
+                (w for w in load_workflows() if str(w.get("id")) == str(workflow_id)),
+                None,
             )
+            if not wf_def:
+                raise ValueError(f"Workflow {workflow_id} not found")
+            wf_execution_id = await WorkflowEngine().start_workflow(
+                workflow=wf_def,
+                input_data=action.get("parameters", {}),
+            )
+            result = {"success": True, "execution_id": wf_execution_id}
 
             # Update execution
             execution.status = "completed" if result.get("success") else "failed"
@@ -828,7 +860,8 @@ Please review and approve or reject this proposal.
         - parameters: Additional parameters
         """
         try:
-            from core.generic_agent import execute_agent
+            from core.models import AgentRegistry
+            from core.generic_agent import GenericAgent
 
             user_id = proposal.approved_by
             agent_id = proposal.agent_id
@@ -850,15 +883,23 @@ Please review and approve or reject this proposal.
             self.db.add(execution)
             self.db.commit()
 
-            # Execute agent
-            result = await execute_agent(
-                db=self.db,
-                user_id=user_id,
-                agent_id=target_agent_id or agent_id,
-                prompt=action.get("prompt"),
-                parameters=action.get("parameters", {}),
-                execution_id=execution.id
+            # Execute agent (real API: GenericAgent(agent_model=...).execute)
+            registry_agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == (target_agent_id or agent_id)
+            ).first()
+            if not registry_agent:
+                raise ValueError(f"Agent {target_agent_id or agent_id} not found")
+            agent = GenericAgent(agent_model=registry_agent, workspace_id="default")
+            result = await agent.execute(
+                task_input=action.get("prompt", ""),
+                context={
+                    "proposal_id": proposal.id,
+                    "execution_id": execution.id,
+                    "parameters": action.get("parameters", {}),
+                },
             )
+            if not isinstance(result, dict):
+                result = {"success": True, "response": str(result)}
 
             # Update execution
             execution.status = "completed" if result.get("success") else "failed"
