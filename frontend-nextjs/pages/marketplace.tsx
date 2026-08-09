@@ -370,3 +370,11 @@ export default function MarketplacePage() {
         </div>
     )
 }
+
+// Force dynamic rendering (skip SSG). The page is fully client-rendered
+// (fetches from the API at runtime); `output: 'standalone'` still attempts
+// to prerender Pages-Router pages unless getInitialProps is present, which
+// hit a minified TDZ ('Cannot access H before initialization'). Attaching
+// getInitialProps marks the page dynamic and skips the prerender pass.
+MarketplacePage.getInitialProps = async () => ({})
+
