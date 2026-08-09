@@ -225,7 +225,9 @@ def _context_user_id(context: Dict[str, Any]) -> Optional[str]:
 
 @register_action(
     "documents.search",
-    description="Search ingested and knowledge documents by query. When the knowledge VFS flag is on, ranks results by weighted lexical score and honors since/source/author filters.",
+    description="Hybrid (BM25 + vector) search over ingested and knowledge documents. "
+                "Semantic: finds docs about a concept even without exact word overlap. "
+                "Honors since/source/author filters. Returns ranked, VFS-citable results.",
     parameters_schema=_DOCUMENTS_SEARCH_SCHEMA,
 )
 async def _documents_search(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
@@ -234,101 +236,25 @@ async def _documents_search(args: Dict[str, Any], context: Dict[str, Any]) -> Di
     if not query:
         return {"success": False, "error": "query is required", "results": []}
     try:
-        from core.database import get_db_session
-        from core.models import IngestedDocument, KnowledgeDocument
-        from sqlalchemy import or_
-
         from core.knowledge_vfs_config import knowledge_vfs_enabled
 
         # Kill-switch parity: flag OFF → exact legacy ILIKE behavior.
         if not knowledge_vfs_enabled():
             return await _documents_search_legacy(args, context)
 
+        # Flag ON → real hybrid (BM25 FTS5/tsvector + LanceDB vector → RRF k=60).
+        from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
         since = args.get("since")
-        source = (args.get("source") or "").strip().lower()
-        author = (args.get("author") or "").strip().lower()
-        pattern = f"%{query.lower()}%"
-        needle = query.lower()
+        source = (args.get("source") or "").strip().lower() or None
+        author = (args.get("author") or "").strip().lower() or None
 
-        with get_db_session() as db:
-            results: List[Dict[str, Any]] = []
-
-            # Ingested leg: title 3x weight, content 1x — deterministic score.
-            qi = db.query(IngestedDocument)
-            if source and source != "ingested":
-                qi = qi.filter(IngestedDocument.id == "-")
-            else:
-                qi = qi.filter(
-                    or_(
-                        IngestedDocument.file_name.ilike(pattern),
-                        IngestedDocument.content_preview.ilike(pattern),
-                    )
-                )
-                if since:
-                    qi = qi.filter(
-                        or_(
-                            IngestedDocument.created_at >= since,
-                            IngestedDocument.external_modified_at >= since,
-                        )
-                    )
-                if author:
-                    qi = qi.filter(IngestedDocument.integration_id.ilike(f"%{author}%"))
-            for d in qi.limit(200).all():
-                name_hit = needle in (d.file_name or "").lower()
-                content_hit = needle in (d.content_preview or "").lower()
-                if not (name_hit or content_hit):
-                    continue
-                score = (3.0 if name_hit else 0.0) + (1.0 if content_hit else 0.0)
-                results.append({
-                    "source": "ingested",
-                    "id": d.id,
-                    "title": d.file_name,
-                    "preview": (d.content_preview or "")[:200],
-                    "score": round(score, 3),
-                    "modified": d.external_modified_at.isoformat() if d.external_modified_at else None,
-                })
-
-            # Knowledge leg: same weighting over title/content.
-            qk = db.query(KnowledgeDocument)
-            if source and source != "knowledge":
-                qk = qk.filter(KnowledgeDocument.id == "-")
-            else:
-                qk = qk.filter(
-                    or_(
-                        KnowledgeDocument.title.ilike(pattern),
-                        KnowledgeDocument.content.ilike(pattern),
-                    )
-                )
-                if since:
-                    qk = qk.filter(
-                        or_(
-                            KnowledgeDocument.created_at >= since,
-                            KnowledgeDocument.updated_at >= since,
-                        )
-                    )
-                if author:
-                    qk = qk.filter(KnowledgeDocument.metadata_json["author"].astext.ilike(f"%{author}%"))
-            for d in qk.limit(200).all():
-                title_hit = needle in (d.title or "").lower()
-                content_hit = needle in (d.content or "").lower()
-                if not (title_hit or content_hit):
-                    continue
-                score = (3.0 if title_hit else 0.0) + (1.0 if content_hit else 0.0)
-                results.append({
-                    "source": "knowledge",
-                    "id": d.id,
-                    "title": d.title,
-                    "preview": (d.content or "")[:200],
-                    "score": round(score, 3),
-                })
-
-        results.sort(key=lambda r: r.get("score", 0.0), reverse=True)
-        return {
-            "success": True,
-            "query": query,
-            "results": results[:limit],
-            "hybrid": "lexical_ranked",
-        }
+        svc = DocumentsHybridSearch()
+        resp = await svc.search(
+            query=query, limit=limit, since=since, source=source, author=author,
+        )
+        # DocumentsHybridSearch.search already returns the {success, query, results,
+        # hybrid, stats} envelope matching this action's contract.
+        return resp
     except Exception as e:
         logger.error("documents.search failed: %s", e)
         return {"success": False, "error": "Document search failed", "results": []}

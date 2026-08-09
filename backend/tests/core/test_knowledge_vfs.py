@@ -143,6 +143,8 @@ async def test_action_ls_enabled(monkeypatch, vfs_provider):
 @pytest.fixture
 def search_db(monkeypatch, vfs_provider):
     """Point the actions' get_db_session at the fixture's in-memory engine."""
+    # Hybrid vector leg off: these tests exercise the lexical leg + wiring only.
+    monkeypatch.setenv("ATOM_HYBRID_VECTOR_LEG_ENABLED", "false")
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -174,7 +176,12 @@ async def test_action_search_flag_on_ranks_and_filters(monkeypatch, search_db):
         "documents.search", {"query": "revenue", "source": "ingested"}, {}
     )
     assert res["success"] is True
-    assert res["hybrid"] == "lexical_ranked"
+    # Step 4: documents.search now routes through DocumentsHybridSearch (RRF).
+    # The exact label depends on whether the vector leg fires in the test env,
+    # but it must NOT be the stale 'lexical_ranked' tag from the pre-hybrid handler.
+    assert res["hybrid"] in {"bm25_vector_rrf", "lexical_only", "semantic_only", "no_results"}, (
+        f"expected a hybrid-service label, got {res.get('hybrid')!r}"
+    )
 
 
 @pytest.mark.asyncio

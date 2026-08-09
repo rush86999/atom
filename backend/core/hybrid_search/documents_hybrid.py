@@ -1,0 +1,244 @@
+"""DocumentsHybridSearch — vector + BM25 lexical legs fused by RRF.
+
+Phase 1 documents leg of the multi-source hybrid search service. Follow-ups
+(episodes / turn_facts / reasoning-steps legs) implement the same contract:
+each leg returns a ranked list of ``{source, id, ...}`` dicts and the fusion
+layer merges them by Reciprocal Rank Fusion (RRF, k=60).
+
+Vector leg: LanceDB ``documents`` table (1536-dim, via ``LanceDBHandler.search``
+which embeds with the write-path embedder). Lexical leg: FTS5/tsvector BM25
+(``search_documents_lexical``). Join-key bridge: a vector hit whose ``id``
+resolves to an ``IngestedDocument`` row is hydrated from PG (VFS-citable path);
+unresolvable (legacy/vector-only) hits are dropped and counted.
+
+Degradation ladder: ``bm25_vector_rrf`` | ``lexical_only`` | ``semantic_only`` |
+``no_results``. Never raises.
+"""
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
+
+RRF_K = 60
+_VECTOR_LIMIT_MULTIPLIER = 3
+
+
+def _vector_leg_enabled() -> bool:
+    return os.getenv("ATOM_HYBRID_VECTOR_LEG_ENABLED", "true").lower() == "true"
+
+
+class DocumentsHybridSearch:
+    """Hybrid document search service (documents leg)."""
+
+    def __init__(self, db: Any = None, lancedb: Any = None):
+        self._db = db
+        self._lancedb = lancedb
+
+    # -- public API -----------------------------------------------------------
+
+    async def search(
+        self,
+        query: str,
+        limit: int = 10,
+        since: Optional[datetime] = None,
+        source: Optional[str] = None,
+        author: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        query = (query or "").strip()
+        if len(query) < 3:
+            return self._response(query, [], "no_results", stats={})
+
+        stats: Dict[str, Any] = {}
+        try:
+            lexical, vector = await asyncio.gather(
+                asyncio.to_thread(
+                    self._lexical_leg, query, limit, since, source, author
+                ),
+                self._vector_leg(query, limit),
+            )
+        except Exception as e:
+            logger.error("DocumentsHybridSearch.search failed: %s", e)
+            return self._response(query, [], "no_results", stats={})
+
+        stats["lexical_hits"] = len(lexical)
+        stats["vector_hits"] = len(vector)
+
+        fused, unbridged = self._fuse_rrf(lexical, vector)
+        stats["unbridged_hits"] = unbridged
+
+        has_lexical = any("lexical" in e["legs"] for e in fused)
+        has_vector = any("vector" in e["legs"] for e in fused)
+        if has_lexical and has_vector:
+            label = "bm25_vector_rrf"
+        elif has_lexical:
+            label = "lexical_only"
+        elif has_vector:
+            label = "semantic_only"
+        else:
+            label = "no_results"
+
+        results = self._hydrate(fused)
+        return self._response(query, results[:limit], label, stats)
+
+    # -- legs -----------------------------------------------------------------
+
+    def _get_db(self) -> Any:
+        if self._db is not None:
+            return self._db
+        from core.database import get_db_session
+
+        return get_db_session()
+
+    def _lexical_leg(
+        self,
+        query: str,
+        limit: int,
+        since: Optional[datetime],
+        source: Optional[str],
+        author: Optional[str],
+    ) -> List[Dict[str, Any]]:
+        from core.hybrid_search.lexical_ranker import search_documents_lexical
+
+        with self._get_db() as db:
+            return search_documents_lexical(
+                db, query, limit=limit * _VECTOR_LIMIT_MULTIPLIER, since=since, source=source, author=author
+            )
+
+    async def _vector_leg(self, query: str, limit: int) -> List[Dict[str, Any]]:
+        # Kill-switch: hermetic tests + embedding-cost control. Flag off → the
+        # service degrades to the lexical leg (label "lexical_only").
+        if not _vector_leg_enabled():
+            return []
+        try:
+            lancedb = self._lancedb
+            if lancedb is None:
+                from core.lancedb_handler import get_lancedb_handler
+
+                lancedb = get_lancedb_handler("default")
+            if lancedb is None:
+                return []
+            # to_thread: LanceDBHandler.search embeds via sync embed_text, which
+            # no-ops in the event-loop thread (async-context guard).
+            rows = await asyncio.to_thread(
+                lancedb.search, "documents", query, limit=limit * _VECTOR_LIMIT_MULTIPLIER
+            )
+            return [
+                {
+                    "id": str(r.get("id") or ""),
+                    "score": float(r.get("_distance", 1.0)),
+                    "metadata": r.get("metadata") or {},
+                }
+                for r in rows
+                if r.get("id")
+            ]
+        except Exception as e:
+            logger.warning("DocumentsHybridSearch vector leg failed: %s", e)
+            return []
+
+    # -- fusion + hydration ---------------------------------------------------
+
+    def _fuse_rrf(
+        self,
+        lexical: List[Dict[str, Any]],
+        vector: List[Dict[str, Any]],
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """RRF over both legs, keyed by (source, id). Vector ids that do not
+        resolve to a PG row are unbridged → dropped and counted."""
+        scores: Dict[tuple, Dict[str, Any]] = {}
+        unbridged = 0
+
+        for rank, hit in enumerate(lexical, start=1):
+            key = (hit["source"], hit["id"])
+            entry = scores.setdefault(
+                key,
+                {
+                    "source": hit["source"],
+                    "id": hit["id"],
+                    "title": hit.get("title"),
+                    "preview": hit.get("preview"),
+                    "modified": hit.get("modified"),
+                    "bridged": True,
+                    "rrf": 0.0,
+                    "legs": [],
+                },
+            )
+            entry["rrf"] += 1.0 / (RRF_K + rank)
+            entry["legs"].append("lexical")
+
+        try:
+            with self._get_db() as db:
+                from core.models import IngestedDocument
+
+                vector_ids = [v["id"] for v in vector]
+                pg_rows = {}
+                if vector_ids:
+                    rows = (
+                        db.query(IngestedDocument)
+                        .filter(IngestedDocument.id.in_(vector_ids))
+                        .all()
+                    )
+                    pg_rows = {d.id: d for d in rows}
+        except Exception as e:
+            logger.warning("DocumentsHybridSearch hydration lookup failed: %s", e)
+            pg_rows = {}
+
+        for rank, hit in enumerate(vector, start=1):
+            doc = pg_rows.get(hit["id"])
+            if doc is None:
+                unbridged += 1
+                continue
+            key = ("ingested", hit["id"])
+            entry = scores.setdefault(
+                key,
+                {
+                    "source": "ingested",
+                    "id": hit["id"],
+                    "title": doc.file_name,
+                    "preview": (doc.content_preview or "")[:200],
+                    "modified": doc.external_modified_at.isoformat()
+                    if doc.external_modified_at
+                    else None,
+                    "bridged": True,
+                    "rrf": 0.0,
+                    "legs": [],
+                },
+            )
+            entry["rrf"] += 1.0 / (RRF_K + rank)
+            entry["legs"].append("vector")
+
+        fused = sorted(scores.values(), key=lambda e: (-e["rrf"], len(e["legs"])))
+        return fused, unbridged
+
+    def _hydrate(self, fused: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        return [
+            {
+                "source": e["source"],
+                "id": e["id"],
+                "title": e["title"],
+                "preview": e["preview"],
+                "score": round(e["rrf"], 6),
+                "modified": e["modified"],
+                "bridged": e["bridged"],
+            }
+            for e in fused
+        ]
+
+    @staticmethod
+    def _response(
+        query: str,
+        results: List[Dict[str, Any]],
+        label: str,
+        stats: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        return {
+            "success": True,
+            "query": query,
+            "results": results,
+            "hybrid": label,
+            "stats": stats,
+        }
