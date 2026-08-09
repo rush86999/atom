@@ -21,8 +21,39 @@ class TestCanvasEmailRoutes:
 
     @pytest.fixture
     def client(self):
-        """Create test client."""
-        return TestClient(app)
+        """Create test client.
+
+        The router is NOT mounted on the main app — build a dedicated app with
+        the router + authenticated user + mocked DB (routes hit the real DB
+        otherwise: the dev DB lacks the canvas email tables).
+        """
+        from fastapi import FastAPI
+        from sqlalchemy.orm import Session
+        from core.auth import get_current_user
+        from core.database import get_db
+        from core.models import User
+        from api.canvas_email_routes import router
+
+        test_app = FastAPI()
+        test_app.include_router(router)
+        test_app.dependency_overrides[get_current_user] = lambda: User(
+            id="canvas-email-test-user",
+            email="canvas-email@test.com",
+            first_name="Canvas",
+            last_name="Email",
+            role="super_admin",
+            status="active",
+        )
+
+        mock_db = Mock(spec=Session)
+        empty_filter = Mock()
+        empty_filter.first = Mock(return_value=None)
+        empty_query = Mock()
+        empty_query.filter = Mock(return_value=empty_filter)
+        mock_db.query = Mock(return_value=empty_query)
+        test_app.dependency_overrides[get_db] = lambda: mock_db
+
+        return TestClient(test_app)
 
     @patch('api.canvas_email_routes.EmailCanvasService')
     def test_create_email_canvas_success(self, mock_service_class, client):
@@ -233,7 +264,7 @@ class TestCanvasEmailRoutes:
         assert response.status_code == 200
         mock_service.add_message_to_thread.assert_called_once_with(
             canvas_id="canvas-test",
-            user_id="user-test",
+            user_id="canvas-email-test-user",
             from_email="from@test.com",
             to_emails=["to@test.com"],
             subject="Test Subject",
@@ -306,7 +337,7 @@ class TestCanvasEmailRoutes:
         assert response.status_code == 200
         mock_service.save_draft.assert_called_once_with(
             canvas_id="canvas-test",
-            user_id="user-test",
+            user_id="canvas-email-test-user",
             to_emails=["to@test.com"],
             cc_emails=None,
             subject="Draft Test",
@@ -403,7 +434,7 @@ class TestCanvasEmailRoutes:
         assert response.status_code == 200
         mock_service.categorize_email.assert_called_once_with(
             canvas_id="canvas-test",
-            user_id="user-test",
+            user_id="canvas-email-test-user",
             category="important",
             color="#FFA500"
         )

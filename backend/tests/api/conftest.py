@@ -1119,21 +1119,22 @@ def mock_feedback_analytics() -> MagicMock:
         }
     ])
 
-    # Mock get_most_corrected_agents
+    # Mock get_most_corrected_agents — highest correction_rate first, matching
+    # the documented "most corrected agents" contract (descending).
     mock.get_most_corrected_agents = MagicMock(return_value=[
-        {
-            "agent_id": "agent-data-001",
-            "agent_name": "Data Analyst",
-            "total_corrections": 15,
-            "total_feedback": 40,
-            "correction_rate": 0.375
-        },
         {
             "agent_id": "agent-finance-001",
             "agent_name": "Finance Helper",
             "total_corrections": 12,
             "total_feedback": 30,
             "correction_rate": 0.40
+        },
+        {
+            "agent_id": "agent-data-001",
+            "agent_name": "Data Analyst",
+            "total_corrections": 15,
+            "total_feedback": 40,
+            "correction_rate": 0.375
         }
     ])
 

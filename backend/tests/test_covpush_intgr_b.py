@@ -11,6 +11,8 @@ All external I/O (HTTP, DB, LLM, bytewax, slack SDK) is mocked.
 """
 
 import asyncio
+import hashlib
+import hmac
 import json
 import os
 import sqlite3
@@ -887,7 +889,7 @@ class TestWhatsAppBusinessIntegration:
             req.args.get.side_effect = ["subscribe", "wrong", "challenge"]
             assert mod.webhook() == ("Verification failed", 403)
             req.method = "POST"
-            req.get_json.return_value = {
+            payload = {
                 "entry": [{"changes": [{"value": {"messages": [
                     {"from": "wa1", "id": "m1", "type": "text",
                      "text": {"body": "hi"}},
@@ -898,8 +900,21 @@ class TestWhatsAppBusinessIntegration:
                      "document": {"id": "d1", "filename": "f.pdf"}},
                     {"from": "wa1", "id": "m5", "type": "sticker"},
                 ]}}]}]}
+            raw = json.dumps(payload).encode()
+            req.get_data.return_value = raw
+            req.headers = {"X-Hub-Signature-256": "sha256=" + hmac.new(b"s3cr3t", raw, hashlib.sha256).hexdigest()}
+            svc.webhook_app_secret = "s3cr3t"
+            req.get_json.return_value = payload
             assert mod.webhook() == ("ok", 200)
             assert svc._store_message.call_count == 5
+            svc.webhook_app_secret = None
+            assert mod.webhook() == ("Webhook not configured", 503)
+            svc.webhook_app_secret = "s3cr3t"
+            req.headers = {"X-Hub-Signature-256": "sha256=deadbeef"}
+            assert mod.webhook() == ("Invalid signature", 401)
+            req.headers = {}
+            assert mod.webhook() == ("Invalid signature", 401)
+            req.headers = {"X-Hub-Signature-256": "sha256=" + hmac.new(b"s3cr3t", raw, hashlib.sha256).hexdigest()}
             req.get_json.side_effect = Exception("boom")
             assert mod.webhook() == ("error", 500)
 

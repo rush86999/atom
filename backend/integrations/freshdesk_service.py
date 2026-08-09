@@ -138,7 +138,10 @@ class FreshdeskService(IntegrationService):
             if operation == "get_tickets":
                 res = await self.get_tickets(
                     page=parameters.get("page", 1),
-                    per_page=parameters.get("per_page", 30)
+                    per_page=parameters.get("per_page", 30),
+                    status=parameters.get("status"),
+                    priority=parameters.get("priority"),
+                    created_since=parameters.get("created_since")
                 )
                 return {"success": True, "result": res, "error": None, "details": {}}
             elif operation == "create_ticket":
@@ -149,8 +152,11 @@ class FreshdeskService(IntegrationService):
                 return {"success": True, "result": res, "error": None, "details": {}}
             else:
                 raise NotImplementedError(f"Operation {operation} not supported for Freshdesk")
-        except Exception as e:
+        except NotImplementedError as e:
             return {"success": False, "error": str(e), "details": {}}
+        except Exception as e:
+            logger.error(f"Freshdesk operation {operation} failed: {e}")
+            return {"success": False, "error": "Operation failed", "details": {}}
             
     def _encode_credentials(self) -> str:
         """Encode API credentials for Basic Auth"""
@@ -169,12 +175,10 @@ class FreshdeskService(IntegrationService):
                 logger.error(f"HTTP error on attempt {attempt + 1}: {e}")
                 if attempt == self.max_retries - 1:
                     raise
-                await httpx.AsyncClient().aclose()
             except httpx.RequestError as e:
                 logger.error(f"Request error on attempt {attempt + 1}: {e}")
                 if attempt == self.max_retries - 1:
                     raise
-                await httpx.AsyncClient().aclose()
     
     # Ticket Management Methods
     
@@ -683,14 +687,14 @@ class FreshdeskService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Freshdesk metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save Freshdesk metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Freshdesk PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Freshdesk cache sync failed"}
 
     async def full_sync(self, workspace_id: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Freshdesk"""

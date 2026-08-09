@@ -23,6 +23,10 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+# The dashboard generator script requires matplotlib, which is not part of the
+# backend venv — self-skip when absent so the suite still collects.
+matplotlib = pytest.importorskip("matplotlib")
+
 # Add scripts directory to path
 script_dir = Path(__file__).parent.parent / "tests" / "scripts"
 sys.path.insert(0, str(script_dir))

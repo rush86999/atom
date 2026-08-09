@@ -11,7 +11,46 @@ Coverage target: 75%+ line coverage on feedback_analytics.py
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, Mock
+
+
+@pytest.fixture
+def feedback_analytics_client(mock_feedback_analytics, mock_agent_learning):
+    """TestClient with the feedback analytics router, authenticated user and a
+    mocked DB session.
+
+    Shadows the tests/api/conftest.py fixture, which mounted the router
+    without an auth override (every request 401'd since the R38+ auth sweep),
+    patched a phantom `AgentLearningEnhanced` attribute, and keyed its get_db
+    override on a fresh `lambda: None` (never matched).
+    """
+    from fastapi import FastAPI
+    from sqlalchemy.orm import Session
+    from core.auth import get_current_user
+    from core.database import get_db
+    from core.models import User
+    from api.feedback_analytics import router
+
+    app = FastAPI()
+    # The router declares no prefix — the main app mounts it under
+    # /api/feedback/analytics (routes: /, /agent/{id}, /trends).
+    app.include_router(router, prefix="/api/feedback/analytics")
+
+    app.dependency_overrides[get_current_user] = lambda: User(
+        id="feedback-test-user",
+        email="feedback@test.com",
+        first_name="Feedback",
+        last_name="Tester",
+        role="super_admin",
+        status="active",
+    )
+
+    mock_db = Mock(spec=Session)
+    app.dependency_overrides[get_db] = lambda: mock_db
+
+    with patch('api.feedback_analytics.FeedbackAnalytics', return_value=mock_feedback_analytics), \
+         patch('core.agent_learning_enhanced.AgentLearningEnhanced', return_value=mock_agent_learning):
+        yield TestClient(app)
 
 
 # ============================================================================
@@ -209,7 +248,7 @@ class TestAgentFeedbackDashboard:
     def test_get_agent_dashboard_with_days(self, feedback_analytics_client: TestClient):
         """Test respects days parameter."""
         agent_id = "agent-sales-001"
-        response = feedback_analytics_client.get(f"/api/feedback/agent/{agent_id}/analytics?days=7")
+        response = feedback_analytics_client.get(f"/api/feedback/analytics/agent/{agent_id}?days=7")
 
         assert response.status_code == 200
         data = response.json()
@@ -303,7 +342,7 @@ class TestFeedbackTrends:
 
     def test_get_feedback_trends_with_days(self, feedback_analytics_client: TestClient):
         """Test respects days parameter."""
-        response = feedback_analytics_client.get("/api/feedback/trends?days=7")
+        response = feedback_analytics_client.get("/api/feedback/analytics/trends?days=7")
 
         assert response.status_code == 200
         data = response.json()
@@ -561,13 +600,13 @@ class TestErrorHandling:
             assert response.status_code in [500, 503]
 
     def test_agent_dashboard_service_exception(self, feedback_analytics_client: TestClient):
-        """Test handles AgentLearningEnhanced exceptions."""
+        """Test handles FeedbackAnalytics exceptions in the agent dashboard."""
         agent_id = "agent-sales-001"
 
         # Mock service to raise exception
-        with patch('api.feedback_analytics.AgentLearningEnhanced') as mock_service_class:
+        with patch('api.feedback_analytics.FeedbackAnalytics') as mock_service_class:
             mock_service = MagicMock()
-            mock_service.get_learning_signals.side_effect = Exception("Learning service unavailable")
+            mock_service.get_agent_feedback_summary.side_effect = Exception("Learning service unavailable")
             mock_service_class.return_value = mock_service
 
             response = feedback_analytics_client.get(f"/api/feedback/analytics/agent/{agent_id}")

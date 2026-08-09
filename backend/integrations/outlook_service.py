@@ -120,8 +120,6 @@ class OutlookService(IntegrationService):
     """Comprehensive Outlook service for Microsoft Graph API integration"""
 
     def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
-        if config is None:
-            config = {}
         """
         Initialize Outlook service for a specific tenant.
 
@@ -129,6 +127,8 @@ class OutlookService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with credentials
         """
+        if config is None:
+            config = {}
         super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = "https://graph.microsoft.com/v1.0"
         self.client_id = config.get("client_id") or os.getenv("MICROSOFT_CLIENT_ID")
@@ -190,9 +190,60 @@ class OutlookService(IntegrationService):
             if not refresh_token:
                 return None
 
-            # Refresh token logic would go here
-            # For now, return the existing token
-            return tokens.get("access_token")
+            if not self.client_id or not self.client_secret or not self.tenant_id_config:
+                logger.error(
+                    f"Cannot refresh token for user {user_id}: client credentials not configured"
+                )
+                return None
+
+            url = (
+                f"https://login.microsoftonline.com/{self.tenant_id_config}"
+                "/oauth2/v2.0/token"
+            )
+            data = {
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+                "refresh_token": refresh_token,
+                "grant_type": "refresh_token",
+                "scope": "Mail.ReadWrite Mail.Send Calendars.ReadWrite "
+                "Contacts.ReadWrite Tasks.ReadWrite User.Read",
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, data=data) as response:
+                    if response.status != 200:
+                        logger.error(f"Token refresh failed with status {response.status}")
+                        return None
+                    token_data = await response.json()
+
+            new_access_token = token_data.get("access_token")
+            if not new_access_token:
+                logger.error("Token refresh response missing access_token")
+                return None
+            new_refresh_token = token_data.get("refresh_token") or refresh_token
+            expires_in = token_data.get("expires_in")
+
+            from core.database import get_db_session
+            from core.models import IntegrationToken
+            from core.privsec.token_encryption import encrypt_token
+
+            with get_db_session() as db:
+                record = db.query(IntegrationToken).filter(
+                    IntegrationToken.user_id == user_id,
+                    IntegrationToken.provider == "outlook",
+                    IntegrationToken.status == "active",
+                ).first()
+                if record:
+                    record.access_token = encrypt_token(new_access_token)
+                    record.refresh_token = encrypt_token(new_refresh_token)
+                    if expires_in:
+                        record.expires_at = datetime.now(timezone.utc) + timedelta(
+                            seconds=int(expires_in)
+                        )
+                    db.commit()
+
+            logger.info(f"Refreshed access token for user {user_id}")
+            return new_access_token
         except Exception as e:
             logger.error(f"Error refreshing token for user {user_id}: {e}")
             return None
@@ -302,7 +353,7 @@ class OutlookService(IntegrationService):
                 endpoint = "/me/messages"
 
             if params:
-                query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+                query_string = urllib.parse.urlencode(params)
                 endpoint = f"{endpoint}?{query_string}"
 
             result = await self._make_graph_request(user_id, endpoint, access_token=token)
@@ -392,10 +443,10 @@ class OutlookService(IntegrationService):
             reply_data = {
                 "comment": comment
             }
-            await self._make_graph_request(
+            result = await self._make_graph_request(
                 user_id, f"/me/messages/{message_id}/reply", "POST", reply_data, access_token=token
             )
-            return True
+            return result is not None
         except Exception as e:
             logger.error(f"Error replying to email: {e}")
             return False
@@ -527,7 +578,7 @@ class OutlookService(IntegrationService):
                 params["$filter"] = f"end/dateTime le '{time_max}'"
 
             if params:
-                query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+                query_string = urllib.parse.urlencode(params)
                 endpoint = f"/me/events?{query_string}"
 
             result = await self._make_graph_request(user_id, endpoint, access_token=token)
@@ -631,7 +682,7 @@ class OutlookService(IntegrationService):
                 )
 
             if params:
-                query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+                query_string = urllib.parse.urlencode(params)
                 endpoint = f"/me/contacts?{query_string}"
 
             result = await self._make_graph_request(user_id, endpoint, access_token=token)
@@ -711,7 +762,7 @@ class OutlookService(IntegrationService):
                 params["$filter"] = f"status eq '{status}'"
 
             if params:
-                query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+                query_string = urllib.parse.urlencode(params)
                 endpoint = f"/me/todo/lists/tasks/tasks?{query_string}"
 
             result = await self._make_graph_request(user_id, endpoint, access_token=token)
@@ -802,7 +853,7 @@ class OutlookService(IntegrationService):
                 "$filter": "isRead eq false",
                 "$orderby": "receivedDateTime desc",
             }
-            query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+            query_string = urllib.parse.urlencode(params)
             endpoint = f"/me/messages?{query_string}"
 
             result = await self._make_graph_request(user_id, endpoint, access_token=token)
@@ -847,7 +898,7 @@ class OutlookService(IntegrationService):
                 "$search": f'"{query}"',
                 "$orderby": "receivedDateTime desc",
             }
-            query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+            query_string = urllib.parse.urlencode(params)
             endpoint = f"/me/messages?{query_string}"
 
             result = await self._make_graph_request(user_id, endpoint, access_token=token)
@@ -969,7 +1020,7 @@ class OutlookService(IntegrationService):
 
         except Exception as e:
             logger.error(f"Error executing Outlook operation {operation}: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Outlook operation failed"}
     async def sync_to_postgres_cache(self, user_id: str, token: Optional[str] = None) -> Dict[str, Any]:
         """Sync Outlook analytics to PostgreSQL IntegrationMetric table."""
         try:
@@ -1023,14 +1074,14 @@ class OutlookService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Outlook metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save Outlook metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Outlook PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Outlook PostgreSQL cache sync failed"}
 
     async def full_sync(self, user_id: str, token: Optional[str] = None) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Outlook"""
@@ -1067,7 +1118,7 @@ class OutlookService(IntegrationService):
                 # Ingest into pipeline
                 # The pipeline normalization for outlook expects body, from, to, date, etc.
                 # outlook_service.get_emails returns objects that asdict turns into appropriate structures
-                pipeline.ingest_message("outlook", msg)
+                await pipeline.ingest_message("outlook", msg)
             
             return messages_list
         except Exception as e:

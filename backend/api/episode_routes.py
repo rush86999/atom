@@ -59,7 +59,7 @@ class ContextualRetrievalRequest(BaseModel):
 
 
 class EpisodeFeedbackRequest(BaseModel):
-    episode_id: str
+    episode_id: Optional[str] = Field(default=None, description="Deprecated — episode id comes from the URL path")
     feedback_score: float = Field(ge=-1.0, le=1.0, description="Feedback score from -1.0 (negative) to 1.0 (positive)")
 
 

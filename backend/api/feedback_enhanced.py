@@ -178,11 +178,13 @@ async def submit_enhanced_feedback(
             details={"provided": request.rating}
         )
 
-    # Create feedback record
+    # Create feedback record. Identity is the authenticated token user —
+    # never the client-supplied body ``user_id`` (RLHF data poisoning /
+    # audit forgery: an attacker could attribute feedback to anyone).
     feedback = AgentFeedback(
         agent_id=request.agent_id,
         agent_execution_id=request.agent_execution_id,
-        user_id=request.user_id,
+        user_id=str(current_user.id),
         input_context=request.input_context,
         original_output=request.original_output or "",
         user_correction=request.user_correction or "",

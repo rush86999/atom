@@ -373,6 +373,8 @@ class HubSpotService:
 
             return contacts
 
+        except HTTPException:
+            raise
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot contacts: {e}")
             raise HTTPException(
@@ -438,6 +440,8 @@ class HubSpotService:
 
             return companies
 
+        except HTTPException:
+            raise
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot companies: {e}")
             raise HTTPException(
@@ -497,6 +501,8 @@ class HubSpotService:
 
             return deals
 
+        except HTTPException:
+            raise
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot deals: {e}")
             raise HTTPException(
@@ -557,6 +563,8 @@ class HubSpotService:
 
             return campaigns
 
+        except HTTPException:
+            raise
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot campaigns: {e}")
             raise HTTPException(
@@ -605,6 +613,8 @@ class HubSpotService:
 
             return lists
 
+        except HTTPException:
+            raise
         except httpx.HTTPError as e:
             logger.error(f"Failed to get HubSpot lists: {e}")
             raise HTTPException(
@@ -643,6 +653,8 @@ class HubSpotService:
                 results=data.get("results", []), total=data.get("total", 0)
             )
 
+        except HTTPException:
+            raise
         except httpx.HTTPError as e:
             logger.error(f"HubSpot search failed: {e}")
             raise HTTPException(status_code=400, detail="Internal error")
@@ -682,6 +694,8 @@ class HubSpotService:
 
             return response.json()
 
+        except HTTPException:
+            raise
         except httpx.HTTPError as e:
             logger.error(f"Failed to create HubSpot contact: {e}")
             raise HTTPException(
@@ -723,6 +737,8 @@ class HubSpotService:
 
             return response.json()
 
+        except HTTPException:
+            raise
         except httpx.HTTPError as e:
             logger.error(f"Failed to create HubSpot deal: {e}")
             raise HTTPException(
@@ -766,6 +782,8 @@ class HubSpotService:
                 total_revenue=1250000.0,
             )
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Unexpected error getting HubSpot stats: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")

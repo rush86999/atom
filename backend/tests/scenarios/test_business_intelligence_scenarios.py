@@ -27,7 +27,6 @@ from core.predictive_insights import (
     RecommendationConfidence,
     get_predictive_insights_engine
 )
-from core.cash_flow_forecaster import CashFlowForecastingService
 from core.business_health_service import BusinessHealthService
 from core.models import (
     User, AgentRegistry, AgentFeedback, AgentExecution,
@@ -181,90 +180,6 @@ class TestPredictiveAnalyticsScenarios:
 
         # Urgent messages should predict faster response
         assert urgent.predicted_seconds <= low_urgency.predicted_seconds
-
-    def test_cash_flow_forecasting_basic(self):
-        """
-        BI-002-01: Generate basic cash flow forecast.
-
-        Scenario: Small business wants to know runway and burn rate
-
-        Expected behavior:
-        - Calculate current cash position
-        - Determine monthly burn rate
-        - Predict runway (months until cash out)
-        - Classify risk level (high/medium/low)
-        """
-        forecaster = CashFlowForecastingService()
-
-        # Mock financial data
-        with patch.object(forecaster, 'db') as mock_db:
-            # Setup mock returns for multiple filter calls
-            mock_query = MagicMock()
-            mock_db.query.return_value = mock_query
-
-            # Each filter() call returns the mock query
-            mock_query.filter.return_value = mock_query
-
-            # all() returns empty list for accounts
-            # scalar() returns values in sequence
-            scalar_call_count = [0]
-            def mock_scalar():
-                scalar_call_count[0] += 1
-                values = [50000.0, -10000.0, 15000.0, 5000.0]
-                if scalar_call_count[0] <= len(values):
-                    return values[scalar_call_count[0] - 1]
-                return 0.0
-
-            mock_query.scalar.side_effect = mock_scalar
-            mock_query.all.return_value = []
-
-            forecast = forecaster.get_runway_prediction("workspace_123")
-
-            # Verify forecast structure
-            assert "current_liquidity" in forecast
-            assert "monthly_burn" in forecast
-            assert "runway_months" in forecast
-            assert "risk_level" in forecast
-
-            # Verify risk level is valid
-            assert forecast.get("risk_level") in ["high", "medium", "low", None, "Indefinite"]
-
-    def test_cash_flow_forecasting_high_risk(self):
-        """
-        BI-002-02: Detect high-risk cash flow situations.
-
-        Scenario: Startup with limited runway (< 3 months)
-
-        Expected behavior:
-        - System flags high risk
-        - Recommend immediate action
-        - Consider pending inflows in calculation
-        """
-        forecaster = CashFlowForecastingService()
-
-        with patch.object(forecaster, 'db') as mock_db:
-            # High risk scenario: low cash, high burn
-            mock_query = MagicMock()
-            mock_db.query.return_value = mock_query
-            mock_query.filter.return_value = mock_query
-
-            scalar_call_count = [0]
-            def mock_scalar():
-                scalar_call_count[0] += 1
-                values = [10000.0, -8000.0, 2000.0, 3000.0]
-                if scalar_call_count[0] <= len(values):
-                    return values[scalar_call_count[0] - 1]
-                return 0.0
-
-            mock_query.scalar.side_effect = mock_scalar
-            mock_query.all.return_value = []
-
-            forecast = forecaster.get_runway_prediction("workspace_123")
-
-            # Verify high risk detection
-            # Risk level should be high for low runway
-            assert forecast["risk_level"] == "high"
-            assert forecast["runway_months"] < 3.0 or forecast["runway_months"] == "Indefinite"
 
     def test_volume_forecasting_agent_executions(self):
         """

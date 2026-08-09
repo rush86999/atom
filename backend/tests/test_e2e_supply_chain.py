@@ -38,7 +38,6 @@ sys.modules['docker.errors'].APIError = APIError
 
 from core.package_governance_service import PackageGovernanceService
 from core.npm_script_analyzer import NpmScriptAnalyzer
-from core.auto_installer_service import AutoInstallerService
 from core.audit_service import audit_service
 from fixtures.supply_chain_fixtures import (
     TYPOSQUATTING_PACKAGES,
@@ -66,12 +65,6 @@ def governance_service(db_session: Session):
 def script_analyzer():
     """Create script analyzer fixture."""
     return NpmScriptAnalyzer()
-
-
-@pytest.fixture
-def auto_installer(db_session: Session):
-    """Create auto installer fixture."""
-    return AutoInstallerService(db_session)
 
 
 # ============================================================================

@@ -291,6 +291,33 @@ describe('UnifiedServicesManager', () => {
     );
   });
 
+  it('clears the deferred post-switch health check on unmount', async () => {
+    const onServiceHealthChange = jest.fn();
+
+    const { unmount } = render(
+      <UnifiedServicesManager
+        onImplementationChange={jest.fn()}
+        onServiceHealthChange={onServiceHealthChange}
+      />
+    );
+    await waitForLoad();
+
+    fireEvent.click(screen.getAllByTitle('Toggle details')[0]);
+    fireEvent.click(screen.getByText('🌐 Switch to Real'));
+    // switch POST + status refetch completed
+    await waitFor(() => expect(implFetches).toBe(2));
+    expect(healthFetches).toBe(4); // 2 mount + 2 refetch
+
+    unmount();
+
+    // Wait past the 1s deferred health-check window: nothing may fire
+    // (fetch or callback) after the component is gone.
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+
+    expect(healthFetches).toBe(4);
+    expect(onServiceHealthChange).not.toHaveBeenCalled();
+  });
+
   it('renders an error state when the implementations fetch fails', async () => {
     server.use(
       rest.get(`${BASE}/implementations`, (req, res, ctx) => res.networkError('boom'))

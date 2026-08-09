@@ -239,7 +239,7 @@ class AtomDiscordIntegration:
                 unified_channels.append(unified_channel)
             
             # Store in communication channels
-            self.communication_channels.extend(unified_channels)
+            self.communication_channels = unified_channels
             
             return unified_channels
             
@@ -418,9 +418,21 @@ class AtomDiscordIntegration:
                 )
                 
                 if discord_results.get('ok'):
-                    # Would convert to unified format
-                    # For now, add placeholder results
-                    pass
+                    # Convert to unified format
+                    for msg_data in discord_results.get('messages', []):
+                        for result in msg_data.get('results', []):
+                            author = result.get('author') or {}
+                            unified_results.append({
+                                'id': f"discord_{result.get('id')}",
+                                'content': result.get('content', ''),
+                                'platform': 'Discord',
+                                'workspace_id': workspace_id,
+                                'channel_id': channel_id,
+                                'user_id': f"discord_{author.get('id')}" if isinstance(author, dict) else None,
+                                'user_name': author.get('username') if isinstance(author, dict) else None,
+                                'timestamp': result.get('timestamp'),
+                                'relevance_score': 1.0
+                            })
             
             # Add results from other platforms here...
             

@@ -3,7 +3,7 @@
  * Real-time monitoring and control for Slack/Teams implementations
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { UnifiedServicesStatus, ServiceHealth, ServiceImplementation } from './types/communication';
 
 interface ServicesManagerProps {
@@ -39,6 +39,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedService, setExpandedService] = useState<string | null>(null);
+  const deferredHealthCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const apiConfig = {
     baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000',
@@ -142,7 +143,10 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
         }
 
         // Also update health
-        setTimeout(() => {
+        if (deferredHealthCheckRef.current) {
+          clearTimeout(deferredHealthCheckRef.current);
+        }
+        deferredHealthCheckRef.current = setTimeout(() => {
           fetchServiceHealth(serviceName).then(health => {
             if (onServiceHealthChange) {
               onServiceHealthChange({ service: serviceName, ...health });
@@ -183,6 +187,17 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
     const interval = setInterval(refreshData, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
   }, [refreshData]);
+
+  // Cancel the deferred post-switch health check on unmount so no fetch or
+  // callback fires after the component is gone.
+  useEffect(() => {
+    return () => {
+      if (deferredHealthCheckRef.current) {
+        clearTimeout(deferredHealthCheckRef.current);
+        deferredHealthCheckRef.current = null;
+      }
+    };
+  }, []);
 
   // Initial load
   useEffect(() => {

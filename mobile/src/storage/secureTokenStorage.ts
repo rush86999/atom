@@ -53,18 +53,33 @@ export async function secureSet(key: string, value: string): Promise<void> {
  * in AsyncStorage (pre-migration), migrate it transparently.
  */
 export async function secureGet(key: string): Promise<string | null> {
-  // Try SecureStore first
-  let value = await SecureStore.getItemAsync(key);
+  // Try SecureStore first. A read failure (e.g. keychain unavailable /
+  // keystore corruption on Android) must NOT fail closed — fall through to
+  // the legacy AsyncStorage copy so the user is not locked out of their
+  // session. The legacy value is plaintext anyway, so reading it on failure
+  // does not weaken the security posture.
+  let value: string | null = null;
+  try {
+    value = await SecureStore.getItemAsync(key);
+  } catch {
+    value = null;
+  }
   if (value !== null) return value;
 
   // Migration: check AsyncStorage for a legacy value, move it to SecureStore
   const legacy = await AsyncStorage.getItem(key);
   if (legacy !== null) {
-    await SecureStore.setItemAsync(key, legacy, {
-      keychainAccessible: SecureStore.WHEN_UNLOCKED,
-    });
-    // Wipe from AsyncStorage so the unencrypted copy is gone
-    await AsyncStorage.removeItem(key);
+    try {
+      await SecureStore.setItemAsync(key, legacy, {
+        keychainAccessible: SecureStore.WHEN_UNLOCKED,
+      });
+      // Wipe from AsyncStorage so the unencrypted copy is gone
+      await AsyncStorage.removeItem(key);
+    } catch {
+      // SecureStore write failed (keychain unavailable) — keep the legacy
+      // value readable from AsyncStorage rather than losing the session.
+      // It will be migrated on a later read once the keystore recovers.
+    }
     return legacy;
   }
 

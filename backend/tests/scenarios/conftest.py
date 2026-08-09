@@ -25,6 +25,8 @@ from tests.security.conftest import (
     valid_auth_token,
     admin_user,
     admin_token,
+    refresh_token,
+    expired_auth_token,
 )
 
 
@@ -132,6 +134,8 @@ __all__ = [
     "db_session",
     "test_user_with_password",
     "valid_auth_token",
+    "refresh_token",
+    "expired_auth_token",
     "admin_user",
     "admin_token",
     "member_token",

@@ -434,7 +434,10 @@ class OutlookEnhancedService:
 
             if response.status == 429 and not is_retry:
                 # Rate limiting - back off using Retry-After header.
-                retry_after = int(response.headers.get("Retry-After", "5") or 5)
+                try:
+                    retry_after = int(response.headers.get("Retry-After", "5") or 5)
+                except (TypeError, ValueError):
+                    retry_after = 5
                 logger.warning(f"Graph API rate limited, waiting {retry_after}s before retry")
                 await asyncio.sleep(retry_after)
                 return await self._make_graph_request(
@@ -786,7 +789,7 @@ class OutlookEnhancedService:
     ) -> Optional[OutlookTask]:
         """Create task with enhanced options"""
         try:
-            endpoint = f"users/{user_id}/tasks"
+            endpoint = f"users/{user_id}/todo/lists/tasks/tasks"
 
             task_data = {"subject": subject, "importance": importance}
 

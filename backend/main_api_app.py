@@ -1361,6 +1361,10 @@ app.include_router(office_router, prefix="/api/v1/office", tags=["office"])
 # (e.g. /api/v1/agents/api/agents/...).
 if agent_router:
     app.include_router(agent_router, tags=["agents"])
+# episode_routes.py declares its own /api/episodes prefix — include BARE.
+# (Previously never mounted: the whole episodes API 404'd, incl. feedback submit.)
+episode_router = safe_import_router("api.episode_routes")
+app.include_router(episode_router, tags=["episodes"])
 if workflow_router:
     app.include_router(workflow_router, prefix="/api/v1/workflows", tags=["workflows"])
 

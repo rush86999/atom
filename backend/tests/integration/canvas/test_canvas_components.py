@@ -25,7 +25,7 @@ class TestTextComponents:
     def test_add_text_component(self, client: TestClient, auth_token: str, db_session: Session):
         """Test adding text component to canvas."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="generic")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="generic")
         db_session.add(canvas)
         db_session.commit()
 
@@ -48,7 +48,7 @@ class TestTextComponents:
     def test_add_markdown_component(self, client: TestClient, auth_token: str, db_session: Session):
         """Test adding markdown component."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="docs")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="docs")
         db_session.add(canvas)
         db_session.commit()
 
@@ -70,7 +70,7 @@ class TestFormComponents:
     def test_add_form_component(self, client: TestClient, auth_token: str, db_session: Session):
         """Test adding form component to canvas."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="generic")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="generic")
         db_session.add(canvas)
         db_session.commit()
 
@@ -97,7 +97,7 @@ class TestFormComponents:
     def test_form_with_various_field_types(self, client: TestClient, auth_token: str, db_session: Session):
         """Test form with various field types."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="generic")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="generic")
         db_session.add(canvas)
         db_session.commit()
 
@@ -121,7 +121,7 @@ class TestFormComponents:
     def test_form_field_validation(self, client: TestClient, auth_token: str, db_session: Session):
         """Test form field validation."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="generic")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="generic")
         db_session.add(canvas)
         db_session.commit()
 
@@ -145,7 +145,7 @@ class TestChartComponents:
     def test_add_line_chart(self, client: TestClient, auth_token: str, db_session: Session):
         """Test adding line chart component."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="orchestration")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="orchestration")
         db_session.add(canvas)
         db_session.commit()
 
@@ -170,7 +170,7 @@ class TestChartComponents:
     def test_add_bar_chart(self, client: TestClient, auth_token: str, db_session: Session):
         """Test adding bar chart component."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="orchestration")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="orchestration")
         db_session.add(canvas)
         db_session.commit()
 
@@ -191,7 +191,7 @@ class TestChartComponents:
     def test_add_pie_chart(self, client: TestClient, auth_token: str, db_session: Session):
         """Test adding pie chart component."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="orchestration")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="orchestration")
         db_session.add(canvas)
         db_session.commit()
 
@@ -216,7 +216,7 @@ class TestSheetComponents:
     def test_add_sheet_component(self, client: TestClient, auth_token: str, db_session: Session):
         """Test adding sheet component."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="sheets")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="sheets")
         db_session.add(canvas)
         db_session.commit()
 
@@ -248,7 +248,7 @@ class TestCustomComponents:
     def test_add_custom_component(self, client: TestClient, auth_token: str, db_session: Session):
         """Test adding custom HTML/CSS/JS component."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="generic")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="generic")
         db_session.add(canvas)
         db_session.commit()
 
@@ -273,7 +273,7 @@ class TestCustomComponents:
     def test_custom_component_html_only(self, client: TestClient, auth_token: str, db_session: Session):
         """Test custom component with HTML only (lower governance)."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="generic")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="generic")
         db_session.add(canvas)
         db_session.commit()
 
@@ -293,7 +293,7 @@ class TestCustomComponents:
     def test_custom_component_with_javascript_restricted(self, client: TestClient, auth_token: str, db_session: Session):
         """Test custom component with JavaScript requires AUTONOMOUS."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="generic")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="generic")
         db_session.add(canvas)
         db_session.commit()
 
@@ -318,7 +318,7 @@ class TestComponentUpdate:
         """Test updating existing component."""
         canvas_id = str(uuid.uuid4())
         component_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="generic")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="generic")
         db_session.add(canvas)
         db_session.commit()
 
@@ -341,7 +341,7 @@ class TestComponentUpdate:
         """Test updating non-existent component."""
         canvas_id = str(uuid.uuid4())
         fake_component_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="generic")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="generic")
         db_session.add(canvas)
         db_session.commit()
 
@@ -364,7 +364,7 @@ class TestComponentDeletion:
         """Test deleting component from canvas."""
         canvas_id = str(uuid.uuid4())
         component_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="generic")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="generic")
         db_session.add(canvas)
         db_session.commit()
 
@@ -405,7 +405,7 @@ class TestComponentValidation:
     def test_component_invalid_type(self, client: TestClient, auth_token: str, db_session: Session):
         """Test component with invalid type."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="generic")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="generic")
         db_session.add(canvas)
         db_session.commit()
 
@@ -424,7 +424,7 @@ class TestComponentValidation:
     def test_chart_missing_data(self, client: TestClient, auth_token: str, db_session: Session):
         """Test chart component without required data."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, canvas_type="orchestration")
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id, canvas_type="orchestration")
         db_session.add(canvas)
         db_session.commit()
 

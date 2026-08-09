@@ -56,7 +56,10 @@ function toRpcError(action: string, err: unknown): RpcError {
   } else if (axiosErr?.response?.status === 403) {
     e.message = "Not permitted to perform this action";
   } else {
-    e.message = axiosErr?.message ?? "RPC call failed";
+    // Deliberately generic: axios messages ("Request failed with status code
+    // 500", "Network Error", "timeout of 10000ms exceeded") leak client
+    // configuration and transport internals into user-facing surfaces.
+    e.message = "RPC call failed";
   }
   return e;
 }

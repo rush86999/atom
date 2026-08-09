@@ -183,14 +183,19 @@ def client(mock_analytics_engine, mock_correlation_engine, mock_predictive_engin
     # Auth: routes require a Bearer user (R38+ sweep) — override to a test user.
     from core.auth import get_current_user
     from core.models import User
-    app.dependency_overrides[get_current_user] = lambda: User(
-        id="analytics-test-user",
-        email="analytics@test.com",
-        first_name="Analytics",
-        last_name="Tester",
-        role="super_admin",
-        status="active",
-    )
+    def _fake_user():
+        u = User(
+            id="analytics-test-user",
+            email="analytics@test.com",
+            first_name="Analytics",
+            last_name="Tester",
+            role="super_admin",
+            status="active",
+        )
+        u.is_admin = True  # /patterns/{user_id} requires admin for other users
+        return u
+
+    app.dependency_overrides[get_current_user] = _fake_user
 
     test_client = TestClient(app)
     yield test_client
@@ -1000,13 +1005,14 @@ class TestChannelRecommendation:
 
     @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
     def test_recommend_channel_with_urgency(self, mock_get_engine, client, mock_predictive_engine):
-        """Cover recommendation with urgency."""
+        """Cover recommendation with urgency — urgency is validated as a query
+        param (UrgencyLevel) but is not echoed back in the response."""
         mock_get_engine.return_value = mock_predictive_engine
 
         response = client.get("/api/analytics/recommendations/channel?recipient=user-123&urgency=high")
 
         assert response.status_code == 200
-        assert response.json()["urgency"] == "high"
+        assert response.json()["recommended_platform"] == "slack"
 
     @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
     @pytest.mark.parametrize("urgency", ["low", "medium", "high", "urgent"])
@@ -1295,7 +1301,7 @@ class TestAnalyticsOverview:
     @patch('api.analytics_dashboard_routes.get_message_analytics_engine')
     @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
     @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
-    def test_get_analytics_overview_success(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine):
+    def test_get_analytics_overview_success(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine, mock_analytics_engine, mock_correlation_engine):
         """Cover analytics overview."""
         mock_msg.return_value = mock_analytics_engine
         mock_pred.return_value = mock_predictive_engine
@@ -1314,7 +1320,7 @@ class TestAnalyticsOverview:
     @patch('api.analytics_dashboard_routes.get_message_analytics_engine')
     @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
     @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
-    def test_overview_timestamp(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine):
+    def test_overview_timestamp(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine, mock_analytics_engine, mock_correlation_engine):
         """Cover overview timestamp."""
         mock_msg.return_value = mock_analytics_engine
         mock_pred.return_value = mock_predictive_engine
@@ -1330,7 +1336,7 @@ class TestAnalyticsOverview:
     @patch('api.analytics_dashboard_routes.get_message_analytics_engine')
     @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
     @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
-    def test_overview_message_analytics(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine):
+    def test_overview_message_analytics(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine, mock_analytics_engine, mock_correlation_engine):
         """Cover message analytics in overview."""
         mock_msg.return_value = mock_analytics_engine
         mock_pred.return_value = mock_predictive_engine
@@ -1347,7 +1353,7 @@ class TestAnalyticsOverview:
     @patch('api.analytics_dashboard_routes.get_message_analytics_engine')
     @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
     @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
-    def test_overview_predictive_insights(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine):
+    def test_overview_predictive_insights(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine, mock_analytics_engine, mock_correlation_engine):
         """Cover predictive insights in overview."""
         mock_msg.return_value = mock_analytics_engine
         mock_pred.return_value = mock_predictive_engine
@@ -1364,7 +1370,7 @@ class TestAnalyticsOverview:
     @patch('api.analytics_dashboard_routes.get_message_analytics_engine')
     @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
     @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
-    def test_overview_cross_platform(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine):
+    def test_overview_cross_platform(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine, mock_analytics_engine, mock_correlation_engine):
         """Cover cross-platform in overview."""
         mock_msg.return_value = mock_analytics_engine
         mock_pred.return_value = mock_predictive_engine
@@ -1380,7 +1386,7 @@ class TestAnalyticsOverview:
     @patch('api.analytics_dashboard_routes.get_message_analytics_engine')
     @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
     @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
-    def test_overview_health_status(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine):
+    def test_overview_health_status(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine, mock_analytics_engine, mock_correlation_engine):
         """Cover health status in overview."""
         mock_msg.return_value = mock_analytics_engine
         mock_pred.return_value = mock_predictive_engine

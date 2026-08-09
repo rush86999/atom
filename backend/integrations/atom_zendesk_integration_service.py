@@ -368,7 +368,7 @@ class AtomZendeskIntegrationService:
     async def create_ticket(self, ticket_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new ticket in Zendesk"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "initialize", locals())
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "create_ticket", locals())
         try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
@@ -462,14 +462,17 @@ class AtomZendeskIntegrationService:
                     error_msg = f"Failed to create ticket: {response.status_code} - {response.text}"
                     logger.error(error_msg)
                     return {'success': False, 'error': error_msg}
+        except HTTPException as e:
+            logger.error(f"Ticket creation failed: {e.detail}")
+            return {'success': False, 'error': e.detail}
         except Exception as e:
             logger.error(f"Error creating ticket: {e}")
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'Ticket creation failed'}
     
     async def update_ticket(self, ticket_id: str, update_data: Dict[str, Any], platform: str = None, comment: str = None) -> Dict[str, Any]:
         """Update existing ticket in Zendesk"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "create_ticket", locals())
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "update_ticket", locals())
         try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
@@ -566,9 +569,12 @@ class AtomZendeskIntegrationService:
                     logger.error(error_msg)
                     return {'success': False, 'error': error_msg}
                     
+        except HTTPException as e:
+            logger.error(f"Ticket update failed: {e.detail}")
+            return {'success': False, 'error': e.detail}
         except Exception as e:
             logger.error(f"Error updating ticket: {e}")
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'Ticket update failed'}
     
     async def get_tickets(self, filter_params: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """Get tickets from Zendesk with optional filtering"""
@@ -621,7 +627,7 @@ class AtomZendeskIntegrationService:
     async def get_ticket_info(self, ticket_id: str) -> Optional[Dict[str, Any]]:
         """Public method to fetch ticket details"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "get_tickets", locals())
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "get_ticket_info", locals())
         # Check circuit breaker
         if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
             logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
@@ -644,7 +650,7 @@ class AtomZendeskIntegrationService:
     async def create_ticket_comment(self, ticket_id: str, comment_body: str, public: bool = True) -> Dict[str, Any]:
         """Add a comment to an existing ticket"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "get_ticket_info", locals())
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "create_ticket_comment", locals())
         try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
@@ -683,14 +689,17 @@ class AtomZendeskIntegrationService:
                     return {"success": True, "ticket": response.json().get("ticket")}
                 else:
                     return {"success": False, "error": response.text}
+        except HTTPException as e:
+            logger.error(f"Failed to add comment to ticket: {e.detail}")
+            return {"success": False, "error": e.detail}
         except Exception as e:
             logger.error(f"Error creating ticket comment: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Failed to add comment to ticket"}
 
     async def generate_support_analytics(self, analytics_type: SupportAnalyticsType, time_period: str = '7d') -> Dict[str, Any]:
         """Generate support analytics"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "create_ticket_comment", locals())
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "generate_support_analytics", locals())
         try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
@@ -769,9 +778,12 @@ class AtomZendeskIntegrationService:
                 'generation_time': generation_time
             }
             
+        except HTTPException as e:
+            logger.error(f"Analytics generation failed: {e.detail}")
+            return {'success': False, 'error': e.detail}
         except Exception as e:
             logger.error(f"Error generating support analytics: {e}")
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'Analytics generation failed'}
     
     async def _analyze_ticket_with_ai(self, ticket_data: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze ticket with AI for priority classification and sentiment"""
@@ -1035,8 +1047,8 @@ class AtomZendeskIntegrationService:
         """Check SLA compliance for a ticket"""
         try:
             priority = ticket.get('priority', 'normal')
-            sla = self.sla_config.get(priority, self.sla_config['normal'])
-            self.analytics_metrics['average_response_time'] = float(sla['first_response'])
+            if priority not in self.sla_config:
+                priority = 'normal'
         except Exception as e:
             logger.error(f"Error checking SLA compliance: {e}")
 
@@ -1074,16 +1086,16 @@ class AtomZendeskIntegrationService:
 
     async def _generate_satisfaction_analytics(self, tickets: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Generate customer satisfaction analytics from tickets"""
-        ratings = [t.get('satisfaction_rating') for t in tickets if t.get('satisfaction_rating')]
-        score = 0.0
-        for rating in ratings:
+        ratings = []
+        for ticket in tickets:
+            rating = ticket.get('satisfaction_rating')
             if rating is None:
                 continue
             try:
-                score += float(rating)
+                ratings.append(float(rating))
             except (TypeError, ValueError):
                 continue
-        avg = score / len(ratings) if ratings else 0.0
+        avg = sum(ratings) / len(ratings) if ratings else 0.0
         return {
             'average_satisfaction': avg,
             'ratings_count': len(ratings),
@@ -1183,12 +1195,12 @@ class AtomZendeskIntegrationService:
             }
         except Exception as e:
             logger.error(f"Error getting service status: {e}")
-            return {'error': str(e), 'service': 'zendesk_integration'}
+            return {'error': 'Failed to get service status', 'service': 'zendesk_integration'}
     
     async def close(self):
         """Close Zendesk Integration Service"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "get_service_status", locals())
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "close", locals())
         try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_zendesk_integration"):

@@ -96,7 +96,7 @@ class TrelloService(IntegrationService):
             logger.error(f"Trello connection test failed: {e}")
             return {
                 "status": "error",
-                "message": str(e),
+                "message": "Trello connection check failed",
                 "authenticated": False
             }
     
@@ -462,14 +462,14 @@ class TrelloService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Trello metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save Trello metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Trello PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Trello cache sync failed"}
 
     def get_user_profile(self, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get current user profile"""
@@ -652,7 +652,7 @@ class TrelloService(IntegrationService):
     def _op_update_card(self, parameters: Dict[str, Any], context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """Update card operation"""
         card_id = parameters.get("card_id")
-        update_data = {k: v for k, v in parameters.items() if k != "card_id"}
+        update_data = {k: v for k, v in parameters.items() if k not in ("card_id", "token")}
         result = self.update_card(card_id, update_data, token=parameters.get("token"))
         if not result:
             raise Exception(f"Failed to update card {card_id}")

@@ -462,6 +462,16 @@ async def get_user_patterns(
         User's communication patterns and preferences
     """
     try:
+        # Ownership gate: behavioral patterns (active hours, response times,
+        # message-type preferences) are per-user PII. Only the user themself
+        # (or an admin) may read them — cross-user reads were previously
+        # allowed for any authenticated user (IDOR).
+        if str(user_id) != str(current_user.id) and not getattr(current_user, "is_admin", False):
+            raise router.permission_denied_error(
+                action="view_user_patterns",
+                resource="UserPatterns",
+            )
+
         insights_engine = get_predictive_insights_engine()
 
         pattern = insights_engine.get_user_pattern(user_id)

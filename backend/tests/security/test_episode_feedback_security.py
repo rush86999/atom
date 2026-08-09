@@ -47,6 +47,7 @@ class TestEpisodeFeedbackInputValidation:
         user = UserFactory(
             email="test@example.com",
             role="member",
+            status="active",
             _session=db_session
         )
 
@@ -65,6 +66,7 @@ class TestEpisodeFeedbackInputValidation:
         user = UserFactory(
             email="test2@example.com",
             role="member",
+            status="active",
             _session=db_session
         )
 
@@ -83,6 +85,7 @@ class TestEpisodeFeedbackInputValidation:
         user = UserFactory(
             email="test3@example.com",
             role="member",
+            status="active",
             _session=db_session
         )
 
@@ -103,6 +106,7 @@ class TestEpisodeFeedbackInputValidation:
         user = UserFactory(
             email="test4@example.com",
             role="member",
+            status="active",
             _session=db_session
         )
 
@@ -110,8 +114,11 @@ class TestEpisodeFeedbackInputValidation:
         episode = Episode(
             id=str(uuid.uuid4()),
             agent_id="test-agent",
+            tenant_id="default",
             session_id="test-session",
-            title="Test Episode",
+            task_description="Test Episode",
+            maturity_at_time="INTERN",
+            outcome="success",
             importance_score=0.5,
             status="completed"
         )
@@ -136,6 +143,7 @@ class TestEpisodeFeedbackInputValidation:
         user = UserFactory(
             email="test5@example.com",
             role="member",
+            status="active",
             _session=db_session
         )
 
@@ -165,6 +173,7 @@ class TestImportanceScoreManipulation:
         user = UserFactory(
             email="attacker@example.com",
             role="member",
+            status="active",
             _session=db_session
         )
 
@@ -172,8 +181,11 @@ class TestImportanceScoreManipulation:
         episode = Episode(
             id=str(uuid.uuid4()),
             agent_id="test-agent",
+            tenant_id="default",
             session_id="test-session",
-            title="Target Episode",
+            task_description="Target Episode",
+            maturity_at_time="INTERN",
+            outcome="success",
             importance_score=0.1,  # Low importance
             status="completed"
         )
@@ -209,6 +221,7 @@ class TestImportanceScoreManipulation:
         user = UserFactory(
             email="user@example.com",
             role="member",
+            status="active",
             _session=db_session
         )
 
@@ -216,8 +229,11 @@ class TestImportanceScoreManipulation:
         episode = Episode(
             id=str(uuid.uuid4()),
             agent_id="test-agent",
+            tenant_id="default",
             session_id="test-session",
-            title="Test Episode",
+            task_description="Test Episode",
+            maturity_at_time="INTERN",
+            outcome="success",
             importance_score=0.5,
             status="completed"
         )
@@ -247,8 +263,8 @@ class TestImportanceScoreManipulation:
 class TestFeedbackServiceValidation:
     """Test defensive validation in EpisodeLifecycleService."""
 
-    def test_update_importance_scores_rejects_invalid_feedback(self, db_session: Session):
-        """Test that update_importance_scores rejects out-of-bounds feedback."""
+    async def test_update_importance_scores_rejects_invalid_feedback(self, db_session: Session):
+        """Test that update_importance_scores clamps out-of-bounds feedback."""
         from core.episode_lifecycle_service import EpisodeLifecycleService
         from core.models import Episode
         import uuid
@@ -257,8 +273,11 @@ class TestFeedbackServiceValidation:
         episode = Episode(
             id=str(uuid.uuid4()),
             agent_id="test-agent",
+            tenant_id="default",
             session_id="test-session",
-            title="Test Episode",
+            task_description="Test Episode",
+            maturity_at_time="INTERN",
+            outcome="success",
             importance_score=0.5,
             status="completed"
         )
@@ -267,22 +286,18 @@ class TestFeedbackServiceValidation:
 
         service = EpisodeLifecycleService(db_session)
 
-        # Test that extreme positive value is rejected
-        with pytest.raises(ValueError, match="Invalid feedback_score"):
-            await service.update_importance_scores(episode.id, 99999999.0)
+        # Extreme values are clamped (never raise, never escape bounds);
+        # importance moves 20% of the way toward the clamped feedback.
+        # Base: importance=0.5 → 0.4 + (feedback+1)/2*0.2
+        for score, expected in [(99999999.0, 0.6), (-99999999.0, 0.4), (1.1, 0.6), (-1.1, 0.4)]:
+            episode.importance_score = 0.5  # reset base so iterations don't compound
+            db_session.commit()
+            result = await service.update_importance_scores(episode.id, score)
+            assert result is True
+            db_session.refresh(episode)
+            assert episode.importance_score == pytest.approx(expected, abs=1e-9)
 
-        # Test that extreme negative value is rejected
-        with pytest.raises(ValueError, match="Invalid feedback_score"):
-            await service.update_importance_scores(episode.id, -99999999.0)
-
-        # Test that slightly out of bounds value is rejected
-        with pytest.raises(ValueError, match="Invalid feedback_score"):
-            await service.update_importance_scores(episode.id, 1.1)
-
-        with pytest.raises(ValueError, match="Invalid feedback_score"):
-            await service.update_importance_scores(episode.id, -1.1)
-
-    def test_update_importance_scores_accepts_valid_bounds(self, db_session: Session):
+    async def test_update_importance_scores_accepts_valid_bounds(self, db_session: Session):
         """Test that valid boundary values are accepted."""
         from core.episode_lifecycle_service import EpisodeLifecycleService
         from core.models import Episode
@@ -292,8 +307,11 @@ class TestFeedbackServiceValidation:
         episode = Episode(
             id=str(uuid.uuid4()),
             agent_id="test-agent",
+            tenant_id="default",
             session_id="test-session",
-            title="Test Episode",
+            task_description="Test Episode",
+            maturity_at_time="INTERN",
+            outcome="success",
             importance_score=0.5,
             status="completed"
         )

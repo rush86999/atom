@@ -271,6 +271,7 @@ async def get_document_versions(canvas_id: str, current_user: User = Depends(get
 
     Returns all versions of the document.
     """
+    _get_owned_docs_canvas_or_error(db, canvas_id, current_user)
     service = DocumentationCanvasService(db)
     result = service.get_document_versions(canvas_id)
 
@@ -294,11 +295,14 @@ async def restore_version(canvas_id: str, request: RestoreVersionRequest, curren
 
     Restores the document content from a specific version and creates a new version for the restoration.
     """
+    _get_owned_docs_canvas_or_error(db, canvas_id, current_user)
     service = DocumentationCanvasService(db)
     result = service.restore_version(
         canvas_id=canvas_id,
         version_id=request.version_id,
-        user_id=request.user_id
+        # Token identity — the body ``user_id`` is ignored so the audit row
+        # cannot be forged onto another user.
+        user_id=current_user.id
     )
 
     if not result.get("success"):
@@ -321,6 +325,7 @@ async def get_table_of_contents(canvas_id: str, current_user: User = Depends(get
 
     Parses markdown headings and returns a structured table of contents.
     """
+    _get_owned_docs_canvas_or_error(db, canvas_id, current_user)
     service = DocumentationCanvasService(db)
     result = service.get_table_of_contents(canvas_id)
 

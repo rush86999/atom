@@ -266,6 +266,10 @@ async def update_template_endpoint(template_id: str, request: UpdateTemplateRequ
         # -> 422) instead of letting the bare `except Exception` below mask
         # them as 500 internal errors.
         raise
+    except HTTPException:
+        # R71: re-raise our own validation errors (e.g. "No updates provided"
+        # -> 422) instead of the bare `except Exception` masking them as 500.
+        raise
     except ValueError as e:
         raise router.not_found_error(
             "Template",

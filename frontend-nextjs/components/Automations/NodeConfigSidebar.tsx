@@ -81,6 +81,16 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
             const response = await fetch(`/api/v1/connections?integration_id=${encodeURIComponent(metadata.serviceId)}`);
             if (response.ok) {
                 const data = await response.json();
+
+                // Guard against malformed/non-array payloads: the connections
+                // dropdown renders `connections.map(...)` and would crash the
+                // whole sidebar if a non-array response were stored.
+                if (!Array.isArray(data)) {
+                    setConnections([]);
+                    setSelectedConnection(null);
+                    return;
+                }
+
                 setConnections(data);
 
                 // If we have a stored connectionId in config, select it
@@ -218,7 +228,10 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
 
             if (currentAction?.props) {
                 Object.entries(currentAction.props).forEach(([key, prop]: [string, any]) => {
-                    if (prop.type === 'DROPDOWN' && !prop.options?.options) {
+                    // DYNAMIC fields (no static options) must also be refreshed
+                    // after a connection change — otherwise they would show
+                    // "Select an option" forever with no way to load options.
+                    if ((prop.type === 'DROPDOWN' || prop.type === 'DYNAMIC') && !prop.options?.options) {
                         fetchDynamicOptions(key, prop, connectionId);
                     }
                 });

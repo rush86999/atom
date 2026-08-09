@@ -52,34 +52,38 @@ async def get_feedback_analytics_dashboard(
     Returns:
         Complete analytics dashboard
     """
-    analytics = FeedbackAnalytics(db)
+    try:
+        analytics = FeedbackAnalytics(db)
 
-    # Get overall statistics
-    stats = analytics.get_feedback_statistics(days=days)
+        # Get overall statistics
+        stats = analytics.get_feedback_statistics(days=days)
 
-    # Get top performing agents
-    top_agents = analytics.get_top_performing_agents(days=days, limit=limit)
+        # Get top performing agents
+        top_agents = analytics.get_top_performing_agents(days=days, limit=limit)
 
-    # Get most corrected agents
-    most_corrected = analytics.get_most_corrected_agents(days=days, limit=limit)
+        # Get most corrected agents
+        most_corrected = analytics.get_most_corrected_agents(days=days, limit=limit)
 
-    # Get feedback breakdown by type
-    breakdown = analytics.get_feedback_breakdown_by_type(days=days)
+        # Get feedback breakdown by type
+        breakdown = analytics.get_feedback_breakdown_by_type(days=days)
 
-    # Get trends
-    trends = analytics.get_feedback_trends(days=days)
+        # Get trends
+        trends = analytics.get_feedback_trends(days=days)
 
-    return router.success_response(
-        data={
-            "period_days": days,
-            "summary": stats,
-            "top_performing_agents": top_agents,
-            "most_corrected_agents": most_corrected,
-            "feedback_by_type": breakdown,
-            "trends": trends
-        },
-        message="Feedback analytics dashboard retrieved successfully"
-    )
+        return router.success_response(
+            data={
+                "period_days": days,
+                "summary": stats,
+                "top_performing_agents": top_agents,
+                "most_corrected_agents": most_corrected,
+                "feedback_by_type": breakdown,
+                "trends": trends
+            },
+            message="Feedback analytics dashboard retrieved successfully"
+        )
+    except Exception:
+        # R71: never leak the underlying error (str(e)) to clients
+        raise router.internal_error(message="Failed to retrieve feedback analytics")
 
 
 @router.get("/agent/{agent_id}")
@@ -110,26 +114,29 @@ async def get_agent_feedback_dashboard(
     Returns:
         Agent-specific analytics dashboard
     """
-    from core.agent_learning_enhanced import AgentLearningEnhanced
+    try:
+        from core.agent_learning_enhanced import AgentLearningEnhanced
 
-    analytics = FeedbackAnalytics(db)
-    learning = AgentLearningEnhanced(db)
+        analytics = FeedbackAnalytics(db)
+        learning = AgentLearningEnhanced(db)
 
-    # Get feedback summary
-    summary = analytics.get_agent_feedback_summary(agent_id=agent_id, days=days)
+        # Get feedback summary
+        summary = analytics.get_agent_feedback_summary(agent_id=agent_id, days=days)
 
-    # Get learning signals
-    signals = learning.get_learning_signals(agent_id=agent_id, days=days)
+        # Get learning signals
+        signals = learning.get_learning_signals(agent_id=agent_id, days=days)
 
-    return router.success_response(
-        data={
-            "agent_id": agent_id,
-            "period_days": days,
-            "feedback_summary": summary,
-            "learning_signals": signals
-        },
-        message="Agent feedback dashboard retrieved successfully"
-    )
+        return router.success_response(
+            data={
+                "agent_id": agent_id,
+                "period_days": days,
+                "feedback_summary": summary,
+                "learning_signals": signals
+            },
+            message="Agent feedback dashboard retrieved successfully"
+        )
+    except Exception:
+        raise router.internal_error(message="Failed to retrieve agent feedback dashboard")
 
 
 @router.get("/trends")
@@ -153,8 +160,11 @@ async def get_feedback_trends_endpoint(
     Returns:
         List of daily feedback trends
     """
-    analytics = FeedbackAnalytics(db)
-    trends = analytics.get_feedback_trends(days=days)
+    try:
+        analytics = FeedbackAnalytics(db)
+        trends = analytics.get_feedback_trends(days=days)
+    except Exception:
+        raise router.internal_error(message="Failed to retrieve feedback trends")
 
     return router.success_response(
         data={

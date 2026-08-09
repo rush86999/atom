@@ -368,7 +368,7 @@ class AtomVoiceAIService:
     async def process_voice_request(self, request: VoiceRequest) -> VoiceResponse:
         """Process voice AI request"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("atom_voice_ai", "initialize", locals())
+        audit_ctx = log_integration_attempt("atom_voice_ai", "process_voice_request", locals())
         try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_voice_ai"):
@@ -427,12 +427,12 @@ class AtomVoiceAIService:
             return response
         except Exception as e:
             logger.error(f"Error processing voice request: {e}")
-            return self._create_error_response(request, str(e))
+            return self._create_error_response(request, "Voice request processing failed")
     
     async def _load_voice_models(self):
         """Load voice AI models"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("atom_voice_ai", "process_voice_request", locals())
+        audit_ctx = log_integration_attempt("atom_voice_ai", "_load_voice_models", locals())
         try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_voice_ai"):
@@ -486,18 +486,25 @@ class AtomVoiceAIService:
             start_time = time.time()
             # Use Whisper for transcription
             import tempfile
-            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
-                temp_file.write(audio_data)
-                temp_file.flush()
-                # Transcribe with Whisper
-                result = self.whisper_model.transcribe(
-                    temp_file.name,
-                    language=request.language.value if request.language != VoiceLanguage.ENGLISH else None
-                )
-                text = result['text']
-                confidence = result.get('avg_logprob', 0.0)
-                # Clean up temp file
-                os.unlink(temp_file.name)
+            temp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
+                    temp_path = temp_file.name
+                    temp_file.write(audio_data)
+                    temp_file.flush()
+                    # Transcribe with Whisper
+                    result = self.whisper_model.transcribe(
+                        temp_file.name,
+                        language=request.language.value if request.language != VoiceLanguage.ENGLISH else None
+                    )
+                    text = result['text']
+                    confidence = result.get('avg_logprob', 0.0)
+            finally:
+                if temp_path is not None:
+                    try:
+                        os.unlink(temp_path)
+                    except OSError:
+                        pass
             # Update analytics
             transcription_time = time.time() - start_time
             self.performance_metrics['transcription_time'] = transcription_time
@@ -525,7 +532,7 @@ class AtomVoiceAIService:
             return response
         except Exception as e:
             logger.error(f"Error transcribing audio: {e}")
-            return self._create_error_response(request, str(e))
+            return self._create_error_response(request, "Audio transcription failed")
     
     async def _translate_speech(self, request: VoiceRequest, audio_data: bytes) -> VoiceResponse:
         """Translate speech from one language to another"""
@@ -577,7 +584,7 @@ class AtomVoiceAIService:
             return response
         except Exception as e:
             logger.error(f"Error translating speech: {e}")
-            return self._create_error_response(request, str(e))
+            return self._create_error_response(request, "Speech translation failed")
     
     async def _recognize_command(self, request: VoiceRequest, audio_data: bytes) -> VoiceResponse:
         """Recognize voice command"""
@@ -632,7 +639,7 @@ class AtomVoiceAIService:
             return response
         except Exception as e:
             logger.error(f"Error recognizing command: {e}")
-            return self._create_error_response(request, str(e))
+            return self._create_error_response(request, "Command recognition failed")
     
     async def _analyze_sentiment(self, request: VoiceRequest, audio_data: bytes) -> VoiceResponse:
         """Analyze sentiment from voice"""
@@ -681,7 +688,7 @@ class AtomVoiceAIService:
             return response
         except Exception as e:
             logger.error(f"Error analyzing sentiment: {e}")
-            return self._create_error_response(request, str(e))
+            return self._create_error_response(request, "Sentiment analysis failed")
     
     async def _detect_emotion(self, request: VoiceRequest, audio_data: bytes) -> VoiceResponse:
         """Detect emotion from voice"""
@@ -692,31 +699,38 @@ class AtomVoiceAIService:
             # For now, we'll use a simplified approach
             # Load audio for analysis
             import tempfile
-            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
-                temp_file.write(audio_data)
-                temp_file.flush()
-                # Analyze audio features (simplified)
-                y, sr = librosa.load(temp_file.name, sr=16000)
-                # Extract audio features
-                mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-                spectral_centroid = librosa.feature.spectral_centroid(y=y, sr=sr)
-                zero_crossing_rate = librosa.feature.zero_crossing_rate(y)
-                # Simple emotion detection based on audio features
-                # In a real implementation, this would use a trained model
-                avg_centroid = np.mean(spectral_centroid)
-                avg_zcr = np.mean(zero_crossing_rate)
-                # Simple heuristic for emotion detection
-                if avg_centroid > 2000 and avg_zcr > 0.1:
-                    emotion = VoiceEmotion.EXCITED
-                elif avg_centroid < 1000 and avg_zcr < 0.05:
-                    emotion = VoiceEmotion.CALM
-                elif avg_zcr > 0.15:
-                    emotion = VoiceEmotion.ANGRY
-                else:
-                    emotion = VoiceEmotion.NEUTRAL
-                confidence = 0.7  # Simplified confidence score
-                # Clean up temp file
-                os.unlink(temp_file.name)
+            temp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
+                    temp_path = temp_file.name
+                    temp_file.write(audio_data)
+                    temp_file.flush()
+                    # Analyze audio features (simplified)
+                    y, sr = librosa.load(temp_file.name, sr=16000)
+                    # Extract audio features
+                    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+                    spectral_centroid = librosa.feature.spectral_centroid(y=y, sr=sr)
+                    zero_crossing_rate = librosa.feature.zero_crossing_rate(y)
+                    # Simple emotion detection based on audio features
+                    # In a real implementation, this would use a trained model
+                    avg_centroid = np.mean(spectral_centroid)
+                    avg_zcr = np.mean(zero_crossing_rate)
+                    # Simple heuristic for emotion detection
+                    if avg_centroid > 2000 and avg_zcr > 0.1:
+                        emotion = VoiceEmotion.EXCITED
+                    elif avg_centroid < 1000 and avg_zcr < 0.05:
+                        emotion = VoiceEmotion.CALM
+                    elif avg_zcr > 0.15:
+                        emotion = VoiceEmotion.ANGRY
+                    else:
+                        emotion = VoiceEmotion.NEUTRAL
+                    confidence = 0.7  # Simplified confidence score
+            finally:
+                if temp_path is not None:
+                    try:
+                        os.unlink(temp_path)
+                    except OSError:
+                        pass
             # Update analytics
             emotion_time = time.time() - start_time
             self.performance_metrics['emotion_detection_time'] = emotion_time
@@ -745,7 +759,7 @@ class AtomVoiceAIService:
             return response
         except Exception as e:
             logger.error(f"Error detecting emotion: {e}")
-            return self._create_error_response(request, str(e))
+            return self._create_error_response(request, "Emotion detection failed")
     
     async def _preprocess_audio(self, request: VoiceRequest) -> bytes:
         """Preprocess audio data"""
@@ -915,7 +929,7 @@ class AtomVoiceAIService:
             return {'passed': True}
         except Exception as e:
             logger.error(f"Error performing security check: {e}")
-            return {'passed': False, 'reason': str(e)}
+            return {'passed': False, 'reason': 'Security check failed'}
     
     async def _log_voice_request(self, request: VoiceRequest, response: VoiceResponse):
         """Log voice request for enterprise compliance"""
@@ -990,7 +1004,7 @@ class AtomVoiceAIService:
     async def close(self):
         """Close Voice AI Service"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("atom_voice_ai", "get_service_status", locals())
+        audit_ctx = log_integration_attempt("atom_voice_ai", "close", locals())
         try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_voice_ai"):

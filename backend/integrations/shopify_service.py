@@ -132,7 +132,7 @@ class ShopifyService(IntegrationService):
                     
             except Exception as e:
                 logger.error(f"Failed to register webhook {topic}: {e}")
-                results.append({"topic": topic, "status": "failed", "error": str(e)})
+                results.append({"topic": topic, "status": "failed", "error": "Webhook registration failed"})
                 
         return results
 
@@ -456,48 +456,52 @@ class ShopifyService(IntegrationService):
     async def execute_operation(self, operation: str, parameters: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         token = parameters.get("access_token") or self.config.get("access_token")
         shop = parameters.get("shop") or self.shop_name
-        
-        if operation == "handle_webhook_event":
-            return await self.handle_webhook_event(parameters["payload"], parameters.get("topic"))
-            
-        if operation == "get_products":
-            result = await self.get_products(token, shop, limit=parameters.get("limit", 20))
-            return {"success": True, "result": result}
-        elif operation == "get_orders":
-            result = await self.get_orders(token, shop, limit=parameters.get("limit", 20))
-            return {"success": True, "result": result}
-        elif operation == "get_customers":
-            result = await self.get_customers(token, shop, limit=parameters.get("limit", 20))
-            return {"success": True, "result": result}
-        elif operation == "get_customer":
-            result = await self.get_customer(token, shop, customer_id=parameters["customer_id"])
-            return {"success": True, "result": result}
-        elif operation == "search_customers":
-            result = await self.search_customers(token, shop, query=parameters["query"])
-            return {"success": True, "result": result}
-        elif operation == "get_fulfillments":
-            result = await self.get_fulfillments(token, shop, order_id=parameters["order_id"])
-            return {"success": True, "result": result}
-        elif operation == "create_fulfillment":
-            result = await self.create_fulfillment(
-                token, shop, 
-                order_id=parameters["order_id"],
-                location_id=parameters["location_id"],
-                tracking_number=parameters.get("tracking_number"),
-                tracking_company=parameters.get("tracking_company")
-            )
-            return {"success": True, "result": result}
-        elif operation == "get_refunds":
-            result = await self.get_refunds(token, shop, order_id=parameters["order_id"])
-            return {"success": True, "result": result}
-        elif operation == "get_shop_analytics":
-            result = await self.get_shop_analytics(token, shop)
-            return {"success": True, "result": result}
-        elif operation == "full_sync":
-            result = await self.full_sync(workspace_id=parameters.get("workspace_id", self.tenant_id))
-            return {"success": True, "result": result}
-        else:
-            raise NotImplementedError(f"Operation {operation} not supported")
+
+        try:
+            if operation == "handle_webhook_event":
+                return await self.handle_webhook_event(parameters["payload"], parameters.get("topic"))
+
+            if operation == "get_products":
+                result = await self.get_products(token, shop, limit=parameters.get("limit", 20))
+                return {"success": True, "result": result}
+            elif operation == "get_orders":
+                result = await self.get_orders(token, shop, limit=parameters.get("limit", 20))
+                return {"success": True, "result": result}
+            elif operation == "get_customers":
+                result = await self.get_customers(token, shop, limit=parameters.get("limit", 20))
+                return {"success": True, "result": result}
+            elif operation == "get_customer":
+                result = await self.get_customer(token, shop, customer_id=parameters["customer_id"])
+                return {"success": True, "result": result}
+            elif operation == "search_customers":
+                result = await self.search_customers(token, shop, query=parameters["query"])
+                return {"success": True, "result": result}
+            elif operation == "get_fulfillments":
+                result = await self.get_fulfillments(token, shop, order_id=parameters["order_id"])
+                return {"success": True, "result": result}
+            elif operation == "create_fulfillment":
+                result = await self.create_fulfillment(
+                    token, shop, 
+                    order_id=parameters["order_id"],
+                    location_id=parameters["location_id"],
+                    tracking_number=parameters.get("tracking_number"),
+                    tracking_company=parameters.get("tracking_company")
+                )
+                return {"success": True, "result": result}
+            elif operation == "get_refunds":
+                result = await self.get_refunds(token, shop, order_id=parameters["order_id"])
+                return {"success": True, "result": result}
+            elif operation == "get_shop_analytics":
+                result = await self.get_shop_analytics(token, shop)
+                return {"success": True, "result": result}
+            elif operation == "full_sync":
+                result = await self.full_sync(workspace_id=parameters.get("workspace_id", self.tenant_id))
+                return {"success": True, "result": result}
+            else:
+                return {"success": False, "error": f"Unknown operation: {operation}", "operation": operation}
+        except Exception as e:
+            logger.error(f"Failed to execute Shopify operation {operation}: {e}")
+            return {"success": False, "error": "Operation failed", "operation": operation}
 
     async def handle_webhook_event(self, payload: Dict[str, Any], topic: Optional[str]) -> Dict[str, Any]:
         """Standardize Shopify webhook data and trigger internal processing."""
@@ -571,7 +575,7 @@ class ShopifyService(IntegrationService):
                 db.close()
         except Exception as e:
             logger.error(f"Shopify sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Shopify sync failed"}
 
     async def full_sync(self, workspace_id: str) -> Dict[str, Any]:
         """Trigger full sync for Shopify"""

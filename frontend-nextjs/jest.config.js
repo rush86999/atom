@@ -34,10 +34,6 @@ module.exports = {
     // `prebuild` script in package.json removes any stray pages/__tests__ as a
     // safety net, but please put tests here in the first place.
     "<rootDir>/tests/pages/**/*.test.(ts|tsx|js)",
-    // Page tests co-located under pages/__tests__/. NOTE: the `prebuild`
-    // script removes this directory before `next build` so test files never
-    // reach the Next.js filesystem router.
-    "<rootDir>/pages/__tests__/**/*.test.(ts|tsx|js)",
   ],
   collectCoverageFrom: [
     "components/**/*.{ts,tsx}",

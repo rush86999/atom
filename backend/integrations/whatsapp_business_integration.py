@@ -15,7 +15,10 @@ Key Features:
 """
 
 import asyncio
+import base64
 from datetime import datetime, timedelta
+import hashlib
+import hmac
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -65,6 +68,7 @@ class WhatsAppBusinessIntegration(IntegrationService):
         self.access_token = self.config.get("access_token")
         self.phone_number_id = self.config.get("phone_number_id")
         self.webhook_verify_token = self.config.get("webhook_verify_token")
+        self.webhook_app_secret = self.config.get("webhook_app_secret") or self.config.get("app_secret")
         self.db_connection = None
 
     def initialize(self, config: Dict[str, Any]):
@@ -73,6 +77,7 @@ class WhatsAppBusinessIntegration(IntegrationService):
             self.access_token = config.get("access_token")
             self.phone_number_id = config.get("phone_number_id")
             self.webhook_verify_token = config.get("webhook_verify_token")
+            self.webhook_app_secret = config.get("webhook_app_secret") or config.get("app_secret")
 
             # Check if this is demo mode
             is_demo = config.get("is_demo", False)
@@ -346,7 +351,7 @@ class WhatsAppBusinessIntegration(IntegrationService):
 
         except Exception as e:
             logger.error(f"Error sending WhatsApp message: {str(e)}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Failed to send WhatsApp message"}
 
     def get_conversations(
         self, limit: int = 50, offset: int = 0
@@ -617,7 +622,7 @@ def health_check():
                 {"status": "not_configured", "service": "WhatsApp Business API"}
             ), 503
     except Exception as e:
-        return jsonify({"status": "error", "error": str(e)}), 500
+        return jsonify({"status": "error", "error": "WhatsApp service error"}), 500
 
 
 @_bp_route("/send", methods=["POST"])
@@ -647,7 +652,7 @@ async def send_message_route():
 
     except Exception as e:
         logger.error(f"Error in send_message endpoint: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Failed to send WhatsApp message"}), 500
 
 
 @_bp_route("/conversations", methods=["GET"])
@@ -669,7 +674,7 @@ def get_conversations():
 
     except Exception as e:
         logger.error(f"Error in get_conversations endpoint: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Failed to get conversations"}), 500
 
 
 @_bp_route("/messages/<whatsapp_id>", methods=["GET"])
@@ -684,7 +689,7 @@ def get_messages(whatsapp_id):
 
     except Exception as e:
         logger.error(f"Error in get_messages endpoint: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Failed to get messages"}), 500
 
 
 @_bp_route("/templates", methods=["POST"])
@@ -716,7 +721,7 @@ def create_template():
 
     except Exception as e:
         logger.error(f"Error in create_template endpoint: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Failed to create template"}), 500
 
 
 @_bp_route("/analytics", methods=["GET"])
@@ -751,7 +756,7 @@ def get_analytics():
 
     except Exception as e:
         logger.error(f"Error in get_analytics endpoint: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Failed to get analytics"}), 500
 
 
 @_bp_route("/webhook", methods=["GET", "POST"])
@@ -759,20 +764,49 @@ def webhook():
     """Handle WhatsApp webhook events"""
     try:
         if request.method == "GET":
-            # Webhook verification
+            # Webhook verification — fail closed when the verify token is
+            # not configured (a None token must never satisfy the handshake).
             mode = request.args.get("hub.mode")
             token = request.args.get("hub.verify_token")
             challenge = request.args.get("hub.challenge")
+            verify_token = whatsapp_integration.webhook_verify_token
 
             if (
                 mode == "subscribe"
-                and token == whatsapp_integration.webhook_verify_token
+                and verify_token
+                and token == verify_token
             ):
                 return challenge, 200
             else:
                 return "Verification failed", 403
 
         else:  # POST
+            # Fail-closed signature verification (R45 class): forged events
+            # must be rejected when no app secret is configured.
+            app_secret = whatsapp_integration.webhook_app_secret
+            if not app_secret:
+                logger.error("WhatsApp webhook app secret not configured")
+                return "Webhook not configured", 503
+
+            signature = request.headers.get("X-Hub-Signature-256", "")
+            raw_body = request.get_data()
+            if not signature.startswith("sha256="):
+                logger.warning("WhatsApp webhook missing signature header")
+                return "Invalid signature", 401
+
+            digest = hmac.new(
+                app_secret.encode("utf-8"), raw_body, hashlib.sha256
+            ).digest()
+            hex_sig = digest.hex()
+            b64_sig = base64.b64encode(digest).decode("utf-8")
+            supplied = signature[len("sha256="):]
+            if not (
+                hmac.compare_digest(hex_sig, supplied)
+                or hmac.compare_digest(b64_sig, supplied)
+            ):
+                logger.warning("WhatsApp webhook signature mismatch")
+                return "Invalid signature", 401
+
             # Handle incoming messages and events
             data = request.get_json()
 

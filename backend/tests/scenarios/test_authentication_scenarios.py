@@ -8,7 +8,7 @@ These tests map to the documented scenarios in SCENARIOS.md:
 Priority: CRITICAL - Security, data integrity, access control
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from freezegun import freeze_time
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -24,7 +24,7 @@ from core.auth import (
     SECRET_KEY,
     ALGORITHM,
 )
-from core.models import User
+from core.models import User, UserStatus, PasswordResetToken
 import jwt
 
 
@@ -78,6 +78,7 @@ class TestUserLoginValidCredentials:
         """Test login updates user's last_login timestamp."""
         user = UserFactory(email="loginstamp@example.com", _session=db_session)
         user.hashed_password = get_password_hash("Password123!")
+        user.status = UserStatus.ACTIVE.value
         db_session.commit()
 
         original_login = user.last_login
@@ -91,8 +92,11 @@ class TestUserLoginValidCredentials:
             assert response.status_code == 200
 
             db_session.refresh(user)
-            # last_login should be updated
-            assert user.last_login >= original_login
+            # last_login should be recorded by the login handler (fresh users
+            # have no prior login, so it goes from None to a timestamp)
+            assert user.last_login is not None
+            if original_login is not None:
+                assert user.last_login >= original_login
 
 
 class TestUserLoginInvalidCredentials:
@@ -144,25 +148,40 @@ class TestUserLoginInvalidCredentials:
         assert response2.status_code == 401
 
     def test_account_lockout_after_failed_attempts(
-        self, client: TestClient, test_user_with_password, db_session: Session
+        self, client: TestClient, test_user_with_password, db_session: Session, monkeypatch
     ):
-        """Test account locks after 5 failed login attempts."""
-        # Attempt 5 failed logins
+        """Test repeated failed logins trigger the brute-force rate limiter (429).
+
+        There is no account-level lockout; the brute-force control is the
+        per-IP auth rate limiter (core/security/auth_rate_limit.py). It is
+        bypassed when TESTING=1, so this test swaps in a fresh limiter with a
+        limit of 5 for the duration of the test: 5 failed attempts are
+        allowed (401 each), the 6th is denied with 429 even when the
+        password is correct.
+        """
+        import core.security.auth_rate_limit as arl
+
+        monkeypatch.delenv("TESTING", raising=False)
+        monkeypatch.setattr(
+            arl, "_login_limiter", arl.AuthRateLimiter(limit=5, window_seconds=60)
+        )
+
+        # Attempt 5 failed logins — all allowed, all rejected with 401
         for i in range(5):
             response = client.post("/api/auth/login", json={
                 "username": test_user_with_password.email,
                 "password": f"WrongPassword{i}!"
             })
-            assert response.status_code in [401, 429]  # Locked or still trying
+            assert response.status_code == 401
 
-        # 6th attempt should be locked
+        # 6th attempt is rate-limited — even with the correct password
         response = client.post("/api/auth/login", json={
             "username": test_user_with_password.email,
-            "password": "KnownPassword123!"  # Correct password
+            "password": "KnownPassword123!"
         })
 
-        # Should be locked
-        assert response.status_code in [401, 429]
+        # Should be rate limited
+        assert response.status_code == 429
 
 
 class TestPasswordReset:
@@ -171,96 +190,111 @@ class TestPasswordReset:
     def test_password_reset_request_sends_email(
         self, client: TestClient, db_session: Session
     ):
-        """Test password reset initiates email send."""
+        """Test forgot-password creates a reset token and queues an email."""
         user = UserFactory(email="reset@example.com", _session=db_session)
         db_session.commit()
 
-        with patch('core.auth.send_password_reset_email') as mock_send:
-            response = client.post("/api/auth/password-reset", json={
+        with patch('core.auth_endpoints.send_smtp_email') as mock_send:
+            response = client.post("/api/auth/forgot-password", json={
                 "email": "reset@example.com"
             })
 
-            # Should accept request (may or may not actually send)
-            assert response.status_code in [200, 202, 404]
+            # Always 200 to prevent user enumeration
+            assert response.status_code == 200
 
-            if mock_send.called:
-                mock_send.assert_called_once()
+            mock_send.assert_called_once()
+            self.assert_token_persisted(db_session, user)
+
+    def assert_token_persisted(self, db_session: Session, user: User) -> None:
+        """Assert a PasswordResetToken row exists for the user."""
+        token_row = db_session.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user.id
+        ).first()
+        assert token_row is not None
+        # SQLite persists the column naive (no tz support), so compare against
+        # naive UTC to mirror the app's own SQL-level comparison.
+        assert token_row.expires_at > datetime.utcnow()
+
+    def _create_reset_token(
+        self, db_session: Session, user: User, expires_at: datetime
+    ) -> str:
+        """Insert a PasswordResetToken row and return the raw token."""
+        import hashlib
+        import secrets as _secrets
+
+        raw_token = _secrets.token_urlsafe(32)
+        token_row = PasswordResetToken(
+            user_id=user.id,
+            tenant_id=user.tenant_id or "default",
+            token=hashlib.sha256(raw_token.encode()).hexdigest(),
+            expires_at=expires_at,
+        )
+        db_session.add(token_row)
+        db_session.commit()
+        return raw_token
 
     def test_password_reset_token_expires(
         self, client: TestClient, db_session: Session
     ):
-        """Test password reset token expires after timeout."""
+        """Test reset token rejected after its 1-hour expiry."""
         user = UserFactory(email="resetexpire@example.com", _session=db_session)
-        # Create access token with expiration for reset simulation
-        reset_token = create_access_token(
-            data={"sub": user.email},
-            expires_delta=timedelta(hours=1)
-        )
         db_session.commit()
 
-        # Try to use token after expiration
-        with freeze_time("2026-02-08 12:00:00"):  # 7 days later
-            response = client.post("/api/auth/reset-password", json={
-                "token": reset_token,
-                "new_password": "NewSecurePass123!"
-            })
+        raw_token = self._create_reset_token(
+            db_session, user, expires_at=datetime.now(timezone.utc) - timedelta(hours=1)
+        )
 
-            # Should be expired
-            assert response.status_code in [401, 400]
+        response = client.post("/api/auth/reset-password", json={
+            "token": raw_token,
+            "password": "NewSecurePass123!"
+        })
+
+        # Should be expired
+        assert response.status_code == 400
 
     def test_password_reset_updates_password(
         self, client: TestClient, db_session: Session
     ):
-        """Test password reset actually updates password."""
+        """Test reset-password actually updates the stored hash."""
         user = UserFactory(email="resetpass@example.com", _session=db_session)
-        old_hash = user.hashed_password
+        user.hashed_password = get_password_hash("OldPassword123!")
+        user.status = UserStatus.ACTIVE.value
         db_session.commit()
+        old_hash = user.hashed_password
 
-        # Create reset token
-        reset_token = create_access_token(
-            data={"sub": user.email},
-            expires_delta=timedelta(hours=1)
+        raw_token = self._create_reset_token(
+            db_session, user, expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
         )
 
         response = client.post("/api/auth/reset-password", json={
-            "token": reset_token,
-            "new_password": "NewSecurePass123!"
+            "token": raw_token,
+            "password": "NewSecurePass123!"
         })
 
-        # Should succeed (200) or fail gracefully (404 if endpoint not implemented)
-        assert response.status_code in [200, 404]
-
-        if response.status_code == 200:
-            db_session.refresh(user)
-            assert user.hashed_password != old_hash
+        assert response.status_code == 200
+        db_session.refresh(user)
+        assert user.hashed_password != old_hash
+        assert verify_password("NewSecurePass123!", user.hashed_password) is True
+        assert verify_password("OldPassword123!", user.hashed_password) is False
 
     def test_password_complexity_enforced(
         self, client: TestClient, db_session: Session
     ):
-        """Test password complexity requirements enforced."""
+        """Test reset-password enforces a minimum password length."""
         user = UserFactory(email="complexity@example.com", _session=db_session)
-        reset_token = create_access_token(
-            data={"sub": user.email},
-            expires_delta=timedelta(hours=1)
-        )
         db_session.commit()
 
-        weak_passwords = [
-            "short",           # Too short
-            "alllowercase123", # No uppercase
-            "ALLUPPERCASE123", # No lowercase
-            "NoNumbers!",      # No numbers
-            "NoSymbols123"     # No symbols
-        ]
+        raw_token = self._create_reset_token(
+            db_session, user, expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
+        )
 
-        for weak_pass in weak_passwords:
-            response = client.post("/api/auth/reset-password", json={
-                "token": reset_token,
-                "new_password": weak_pass
-            })
+        # Too short → 422 validation rejection
+        response = client.post("/api/auth/reset-password", json={
+            "token": raw_token,
+            "password": "short"
+        })
 
-            # Should reject weak passwords (if validation implemented)
-            assert response.status_code in [200, 400, 422]
+        assert response.status_code == 422
 
     def test_old_password_invalidated_after_reset(
         self, client: TestClient, db_session: Session
@@ -268,17 +302,17 @@ class TestPasswordReset:
         """Test old password doesn't work after reset."""
         user = UserFactory(email="oldpass@example.com", _session=db_session)
         user.hashed_password = get_password_hash("OldPassword123!")
+        user.status = UserStatus.ACTIVE.value
         db_session.commit()
 
-        # Reset password
-        reset_token = create_access_token(
-            data={"sub": user.email},
-            expires_delta=timedelta(hours=1)
+        raw_token = self._create_reset_token(
+            db_session, user, expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
         )
-        client.post("/api/auth/reset-password", json={
-            "token": reset_token,
-            "new_password": "NewPassword123!"
+        response = client.post("/api/auth/reset-password", json={
+            "token": raw_token,
+            "password": "NewPassword123!"
         })
+        assert response.status_code == 200
 
         # Old password should not work
         response = client.post("/api/auth/login", json={
@@ -287,6 +321,14 @@ class TestPasswordReset:
         })
 
         assert response.status_code == 401
+
+        # New password should work
+        response = client.post("/api/auth/login", json={
+            "username": "oldpass@example.com",
+            "password": "NewPassword123!"
+        })
+
+        assert response.status_code == 200
 
 
 class TestTokenRefreshBeforeExpiration:
@@ -381,13 +423,14 @@ class TestTokenExpirationTiming:
         self, client: TestClient
     ):
         """Test access token expires after configured time."""
-        token = create_access_token(
-            data={"sub": "test_user"},
-            expires_delta=timedelta(minutes=15)
-        )
-
-        # Token should work immediately
+        # Token created at frozen time — its exp is relative to that moment
         with freeze_time("2026-02-01 10:00:00"):
+            token = create_access_token(
+                data={"sub": "test_user"},
+                expires_delta=timedelta(minutes=15)
+            )
+
+            # Token should work immediately
             payload = decode_token(token)
             assert payload is not None
 
@@ -404,13 +447,13 @@ class TestTokenExpirationTiming:
     ):
         """Test refresh token has 7-day expiration."""
         # Use access token for this test (refresh tokens may not be implemented)
-        token = create_access_token(
-            data={"sub": "test_user"},
-            expires_delta=timedelta(days=7)
-        )
-
-        # Should work immediately
         with freeze_time("2026-02-01 10:00:00"):
+            token = create_access_token(
+                data={"sub": "test_user"},
+                expires_delta=timedelta(days=7)
+            )
+
+            # Should work immediately
             payload = decode_token(token)
             assert payload is not None
 

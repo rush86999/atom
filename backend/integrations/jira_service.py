@@ -87,10 +87,14 @@ class JiraService(IntegrationService):
         
         if token:
             headers['Authorization'] = f"Bearer {token}"
-            
+
+        # urljoin would drop the /ex/jira/{cloud_id} prefix for absolute paths,
+        # so concatenate base + endpoint directly.
+        url = f"{self.base_url.rstrip('/')}{endpoint}" if self.base_url else endpoint
+
         return self.session.request(
             method=method,
-            url=urljoin(self.base_url, endpoint),
+            url=url,
             headers=headers,
             **kwargs
         )
@@ -118,7 +122,7 @@ class JiraService(IntegrationService):
             logger.error(f"Jira connection test failed: {e}")
             return {
                 "status": "error",
-                "message": str(e),
+                "message": "Jira connection check failed",
                 "authenticated": False
             }
     
@@ -492,14 +496,14 @@ class JiraService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Jira metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save Jira metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Jira PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Jira cache sync failed"}
 
     async def full_sync(self, project_key: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Jira"""
@@ -562,7 +566,7 @@ class JiraService(IntegrationService):
             logger.error(f"Jira health check failed: {e}")
             return {
                 "healthy": False,
-                "message": str(e),
+                "message": "Jira health check failed",
                 "last_check": datetime.now(timezone.utc).isoformat(),
             }
 

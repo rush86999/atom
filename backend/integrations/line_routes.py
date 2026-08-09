@@ -14,10 +14,15 @@ import os
 from typing import Any, Dict
 from fastapi import APIRouter, Header, HTTPException, Request
 
-from .line_service import line_service
+from .line_service import LineService
 from .universal_webhook_bridge import universal_webhook_bridge
 
 logger = logging.getLogger(__name__)
+
+# The module previously imported ``line_service`` as an instance, but
+# line_service.py only defines the ``LineService`` class — the import failed
+# with ImportError, so this router (and the webhook below) was dead.
+line_service = LineService()
 
 router = APIRouter(prefix="/api/line", tags=["line"])
 
@@ -27,16 +32,24 @@ async def line_webhook(request: Request, x_line_signature: str = Header(None)):
     Handle incoming Line events
     """
     body = await request.body()
-    
-    # Verify signature
-    channel_secret = os.getenv("LINE_CHANNEL_SECRET", "").encode()
-    hash = hmac.new(channel_secret, body, hashlib.sha256).digest()
-    signature = base64.b64encode(hash).decode()
-    
-    if x_line_signature != signature:
+
+    # Verify signature — FAIL CLOSED (R45 pattern). Previously an invalid or
+    # missing signature only logged a warning and the event was still
+    # processed, and an unset LINE_CHANNEL_SECRET defaulted to the empty
+    # string (anyone could compute the matching HMAC).
+    channel_secret = os.getenv("LINE_CHANNEL_SECRET", "")
+    if not channel_secret:
+        logger.warning("LINE_CHANNEL_SECRET not configured; refusing Line webhook")
+        raise HTTPException(status_code=503, detail="Webhook not configured")
+    if not x_line_signature:
+        raise HTTPException(status_code=401, detail="Missing signature")
+    digest = hmac.new(channel_secret.encode(), body, hashlib.sha256).digest()
+    signature = base64.b64encode(digest).decode()
+
+    if not hmac.compare_digest(signature, x_line_signature):
         logger.warning("Invalid Line signature")
-        # In production, you'd want to ignore or reject this, but for now we follow
-    
+        raise HTTPException(status_code=401, detail="Invalid signature")
+
     data = await request.json()
     logger.info(f"Received Line webhook event count: {len(data.get('events', []))}")
     

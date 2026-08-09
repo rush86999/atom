@@ -474,9 +474,9 @@ class WorkflowExecutionEngine:
                 except asyncio.TimeoutError:
                     error_msg = f"Action {action.id} timed out after {action.timeout}s"
                     self._log_execution(execution, "error", error_msg)
-                    
+
                     if not action.continue_on_error:
-                        raise
+                        raise asyncio.TimeoutError(error_msg)
                     
                     execution.action_results.append({
                         'action_id': action.id,
@@ -738,13 +738,14 @@ class WorkflowExecutionEngine:
                     channel_id=channel,
                     user_ids=user_ids
                 )
-                return {
-                    'channel': channel,
-                    'invited_users': result.get('invited_users', user_ids),
-                    'failed_users': result.get('failed_users', []),
-                    'timestamp': datetime.now(timezone.utc).isoformat(),
-                    'method': 'slack_api'
-                }
+                if result.get('ok'):
+                    return {
+                        'channel': channel,
+                        'invited_users': result.get('invited_users', user_ids),
+                        'failed_users': result.get('failed_users', []),
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
+                        'method': 'slack_api'
+                    }
             except Exception as e:
                 logger.warning(f"Slack API call failed, using mock: {e}")
 
@@ -907,7 +908,7 @@ class WorkflowExecutionEngine:
         return {
             'spreadsheet_id': spreadsheet_id,
             'range': range,
-            'updated_cells': len(values),
+            'updated_cells': len(values or []),
             'timestamp': datetime.now(timezone.utc).isoformat()
         }
     
