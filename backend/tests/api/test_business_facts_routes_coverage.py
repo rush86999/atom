@@ -79,6 +79,8 @@ def test_app(test_db: Session):
 
     # Override get_db dependency
     from core.database import get_db
+    from core.auth import get_current_user
+    from core.models import User
 
     def override_get_db():
         try:
@@ -87,6 +89,17 @@ def test_app(test_db: Session):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+    # Auth: routes require a Bearer user + require_role(ADMIN) — both are
+    # satisfied by an authenticated super_admin user (per-test module-attr
+    # patches of get_current_user never take effect for FastAPI deps).
+    app.dependency_overrides[get_current_user] = lambda: User(
+        id="facts-admin-user",
+        email="facts-admin@test.com",
+        first_name="Facts",
+        last_name="Admin",
+        role="super_admin",
+        status="active",
+    )
 
     yield app
 
@@ -290,7 +303,7 @@ class TestBusinessFactsRoutesCoverage:
             created_at=datetime.now(timezone.utc),
             last_verified=datetime.now(timezone.utc),
             verification_status="verified",
-            metadata=None
+            metadata={}
         )
 
         mock_wm = AsyncMock()
@@ -463,7 +476,7 @@ class TestBusinessFactsRoutesCoverage:
             return_value=Mock(facts=[], extraction_time=0.5)
         )
 
-        with patch('api.admin.business_facts_routes.get_storage_service', return_value=mock_storage), \
+        with patch('core.storage.get_storage_service', return_value=mock_storage), \
              patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_wm), \
              patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_extractor), \
              patch('api.admin.business_facts_routes.get_current_user', return_value=admin_headers):
@@ -481,8 +494,8 @@ class TestBusinessFactsRoutesCoverage:
 
     def test_upload_success(self, test_client, admin_headers):
         """Cover upload success path with fact extraction (lines 256-321)"""
-        mock_storage = AsyncMock()
-        mock_storage.upload_file = AsyncMock(return_value="s3://atom-business-facts/test/doc.pdf")
+        mock_storage = MagicMock()
+        mock_storage.upload_file = Mock(return_value="s3://atom-business-facts/test/doc.pdf")
         mock_storage.bucket = "atom-business-facts"
 
         extracted_fact = Mock(
@@ -498,7 +511,7 @@ class TestBusinessFactsRoutesCoverage:
         mock_wm = AsyncMock()
         mock_wm.bulk_record_facts = AsyncMock(return_value=1)
 
-        with patch('api.admin.business_facts_routes.get_storage_service', return_value=mock_storage), \
+        with patch('core.storage.get_storage_service', return_value=mock_storage), \
              patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_wm), \
              patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_extractor), \
              patch('api.admin.business_facts_routes.get_current_user', return_value=admin_headers):
@@ -520,10 +533,10 @@ class TestBusinessFactsRoutesCoverage:
 
     def test_upload_extraction_failure(self, test_client, admin_headers):
         """Cover upload extraction failure (lines 323-325)"""
-        mock_storage = AsyncMock()
-        mock_storage.upload_file = AsyncMock(side_effect=Exception("Upload failed"))
+        mock_storage = MagicMock()
+        mock_storage.upload_file = Mock(side_effect=Exception("Upload failed"))
 
-        with patch('api.admin.business_facts_routes.get_storage_service', return_value=mock_storage), \
+        with patch('core.storage.get_storage_service', return_value=mock_storage), \
              patch('api.admin.business_facts_routes.get_current_user', return_value=admin_headers):
             content = b"test content"
             files = {"file": ("test.pdf", io.BytesIO(content), "application/pdf")}
@@ -553,12 +566,12 @@ class TestBusinessFactsRoutesCoverage:
         mock_wm.get_fact_by_id = AsyncMock(return_value=mock_fact)
         mock_wm.update_fact_verification = AsyncMock()
 
-        mock_storage = AsyncMock()
+        mock_storage = MagicMock()
         mock_storage.bucket = "atom-business-facts"
-        mock_storage.check_exists = AsyncMock(return_value=citation_exists)
+        mock_storage.check_exists = Mock(return_value=citation_exists)
 
         with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_wm), \
-             patch('api.admin.business_facts_routes.get_storage_service', return_value=mock_storage), \
+             patch('core.storage.get_storage_service', return_value=mock_storage), \
              patch('api.admin.business_facts_routes.get_current_user', return_value=admin_headers):
             response = test_client.post(f"/api/admin/governance/facts/{mock_fact.id}/verify-citation", headers=admin_headers)
 
@@ -568,9 +581,10 @@ class TestBusinessFactsRoutesCoverage:
             assert len(data["citations"]) == 1
 
     def test_verify_citation_local_exists(self, test_client, admin_headers, mock_fact):
-        """Cover citation verification for local sources (lines 380-387)"""
-        temp_dir = tempfile.mkdtemp()
-        temp_file = os.path.join(temp_dir, "test-policy.pdf")
+        """Cover citation verification for local sources (lines 380-387)."""
+        # The route probes /app/uploads, /tmp and the CWD — the citation file
+        # must live directly in one of those paths.
+        temp_file = os.path.join(tempfile.gettempdir(), "test-policy.pdf")
         with open(temp_file, 'w') as f:
             f.write("test content")
 
@@ -594,8 +608,8 @@ class TestBusinessFactsRoutesCoverage:
                 assert data["citations"][0]["source"] == "Local"
                 assert data["citations"][0]["exists"] is True
         finally:
-            os.unlink(temp_file)
-            os.rmdir(temp_dir)
+            if os.path.exists(temp_file):
+                os.unlink(temp_file)
 
     def test_verify_citation_fact_not_found(self, test_client, admin_headers):
         """Cover verify_citation with 404 error (lines 348-350)"""
@@ -619,12 +633,12 @@ class TestBusinessFactsRoutesCoverage:
         mock_wm.get_fact_by_id = AsyncMock(return_value=mock_fact)
         mock_wm.update_fact_verification = AsyncMock()
 
-        mock_storage = AsyncMock()
+        mock_storage = MagicMock()
         mock_storage.bucket = "atom-business-facts"
-        mock_storage.check_exists = AsyncMock(side_effect=Exception("S3 error"))
+        mock_storage.check_exists = Mock(side_effect=Exception("S3 error"))
 
         with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_wm), \
-             patch('api.admin.business_facts_routes.get_storage_service', return_value=mock_storage), \
+             patch('core.storage.get_storage_service', return_value=mock_storage), \
              patch('api.admin.business_facts_routes.get_current_user', return_value=admin_headers):
             response = test_client.post(
                 f"/api/admin/governance/facts/{mock_fact.id}/verify-citation",
