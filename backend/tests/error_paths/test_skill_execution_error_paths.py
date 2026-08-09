@@ -10,6 +10,7 @@ Target: 75%+ line coverage on skill execution services
 """
 
 import pytest
+import pydantic
 from unittest.mock import Mock, MagicMock, patch, AsyncMock
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
@@ -76,25 +77,21 @@ class TestSkillAdapterErrorPaths:
 
     def test_skill_tool_with_none_skill_type(self):
         """
-        NO_BUG (behavior documented)
+        NO_BUG (Pydantic v2 validates)
 
         Test None skill_type handling.
 
         Expected:
-            - Pydantic accepts None; _run() rejects it with ValueError
+            - Pydantic v2 rejects None skill_type at construction
         """
-        tool = CommunitySkillTool(
-            name="test_skill",
-            description="Test skill",
-            skill_id="test-skill",
-            skill_type=None,  # None skill_type
-            skill_content="Test content {{query}}"
-        )
-
-        # None is preserved (no silent default) and rejected at execution
-        assert tool.skill_type is None
-        with pytest.raises(ValueError):
-            tool._run("hello")
+        with pytest.raises(pydantic.ValidationError):
+            CommunitySkillTool(
+                name="test_skill",
+                description="Test skill",
+                skill_id="test-skill",
+                skill_type=None,  # None skill_type
+                skill_content="Test content {{query}}"
+            )
 
     def test_skill_tool_with_invalid_skill_type(self):
         """
@@ -284,22 +281,21 @@ class TestSkillAdapterErrorPaths:
 
     def test_create_community_tool_with_none_skill_id(self):
         """
-        NO_BUG (behavior documented)
+        NO_BUG (Pydantic v2 validates)
 
         Test None skill_id handling.
 
         Expected:
-            - None skill_id is preserved (no fallback to name)
+            - Pydantic v2 rejects None skill_id at tool construction
         """
-        tool = create_community_tool({
-            "name": "test_skill",
-            "description": "Test skill",
-            "skill_type": "prompt_only",
-            "skill_content": "Test {{query}}",
-            "skill_id": None  # None skill_id
-        })
-
-        assert tool.skill_id is None  # Preserved, no fallback
+        with pytest.raises(pydantic.ValidationError):
+            create_community_tool({
+                "name": "test_skill",
+                "description": "Test skill",
+                "skill_type": "prompt_only",
+                "skill_content": "Test {{query}}",
+                "skill_id": None  # None skill_id
+            })
 
     def test_create_community_tool_with_empty_packages(self):
         """
