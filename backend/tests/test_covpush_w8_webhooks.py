@@ -186,6 +186,32 @@ class TestShopifyWebhook:
             )
         assert resp.status_code == 200
 
+    def test_secret_falls_back_to_api_secret(self, client):
+        """SHOPIFY_API_SECRET fallback when SHOPIFY_WEBHOOK_SECRET unset."""
+        import os as _os
+
+        real_getenv = _os.getenv
+
+        def fake_getenv(key, default=None):
+            if key == "SHOPIFY_WEBHOOK_SECRET":
+                return None
+            if key == "SHOPIFY_API_SECRET":
+                return "api-secret"
+            return real_getenv(key, default)
+
+        body = json.dumps({"order": 3}).encode()
+        sig = _shopify_hmac(body, "api-secret")
+        with patch(
+            "api.routes.webhooks.shopify_webhooks.os.getenv",
+            side_effect=fake_getenv,
+        ):
+            resp = client.post(
+                "/webhooks/shopify",
+                content=body,
+                headers={"X-Shopify-Hmac-Sha256": sig},
+            )
+        assert resp.status_code == 200
+
 
 # ===========================================================================
 # twilio_webhooks.py
@@ -256,6 +282,15 @@ class TestTwilioWebhook:
             )
         assert resp.status_code == 200
         assert resp.json() == {"status": "ok"}
+
+    def test_status_bad_signature_401(self, client):
+        with patch("api.routes.webhooks.twilio_webhooks.os", self._twilio_os("tok")):
+            resp = client.post(
+                "/webhooks/twilio/status",
+                data={"To": "+123", "MessageStatus": "failed"},
+                headers={"X-Twilio-Signature": "bad"},
+            )
+        assert resp.status_code == 401
 
     def test_forwarded_proto_https_rewrite(self, client):
         with patch("api.routes.webhooks.twilio_webhooks.os", self._twilio_os("tok")):
@@ -903,6 +938,46 @@ class TestWebhookBridge:
                     result = await bridge.process_event("slack", "t1", {}, MagicMock(), db_session)
         assert result["status"] == "success"
 
+    async def test_postgres_row_security_branches(self):
+        """PG dialect triggers the RLS bypass (SET LOCAL row_security off/on);
+        a failure restoring it is caught, message still processed."""
+        from core.models import Workspace
+
+        class FakePGDialect:
+            name = "postgresql"
+
+        fake_db = MagicMock()
+        fake_db.bind = MagicMock()
+        fake_db.bind.dialect = FakePGDialect()
+        # conn query → no rows; workspace query → no rows
+        q = MagicMock()
+        q.filter.return_value = q
+        q.order_by.return_value = q
+        q.first.return_value = None
+        fake_db.query.side_effect = lambda *a, **k: q
+        # row_security=off OK, row_security=on raises (restore failure)
+        fake_db.execute.side_effect = [MagicMock(), RuntimeError("rls restore failed")]
+
+        bridge = self._bridge()
+        msg = MagicMock()
+        msg.content = "pg msg"
+        msg.sender_id = "U1"
+        msg.metadata_json = {}
+        orchestrator = AsyncMock()
+        orchestrator.process_chat_message = AsyncMock(return_value={})
+
+        with patch(
+            "api.routes.webhooks.webhook_bridge.UniversalCommunicationBridge"
+        ) as UCB:
+            UCB.return_value.receive_message = AsyncMock(return_value={"type": "message", "message": msg})
+            with patch(
+                "api.routes.webhooks.webhook_bridge.IngestionPipelineService"
+            ) as IPS:
+                IPS.return_value.process_webhook_payload_tiered = AsyncMock()
+                with patch.object(bridge, "_get_orchestrator", return_value=orchestrator):
+                    result = await bridge.process_event("slack", "t1", {}, MagicMock(), fake_db)
+        assert result["status"] == "success"
+
     def test_on_circuit_open_fallback_schedules_sync(self, db_session):
         from api.routes.webhooks.webhook_bridge import WebhookBridge
 
@@ -1219,18 +1294,29 @@ class TestWebhookMonitoringConnections:
         body = resp.json()
         assert body["diagnostics"]["vault_decryption"] == "passed"
         assert body["diagnostics"]["status_flag"] == "healthy"
-        assert body["cli_troubleshooting_tools"][0]["title"].startswith("Simulate")
+        assert body["cli_troubleshooting_tools"][0]["title"].startswith("Trigger")
 
     def test_troubleshoot_outlook_conn(self, client, db_session):
         conn_id = self._add_conn(db_session, id="c-out", integration_id="outlook")
+        with patch("core.connection_service.ConnectionService") as CS:
+            svc = CS.return_value
+            svc._decrypt = MagicMock(side_effect=RuntimeError("decrypt failed"))
+            resp = client.get(f"/webhooks/monitoring/connections/{conn_id}/troubleshoot")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["diagnostics"]["vault_decryption"] == "failed"
+        assert "Simulate Live Webhook Notification" in body["cli_troubleshooting_tools"][0]["title"]
+
+    def test_troubleshoot_generic_conn(self, client, db_session):
+        """Non-outlook/slack connector → generic simulated webhook command."""
+        conn_id = self._add_conn(db_session, id="c-gen", integration_id="hubspot")
         with patch("core.connection_service.ConnectionService") as CS:
             svc = CS.return_value
             svc._decrypt = MagicMock(return_value={})
             resp = client.get(f"/webhooks/monitoring/connections/{conn_id}/troubleshoot")
         assert resp.status_code == 200
         body = resp.json()
-        assert body["diagnostics"]["vault_decryption"] == "failed"
-        assert "Simulate Live Webhook Notification" in body["cli_troubleshooting_tools"][0]["title"]
+        assert body["cli_troubleshooting_tools"][0]["title"] == "Simulate Webhook Delivery"
 
     def test_troubleshoot_expired_token(self, client, db_session):
         conn_id = self._add_conn(db_session, id="c-exp", expires_at=datetime.now(timezone.utc))

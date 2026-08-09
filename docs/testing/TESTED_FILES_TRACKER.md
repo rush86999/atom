@@ -1673,3 +1673,37 @@ Methodology: previous combined full-suite data + wave test files (1,081 tests, 0
 | Date | File | Status | Change |
 |---|---|---|---|
 | 2026-08-09 | `core/proposal_service.py` | FIXED | All 4 dead action types wired to real APIs (TDD, 6 new tests + 16 realigned): agent_execute → GenericAgent(agent_model).execute (registry lookup, missing-agent ValueError); workflow_trigger → load_workflows by id + WorkflowEngine().start_workflow; integration_connect → UniversalIntegrationService().execute (ok→success mapping); browser_automate → browser_create_session/navigate/click/fill/script/close loop (url-or-session ValueError). Dispatch wrapper + integration handler stop leaking str(e) (generic 'Action execution failed'). Proposal suites 307 passed / 0 failed |
+
+### Wave 3 — 3 parallel agents (2026-08-09, source fixes in 2f5cc9b38; test files in this commit)
+**Agent I — sandbox caps wiring** (`tests/test_bughunt_20260809_sbx2.py`; 378 green):
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/sandbox_caps.py` + `core/sandbox_gate.py` | FIXED | **`max_bytes_written` (100 MiB) + `max_cost_usd` ($5) computed but NEVER enforced** — `record_write`/`record_cost` had zero production callers, only max_tool_calls + max_exec_seconds worked. `check_caps` now estimates per-call bytes (write-tool payload args) + cost (LLM prompt chars/4×$1e-5, cognitive_tier heuristic) and RESTRICTs pre-action when cumulative+pending ≥ limit (atomic under counter lock); gate returns `RESTRICTED cap_exceeded` at the shared choke point; `estimate_tool_usage` fails open |
+| 2026-08-09 | `core/canvas_logic_service.py` + `core/mini_app_service.py` | FIXED | **Deterministic `run_id=f"canvas-{ns}"`** → caps/KillRun counters persisted ACROSS runs (long-lived canvas permanently burns its 200-call budget); now per-run uuid suffix + `sandbox_caps.release_run` in finally (per-canvas identity kept in prefix/fs_root) |
+| 2026-08-09 | `core/canvas_logic_service.py` `sanitize_namespace` | FIXED | `a.b`/`a-b`/`a b` mapped to the SAME per-canvas FS dir (cross-canvas collision); injective encoding (alnum verbatim, else `_<hex>_`), 128-char cap, still path-safe |
+| 2026-08-09 | `core/workflow_security.py` | FIXED | Docstring claimed `_execute_mcp_action` "stays ungated" — now sandbox-gated at `call_tool` sink (R97); doc updated (no test asserts old text) |
+
+**Agent J — OAuth/admin/webhooks** (`tests/test_bughunt_20260809_oauth.py`; all green):
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `integrations/teams_enhanced_service.py:512` | FIXED (SECURITY) | `jwt.decode(..., verify_signature=False)` — MS token claims trusted unverified (forgeable via debug hook/lateral path); now JWKS-verified (unknown-kid/same-kid-wrong-sig/expired rejected; valid RSA-signed accepted; JWKS fetch failure handled) |
+| 2026-08-09 | `api/oauth_routes.py` | FIXED (SECURITY) | **Static forgeable `state={provider}_oauth` → OAuth CSRF** (attacker binds their provider tokens to victim's account); now signed round-trip state — static/tampered rejected, cross-user 400/403, no open-redirect via redirect_uri param |
+| 2026-08-09 | `api/oauth_routes.py:44` | FIXED | `AuthRateLimiter.check` passed an IP **string** (expects Request) → AttributeError → **EVERY OAuth callback 500'd**, rate limit silently dead |
+| 2026-08-09 | `api/routes/webhooks/ingestion_webhooks.py` Gmail handler | FIXED (SECURITY) | Google Pub/Sub push processed with **no verification at all** (has no signature header — R69 missed it); now token auth: unset→503, wrong→401 constant-time, correct→enqueued |
+
+Verified clean: admin surface 33/33 gated (member→403 matrix); OAuth provider allowlists + env-only redirect_uri (no open redirect); llm_oauth HMAC state solid; all `X-*-Signature` webhooks real compare_digest + fail-closed. Flagged: `jwt_verifier.py:186` debug-only unverified decode is IP-gated + blocked in prod; Zoho/PM-CRM webhooks have no HMAC (provider limitation).
+
+**Agent K — coverage wave 8** (289 new tests, 0 failures; 11 REAL bugs):
+| Date | Module | Before→After | Bugs fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/orchestration/event_bus.py` | 44%→**100%** | (1) **Duplicate publish returned a fresh phantom id** for an event never stored → caller KeyErrors; (2) **retry `_pending_retries` keyed by subscriber id but loop iterates subscription ids** → retried events silently DROPPED after first failure |
+| 2026-08-09 | `core/orchestration/workflow_state_machine.py` | 48%→**100%** | **`ROLLING_BACK` not in any state's target set** → `execute_rollback` always INVALID from every state → the ENTIRE rollback feature was dead |
+| 2026-08-09 | `core/identity/did_manager.py` | 37%→**100%** | `_extract_instance_id_from_did` treated 4-part `did:atom:agent:x` as instance-scoped (phantom instance "agent"); federation resolution error masked as "DID not found" |
+| 2026-08-09 | `api/routes/webhooks/whatsapp_webhooks.py` | 21-54%→**100%** | (1) `request.json()` **un-awaited** → every signature-valid POST 500'd; (2) verification params never matched Meta's `hub.mode` keys → real verification always 422 (`alias=`) |
+| 2026-08-09 | `api/routes/webhooks/slack_webhooks.py` | →100% | Dedup imported `get_cache_service` (doesn't exist) → ImportError swallowed → **dedup always disabled**; now UniversalCacheService |
+| 2026-08-09 | `api/routes/webhooks/monitoring.py` | →100% | `/metrics` route **named `get_webhook_metrics` shadowing the import** → recursive coroutine → every metrics call 500; renamed; HealthSummaryResponse now exposes computed rate_limits/subscriptions (was stripped → dead computation) |
+| 2026-08-09 | `api/routes/webhooks/base.py` | →100% | `verify_hmac_signature` digest computation OUTSIDE try/except → bad algorithm/secret raised 500 instead of False |
+| 2026-08-09 | `core/hybrid_search/` (lexical_ranker 60%, documents_hybrid 87%) | →**100%** | — |
+| 2026-08-09 | `core/sandbox_audit.py` 18%, `core/monitoring.py` 46%, `core/provenance.py` 53% | →**100%** | — |
+
+Dead-code/latent notes: `did_manager._resolve_web_did` invalid-format branch unreachable via resolve_did; `event_bus.create_workflow_trigger` `.get()` conditions silently rejected by safe_eval (subscript syntax required — silent no-op footgun).

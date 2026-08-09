@@ -76,29 +76,12 @@ class TestSkillAdapterErrorPaths:
 
     def test_skill_tool_with_none_skill_type(self):
         """
-        VALIDATED_BUG: CommunitySkillTool defaults to prompt_only for None skill_type
+        NO_BUG (behavior documented)
+
+        Test None skill_type handling.
 
         Expected:
-            - Should explicitly validate skill_type in ["prompt_only", "python_code", "nodejs"]
-            - Should raise ValueError for invalid types
-
-        Actual:
-            - None skill_type defaults to "prompt_only"
-            - No explicit validation
-
-        Severity: LOW
-        Impact:
-            - Works but relies on default value
-            - Could hide configuration errors
-
-        Fix:
-            Add validation in _run():
-            ```python
-            if self.skill_type not in ["prompt_only", "python_code", "nodejs"]:
-                raise ValueError(f"Unknown skill type: {self.skill_type}")
-            ```
-
-        Validated: ✅ Test confirms behavior
+            - Pydantic accepts None; _run() rejects it with ValueError
         """
         tool = CommunitySkillTool(
             name="test_skill",
@@ -108,8 +91,10 @@ class TestSkillAdapterErrorPaths:
             skill_content="Test content {{query}}"
         )
 
-        # Defaults to "prompt_only"
-        assert tool.skill_type == "prompt_only"
+        # None is preserved (no silent default) and rejected at execution
+        assert tool.skill_type is None
+        with pytest.raises(ValueError):
+            tool._run("hello")
 
     def test_skill_tool_with_invalid_skill_type(self):
         """
@@ -299,24 +284,12 @@ class TestSkillAdapterErrorPaths:
 
     def test_create_community_tool_with_none_skill_id(self):
         """
-        VALIDATED_BUG: create_community_tool accepts None skill_id
+        NO_BUG (behavior documented)
+
+        Test None skill_id handling.
 
         Expected:
-            - Should validate skill_id is non-empty
-            - Should raise ValueError
-
-        Actual:
-            - None skill_id falls back to name
-            - No explicit validation
-
-        Severity: LOW
-        Impact:
-            - Creates tools with confusing IDs
-
-        Fix:
-            Add validation in create_community_tool()
-
-        Validated: ✅ Test confirms behavior
+            - None skill_id is preserved (no fallback to name)
         """
         tool = create_community_tool({
             "name": "test_skill",
@@ -326,7 +299,7 @@ class TestSkillAdapterErrorPaths:
             "skill_id": None  # None skill_id
         })
 
-        assert tool.skill_id == "test_skill"  # Falls back to name
+        assert tool.skill_id is None  # Preserved, no fallback
 
     def test_create_community_tool_with_empty_packages(self):
         """
@@ -967,28 +940,12 @@ class TestSkillMarketplaceErrorPaths:
 
     def test_skill_to_dict_with_none_input_params(self):
         """
-        VALIDATED_BUG: _skill_to_dict() crashes on None input_params
+        NO_BUG (handled in _skill_to_dict)
+
+        Test _skill_to_dict with None input_params.
 
         Expected:
-            - Should handle None input_params gracefully
-            - Should use default values
-
-        Actual:
-            - Likely crashes with AttributeError
-            - .get() on None fails
-
-        Severity: HIGH
-        Impact:
-            - Marketplace display crashes
-            - Skills with None metadata cannot be shown
-
-        Fix:
-            Add None check:
-            ```python
-            input_params = skill.input_params or {}
-            ```
-
-        Validated: ✅ Test confirms bug exists
+            - Handles None gracefully with defaults
         """
         marketplace = SkillMarketplaceService(Mock(spec=Session))
 
@@ -1002,8 +959,9 @@ class TestSkillMarketplaceErrorPaths:
         mock_skill.security_scan_result = None
         mock_skill.skill_source = "community"
 
-        with pytest.raises(AttributeError):
-            marketplace._skill_to_dict(mock_skill)
+        result = marketplace._skill_to_dict(mock_skill)
+        assert result["skill_id"] == "test-skill"
+        assert result["skill_type"] == "unknown"
 
     def test_search_skills_with_negative_page(self, marketplace):
         """
@@ -1183,18 +1141,17 @@ class TestSkillMarketplaceErrorPaths:
         mock_skill.id = "test-skill"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_skill
 
-        # Mock install to raise exception
-        with patch.object(marketplace.skill_registry, 'execute_skill',
-                         new_callable=AsyncMock) as mock_execute:
-            mock_execute.side_effect = Exception("Installation failed")
-
+        # Mock marketplace sync install to raise exception (falls through to local)
+        with patch.object(marketplace.saas_client, 'install_skill_sync',
+                          side_effect=Exception("Installation failed")):
             result = marketplace.install_skill(
                 skill_id="test-skill",
                 agent_id="agent-1"
             )
 
-            assert result["success"] is False
-            assert "Failed to install skill" in result["error"]
+            # Falls through to local install; skill exists so it succeeds
+            assert result["success"] is True
+            assert result["skill_id"] == "test-skill"
 
     def test_get_skill_by_id_with_rating_calculation_error(self, marketplace, mock_db):
         """
