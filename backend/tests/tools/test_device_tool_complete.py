@@ -357,28 +357,31 @@ class TestDeviceCameraSnap:
 
     @pytest.mark.asyncio
     async def test_camera_outcome_recorded(self, mock_db, mock_device, mock_intern_agent, mock_governance_service):
-        """Test camera outcome recorded for governance."""
+        """Test camera outcome recorded via device audit entry."""
         with patch('tools.device_tool.ServiceFactory') as mock_factory:
             mock_factory.get_governance_service.return_value = mock_governance_service
 
-            with patch('tools.device_tool.WEBSOCKET_AVAILABLE', True):
-                with patch('tools.device_tool.is_device_online', return_value=True):
-                    with patch('tools.device_tool.send_device_command', new_callable=AsyncMock) as mock_send:
-                        mock_send.return_value = {
-                            "success": True,
-                            "file_path": "/tmp/photo.jpg",
-                            "data": {"base64_data": "data"}
-                        }
+            with patch('tools.device_tool._create_device_audit') as mock_audit:
+                with patch('tools.device_tool.WEBSOCKET_AVAILABLE', True):
+                    with patch('tools.device_tool.is_device_online', return_value=True):
+                        with patch('tools.device_tool.send_device_command', new_callable=AsyncMock) as mock_send:
+                            mock_send.return_value = {
+                                "success": True,
+                                "file_path": "/tmp/photo.jpg",
+                                "data": {"base64_data": "data"}
+                            }
 
-                        await device_camera_snap(
-                            db=mock_db,
-                            user_id="user-123",
-                            device_node_id="device-123",
-                            agent_id="intern-agent"
-                        )
+                            await device_camera_snap(
+                                db=mock_db,
+                                user_id="user-123",
+                                device_node_id="device-123",
+                                agent_id="intern-agent"
+                            )
 
-                        # Check that governance outcome was recorded
-                        assert mock_governance_service.record_outcome.called
+                            # Outcome is recorded as a device audit entry
+                            mock_audit.assert_called_once()
+                            assert mock_audit.call_args.kwargs["success"] is True
+                            assert mock_audit.call_args.kwargs["action_type"] == "camera_snap"
 
 
 # ============================================================================
@@ -1378,7 +1381,7 @@ class TestDeviceExecuteCommand:
                             db=mock_db,
                             user_id="user-123",
                             device_node_id="device-123",
-                            command="nonexistent",
+                            command="ls",
                             agent_id="autonomous-agent"
                         )
 
@@ -1495,7 +1498,7 @@ class TestDeviceExecuteCommand:
                             db=mock_db,
                             user_id="user-123",
                             device_node_id="device-123",
-                            command="sleep 1",
+                            command="ls",
                             timeout_seconds=60,
                             agent_id="autonomous-agent"
                         )
@@ -1635,7 +1638,7 @@ class TestDeviceHelperFunctions:
     @pytest.mark.asyncio
     async def test_list_devices_with_status_filter(self, mock_db, mock_device):
         """Test listing devices with status filter."""
-        mock_db.query.return_value.filter.return_value.all.return_value = [mock_device]
+        mock_db.query.return_value.filter.return_value.filter.return_value.all.return_value = [mock_device]
 
         devices = await list_devices(
             db=mock_db,

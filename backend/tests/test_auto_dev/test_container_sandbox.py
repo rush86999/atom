@@ -10,6 +10,9 @@ Tests cover:
 """
 
 import asyncio
+import base64
+import json
+import re
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -261,4 +264,10 @@ class TestContainerSandboxExecutionWrapper:
 
         wrapper = ContainerSandbox._build_execution_wrapper(code, input_params)
 
-        assert "'test': 123" in wrapper or '"test": 123' in wrapper
+        # Params are base64-encoded inside the wrapper (injection-hardened
+        # contract — a plain json literal can be broken out of by param
+        # values), so assert the round-trip, not the literal text.
+        match = re.search(r"_b64\.b64decode\('([^']+)'\)", wrapper)
+        assert match is not None
+        payload = json.loads(base64.b64decode(match.group(1)).decode("utf-8"))
+        assert payload == {"test": 123}

@@ -369,6 +369,7 @@ def sample_episode():
     episode.constitutional_score = 1.0
     episode.human_intervention_count = 0
     episode.confidence_score = 0.75
+    episode.step_efficiency = 1.0
     episode.started_at = datetime.now(timezone.utc)
     episode.completed_at = datetime.now(timezone.utc) + timedelta(minutes=5)
     episode.metadata_json = {}
@@ -474,13 +475,14 @@ class TestEpisodeCreation:
 
         # Create episode
         with patch.object(service, '_extract_canvas_metadata', return_value={}):
-            episode = await service.create_episode_from_execution(
-                execution_id="exec-123",
-                task_description="Test task",
-                outcome="partial",
-                success=False,
-                constitutional_violations=violations
-            )
+            with patch.object(service, '_calculate_step_efficiency', return_value=1.0):
+                episode = await service.create_episode_from_execution(
+                    execution_id="exec-123",
+                    task_description="Test task",
+                    outcome="partial",
+                    success=False,
+                    constitutional_violations=violations
+                )
 
         # Verify score calculated with penalty
         assert episode is not None
@@ -537,12 +539,13 @@ class TestEpisodeCreation:
 
         # Create episode
         with patch.object(service, '_extract_canvas_metadata', return_value={}):
-            await service.create_episode_from_execution(
-                execution_id="exec-123",
-                task_description="Test task",
-                outcome="success",
-                success=True
-            )
+            with patch.object(service, '_calculate_step_efficiency', return_value=1.0):
+                await service.create_episode_from_execution(
+                    execution_id="exec-123",
+                    task_description="Test task",
+                    outcome="success",
+                    success=True
+                )
 
         # Verify activity publisher called twice (working + idle)
         assert mock_activity_publisher.publish_episode_recording.call_count == 2
@@ -563,16 +566,17 @@ class TestEpisodeCreation:
 
         # Create episode
         with patch.object(service, '_extract_canvas_metadata', return_value={}):
-            with patch('core.episode_service.asyncio.ensure_future') as mock_ensure_future:
-                await service.create_episode_from_execution(
-                    execution_id="exec-123",
-                    task_description="Test task",
-                    outcome="success",
-                    success=True
-                )
+            with patch.object(service, '_calculate_step_efficiency', return_value=1.0):
+                with patch('core.episode_service.asyncio.ensure_future') as mock_ensure_future:
+                    await service.create_episode_from_execution(
+                        execution_id="exec-123",
+                        task_description="Test task",
+                        outcome="success",
+                        success=True
+                    )
 
-                # Verify event emitted
-                mock_ensure_future.assert_called()
+                    # Verify event emitted
+                    mock_ensure_future.assert_called()
 
     @pytest.mark.asyncio
     async def test_create_episode_calculation_scores(
@@ -590,13 +594,14 @@ class TestEpisodeCreation:
 
         # Create episode
         with patch.object(service, '_extract_canvas_metadata', return_value={}):
-            episode = await service.create_episode_from_execution(
-                execution_id="exec-123",
-                task_description="Test task",
-                outcome="success",
-                success=True,
-                constitutional_violations=[]
-            )
+            with patch.object(service, '_calculate_step_efficiency', return_value=1.0):
+                episode = await service.create_episode_from_execution(
+                    execution_id="exec-123",
+                    task_description="Test task",
+                    outcome="success",
+                    success=True,
+                    constitutional_violations=[]
+                )
 
         # Verify episode has scores
         assert episode is not None
@@ -645,8 +650,9 @@ class TestEpisodeRetrieval:
             limit=50
         )
 
-        # Verify filter applied
-        assert mock_query.filter.call_count >= 2  # agent/tenant + outcome
+        # Verify filter applied: combined agent/tenant (and_) + outcome
+        assert mock_query.filter.call_count >= 1
+        assert mock_query.filter.return_value.filter.call_count >= 1
 
     def test_get_agent_episodes_with_date_range(self, service, mock_db):
         """Test episode retrieval with date range filter"""
@@ -667,8 +673,10 @@ class TestEpisodeRetrieval:
             limit=50
         )
 
-        # Verify filters applied
-        assert mock_query.filter.call_count >= 3  # agent/tenant + start + end
+        # Verify filters applied: combined agent/tenant (and_) + start + end
+        assert mock_query.filter.call_count >= 1
+        assert mock_query.filter.return_value.filter.call_count >= 1
+        assert mock_query.filter.return_value.filter.return_value.filter.call_count >= 1
 
     def test_get_agent_episodes_with_pagination(self, service, mock_db, sample_episode):
         """Test episode retrieval with pagination"""
@@ -711,9 +719,9 @@ class TestEpisodeRetrieval:
     async def test_recall_episodes_summary_level(self, service, mock_db):
         """Test recalling episodes with summary detail level"""
         # Setup mock
-        mock_result = Mock()
-        mock_result.fetchall.return_value = []
-        mock_db.execute.return_value = mock_result
+        mock_db.execute = AsyncMock()
+        mock_db.execute.return_value.scalar_one_or_none = Mock(return_value=1)
+        mock_db.execute.return_value.fetchall = Mock(return_value=[])
 
         # Recall with summary level
         episodes = await service.recall_episodes_with_detail(
@@ -731,9 +739,9 @@ class TestEpisodeRetrieval:
     async def test_recall_episodes_standard_level(self, service, mock_db):
         """Test recalling episodes with standard detail level"""
         # Setup mock
-        mock_result = Mock()
-        mock_result.fetchall.return_value = []
-        mock_db.execute.return_value = mock_result
+        mock_db.execute = AsyncMock()
+        mock_db.execute.return_value.scalar_one_or_none = Mock(return_value=1)
+        mock_db.execute.return_value.fetchall = Mock(return_value=[])
 
         # Recall with standard level
         episodes = await service.recall_episodes_with_detail(
@@ -762,6 +770,7 @@ class TestGraduationReadiness:
         mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [
             sample_episode
         ]
+        mock_db.query.return_value.filter.return_value.all.return_value = []
 
         # Calculate readiness
         readiness = service.get_graduation_readiness(
@@ -981,8 +990,8 @@ class TestFeedbackSystem:
         mock_db.commit = Mock()
         mock_db.refresh = Mock()
 
-        # Mock capability graduation service
-        with patch('core.episode_service.CapabilityGraduationService') as mock_cap_service:
+        # Mock capability graduation service (imported lazily inside the method)
+        with patch('core.capability_graduation_service.CapabilityGraduationService') as mock_cap_service:
             # Update feedback with capability tags
             feedback_id = service.update_episode_feedback(
                 episode_id="episode-123",
@@ -1041,7 +1050,7 @@ class TestFeedbackSystem:
         feedback.capability_name = "sql_query"
         feedback.provided_at = datetime.now(timezone.utc)
 
-        mock_db.query.return_value.filter.return_value.all.return_value = [feedback]
+        mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [feedback]
 
         # Get domain metrics
         metrics = service.get_domain_feedback_metrics(
@@ -1164,7 +1173,8 @@ class TestCanvasIntegration:
         # Verify actions retrieved
         assert len(actions) >= 0
 
-    def test_link_canvas_actions_to_episode(self, service, mock_db):
+    @pytest.mark.asyncio
+    async def test_link_canvas_actions_to_episode(self, service, mock_db):
         """Test linking canvas actions to episode"""
         # Setup mock episode
         episode = Mock(spec=AgentEpisode)
@@ -1175,7 +1185,7 @@ class TestCanvasIntegration:
         mock_db.commit = Mock()
 
         # Link canvas actions
-        success = service.link_canvas_actions_to_episode(
+        success = await service.link_canvas_actions_to_episode(
             episode_id="episode-123",
             canvas_action_ids=["action-1", "action-2"]
         )
@@ -1454,7 +1464,7 @@ class TestProposalEpisodes:
         }
 
         mock_query = Mock()
-        mock_query.filter.return_value.filter.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [
+        mock_query.filter.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [
             episode
         ]
         mock_db.query.return_value = mock_query
@@ -1489,7 +1499,7 @@ class TestProposalEpisodes:
         }
 
         mock_query = Mock()
-        mock_query.filter.return_value.filter.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [
+        mock_query.filter.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [
             episode
         ]
         mock_db.query.return_value = mock_query

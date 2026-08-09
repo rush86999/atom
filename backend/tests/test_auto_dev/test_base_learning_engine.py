@@ -479,8 +479,11 @@ class TestSandboxProtocol:
     def test_sandbox_protocol_is_runtime_checkable(self):
         """Test SandboxProtocol is runtime_checkable."""
 
-        # SandboxProtocol should be runtime_checkable
-        assert hasattr(SandboxProtocol, "__protocol_attrs__")
+        # SandboxProtocol should be runtime_checkable. (Python 3.11 exposes
+        # the markers via _is_protocol/_is_runtime_protocol; __protocol_attrs__
+        # only exists on 3.12+, so we assert on the version-stable attrs.)
+        assert getattr(SandboxProtocol, "_is_protocol", False) is True
+        assert getattr(SandboxProtocol, "_is_runtime_protocol", False) is True
 
     def test_isinstance_with_concrete_implementation(self):
         """Test isinstance() with concrete implementation."""

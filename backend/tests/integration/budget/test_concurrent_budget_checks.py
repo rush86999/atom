@@ -200,6 +200,7 @@ class TestConcurrentFleetAggregate:
                 chain_id=chain.id,
                 cost_usd=20.0,
                 total_tokens=100,
+                model_name="test-model",
                 billed=True,
             ))
         db_session.commit()

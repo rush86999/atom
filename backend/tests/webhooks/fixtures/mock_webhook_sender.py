@@ -56,7 +56,9 @@ def generate_slack_signature(
         timestamp = str(int(time.time()))
 
     # Ensure payload is bytes
-    if isinstance(payload, str):
+    if isinstance(payload, dict):
+        payload = json.dumps(payload).encode("utf-8")
+    elif isinstance(payload, str):
         payload = payload.encode("utf-8")
 
     # Create signature base string
@@ -86,7 +88,9 @@ def generate_hubspot_signature(
     Returns:
         Signature string
     """
-    if isinstance(payload, str):
+    if isinstance(payload, dict):
+        payload = json.dumps(payload).encode("utf-8")
+    elif isinstance(payload, str):
         payload = payload.encode("utf-8")
 
     signature = hmac.new(
@@ -112,7 +116,9 @@ def generate_github_signature(
     Returns:
         Signature string with sha256= prefix
     """
-    if isinstance(payload, str):
+    if isinstance(payload, dict):
+        payload = json.dumps(payload).encode("utf-8")
+    elif isinstance(payload, str):
         payload = payload.encode("utf-8")
 
     signature = hmac.new(
@@ -122,6 +128,34 @@ def generate_github_signature(
     ).hexdigest()
 
     return f"sha256={signature}"
+
+
+def generate_salesforce_signature(
+    payload: bytes | str,
+    client_secret: str,
+) -> str:
+    """
+    Generate Salesforce HMAC-SHA256 signature.
+
+    Args:
+        payload: Request body (bytes or string)
+        client_secret: Salesforce client secret
+
+    Returns:
+        Signature string (hexdigest)
+    """
+    if isinstance(payload, dict):
+        payload = json.dumps(payload).encode("utf-8")
+    elif isinstance(payload, str):
+        payload = payload.encode("utf-8")
+
+    signature = hmac.new(
+        client_secret.encode("utf-8"),
+        payload,
+        hashlib.sha256
+    ).hexdigest()
+
+    return signature
 
 
 # =============================================================================
@@ -343,6 +377,9 @@ def send_mock_webhook(
 
     Returns:
         Dict with status_code and response_body
+
+    Usage:
+        send_mock_webhook("slack", payload, signing_secret="secret")
     """
     if post is None:
         return {
@@ -430,6 +467,7 @@ def send_mock_webhooks_batch(
     provider: str,
     base_url: str = "http://localhost:8000",
     signing_secret: Optional[str] = None,
+    skip_signature: bool = False,
 ) -> list[dict[str, Any]]:
     """
     Send multiple mock webhooks in batch.
@@ -439,6 +477,7 @@ def send_mock_webhooks_batch(
         provider: Provider name
         base_url: Base URL for the API server
         signing_secret: Provider-specific signing secret
+        skip_signature: If True, skip signature generation
 
     Returns:
         List of response dicts
@@ -451,6 +490,7 @@ def send_mock_webhooks_batch(
             payload=payload,
             base_url=base_url,
             signing_secret=signing_secret,
+            skip_signature=skip_signature,
         )
         results.append(result)
 

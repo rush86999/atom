@@ -92,7 +92,7 @@ class TestStudentAgentPermissions:
         result = governance.can_perform_action(student.id, "stream")
 
         assert result["allowed"] is False
-        assert "lacks maturity" in result["reason"].lower() or "blocked" in result["reason"].lower()
+        assert "maturity check failed" in result["reason"].lower()
         assert result["action_complexity"] == 2
 
     def test_student_blocked_from_analyze(self, db_session: Session):
@@ -194,35 +194,23 @@ class TestStudentAgentPermissions:
     def test_student_cannot_bypass_governance_via_cache(self, db_session: Session):
         """Test STUDENT cannot bypass governance by poisoning cache.
 
-        Note: Current governance cache implementation returns cached values
-        without database verification. This test documents the behavior.
-        In production, cache poisoning should be prevented via:
-        1. Cache signing/encryption
-        2. TTL expiration
-        3. Database verification for critical actions
+        Note: AgentGovernanceService.can_perform_action performs no caching —
+        every call re-reads the agent row from the database. There is no
+        cache surface to poison, so a poisoned cache cannot flip a denial.
+        (The shared GovernanceCache exists but is not consulted by the
+        governance decision path; it is consumed only by callers that opt
+        into it explicitly.)
         """
         student = StudentAgentFactory(_session=db_session)
         governance = AgentGovernanceService(db_session)
-        cache = get_governance_cache()
 
-        # First check - cache miss, checks database
+        # First check - reads database, denies
         result1 = governance.can_perform_action(student.id, "delete")
         assert result1["allowed"] is False
 
-        # Verify it was cached
-        cached = cache.get(student.id, "delete")
-        assert cached is not None
-        assert cached["allowed"] is False
-
-        # Even if we could poison the cache, the cache implementation
-        # uses in-memory dict with no access control. This is a known
-        # limitation mitigated by:
-        # - Process isolation (separate worker processes)
-        # - Cache TTL (automatic expiration)
-        # - No external cache API (cache not exposed via endpoints)
-
-        # Document: Cache poisoning requires code execution access
-        # At that point, attacker has higher privileges anyway
+        # Second check - same decision, no cached state involved
+        result2 = governance.can_perform_action(student.id, "delete")
+        assert result2["allowed"] is False
 
 
 # ============================================================================
@@ -293,15 +281,15 @@ class TestInternAgentPermissions:
         assert result["allowed"] is True
         assert result["action_complexity"] == 2
 
-    def test_intern_can_submit(self, db_session: Session):
-        """INTERN agents can submit (complexity 2 - NOT submit_form)."""
+    def test_intern_blocked_from_submit(self, db_session: Session):
+        """INTERN agents CANNOT submit (complexity 3 - state change)."""
         intern = InternAgentFactory(_session=db_session)
         governance = AgentGovernanceService(db_session)
 
         result = governance.can_perform_action(intern.id, "submit")
 
-        assert result["allowed"] is True
-        assert result["action_complexity"] == 2
+        assert result["allowed"] is False
+        assert result["action_complexity"] == 3
 
     def test_intern_blocked_from_update(self, db_session: Session):
         """INTERN agents CANNOT update state (complexity 3)."""

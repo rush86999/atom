@@ -22,6 +22,7 @@ import pytest
 # Test imports
 from tests.webhooks.fixtures.mock_webhook_sender import (
     send_mock_webhook,
+    send_mock_webhooks_batch,
     generate_slack_payload,
     generate_hubspot_payload,
     generate_salesforce_payload,
@@ -284,14 +285,16 @@ class TestEntityPersistence:
             id=str(uuid.uuid4()),
             tenant_id="tenant-123",
             name="Test Entity",
-            entity_type="person",
-            source_integration="slack",
-            source_id="MSG_123",
+            type="person",
+            properties={
+                "source_integration": "slack",
+                "source_id": "MSG_123",
+            },
         )
 
         # Verify we can create nodes
         assert node.id is not None
-        assert node.entity_type == "person"
+        assert node.type == "person"
 
     def test_entities_persist_to_discovered_entities(self, db_session):
         """Processed entities are persisted to discovered_entities table."""
@@ -301,10 +304,12 @@ class TestEntityPersistence:
         entity = DiscoveredEntity(
             id=str(uuid.uuid4()),
             tenant_id="tenant-123",
-            name="Test Entity",
-            entity_type="person",
-            source_integration="slack",
-            source_record_id="MSG_123",
+            workspace_id="ws-1",
+            _discovered_type="Person",
+            properties={
+                "source_integration": "slack",
+                "source_record_id": "MSG_123",
+            },
             confidence_score=0.95,
         )
 
@@ -367,10 +372,10 @@ class TestFrameworkIntegration:
         for fixture_name in required_fixtures:
             assert callable(eval(fixture_name))
 
-    def test_fixtures_work_with_test_patterns(self):
+    def test_fixtures_work_with_test_patterns(
+        self, mock_webhook_payload, standard_transformer_output
+    ):
         """Fixtures work with common test patterns."""
-        from tests.webhooks.conftest import mock_webhook_payload
-
         # Test mock_webhook_payload
         slack_payload = mock_webhook_payload("slack")
         assert slack_payload is not None
@@ -440,6 +445,8 @@ class TestFrameworkExtensibility:
 
     def test_signature_generation_extensible(self):
         """Signature generation can be extended for new providers."""
+        import hashlib
+
         # New providers can add their own signature generation
 
         # Test that we can create custom signature function
@@ -575,17 +582,17 @@ class TestFrameworkPatterns:
         """Framework follows audit_oauth_integrations.py pattern."""
         # This would check code structure matches audit pattern
         # For now, verify the pattern exists
-        assert Path("backend-saas/scripts/audit_webhook_integrations.py").exists()
+        assert Path("scripts/audit_webhook_integrations.py").exists()
 
     def test_follows_integration_metrics_pattern(self):
         """Framework follows IntegrationMetrics pattern."""
         # Verify integration with metrics
-        assert Path("backend-saas/core/integration_metrics.py").exists()
+        assert Path("core/integration_metrics.py").exists()
 
     def test_follows_circuit_breaker_pattern(self):
         """Framework follows CircuitBreaker pattern."""
         # Verify integration with circuit breaker
-        assert Path("backend-saas/core/circuit_breaker.py").exists()
+        assert Path("core/circuit_breaker.py").exists()
 
 
 # The rest of the TDD tests would verify:

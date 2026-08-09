@@ -1402,6 +1402,18 @@ Methodology: previous combined full-suite data + wave test files (1,081 tests, 0
 - `test_mini_app_service_coverage.py` 8 failures pre-existing (verified unchanged vs stash).
 - Migrations tests (`database/test_migrations.py`, `e2e/migrations/`) — known: local `alembic/` dir shadows installed package; e2e_ui suites need their own env.
 
+### Round 2026-08-09 — bug-hunt stale-expectation wave (scenarios/budget/webhooks/device/episode/maturity/auto_dev)
+| Date | File | Status | Result |
+|---|---|---|---|
+| 2026-08-09 | tests/scenarios/test_authentication_scenarios.py (+scenarios/conftest.py) | FIXED | 33 passed: lockout test rewritten to real contract (per-IP `AuthRateLimiter` 5×401→429 — no account lockout exists); `TestPasswordReset` rebuilt vs real `/forgot-password`→`PasswordResetToken`(sha256)/`/reset-password`(`password` field); fixtures `refresh_token`/`expired_auth_token` now exported from tests/security/conftest.py |
+| 2026-08-09 | tests/integration/budget/test_concurrent_budget_checks.py | FIXED | 5 passed: full rewrite — old suite called phantom `db` fixture + `approve_spend_locked` API; now exercises real `BudgetEnforcementService.check_budget_before_action` (threads, real file-backed SQLite, fleet `chain_id` aggregate; `TokenUsage.model_name` NOT NULL) |
+| 2026-08-09 | tests/webhooks/ (test_webhook_testing_framework_tdd.py + fixtures/mock_webhook_sender.py) | FIXED | 110 passed, 1 skip: HMAC generators json.dumps dict payloads; missing `generate_salesforce_signature` added; `skip_signature` param; `GraphNode`/`DiscoveredEntity` real kwargs; `Path` assertions `scripts/`+`core/` (old `backend-saas/` paths dead) |
+| 2026-08-09 | tests/tools/test_device_tool_complete.py | FIXED | 92 passed: outcomes via `tools.device_tool._create_device_audit` (no `record_outcome`); `DEVICE_COMMAND_WHITELIST` gates pre-dispatch (use `ls`); `list_devices` mock chain `.filter().filter().all` |
+| 2026-08-09 | tests/core/episode/test_episode_service.py | FIXED | 50 passed: stale mocks vs evolved service (`_calculate_step_efficiency` queries steps; `recall_episodes_with_detail` awaits `db.execute` — AsyncMock children are AsyncMock, so `scalar_one_or_none`/`fetchall` must be plain `Mock(return_value=…)`; feedback patch target `core.capability_graduation_service`; 2-filter proposal mock chain; readiness + proposal-quality empty stub) |
+| 2026-08-09 | tests/security/test_authorization_maturity.py | FIXED | 60 passed: reason string is `Maturity check failed. Required: <tier>` (assert `maturity check failed`); cache-poisoning test rewritten — `can_perform_action` never consults the cache (no bypass surface); `submit` is complexity 3 (`ACTION_COMPLEXITY["submit"]=3`) so INTERN is blocked — test renamed |
+| 2026-08-09 | tests/test_auto_dev/ (test_base_learning_engine.py, test_container_sandbox.py) | FIXED | 151 passed, 1 skip: `__protocol_attrs__` is 3.12-only → assert `_is_protocol`/`_is_runtime_protocol`; `_build_execution_wrapper` base64-encodes params (injection-hardened) → assert decode round-trip |
+| 2026-08-09 | tests/api/test_ab_testing_routes.py, tests/api/test_request_validation.py | GREEN | pass standalone (earlier full-run fails were cross-suite DB-drop pollution, not real) |
+
 ### Round 2026-08-09 — coverage wave 6 (16 more integrations + big-four push)
 | Date | Module | Status | Result |
 |---|---|---|---|
