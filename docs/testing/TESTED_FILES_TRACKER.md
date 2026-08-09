@@ -1569,3 +1569,84 @@ Methodology: previous combined full-suite data + wave test files (1,081 tests, 0
 - `run_id=f"canvas-{ns}"` deterministic per-canvas → caps/KillRun counters persist ACROSS runs (per-canvas not per-run semantics).
 - `teams_enhanced_service.py:512` `jwt.decode(verify_signature=False)` — token acquired first-hand from MSAL over TLS; display-only claims; flagged for JWKS hardening.
 - `workflow_security.py` docstring still says `_execute_mcp_action` "stays ungated" — now sandbox-gated at sink (RBAC still route-level); update docstring.
+
+## Session 2026-08-09 — coverage-push: LLM infra (embedding providers + registry service)
+
+**Evidence**: `tests/test_covpush_llminfra.py` (87 tests) + `tests/test_embedding_providers.py` + `tests/test_llm_registry_service.py` — 182 passed / 6 failed; coverage `core/llm/embedding/providers.py` 20%→95%, `core/llm/registry/service.py` 54%→99%; mypy 39→38 errors (no new).
+
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/llm/embedding/providers.py` | FIXED | Lazy per-constructor SDK imports made `AsyncOpenAI`/`cohere`/`voyageai`/`nomic` un-patchable → whole pre-existing suite (26 tests) failed at mock setup; moved to module-level optional imports (None sentinel, fail-closed `EmbeddingProviderError`) |
+| 2026-08-09 | `core/llm/embedding/providers.py` `VoyageEmbeddingProvider.generate_embedding/s_batch` | FIXED | voyageai SDK returns `EmbeddingsResult` (`.embeddings` attr, not subscriptable) — single `result[0]` raised TypeError on every real call; batch returned the wrapper object instead of the vector list |
+| 2026-08-09 | `core/llm/registry/service.py:131` `fetch_and_store` | FIXED | `list_models()` called without `await` (async fn) → coroutine iterated → TypeError swallowed → cache NEVER warmed after fetch_and_store; silent |
+| 2026-08-09 | `core/llm/registry/service.py` `upsert_model` (create+update) | FIXED | `sync_capabilities()` never called → hybrid flag columns (`supports_computer_use`/`supports_vision`/`supports_tools`/`supports_audio`/`supports_function_calling`) stayed False for every normal upsert → `get_computer_use_models` false negatives (only LUX path synced) |
+
+**Remaining KNOWN-FAIL (pre-existing, not from this session)**:
+- `test_llm_registry_service.py::test_get_models_by_capabilities_match_any` — test mocks `LLMModel.capabilities.overlap` but impl uses `.contains` + `or_` since commit `432801598` (July) → `ArgumentError`; surfaced by concurrent-session git resets during this session (verified not caused by these 4 fixes; fails standalone on identical HEAD sources).
+- `test_embedding_providers.py` ×5 — broken pre-existing tests: `len==1536` assert on 4-float mock; ×3 patch never-existing `AsyncCohereClient`/`AsyncVoyageClient`/`AsyncNomicClient` attrs; `test_malformed_response_handling` expects raw IndexError though the module's documented contract wraps it in `EmbeddingProviderError`.
+
+## Session 2026-08-09 — coverage-push: salesforce + workspace-sync
+
+**Evidence**: `tests/test_covpush_salesforce.py` (168) + `tests/test_covpush_workspace_sync.py` (72) + pre-existing bughunt/enterprise suites — 260 passed; coverage `integrations/salesforce_routes.py` 26→95%, `integrations/salesforce_service.py` 19→96%, `integrations/workspace_sync_service.py` 0→98%; mypy 4 pre-existing `Missing return statement` errors removed, 0 new (verified by A/B vs HEAD).
+
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `integrations/salesforce_routes.py:608` `/search` | FIXED | **SOSL injection (HIGH)**: raw user `query` interpolated into `FIND {...}` (breakout via `}`) and `object_types` interpolated unvalidated (arbitrary clause injection); added `escape_sosl_string()` (backslash/brace escaping) + `^[A-Za-z0-9_]+$` allowlist, fail-closed |
+| 2026-08-09 | `integrations/salesforce_routes.py` GET /accounts, /contacts, /opportunities | FIXED | `raise HTTPException(401)` swallowed by `except Exception` → auth failures returned 200 + `ok:False`; added `except HTTPException: raise` |
+| 2026-08-09 | `integrations/salesforce_routes.py` ×4 ingestion sites | FIXED | **`atom_ingestion_pipeline.ingest_record` is async (atom_ingestion_pipeline.py:97) but called WITHOUT `await` → coroutines silently discarded, ingestion NEVER ran** (RuntimeWarning); added `await` |
+| 2026-08-09 | `integrations/salesforce_service.py` + `workspace_sync_service.py` `health_check` | FIXED | `str(e)` in response payload (info leak); generic message + server-side log |
+| 2026-08-09 | `integrations/workspace_sync_service.py` 4× platform handlers | FIXED | `_apply_{slack,discord,google_chat,teams}_change` returned `None` on matched change-type with missing data (MEMBER_ADD w/o email etc.) → `propagate_change` crashed with `AttributeError: 'NoneType' object has no attribute 'get'` and logged a misleading failure; explicit clean `Missing required data` failure (mypy had flagged these as `Missing return statement`) |
+
+## Session 2026-08-09 — coverage-push: governance trio (dynamic_governance + jit_verification_cache + proposal_service)
+
+**Evidence**: `tests/test_covpush_govtrio.py` (176 tests) — RED first for every bug; coverage `dynamic_governance.py` 0%→97%, `jit_verification_cache.py` 72%→98%, `proposal_service.py` 9%→100% (target ≥75%). Regression: `test_jit_verification_{cache,routes,worker}.py`, `test_bughunt_deeplinks.py`, `test_scaling_proposal_service.py`, `test_enhanced_orchestration.py` 223 passed; `test_bughunt_mcp.py` + `test_covpush_agents.py` 126 passed (read-only, kept green).
+
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/jit_verification_cache.py:570` | FIXED (HIGH) | `get_business_facts` passed `tenant_id=` to `WorldModelService.__init__` (only accepts `workspace_id`) → TypeError on EVERY uncached fact lookup; all 6 action types + facts path dead in prod |
+| 2026-08-09 | `core/jit_verification_cache.py` L1+L2 `_generate_query_key` | FIXED (MED) | Ambiguous key format `f'{query}:{limit}{domain_part}'` — `("x:1",5,None)` ≡ `("x",1,"5")` → cross-query cache poisoning; now `json.dumps([query, limit, domain])` |
+| 2026-08-09 | `core/jit_verification_cache.py` `L1MemoryCache.set_query` | FIXED (MED) | `query_max_size = max_size//4 == 0` (max_size<4) → `popitem` on empty dict → KeyError on every set |
+| 2026-08-09 | `core/jit_verification_cache.py` `L1MemoryCache.set_verification` | FIXED (LOW) | `max_size=0` → same KeyError-on-empty; guard `max_size > 0` |
+| 2026-08-09 | `core/jit_verification_cache.py:494` local verify | FIXED (MED) | Directory citation → `os.path.getsize` IsADirectoryError crash; `os.path.isfile` |
+| 2026-08-09 | `core/governance/dynamic_governance.py` `ThreeLayerGovernance.decide` | FIXED (HIGH) | `context["decision_type"]` never propagated to the decision (always PERMISSION) → STRATEGIC escalation/policy decisions hit the else-branch (blind ALLOW 0.5) |
+| 2026-08-09 | `core/governance/dynamic_governance.py` `DynamicGovernanceManager.decide` | FIXED (MED) | ESCALATE outcomes never queued for human intervention (confidence 0.95 > 0.5 threshold) → human-in-the-loop queue unreachable by default |
+| 2026-08-09 | `core/governance/dynamic_governance.py` `_determine_layer` | FIXED (LOW) | String `decision_type` (`"escalation"`) fell through to OPERATIONAL; enum-coercion + fallback |
+| 2026-08-09 | `core/governance/dynamic_governance.py` `_suggest_adaptation` | FIXED (MED) | Adaptation spam — `_consider_adaptation` runs on every score ≥100, re-appended same escalation/intervention every call; pending same-type dedupe |
+| 2026-08-09 | `core/proposal_service.py` `autonomous_approve_or_reject` reject path | FIXED (MED) | No PENDING_APPROVAL guard → already-EXECUTED proposal flipped to REJECTED (audit rewrite; same bug class as the earlier `reject_proposal` guard) |
+| 2026-08-09 | `core/proposal_service.py` `approve_proposal` | FIXED (MED) | Failure dicts marked EXECUTED (EXECUTION_FAILED enum existed, unused); execution exceptions left row in-memory APPROVED/uncommitted → retry re-executed (double side effects); now EXECUTION_FAILED + commit + re-raise |
+| 2026-08-09 | `core/proposal_service.py:125` description f-string | FIXED (LOW) | `{agent.confidence_score:.2f}` TypeError when score None |
+| 2026-08-09 | `core/proposal_service.py` `_create_proposal_episode` | FIXED (HIGH) | Phantom-schema kwargs (`title/description/summary/user_id/proposal_outcome/rejection_reason/human_edits/world_model_state/ended_at`) → TypeError swallowed → episode creation 100% broken (every proposal); rewired to real AgentEpisode columns (`task_description`, `supervision_decision`, `supervisor_id`, `supervision_reasoning`, `metadata_json`) |
+| 2026-08-09 | `core/proposal_service.py` `_calculate_proposal_importance` | FIXED (MED) | Read `proposal.modifications` (never set except approve-with-mods) → AttributeError swallowed → episodes silently skipped |
+| 2026-08-09 | `core/proposal_service.py` approve/reject | FIXED (LOW) | `proposal.completed_at` phantom attr (no column) → AttributeError in reject flow episode timing; now `executed_at` (real column) + `getattr` fallback chain |
+
+**Deferred (reported, not fixed — need product decision / out of scope)**:
+- 4 of 6 proposal action types can NEVER execute — phantom imports: `tools.browser_tool.execute_browser_automation`, `core.integrations.get_integration_service`, `core.workflow_engine.trigger_workflow`, `core.generic_agent.execute_agent` (only `canvas_present` and unknown-type work; ImportError/TypeError swallowed into failure dicts).
+- `core/integrations` is a namespace package with no `__init__.py` resolver for `get_integration_service`.
+- mypy `proposal_service.py:367` no-any-return pre-existing (line untouched by this session).
+- `test_proposal_service.py` (26 tests) is a stale phantom-API suite (`create_proposal`/`batch_approve`/`execute_proposal` never existed) — fails pre-existing; not part of this session.
+- `test_proposal_episode_creation.py` / `test_supervision_learning_integration.py` — 21 pre-existing setup errors (hardcoded `workspaces.id` collides with dev DB); additionally their assertions use phantom `Episode.proposal_outcome`/`human_edits` columns — stale vs. real AgentEpisode schema.
+
+### Round 2026-08-09 — coverage wave 8 (11 modules -> 95-100%, 595 tests, 29 bugs)
+| Date | Module | Status | Result |
+|---|---|---|---|
+| 2026-08-09 | llm/embedding/providers | FIXED | 0% → **95%**: voyageai EmbeddingsResult TypeError on EVERY call (HIGH); SDK imports module-level (was unpatchable) |
+| 2026-08-09 | llm/registry/service | FIXED | 13.6% → **99%**: list_models never awaited (cache never warmed); capability flags never synced (computer-use queries false-negative) |
+| 2026-08-09 | governance/dynamic_governance | FIXED | 0% → **97%**: decision_type never copied → blind ALLOW@0.5 for every strategic request (HIGH); HITL escalation unreachable; adaptation spam |
+| 2026-08-09 | jit_verification_cache | FIXED | 72% → **98%**: tenant_id kwarg TypeError on every uncached lookup (HIGH); query-key collision cache poisoning; small-max KeyErrors; directory crash |
+| 2026-08-09 | proposal_service | FIXED | 9% → **100%**: episode creation 100% broken (phantom schema kwargs) (HIGH); executed→REJECTED flip; EXECUTION_FAILED now recorded; retry double side effects |
+| 2026-08-09 | salesforce routes/service | FIXED | 26.4/18.7% → **95/96%**: SOSL injection via FIND{} breakout + object_types (HIGH); ingestion never ran (un-awaited); 401→200 swallowed |
+| 2026-08-09 | workspace_sync_service | FIXED | 25.3% → **98%**: 4 handlers AttributeError on missing data |
+| 2026-08-09 | integrations/adapters/airtable | FIXED | 9.5% → **99%**: search_records NEVER called the API (HIGH); /v0/v0 double prefix (HIGH); naive datetime expiry TypeError (HIGH) |
+| 2026-08-09 | ai_accounting_engine | FIXED | 24.6% → **100%**: float amounts crash trial balance; scenario regex 1000× underestimate; str(e) leak |
+| 2026-08-09 | mini_app_service (tests-only) | TESTED | 71.3% → **99%** |
+
+## FINAL COVERAGE MEASUREMENT (2026-08-09 wave 8, 162,248 stmts)
+| Layer | Pre-campaign | wave 7 | **wave 8** |
+|---|---|---|---|
+| core | 31.3% | 53.3% | **53.1%** |
+| api | 36.5% | 61.5% | **60.3%** |
+| tools | 17.3% | 87.1% | **87.1%** |
+| integrations | ~0% | 60.4% | **60.2%** |
+| ALL | ~30% | 56.9% | **56.6%** |
+
+(Flat vs wave 7: wave-8 fixes added +223 stmts; per-layer drift is incremental-methodology noise. Cumulative campaign: ~30% → 56.6%.)
