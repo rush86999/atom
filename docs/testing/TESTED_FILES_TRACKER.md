@@ -428,6 +428,22 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | Frontend | **71.4%** lines (8,137 passed / 0 failures) | 735 files | 2026-08-09 |
 | Backend | 54.0% (r80 full-ish); 32.8% chunked-scope (r84) | 158k stmts / ~1,015 files | 2026-08-07 |
 
+### Resolved 2026-08-09 (R98 wave — pushed `42cb9a68a`)
+| Date | Area | Status | Result |
+|---|---|---|---|
+| 2026-08-09 | FE QuickBooks/GDrive/HubSpotWorkflow (143 tests, 97–99%) | TESTED/FIXED | QuickBooks create flows silently swallowed non-ok (500 → zero feedback); GDrive formatFileSize(0) → 'N/A' |
+| 2026-08-09 | FE lib/api.ts (44 interceptor tests, 63.8→99.4%) + TaskManagement (88.8/96.6%) + ChatHistorySidebar (100%) | TESTED/FIXED | 'No Project' sentinel bug; dead List view; project-card onClick was a TODO; status filter UI missing |
+| 2026-08-09 | FE MiniAppHarness (29 tests, 64→95.7%) | TESTED/FIXED | dev-run errors swallowed (empty box) → red pre + exit_code; editor wiped on ANY transient fetch failure (only 404 clears); empty error strip (?? → \|\|) |
+| 2026-08-09 | Mobile polish (320 tests, 96–99%) | TESTED/FIXED | AgentListScreen Active badge rendered with ZERO filters applied + half-built capability filter wired; SyncProgressModal syncResult never set (Sync Summary + onComplete permanently dead) + Math.random progress; CanvasSheet dead onRowPress + filter button with nothing rendering |
+| 2026-08-09 | FE full suite + coverage | GREEN | **8,268 passed / 0 failures; 72.6% lines** (was 71.4%) |
+
+## Coverage stamps (latest)
+| Surface | Coverage | Tests | Date |
+|---|---|---|---|
+| Mobile | **87.5%** lines (3,843 passed / 115 suites, 0 failures) | 7,365 stmts / 80 files | 2026-08-08 |
+| Frontend | **72.6%** lines (8,268 passed / 0 failures) | 735 files | 2026-08-09 |
+| Backend | 54.0% (r80 full-ish); 32.8% chunked-scope (r84) | 158k stmts / ~1,015 files | 2026-08-07 |
+
 ## Known remaining work (verified at last run — updated 2026-08-09)
 - `core/models.py` `OAuthToken` — server-side model; verify `api/oauth` routes don't use stale columns (Notion/Spotify moved to IntegrationToken; sweep remaining writers)
 - `tests/test_cognitive_tier_e2e.py` — 11 collection ERRORS remain after the survey-sweep alignment (23 pass / 11 error; the stale `CognitiveTierPreference` kwargs were fixed but 11 tests still fail at setup — next target)
