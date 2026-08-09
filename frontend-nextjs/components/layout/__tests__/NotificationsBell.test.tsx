@@ -242,7 +242,7 @@ describe('NotificationsBell', () => {
 
   test('tolerates network failure on fetch', async () => {
     server.use(
-      rest.get('/api/notifications', (req, res, ctx) => res.networkError('boom'))
+      rest.get(/\/api\/notifications/, (req, res, ctx) => res.networkError('boom'))
     );
 
     render(<NotificationsBell />);
@@ -254,7 +254,7 @@ describe('NotificationsBell', () => {
 
   test('tolerates non-ok responses', async () => {
     server.use(
-      rest.get('/api/notifications', (req, res, ctx) => res(ctx.status(500)))
+      rest.get(/\/api\/notifications/, (req, res, ctx) => res(ctx.status(500)))
     );
 
     render(<NotificationsBell />);

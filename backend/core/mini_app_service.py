@@ -1084,6 +1084,8 @@ async def run_stateful(
     from core.models import Canvas, CanvasState, MiniApp, MiniAppAsset
     from core.sandbox_policy import PolicyIssuer
 
+    run_id: Optional[str] = None
+
     try:
         from core.database import get_db_session
         with get_db_session() as db:
@@ -1129,8 +1131,13 @@ async def run_stateful(
             namespace = f"{app.id}-{canvas_id}"[:80]
             fs_root = os.path.join(get_miniapp_rootfs_dir(), "policy", namespace)
             os.makedirs(fs_root, exist_ok=True)
+            # Per-run run_id (uuid): caps/KillRun counters keyed on run_id must
+            # NOT persist across runs of the same instance — a long-lived
+            # mini-app would otherwise permanently burn its budget. Per-canvas
+            # identity lives in the run_id prefix and fs_root.
+            run_id = f"miniapp-{namespace}-{uuid.uuid4().hex}"
             policy = PolicyIssuer().issue(
-                run_id=f"miniapp-{namespace}",
+                run_id=run_id,
                 agent_id=agent_id or "system",
                 tier_at_issuance=(viewer_tier or "student").lower(),
                 workspace_data_root=fs_root,
@@ -1323,6 +1330,15 @@ async def run_stateful(
     except Exception as e:  # noqa: BLE001
         logger.error("MiniApp run_stateful failed for %s: %s", canvas_id, e)
         return {"success": False, "error": "Mini-app run failed"}
+    finally:
+        # Per-run counter semantics: release this run's caps/KillRun counters
+        # so the next run of the same instance starts fresh.
+        try:
+            if run_id:
+                from core import sandbox_caps
+                sandbox_caps.release_run(run_id)
+        except Exception as rel_e:  # noqa: BLE001
+            logger.debug("mini-app counter release failed: %s", rel_e)
 
 
 def _execute_storage_op(

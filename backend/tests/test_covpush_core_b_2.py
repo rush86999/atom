@@ -354,8 +354,10 @@ class TestCanvasLogicRemaining:
         from core.canvas_logic_service import sanitize_namespace
 
         assert sanitize_namespace("") == "unknown"
-        assert sanitize_namespace("!!!") == "unknown"
-        assert sanitize_namespace("a b") == "a-b"
+        # Injective mapping: separators are encoded, not collapsed.
+        assert sanitize_namespace("!!!") != "unknown"
+        assert sanitize_namespace("a b") == "a_20_b"
+        assert sanitize_namespace("a b") != sanitize_namespace("a-b")
 
     def test_get_runtime(self, monkeypatch):
         from core import canvas_logic_service as cls

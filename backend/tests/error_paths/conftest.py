@@ -456,10 +456,10 @@ def database_constraint_error():
 
     Usage:
         def test_unique_constraint(database_constraint_error, db_session):
-            agent1 = AgentRegistry(id="duplicate-id", name="Agent1")
+            agent1 = AgentRegistry(id="duplicate-id", name="Agent1", module_path="test.module", class_name="TestAgent")
             db_session.add(agent1)
             db_session.commit()
-            agent2 = AgentRegistry(id="duplicate-id", name="Agent2")
+            agent2 = AgentRegistry(id="duplicate-id", name="Agent2", module_path="test.module", class_name="TestAgent")
             db_session.add(agent2)
             with pytest.raises(IntegrityError):
                 db_session.commit()

@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import uuid
 from typing import Any, Dict, Optional, Tuple
 
 from sqlalchemy.orm import Session
@@ -24,21 +25,30 @@ logger = logging.getLogger(__name__)
 # Per-canvas FS root. Each canvas gets ./data/canvas_runtime/<sanitized_id>.
 CANVAS_RUNTIME_ROOT = os.getenv("CANVAS_RUNTIME_ROOT", "./data/canvas_runtime")
 
-# Permissive namespace sanitizer: keep alphanumerics + dashes only. Prevents
-# path-traversal via a malicious canvas_id (e.g. "../../etc").
-_NAMESPACE_SAFE = re.compile(r"[^A-Za-z0-9-]+")
+# Namespace encoding: alphanumerics survive verbatim; every other character
+# (including '-', '.', '_', ' ', '/') is escaped as "_<hex>_" so the mapping
+# is INJECTIVE — "a.b" and "a-b" cannot collapse onto the same per-canvas FS
+# dir. '_' itself escapes to "_5f_", so '_' only ever appears in output as an
+# escape delimiter, which keeps decoding (and collision-freeness) unambiguous.
+# A length cap keeps hostile ids from producing ENAMETOOLONG dir names; real
+# canvas ids (UUIDs, 36 chars) are far below it.
+_NAMESPACE_MAX_LEN = 128
+_NAMESPACE_SAFE = re.compile(r"[^A-Za-z0-9]")
 
 
 def sanitize_namespace(canvas_id: str) -> str:
-    """Reduce a canvas id to a path-safe namespace segment.
+    """Reduce a canvas id to a path-safe, INJECTIVE namespace segment.
 
     Guarantees no path separators or traversal characters survive, so a
-    malicious canvas_id cannot escape ``CANVAS_RUNTIME_ROOT``.
+    malicious canvas_id cannot escape ``CANVAS_RUNTIME_ROOT``, and two
+    distinct canvas ids never map to the same per-canvas directory.
     """
     if not canvas_id:
         return "unknown"
-    cleaned = _NAMESPACE_SAFE.sub("-", str(canvas_id)).strip("-")
-    return cleaned or "unknown"
+    encoded = _NAMESPACE_SAFE.sub(
+        lambda m: "_{:x}_".format(ord(m.group(0))), str(canvas_id)
+    )
+    return encoded[:_NAMESPACE_MAX_LEN] or "unknown"
 
 
 def get_runtime():
@@ -181,7 +191,12 @@ class CanvasLogicService:
         run_inputs["storage_namespace"] = namespace
 
         # Issue a per-canvas-scoped policy so FS writes are bounded to fs_root.
-        # Falls back to a minimal policy if the issuer is unavailable.
+        # run_id is PER-RUN (uuid) — counters keyed on run_id (tool calls,
+        # bytes, cost, KillRun) must not persist across runs of the same
+        # canvas; per-canvas identity is preserved in the run_id prefix and
+        # in fs_root (workspace_data_root). Falls back to a minimal policy
+        # if the issuer is unavailable.
+        run_id = f"canvas-{namespace}-{uuid.uuid4().hex}"
         if scopes is not None:
             # Explicit scopes (mini-app path): issue at the AUTONOMOUS floor and
             # replace the tool whitelist with the resolved viewer-tier caps.
@@ -189,7 +204,7 @@ class CanvasLogicService:
             from core.sandbox_policy import PolicyIssuer
             try:
                 policy = PolicyIssuer().issue(
-                    run_id=f"canvas-{namespace}",
+                    run_id=run_id,
                     agent_id=agent_id or "canvas-logic",
                     tier_at_issuance="autonomous",
                     workspace_data_root=fs_root,
@@ -201,7 +216,7 @@ class CanvasLogicService:
             try:
                 from core.sandbox_policy import PolicyIssuer
                 policy = PolicyIssuer().issue(
-                    run_id=f"canvas-{namespace}",
+                    run_id=run_id,
                     agent_id=agent_id or "canvas-logic",
                     tier_at_issuance="autonomous",
                     workspace_data_root=fs_root,
@@ -209,13 +224,20 @@ class CanvasLogicService:
             except Exception:
                 policy = None
 
-        runtime = get_runtime()
-        result = await runtime.execute_python(
-            logic["source"],
-            policy=policy,
-            inputs=run_inputs,
-            cwd=fs_root,
-        )
+        try:
+            runtime = get_runtime()
+            result = await runtime.execute_python(
+                logic["source"],
+                policy=policy,
+                inputs=run_inputs,
+                cwd=fs_root,
+            )
+        finally:
+            # Per-run counter semantics: release this run's caps/KillRun
+            # counters so the next run of the same canvas starts fresh.
+            from core import sandbox_caps
+            if policy is not None:
+                sandbox_caps.release_run(policy.run_id)
         return {
             "success": getattr(result, "success", True),
             "stdout": getattr(result, "stdout", "") or "",

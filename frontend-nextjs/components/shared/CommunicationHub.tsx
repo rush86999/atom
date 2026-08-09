@@ -143,10 +143,14 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
 
   const isComposeOpen = externalIsComposeOpen !== undefined ? externalIsComposeOpen : internalIsComposeOpen;
   const setIsComposeOpen = (open: boolean) => {
+    // Hybrid: always update internal state (so the dialog opens even when the
+    // parent only passes onComposeChange), and notify the parent when the
+    // callback is provided. Previously the callback REPLACED the internal
+    // setter, so an uncontrolled component with onComposeChange could never
+    // open its compose dialog.
+    setInternalIsComposeOpen(open);
     if (onComposeChange) {
       onComposeChange(open);
-    } else {
-      setInternalIsComposeOpen(open);
     }
   };
   const [isMessageOpen, setIsMessageOpen] = useState(false);
@@ -158,6 +162,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
   const [templates, setTemplates] = useState<QuickReplyTemplate[]>(initialTemplates);
   const [loading, setLoading] = useState(true);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [view, setView] = useState<CommunicationView>({
@@ -572,7 +577,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
                 onClick={() => {
                   setSelectedMessage(message);
                   setIsComposeOpen(true);
-                  onClose();
+                  setViewerOpen(false);
                 }}
               >
                 <Reply className="w-4 h-4 mr-2" />
@@ -735,6 +740,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
                   }`}
                 onClick={() => {
                   setSelectedMessage(message);
+                  setViewerOpen(true);
                   if (message.unread) {
                     handleMarkAsRead(message.id);
                   }
@@ -864,11 +870,11 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
       </Dialog>
 
       {/* Message Viewer Modal */}
-      {selectedMessage && (
+      {viewerOpen && selectedMessage && (
         <MessageViewer
           message={selectedMessage}
           onClose={() => {
-            setSelectedMessage(null);
+            setViewerOpen(false);
           }}
         />
       )}

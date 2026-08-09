@@ -309,12 +309,14 @@ class TeamsEnhancedService(IntegrationService):
         
         # MSAL application
         # Use tenant_id from IntegrationService base class
-        msal_tenant_id = config.get('msal_tenant_id') or 'common'
+        self.msal_tenant_id = config.get('msal_tenant_id') or 'common'
+        # JWKS (signing keys) cache for MS access token verification
+        self.jwks_cache: Dict[str, tuple] = {}
         if msal is not None:
             self.msal_app = msal.ConfidentialClientApplication(
                 client_id=self.client_id,
                 client_credential=self.client_secret,
-                authority=f"https://login.microsoftonline.com/{msal_tenant_id}"
+                authority=f"https://login.microsoftonline.com/{self.msal_tenant_id}"
             )
         else:
             logger.warning("MSAL not installed - Teams OAuth disabled; service runs in degraded mode")
@@ -465,7 +467,80 @@ class TeamsEnhancedService(IntegrationService):
             logger.error(f"Error saving workspace: {e}")
             return False
     
-    def generate_oauth_url(self, state: str, user_id: str, scopes: List[str] = None) -> str:
+    def _get_jwks_keys(self, tenant: str) -> Optional[List[Dict[str, Any]]]:
+        """Fetch and cache the Azure AD signing keys (JWKS) for a tenant.
+
+        SECURITY: access tokens received from MSAL are verified against these
+        keys before any claim is trusted (see ``_verify_ms_access_token``).
+        Fail-closed: returns None on any fetch/parse error so callers reject.
+        """
+        cache_key = f"teams_jwks:{tenant}"
+        cached = self.jwks_cache.get(cache_key)
+        if cached:
+            keys, fetched_at = cached
+            if time.time() - fetched_at < 86400:  # 24h cache (MS rotates ~6h)
+                return keys
+        url = f"https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys"
+        try:
+            resp = httpx.get(url, timeout=10)
+            resp.raise_for_status()
+            keys = resp.json().get("keys", [])
+        except Exception as e:
+            logger.error(f"Failed to fetch Microsoft JWKS for tenant {tenant}: {e}")
+            return None
+        if not keys:
+            logger.error(f"Microsoft JWKS for tenant {tenant} returned no keys")
+            return None
+        self.jwks_cache[cache_key] = (keys, time.time())
+        return keys
+
+    def _verify_ms_access_token(self, access_token: str) -> Dict[str, Any]:
+        """Verify an MS Graph access token against the tenant JWKS.
+
+        SECURITY (R78 tracked item): the token was previously decoded with
+        ``verify_signature=False`` — any JWT (forged via a debug hook or a
+        lateral path) was accepted and its claims written into the workspace.
+        Now the signature, key id, and expiry are verified against the
+        tenant's Azure AD signing keys. Fail-closed: raises on any failure.
+        """
+        try:
+            header = jwt.get_unverified_header(access_token)
+        except Exception as e:
+            logger.error(f"MS access token header parse failed: {e}")
+            raise ValueError("Invalid MS access token header")
+
+        kid = header.get("kid")
+        if not kid:
+            raise ValueError("MS access token missing kid claim")
+
+        keys = self._get_jwks_keys(self.msal_tenant_id)
+        if not keys:
+            raise ValueError("Could not fetch Microsoft JWKS signing keys")
+
+        signing_key = None
+        for key in keys:
+            if key.get("kid") != kid:
+                continue
+            try:
+                signing_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
+            except Exception as e:
+                logger.error(f"Failed to construct JWKS signing key for kid {kid}: {e}")
+            break
+        if signing_key is None:
+            raise ValueError("No matching JWKS signing key for token kid")
+
+        try:
+            return jwt.decode(
+                access_token,
+                signing_key,
+                algorithms=["RS256"],
+                options={"require": ["exp"]},
+            )
+        except jwt.InvalidTokenError as e:
+            logger.error(f"MS access token verification failed: {e}")
+            raise ValueError("MS access token signature or expiry verification failed")
+
+    async def generate_oauth_url(self, state: str, user_id: str, scopes: List[str] = None) -> str:
         """Generate OAuth authorization URL"""
         try:
             if self.msal_app is None:
@@ -508,8 +583,9 @@ class TeamsEnhancedService(IntegrationService):
             # Get user and tenant info from token
             access_token = result.get('access_token')
             
-            # Parse JWT token to extract claims
-            decoded_token = jwt.decode(access_token, options={"verify_signature": False})
+            # Parse JWT token to extract claims — signature verified against
+            # the tenant JWKS (fail-closed; forged tokens are rejected).
+            decoded_token = self._verify_ms_access_token(access_token)
             
             # Create workspace model
             workspace = TeamsWorkspace(

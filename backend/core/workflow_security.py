@@ -7,9 +7,13 @@ workflow trigger path must therefore gate those steps to ``WORKFLOW_MANAGE``
 (TEAM_LEAD+), mirroring the agent-path maturity gates — members get 403 before
 any execution/scheduling starts.
 
-The shared engine sink ``workflow_engine._execute_mcp_action`` stays ungated:
-it has no User/RBAC in scope. Every reachable trigger gates at the route level
-(consistent with the shipped R67 approach).
+The shared engine sink ``workflow_engine._execute_mcp_action`` has no User/RBAC
+in scope, so every reachable trigger gates at the route level (consistent with
+the shipped R67 approach). Since R97 (P9) the sink is ALSO sandbox-gated at
+execution time: it dispatches through ``integrations.mcp_service.call_tool``,
+which applies the deterministic sandbox layer (tool whitelist, FS scope,
+tripwires, resource caps, KillRun) — so route-level RBAC stays, and the
+per-run blast-radius layer is enforced at the sink for every dispatch path.
 
 Import discipline: this module imports only ``fastapi``, ``core.models``
 (``User``) and ``core.rbac_service`` (``Permission``, ``RBACService``). It must

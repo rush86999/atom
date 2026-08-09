@@ -330,7 +330,7 @@ describe('CommunicationHub', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /new message/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^new message$/i }));
     expect(
       screen.getByRole('heading', { name: /compose new message/i })
     ).toBeInTheDocument();
@@ -376,7 +376,7 @@ describe('CommunicationHub', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /new message/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^new message$/i }));
     fillComposeForm();
     fireEvent.click(screen.getByRole('button', { name: /send message/i }));
 
@@ -443,7 +443,7 @@ describe('CommunicationHub', () => {
     );
 
     expect(screen.queryByPlaceholderText('Search messages...')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /new message/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^new message$/i })).not.toBeInTheDocument();
     expect(screen.getByText('Weekly Team Update')).toBeInTheDocument();
   });
 
@@ -457,7 +457,7 @@ describe('CommunicationHub', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /new message/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^new message$/i }));
     fireEvent.click(
       await screen.findByRole('button', { name: /meeting confirmation/i })
     );
@@ -502,7 +502,7 @@ describe('CommunicationHub', () => {
       <CommunicationHub {...defaultProps} onComposeChange={onComposeChange} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /new message/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^new message$/i }));
     expect(onComposeChange).toHaveBeenCalledWith(true);
   });
 });

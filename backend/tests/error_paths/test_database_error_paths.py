@@ -95,7 +95,7 @@ class TestQueryErrors:
             name="Agent One",
             status=AgentStatus.STUDENT,
             category="general"
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent1)
         db_session.commit()
 
@@ -105,7 +105,7 @@ class TestQueryErrors:
             name="Agent Two",
             status=AgentStatus.INTERN,
             category="general"
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent2)
 
         # Should raise IntegrityError
@@ -190,7 +190,7 @@ class TestQueryErrors:
             id="a" * 1000,  # Very long ID
             name="Test Agent",
             status=AgentStatus.STUDENT
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent)
 
         # May raise DataError or succeed (if no length constraint)
@@ -223,7 +223,7 @@ class TestTransactionErrors:
             name="Agent One",
             status=AgentStatus.STUDENT,
             category="general"
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent1)
         db_session.commit()
 
@@ -232,14 +232,14 @@ class TestTransactionErrors:
             id="agent-1",  # Duplicate ID
             name="Agent Two",
             status=AgentStatus.INTERN
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent2)
 
         agent3 = AgentRegistry(
             id="agent-3",
             name="Agent Three",
             status=AgentStatus.INTERN
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent3)
 
         # Commit should fail
@@ -264,7 +264,7 @@ class TestTransactionErrors:
             name="Agent One",
             status=AgentStatus.STUDENT,
             category="general"
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent1)
         db_session.flush()  # Creates savepoint in some DBs
 
@@ -273,7 +273,7 @@ class TestTransactionErrors:
             id="agent-1",  # Duplicate
             name="Agent Two",
             status=AgentStatus.INTERN
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent2)
 
         # Flush should fail
@@ -288,7 +288,7 @@ class TestTransactionErrors:
             id="agent-3",
             name="Agent Three",
             status=AgentStatus.INTERN
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent3)
         db_session.commit()  # Should succeed
 
@@ -312,7 +312,7 @@ class TestTransactionErrors:
             name="Agent One",
             status=AgentStatus.STUDENT,
             category="general"
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent1)
         db_session.commit()
 
@@ -321,7 +321,7 @@ class TestTransactionErrors:
             id="agent-1",  # Duplicate
             name="Agent Two",
             status=AgentStatus.INTERN
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent2)
 
         with pytest.raises(IntegrityError):
@@ -335,7 +335,7 @@ class TestTransactionErrors:
             id="agent-3",
             name="Agent Three",
             status=AgentStatus.INTERN
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent3)
         db_session.commit()  # Should succeed
 
@@ -362,7 +362,7 @@ class TestSessionManagementErrors:
             name="Test Agent",
             status=AgentStatus.STUDENT,
             category="general"
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent)
         db_session.commit()
 
@@ -384,7 +384,7 @@ class TestSessionManagementErrors:
             name="Agent One",
             status=AgentStatus.STUDENT,
             category="general"
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent1)
         db_session.commit()
 
@@ -416,7 +416,7 @@ class TestSessionManagementErrors:
             name="Test Agent",
             status=AgentStatus.STUDENT,
             category="general"
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent)
         db_session.commit()
         db_session.close()
@@ -446,7 +446,7 @@ class TestORMSpecificErrors:
             id="agent-1",
             name=None,  # Invalid if name is required
             status=AgentStatus.STUDENT
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent)
 
         # Flush may fail if name is NOT NULL
@@ -469,7 +469,7 @@ class TestORMSpecificErrors:
             name="Agent One",
             status=AgentStatus.STUDENT,
             category="general"
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent1)
         db_session.commit()
 
@@ -478,7 +478,7 @@ class TestORMSpecificErrors:
             id="agent-1",
             name="Agent Two",
             status=AgentStatus.INTERN
-        )
+        , module_path="test.module", class_name="TestAgent")
         db_session.add(agent2)
 
         # Commit should fail
@@ -500,7 +500,7 @@ class TestORMSpecificErrors:
             name="Test Agent",
             status=AgentStatus.STUDENT,
             category="general"
-        )
+        , module_path="test.module", class_name="TestAgent")
 
         # Try to refresh (not in DB yet)
         # This may succeed (no-op) or fail
@@ -532,7 +532,7 @@ class TestContextManagerErrors:
                     id="agent-1",
                     name="Test Agent",
                     status=AgentStatus.STUDENT
-                )
+                , module_path="test.module", class_name="TestAgent")
                 db.add(agent)
 
                 # Raise exception
@@ -558,7 +558,7 @@ class TestContextManagerErrors:
                 id="agent-1",
                 name="Test Agent",
                 status=AgentStatus.STUDENT
-            )
+            , module_path="test.module", class_name="TestAgent")
             db.add(agent)
             # No commit, transaction left open
 
@@ -607,8 +607,8 @@ class TestBulkOperationErrors:
         EXPECTED: Partial update or complete rollback.
         """
         # Create agents first
-        agent1 = AgentRegistry(id="agent-1", name="Agent One", status=AgentStatus.STUDENT)
-        agent2 = AgentRegistry(id="agent-2", name="Agent Two", status=AgentStatus.INTERN)
+        agent1 = AgentRegistry(id="agent-1", name="Agent One", status=AgentStatus.STUDENT, module_path="test.module", class_name="TestAgent")
+        agent2 = AgentRegistry(id="agent-2", name="Agent Two", status=AgentStatus.INTERN, module_path="test.module", class_name="TestAgent")
         db_session.add(agent1)
         db_session.add(agent2)
         db_session.commit()
