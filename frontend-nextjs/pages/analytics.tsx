@@ -1,5 +1,10 @@
 "use client"
 
+// Client-rendered page (fetches from the API at runtime). Opt out of static
+// prerendering to avoid the "Cannot access 'H' before initialization" TDZ
+// error during `next build` standalone-output SSG.
+export const dynamic = 'force-dynamic'
+
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

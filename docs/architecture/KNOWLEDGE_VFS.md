@@ -24,8 +24,9 @@
 - 11 `documents.*` actions (`ls/tree/cat/head/tail/grep/scan/search/map/
   reduce/ask_image`) auto-discover through `action_registry` → RPC +
   capability_resolver + MCP dispatch (P1/P2/P9 enforcement points apply).
-- `documents.search` is upgraded (flag on) from ILIKE to a weighted
-  lexical ranking with `since/source/author` filters.
+- `documents.search` is upgraded (flag on) to a real **hybrid search engine**
+  — BM25 (FTS5/tsvector) + vector (LanceDB) fused by RRF. See
+  [`AGENT_HYBRID_SEARCH.md`](./AGENT_HYBRID_SEARCH.md).
 
 ## VFS contract (`core/vfs_base.py`)
 
@@ -75,31 +76,41 @@ dispatch layer (capability_resolver / MCP tool gating); the registry itself is
 thin and metadata-free, per the P1 architecture. All side effects still flow
 through P1→P3→P4→P9 enforcement points.
 
-## `documents.search` — hybrid upgrade (P2c)
+## `documents.search` — hybrid search engine (BM25 + vector, RRF)
 
 Flag off → exact pre-P2 ILIKE implementation (`_documents_search_legacy`,
 kill-switch parity, test `test_action_search_flag_off_is_legacy_parity`).
 
-Flag on → `_documents_search`:
-- **Lexical leg:** SQL `ILIKE` prefilter, then deterministic scoring —
-  title/`file_name` hit = 3.0, content hit = 1.0; results sorted by score,
-  capped by `limit`.
-- **Filters:** `source` (`ingested|knowledge` — hard store exclusion),
-  `since` (ISO datetime vs `created_at`/`external_modified_at`/
-  `updated_at`), `author` (`integration_id` ILIKE for ingested,
-  `metadata_json->author` for knowledge).
-- Response tags `"hybrid": "lexical_ranked"`.
+Flag on → `_documents_search` delegates to `DocumentsHybridSearch`
+(`core/hybrid_search/documents_hybrid.py`), which fuses two retrieval legs via
+Reciprocal Rank Fusion (RRF, k=60). See
+[`AGENT_HYBRID_SEARCH.md`](./AGENT_HYBRID_SEARCH.md) for the full architecture.
+- **Lexical leg:** BM25 over FTS5 (`ingested_documents_fts` /
+  `knowledge_documents_fts`, SQLite) or tsvector+GIN (Postgres), via
+  `core/hybrid_search/lexical_ranker.py`. Falls back to ILIKE if the FTS
+  tables are absent.
+- **Vector leg:** 1536-dim OpenAI embedding → LanceDB ANN over the
+  `documents` table. Each hit's `id` is the Postgres doc id (via the
+  join-key bridge) → `documents.cat`-able.
+- **RRF fusion:** rank-based, so BM25 and cosine scores need no
+  normalization. Degradation ladder: `bm25_vector_rrf` → `lexical_only` →
+  `semantic_only` → `no_results`.
+- **Filters:** `source` (`ingested|knowledge`), `since`, `author` —
+  passed through to both legs.
+- Response tags the mode in `"hybrid"` (`bm25_vector_rrf` / `lexical_only` /
+  `semantic_only` / `no_results`).
 
-### Deviation recorded (H11 disposition)
+### H11 disposition — RESOLVED
 
-The plan cited reusing `core/hybrid_retrieval_service.py` for a true
-BM25+vector fusion. **Verified: that service is agent-episode-bound**
-(`coarse_search_fastembed(agent_id=...)` over LanceDB episodes); no document
-embeddings or FTS5 index exist for `IngestedDocument`/`KnowledgeDocument`.
-Building one (background document indexer + embedding column/LanceDB table) is
-a separate phase — tracked here as the H11 follow-on. Until then the semantic
-leg is absent by design, not by omission: the action degrades honestly
-(`lexical_ranked`) instead of claiming vector fusion it doesn't have.
+The earlier plan noted the semantic leg was "absent by design" because
+`hybrid_retrieval_service.py` was episode-bound and no FTS5/vector path
+existed for documents. **This is now resolved:** the documents hybrid search
+ships its own FTS5 indexes (`20260808_add_documents_fts.py`), a lexical ranker
+(`lexical_ranker.py`), the vector leg via LanceDB, and the join-key bridge
+(stamping `pg_document_id` at ingest). The episodes `HybridRetrievalService`
+remains untouched; the documents leg is a separate service in the same
+multi-source RRF architecture (episodes/turn_facts/reasoning-steps legs are
+named follow-ups).
 
 ## Feature flags (`core/knowledge_vfs_config.py`)
 

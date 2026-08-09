@@ -1,5 +1,11 @@
 "use client"
 
+// This page is fully client-rendered (fetches from the API at runtime). Opt out
+// of static prerendering so `next build` (standalone output) doesn't try to SSG
+// it — which fails with "Cannot access 'H' before initialization" (a TDZ in the
+// prerender pass for client components with module-scoped refs).
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
