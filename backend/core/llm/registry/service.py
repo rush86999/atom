@@ -128,7 +128,7 @@ class LLMRegistryService:
         # Warm cache after successful upsert
         if self.use_cache and self.cache:
             try:
-                stored_models = self.list_models(tenant_id, use_cache=False)
+                stored_models = await self.list_models(tenant_id, use_cache=False)
                 model_dicts = [
                     {
                         'provider': m.provider,
@@ -202,6 +202,7 @@ class LLMRegistryService:
             existing.capabilities = model_data.get('capabilities', [])
             existing.provider_metadata = model_data.get('provider_metadata', {})
             existing.last_refreshed_at = datetime.now(timezone.utc)
+            existing.sync_capabilities()
 
             logger.debug(f"Updated model: {provider}/{model_name}")
             return existing
@@ -218,6 +219,7 @@ class LLMRegistryService:
                 provider_metadata=model_data.get('provider_metadata', {}),
                 last_refreshed_at=datetime.now(timezone.utc)
             )
+            new_model.sync_capabilities()
 
             self.db.add(new_model)
             self.db.flush()

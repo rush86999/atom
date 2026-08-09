@@ -149,8 +149,7 @@ class L1MemoryCache:
 
     def _generate_query_key(self, query: str, limit: int, domain: Optional[str] = None) -> str:
         """Generate cache key for business fact query"""
-        domain_part = f":{domain}" if domain else ""
-        return f"query:{hashlib.sha256(f'{query}:{limit}{domain_part}'.encode()).hexdigest()}"
+        return f"query:{hashlib.sha256(json.dumps([query, limit, domain]).encode()).hexdigest()}"
 
     def get_verification(self, citation: str) -> Optional[CitationVerificationResult]:
         """Get cached verification result"""
@@ -181,7 +180,7 @@ class L1MemoryCache:
 
         with self._lock:
             # Evict if at capacity
-            if len(self._verification_cache) >= self.max_size:
+            if self.max_size > 0 and len(self._verification_cache) >= self.max_size:
                 self._verification_cache.popitem(last=False)
                 self._evictions += 1
 
@@ -217,7 +216,7 @@ class L1MemoryCache:
         with self._lock:
             # Evict if at capacity (use 1/4 of max_size for query cache)
             query_max_size = self.max_size // 4
-            if len(self._query_cache) >= query_max_size:
+            if query_max_size > 0 and len(self._query_cache) >= query_max_size:
                 self._query_cache.popitem(last=False)
                 self._evictions += 1
 
@@ -313,8 +312,7 @@ class L2RedisCache:
 
     def _generate_query_key(self, query: str, limit: int, domain: Optional[str] = None) -> str:
         """Generate query cache key"""
-        domain_part = f":{domain}" if domain else ""
-        return f"atom:jit:query:{hashlib.sha256(f'{query}:{limit}{domain_part}'.encode()).hexdigest()}"
+        return f"atom:jit:query:{hashlib.sha256(json.dumps([query, limit, domain]).encode()).hexdigest()}"
 
     async def get_verification(self, citation: str) -> Optional[CitationVerificationResult]:
         """Get cached verification from Redis"""
@@ -491,7 +489,7 @@ class JITVerificationCache:
         else:
             # Local file check
             import os
-            exists = os.path.exists(citation)
+            exists = os.path.isfile(citation)
             if exists:
                 size = os.path.getsize(citation)
 
@@ -567,7 +565,7 @@ class JITVerificationCache:
 
         # Actual search
         from core.agent_world_model import WorldModelService
-        wm = WorldModelService(workspace_id=workspace_id, tenant_id=tenant_id)
+        wm = WorldModelService(workspace_id=workspace_id)
         facts = await wm.list_all_facts(limit=limit, domain=domain)
 
         # Convert to dicts

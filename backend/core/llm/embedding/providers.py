@@ -17,6 +17,26 @@ from .base import (
     EmbeddingRateLimitError,
     EmbeddingContextLimitError)
 
+try:
+    from openai import AsyncOpenAI
+except ImportError:
+    AsyncOpenAI = None  # type: ignore
+
+try:
+    import cohere
+except ImportError:
+    cohere = None  # type: ignore
+
+try:
+    import voyageai
+except ImportError:
+    voyageai = None  # type: ignore
+
+try:
+    import nomic
+except ImportError:
+    nomic = None  # type: ignore
+
 
 class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
     """
@@ -50,8 +70,8 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
     def __init__(self, api_key: str = None):
         super().__init__(api_key)
         try:
-            from openai import AsyncOpenAI
-
+            if AsyncOpenAI is None:
+                raise ImportError("OpenAI package not installed")
             self._client = AsyncOpenAI(api_key=api_key)
         except ImportError:
             raise EmbeddingProviderError(
@@ -152,8 +172,8 @@ class CohereEmbeddingProvider(BaseEmbeddingProvider):
     def __init__(self, api_key: str = None):
         super().__init__(api_key)
         try:
-            import cohere
-
+            if cohere is None:
+                raise ImportError("Cohere package not installed")
             self._client = cohere.AsyncClient(api_key=api_key)
         except ImportError:
             raise EmbeddingProviderError(
@@ -254,8 +274,8 @@ class VoyageEmbeddingProvider(BaseEmbeddingProvider):
     def __init__(self, api_key: str = None):
         super().__init__(api_key)
         try:
-            import voyageai
-
+            if voyageai is None:
+                raise ImportError("VoyageAI package not installed")
             self._client = voyageai.Client(api_key=api_key)
         except ImportError:
             raise EmbeddingProviderError(
@@ -273,7 +293,7 @@ class VoyageEmbeddingProvider(BaseEmbeddingProvider):
             result = await asyncio.to_thread(
                 self._client.embed, text, model=model, input_type="document"
             )
-            return result[0]
+            return result.embeddings[0]
         except Exception as e:
             if "rate" in str(e).lower() or "429" in str(e):
                 raise EmbeddingRateLimitError(f"Voyage rate limit: {e}")
@@ -295,7 +315,7 @@ class VoyageEmbeddingProvider(BaseEmbeddingProvider):
             result = await asyncio.to_thread(
                 self._client.embed, texts, model=model, input_type="document"
             )
-            return result
+            return result.embeddings
         except Exception as e:
             if "rate" in str(e).lower() or "429" in str(e):
                 raise EmbeddingRateLimitError(f"Voyage rate limit: {e}")
@@ -351,8 +371,8 @@ class NomicEmbeddingProvider(BaseEmbeddingProvider):
     def __init__(self, api_key: str = None):
         super().__init__(api_key)
         try:
-            import nomic
-
+            if nomic is None:
+                raise ImportError("Nomic package not installed")
             self._client = nomic.Embedding(api_key=api_key)
         except ImportError:
             raise EmbeddingProviderError(
@@ -448,8 +468,8 @@ class JinaEmbeddingProvider(BaseEmbeddingProvider):
     def __init__(self, api_key: str = None):
         super().__init__(api_key)
         try:
-            from openai import AsyncOpenAI
-
+            if AsyncOpenAI is None:
+                raise ImportError("OpenAI package not installed")
             self._client = AsyncOpenAI(
                 api_key=api_key, base_url=self.BASE_URL
             )

@@ -122,7 +122,7 @@ Agent is proposing an action for your review.
 
 **Agent:** {agent.name}
 **Category:** {agent.category}
-**Confidence:** {agent.confidence_score:.2f}
+**Confidence:** {agent.confidence_score or 0:.2f}
 
 **Proposed Action:** {proposed_action.get('action_type', 'Unknown')}
 {candidates_block}
@@ -217,7 +217,19 @@ Please review and approve or reject this proposal.
             _action_to_execute = proposal.proposed_action
 
         # Execute the proposed action using the prepared (possibly modified) copy
-        execution_result = await self._execute_proposed_action_with(proposal, _action_to_execute)
+        try:
+            execution_result = await self._execute_proposed_action_with(proposal, _action_to_execute)
+        except Exception as e:
+            logger.error(f"Failed to execute proposal {proposal.id}: {e}")
+            proposal.execution_result = {
+                "success": False,
+                "error": "Proposal execution failed",
+                "proposal_id": proposal.id
+            }
+            proposal.status = ProposalStatus.EXECUTION_FAILED.value
+            proposal.executed_at = datetime.now()
+            self.db.commit()
+            raise
 
         # Bug 12 fix: only now (after successful execution) apply mutations
         # to the persisted proposal row. Previously mutations were applied
@@ -233,8 +245,11 @@ Please review and approve or reject this proposal.
             proposal.modifications = modifications
 
         proposal.execution_result = execution_result
-        proposal.status = ProposalStatus.EXECUTED.value
-        proposal.completed_at = datetime.now()
+        if execution_result.get("success"):
+            proposal.status = ProposalStatus.EXECUTED.value
+        else:
+            proposal.status = ProposalStatus.EXECUTION_FAILED.value
+        proposal.executed_at = datetime.now()
 
         self.db.commit()
         self.db.refresh(proposal)
@@ -242,7 +257,7 @@ Please review and approve or reject this proposal.
         # NEW: Create learning episode from approved proposal
         await self._create_proposal_episode(
             proposal=proposal,
-            outcome="approved",
+            outcome="approved" if execution_result.get("success") else "failed",
             modifications=modifications,
             execution_result=execution_result
         )
@@ -924,26 +939,37 @@ Please review and approve or reject this proposal.
             # Create episode
             episode = Episode(
                 id=str(uuid.uuid4()),
-                title=f"Proposal {outcome.capitalize()}: {proposal.title}",
-                description=f"INTERN agent proposal {outcome} by human reviewer",
-                summary=proposal_content[:200] + "..." if len(proposal_content) > 200 else proposal_content,
+                task_description=f"Proposal {outcome.capitalize()}: {proposal.title}",
                 agent_id=proposal.agent_id,
-                user_id=proposal.approved_by or proposal.user_id,
+                tenant_id=getattr(proposal, 'tenant_id', None) or 'default',
                 workspace_id="default",
 
-                # Link to proposal (NEW)
+                # Link to proposal (supervision schema)
                 proposal_id=proposal.id,
-                proposal_outcome=outcome,
-                rejection_reason=kwargs.get("rejection_reason"),
+                supervision_decision=outcome,
+                supervisor_id=proposal.approved_by or proposal.user_id,
+                supervision_reasoning=kwargs.get("rejection_reason"),
 
                 # Timing
                 started_at=proposal.created_at,
-                ended_at=proposal.completed_at or proposal.approved_at or datetime.now(),
+                completed_at=(
+                    getattr(proposal, "completed_at", None)
+                    or proposal.executed_at
+                    or proposal.approved_at
+                    or datetime.now()
+                ),
                 duration_seconds=int((
-                    (proposal.completed_at or proposal.approved_at or datetime.now()) -
+                    (getattr(proposal, "completed_at", None)
+                     or proposal.executed_at
+                     or proposal.approved_at
+                     or datetime.now()) -
                     proposal.created_at
                 ).total_seconds()) if proposal.created_at else None,
                 status="completed",
+
+                # Outcome
+                outcome="success" if outcome == "approved" else "failure",
+                success=outcome == "approved",
 
                 # Content
                 topics=self._extract_proposal_topics(proposal),
@@ -953,9 +979,15 @@ Please review and approve or reject this proposal.
                 # Graduation fields
                 maturity_at_time=maturity_level,
                 human_intervention_count=1,  # Human approval/rejection is an intervention
-                human_edits=kwargs.get("modifications", []),
                 constitutional_score=None,
-                world_model_state="v1.0"
+                metadata_json={
+                    "proposal_outcome": outcome,
+                    "proposal_title": proposal.title,
+                    "rejection_reason": kwargs.get("rejection_reason"),
+                    "human_edits": kwargs.get("modifications", []),
+                    "content": proposal_content,
+                    "outcome_content": outcome_content,
+                }
             )
 
             self.db.add(episode)
@@ -1130,7 +1162,7 @@ Please review and approve or reject this proposal.
             score += 0.1  # Approvals are less critical
 
         # Modifications boost
-        if proposal.modifications:
+        if getattr(proposal, "modifications", None):
             score += 0.1
 
         # Clamp to [0, 1]
@@ -1281,7 +1313,12 @@ Please review and approve or reject this proposal.
                     "review": review_data
                 }
         else:
-            # Reject proposal
+            # Reject proposal — never rewrite the audit trail of a proposal
+            # that already ran (same guard as reject_proposal).
+            if proposal.status != ProposalStatus.PENDING_APPROVAL.value:
+                raise ValueError(
+                    f"Proposal must be in PENDING_APPROVAL status, current: {proposal.status}"
+                )
             proposal.status = ProposalStatus.REJECTED.value
             proposal.approved_by = review_result["supervisor_id"]
             proposal.approved_at = datetime.now()

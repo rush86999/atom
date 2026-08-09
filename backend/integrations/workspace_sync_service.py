@@ -189,7 +189,7 @@ class WorkspaceSyncService:
                     "status": "unhealthy",
                     "healthy": False,
                     "service": "workspace_sync",
-                    "error": str(e),
+                    "error": "Database connection failed",
                     "message": "Database connection failed",
                     "timestamp": datetime.now(timezone.utc).isoformat()
                 }
@@ -754,6 +754,11 @@ class WorkspaceSyncService:
                     "message": f"Change {change_type} logged for Slack"
                 }
 
+            return {
+                "success": False,
+                "error": f"Missing required data for {change_type}"
+            }
+
         except ImportError as e:
             logger.error(f"Failed to import Slack service: {e}")
             return {
@@ -850,6 +855,11 @@ class WorkspaceSyncService:
                     "message": f"Change {change_type} logged for Discord"
                 }
 
+            return {
+                "success": False,
+                "error": f"Missing required data for {change_type}"
+            }
+
         except ImportError as e:
             logger.error(f"Failed to import Discord service: {e}")
             return {
@@ -937,6 +947,11 @@ class WorkspaceSyncService:
                     "success": True,
                     "message": f"Change {change_type} logged for Google Chat"
                 }
+
+            return {
+                "success": False,
+                "error": f"Missing required data for {change_type}"
+            }
 
         except ImportError as e:
             logger.error(f"Failed to import Google Chat service: {e}")
@@ -1031,6 +1046,11 @@ class WorkspaceSyncService:
                     "success": True,
                     "message": f"Change {change_type} logged for Teams"
                 }
+
+            return {
+                "success": False,
+                "error": f"Missing required data for {change_type}"
+            }
 
         except ImportError as e:
             logger.error(f"Failed to import Teams service: {e}")

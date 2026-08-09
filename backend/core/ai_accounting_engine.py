@@ -119,6 +119,7 @@ class AIAccountingEngine:
     
     def ingest_transaction(self, tx: Transaction) -> Transaction:
         """Ingest a new transaction and categorize it"""
+        tx.amount = to_decimal(tx.amount)
         self._transactions[tx.id] = tx
         
         # Auto-categorize
@@ -464,7 +465,10 @@ class AIAccountingEngine:
         # thousands separators are not silently truncated. The original
         # r'\$?(\d+)[k,]*' stopped at the first comma, parsing "$10,000"
         # as 10 — a 1000x under-estimate of impact.
-        num_match = re.search(r'\$?(\d[\d,]*)(?:\s*k)?\b', description)
+        num_match = (
+            re.search(r'\$(\d[\d,]*)(?:\s*k)?\b', description)
+            or re.search(r'\$?(\d[\d,]*)(?:\s*k)?\b', description)
+        )
         val = 0
         if num_match:
             val = int(num_match.group(1).replace(',', ''))
@@ -560,7 +564,7 @@ class AIAccountingEngine:
             return {"status": "posted", "mode": "standalone", "tx_id": tx_id}
         except Exception as e:
             self._log_audit("post_failed", tx, str(e))
-            return {"status": "failed", "error": str(e)}
+            return {"status": "failed", "error": "Ledger posting failed"}
 
 # Global engine instance
 ai_accounting = AIAccountingEngine()

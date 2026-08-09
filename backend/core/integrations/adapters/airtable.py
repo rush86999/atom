@@ -184,7 +184,7 @@ class AirtableAdapter:
 
                 # Calculate token expiration
                 if "expires_in" in token_data:
-                    self._token_expires_at = datetime.now() + timedelta(
+                    self._token_expires_at = datetime.now(timezone.utc) + timedelta(
                         seconds=token_data["expires_in"]
                     )
 
@@ -211,7 +211,7 @@ class AirtableAdapter:
             async with httpx.AsyncClient() as client:
                 # Test by getting user info
                 response = await client.get(
-                    f"{self.base_url}/v0/meta/whoami",
+                    f"{self.base_url}/meta/whoami",
                     headers={
                         "Authorization": f"Bearer {token}"
                     }
@@ -514,6 +514,10 @@ class AirtableAdapter:
         try:
             # Build filter formula
             formula = f"FIND('{search_value}', LOWER({{{field_name}}})) > 0"
+            return await self.get_records(
+                base_id, table_name,
+                filter_by_formula=formula, max_records=max_records
+            )
 
         except Exception as e:
             logger.error(f"Failed to search Airtable records: {e}")

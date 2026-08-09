@@ -198,9 +198,17 @@ class ThreeLayerGovernance:
         context: Dict[str, Any]
     ) -> GovernanceDecision:
         """Make a governance decision at specified layer"""
+        decision_type = context.get("decision_type", DecisionType.PERMISSION)
+        if isinstance(decision_type, str):
+            try:
+                decision_type = DecisionType(decision_type)
+            except ValueError:
+                decision_type = DecisionType.PERMISSION
+
         decision = GovernanceDecision(
             decision_id=f"dec_{uuid.uuid4().hex[:16]}",
             layer=layer,
+            decision_type=decision_type,
             agent_id=agent_id,
             action=action,
             context=context,
@@ -395,9 +403,11 @@ class DynamicGovernanceManager:
             # Get decision from governance
             decision = self.governance.decide(layer, agent_id, action, context)
 
-            # Check confidence for human intervention
-            if decision.confidence < self.config.human_intervention_threshold:
-                decision.required_approvals.append("human_review")
+            # Check confidence / escalation for human intervention
+            if (decision.confidence < self.config.human_intervention_threshold
+                    or decision.outcome == DecisionOutcome.ESCALATE):
+                if "human_review" not in decision.required_approvals:
+                    decision.required_approvals.append("human_review")
                 self._intervention_queue.append(decision)
 
             # Log decision for learning
@@ -408,6 +418,11 @@ class DynamicGovernanceManager:
     def _determine_layer(self, context: Dict[str, Any]) -> GovernanceLayer:
         """Determine appropriate governance layer"""
         decision_type = context.get("decision_type", DecisionType.PERMISSION)
+        if isinstance(decision_type, str):
+            try:
+                decision_type = DecisionType(decision_type)
+            except ValueError:
+                return GovernanceLayer.OPERATIONAL
 
         if decision_type in [DecisionType.ESCALATION, DecisionType.CREATION, DecisionType.POLICY]:
             return GovernanceLayer.STRATEGIC
@@ -459,6 +474,16 @@ class DynamicGovernanceManager:
         reason: str
     ) -> None:
         """Suggest governance adaptation"""
+        # Skip if a pending adaptation of the same type already exists for
+        # this agent — _consider_adaptation runs on every recorded score
+        # once the 100-score threshold is passed, so without this the same
+        # suggestion is appended on every subsequent call.
+        for existing in self._adaptations:
+            if (existing["agent_id"] == agent_id
+                    and existing["adaptation_type"] == adaptation_type
+                    and existing["status"] == "pending"):
+                return
+
         adaptation = {
             "agent_id": agent_id,
             "adaptation_type": adaptation_type,

@@ -328,6 +328,25 @@ def escape_soql_string(value: str) -> str:
     return str(value).replace("\\", "\\\\").replace("'", "''")
 
 
+def escape_sosl_string(value: str) -> str:
+    """
+    Escape a string value for safe use in a SOSL FIND clause.
+
+    SOSL escapes backslashes and curly braces (the FIND term delimiters);
+    braces must be escaped or a search term can break out of the FIND block
+    and inject arbitrary SOSL clauses.
+
+    Args:
+        value: String to escape
+
+    Returns:
+        Escaped string safe inside a SOSL FIND {...} clause
+    """
+    if value is None:
+        return ""
+    return str(value).replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+
+
 def validate_salesforce_id(account_id: str) -> bool:
     """
     Validate that a string looks like a Salesforce ID.
@@ -472,7 +491,12 @@ class SalesforceService(IntegrationService):
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
         except Exception as e:
-            return {"healthy": False, "status": "unhealthy", "error": str(e)}
+            logger.error(f"Salesforce health check failed: {e}")
+            return {
+                "healthy": False,
+                "status": "unhealthy",
+                "error": "Health check failed",
+            }
 
     async def execute_operation(
         self,

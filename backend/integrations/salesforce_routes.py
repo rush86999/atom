@@ -11,6 +11,7 @@ Includes:
 from datetime import datetime, timezone
 import logging
 import os
+import re
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -262,11 +263,13 @@ async def get_salesforce_accounts(
         # Ingest accounts to memory (FIXED: proper error handling instead of pass)
         for account in result:
             try:
-                atom_ingestion_pipeline.ingest_record("salesforce", RecordType.CONTACT.value, account) # Mapping to CONTACT if generic not available
+                await atom_ingestion_pipeline.ingest_record("salesforce", RecordType.CONTACT.value, account) # Mapping to CONTACT if generic not available
             except Exception as e:
                 logger.debug(f"Ingestion pipeline not available or failed: {e}")
 
         return format_salesforce_response({"accounts": result})
+    except HTTPException:
+        raise
     except Exception as e:
         return _salesforce_error_response(e)
 
@@ -400,11 +403,13 @@ async def get_salesforce_contacts(
         # Ingest contacts to memory (FIXED: proper error handling instead of pass)
         for contact in result:
             try:
-                atom_ingestion_pipeline.ingest_record("salesforce", RecordType.CONTACT.value, contact)
+                await atom_ingestion_pipeline.ingest_record("salesforce", RecordType.CONTACT.value, contact)
             except Exception as e:
                 logger.debug(f"Ingestion pipeline not available or failed: {e}")
 
         return format_salesforce_response(result)
+    except HTTPException:
+        raise
     except Exception as e:
         return _salesforce_error_response(e)
 
@@ -473,11 +478,13 @@ async def get_salesforce_opportunities(
         # Ingest opportunities to memory
         for opp in result:
             try:
-                atom_ingestion_pipeline.ingest_record("salesforce", RecordType.DEAL.value, opp)
+                await atom_ingestion_pipeline.ingest_record("salesforce", RecordType.DEAL.value, opp)
             except Exception as e:
                 pass
                 
         return format_salesforce_response(result)
+    except HTTPException:
+        raise
     except Exception as e:
         return _salesforce_error_response(e)
 
@@ -539,7 +546,7 @@ async def get_salesforce_leads(
         # Ingest leads to memory
         for lead in result:
             try:
-                atom_ingestion_pipeline.ingest_record("salesforce", RecordType.LEAD.value, lead)
+                await atom_ingestion_pipeline.ingest_record("salesforce", RecordType.LEAD.value, lead)
             except Exception as e:
                 pass
                 
@@ -605,13 +612,25 @@ async def search_salesforce(
         if not sf:
              return format_salesforce_error_response("No credentials found")
 
-        soql_query = f"FIND {{{query}}} IN ALL FIELDS RETURNING {','.join(object_types)} LIMIT {limit}"
+        # Escape the FIND term and validate object types so neither can inject
+        # SOSL clauses (e.g. `}` breakout from FIND, `LIMIT`/`WHERE` inside
+        # object_types). Fail closed on invalid object types.
+        from integrations.salesforce_service import escape_sosl_string
+        safe_query = escape_sosl_string(query)
+        if not object_types or not all(
+            re.fullmatch(r"[A-Za-z0-9_]+", t) for t in object_types
+        ):
+            return format_salesforce_error_response("Invalid object type")
+
+        soql_query = f"FIND {{{safe_query}}} IN ALL FIELDS RETURNING {','.join(object_types)} LIMIT {limit}"
         # search() is not in salesforce_service wrapper, use sf.search directly
         try:
             result = sf.search(soql_query)
             return format_salesforce_response(result)
         except Exception as e:
             return _salesforce_error_response(e)
+    except HTTPException:
+        raise
     except Exception as e:
         return _salesforce_error_response(e)
 
