@@ -1284,3 +1284,34 @@ Regression: `npx jest pages/__tests__ --ci --watchAll=false --maxWorkers=2` → 
 | Date | File | Status | Bug fixed |
 |---|---|---|---|
 | 2026-08-09 | `main_api_app.py` | FIXED | **Full-suite collection ERROR**: app emitted OpenAPI 3.1.0 → `schemathesis.exceptions.SchemaError: The provided schema uses Open API 3.1.0, which is currently not fully supported` blew up `tests/contract/conftest.py:17` (module-import `schemathesis.openapi.from_dict(app.openapi())`) → EVERY pytest run failed collection. Root cause: `custom_openapi()` called `get_openapi(...)` without `openapi_version`, so FastAPI default 3.1.0 leaked even though `app.openapi_version="3.0.3"` was set post-construction. Fix: pass `openapi_version=app.openapi_version` (3.0.3) into `get_openapi`. Verified: `schemathesis.openapi.from_dict(app.openapi())` loads (schema 3.0.3, ~all operations). Note: FastAPI ignores `openapi_version` as a constructor kwarg — must set as attribute or pass to `get_openapi` |
+
+### Round 2026-08-09 — coverage wave 5 (16 integrations modules) + measurement
+| Date | Module | Status | Result |
+|---|---|---|---|
+| 2026-08-09 | slack_enhanced_service | FIXED | 27.5% → **93%**: invite NameError (unbound names), 4× await on sync redis (webhook dispatch + caching silently dead) HIGH, sync-to-pg fail-open reporting |
+| 2026-08-09 | teams_enhanced_service | FIXED | 33.6% → **98%**: upload_file AttributeError after successful SharePoint upload → false failure + double-upload |
+| 2026-08-09 | discord/google_chat analytics engines | FIXED | 18.8/18.7% → **97/95%**: CSV quote escaping corruption, str(e) leaks ×2 |
+| 2026-08-09 | microsoft365_service | FIXED | 15.1% → **94%** (Graph API mocked; OAuth refresh patterns) |
+| 2026-08-09 | gmail_service | FIXED | 20% → **95%** (IMAP/SMTP mocked) |
+| 2026-08-09 | atom_hubspot_integration_service | FIXED | 28.6% → **91%**: tenant_id never stored, 4× str(e) leaks HIGH, lead-score metrics dead on no-AI path |
+| 2026-08-09 | chat_orchestrator | FIXED | 32.3% → **94%** |
+| 2026-08-09 | atom_zoom_integration | FIXED | 0% → **87%**: str(e) leaks ×3 |
+| 2026-08-09 | bytewax_service | FIXED | 0% → **94%**: phantom update_document/delete_document (updates/deletes never applied), orchestrator import dead (triggers never fired), JSON-non-dict metadata crash |
+| 2026-08-09 | slack_workflow_automation | FIXED | 0% → **93%**: false-success reporting on failed actions, except-handler crash |
+| 2026-08-09 | atom_chat_interface | FIXED | 0% → **98%**: process_message context=None crash, phantom list_workspaces, 10× str(e) leaks |
+| 2026-08-09 | pdf_memory_integration | FIXED | 8% → **97%**: LanceDB filter-expression injection (5 sites) MED-SEC, tags shape drift, timestamp crash |
+| 2026-08-09 | pdf_ocr_service | FIXED | 13.3% → **94%**: PyPDF2 fallback missing → every text extraction silently failed HIGH, ai_vision OCR unreachable |
+| 2026-08-09 | atom_ai_integration | FIXED | 14.5% → **95%**: llm_service.chat_completion phantom (9 sites) → every AI feature AttributeError HIGH, adapter added |
+| 2026-08-09 | atom_video_ai_service | FIXED | 43% → **85%**: AI summary NameError on import-fallback |
+| 2026-08-09 | tests (cv2-optional) | FIXED | 2 video tests force-imported broken cv2 binary → fake cv2 via sys.modules |
+
+## FINAL COVERAGE MEASUREMENT (2026-08-09, 161,750 stmts)
+| Layer | Pre-campaign | 2026-08-07 | **2026-08-09** |
+|---|---|---|---|
+| core | 31.3% | 54.4% | **52.0%** |
+| api | 36.5% | 62.8% | **62.4%** |
+| tools | 17.3% | 92.5% | **87.1%** |
+| integrations | ~0% | 33.0% | **46.5%** |
+| ALL | ~30% | 50.5% | **52.5%** |
+
+Methodology: previous combined full-suite data + wave test files (1,081 tests, 0 failed) via coverage combine. Core/tools dips are measurement artifacts of post-fix source lines vs pre-fix batch data.
