@@ -1342,3 +1342,82 @@ Methodology: previous combined full-suite data + wave test files (1,081 tests, 0
 | 2026-08-09 | `integrations/atom_discord_integration.py` | FIXED | 13.6% → **87%**: `unified_search` fetched results then discarded them (always returned `[]`); `communication_channels` accumulated duplicates across calls (extend → assign) |
 | 2026-08-09 | `integrations/hubspot_routes.py` | FIXED | 35.7% → **99%**: 9 handlers swallowed `HTTPException(401)` inside `try` → auth failures re-raised as 500; added `except HTTPException: raise` (survey agent's reported `os` NameError ~L249 is NOT real — module-level `import os` exists; redundant local import at L814 harmless) |
 | 2026-08-09 | tests | ADDED | `tests/test_covpush_messaging.py` (143 tests, all green; Flask routes exercised via patched `request`/`jsonify` globals since Flask is absent from venv). Regression: pre-existing suites 434 passed; 7 failures verified pre-existing at baseline (TestAtomAIIntegration ×5, TestShopifyService, TestAtomZendeskDeep circuit-breaker). `test_covpush_intgr_b.py::test_routes_webhook` updated to assert fail-closed webhook (was asserting fail-open `('ok', 200)`). mypy 35 → 34 errors, no new |
+| 2026-08-09 | tests | FIXED | `tests/api/test_admin_system_health_routes.py` (7→0), `tests/api/test_auth_routes_enhanced.py` (6→0), `tests/api/test_analytics_dashboard_routes.py` (4→0): admin-health — mocked `.side_effect`/`.return_value` on real bound `Session.execute`, `patch.object(cache,'redis_client')` without `create=True` (attr never existed); auth-enhanced — rate-limiter 429 mid-suite (override `login_rate_limit` in client fixture), `test_device` fixed token colliding with persisted dev-DB rows (uuid token), patch contexts exited before request, naive-datetime token not actually expired in UTC-7 (timezone-aware), analytics-patterns ownership gate (IDOR fix) 403 on cross-user reads (query own id). SOURCE: `api/auth_routes.py` — mobile login invalid credentials 422→401 (`unauthorized_error`; docstring/client contract were 401/400), refresh JWT/type errors 422→401, device-not-found 422→400, biometric-not-registered 422→400, in-place JSON dict mutation invisible to SQLAlchemy change detection (committed_state holds same object) → `dict(...)` copy at register_biometric + authenticate_with_biometric |
+
+### Parallel bug-hunt wave (4 agents + coordinator, TDD red→green) — 2026-08-09
+**NOTE**: working tree was reverted 3× by concurrent sessions mid-wave; re-apply script `/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/atom_fixes_20260809.py` (88 hunks auto, 4 cosmetic misses already hand-verified present).
+
+**Coordinator fixes** (verified green):
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `main_api_app.py` (×2 reverted & re-applied) | FIXED | OpenAPI 3.1.0→3.0.3 for schemathesis (see row above); **`api/episode_routes.py` NEVER mounted → whole `/api/episodes/*` API 404'd** (submit_feedback/importance updates dead in prod) — mounted bare via `safe_import_router` |
+| 2026-08-09 | `api/episode_routes.py` | FIXED | `EpisodeFeedbackRequest.episode_id` phantom **required** body field (id already a path param) → every valid submit 422 |
+| 2026-08-09 | `tests/security/test_episode_feedback_security.py` | FIXED | `await` in sync `def test_` ×2 → **SyntaxError broke module collection** (whole file invisible); `Episode(...)` used phantom kwargs `title`/`session_id` (TypeError) — real contract: `task_description`/`maturity_at_time`/`outcome`/`tenant_id`; UserFactory random `status` → flaky 401s (forced `"active"`); clamped-score asserts (service clamps, never raises) with per-iteration importance reset + `pytest.approx`. 11 passed |
+| 2026-08-09 | `tests/test_e2e_supply_chain.py` | FIXED | Dead import `core.auto_installer_service` (removed `4c7516959`) + dead `auto_installer` fixture → collection error; suite kept (PackageGovernance/NpmScriptAnalyzer still live) |
+| 2026-08-09 | `tests/test_generate_cross_platform_dashboard.py` | FIXED | matplotlib missing from venv → collection error; `pytest.importorskip("matplotlib")` self-skip guard |
+| 2026-08-09 | `tests/scenarios/test_business_intelligence_scenarios.py` | FIXED | Dead import `core.cash_flow_forecaster` (removed `ba32b1905`) → collection error; removed import + 2 dead tests (BI-002-01/02). 67 passed (combined with supply-chain) |
+| 2026-08-09 | `frontend-nextjs/jest.config.js` + 19 page tests moved | FIXED | **Structural hazard**: `pages/__tests__/` collected by jest (line 40) while `package.json` `prebuild` recursively DELETES every `__tests__` under `pages/` before `next build` → any build silently deleted 19 committed suites (phantom deletions, lost CI coverage). Moved to `tests/pages/__tests__/` (covered by `tests/**` glob), removed `pages/__tests__` testMatch (contradicting the file's own L28-35 warning). 535 page tests pass |
+
+**Agent A — core** (`tests/test_bughunt_20260809_core.py`, 13 tests; 273 passed):
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/mini_app_db_service.py` + `mini_app_service.py` + `api/mini_app_routes.py` + `tools/mini_app_tool.py` | FIXED | **10k rows/series cap NEVER enforced** (`DEFAULT_MAX_RECORDS_PER_SERIES` dead code; manifest cap validated but never consulted) — all 3 surfaces (REST/envelope/tool) appended unbounded; **100 KiB/record cap bypassed by deep-merge** (delta validated, merged payload never re-checked → 60+60KiB stored 120) — update/update_many now validate merged payload + all rows before mutating (no partial apply); envelope errors `series_cap`/`size_cap` |
+| 2026-08-09 | `core/user_preference_routes.py` | FIXED (SECURITY) | **Unauthenticated IDOR** — all 3 endpoints (`/api/v1/preferences` GET/GET-key/POST) had NO `get_current_user`, trusted client-supplied `user_id`/`workspace_id` → read/write ANY user's prefs without a token; identity now always `current_user.id` (client user_id ignored, frontend-compatible) |
+
+**Agent B — api/integrations** (`tests/test_bughunt_20260809_api.py`, 11 tests):
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `api/feedback_enhanced.py` | FIXED (SECURITY) | `POST /api/feedback/submit` stored body-supplied `user_id` into `AgentFeedback.user_id` → feedback forgery/RLHF data poisoning; now `str(current_user.id)` |
+| 2026-08-09 | `api/analytics_dashboard_routes.py` | FIXED (SECURITY) | `GET /api/analytics/patterns/{user_id}` cross-user IDOR on behavioral PII (active hours, response times, type prefs); gated to self (admin exempt) |
+| 2026-08-09 | `integrations/line_routes.py` | FIXED (SECURITY) | Fail-open webhook: invalid `X-Line-Signature` only logged (events still processed), plain `!=` compare, empty-secret default → forged HMAC accepted; now fail-closed 401 bad sig / 503 unconfigured + `hmac.compare_digest`; also fixed phantom `from .line_service import line_service` (module only defines class → ImportError → router dead) |
+| 2026-08-09 | `api/canvas_docs_routes.py` | FIXED (SECURITY) | `GET /{id}/versions`, `POST /{id}/restore`, `GET /{id}/toc` skipped the `_get_owned_docs_canvas_or_error` gate siblings enforce (cross-user read + mutation); restore audited to body-supplied `user_id` → token identity |
+
+**Agent C — frontend/mobile** (13 + 10 + 8 new tests; full FE 7726+, mobile 3964/3964):
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `frontend-nextjs/components/UnifiedServicesManager.tsx` | FIXED | Post-switch `setTimeout(...,1000)` health check never cancelled on unmount → leaked fetch/callback after leaving page + full-suite flake (leaked timer fired mid-next-test) |
+| 2026-08-09 | `mobile/src/storage/secureTokenStorage.ts` | FIXED | `secureGet` fail-closed: SecureStore read throw (Android keystore failure) rejected read → no AsyncStorage fallback → session lockout; now falls back + still migrates (writes stay fail-loud, no plaintext downgrade) |
+| 2026-08-09 | `frontend-nextjs/lib/rpc-client.ts` | FIXED | `toRpcError` copied `axiosErr.message` verbatim (`timeout of 10000ms exceeded` leaks client transport config to UI) despite docstring promise |
+
+**Agent D — stale suites** (12 suites: 458 failing → 486 passed):
+| Date | Suite | Status | Root cause |
+|---|---|---|---|
+| 2026-08-09 | `api/test_workflow_template_routes.py` | 46F→51P | **SOURCE**: bare `except Exception` swallowed routes' own HTTPExceptions (422/404→500); `search_templates` no error envelope; arbitrary category/complexity strings accepted — `api/workflow_template_routes.py` |
+| 2026-08-09 | `api/test_supervision_routes.py` | 27F→29P | test-stale (auth/db overrides never worked — deps resolved by object; ProposalService locally imported) |
+| 2026-08-09 | `api/test_supervised_queue_routes.py` + `test_agent_status_endpoints.py` | 45F→54P | **SOURCE ×2**: `status` query param SHADOWED `fastapi.status` module → every 400/500 handler crashed AttributeError; nested `db.query(service.db.query(...).first()).first()` → UnmappedInstanceError on existing rows — `api/supervised_queue_routes.py` |
+| 2026-08-09 | `api/test_deeplinks_coverage.py` | 45F→45P | test-stale (auth override, R37 user-scoped audit rows, DeepLinkParse→422) |
+| 2026-08-09 | `api/test_marketing_routes.py` | 17F→17P | test-stale (service imported INSIDE route fns — patch targets never existed) |
+| 2026-08-09 | `api/test_request_validation.py` | 49F→50P | test-stale (client app lacked auth/browser routers; spawn `template` vs `name`; register rate-limiter global state) |
+| 2026-08-09 | `api/test_analytics_routes_coverage.py` | 113F→113P | test-stale (mock fixture FUNCTIONS passed by bare name → AttributeError 500; admin gate needs is_admin) |
+| 2026-08-09 | `api/test_user_activity_routes.py` | 25F→35P | test-stale (direct db.query on dev DB; async service mocked with plain Mock) |
+| 2026-08-09 | `api/test_feedback_analytics_routes.py` | 42F→42P | **SOURCE** + stale: 3 handlers had NO error handling (raw exception escape) — `api/feedback_analytics.py` generic 500 envelopes, no str(e) leak |
+| 2026-08-09 | `api/test_business_facts_routes_coverage.py` | 31F→31P | test-stale (patch target wrong module — locally imported; AsyncMock for sync methods) |
+| 2026-08-09 | `api/test_canvas_email_routes.py` | 18F→19P | test-stale (router not on main app; body user_id vs token identity) |
+
+### Open items (verified, not fixed)
+- `tests/api/test_task_monitoring_routes.py` (16F) — phantom feature: no `task-monitoring` routes exist anywhere; deletion candidate per R71 precedent.
+- `api/feedback_batch.py` `/pending` + approve/reject — any authenticated user reads/adjudicates ALL users' pending feedback (no admin/supervisor gate).
+- `api/document_routes.py` `/search` `limit` unbounded; `document_ingestion_routes.py` `/supported-*` anonymous (static data, low risk).
+- `radio_service.send_message` budget check TOCTOU-racy; `thread_budget_used_usd` fail-opens to 0.0 on corrupted metadata.
+- `test_mini_app_service_coverage.py` 8 failures pre-existing (verified unchanged vs stash).
+- Migrations tests (`database/test_migrations.py`, `e2e/migrations/`) — known: local `alembic/` dir shadows installed package; e2e_ui suites need their own env.
+
+### Round 2026-08-09 — coverage wave 6 (16 more integrations + big-four push)
+| Date | Module | Status | Result |
+|---|---|---|---|
+| 2026-08-09 | outlook_service (+enhanced) | FIXED | 31.6/43% → **99/100%**: reply_to_email false success (HIGH), un-awaited ingest (HIGH), task endpoint 404 (HIGH), token refresh STUB — expired tokens never refreshed, every Graph call 401'd (HIGH, real OAuth2 refresh now), URL encoding, str(e) ×3 |
+| 2026-08-09 | freshdesk/trello/shopify/jira | FIXED | 18.8/16.5/14.4/14.8% → **93/94/85/94%**: jira OAuth URL drops /ex/jira/{cloud_id} prefix (HIGH — every OAuth request wrong URL), trello token leaked in card payload, shopify error envelope, 10 str(e) leaks |
+| 2026-08-09 | whatsapp_business_integration | FIXED | 2.2% → **99%**: webhook fail-open (no HMAC verify — forged events stored) + fail-open handshake (HIGH security ×2), 7 str(e) leaks |
+| 2026-08-09 | atom_discord_integration | FIXED | 13.6% → **87%**: unified_search always returned [] (results discarded), unbounded duplicates |
+| 2026-08-09 | hubspot_routes | FIXED | 35.7% → **99%**: 9 handlers returned 500 for own 401s (HTTPException swallowed) |
+| 2026-08-09 | atom_zendesk/atom_voice_ai/slack_workflow_engine | FIXED | 47/40.2/36.6% → **100/100/100%**: 5 str(e) leaks, rating-zero skew, SLA clobber, 9 audit-name mislabels, temp-file leaks, invite-user false-success, len(None) crash |
+| 2026-08-09 | workflow_engine/mcp_service/atom_meta_agent/byok_handler (tests-only) | TESTED | 88→99%, 93→99%, 91→99%, 86→**94%** (272 tests) |
+
+## FINAL COVERAGE MEASUREMENT (2026-08-09 wave 6, 161,881 stmts)
+| Layer | Pre-campaign | wave 5 | **wave 6** |
+|---|---|---|---|
+| core | 31.3% | 52.0% | **52.8%** |
+| api | 36.5% | 62.4% | **61.8%** |
+| tools | 17.3% | 87.1% | **87.1%** |
+| integrations | ~0% | 46.5% | **55.0%** |
+| ALL | ~30% | 52.5% | **55.1%** |
