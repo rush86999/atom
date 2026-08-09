@@ -2,13 +2,14 @@
 integrations.mcp_service (tests-only; read-only source modules)."""
 
 import asyncio
+import itertools
 import json
 import os
 import sys
 import types
 from datetime import datetime, timezone
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -347,10 +348,14 @@ class TestLinearRun:
         eid = await sm.create_execution("wf-1", {})
 
         def _boom_session():
-            cm = MagicMock()
-            cm.__enter__.side_effect = RuntimeError("db full")
-            cm.__exit__.return_value = False
-            return cm
+            class _Ctx:
+                def __enter__(self):
+                    raise RuntimeError("db full")
+
+                def __exit__(self, *a):
+                    return False
+
+            return _Ctx()
 
         monkeypatch.setattr("core.workflow_engine.get_db_session", _boom_session)
         wf = _wf([_step("s1", service="email", action="send")])
@@ -440,10 +445,15 @@ class TestLinearRun:
 def _session_factory(first_value):
     db = MagicMock()
     db.query.side_effect = [_query_first(value=first_value)]
-    cm = MagicMock()
-    cm.__enter__.return_value = db
-    cm.__exit__.return_value = False
-    return cm
+
+    class _Ctx:
+        def __enter__(self):
+            return db
+
+        def __exit__(self, *a):
+            return False
+
+    return _Ctx()
 
 
 def _query_first(value=None):
@@ -1014,10 +1024,15 @@ class TestExecuteAgentWithMCP:
         def _session():
             db = MagicMock()
             db.query.return_value.filter.return_value.first.return_value = None
-            cm = MagicMock()
-            cm.__enter__.return_value = db
-            cm.__exit__.return_value = False
-            return cm
+
+            class _Ctx:
+                def __enter__(self):
+                    return db
+
+                def __exit__(self, *a):
+                    return False
+
+            return _Ctx()
 
         monkeypatch.setattr("core.database.get_db_session", _session)
         result = await wf_env["engine"]._execute_agent_with_mcp(
@@ -1033,10 +1048,15 @@ class TestExecuteAgentWithMCP:
         def _session():
             db = MagicMock()
             db.query.return_value.filter.return_value.first.return_value = fake_agent
-            cm = MagicMock()
-            cm.__enter__.return_value = db
-            cm.__exit__.return_value = False
-            return cm
+
+            class _Ctx:
+                def __enter__(self):
+                    return db
+
+                def __exit__(self, *a):
+                    return False
+
+            return _Ctx()
 
         monkeypatch.setattr("core.database.get_db_session", _session)
         handler = MagicMock()
@@ -1061,10 +1081,15 @@ class TestExecuteAgentWithMCP:
         def _session():
             db = MagicMock()
             db.query.return_value.filter.return_value.first.return_value = fake_agent
-            cm = MagicMock()
-            cm.__enter__.return_value = db
-            cm.__exit__.return_value = False
-            return cm
+
+            class _Ctx:
+                def __enter__(self):
+                    return db
+
+                def __exit__(self, *a):
+                    return False
+
+            return _Ctx()
 
         monkeypatch.setattr("core.database.get_db_session", _session)
         handler = MagicMock()
@@ -1367,10 +1392,15 @@ class TestGenericAction:
         def _session():
             db = MagicMock()
             db.query.return_value.filter.return_value.first.return_value = item
-            cm = MagicMock()
-            cm.__enter__.return_value = db
-            cm.__exit__.return_value = False
-            return cm
+
+            class _Ctx:
+                def __enter__(self):
+                    return db
+
+                def __exit__(self, *a):
+                    return False
+
+            return _Ctx()
 
         monkeypatch.setattr("core.workflow_engine.get_db_session", _session)
         engine = wf_env["engine"]
@@ -1432,10 +1462,15 @@ class TestGenericAction:
         def _session_no_item():
             db = MagicMock()
             db.query.return_value.filter.return_value.first.return_value = None
-            cm = MagicMock()
-            cm.__enter__.return_value = db
-            cm.__exit__.return_value = False
-            return cm
+
+            class _Ctx:
+                def __enter__(self):
+                    return db
+
+                def __exit__(self, *a):
+                    return False
+
+            return _Ctx()
 
         monkeypatch.setattr("core.workflow_engine.get_db_session", _session_no_item)
         with pytest.raises(ValueError, match="not found in Integration Catalog"):
@@ -1662,9 +1697,33 @@ def meta_agent(monkeypatch):
     monkeypatch.setattr(ama, "_TURN_FACT_VECTOR_RECALL_ENABLED", False)
     monkeypatch.setattr(ama, "_TURN_FACT_EXTRACTION_ENABLED", False)
 
-    sl = MagicMock()
-    sl.return_value.__enter__.return_value = MagicMock()
-    monkeypatch.setattr(ama, "SessionLocal", sl)
+    class _FakeSL:
+        def __init__(self):
+            self.db = MagicMock()
+
+        def __enter__(self):
+            return self.db
+
+        def __exit__(self, *a):
+            return False
+
+        def close(self):
+            pass
+
+        def rollback(self):
+            self.db.rollback()
+
+        def commit(self):
+            self.db.commit()
+
+        def add(self, *a):
+            self.db.add(*a)
+
+        def query(self, *a):
+            return self.db.query(*a)
+
+    sl = _FakeSL()
+    monkeypatch.setattr(ama, "SessionLocal", lambda: sl)
 
     sf = MagicMock()
     sf.get_llm_service.return_value = MagicMock()
@@ -1678,7 +1737,7 @@ def meta_agent(monkeypatch):
 
 def _prepare_execute(agent, sl, monkeypatch, route_category=None, tools=None):
     workspace = SimpleNamespace(tenant_id="default")
-    db = sl.return_value.__enter__.return_value
+    db = sl.db
     db.query.return_value.filter.return_value.first.return_value = workspace
 
     nlu = MagicMock()
@@ -1711,7 +1770,7 @@ class TestMetaSandboxCheck:
 
     def _patch_core_attr(self, monkeypatch, name, obj):
         import core as _core_pkg
-        monkeypatch.setattr(_core_pkg, name, obj)
+        monkeypatch.setattr(_core_pkg, name, obj, raising=False)
         monkeypatch.setitem(sys.modules, f"core.{name}", obj)
 
     def test_disabled_returns_none(self, monkeypatch):
@@ -1857,7 +1916,7 @@ class TestMetaExecuteEdges:
     async def test_agent_execution_create_failure(self, meta_agent, monkeypatch):
         agent, sl = meta_agent
         _prepare_execute(agent, sl, monkeypatch)
-        db = sl.return_value.__enter__.return_value
+        db = sl.db
         db.commit.side_effect = RuntimeError("db down")
         agent._react_step = AsyncMock(return_value=ReActStep(thought="t", final_answer="done"))
         result = await agent.execute("hello")
@@ -2008,7 +2067,7 @@ class TestMetaExecuteEdges:
         _prepare_execute(agent, sl, monkeypatch)
         agent._react_step = AsyncMock(return_value=ReActStep(thought="t", final_answer="done"))
 
-        db2 = sl.return_value
+        db2 = sl.db
         db2.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = SimpleNamespace(status="running")
         db2.commit.side_effect = RuntimeError("commit failed")
         db2.rollback = MagicMock()
@@ -2355,10 +2414,15 @@ class TestMetaMisc:
             student.category = "General"
             db.query.return_value.filter.return_value.first.return_value = student
             db.query.return_value.filter.return_value.filter.return_value.count.return_value = 1
-            cm = MagicMock()
-            cm.__enter__.return_value = db
-            cm.__exit__.return_value = False
-            return cm
+
+            class _Ctx:
+                def __enter__(self):
+                    return db
+
+                def __exit__(self, *a):
+                    return False
+
+            return _Ctx()
 
         monkeypatch.setattr(ama, "SessionLocal", _session)
         agent.llm.generate_response = AsyncMock(return_value="Guidance text")
@@ -2455,6 +2519,576 @@ class TestMetaMisc:
 
 
 # ============================================================================
+# workflow_engine — second-pass edge coverage
+# ============================================================================
+
+
+class TestGraphExceptionPath:
+    @pytest.mark.asyncio
+    async def test_state_manager_error_fails_workflow(self, wf_env):
+        sm, ws = wf_env["sm"], wf_env["ws"]
+        eid = await sm.create_execution("wf-g", {})
+        wf = _node_wf([
+            {"id": "n1", "title": "N1", "type": "action",
+             "config": {"service": "email", "action": "send"}},
+        ], [], created_by="u1")
+        engine = wf_env["engine"]
+        engine._execute_step = AsyncMock(
+            return_value={"status": "success", "result": {"id": "x"}})
+        orig = sm.get_execution_state
+        calls = {"n": 0}
+
+        async def _flaky(eid_):
+            calls["n"] += 1
+            if 3 <= calls["n"] <= 4:
+                raise RuntimeError("state store down")
+            return await orig(eid_)
+
+        sm.get_execution_state = _flaky
+        await engine._execute_workflow_graph(
+            eid, wf, await sm.get_execution_state(eid), ws, "u1",
+            datetime.now(timezone.utc))
+        state = await sm.get_execution_state(eid)
+        assert state["status"] == "FAILED"
+        assert calls["n"] >= 4
+
+
+class TestStepRecordUpdateFailure:
+    @pytest.mark.asyncio
+    async def test_step_record_update_failure_continues(self, wf_env, monkeypatch):
+        sm, ws = wf_env["sm"], wf_env["ws"]
+        eid = await sm.create_execution("wf-1", {})
+        calls = {"n": 0}
+
+        def _session():
+            calls["n"] += 1
+            db = MagicMock()
+            db.query.return_value.filter.return_value.first.return_value = None
+            if calls["n"] == 4:
+                db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
+                    start_time=datetime.now(timezone.utc))
+                db.commit.side_effect = RuntimeError("update failed")
+
+            class _Ctx:
+                def __enter__(self):
+                    return db
+
+                def __exit__(self, *a):
+                    return False
+
+            return _Ctx()
+
+        monkeypatch.setattr("core.workflow_engine.get_db_session", _session)
+        wf = _wf([_step("s1", service="email", action="send")])
+        await wf_env["engine"]._run_execution(eid, wf)
+        assert (await sm.get_execution_state(eid))["status"] == "COMPLETED"
+
+
+class TestEvaluateConditionException:
+    def test_generic_eval_exception(self, wf_env, monkeypatch):
+        monkeypatch.setattr("core.safe_evaluator.safe_eval",
+                            lambda *a, **k: (_ for _ in ()).throw(RuntimeError("bad")))
+        state = {"input_data": {"n": 5}}
+        assert wf_env["engine"]._evaluate_condition("${input.n} == 5", state) is False
+
+
+class TestPathHelpers2:
+    def test_get_value_input_non_dict(self, wf_env):
+        state = {"input_data": 5}
+        assert wf_env["engine"]._get_value_from_path("input.a.b", state) is None
+
+
+class TestArborPreviousTree:
+    @pytest.mark.asyncio
+    async def test_previous_tree_constraints(self, wf_env, monkeypatch):
+        sm = wf_env["sm"]
+        eid = await sm.create_execution("wf-1", {})
+        sm.executions[eid]["status"] = "COMPLETED"
+        engine = wf_env["engine"]
+        engine.start_workflow = AsyncMock(return_value=eid)
+        persist = AsyncMock()
+        monkeypatch.setattr("core.hypothesis_tree_endpoints._persist_tree", persist)
+
+        db = MagicMock()
+        prev = SimpleNamespace(negative_constraints=["no_parallel"])
+        db.query.return_value.filter.return_value.first.return_value = prev
+        monkeypatch.setattr("core.database.get_db_session",
+                            ctx_factory(db))
+
+        class FakeTree:
+            def __init__(self, *a, **k):
+                self.negative_constraints = []
+                self.nodes = []
+
+            def add_node(self, n):
+                self.nodes.append(n)
+
+            def get_domain_statistics(self):
+                return {}
+
+            def get_path_to_root(self, nid):
+                return [nid]
+
+            def prune_branch(self, *a, **k):
+                pass
+
+        node_cls = MagicMock()
+        inst_node = MagicMock()
+        inst_node.id = "node-1"
+        inst_node.calculate_promise_score = MagicMock(return_value=0.9)
+        inst_node.metrics = MagicMock()
+        inst_node.status = None
+        inst_node.promise_score = None
+        node_cls.return_value = inst_node
+        with patch("core.hypothesis_tree.OptimizationTree", FakeTree), \
+             patch("core.hypothesis_tree.WorkflowHypothesisNode", node_cls), \
+             patch("core.hypothesis_tree.NodeStatus") as ns, \
+             patch("core.hypothesis_tree.PruningReason") as pr, \
+             patch("core.hypothesis_tree.TaskType") as tt, \
+             patch("core.hypothesis_tree.NodeMetrics") as nm:
+            ns.SUCCESS = "SUCCESS"
+            result = await engine.run_workflow_with_arbor_refinement(
+                "t1", {"name": "WF", "steps": [{"id": "s1", "config": {}}]}, {},
+                previous_tree_id="tree-9")
+        assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_state_not_found_breaks(self, wf_env, monkeypatch):
+        sm = wf_env["sm"]
+        eid = await sm.create_execution("wf-1", {})
+        sm.executions[eid]["status"] = "RUNNING"
+        engine = wf_env["engine"]
+        engine.start_workflow = AsyncMock(return_value="ghost-exec")
+        persist = AsyncMock()
+        monkeypatch.setattr("core.hypothesis_tree_endpoints._persist_tree", persist)
+
+        class FakeTree:
+            def __init__(self, *a, **k):
+                self.nodes = []
+                self.pruned = []
+
+            def add_node(self, n):
+                self.nodes.append(n)
+
+            def get_domain_statistics(self):
+                return {}
+
+            def prune_branch(self, nid, reason):
+                self.pruned.append((nid, reason))
+
+        node_cls = MagicMock()
+        inst_node = MagicMock()
+        inst_node.id = "node-1"
+        inst_node.metrics = MagicMock()
+        inst_node.status = None
+        inst_node.promise_score = None
+        node_cls.return_value = inst_node
+        with patch("core.hypothesis_tree.OptimizationTree", FakeTree), \
+             patch("core.hypothesis_tree.WorkflowHypothesisNode", node_cls), \
+             patch("core.hypothesis_tree.NodeStatus") as ns, \
+             patch("core.hypothesis_tree.PruningReason") as pr, \
+             patch("core.hypothesis_tree.TaskType") as tt, \
+             patch("core.hypothesis_tree.NodeMetrics") as nm:
+            pr.TEST_FAILED = "TEST_FAILED"
+            result = await engine.run_workflow_with_arbor_refinement(
+                "t1", {"name": "WF", "steps": []}, {})
+        assert result["success"] is False
+
+    @pytest.mark.asyncio
+    async def test_persist_failure_swallowed_on_error(self, wf_env, monkeypatch):
+        engine = wf_env["engine"]
+        engine.start_workflow = AsyncMock(side_effect=RuntimeError("boom"))
+        persist = Mock(side_effect=RuntimeError("persist down"))
+        monkeypatch.setattr("core.hypothesis_tree_endpoints._persist_tree", persist)
+        monkeypatch.setattr("core.database.get_db_session", ctx_factory(MagicMock()))
+
+        class FakeTree:
+            def __init__(self, *a, **k):
+                self.nodes = []
+
+            def add_node(self, n):
+                self.nodes.append(n)
+
+            def prune_branch(self, *a, **k):
+                pass
+
+        node_cls = MagicMock()
+        inst_node = MagicMock()
+        inst_node.id = "node-1"
+        inst_node.metrics = MagicMock()
+        node_cls.return_value = inst_node
+        with patch("core.hypothesis_tree.OptimizationTree", FakeTree), \
+             patch("core.hypothesis_tree.WorkflowHypothesisNode", node_cls), \
+             patch("core.hypothesis_tree.NodeStatus") as ns, \
+             patch("core.hypothesis_tree.PruningReason") as pr, \
+             patch("core.hypothesis_tree.TaskType") as tt, \
+             patch("core.hypothesis_tree.NodeMetrics") as nm:
+            with pytest.raises(RuntimeError):
+                await engine.run_workflow_with_arbor_refinement(
+                    "t1", {"name": "WF", "steps": []}, {})
+
+
+def ctx_factory(db):
+    class _Ctx:
+        def __enter__(self):
+            return db
+
+        def __exit__(self, *a):
+            return False
+
+    return lambda: _Ctx()
+
+
+# ============================================================================
+# atom_meta_agent — second-pass edge coverage
+# ============================================================================
+
+
+class TestMetaExecuteEdges2:
+    @pytest.mark.asyncio
+    async def test_vector_recall_prefetch_success(self, meta_agent, monkeypatch):
+        agent, sl = meta_agent
+        monkeypatch.setattr(ama, "_TURN_FACT_VECTOR_RECALL_ENABLED", True)
+        _prepare_execute(agent, sl, monkeypatch)
+        monkeypatch.setattr(ama, "_prefetch_relevant_facts",
+                            lambda **kw: [{"fact_text": "x", "category": "preference"}])
+        agent._react_step = AsyncMock(return_value=ReActStep(thought="t", final_answer="done"))
+        result = await agent.execute("hello", context={"user_id": "u1"})
+        assert result["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_field_guide_failure(self, meta_agent, monkeypatch):
+        agent, sl = meta_agent
+        _prepare_execute(agent, sl, monkeypatch)
+
+        def _boom():
+            raise RuntimeError("fs error")
+
+        monkeypatch.setattr("core.field_guide_service.get_field_guide_service", _boom)
+        agent._react_step = AsyncMock(return_value=ReActStep(thought="t", final_answer="done"))
+        result = await agent.execute("hello")
+        assert result["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_tool_descriptions_dumps_failure(self, meta_agent, monkeypatch):
+        agent, sl = meta_agent
+        _prepare_execute(agent, sl, monkeypatch)
+        dumps_calls = {"n": 0}
+
+        def _flaky(*a, **k):
+            dumps_calls["n"] += 1
+            if dumps_calls["n"] == 1:
+                raise TypeError("not serializable")
+            return "[]"
+
+        monkeypatch.setattr(ama, "json", MagicMock(dumps=_flaky))
+        agent._react_step = AsyncMock(return_value=ReActStep(thought="t", final_answer="done"))
+        result = await agent.execute("hello")
+        assert result["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_fleet_step_callback_emitted(self, meta_agent, monkeypatch):
+        agent, sl = meta_agent
+        cfg = types.ModuleType("core.fleet_routing_config")
+        cfg.fleet_routing_enabled = lambda: True
+        cfg.fleet_routing_force_enforce = lambda: True
+        monkeypatch.setitem(sys.modules, "core.fleet_routing_config", cfg)
+        _prepare_execute(agent, sl, monkeypatch, route_category=RouteCategory.ONE_OFF)
+        agent.route_with_governance = AsyncMock(return_value={
+            "specialists_count": 3, "chain_id": "chain-2", "status": "fleet_recruited",
+        })
+        seen = []
+
+        async def cb(record):
+            seen.append(record)
+
+        result = await agent.execute("x" * 50, context={"user_id": "u1"}, step_callback=cb)
+        assert result["status"] == "fleet_recruited"
+        assert any(r.get("step_type") == "fleet_recruitment" for r in seen)
+
+    @pytest.mark.asyncio
+    async def test_single_action_failed_verification_critique(self, meta_agent, monkeypatch):
+        agent, sl = meta_agent
+        _prepare_execute(agent, sl, monkeypatch)
+        agent._execute_tool_with_governance = AsyncMock(return_value="{\"ok\": false}")
+        monkeypatch.setattr(ama, "parse_tool_outcome",
+                            lambda obs: SimpleNamespace(kind="failed_verification",
+                                                        evidence="mismatch"))
+        agent._react_step = AsyncMock(side_effect=[
+            ReActStep(thought="t", action=ToolCall(tool="tool_a", params={})),
+            ReActStep(thought="t", final_answer="done")])
+        result = await agent.execute("hello")
+        assert result["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_single_action_parse_exception(self, meta_agent, monkeypatch):
+        agent, sl = meta_agent
+        _prepare_execute(agent, sl, monkeypatch)
+        agent._execute_tool_with_governance = AsyncMock(return_value="obs")
+        monkeypatch.setattr(ama, "parse_tool_outcome",
+                            lambda obs: (_ for _ in ()).throw(RuntimeError("parse fail")))
+        agent._react_step = AsyncMock(side_effect=[
+            ReActStep(thought="t", action=ToolCall(tool="tool_a", params={})),
+            ReActStep(thought="t", final_answer="done")])
+        result = await agent.execute("hello")
+        assert result["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_parallel_tools_parse_exception_direct(self, meta_agent, monkeypatch):
+        agent, sl = meta_agent
+        monkeypatch.setattr("core.hallucination_config.is_parallel_tools_enabled",
+                            lambda: True)
+        monkeypatch.setattr("core.hallucination_config.get_max_parallel_tools",
+                            lambda: 4)
+        gov = MagicMock()
+        gov.can_perform_action_async = AsyncMock(return_value={
+            "allowed": True, "action_complexity": 1,
+        })
+        monkeypatch.setattr(ama, "AgentGovernanceService", lambda db: gov)
+        agent._execute_tool_with_governance = AsyncMock(return_value="obs")
+        monkeypatch.setattr(ama, "parse_tool_outcome",
+                            lambda obs: (_ for _ in ()).throw(RuntimeError("parse fail")))
+        records = await agent._execute_parallel_tools(
+            [ToolCall(tool="t1", params={})], {}, None)
+        assert records[0]["verified_kind"] == "unverified"
+
+    @pytest.mark.asyncio
+    async def test_on_session_end_digest_with_output(self, meta_agent, monkeypatch):
+        agent, sl = meta_agent
+        monkeypatch.setattr(ama, "_TURN_FACT_EXTRACTION_ENABLED", True)
+        _prepare_execute(agent, sl, monkeypatch)
+        extractor = MagicMock()
+        extractor.extract_from_turn = AsyncMock(return_value=None)
+        monkeypatch.setattr(ama, "get_turn_fact_extractor", lambda **kw: extractor)
+        agent._execute_tool_with_governance = AsyncMock(return_value="observation text")
+        agent._react_step = AsyncMock(side_effect=[
+            ReActStep(thought="think", action=ToolCall(tool="tool_a", params={})),
+            ReActStep(thought="t2", final_answer="done")])
+        result = await agent.execute("hello", context={"session_id": "s1", "user_id": "u1"})
+        assert result["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_body_exception_finalizer_db_error(self, meta_agent, monkeypatch):
+        agent, sl = meta_agent
+        _prepare_execute(agent, sl, monkeypatch)
+        agent._react_step = AsyncMock(side_effect=RuntimeError("react crashed"))
+        db = sl.db
+        db.commit.side_effect = RuntimeError("finalize commit failed")
+        sl.close = MagicMock(side_effect=RuntimeError("close failed"))
+        with pytest.raises(RuntimeError):
+            await agent.execute("hello")
+
+
+# ============================================================================
+# integrations.mcp_service — second-pass edge coverage
+# ============================================================================
+
+
+class TestMCPBrowserCloud:
+    @pytest.fixture(autouse=True)
+    def _neutralize_registry(self, monkeypatch):
+        _no_registry(monkeypatch)
+
+    def _enterprise_session(self):
+        from core.models import PlanType
+        ws = SimpleNamespace(tenant_id="t1")
+        tenant = SimpleNamespace(plan_type=PlanType.ENTERPRISE)
+        db = MagicMock()
+        firsts = itertools.cycle([ws, tenant])
+
+        def fake_query(model):
+            q = Mock()
+            q.filter.return_value.first.side_effect = lambda: next(firsts)
+            return q
+
+        db.query.side_effect = fake_query
+        return _session_factory2(db)
+
+    @pytest.mark.asyncio
+    async def test_cloud_browser_all_tools(self, svc, monkeypatch):
+        cloud = MagicMock()
+        cloud.navigate = AsyncMock(return_value={"ok": True})
+        cloud.click = AsyncMock(return_value={"ok": True})
+        cloud.type_text = AsyncMock(return_value={"ok": True})
+        cloud.screenshot = AsyncMock(return_value={"ok": True})
+        cloud.new_tab = AsyncMock(return_value={"ok": True})
+        cloud.switch_tab = AsyncMock(return_value={"ok": True})
+        cloud.click_coords = AsyncMock(return_value={"ok": True})
+        cloud.list_tabs = AsyncMock(return_value=[{"id": 1}])
+        cloud.wait_for_selector = AsyncMock(return_value={"ok": True})
+        cloud.save_session = AsyncMock(return_value={"ok": True})
+        cloud.set_proxy = AsyncMock(return_value={"ok": True})
+        cloud.start_monitoring = AsyncMock(return_value={"ok": True})
+        cloud.stop_monitoring = AsyncMock(return_value={"ok": True})
+        cloud.wait_for_selector = AsyncMock(return_value={"ok": True})
+        cloud.extract_content = AsyncMock(return_value={"ok": True})
+        cloud.upload_file = AsyncMock(return_value={"ok": True})
+        cloud.download_file = AsyncMock(return_value={"ok": True})
+        _fake_module(monkeypatch, "core.cloud_browser_service", cloud_browser=cloud)
+        monkeypatch.setattr("core.database.SessionLocal", self._enterprise_session())
+        ctx = {"computer_use_mode": "cloud", "workspace_id": "ws-1", "agent_id": "ag-1"}
+        cases = [
+            ("browser_navigate", {"url": "http://x"}, {"ok": True}),
+            ("browser_click", {"selector": "#a"}, {"ok": True}),
+            ("browser_type", {"text": "hi", "selector": "#b"}, {"ok": True}),
+            ("browser_screenshot", {}, {"ok": True}),
+            ("browser_new_tab", {"url": "http://y"}, {"ok": True}),
+            ("browser_switch_tab", {"index": 1}, {"ok": True}),
+            ("browser_click_coords", {"x": 10, "y": 20}, {"ok": True}),
+            ("list_browser_tabs", {}, [{"id": 1}]),
+            ("browser_save_session", {}, {"ok": True}),
+            ("browser_set_proxy", {"server": "http://p"}, {"ok": True}),
+            ("browser_monitor", {"active": True}, {"ok": True}),
+            ("browser_wait_for_selector", {"selector": "#c"}, {"ok": True}),
+            ("browser_extract_content", {"selector": "#d"}, {"ok": True}),
+            ("browser_upload_file", {"selector": "#e", "file_path": "/tmp/f"}, {"ok": True}),
+            ("browser_download_file", {"url": "http://f"}, {"ok": True}),
+        ]
+        for tool, args, expected in cases:
+            result = await svc.execute_tool("local-tools", tool, args, ctx)
+            assert result == expected, tool
+        result = await svc.execute_tool(
+            "local-tools", "browser_monitor", {"active": False}, ctx)
+        assert result == {"ok": True}
+
+    @pytest.mark.asyncio
+    async def test_browser_click_desktop_unsent(self, svc, monkeypatch):
+        nm = MagicMock()
+        nm.send_to_desktop = AsyncMock(return_value=False)
+        monkeypatch.setattr("core.notification_manager.notification_manager", nm)
+        result = await svc.execute_tool(
+            "local-tools", "browser_click", {"selector": "#a", "x": 1, "y": 2}, {})
+        assert "[SIMULATION] Clicked" in result
+
+    @pytest.mark.asyncio
+    async def test_browser_type_desktop_paths(self, svc, monkeypatch):
+        nm = MagicMock()
+        nm.send_to_desktop = AsyncMock(return_value=True)
+        monkeypatch.setattr("core.notification_manager.notification_manager", nm)
+        result = await svc.execute_tool(
+            "local-tools", "browser_type", {"text": "hi", "selector": "#b"}, {})
+        assert "Command sent to Desktop App: Type" in result
+        nm.send_to_desktop = AsyncMock(return_value=False)
+        result = await svc.execute_tool(
+            "local-tools", "browser_type", {"text": "hi", "selector": "#b"}, {})
+        assert "[SIMULATION] Typed" in result
+
+    @pytest.mark.asyncio
+    async def test_cloud_denied_messages(self, svc, monkeypatch):
+        ws = SimpleNamespace(tenant_id="t1")
+        tenant = SimpleNamespace(plan_type="free")
+        db = MagicMock()
+        firsts = itertools.cycle([ws, tenant])
+
+        def fake_query(model):
+            q = Mock()
+            q.filter.return_value.first.side_effect = lambda: next(firsts)
+            return q
+
+        db.query.side_effect = fake_query
+        monkeypatch.setattr("core.database.SessionLocal", _session_factory2(db))
+        ctx = {"computer_use_mode": "cloud", "workspace_id": "ws-1"}
+        tools = [
+            "browser_navigate", "browser_click", "browser_type",
+            "browser_screenshot", "browser_new_tab", "browser_switch_tab",
+            "browser_click_coords", "list_browser_tabs", "browser_save_session",
+            "browser_set_proxy", "browser_monitor", "browser_wait_for_selector",
+            "browser_extract_content", "browser_upload_file", "browser_download_file",
+        ]
+        for tool in tools:
+            result = await svc.execute_tool("local-tools", tool, {}, ctx)
+            assert "Enterprise" in result or "restricted" in result, tool
+
+    @pytest.mark.asyncio
+    async def test_search_tasks_provider_failure(self, svc, monkeypatch):
+        cls = MagicMock()
+        inst = MagicMock()
+        inst.search = AsyncMock(side_effect=RuntimeError("down"))
+        cls.return_value = inst
+        monkeypatch.setattr("integrations.universal_integration_service.UniversalIntegrationService", cls)
+        result = await svc.execute_tool("local-tools", "search_tasks", {"query": "q"}, {})
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_unified_knowledge_search_empty_query(self, svc, monkeypatch):
+        engine = MagicMock()
+        entity = SimpleNamespace(
+            canonical_name="Vendor Acme",
+            entity_id="e1",
+            entity_type=SimpleNamespace(value="vendor"),
+            source_platforms=[SimpleNamespace(value="quickbooks")],
+            updated_at=datetime(2026, 1, 1),
+        )
+        engine.entity_registry = {"e1": entity}
+        monkeypatch.setattr("ai.data_intelligence.DataIntelligenceEngine", MagicMock(return_value=engine))
+        result = await svc.execute_tool("local-tools", "unified_knowledge_search",
+                                        {"query": "vendor"}, {})
+        assert result[0]["id"] == "e1"
+
+    @pytest.mark.asyncio
+    async def test_ingest_knowledge_file_with_formulas(self, svc, monkeypatch):
+        processor = MagicMock()
+        processor.process_document = AsyncMock(return_value={
+            "success": True, "content": "text content", "page_count": 1,
+            "total_chars": 100, "tables": [],
+        })
+        ingestion = MagicMock()
+        ingestion.process_document = AsyncMock(return_value={"docs": 1})
+        extractor = MagicMock()
+        extractor.extract_from_file = MagicMock(return_value=[
+            {"name": "f1", "expression": "=1+1", "domain": "finance"}])
+        _fake_module(monkeypatch, "core.docling_processor",
+                     get_docling_processor=lambda: processor)
+        _fake_module(monkeypatch, "core.knowledge_ingestion",
+                     get_knowledge_ingestion=lambda: ingestion)
+        _fake_module(monkeypatch, "core.formula_extractor",
+                     get_formula_extractor=lambda ws: extractor)
+        monkeypatch.setattr("integrations.mcp_service.os.path.exists", lambda p: True)
+        monkeypatch.setattr("integrations.mcp_service.os.path.splitext",
+                            lambda p: (p, ".xlsx"))
+        result = await svc.execute_tool(
+            "local-tools", "ingest_knowledge_from_file",
+            {"file_path": "/tmp/book.xlsx"}, {})
+        assert result["success"] is True
+        assert result["extracted_formulas"][0]["name"] == "f1"
+
+    @pytest.mark.asyncio
+    async def test_ingest_knowledge_file_formula_failure(self, svc, monkeypatch):
+        processor = MagicMock()
+        processor.process_document = AsyncMock(return_value={
+            "success": True, "content": "text", "page_count": 1,
+            "total_chars": 50, "tables": [],
+        })
+        ingestion = MagicMock()
+        ingestion.process_document = AsyncMock(return_value={"docs": 1})
+        _fake_module(monkeypatch, "core.docling_processor",
+                     get_docling_processor=lambda: processor)
+        _fake_module(monkeypatch, "core.knowledge_ingestion",
+                     get_knowledge_ingestion=lambda: ingestion)
+        _fake_module(monkeypatch, "core.formula_extractor",
+                     get_formula_extractor=lambda ws: (_ for _ in ()).throw(RuntimeError("boom")))
+        monkeypatch.setattr("integrations.mcp_service.os.path.exists", lambda p: True)
+        monkeypatch.setattr("integrations.mcp_service.os.path.splitext",
+                            lambda p: (p, ".xlsx"))
+        result = await svc.execute_tool(
+            "local-tools", "ingest_knowledge_from_file",
+            {"file_path": "/tmp/book.xlsx"}, {})
+        assert result["success"] is True
+
+    def test_permission_cache_init_path(self, svc, monkeypatch):
+        skill_service = MagicMock()
+        skill_service.check_skill_permission.return_value = {"allowed": True, "reason": "ok"}
+        monkeypatch.setattr("core.entity_skill_service.get_entity_skill_service",
+                            lambda: skill_service)
+        monkeypatch.setattr("core.database.SessionLocal", _session_factory2(MagicMock()))
+        if hasattr(svc, "_permission_cache"):
+            del svc._permission_cache
+        result = svc.check_entity_skill_permission("t1", "vendor", "sk-2")
+        assert result["allowed"] is True
+        assert any("sk-2" in k for k in svc._permission_cache)
+
+
+# ============================================================================
 # integrations.mcp_service
 # ============================================================================
 
@@ -2482,10 +3116,14 @@ def _fake_module(monkeypatch, name, **attrs):
 
 
 def _session_factory2(db):
-    cm = MagicMock()
-    cm.__enter__.return_value = db
-    cm.__exit__.return_value = False
-    return cm
+    class _Ctx:
+        def __enter__(self):
+            return db
+
+        def __exit__(self, *a):
+            return False
+
+    return lambda: _Ctx()
 
 
 def _q_first(value=None, all_value=None):
