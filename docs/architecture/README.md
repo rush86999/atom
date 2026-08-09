@@ -29,6 +29,16 @@ System architecture, design patterns, and technical specifications.
 - **[Pre-Action Match-Confidence Layer](MATCH_CONFIDENCE.md)** - Pre-action selector-certainty scorer mirroring the post-action `VerifiedOutcome` tri-state; gates ambiguous/partial matches through ProposalService for ALL tiers (including AUTONOMOUS) ✨
 - **[Selector Confidence Thresholds](SELECTOR_CONFIDENCE_THRESHOLDS.md)** - One-pager on tuning env vars, score curve, per-agent opt-out
 
+### Search & Retrieval
+- **[Agent Hybrid Search (BM25 + Vector RRF)](AGENT_HYBRID_SEARCH.md)** ✨ NEW (Aug 2026) - `documents.search` fused from two legs via Reciprocal Rank Fusion (k=60): BM25 over FTS5 (SQLite) / tsvector+GIN (Postgres) + 1536-dim LanceDB ANN. Join-key bridge (`pg_document_id`) closes the PG↔LanceDB silo; legacy ILIKE fallback ladder; multi-source legs (episodes/turn_facts/reasoning-steps) are additive.
+- **[Knowledge VFS](KNOWLEDGE_VFS.md)** ✨ NEW (Aug 2026) - Agent-native virtual document tree under `knowledge/` — `documents.ls/cat/grep/head/tail/search/…` (11 actions) with line-numbered, VFS-citable content (`knowledge/documents/<id>/content.lines:L47`). Additive, flag-gated (`ATOM_KNOWLEDGE_VFS_ENABLED`), legacy ILIKE preserved as kill-switch path. Composes with hybrid search: search finds the doc, VFS cites the line.
+
+### Verification & Confidence
+- **[Postcondition Oracle & Two-Tier Confidence](ORACLE_VERIFICATION.md)** ✨ NEW (Aug 2026) - Closes the self-attestation gap: `tool_outcome_verifier` grades the tool's own return, the oracle **re-derives** success against the system of record (DB read-back) independently. Only `EXTERNAL_VERIFIED` is credible; `INTERNAL_HIGH` (incl. LLM tiebreak) is not. Verify-before-retry (arXiv 2608.02645) prevents duplicate side effects. Flag: `ATOM_ORACLE_VERIFIER_ENABLED` (default on).
+- **[Reviewer Re-delegation Loop](REVIEWER_LOOP.md)** ✨ NEW (Aug 2026) - REVIEW strategy: rejected candidates are re-delegated to the originating specialist with the reviewer's feedback, not swapped or debated (deliberately not multi-round debate — Debate-or-Vote martingale, Cost-of-Consensus sycophancy). Pairs with diversity-aware MoA sampling (P4a).
+- **[Agent Environment (Goal-Driven Loop)](AGENT_ENVIRONMENT.md)** ✨ NEW (Aug 2026) - Phase 5 of the Stanford-biotech-insights program: objective + `definition_of_done` termination predicate (no more always-`max_steps`), maturity success ratio as explicit utility target, maturity-gated custom action surface (`register_action`), stuck-detector. Flag: `ATOM_OBJECTIVE_LOOP_ENABLED` (default on).
+- **[Self-Evolving Harness](HARNESS_EVOLUTION.md)** - Offline Meta-Runtime: mines `agent_reasoning_steps` failure clusters, proposes micro-patches to the harness, runs regression tests in an isolated sandbox, deploys mutated config. Kills "loopmaxxing" in live sessions.
+
 ### Security & Sandbox Layers
 - **[Production-Ready Security Hardening (P0–P9)](CLOUDFLARE_OS_SECURITY.md)** ✨ NEW (Aug 2026) - Start here. Ten-phase hardening overview: default-on sandbox for all dispatch paths, encrypted credentials, per-agent capability bindings, outbound gatekeeper, data-taint tracking, credential-safe sharing, external MCP client, per-canvas runtime, workspace context.
 - **[Execution Sandbox Layer](SANDBOX_LAYER.md)** ✨ - Deterministic blast-radius
@@ -46,6 +56,7 @@ System architecture, design patterns, and technical specifications.
   this to context-window chunks.
 
 ### Multi-Agent Coordination
+- **[Fleet Orchestration (CSO→Division→Specialist Wiring)](FLEET_ORCHESTRATION.md)** ✨ NEW (Aug 2026) - The previously-dead `route_with_governance` path wired into live `AtomMetaAgent.execute()`; real `SpecialistMatcher` with ranked candidates (capability overlap + tier + verified-episode ratio), depth-enforced delegation nesting (`DelegationChain.max_depth`), fleet budget/memory hooks. Flag: `ATOM_FLEET_ROUTING_ENABLED` (default off — live-traffic change).
 - **[Swarm Coordination](SWARM_COORDINATION.md)** ✨ - Three patterns from
   Cursor swarm research for coordinating many concurrent agents on a shared
   codebase:
@@ -187,4 +198,4 @@ episodes (1) → (N) episode_segments
 
 ---
 
-*Last Updated: April 12, 2026*
+*Last Updated: August 8, 2026*

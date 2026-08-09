@@ -122,15 +122,20 @@ This isn't "AI replacing humans." It's **AI handling the work humans shouldn't b
 
 | Category | Features |
 |---|---|
-| **🤖 Multi-Agent Orchestration** | Queen Agent (structured workflows) + Fleet Admiral (open-ended tasks) + Conductor (5 execution strategies) + validated state machine with rollback |
+| **🤖 Multi-Agent Orchestration** | Queen Agent (structured workflows) + Fleet Admiral (open-ended tasks) + Conductor (5 execution strategies) + validated state machine with rollback; governed fleet routing with ranked specialist matching |
 | **🛡️ Governance & Safety** | 4-tier maturity (Student→Autonomous), 3-layer policy engine, HITL approval, complete audit trail, AI-powered training |
-| **🧠 Memory & Learning** | Per-turn fact extraction, 2-tier recall (SQL + LanceDB), episodic memory, `memory_remember/forget`, self-evolution (Memento/AlphaEvolver) |
+| **✅ Outcome Verification** | Postcondition oracle re-derives success against the system of record (no self-attestation), two-tier confidence provenance, reviewer re-delegation loop with diversity-aware sampling |
+| **🧠 Memory & Learning** | Per-turn fact extraction, 2-tier recall (SQL + LanceDB), episodic memory, `memory_remember/forget`, self-evolution (Memento/AlphaEvolver, self-evolving harness) |
+| **🔎 Hybrid Search** | `documents.search` fuses BM25 (FTS5/tsvector) + vector (LanceDB) via Reciprocal Rank Fusion (RRF) — semantic + precise retrieval with citations |
+| **🗂️ Knowledge VFS** | Agent-native document tree — `ls`/`cat`/`grep`/`search` with line-numbered citations instead of bespoke per-store queries |
+| **📻 Agent Radio** | Lateral peer-to-peer messaging between agents (mention-first, budget-governed) — agents coordinate without hardcoded teams |
 | **💼 Office Automation** | Real-time Excel/Word/PPTX co-editing on Canvas; formula-evaluating workbook runtime; agent↔document sync |
 | **🧩 Mini-Apps** | Agent-authored stateful canvas apps (spreadsheets/docs/decks) — Firecracker microVM isolation, per-instance chat co-editing |
 | **🔍 GraphRAG & Intelligence** | Multi-hop expansion, Leiden community detection, JIT fact verification, D3 visual explorer |
 | **🌐 46+ Business Integrations** | Salesforce, HubSpot, Slack, Teams, Gmail, Notion, Jira, Linear, Stripe, QuickBooks, Shopify, GitHub, GitLab, Zoom… |
 | **🛰️ LLM Gateway** | OpenAI/Anthropic-compatible API over your BYOK — point Claude Code, n8n, or any OpenAI-SDK app at Atom |
 | **💰 Cost-Aware Routing** | 5-tier cognitive classification, 16+ providers, learning router (feedback-based re-ranking), RTK token compression |
+| **🎯 Goal-Driven Loops** | Agents terminate on a `definition_of_done` predicate instead of always burning to `max_steps`; utility targets, custom action surfaces, stuck-detection |
 
 ---
 
@@ -181,8 +186,10 @@ make frontend              # Next.js UI on :3001
 | | [Context Memory](docs/architecture/CONTEXT_MEMORY.md) | [Office Automation](docs/guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) |
 | | [Learning Router](docs/architecture/LEARNING_LLM_ROUTER.md) | [Third-Party Integrations](docs/integrations/THIRD_PARTY_INTEGRATIONS.md) |
 | | [LLM Gateway](docs/architecture/LLM_GATEWAY.md) | [OAuth Setup](docs/guides/OAUTH_QUICK_SETUP_GUIDE.md) |
-| | [Mini-Apps Architecture](docs/architecture/MINI_APPS.md) | [Personal Edition](docs/operations/personal-edition.md) |
-| | [Sandbox Layer](docs/architecture/SANDBOX_LAYER.md) | [Cloud Deployment](docs/deployment/CLOUD_DEPLOYMENT.md) |
+| | [Hybrid Search](docs/architecture/AGENT_HYBRID_SEARCH.md) · [Knowledge VFS](docs/architecture/KNOWLEDGE_VFS.md) | [Personal Edition](docs/operations/personal-edition.md) |
+| | [Agent Radio](docs/architecture/AGENT_RADIO.md) · [Fleet Orchestration](docs/architecture/FLEET_ORCHESTRATION.md) | [Cloud Deployment](docs/deployment/CLOUD_DEPLOYMENT.md) |
+| | [Oracle Verification](docs/architecture/ORACLE_VERIFICATION.md) · [Reviewer Loop](docs/architecture/REVIEWER_LOOP.md) | [Agent Environment](docs/architecture/AGENT_ENVIRONMENT.md) |
+| | [Mini-Apps Architecture](docs/architecture/MINI_APPS.md) | [Sandbox Layer](docs/architecture/SANDBOX_LAYER.md) |
 
 ---
 

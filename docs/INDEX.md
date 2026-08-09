@@ -52,6 +52,11 @@
 |----------|-------------|----------|
 | [Context Memory](architecture/CONTEXT_MEMORY.md) | Per-turn fact extraction, 2-tier recall | AI Engineers |
 | [Memory Systems Concept Guide](guides/MEMORY_SYSTEMS.md) | **NEW** - Three tiers, episodic, self-evolution | AI Engineers |
+| [Agent Hybrid Search](architecture/AGENT_HYBRID_SEARCH.md) | **NEW** - BM25 + vector RRF fusion for `documents.search` | AI Engineers |
+| [Knowledge VFS](architecture/KNOWLEDGE_VFS.md) | **NEW** - Agent-native `ls`/`cat`/`grep` over documents | AI Engineers |
+| [Oracle Verification](architecture/ORACLE_VERIFICATION.md) | **NEW** - Postcondition oracle, two-tier confidence | AI Engineers |
+| [Reviewer Loop](architecture/REVIEWER_LOOP.md) | **NEW** - Re-delegation on review rejection, diversity MoA | AI Engineers |
+| [Agent Environment](architecture/AGENT_ENVIRONMENT.md) | **NEW** - Goal-driven loop, utility targets, stuck-detection | AI Engineers |
 | [Learning LLM Router](architecture/LEARNING_LLM_ROUTER.md) | Per-model predictors, feedback re-ranking | AI Engineers |
 | [Episodic Memory](intelligence/episodic-memory.md) | Agent learning framework | AI Engineers |
 | [GraphRAG](intelligence/graphrag.md) | Knowledge graph, entity extraction | AI Engineers |
@@ -69,6 +74,8 @@
 | [Queen Agent User Guide](guides/QUEEN_AGENT_USER_GUIDE.md) | Structured workflow automation | Users/Admins |
 | [Queen vs Fleet Admiral](guides/QUEEN_VS_FLEET_ADMIRAL.md) | Which orchestrator to use | Architects |
 | [Fleet Admiral](agents/fleet-admiral.md) | Multi-agent fleet coordination | AI Engineers |
+| [Fleet Orchestration](architecture/FLEET_ORCHESTRATION.md) | **NEW** - CSO→Division→Specialist wiring, ranked matching | AI Engineers |
+| [Agent Radio / Lateral Messaging](architecture/AGENT_RADIO.md) | **NEW** - Peer-to-peer agent messaging (mention-first) | AI Engineers |
 | [Unstructured Tasks](agents/unstructured-tasks.md) | Intent classification & dynamic routing | AI Engineers |
 | [Agent Guidance System](agents/guidance-system.md) | Real-time operation tracking | Users |
 | [Agent Graduation](agents/agent-graduation.md) | Promotion criteria & validation | Admins |

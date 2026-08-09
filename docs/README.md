@@ -27,20 +27,27 @@ Deterministic execution isolation, permission tiers, and code analysis boundarie
 - [Data Protection](security/DATA_PROTECTION.md) — Fernet encryption, secrets management, migration
 
 ### 3. 🧠 Memory & Routing Intelligence
-Episodic memory systems, GraphRAG community expansion, and cognitive tiering.
+Episodic memory systems, GraphRAG community expansion, hybrid search, and cognitive tiering.
 - [Context Memory Design](architecture/CONTEXT_MEMORY.md) — Durable-fact extraction, token compression, and graduation memory consolidation
 - [Learning-Based LLM Router](architecture/LEARNING_LLM_ROUTER.md) — Outcome predictors, re-ranking, and EMA protocol routing
 - [Episodic Memory](intelligence/episodic-memory.md) — How agents build, retrieve, and refine personal experiences
 - [GraphRAG](intelligence/graphrag.md) — Leiden community summaries and hybrid graph-episodic search routing
+- [Agent Hybrid Search](architecture/AGENT_HYBRID_SEARCH.md) — **NEW** BM25 + vector RRF fusion for `documents.search` (semantic + precise, citable)
+- [Knowledge VFS](architecture/KNOWLEDGE_VFS.md) — **NEW** Agent-native document tree — `ls`/`cat`/`grep` with line-numbered citations
+- [Oracle Verification](architecture/ORACLE_VERIFICATION.md) — **NEW** Postcondition oracle re-derives success against the system of record
 - [Arbor Hypothesis Tree](architecture/ARBOR_FRAMEWORK.md) — MCTS search and cumulative tree memory persistence
 - [Self-Evolving Harness](architecture/HARNESS_EVOLUTION.md) — Offline trace analysis, weakness mining, and auto-mutation patches
 - [Memory Systems Concept Guide](guides/MEMORY_SYSTEMS.md) — **NEW** Three-tier recall, episodic memory, self-evolution
 
 ### 4. 👥 Multi-Agent Orchestration
-Workflows, event buses, and multi-agent roles (Queen, Fleet Admiral).
+Workflows, event buses, and multi-agent roles (Queen, Fleet Admiral, lateral radio).
 - [Meta-Agent System](agents/meta-agent.md) — Conductor parallel consensus, fleet recruitment, and cognitive routing
 - [Queen Agent User Guide](guides/QUEEN_AGENT_USER_GUIDE.md) — Step-by-step workflow builder guidelines
 - [Fleet Admiral](agents/fleet-admiral.md) — Orchestrating fleets for unstructured task resolution
+- [Fleet Orchestration](architecture/FLEET_ORCHESTRATION.md) — **NEW** CSO→Division→Specialist wiring, ranked specialist matching, depth-enforced delegation
+- [Agent Radio](architecture/AGENT_RADIO.md) — **NEW** Lateral peer-to-peer messaging (mention-first, budget-governed)
+- [Agent Environment](architecture/AGENT_ENVIRONMENT.md) — **NEW** Goal-driven ReAct loop, `definition_of_done` termination, stuck-detection
+- [Reviewer Loop](architecture/REVIEWER_LOOP.md) — **NEW** Re-delegation on review rejection + diversity-aware MoA
 - [Agent Maturity & Governance](guides/AGENT_MATURITY_GOVERNANCE.md) — **NEW** Tier system, governance flow, graduation
 
 ### 5. 🔌 Integrations & Canvas Automation
