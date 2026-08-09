@@ -380,6 +380,25 @@ Real product bugs from parallel wave (highlights): **11 unauthenticated analytic
 | Frontend | **65.8%** lines (7,658 passed / 0 failures) | ~735 files | 2026-08-09 |
 | Backend | 54.0% (r80 full-ish); 32.8% chunked-scope (r84) | 158k stmts / ~1,015 files | 2026-08-07 |
 
+### Resolved 2026-08-09 (R94-R95 wave — pushed `fd4aacd33` + `09ff459c2`)
+| Date | Area | Status | Result |
+|---|---|---|---|
+| 2026-08-09 | FE Automations cluster (14 suites / 217 tests, 94–100%) | TESTED/FIXED | NodeConfigSidebar crash on non-array connections (stuck 'Loading parameters...' forever) + DYNAMIC fields never fetched options; AgentWorkflowGenerator new suite (was 0%) |
+| 2026-08-09 | Backend authz gap | FIXED (SECURITY) | `api/admin/business_facts_routes.py` list_facts/get_fact missing require_role(ADMIN) → any MEMBER could read all business facts |
+| 2026-08-09 | `core/auth.py` bcrypt boundary | FIXED | verify_password truncated to 71 bytes vs 72 accepted → valid 72-byte passwords could never login |
+| 2026-08-09 | `main_api_app.py` Slack router | FIXED | double-prefixed by unified loader → every `/api/slack/*` route 404'd; added to CORE_API_MODULES |
+| 2026-08-09 | `api/auth_routes.py` biometric | FIXED (DATA-LOSS) | device_info mutated in place → SQLAlchemy committed_state same-object reference → UPDATE dropped device_info (silent write loss, SQL-echo verified) |
+| 2026-08-09 | `services/canvas_context_service.py` | FIXED | tenant-less users 500 IntegrityError → 'default' fallback |
+| 2026-08-09 | Backend security + api suites | FIXED | oauth_state 20p, input_validation 50p, jwt alg:none manual token, admin_system_health 40p, auth_routes_enhanced 54p, analytics 60p, api coverage 17/42/34/47/119p — **no gate failing open** |
+| 2026-08-09 | Verification batch | GREEN | **327 passed / 0 failed** |
+
+## Coverage stamps (latest)
+| Surface | Coverage | Tests | Date |
+|---|---|---|---|
+| Mobile | **87.5%** lines (3,843 passed / 115 suites, 0 failures) | 7,365 stmts / 80 files | 2026-08-08 |
+| Frontend | 65.8% lines (7,658 passed / 0 failures) — R94 Automations wave pending re-measure | ~735 files | 2026-08-09 |
+| Backend | 54.0% (r80 full-ish); 32.8% chunked-scope (r84) | 158k stmts / ~1,015 files | 2026-08-07 |
+
 ## Known remaining work (verified at last run — updated 2026-08-09)
 - `core/models.py` `OAuthToken` — server-side model; verify `api/oauth` routes don't use stale columns (Notion/Spotify moved to IntegrationToken; sweep remaining writers)
 - `tests/test_cognitive_tier_e2e.py` — 11 collection ERRORS remain after the survey-sweep alignment (23 pass / 11 error; the stale `CognitiveTierPreference` kwargs were fixed but 11 tests still fail at setup — next target)
