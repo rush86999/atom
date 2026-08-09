@@ -40,12 +40,37 @@ def mock_app():
 @pytest.fixture
 def mock_request_factory():
     """Factory for creating mock requests with various properties."""
-    def _create_request(client_host="127.0.0.1", headers: Dict = None):
+    def _create_request(client_host="127.0.0.1", headers: Dict = None, path: str = "/test/path"):
         request = Mock(spec=Request)
         request.client = Mock(host=client_host)
-        request.headers = headers or {}
+        request.headers = dict(headers or {})
+        request.url = Mock(path=path)
         return request
     return _create_request
+
+
+@pytest.fixture
+def rate_limited_middleware(mock_app, monkeypatch):
+    """
+    Build a RateLimitMiddleware wired for local (Redis-less) testing:
+    - cache replaced with an enabled mock so the local tracking path runs
+    - _get_tenant_limits_sync patched so requests_per_minute is honored
+    """
+    def _make(requests_per_minute=2):
+        middleware = RateLimitMiddleware(app=mock_app, requests_per_minute=requests_per_minute)
+        cache = MagicMock()
+        cache.enabled = True
+        cache.client = object()
+        middleware.cache = cache
+        middleware._get_tenant_limits_sync = Mock(return_value=(requests_per_minute, 100000))
+        return middleware
+    return _make
+
+
+@pytest.fixture
+def force_headers():
+    """Headers that defeat the pytest bypass so rate limiting is exercised."""
+    return {"X-Force-Rate-Limit": "true"}
 
 
 # ============================================================================
@@ -110,127 +135,96 @@ class TestRateLimiting:
         middleware2 = RateLimitMiddleware(app=mock_app, requests_per_minute=2**63 - 1)
         assert middleware2.requests_per_minute == 2**63 - 1
 
-    async def test_rate_limit_exceeded_returns_429(self, mock_app, mock_request_factory):
+    async def test_rate_limit_exceeded_returns_429(self, mock_app, mock_request_factory, rate_limited_middleware, force_headers):
         """
-        VALIDATED_BUG
+        NO_BUG (real contract: Redis-backed middleware)
 
         Test that exceeding rate limit returns 429 status.
 
         Expected: Response with status_code=429 and error message
-        Actual: Returns 429 correctly (line 30)
-        Severity: NONE
-        Impact: None - working as expected
-        Fix: No fix needed
         """
-        middleware = RateLimitMiddleware(app=mock_app, requests_per_minute=2)
+        middleware = rate_limited_middleware(requests_per_minute=2)
 
         # Create mock call_next
         async def call_next(request):
             return Response(status_code=200, content="OK")
 
         # First request should pass
-        request1 = mock_request_factory()
+        request1 = mock_request_factory(headers=force_headers)
         response1 = await middleware.dispatch(request1, call_next)
         assert response1.status_code == 200
 
         # Second request should pass
-        request2 = mock_request_factory()
+        request2 = mock_request_factory(headers=force_headers)
         response2 = await middleware.dispatch(request2, call_next)
         assert response2.status_code == 200
 
         # Third request should be rate limited
-        request3 = mock_request_factory()
+        request3 = mock_request_factory(headers=force_headers)
         response3 = await middleware.dispatch(request3, call_next)
         assert response3.status_code == 429
-        assert b"Rate limit exceeded" in response3.body
+        assert "Rate limit exceeded" in response3.body.decode()
 
-    async def test_rate_limit_resets_after_time_window(self, mock_app, mock_request_factory):
+    async def test_rate_limit_resets_after_time_window(self, mock_app, mock_request_factory, rate_limited_middleware, force_headers):
         """
-        VALIDATED_BUG
+        NO_BUG (real contract: Redis-backed middleware)
 
-        Test that rate limit counter resets after 60 seconds.
-
-        Expected: Old requests removed from counter after 60s
-        Actual: Correctly filters requests by time (line 22-25)
-        Severity: NONE
-        Impact: None - working as expected
-        Fix: No fix needed
+        Test that rate limit counter resets after the minute window.
         """
-        middleware = RateLimitMiddleware(app=mock_app, requests_per_minute=2)
+        middleware = rate_limited_middleware(requests_per_minute=2)
 
         async def call_next(request):
             return Response(status_code=200, content="OK")
 
         # Make 2 requests (at limit)
-        request1 = mock_request_factory()
-        await middleware.dispatch(request1, call_next)
-
-        request2 = mock_request_factory()
-        await middleware.dispatch(request2, call_next)
+        await middleware.dispatch(mock_request_factory(headers=force_headers), call_next)
+        await middleware.dispatch(mock_request_factory(headers=force_headers), call_next)
 
         # Third request should be blocked
-        request3 = mock_request_factory()
-        response3 = await middleware.dispatch(request3, call_next)
+        response3 = await middleware.dispatch(mock_request_factory(headers=force_headers), call_next)
         assert response3.status_code == 429
 
-        # Manually expire old requests by setting their timestamps to >60s ago
-        client_ip = request1.client.host
-        current_time = time.time()
-        # Clear all requests (simulate 60s passed)
-        middleware.request_counts[client_ip] = []
+        # Simulate the minute window rolling over (reset counters)
+        client_ip = "127.0.0.1"
+        middleware._local_requests[client_ip]["minute"] -= 1
+        middleware._local_requests[client_ip]["min_count"] = 0
 
         # Now request should pass again
-        request4 = mock_request_factory()
-        response4 = await middleware.dispatch(request4, call_next)
+        response4 = await middleware.dispatch(mock_request_factory(headers=force_headers), call_next)
         assert response4.status_code == 200
 
-    async def test_rate_limit_with_different_ips(self, mock_app, mock_request_factory):
+    async def test_rate_limit_with_different_ips(self, mock_app, mock_request_factory, rate_limited_middleware, force_headers):
         """
-        VALIDATED_BUG
+        NO_BUG (real contract: Redis-backed middleware)
 
         Test that rate limits are tracked separately per IP.
-
-        Expected: Different IPs have separate counters
-        Actual: Correctly uses IP as key (line 18)
-        Severity: NONE
-        Impact: None - working as expected
-        Fix: No fix needed
         """
-        middleware = RateLimitMiddleware(app=mock_app, requests_per_minute=2)
+        middleware = rate_limited_middleware(requests_per_minute=2)
 
         async def call_next(request):
             return Response(status_code=200, content="OK")
 
         # IP 1 makes 2 requests (at limit)
-        request1a = mock_request_factory(client_host="192.168.1.1")
-        await middleware.dispatch(request1a, call_next)
-
-        request1b = mock_request_factory(client_host="192.168.1.1")
-        await middleware.dispatch(request1b, call_next)
+        await middleware.dispatch(mock_request_factory(client_host="192.168.1.1", headers=force_headers), call_next)
+        await middleware.dispatch(mock_request_factory(client_host="192.168.1.1", headers=force_headers), call_next)
 
         # IP 1 should be blocked on 3rd request
-        request1c = mock_request_factory(client_host="192.168.1.1")
-        response1c = await middleware.dispatch(request1c, call_next)
+        response1c = await middleware.dispatch(mock_request_factory(client_host="192.168.1.1", headers=force_headers), call_next)
         assert response1c.status_code == 429
 
         # IP 2 should still be allowed (separate counter)
-        request2a = mock_request_factory(client_host="192.168.1.2")
-        response2a = await middleware.dispatch(request2a, call_next)
+        response2a = await middleware.dispatch(mock_request_factory(client_host="192.168.1.2", headers=force_headers), call_next)
         assert response2a.status_code == 200
 
-    async def test_rate_limit_with_none_client_ip(self, mock_app, mock_request_factory):
+    async def test_rate_limit_with_none_client_ip(self, mock_app, mock_request_factory, rate_limited_middleware, force_headers):
         """
-        VALIDATED_BUG
+        NO_BUG (fixed in core/security/middleware.py)
 
         Test handling when client IP is None.
 
-        Expected: Handles None gracefully or raises clear error
-        Actual: AttributeError when accessing request.client.host if client is None
-        Severity: HIGH
-        Impact: Crashes if request.client is None
-        Fix: Add check for None client before accessing host attribute
+        Expected: Handles None gracefully (uses "unknown")
         """
-        middleware = RateLimitMiddleware(app=mock_app, requests_per_minute=60)
+        middleware = rate_limited_middleware(requests_per_minute=60)
 
         async def call_next(request):
             return Response(status_code=200, content="OK")
@@ -238,10 +232,12 @@ class TestRateLimiting:
         # Create request with None client
         request = Mock(spec=Request)
         request.client = None  # No client attached
+        request.headers = dict(force_headers)
+        request.url = Mock(path="/test/path")
 
-        # Should raise AttributeError when accessing request.client.host
-        with pytest.raises(AttributeError):
-            await middleware.dispatch(request, call_next)
+        # Should NOT raise — falls back to "unknown" identifier
+        response = await middleware.dispatch(request, call_next)
+        assert response.status_code == 200
 
     async def test_rate_limit_with_empty_string_ip(self, mock_app, mock_request_factory):
         """
@@ -267,45 +263,35 @@ class TestRateLimiting:
         response = await middleware.dispatch(request, call_next)
         assert response.status_code == 200
 
-    async def test_rate_limit_with_ipv6_address(self, mock_app, mock_request_factory):
+    async def test_rate_limit_with_ipv6_address(self, mock_app, mock_request_factory, rate_limited_middleware, force_headers):
         """
-        VALIDATED_BUG
+        NO_BUG (real contract: Redis-backed middleware)
 
         Test IPv6 address handling.
 
-        Expected: IPv6 addresses treated correctly as keys
-        Actual: Works correctly (IPv6 address is just a string)
-        Severity: NONE
-        Impact: None - working as expected
-        Fix: No fix needed
+        Expected: IPv6 addresses treated correctly as identifiers
         """
-        middleware = RateLimitMiddleware(app=mock_app, requests_per_minute=2)
+        middleware = rate_limited_middleware(requests_per_minute=2)
 
         async def call_next(request):
             return Response(status_code=200, content="OK")
 
         # IPv6 address
-        request = mock_request_factory(client_host="2001:0db8:85a3:0000:0000:8a2e:0370:7334")
+        request = mock_request_factory(client_host="2001:0db8:85a3:0000:0000:8a2e:0370:7334", headers=force_headers)
 
         response = await middleware.dispatch(request, call_next)
         assert response.status_code == 200
 
-        # Verify IPv6 address is used as key
-        assert request.client.host in middleware.request_counts
+        # IPv6 address tracked under its own identifier
+        assert "2001:0db8:85a3:0000:0000:8a2e:0370:7334" in middleware._local_requests
 
-    async def test_rate_limit_concurrent_requests(self, mock_app, mock_request_factory):
+    async def test_rate_limit_concurrent_requests(self, mock_app, mock_request_factory, rate_limited_middleware, force_headers):
         """
-        VALIDATED_BUG
+        NO_BUG (real contract: Redis-backed middleware)
 
         Test thread safety of concurrent requests.
-
-        Expected: No race conditions, accurate counting under load
-        Actual: Potential race condition - list append and len check are not atomic
-        Severity: MEDIUM
-        Impact: Under heavy load, rate limit may be slightly exceeded
-        Fix: Add threading.Lock around request_counts operations
         """
-        middleware = RateLimitMiddleware(app=mock_app, requests_per_minute=10)
+        middleware = rate_limited_middleware(requests_per_minute=10)
 
         async def call_next(request):
             return Response(status_code=200, content="OK")
@@ -315,7 +301,7 @@ class TestRateLimiting:
 
         async def make_request(ip_suffix):
             try:
-                request = mock_request_factory(client_host=f"192.168.1.{ip_suffix}")
+                request = mock_request_factory(client_host=f"192.168.1.{ip_suffix}", headers=force_headers)
                 response = await middleware.dispatch(request, call_next)
                 results.append((ip_suffix, response.status_code))
             except Exception as e:
