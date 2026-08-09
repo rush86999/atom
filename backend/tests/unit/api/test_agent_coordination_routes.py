@@ -18,6 +18,8 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from fastapi.testclient import TestClient
 
+from core.models import UserRole
+
 
 # =============================================================================
 # Test Fixtures
@@ -45,8 +47,47 @@ def app():
 
 @pytest.fixture
 def client(app):
-    """Create test client."""
-    return TestClient(app)
+    """Create test client with an authenticated user + mock db.
+
+    The routes carry a second dependency on core.auth.get_current_user (the
+    require_permission patch only covers the permission gate) — override it so
+    requests aren't rejected by real JWT auth. get_db is a MagicMock whose
+    query() delegates to the entity's own .query (tests wire
+    mock_AgentRegistry.query...), because the real Session rejects a mocked
+    mapped class (ArgumentError → 500 re-raised by TestClient).
+    """
+    from core.auth import get_current_user
+    from core.database import get_db
+
+    user = Mock()
+    user.id = "test-admin-123"
+    user.email = "admin@test.com"
+    user.tenant_id = "tenant-123"
+    user.workspace_id = "default"
+    user.role = UserRole.ADMIN
+
+    mock_db = Mock()
+
+    def _query(entity, *a, **k):
+        # Mocked entity → delegate to its .query (tests wire
+        # mock_X.query.filter.first...). Real entity → return a benign chain.
+        if isinstance(entity, MagicMock):
+            return entity.query(*a, **k)
+        chain = Mock()
+        chain.filter.return_value = chain
+        chain.all.return_value = []
+        chain.first.return_value = None
+        return chain
+
+    mock_db.query.side_effect = _query
+
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_db] = lambda: mock_db
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_db, None)
 
 
 # =============================================================================
@@ -130,9 +171,10 @@ class TestRemoveAgentFromCanvas:
 class TestListCanvasAgents:
     """Tests for GET /canvas/{canvas_id}/agents"""
 
+    @patch('core.models.AgentCanvasPresence')
     @patch('api.agent_coordination_routes.MultiAgentCanvasService')
     @patch('api.agent_coordination_routes.require_permission')
-    def test_list_canvas_agents(self, mock_permission, mock_service_class, client):
+    def test_list_canvas_agents(self, mock_permission, mock_service_class, mock_presence, client):
         """RED: Test listing all agents on a canvas."""
         # Setup mocks
         mock_permission.return_value = Mock(tenant_id="tenant-123")
@@ -150,6 +192,15 @@ class TestListCanvasAgents:
             }
         ]
         mock_service_class.return_value = mock_service
+
+        # The route queries AgentCanvasPresence directly (imported locally
+        # inside the handler) — patch the source module and return one row.
+        presence = Mock()
+        presence.agent_id = "agent-001"
+        presence.role = "collaborator"
+        presence.status = "active"
+        mock_presence.query.return_value.filter.return_value.all.return_value = [presence]
+        mock_presence.query.return_value.filter.return_value.first.return_value = None
 
         # Act
         response = client.get("/api/agent-coordination/canvas/canvas-123/agents")
@@ -206,9 +257,9 @@ class TestAgentHandoffs:
         }
         mock_protocol_class.return_value = mock_protocol
 
-        # Act
+        # Act — the route takes agent_id as a query param
         response = client.post(
-            "/api/agent-coordination/handoffs/handoff-123/accept"
+            "/api/agent-coordination/handoffs/handoff-123/accept?agent_id=agent-002"
         )
 
         # Assert

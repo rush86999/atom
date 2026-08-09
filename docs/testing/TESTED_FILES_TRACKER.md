@@ -1522,3 +1522,50 @@ Methodology: previous combined full-suite data + wave test files (1,081 tests, 0
 | tools | 17.3% | 87.1% | **87.1%** |
 | integrations | ~0% | 55.0% | **60.4%** |
 | ALL | ~30% | 55.1% | **56.9%** |
+
+### Wave 2 — 4 parallel agents (2026-08-09, committed in R96/R97 tree + this commit)
+**Agent E — stale/phantom suites** (414 passed / 2 skipped / 0 failed across 10 suites):
+| Date | File | Status | Note |
+|---|---|---|---|
+| 2026-08-09 | `tests/api/test_task_monitoring_routes.py` | DEAD | git rm'd — `api/task_monitoring_routes.py` deleted in `eda17eb29`; no `/api/v1/tasks` mount; "passing" tests were permissive asserts on 404s |
+| 2026-08-09 | `tests/api/test_security_routes.py` | DEAD | git rm'd — `api/security_routes.py` deleted in `12b193a48`; live `core.enterprise_security` is a different contract |
+| 2026-08-09 | `tests/core/test_mini_app_service_coverage.py` | 8F/182P→**190P** | `_llm_scaffold` returns str not dict; `run_stateful` gates on `canvas.mini_app_id` (fixture never linked); runtime errors deliberately generic (leak-prevention) |
+| 2026-08-09 | `tests/api/test_feedback_enhanced.py` | 9F/14E→**25P** | AgentFactory used global SessionLocal→dev DB (division_id drift); doubled `/api/feedback/api/feedback` paths; envelope wraps under `data`; empty feedback 422 |
+| 2026-08-09 | `tests/api/test_auth_2fa_routes_enhanced.py` | 15F→**37P/1S** | All 15 = 429: module-level `_2fa_limiter` process-wide singleton exhausted; autouse patch of `check` (R79 precedent) |
+| 2026-08-09 | `tests/api/test_response_serialization.py` | 14F→**32P/1S** | bare app fixture no auth/db → 401s; `test_token` not a real JWT; hermetic in-memory fixture |
+| 2026-08-09 | `tests/api/test_business_facts_routes.py` | 15F→**42P** | routes import `get_storage_service` locally per-call (module-level sys.modules mock dies at request time); REMOVED `sys.modules['core.models']=MagicMock()` block (poisoned cross-suite issubclass) |
+| 2026-08-09 | `tests/api/test_canvas_routes_coverage.py` | 28F→**36P** | auth override targeted wrong module (`core.security_dependencies` vs `core.auth`); agent fixtures missing `workspace_id="default"`; `/api/canvas/status` phantom → real read route |
+| 2026-08-09 | `tests/api/test_canvas_sheets_routes.py` + `test_canvas_coding_routes.py` | 16F+59F→**33P** | router-level `Depends(get_current_user)` → 401; auth override id must match assert_called_once_with |
+| 2026-08-09 | `tests/unit/api/test_agent_routes.py` + `test_agent_coordination_routes.py` | 4F+7E→**19P** | require_permission override is no-op; `patch('api.auth_routes')` on empty `api/__init__.py` needs create=True; mocked get_db needs delegating query |
+
+**Agent F — security gaps** (`tests/test_bughunt_20260809_sec.py`, 24 tests: 19 RED→GREEN):
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `api/feedback_batch.py` | FIXED (SECURITY) | **Any authenticated user read ALL users' pending feedback (original outputs+corrections) + adjudicated**; `require_feedback_moderator` (TEAM_LEAD+) gate on all 5 endpoints (pending/approve/reject/update_status/stats) — member 403, lead/admin succeed |
+| 2026-08-09 | `api/document_routes.py` `/search` | FIXED | Unbounded `limit` + **latent 500**: endpoint passed `min_score=0.0` to `LanceDBHandler.search()` which has no such kwarg — EVERY search crashed; `Query(10, ge=1, le=200)` + kwarg removed |
+| 2026-08-09 | `core/agent_radio/radio_service.py` | FIXED | **Budget TOCTOU** — concurrent sends overspent `ATOM_RADIO_TEAM_BUDGET_USD` (in-process lock + `with_for_update` + `populate_existing` → exactly 1 success/1 rejected); `thread_budget_used_usd` **fail-opened to 0.0** on corrupted metadata → now fail-closed `RadioBudgetCorrupted` reject |
+| 2026-08-09 | `api/deeplinks.py` `/stats` | FIXED (SECURITY) | Cross-user aggregate audit (R37 scoped `/audit` but not `/stats`); `_base_query()` scopes to `current_user.id`, admin+ sees all |
+| 2026-08-09 | `core/privsec/token_encryption.py` | FIXED (SECURITY) | Exact-match `env == "production"` — `"Production"`/`"prod"`/`" PRODUCTION "` minted throwaway dev key (fail-closed); normalized `(env or "").strip().lower()` accepting `{"production","prod"}` |
+| 2026-08-09 | `core/specialist_matcher.py` | FIXED | `_verified_episode_ratio` used `confidence_score >= 0.8` proxy → high-confidence UNVERIFIED self-reports inflated fleet rank; now real tri-state `AgentReasoningStep.verified=="verified"` via execution join |
+
+**Agent G — LLM/orchestration** (`tests/test_bughunt_20260809_llm.py`, 6 tests; committed in 89054e4f8):
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/llm/byok_handler.py` | FIXED | **Learning-router live path dead**: predictors trained under `{tenant}:{task}` (no intent dimension in feedback pipeline) but live path looked up `{tenant}:{task}:{intent}` → guaranteed miss → `ATOM_LEARNING_ROUTER=true` never re-ranked; intent dropped from cache key |
+| 2026-08-09 | `core/hybrid_search/lexical_ranker.py` | FIXED | **Stopword-only queries** ("and"/"or") returned [] with FTS (PG english config → empty tsquery; FTS5 prefix misses substrings) vs ILIKE matches — DB-state-dependent results; routed to ILIKE fallback |
+| 2026-08-09 | `core/hybrid_search/documents_hybrid.py` | FIXED | Vector leg ignored the `source` filter — `source="knowledge"` still surfaced bridged IngestedDocument hits |
+
+**Agent H — sandbox/mini-apps/office** (`tests/test_bughunt_20260809_sbx.py`, 4 tests RED→GREEN):
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/workflow_engine.py:1826` `_execute_mcp_action` | FIXED (P9) | **Gate bypass on workflow dispatch path** — called ungated `mcp_service.execute_tool()` directly, skipping sandbox gate + P2 capability gate that `call_tool` applies everywhere else; now dispatches via `call_tool` with run_id/workspace/tenant/tier from `step` |
+| 2026-08-09 | `core/atom_meta_agent.py` `execute()` | FIXED (P9) | **Gate inert on the primary agent surface** — dispatch context never carried `run_id`/`execution_id`/`tier_at_issuance` → gate returned None ("no policy in scope") → P9 never engaged on chat/triggers/delegation/fleet; now setdefault after execution_id creation |
+| 2026-08-09 | `core/atom_meta_agent.py:1616` `_execute_tool_with_governance` | FIXED | **KillRun not killing** — catch-all swallowed `KillRunAborted` → "Tool error"; tripwire-killed run kept iterating (LLM spend) + finalized SUCCESS overwriting `killed_sandbox`; now re-raises + parallel gather path re-raises kills |
+| 2026-08-09 | `core/atom_meta_agent.py` `execute()` body | FIXED | **Killed run 500'd** instead of finalizing; new `except KillRunAborted` → `status="killed_sandbox"` payload, no re-raise |
+
+**Wave-2 open items (verified, deferred)**:
+- `sandbox_caps.record_write`/`record_cost` — ZERO production callers: max_bytes_written (100 MiB) + max_cost_usd ($5) computed but never incremented; only max_tool_calls + max_exec_seconds enforce. Needs instrumentation at tool executors.
+- `canvas_logic_service.sanitize_namespace` — `a.b` and `a-b` map to same per-canvas FS dir (safe for UUIDs today).
+- `run_id=f"canvas-{ns}"` deterministic per-canvas → caps/KillRun counters persist ACROSS runs (per-canvas not per-run semantics).
+- `teams_enhanced_service.py:512` `jwt.decode(verify_signature=False)` — token acquired first-hand from MSAL over TLS; display-only claims; flagged for JWKS hardening.
+- `workflow_security.py` docstring still says `_execute_mcp_action` "stays ungated" — now sandbox-gated at sink (RBAC still route-level); update docstring.
