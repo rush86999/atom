@@ -125,7 +125,10 @@ def test_file_ingest_path_stamps_source_type_and_doc_id():
     source_type:'file' lets the hybrid service flag them as bridged:false.
     """
     import re
-    src = open("core/auto_document_ingestion.py").read()
+    from pathlib import Path
+
+    src_path = Path(__file__).resolve().parents[2] / "core" / "auto_document_ingestion.py"
+    src = src_path.read_text()
     # The file-ingest add_document call: source=f"{source}:{file_name}", no external_id.
     file_block = re.search(
         r'success = self\.memory_handler\.add_document\(\s*'

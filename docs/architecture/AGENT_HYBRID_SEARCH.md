@@ -8,7 +8,7 @@
 >
 > **Last Updated:** Aug 8, 2026
 > **Related code:** `core/hybrid_search/` (package), `core/action_registry.py`
-> **Cross-references:** [`KNOWLEDGE_VFS.md`](./STANFORD_VIRTUAL_BIOTECH_PAPERCLIP.md)
+> **Cross-references:** [`KNOWLEDGE_VFS.md`](./KNOWLEDGE_VFS.md)
 
 ---
 
@@ -109,5 +109,6 @@ Each is a new `*SearchLeg` class registered into the same RRF service:
 
 - `test_hybrid_join_key.py` (3) — join-key bridge across all 3 ingest paths.
 - `test_lexical_ranker.py` (8) — FTS5 BM25 ranking + ILIKE fallback.
-- `test_documents_hybrid_search.py` (5) — RRF fusion, degradation ladder, unbridged counting.
+- `test_documents_hybrid.py` (7) — RRF fusion, degradation ladder, unbridged counting.
+- `test_hybrid_backfill_matcher.py` (4) — backfill join-key matcher legs.
 - `test_documents_search_wired.py` (3) — action wiring, label, flag-off parity.

@@ -94,7 +94,8 @@ async def ingest_document(
             source=f"api:{doc_id}",
             metadata=metadata,
             user_id=str(current_user.id) if current_user else "default_user",
-            extract_knowledge=True 
+            extract_knowledge=True,
+            doc_id=doc_id
         )
 
         if not success:

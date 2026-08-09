@@ -9,6 +9,28 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
+@pytest.fixture
+def hermetic_db(monkeypatch):
+    """In-memory engine from the current model — immune to dev-DB schema drift."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+
+    from core.models import Base
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    import core.database
+
+    monkeypatch.setattr(core.database, "get_db_session", lambda: Session())
+    return Session, engine
+
+
 @pytest.mark.asyncio
 async def test_search_returns_hybrid_label_when_service_fires(monkeypatch):
     """Flag ON + service returns results → label is bm25_vector_rrf (not lexical_ranked)."""
@@ -35,7 +57,7 @@ async def test_search_returns_hybrid_label_when_service_fires(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_search_flag_off_is_legacy_parity(monkeypatch):
+async def test_search_flag_off_is_legacy_parity(monkeypatch, hermetic_db):
     """Flag OFF → exact legacy contract: no 'hybrid' key."""
     monkeypatch.setenv("ATOM_KNOWLEDGE_VFS_ENABLED", "false")
     from core.action_registry import action_registry

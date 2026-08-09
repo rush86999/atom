@@ -204,6 +204,7 @@ ActionJudge stays opt-in (`ATOM_SANDBOX_JUDGE_ENABLED`). Flags live in
 | Variable | Default | Required? | Description |
 |----------|---------|-----------|-------------|
 | `ATOM_KNOWLEDGE_VFS_ENABLED` | `true` | — | Agent-native knowledge VFS: `documents.ls`/`cat`/`grep` with line-numbered content (W1). `false` = legacy ILIKE-only `documents.search`. |
+| `ATOM_HYBRID_VECTOR_LEG_ENABLED` | `true` | — | Documents hybrid search (`documents.search`): enable the LanceDB vector leg (1536-dim). `false` = BM25/ILIKE lexical-only hybrid (`lexical_only` label). |
 | `ATOM_ORACLE_VERIFIER_ENABLED` | `true` | — | Postcondition oracle: independently re-derives success against the system of record (W2). The oracle audits alongside self-report; set the force-enforce companion to override. |
 | `ATOM_OBJECTIVE_LOOP_ENABLED` | `true` | — | Goal-driven ReAct loop: terminate early when an Objective's `definition_of_done` is satisfied (W5). `false` = `max_steps` bound only (also disables the utility-delta injection and the stuck-detector — P5b/P5c). |
 | `ATOM_REVIEWER_LOOP_ENABLED` | `false` | — | Reviewer re-delegation loop (W3/P4c): a REVIEW rejection re-delegates the step to the originating specialist with feedback (parking the workflow RUNNING→WAITING) instead of folding into the voting fallback. |

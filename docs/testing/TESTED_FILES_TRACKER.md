@@ -1219,3 +1219,27 @@ Regression: `npx jest pages/__tests__ --ci --watchAll=false --maxWorkers=2` → 
 - mypy (follow-imports=skip): generic_agent 15, conductor_agent 9, dispatcher 1 — IDENTICAL to HEAD counts; reviewer_loop.py 0 errors. ZERO new.
 - P3/P4a/P4b/P5a + H6/H8/H9 were committed by the concurrent session (`3c1024b17` P3, `a000284c0` P4, `7955016f1` cross-cutting, `00b9f3c07` P5a, `aa9c999eb` flag flips — oracle/VFS/objective now default ON).
 - Pre-existing failures unchanged (browser_tool_integration 2, final_audit_fixes 3, fleet coverage 2, canvas_summary_coverage 46+1 — all verified on HEAD via worktree).
+
+## Session 2026-08-08 — Agent Hybrid Search (documents leg: BM25 FTS5/tsvector + LanceDB vector, RRF)
+
+### Implemented (Steps 1–5, TDD)
+- Join-key bridge: `core/auto_document_ingestion.py` `sync_integration` generates PG id before LanceDB write (passes `doc_id=`), stamps `metadata.pg_document_id` + `source_type:"ingested"`; `api/document_routes.py` `ingest_document` passes `doc_id=`; file-ingest `process_file_bytes` stamps `file_<ts>` id + `source_type:"file"` (no PG row → `bridged:false`).
+- Lexical leg: `alembic/versions/20260808_add_documents_fts.py` (FTS5 external-content + ai/ad/au triggers SQLite; tsvector+GIN PG; down_revision `0e360bb1a3d3_agent_message_from_user`); `core/hybrid_search/lexical_ranker.py` (`search_documents_lexical`: sqlite `bm25()`, pg `ts_rank_cd`, ILIKE fallback; position-normalized scores `1/(60+pos)`; `lexical_mode` tags).
+- Fusion: `core/hybrid_search/documents_hybrid.py` — `DocumentsHybridSearch.search()`: lexical + vector legs via `to_thread` (`embed_text` no-ops on event-loop thread), RRF k=60, PG hydration via `IngestedDocument` lookup, unbridged vector hits dropped + `stats["unbridged_hits"]`; kill switch `ATOM_HYBRID_VECTOR_LEG_ENABLED` (default true).
+- Wiring: `core/action_registry.py` `documents.search` delegates to `DocumentsHybridSearch` (envelope preserved, `hybrid` label); legacy ILIKE body moved to `_documents_search_legacy` (flag-off parity `ATOM_KNOWLEDGE_VFS_ENABLED=false`).
+- Backfill: `scripts/backfill_lancedb_join_keys.py` + `core/hybrid_search/backfill_matcher.py` (leg 1 external_id exact join; leg 2 file_name+integration_id earliest-wins; stamps metadata only, never rewrites LanceDB id).
+- Doc: `docs/architecture/AGENT_HYBRID_SEARCH.md`, `docs/reference/ENVIRONMENT_VARIABLES.md` (`ATOM_HYBRID_VECTOR_LEG_ENABLED` row).
+
+### Test suites (GREEN at stamp time)
+| Date | Test file(s) | Count |
+|---|---|---|
+| 2026-08-08 | `tests/core/test_hybrid_join_key.py` | 3 passed |
+| 2026-08-08 | `tests/core/test_lexical_ranker.py` | 8 passed |
+| 2026-08-08 | `tests/core/test_documents_hybrid.py` | 7 passed |
+| 2026-08-08 | `tests/core/test_hybrid_backfill_matcher.py` | 4 passed |
+| 2026-08-08 | `tests/core/test_knowledge_vfs.py` + `tests/core/test_documents_search_wired.py` | 18 + 3 passed |
+| 2026-08-08 | full feature sweep | 43 passed (5 suites above) |
+
+### Regression / notes
+- mypy (`--explicit-package-bases`): `core/hybrid_search/` 0 errors (fixes: `db.bind` None guards, fallback loop var rename, `bind` reuse in `_fts_table_exists`); `core/auto_document_ingestion.py` :106/:108 `DoclingDocumentProcessor` errors pre-existing on HEAD (verified via stash) — not introduced.
+- Tests use hermetic StaticPool in-memory engines; vector leg disabled via monkeypatch in fixtures (dev DB is schema-drifted from concurrent sessions' unapplied migrations: `source_url`/`thread_id`/`division_id` missing).
