@@ -13,6 +13,16 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+# HTTP/2 is optional: requirements ship plain `httpx` (no `[http2]` extra), so
+# `http2=True` would crash every client creation with ImportError in a fresh
+# env. Enable it only when the `h2` package is actually installed.
+try:
+    import h2  # noqa: F401
+    HTTP2_ENABLED = True
+except ImportError:
+    HTTP2_ENABLED = False
+    logger.debug("h2 not installed — HTTP/2 disabled")
+
 # Default configuration
 DEFAULT_TIMEOUT = float(os.getenv("HTTP_TIMEOUT", "30.0"))
 DEFAULT_LIMITS = httpx.Limits(
@@ -50,7 +60,7 @@ def get_async_client() -> httpx.AsyncClient:
         _async_client = httpx.AsyncClient(
             timeout=timeout,
             limits=DEFAULT_LIMITS,
-            http2=True,  # Enable HTTP/2 support
+            http2=HTTP2_ENABLED,  # HTTP/2 when h2 package is installed
             verify=True  # Verify SSL certificates
         )
         logger.debug("Created shared async HTTP client")
@@ -82,7 +92,7 @@ def get_sync_client() -> httpx.Client:
         _sync_client = httpx.Client(
             timeout=timeout,
             limits=DEFAULT_LIMITS,
-            http2=True,  # Enable HTTP/2 support
+            http2=HTTP2_ENABLED,  # HTTP/2 when h2 package is installed
             verify=True  # Verify SSL certificates
         )
         logger.debug("Created shared sync HTTP client")
