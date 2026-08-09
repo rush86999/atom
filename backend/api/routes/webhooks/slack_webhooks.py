@@ -84,8 +84,13 @@ async def slack_webhook(
     dedup_key = f"slack_event:{tenant_id}:{event_id}" if event_id else None
     if dedup_key:
         try:
-            from core.cache import get_cache_service
-            cache = get_cache_service()
+            # BUG (this wave): `from core.cache import get_cache_service`
+            # imported a name that does not exist in core.cache → ImportError
+            # was swallowed by the except → dedup was ALWAYS disabled and
+            # every Slack retry was processed as a new event. Use the real
+            # UniversalCacheService singleton (get_async/set_async contract).
+            from core.cache import UniversalCacheService
+            cache = UniversalCacheService()
             if cache and await cache.get_async(dedup_key):
                 logger.info(f"Duplicate Slack event {event_id} for tenant {tenant_id} — skipping")
                 return {"status": "duplicate", "event_id": event_id}

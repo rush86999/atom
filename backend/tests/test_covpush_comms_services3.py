@@ -14,6 +14,7 @@ del _sys, _MagicMock, _name
 import asyncio
 import importlib
 import json
+import jwt
 import sqlite3
 import subprocess
 import sys
@@ -140,14 +141,32 @@ class TestTeamsServiceBasics:
 
     def test_msal_available(self):
         mod = _teams_module()
+        # Token must be a REAL RS256 token: exchange_code_for_tokens now
+        # verifies the signature against the tenant JWKS (forged/alg:none
+        # tokens are rejected).
         import base64
+        import time as _time
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        pub = key.public_key()
+        nums = pub.public_numbers()
+
         def _b64(data: bytes) -> str:
             return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
-        header = _b64(json.dumps({"alg": "none"}).encode())
-        payload = _b64(json.dumps({
-            "tid": "ten1", "name": "Team", "upn": "u@x.com", "oid": "o1",
-        }).encode())
-        token = f"{header}.{payload}.{_b64(b'x')}"
+
+        def _b64int(n: int) -> str:
+            return _b64(n.to_bytes((n.bit_length() + 7) // 8, "big"))
+
+        jwk = {
+            "kty": "RSA", "kid": "test-kid-1", "use": "sig", "alg": "RS256",
+            "n": _b64int(nums.n), "e": _b64int(nums.e),
+        }
+        now = int(_time.time())
+        token = jwt.encode(
+            {"tid": "ten1", "name": "Team", "upn": "u@x.com", "oid": "o1",
+             "exp": now + 3600, "iat": now},
+            key, algorithm="RS256", headers={"kid": "test-kid-1"},
+        )
         msal_app = MagicMock()
         msal_app.get_authorization_request_url.return_value = "https://login/oauth"
         msal_app.acquire_token_by_authorization_code.return_value = {"access_token": token, "refresh_token": "r"}
@@ -155,7 +174,8 @@ class TestTeamsServiceBasics:
         svc.msal_app = msal_app
         url = svc.generate_oauth_url("st", "u1", scopes=["a"])
         assert url == "https://login/oauth"
-        with patch.object(svc, "_save_workspace", return_value=True):
+        with patch.object(svc, "_save_workspace", return_value=True), \
+             patch.object(svc, "_get_jwks_keys", return_value=[jwk]):
             result = asyncio.run(svc.exchange_code_for_tokens("c", "s"))
         assert result["ok"] is True
         assert result["workspace"]["team_id"] == "ten1"

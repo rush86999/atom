@@ -19,6 +19,8 @@ Key features:
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
+import hmac
+import os
 
 from api.routes.webhooks.base import verify_hmac_signature
 from core.database import get_db
@@ -422,11 +424,21 @@ async def gmail_webhook_handler(request: Request, db: Session = Depends(get_db))
     """
     Handle Gmail push notification webhook and trigger ingestion.
 
-    Gmail uses Google's Pub/Sub authentication instead of HMAC.
-    Extracts tenant_id from email_address and enqueues ingestion job.
-
-    Returns 200 OK immediately to avoid Google retry issues.
+    Gmail uses Google's Pub/Sub authentication instead of HMAC: push
+    subscriptions are registered with a `token` query parameter that the
+    endpoint must verify (Google's documented pattern). Round 45/69 pattern:
+    fail CLOSED — when GMAIL_WEBHOOK_VERIFY_TOKEN is unset or the supplied
+    token mismatches, reject instead of processing forged notifications.
     """
+    expected_token = os.getenv("GMAIL_WEBHOOK_VERIFY_TOKEN", "")
+    if not expected_token:
+        logger.error("Gmail webhook received but GMAIL_WEBHOOK_VERIFY_TOKEN not set — rejecting")
+        raise HTTPException(status_code=503, detail="Webhook verification not configured")
+    supplied_token = request.query_params.get("token", "")
+    if not supplied_token or not hmac.compare_digest(expected_token, supplied_token):
+        logger.error("Gmail webhook received with invalid verification token — rejecting")
+        raise HTTPException(status_code=401, detail="Invalid webhook verification token")
+
     try:
         pass
         # Gmail push notification payload

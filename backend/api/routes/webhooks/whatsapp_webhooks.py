@@ -20,9 +20,9 @@ router = APIRouter(prefix="/whatsapp", tags=["WhatsApp Webhooks"])
 
 @router.get("")
 async def whatsapp_verification(
-    hub_mode: str = Query(...),
-    hub_challenge: str = Query(...),
-    hub_verify_token: str = Query(...),
+    hub_mode: str = Query(..., alias="hub.mode"),
+    hub_challenge: str = Query(..., alias="hub.challenge"),
+    hub_verify_token: str = Query(..., alias="hub.verify_token"),
 ):
     """
     WhatsApp Webhook Verification (System Requirement).
@@ -64,7 +64,10 @@ async def whatsapp_webhook(
     if not hmac.compare_digest(expected, x_hub_signature_256):
         raise HTTPException(status_code=401, detail="Invalid signature")
 
-    data = request.json()
+    # BUG (this wave): `request.json()` is an async coroutine in Starlette —
+    # the un-awaited call returned a coroutine, so EVERY signature-valid
+    # payload crashed with "'coroutine' object has no attribute 'get'".
+    data = await request.json()
 
     entries = data.get("entry", [])
     if not entries:

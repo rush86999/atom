@@ -15,6 +15,7 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -292,15 +293,36 @@ class TestSalesforceWebhook:
 
 
 class TestGmailWebhook:
-    def test_missing_email_address_400(self, db):
-        with _discovery():
+    # Gmail Pub/Sub push webhooks require the GMAIL_WEBHOOK_VERIFY_TOKEN
+    # query param (fail-closed gate added in the 2026-08-09 bug-hunt).
+    _TOKEN = "gmail-verify-tok"
+
+    def _url(self):
+        return f"/webhooks/gmail/events?token={self._TOKEN}"
+
+    def test_unconfigured_secret_fails_closed(self, db):
+        with _discovery(), _queue():
             resp = make_client(db).post("/webhooks/gmail/events", json={"historyId": "h1"})
+        assert resp.status_code == 503
+
+    def test_wrong_token_rejected(self, db):
+        with _discovery(), _queue(), patch.dict(
+            os.environ, {"GMAIL_WEBHOOK_VERIFY_TOKEN": self._TOKEN}
+        ):
+            resp = make_client(db).post(
+                "/webhooks/gmail/events?token=attacker-tok", json={"historyId": "h1"}
+            )
+        assert resp.status_code == 401
+
+    def test_missing_email_address_400(self, db):
+        with _discovery(), patch.dict(os.environ, {"GMAIL_WEBHOOK_VERIFY_TOKEN": self._TOKEN}):
+            resp = make_client(db).post(self._url(), json={"historyId": "h1"})
         assert resp.status_code == 400
 
     def test_tenant_not_found_ignored(self, db):
-        with _discovery(None):
+        with _discovery(None), patch.dict(os.environ, {"GMAIL_WEBHOOK_VERIFY_TOKEN": self._TOKEN}):
             resp = make_client(db).post(
-                "/webhooks/gmail/events", json={"historyId": "h1", "emailAddress": "a@b.c"}
+                self._url(), json={"historyId": "h1", "emailAddress": "a@b.c"}
             )
         assert resp.status_code == 200
         assert resp.json()["status"] == "ignored"
@@ -309,9 +331,11 @@ class TestGmailWebhook:
         conn = MagicMock()
         conn.id = "conn-1"
         db.query.return_value.filter.return_value.first.return_value = conn
-        with _discovery(), _queue() as queue:
+        with _discovery(), _queue() as queue, patch.dict(
+            os.environ, {"GMAIL_WEBHOOK_VERIFY_TOKEN": self._TOKEN}
+        ):
             resp = make_client(db).post(
-                "/webhooks/gmail/events", json={"historyId": "h1", "emailAddress": "a@b.c"}
+                self._url(), json={"historyId": "h1", "emailAddress": "a@b.c"}
             )
         assert resp.status_code == 200
         assert resp.json()["job_id"] == "job-1"
@@ -323,9 +347,11 @@ class TestGmailWebhook:
         db.query.return_value.filter.return_value.first.return_value = conn
         inner = json.dumps({"historyId": "h9", "emailAddress": "a@b.c"}).encode()
         b64 = base64.b64encode(inner).decode()
-        with _discovery(), _queue() as queue:
+        with _discovery(), _queue() as queue, patch.dict(
+            os.environ, {"GMAIL_WEBHOOK_VERIFY_TOKEN": self._TOKEN}
+        ):
             resp = make_client(db).post(
-                "/webhooks/gmail/events",
+                self._url(),
                 json={"message": {"data": b64, "messageId": "m1"}},
             )
         assert resp.status_code == 200
@@ -338,17 +364,21 @@ class TestGmailWebhook:
         db.query.return_value.filter.return_value.first.return_value = conn
         inner = json.dumps({"historyId": "h9", "emailAddress": "a@b.c"}).encode()
         b64 = base64.b64encode(inner).decode().rstrip("=")
-        with _discovery(), _queue():
+        with _discovery(), _queue(), patch.dict(
+            os.environ, {"GMAIL_WEBHOOK_VERIFY_TOKEN": self._TOKEN}
+        ):
             resp = make_client(db).post(
-                "/webhooks/gmail/events",
+                self._url(),
                 json={"message": {"data": b64, "messageId": "m1"}},
             )
         assert resp.status_code == 200
 
     def test_pubsub_invalid_base64_falls_through(self, db):
-        with _discovery(None):
+        with _discovery(None), patch.dict(
+            os.environ, {"GMAIL_WEBHOOK_VERIFY_TOKEN": self._TOKEN}
+        ):
             resp = make_client(db).post(
-                "/webhooks/gmail/events",
+                self._url(),
                 json={"message": {"data": "!!!not-base64!!!"}},
             )
         assert resp.status_code == 400

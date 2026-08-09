@@ -62,6 +62,7 @@ import {
   Activity,
   History, // [Lesson 3]
   GitBranch, // [Lesson 3]
+  Sparkles,
 } from "lucide-react";
 
 interface WorkflowTemplate {
@@ -620,25 +621,6 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
     }
   };
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "default"; // Green-ish usually or customize
-      case "running":
-        return "secondary";
-      case "failed":
-        return "destructive";
-      case "cancelled":
-        return "outline";
-      case "pending":
-        return "secondary";
-      case "paused":
-        return "outline"; // Distinction
-      default:
-        return "outline";
-    }
-  };
-
   const renderInputField = (field: string, schema: any) => {
     const fieldSchema = schema.properties[field];
     const isRequired = schema.required?.includes(field);
@@ -851,7 +833,23 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
         />
       ) : (
         /* Main Content */
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <>
+          <form
+            onSubmit={handleGenerativeCreate}
+            className="mb-6 flex items-center space-x-2"
+          >
+            <Input
+              value={genPrompt}
+              onChange={(e) => setGenPrompt(e.target.value)}
+              placeholder="Describe a workflow to generate with AI (e.g. send a daily digest)"
+              aria-label="AI workflow prompt"
+            />
+            <Button type="submit" disabled={loading || executing}>
+              <Sparkles className="w-4 h-4 mr-2" />
+              Generate with AI
+            </Button>
+          </form>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="workflows">My Workflows</TabsTrigger>
@@ -1134,6 +1132,7 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
             </div>
           </TabsContent >
         </Tabs >
+        </>
       )}
 
       {/* Template Execution Modal */}

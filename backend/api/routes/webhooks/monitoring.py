@@ -45,6 +45,10 @@ class HealthSummaryResponse(BaseModel):
     subscriptions_tracked: int
     rate_limits_tracked: int
     circuit_states: dict[str, str]
+    # The route computes these — the model must expose them or FastAPI's
+    # response filtering silently strips the data (dead computation).
+    rate_limits: dict[str, Any] = {}
+    subscriptions: list[Any] = []
 
 
 class SubscriptionStatusResponse(BaseModel):
@@ -245,7 +249,7 @@ async def get_rate_limit_status_endpoint(
 
 
 @router.get("/metrics")
-async def get_webhook_metrics() -> dict[str, str]:
+async def webhook_metrics_export() -> dict[str, str]:
     """
     Export webhook metrics in Prometheus format.
 

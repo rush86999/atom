@@ -233,7 +233,9 @@ class TestMonitoring:
         log = mod.get_logger("covpush_test")
         assert log is not None
         mod.add_log_level(MagicMock(name="x"), "info", {})["level"] == "INFO"
-        event = mod.add_logger_name(MagicMock(name="mylogger"), "info", {})
+        import logging as _logging
+
+        event = mod.add_logger_name(_logging.getLogger("mylogger"), "info", {})
         assert event["logger"] == "mylogger"
 
     def test_request_context(self, _fake_prom):
@@ -383,7 +385,7 @@ class TestSandboxAudit:
         decision = SandboxDecision(
             decision="allowed", phase="A", tool_name="x",
             violation_type=None, violation_detail="", policy_id=None,
-            run_id=None, args_hash=None, enforced=False, killrun_triggered=False,
+            args_hash=None, enforced=False, killrun_triggered=False,
         )
         with patch("core.sandbox_config.is_sandbox_enabled", return_value=True):
             with patch("core.database.SessionLocal") as sl:

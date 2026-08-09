@@ -5,8 +5,12 @@ Provides unified OAuth callback endpoints for all third-party integrations.
 Handles OAuth flows for Google, LinkedIn, Microsoft, Salesforce, Slack, GitHub, Asana, Notion, Trello, and Dropbox.
 """
 
+import hashlib
+import hmac
 import logging
 import os
+import secrets
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
@@ -41,10 +45,63 @@ logger = logging.getLogger(__name__)
 # Rate limit OAuth callbacks to prevent code brute-force / DoS
 _oauth_limiter = AuthRateLimiter(limit=20, window_seconds=60)
 
+
+def _state_hmac_key() -> bytes:
+    """HMAC key for signing OAuth state tokens (stable within a process)."""
+    raw = os.getenv("SECRET_KEY") or "atom-oauth-state-fallback"
+    return hashlib.sha256(raw.encode()).digest()
+
+
+def _build_state(provider: str, user_id: str) -> str:
+    """Build a signed, unforgeable, per-user OAuth ``state`` token.
+
+    Format: ``oauth_v1:{provider}:{user_id}:{nonce}:{exp}:{sig}``. The HMAC
+    signature binds the state to the provider AND the initiating user, and the
+    nonce makes each value unique. Replaces the old static, predictable state
+    (``{provider}_oauth``) which let an attacker who completed their own flow
+    forge the callback state and bind THEIR provider tokens to a victim's
+    account (OAuth CSRF / token-binding attack).
+    """
+    payload = f"oauth_v1:{provider}:{user_id}"
+    nonce = secrets.token_urlsafe(16)
+    exp = str(int(time.time()) + 600)  # 10-minute validity
+    sig = hmac.new(
+        _state_hmac_key(), f"{payload}:{nonce}:{exp}".encode(), hashlib.sha256
+    ).hexdigest()
+    return f"{payload}:{nonce}:{exp}:{sig}"
+
+
+def _validate_state(state: Optional[str], provider: str, user_id: str) -> bool:
+    """Validate a callback ``state``: signature, provider, user binding, expiry."""
+    if not state:
+        return False
+    parts = state.split(":")
+    if len(parts) != 6 or parts[0] != "oauth_v1":
+        return False
+    payload_provider, state_user, nonce, exp, sig = parts[1], parts[2], parts[3], parts[4], parts[5]
+    if payload_provider != provider or state_user != user_id:
+        return False
+    try:
+        if int(exp) < int(time.time()):
+            return False
+    except ValueError:
+        return False
+    payload = f"oauth_v1:{payload_provider}:{state_user}"
+    expected = hmac.new(
+        _state_hmac_key(), f"{payload}:{nonce}:{exp}".encode(), hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(sig, expected)
+
+
 def oauth_rate_limit(request: Request) -> None:
-    """Rate limit OAuth callback attempts (20/min per IP)."""
-    client_ip = request.client.host if request.client else "unknown"
-    allowed, reason = _oauth_limiter.check(client_ip)
+    """Rate limit OAuth callback attempts (20/min per IP).
+
+    NOTE: ``AuthRateLimiter.check`` takes the FastAPI ``Request`` (it extracts
+    the TCP peer IP itself, honoring ``TRUST_X_FORWARDED_FOR``) — not an IP
+    string. Passing a bare string crashes with AttributeError, turning every
+    OAuth callback into a 500 and silently disabling the rate limit.
+    """
+    allowed, _remaining = _oauth_limiter.check(request)
     if not allowed:
         raise HTTPException(status_code=429, detail="Too many OAuth attempts. Try again later.")
 
@@ -160,7 +217,7 @@ async def oauth_initiate(
         raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
         
     handler = OAuthHandler(configs[provider])
-    auth_url = handler.get_authorization_url(state=f"{provider}_oauth")
+    auth_url = handler.get_authorization_url(state=_build_state(provider, current_user.id))
     return RedirectResponse(url=auth_url)
 
 @router.get("/{provider}/callback")
@@ -191,11 +248,12 @@ async def oauth_callback(
     if provider not in configs:
         raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
 
-    # Bug 3 fix: validate the state parameter against what we sent at initiation.
-    # The old code sent state=f"{provider}_oauth" but never checked it on
-    # callback — classic OAuth CSRF (attacker forges a callback to bind a
-    # victim's token to the attacker's account).
-    if not state or state != f"{provider}_oauth":
+    # Bug 3 fix: validate the state parameter against a signed, per-user token
+    # minted at /initiate. The old static state (f"{provider}_oauth") was
+    # forgeable — an attacker could complete their own flow and replay it on
+    # the victim's callback, binding their tokens to the victim's account
+    # (OAuth CSRF). Signature + provider + user binding + expiry are checked.
+    if not _validate_state(state, provider, current_user.id):
         raise HTTPException(status_code=400, detail="Invalid or missing OAuth state parameter")
 
     await _handle_callback_logic(provider, code, configs[provider], request, db)

@@ -223,11 +223,11 @@ class WorkflowStateMachine:
         WorkflowState.CREATED: {WorkflowState.VALIDATED, WorkflowState.CANCELLED},
         WorkflowState.VALIDATED: {WorkflowState.QUEUED, WorkflowState.CANCELLED},
         WorkflowState.QUEUED: {WorkflowState.RUNNING, WorkflowState.CANCELLED},
-        WorkflowState.RUNNING: {WorkflowState.PAUSED, WorkflowState.WAITING, WorkflowState.COMPLETED, WorkflowState.FAILED, WorkflowState.CANCELLED},
+        WorkflowState.RUNNING: {WorkflowState.PAUSED, WorkflowState.WAITING, WorkflowState.COMPLETED, WorkflowState.FAILED, WorkflowState.CANCELLED, WorkflowState.ROLLING_BACK},
         WorkflowState.PAUSED: {WorkflowState.RUNNING, WorkflowState.CANCELLED, WorkflowState.SUSPENDED},
         WorkflowState.WAITING: {WorkflowState.RUNNING, WorkflowState.FAILED, WorkflowState.CANCELLED},
         WorkflowState.COMPLETED: set(),  # Terminal state
-        WorkflowState.FAILED: {WorkflowState.QUEUED, WorkflowState.SUSPENDED, WorkflowState.ROLLED_BACK, WorkflowState.CANCELLED},
+        WorkflowState.FAILED: {WorkflowState.QUEUED, WorkflowState.SUSPENDED, WorkflowState.ROLLED_BACK, WorkflowState.CANCELLED, WorkflowState.ROLLING_BACK},
         WorkflowState.CANCELLED: set(),  # Terminal state
         WorkflowState.ROLLING_BACK: {WorkflowState.ROLLED_BACK, WorkflowState.FAILED},
         WorkflowState.ROLLED_BACK: set(),  # Terminal state

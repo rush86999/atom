@@ -237,7 +237,7 @@ class CanvasLogicService:
             # counters so the next run of the same canvas starts fresh.
             from core import sandbox_caps
             if policy is not None:
-                sandbox_caps.release_run(policy.run_id)
+                sandbox_caps.release_run(getattr(policy, "run_id", None))
         return {
             "success": getattr(result, "success", True),
             "stdout": getattr(result, "stdout", "") or "",

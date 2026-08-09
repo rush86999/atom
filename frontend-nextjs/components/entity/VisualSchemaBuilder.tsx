@@ -222,7 +222,15 @@ const VisualSchemaBuilder: React.FC<VisualSchemaBuilderProps> = ({
 
   useEffect(() => {
     try {
-      if (schema && typeof schema === 'object') {
+      // Guard: a truthy-but-non-object `properties` (e.g. a string from a bad
+      // API payload) would make schemaToFields iterate string chars and
+      // fabricate junk fields (field "0", "1", ...). Only parse real objects.
+      if (
+        schema &&
+        typeof schema === 'object' &&
+        schema.properties &&
+        typeof schema.properties === 'object'
+      ) {
         const extractedFields = schemaToFields(schema);
         setFields(extractedFields);
       }

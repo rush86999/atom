@@ -540,7 +540,7 @@ class TeamsEnhancedService(IntegrationService):
             logger.error(f"MS access token verification failed: {e}")
             raise ValueError("MS access token signature or expiry verification failed")
 
-    async def generate_oauth_url(self, state: str, user_id: str, scopes: List[str] = None) -> str:
+    def generate_oauth_url(self, state: str, user_id: str, scopes: List[str] = None) -> str:
         """Generate OAuth authorization URL"""
         try:
             if self.msal_app is None:

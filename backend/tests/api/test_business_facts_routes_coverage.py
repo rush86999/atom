@@ -582,10 +582,16 @@ class TestBusinessFactsRoutesCoverage:
 
     def test_verify_citation_local_exists(self, test_client, admin_headers, mock_fact):
         """Cover citation verification for local sources (lines 380-387)."""
+<<<<<<< Updated upstream
         # The route probes /app/uploads, /tmp and the CWD — the citation file
         # must live directly in one of those paths (gettempdir() on macOS
         # resolves to /var/folders/..., which the route never checks).
         temp_file = "/tmp/test-policy.pdf"
+=======
+        # The route probes /app/uploads, /tmp and the CWD for the citation
+        # filename — the file must live directly in one of those paths.
+        temp_file = os.path.join(tempfile.gettempdir(), "test-policy.pdf")
+>>>>>>> Stashed changes
         with open(temp_file, 'w') as f:
             f.write("test content")
 

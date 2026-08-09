@@ -48,8 +48,27 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId, initialAgent
         if (!lastMessage) return;
 
         if (lastMessage.type === "agent_step_update") {
-            // Handle various payload shapes (flat or nested in data)
-            const newStep = lastMessage.step || lastMessage.data?.step || lastMessage.data;
+            // Handle various payload shapes (flat or nested in data):
+            //   {step: {...}}                     — flat step object
+            //   {data: {step: {...}}}             — step object nested in data
+            //   {data: {step: 1, thought: "..."}} — data IS the step object
+            // A bare number was previously accepted (`lastMessage.data?.step`)
+            // and pushed into steps, rendering "Step undefined" badges.
+            let newStep: any = null;
+            if (lastMessage.step && typeof lastMessage.step === "object") {
+                newStep = lastMessage.step;
+            } else if (
+                lastMessage.data?.step &&
+                typeof lastMessage.data.step === "object"
+            ) {
+                newStep = lastMessage.data.step;
+            } else if (
+                lastMessage.data &&
+                typeof lastMessage.data === "object" &&
+                typeof lastMessage.data.step === "number"
+            ) {
+                newStep = lastMessage.data;
+            }
             if (newStep) {
                 setSteps(prev => {
                     // If step is 1, this is a NEW agent run - clear previous steps

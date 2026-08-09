@@ -306,6 +306,19 @@ class EventBus:
         fingerprint = event.get_fingerprint()
         if fingerprint in self._event_fingerprints:
             logger.debug(f"Duplicate event detected: {event_id}")
+            # Return the id of the ALREADY-STORED event, not the fresh random
+            # id we just generated — the caller must be able to look the event
+            # up in self._events (a phantom id KeyErrors on access).
+            for existing in self._events.values():
+                if existing.get_fingerprint() == fingerprint:
+                    return existing.event_id
+            # Fingerprint known but the stored event is gone (buffer evicted):
+            # store the new event so the returned id is resolvable. The
+            # dedup is moot — the original is no longer deliverable anyway.
+            self._events[event_id] = event
+            self._event_buffer.append(event)
+            self._delivery_queue.put(event)
+            event.published_at = datetime.now()
             return event_id
 
         # Store event
@@ -463,11 +476,16 @@ class EventBus:
                 # those that already succeeded) on every retry cycle. Now
                 # only re-delivers to the failing subscriber by recording
                 # pending retries and filtering in the delivery loop.
+                # BUG (this wave): the pending set was keyed by SUBSCRIBER id
+                # while the delivery loop iterates SUBSCRIPTION ids — the
+                # filter `sub_id not in pending` was always True, so every
+                # redelivery skipped ALL subscribers and the retried event
+                # was silently dropped. Key by subscription id.
                 if event.failed_deliveries[subscription.subscriber_id] < self.config.max_retry_attempts:
-                    # Mark this subscriber as needing retry on the event
+                    # Mark this subscription as needing retry on the event
                     if not hasattr(event, '_pending_retries'):
                         event._pending_retries = set()
-                    event._pending_retries.add(subscription.subscriber_id)
+                    event._pending_retries.add(subscription.subscription_id)
                     self._delivery_queue.put(event)
 
     def get_events(

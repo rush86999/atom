@@ -419,6 +419,7 @@ const BoxIntegration: React.FC = () => {
     const [isFolderOpen, setIsFolderOpen] = useState(false);
     const [isShareOpen, setIsShareOpen] = useState(false);
     const [isCollaborationOpen, setIsCollaborationOpen] = useState(false);
+    const [shareItem, setShareItem] = useState<BoxFile | BoxFolder | null>(null);
 
     const { toast } = useToast();
 
@@ -1128,6 +1129,7 @@ const BoxIntegration: React.FC = () => {
                                                                         <DropdownMenuContent>
                                                                             <DropdownMenuItem
                                                                                 onClick={() => {
+                                                                                    setShareItem(folder);
                                                                                     setShareForm({
                                                                                         ...shareForm,
                                                                                         access:
@@ -1245,6 +1247,7 @@ const BoxIntegration: React.FC = () => {
                                                                                 </DropdownMenuItem>
                                                                                 <DropdownMenuItem
                                                                                     onClick={() => {
+                                                                                        setShareItem(file);
                                                                                         setShareForm({
                                                                                             ...shareForm,
                                                                                             access:
@@ -1683,9 +1686,12 @@ const BoxIntegration: React.FC = () => {
                                     <Button
                                         className="bg-[#0061D5] hover:bg-[#004bb3]"
                                         onClick={() => {
-                                            // This would be called with the current item
-                                            // For now, just close the modal
-                                            setIsShareOpen(false);
+                                            if (shareItem) {
+                                                createSharedLink(shareItem);
+                                            } else {
+                                                // No item was selected; nothing to share
+                                                setIsShareOpen(false);
+                                            }
                                         }}
                                     >
                                         Create Link

@@ -156,12 +156,13 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
         }
 
         // Initialize speech recognition
+        let recognitionInstance: any = null;
         if (typeof window !== "undefined") {
             const SpeechRecognition =
                 (window as any).SpeechRecognition ||
                 (window as any).webkitSpeechRecognition;
             if (SpeechRecognition) {
-                const recognitionInstance = new SpeechRecognition();
+                recognitionInstance = new SpeechRecognition();
                 recognitionInstance.continuous = true;
                 recognitionInstance.interimResults = true;
                 recognitionInstance.lang = "en-US";
@@ -224,8 +225,11 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({
         }
 
         return () => {
-            if (recognition) {
-                recognition.stop();
+            // BUG-FIX: stop the created instance, not the mount-time
+            // `recognition` state (always null at mount) — previously the
+            // recognition session leaked and kept "listening" after unmount.
+            if (recognitionInstance) {
+                recognitionInstance.stop();
             }
         };
     }, []);

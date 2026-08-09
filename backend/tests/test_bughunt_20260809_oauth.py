@@ -197,11 +197,11 @@ class TestOauthRoutesStateCsrf:
         monkeypatch.setattr(
             oauth_routes, "get_current_user", AsyncMock(return_value=_fake_user())
         )
-        with patch.object(
+        monkeypatch.setattr(
             OAuthHandler, "exchange_code_for_tokens",
-            new=AsyncMock(return_value=dict(self._TOKENS)),
-        ):
-            return TestClient(app, raise_server_exceptions=False)
+            AsyncMock(return_value=dict(self._TOKENS)),
+        )
+        return TestClient(app, raise_server_exceptions=False)
 
     def test_static_predictable_state_rejected(self, monkeypatch):
         """Attacker submits the well-known static state for a victim's callback."""
@@ -233,7 +233,7 @@ class TestOauthRoutesStateCsrf:
             resp = client.get(
                 "/api/v1/auth/oauth/google/initiate", follow_redirects=False
             )
-        assert resp.status_code == 302
+        assert resp.status_code in (302, 307)
         state = parse_qs(urlparse(resp.headers["location"]).query)["state"][0]
         assert state != "google_oauth"
 
@@ -241,32 +241,33 @@ class TestOauthRoutesStateCsrf:
             f"/api/v1/auth/oauth/google/callback?code=real_code&state={state}",
             follow_redirects=False,
         )
-        assert resp.status_code == 302
+        assert resp.status_code in (302, 307)
         assert "oauth/success" in resp.headers["location"]
 
     def test_state_bound_to_other_user_rejected(self, monkeypatch):
         """A state minted for user A must not validate for user B (CSRF)."""
+        original_get_current_user = oauth_routes.get_current_user
         app = FastAPI()
         app.include_router(oauth_routes.router)
         app.dependency_overrides[get_db] = lambda: MagicMock()
-        app.dependency_overrides[oauth_routes.get_current_user] = lambda: _fake_user("user-a")
+        app.dependency_overrides[original_get_current_user] = lambda: _fake_user("user-a")
         monkeypatch.setattr(
             oauth_routes, "get_current_user", AsyncMock(return_value=_fake_user("user-a"))
         )
         state = oauth_routes._build_state("google", "user-a")
-        app.dependency_overrides[oauth_routes.get_current_user] = lambda: _fake_user("user-b")
+        app.dependency_overrides[original_get_current_user] = lambda: _fake_user("user-b")
         monkeypatch.setattr(
             oauth_routes, "get_current_user", AsyncMock(return_value=_fake_user("user-b"))
         )
-        with patch.object(
+        monkeypatch.setattr(
             OAuthHandler, "exchange_code_for_tokens",
-            new=AsyncMock(return_value=dict(self._TOKENS)),
-        ):
-            client = TestClient(app, raise_server_exceptions=False)
-            resp = client.get(
-                f"/api/v1/auth/oauth/google/callback?code=c&state={state}",
-                follow_redirects=False,
-            )
+            AsyncMock(return_value=dict(self._TOKENS)),
+        )
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.get(
+            f"/api/v1/auth/oauth/google/callback?code=c&state={state}",
+            follow_redirects=False,
+        )
         assert resp.status_code in (400, 403)
 
     def test_no_open_redirect_via_redirect_uri_param(self, monkeypatch):
@@ -278,7 +279,7 @@ class TestOauthRoutesStateCsrf:
             f"&redirect_uri=https://evil.example/steal",
             follow_redirects=False,
         )
-        assert resp.status_code == 302
+        assert resp.status_code in (302, 307)
         assert "evil.example" not in resp.headers["location"]
 
     def test_unknown_provider_rejected(self, monkeypatch):

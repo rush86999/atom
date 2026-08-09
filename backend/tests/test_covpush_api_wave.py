@@ -1685,12 +1685,14 @@ class TestIngestionWebhooksCoverage:
 
     def test_gmail_handler_error(self):
         from api.routes.webhooks import ingestion_webhooks as iw
+        import os as _os
         db = self._pg_db()
         queue = MagicMock()
         queue.enqueue_ingestion_job = AsyncMock(side_effect=RuntimeError("boom"))
-        with self._discovery(), patch.object(iw, "webhook_queue", queue):
+        with self._discovery(), patch.object(iw, "webhook_queue", queue), \
+             patch.dict(_os.environ, {"GMAIL_WEBHOOK_VERIFY_TOKEN": "tok"}):
             resp = self._make_client(db).post(
-                "/webhooks/gmail/events",
+                "/webhooks/gmail/events?token=tok",
                 json={"emailAddress": "a@b.com", "historyId": "123"},
             )
         assert resp.status_code == 200

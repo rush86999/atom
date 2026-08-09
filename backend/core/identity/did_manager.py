@@ -375,7 +375,9 @@ class DIDManager:
             instance_id = self._extract_instance_id_from_did(did)
             if instance_id and instance_id in self._federation_registry:
                 result = self._resolve_via_federation(did, instance_id)
-                if result.did_document:
+                # Surface the federation outcome (document OR its error) —
+                # masking it as "DID not found" hid WHY resolution failed.
+                if result.did_document or result.resolution_metadata:
                     return result
 
         # Not found
@@ -465,7 +467,11 @@ class DIDManager:
     def _extract_instance_id_from_did(self, did: str) -> Optional[str]:
         """Extract instance ID from did:atom DID"""
         parts = did.split(":")
-        if len(parts) >= 4 and parts[1] == "atom":
+        # BUG (this wave): `len(parts) >= 4` misclassified instance-less DIDs
+        # ("did:atom:agent:agent-1") as carrying instance_id="agent" — a
+        # phantom instance that could never exist in the federation registry.
+        # An instance-scoped DID has 5 parts: did:atom:{instance}:{type}:{id}.
+        if len(parts) >= 5 and parts[1] == "atom":
             # did:atom:{instance_id}:{type}:{id}
             return parts[2]
         return None

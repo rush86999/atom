@@ -18,15 +18,19 @@ def verify_hmac_signature(data: bytes, signature: str, secret: str, algorithm=ha
     """Utility to verify HMAC signatures for incoming webhooks."""
     if not secret or not signature:
         return False
-        
-    digest = hmac.new(secret.encode('utf-8'), data, algorithm).digest()
-    
-    # BUG-087: The old heuristic (`len(signature) > 64` → base64) was inverted
-    # for Shopify: Shopify sends base64-encoded HMAC-SHA256 (44 chars), which
-    # the heuristic classified as hex → always mismatched → rejected every
-    # legitimate Shopify webhook. Now tries BOTH encodings and accepts if
-    # either matches.
+
+    # BUG (this wave): the digest computation sat OUTSIDE the try/except, so
+    # an invalid algorithm/secret raised straight through to the caller
+    # (500) instead of the documented False. The whole computation is now
+    # guarded — this function never raises.
     try:
+        digest = hmac.new(secret.encode('utf-8'), data, algorithm).digest()
+
+        # BUG-087: The old heuristic (`len(signature) > 64` → base64) was inverted
+        # for Shopify: Shopify sends base64-encoded HMAC-SHA256 (44 chars), which
+        # the heuristic classified as hex → always mismatched → rejected every
+        # legitimate Shopify webhook. Now tries BOTH encodings and accepts if
+        # either matches.
         hex_sig = hmac.new(secret.encode('utf-8'), data, algorithm).hexdigest()
         b64_sig = base64.b64encode(digest).decode('utf-8')
 
