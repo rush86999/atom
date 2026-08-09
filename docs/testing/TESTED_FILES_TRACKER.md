@@ -1718,3 +1718,41 @@ Dead-code/latent notes: `did_manager._resolve_web_did` invalid-format branch unr
 | 2026-08-09 | `tests/test_bughunt_intgr_d.py` (Agent D) | — | aligned `test_sync_orders_with_pipeline`: plain `MagicMock` pipeline can't be awaited after bug (4) fix → `AsyncMock` (1-line; repo R71 stale-suite precedent). Remaining 19 failures in that file are pre-existing & unrelated (abstract-class instantiation in their generic svc constructor ×8, TwilioService abstract ×2, auth-route env ×9) — tracebacks never touch these modules |
 
 Verified: `tests/unit/test_agent_integration_gateway.py` + `tests/core/integration/test_agent_integration_gateway_coverage.py` (64) green; no mypy regressions beyond pre-existing baseline.
+
+## Agent Google — coverage wave 9 (150 tests, 0 failures; 4 REAL bugs)
+| Date | Module | Before→After | Bugs fixed |
+|---|---|---|---|
+| 2026-08-09 | `integrations/google_calendar_service.py` | 15%→**98%** | (1) `check_conflicts` **all-day (date-only) events crashed the entire check** — `fromisoformat("2025-11-01")` yields naive dt vs aware query → TypeError → generic "Failed to check conflicts"; naive query times likewise; now `_parse_event_time` + query normalization default to aware UTC |
+| 2026-08-09 | `integrations/google_drive_service.py` | 33%→**100%** | (2) `execute_operation` error envelope **leaked `str(e)`** to clients (str(e)-leak standard) → generic message, detail logged |
+| 2026-08-09 | `integrations/gmail_routes.py` | 0%→**100%** | (3) **`create_gmail_draft`/`send_gmail_message` missing** — `core/communication_intelligence.py:175,200` imports them → ImportError → Gmail "suggested draft" + "auto-send" modes silently dead (caught+logged); now defined; (4) `/api/gmail/search` **unbounded `max_results`** (client-controlled list-comp memory DoS) → `Field(ge=1, le=100)` → 422 |
+| 2026-08-09 | `integrations/email_routes.py` | 0%→**100%** | — |
+
+Uncovered (accepted): `google_calendar_service.py:20-27` = import-failure dummy classes (needs sys.modules sabotage, would destabilize suite). Regression: `test_brennan_integration_fixes.py` + `test_covpush_universal.py` + `test_integration_implementations.py` (261) green; 11 other referencing files: 35 failures identical pre/post fix (pre-existing, auth-route/abstract-class env issues — tracebacks never touch these 4 modules); mypy errors 16→16 (baseline unchanged).
+
+### Wave 4 — 3 parallel agents (2026-08-09; code committed by concurrent session in R98 tree)
+**Agent L — coverage wave 9** (test_covpush_w9_{graphrag,radio,llm}.py; all green):
+| Date | Module | Before→After | Bugs fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/graphrag/multi_hop_expansion.py` | 44%→**99%** | (1) `max_total_nodes` was a SOFT cap — limit `break` only exited inner loop, outer hop loops kept expanding (cap=3 → 4 nodes); (2) `ExpansionPath.add_hop` ignored expander config, built fresh default config → wrong decay accumulation; (3) `_calculate_activation_score` Cue 4 read confidence from NEIGHBOR node while docstring promised edge properties — edge confidence never influenced scoring; (4) `max_depth_reached` off-by-one (last attempted hop vs deepest successful) |
+| 2026-08-09 | `core/graphrag/community_detection.py` | 36%→**99%** | — |
+| 2026-08-09 | `core/agent_radio/radio_config.py` + `radio_guard.py` | 81/95%→**100%** | — |
+| 2026-08-09 | `core/llm/routing/per_model_router.py` + `learning_router_registry.py` | 97%→**100%** | — (3 stale tests realigned to R97 `{tenant}:{task}` key contract — they encoded pre-R97 `:{intent}` and were guaranteed-miss) |
+
+**Agent M — coverage wave 9b** (test_covpush_w9b_*.py; all green):
+| Date | Module | Before→After | Bugs fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/office_sync_service.py` | 67%→**100%** | **Coroutine leak ×2**: `asyncio.create_task(coro)` raises RuntimeError AFTER constructing coroutine in sync callers → abandoned "never awaited" (memory-ingest + WS-broadcast); `coro.close()` on failure, sync fallback preserved |
+| 2026-08-09 | `core/workbook_runtime.py` | 62%→**100%** | `add_pivot_table` returned raw `str(e)` (internal frames reach agent); `_render_html_basic` leaked exception text into rendered HTML → generic + logged |
+| 2026-08-09 | `core/sandbox_policy.py` | 93%→**100%** | cyclic args raise RecursionError (not caught by except TypeError/ValueError) → escapes `check()`'s documented "Never raises" contract → dispatch crash |
+| 2026-08-09 | `core/mcp_client.py`, `core/action_registry.py` (52%→99%), `core/sandbox_config.py` (60%→100%), `api/admin/system_health_routes.py` (28%→100%), `api/admin/business_facts_routes.py` (34%→98%) | →100% | — (3 action_registry stale tests realigned to DocumentsHybridSearch) |
+| 2026-08-09 | `tests/api/test_business_facts_routes_coverage.py` | FIXED | **Committed unresolved merge conflict** (`<<<<<<< Updated upstream`) → SyntaxError at collection; resolved (route probes `/tmp`) |
+
+**Agent N — footguns + bypass sweep** (`tests/test_bughunt_20260809_footguns.py`, 21 tests):
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/orchestration/event_bus.py` | FIXED | `create_workflow_trigger` accepted `.get(`/attribute conditions that `safe_eval` silently rejected at EVERY delivery → trigger registered but NEVER FIRED (silent no-op); now AST validation raises ValueError at registration (subscript syntax still works + fires) |
+| 2026-08-09 | `core/jwt_verifier.py:186` | FIXED (SECURITY) | Debug-only unverified decode took CALLER-SUPPLIED `client_ip` — XFF-spoofable dependency surface; new `_client_ip_from_request()` (TCP peer; XFF last-entry only when TRUST_X_FORWARDED_FOR=1); prod env-block airtight |
+| 2026-08-09 | `middleware/security.py` | FIXED (SECURITY) | **`RateLimitMiddleware._get_client_ip` trusted X-Forwarded-For/X-Real-IP UNCONDITIONALLY** — R44 fixed auth_rate_limit but this registered middleware let rotating XFF bypass the 120 rpm limit + bucket-per-fake-IP; now TCP peer default, XFF gated on flag, x-real-ip trust removed |
+| 2026-08-09 | `core/sandbox_caps.py` | FIXED | Write tools missing from `_WRITE_TOOLS` (`browser_download_file`, `device_execute_command`, `create_folder`, …) = free pass past max_bytes_written; 0-estimate for giant payload under unmapped arg key = free pass; added 10 tool names + `_serialized_char_count` fail-closed fallback |
+
+Verified-clean (regression guards added): RPC action names (`..`/nested/unknown → 404, plain dict lookup); `record_ops` batch = N caps checks (5-appends envelope at max 3 yields 3 rows + 2 structured caps errors); mini-app instance-id traversal (DB-row resolution); series namespace allowlist + injective facade.
