@@ -1487,3 +1487,24 @@ Methodology: previous combined full-suite data + wave test files (1,081 tests, 0
 | 2026-08-09 | `frontend-nextjs/components/Automations/__tests__/test-custom-nodes.test.tsx` | TESTED | New: 61 tests, all 16 node types + variants, handles, ActionNode health/test-step/retry flows → `CustomNodes.tsx` 18.4% → 98.4% stmts (93.6% br, 96.3% fn, 100% lines) |
 | 2026-08-09 | `frontend-nextjs/components/canvas/__tests__/agent-operation-tracker.test.tsx` | TESTED | Extended (24 → 44 tests): WS message flows, status badges, logs expand, a11y attrs, update merge → `AgentOperationTracker.tsx` 37.5% → 95.2% stmts (83.6% br, 100% fn) |
 | 2026-08-09 | `frontend-nextjs/tests/pages/__tests__/login.test.tsx` | TESTED | New: 14 tests, login/register submit, callbackUrl + open-redirect guard, error flows → `pages/login.tsx` 44.4% → 100% stmts (97.2% br, 100% fn) |
+
+### Round 2026-08-09 — coverage wave 7 (11 modules -> 91-100%)
+| Date | Module | Status | Result |
+|---|---|---|---|
+| 2026-08-09 | atom_teams_integration | FIXED | 0% → **97%**: workspaceName attr crash (unified channels always []), 3 str(e) leaks, None-timestamp sort crash |
+| 2026-08-09 | google_chat_enhanced_service | FIXED | 44% → **100%**: redis datetime json TypeError (messages always []), 28-vs-26 SQL placeholders (DB saves always failed), 5 str(e) leaks, no-backend save crash |
+| 2026-08-09 | atom_whatsapp_integration | FIXED | 37.5% → **91%**: initialize fail-open (401 still initialized=True) -> fail-closed, 2 str(e) leaks |
+| 2026-08-09 | bitbucket_service / github_routes / outlook_calendar_service | FIXED | 0/0/2.9% → **90-100%** (webhook fail-closed patterns) |
+| 2026-08-09 | atom_quickbooks_integration_service | FIXED | 54.4% → **100%**: 503/429 swallowed by blanket except (dead error handling), stripe integration always None |
+| 2026-08-09 | asana_service | FIXED | 15.4% → **100%** (tests only — create_project fix from earlier wave verified) |
+| 2026-08-09 | hubspot_service | FIXED | 20.5% → **99%**: companies plural mangling -> dispatch unreachable, duplicate health_check |
+| 2026-08-09 | action_registry / lancedb_handler / generic_agent (tests-only) | TESTED | 41/63.2/54.5% → ~80/85/85%+ |
+
+## FINAL COVERAGE MEASUREMENT (2026-08-09 wave 7, 162,025 stmts)
+| Layer | Pre-campaign | wave 6 | **wave 7** |
+|---|---|---|---|
+| core | 31.3% | 52.8% | **53.3%** |
+| api | 36.5% | 61.8% | **61.5%** |
+| tools | 17.3% | 87.1% | **87.1%** |
+| integrations | ~0% | 55.0% | **60.4%** |
+| ALL | ~30% | 55.1% | **56.9%** |
