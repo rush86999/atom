@@ -1978,3 +1978,13 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 |---|---|---|---|
 | 2026-08-10 | `core/llm_credential_service.py` | ~35%→**87%** | full fallback chain (oauth→subscription→byok→env→ValueError), invalid-credential skip, tenant-vs-workspace BYOK, gemini GOOGLE_API_KEY env fallback, credential info/list/revoke/refresh, provider status + active_method |
 | 2026-08-10 | `core/llm/self_consistency_voter.py` | ~60%→**96%** | vote (all-fail/single/majority/distinct-fallback), kwargs shared across samples, `vote_with_consensus` (shape + all-fail), `_temperatures_for` re-centering, `is_irreversible` (prefix-only + metadata-field immunity — Bug #13), `diversity_overlays`, `_hash_sample` variants, `_level_from_agreement`, `VoteResult` helpers |
+
+## Session 2026-08-10 (wave 14) — cache preseed 84%, compression 84-97% (test-only)
+
+**Evidence**: `tests/test_covpush_llm_wave14.py` (26 new tests) — 515 passed / 0 failed across LLM+gateway suites. No source changes.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/byok_cache_preseeding.py` | ~30%→**84%** | preseed pricing (counts/providers/feature flags, failure), cognitive models (validation + missing, failure), governance (real agents, dummy fallback, stats, failure), cache-aware router (baseline history), preseed_all (shape + error collection), startup gate (enabled/disabled), print results |
+| 2026-08-10 | `core/llm/compression/__init__.py` | 81%→**97%** | metrics helpers, empty input, singleton, structured skip, engine-failure tolerance |
+| 2026-08-10 | `core/llm/compression/rtk_engine.py` | 72%→**84%** | short/empty passthrough, JSON skip, ANSI strip, repeated-line collapse, section cap, code-fence structured detection |
