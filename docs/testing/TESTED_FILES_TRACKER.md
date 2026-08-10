@@ -1834,3 +1834,33 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 | 2026-08-09 | `tests/test_embedding_providers.py` + `test_llm_registry_service.py` | TESTED | 6 pre-existing known-fails realigned: real SDK client attrs (`cohere.AsyncClient`/`voyageai.Client`/`nomic.Embedding`), `EmbeddingProviderError` contract, real `or_`/`contains` SQL coercion, mock-vector dim |
 
 **Coverage (wave 10b/10c targets)**: gateway pkg 70%→**94%** (548 stmts); agent_governance_service **98%**; governance_cache **94%**; fleet_scaler_service **47%** (scaling_proposal + wave-10c suites); registry/queries 0%→~90% (unit-tested via gateway suites).
+
+## Session 2026-08-09 — coverage wave 10d (never-covered api/ route cluster, 6 modules → 95-98%)
+
+**Evidence**: `tests/test_covpush_w10d_routes.py` (47) + `tests/test_covpush_w10d_routes_b.py` (53) — 100 tests, TDD red→green; combined regression 517 passed incl. prior wave files; mypy 44→44 (baseline unchanged on touched set); `import main_api_app` verified (198 routes).
+
+| Date | Module | Before→After | Bugs fixed |
+|---|---|---|---|
+| 2026-08-09 | `api/workflow_versioning_endpoints.py` | 0%→**98%** | (1) **Route shadowing ×2**: `GET /{workflow_id}/versions/compare` AND `/versions/latest` + `/versions/summary` all shadowed by parameterized `GET /{workflow_id}/versions/{version}` (registration order) — compare returned the "compare" version object; latest/summary never reachable; routes moved above the parameterized one |
+| 2026-08-09 | `api/meeting_routes.py` | 0%→**96%** | **Entire API 500'd**: `MeetingAttendanceStatus` was a stub model with NO task_id/platform/meeting_identifier/status_timestamp/current_status_message/final_notion_page_url/error_details columns (docstring: "stub for Phase 265") — every query/filter/construct AttributeError'd → all 5 endpoints dead; model extended to the API's documented contract |
+| 2026-08-09 | `api/memory_routes.py` | 0%→**97%** | **`str(e)` leak (info)**: `get_memory_stats` except-path returned `"error": str(e)` (internal paths/SQL in payload); generic message + server-side log |
+| 2026-08-09 | `api/reconciliation_routes.py` | 0%→**98%** | (1) `governance_denied_error(agent_id, action, reason)` called missing required `maturity_level`/`required_level` → TypeError → **403 became 500**; (2) `resolve_anomaly`'s `not_found_error` swallowed by bare except → **404 became 500**; `except HTTPException: raise` added |
+| 2026-08-09 | `api/health_monitoring_routes.py` | 0%→**97%** | (1) `not_found_error`/HTTPExceptions swallowed by bare except in ALL 5 handlers → **404s became 500**; `except HTTPException: raise`; (2) `external_data_health` `return router.internal_error(...)` **returned an HTTPException as a 200 body** (error masked as success) → `raise`; naive-vs-aware datetime subtraction TypeError (aware fetcher timestamps) → `datetime.now(timezone.utc)` |
+| 2026-08-09 | `api/project_health_routes.py` | 0%→**86%** | **Dead recommendation logic**: `generate_overall_recommendations` compared dict KEYS ("notion"/"github") against metric NAMES ("Task Management") → every recommendation branch dead code (only the generic "Project health is good!" ever emitted); now compares `metric.name`. Uncovered remainder: calculator status branches fed by fixed simulated data (accepted dead branches) |
+| 2026-08-09 | `api/document_routes.py` | FIXED | same `return router.internal_error(...)` 200-body bug (list_documents except-path) → `raise` |
+
+**Pattern added to the playbook**: `return router.internal_error(...)` / bare `except Exception` in route handlers silently converts documented 4xx into 500s or 200s — sweep flagged in hubspot (wave 5), reconciliation, health_monitoring, document_routes this wave. `except HTTPException: raise` is the canonical guard.
+
+## Session 2026-08-09 (late) — wave 11: LLM stack (4 modules 95-98%, byok_handler 29→37%, 5 real bugs)
+
+**Evidence**: `tests/test_covpush_llm_wave11.py` (75 new tests) + `tests/test_capability_routing.py` realigned (15) — 571 passed / 0 failed across routing+LLM+gateway suites; mypy A/B vs HEAD: 0 new (byok 76→75, cognitive_tier 4→4). Coverage: `cognitive_tier_system` 28%→**95%**, `intent_detector` 27%→**97%**, `escalation_manager` 31%→**96%**, `cache_aware_router` 38%→**98%**, `byok_handler` 29%→**37%** (+integration tests on `generate_response`/`generate_structured_response` real flows).
+
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/llm/byok_handler.py` `__init__` credential fetch | FIXED (HIGH) | `loop.run_until_complete(get_credential(...))` inside a RUNNING event loop (every FastAPI gateway route) raises "This event loop is already running" and ABANDONS the coroutine (RuntimeWarning: never awaited) → **OAuth/subscription credentials silently never resolved on the gateway surface** (BYOK/env only). New `_run_coroutine_sync` (dedicated daemon loop + `run_coroutine_threadsafe`) works from sync AND async callers |
+| 2026-08-09 | `core/llm/byok_handler.py` `generate_response` forced-tier path | FIXED (HIGH) | `cognitive_tier` override set `complexity = "complex"` (plain str) → success path's `complexity.value` AttributeError → **every x-atom-tier-forced request failed AFTER the model answered** (misreported as provider failure); now real `QueryComplexity.COMPLEX` enum |
+| 2026-08-09 | `core/llm/intent_detector.py` `_STICKY_BIAS` | FIXED | Bias 2 < activation threshold 3 → session stickiness could NEVER keep a fully-neutral turn's intent (docstring contract: "ambiguous current turn keeps the same routing intent" — impossible); raised to 3 (strong-anchor flip still works) |
+| 2026-08-09 | `core/llm/cognitive_tier_system.py` `classify` | FIXED | BUG-116 was incomplete: score cap only — a 3k-token "hello" prompt still routed HEAVY via the max_tokens bound; strong simple signals now also cap the token bound at VERSATILE's ceiling |
+| 2026-08-09 | `tests/test_capability_routing.py` (9 stale tests) | TESTED | Realigned to current contract: `get_pricing_fetcher_initialized_sync` (not `get_pricing_fetcher`), `get_db_session` patch must be a context manager, capability-index `.all()` path vs per-model `filter_by().first()`, plan-restriction gate (`is_managed_service=False` for capability tests), `_HEALTH_EXCLUDE_THRESHOLD` is 0.2 not 0.5, cache_router costs must be numeric, real `_refresh_excluded_cache` unbinding, seeded excluded_models |
+
+**Coverage (wave 11)**: cognitive_tier_system 28→**95%**; intent_detector 27→**97%**; escalation_manager 31→**96%**; cache_aware_router 38→**98%**; byok_handler 29→**37%** (real-flow integration tests on both big methods; remaining: BPC ranking internals, MoA, streaming paths).

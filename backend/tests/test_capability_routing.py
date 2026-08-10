@@ -7,6 +7,17 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from core.llm.byok_handler import BYOKHandler, QueryComplexity
 from core.models import ModelCatalog
+
+
+def _db_ctx(session):
+    """Wrap a mock session in a real context manager — the production call
+    sites use ``with get_db_session() as db:``, so the patched callable must
+    return a context manager (a bare MagicMock would yield a child mock
+    instead of the configured session)."""
+    ctx = MagicMock()
+    ctx.__enter__.return_value = session
+    ctx.__exit__.return_value = False
+    return ctx
 from core.provider_health_monitor import ProviderHealthMonitor
 
 
@@ -31,8 +42,14 @@ class TestCapabilityRouting:
             # Mock health monitor
             handler.health_monitor = Mock()
             handler.health_monitor.health_scores = {}
-            handler.health_monitor.get_health_score = Mock(return_value=1.0)
+            handler.health_monitor.get_health_score = Mock(
+                side_effect=lambda p: handler.health_monitor.health_scores.get(p, 1.0)
+            )
             handler.health_monitor.record_call = Mock()
+            # Real costs keep the BPC value-score math numeric (a Mock cost
+            # breaks the `c["cost"] > 0`/sort comparisons -> BPC crash -> the
+            # static fallback would bypass the capability filter under test).
+            handler.cache_router.calculate_effective_cost = Mock(return_value=0.001)
             # Mock _refresh_excluded_cache to avoid DB queries
             handler.excluded_models = set()
             handler._refresh_excluded_cache = Mock()
@@ -43,6 +60,10 @@ class TestCapabilityRouting:
         """Create mock database session"""
         session = MagicMock()
         session.query.return_value.filter.return_value.first.return_value = None
+        # Force the per-model capability path: the bulk capability-index load
+        # (_load_capability_index -> query().all()) must fail so the tests'
+        # ``filter_by().first()`` configs are what the BPC loop consults.
+        session.query.return_value.all.side_effect = RuntimeError("no catalog")
         return session
 
     @pytest.fixture
@@ -79,6 +100,9 @@ class TestCapabilityRouting:
 
     def test_lux_excluded_from_general_routing(self, mock_byok_handler, mock_db_session, mock_pricing_fetcher):
         """Test that LUX is excluded from general routing when no capability requirement"""
+        # The fixture mocks _refresh_excluded_cache — seed the cache directly
+        # (a real refresh would populate it from the exclude flag).
+        mock_byok_handler.excluded_models = {"lux-1.0"}
         # Mock ModelCatalog to return LUX with exclude_from_general_routing=True
         lux_model = ModelCatalog(
             model_id="lux-1.0",
@@ -108,8 +132,8 @@ class TestCapabilityRouting:
             lux_model,  # lux-1.0 second
         ]
 
-        with patch('core.llm.byok_handler.get_db_session', return_value=mock_db_session), \
-             patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_pricing_fetcher), \
+        with patch('core.llm.byok_handler.get_db_session', return_value=_db_ctx(mock_db_session)), \
+             patch('core.llm.byok_handler.get_pricing_fetcher_initialized_sync', return_value=mock_pricing_fetcher), \
              patch('core.llm.byok_handler.get_capability_score') as mock_cap_score, \
              patch('core.llm.byok_handler.get_quality_score', return_value=90):
             mock_cap_score.return_value = 95  # lux has high computer_use score
@@ -118,7 +142,7 @@ class TestCapabilityRouting:
             result = mock_byok_handler.get_ranked_providers(
                 complexity=QueryComplexity.MODERATE,
                 required_capability=None  # No capability requirement
-            )
+            , is_managed_service=False)
 
             model_ids = [model for provider, model in result]
             assert "lux-1.0" not in model_ids, "LUX should be excluded from general routing"
@@ -135,8 +159,8 @@ class TestCapabilityRouting:
 
         mock_db_session.query.return_value.filter_by.return_value.first.return_value = lux_model
 
-        with patch('core.llm.byok_handler.get_db_session', return_value=mock_db_session), \
-             patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_pricing_fetcher), \
+        with patch('core.llm.byok_handler.get_db_session', return_value=_db_ctx(mock_db_session)), \
+             patch('core.llm.byok_handler.get_pricing_fetcher_initialized_sync', return_value=mock_pricing_fetcher), \
              patch('core.llm.byok_handler.get_capability_score') as mock_cap_score:
             mock_cap_score.return_value = 95  # lux has high computer_use score
             mock_byok_handler._refresh_excluded_cache()
@@ -144,7 +168,7 @@ class TestCapabilityRouting:
             result = mock_byok_handler.get_ranked_providers(
                 complexity=QueryComplexity.MODERATE,
                 required_capability="computer_use"
-            )
+            , is_managed_service=False)
 
             model_ids = [model for provider, model in result]
             assert "lux-1.0" in model_ids, "LUX should be included for computer_use routing"
@@ -173,13 +197,13 @@ class TestCapabilityRouting:
 
         mock_db_session.query.return_value.filter_by.return_value.first.side_effect = mock_first
 
-        with patch('core.llm.byok_handler.get_db_session', return_value=mock_db_session), \
-             patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_pricing_fetcher), \
+        with patch('core.llm.byok_handler.get_db_session', return_value=_db_ctx(mock_db_session)), \
+             patch('core.llm.byok_handler.get_pricing_fetcher_initialized_sync', return_value=mock_pricing_fetcher), \
              patch('core.llm.byok_handler.get_capability_score', return_value=95):
             result = mock_byok_handler.get_ranked_providers(
                 complexity=QueryComplexity.MODERATE,
                 required_capability="vision"
-            )
+            , is_managed_service=False)
 
             model_ids = [model for provider, model in result]
             # GPT-4o should be included (has vision), deepseek-chat should be filtered
@@ -189,13 +213,13 @@ class TestCapabilityRouting:
         """Test that all models are included when no capability requirement"""
         mock_db_session.query.return_value.filter_by.return_value.first.return_value = None
 
-        with patch('core.llm.byok_handler.get_db_session', return_value=mock_db_session), \
-             patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_pricing_fetcher), \
+        with patch('core.llm.byok_handler.get_db_session', return_value=_db_ctx(mock_db_session)), \
+             patch('core.llm.byok_handler.get_pricing_fetcher_initialized_sync', return_value=mock_pricing_fetcher), \
              patch('core.llm.byok_handler.get_quality_score', return_value=90):
             result = mock_byok_handler.get_ranked_providers(
                 complexity=QueryComplexity.MODERATE,
                 required_capability=None
-            )
+            , is_managed_service=False)
 
             # Should include all models that pass quality filter
             assert len(result) > 0, "Should return models when no capability requirement"
@@ -204,15 +228,15 @@ class TestCapabilityRouting:
         """Test that get_capability_score is used when required_capability is set"""
         mock_db_session.query.return_value.filter_by.return_value.first.return_value = None
 
-        with patch('core.llm.byok_handler.get_db_session', return_value=mock_db_session), \
-             patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_pricing_fetcher), \
+        with patch('core.llm.byok_handler.get_db_session', return_value=_db_ctx(mock_db_session)), \
+             patch('core.llm.byok_handler.get_pricing_fetcher_initialized_sync', return_value=mock_pricing_fetcher), \
              patch('core.llm.byok_handler.get_capability_score') as mock_cap_score:
             mock_cap_score.return_value = 92  # Capability-specific score
 
             mock_byok_handler.get_ranked_providers(
                 complexity=QueryComplexity.MODERATE,
                 required_capability="computer_use"
-            )
+            , is_managed_service=False)
 
             # Should have called get_capability_score
             assert mock_cap_score.called, "get_capability_score should be called with required_capability"
@@ -221,19 +245,24 @@ class TestCapabilityRouting:
         """Test that get_quality_score is used for unknown capabilities"""
         mock_db_session.query.return_value.filter_by.return_value.first.return_value = None
 
-        with patch('core.llm.byok_handler.get_db_session', return_value=mock_db_session), \
-             patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_pricing_fetcher), \
+        with patch('core.llm.byok_handler.get_db_session', return_value=_db_ctx(mock_db_session)), \
+             patch('core.llm.byok_handler.get_pricing_fetcher_initialized_sync', return_value=mock_pricing_fetcher), \
              patch('core.llm.byok_handler.get_quality_score', return_value=85) as mock_quality_score:
             mock_byok_handler.get_ranked_providers(
                 complexity=QueryComplexity.MODERATE,
                 required_capability=None
-            )
+            , is_managed_service=False)
 
             # Should have called get_quality_score (not capability score)
             assert mock_quality_score.called, "get_quality_score should be called without required_capability"
 
     def test_excluded_models_cache(self, mock_byok_handler):
         """Test that excluded_models cache is populated correctly"""
+        from core.llm.byok_handler import BYOKHandler
+
+        mock_byok_handler._refresh_excluded_cache = (
+            BYOKHandler._refresh_excluded_cache.__get__(mock_byok_handler)
+        )
         with patch('core.llm.byok_handler.get_db_session') as mock_session:
             mock_db = MagicMock()
             mock_session.return_value.__enter__.return_value = mock_db
@@ -250,6 +279,11 @@ class TestCapabilityRouting:
 
     def test_refresh_excluded_cache(self, mock_byok_handler):
         """Test that cache refresh queries database correctly"""
+        from core.llm.byok_handler import BYOKHandler
+
+        mock_byok_handler._refresh_excluded_cache = (
+            BYOKHandler._refresh_excluded_cache.__get__(mock_byok_handler)
+        )
         with patch('core.llm.byok_handler.get_db_session') as mock_session:
             mock_db = MagicMock()
             mock_session.return_value.__enter__.return_value = mock_db
@@ -264,21 +298,23 @@ class TestCapabilityRouting:
 
     def test_health_filter_unhealthy_excluded(self, mock_byok_handler, mock_db_session, mock_pricing_fetcher):
         """Test that providers with health_score < 0.5 are excluded"""
-        # Set up health monitor with unhealthy provider
+        # Set up health monitor with unhealthy provider (the exclude bar is
+        # _HEALTH_EXCLUDE_THRESHOLD=0.2 — deliberately lowered from 0.5 so
+        # borderline providers self-heal instead of hard-excluding).
         mock_byok_handler.health_monitor.health_scores = {
-            "openai": 0.3,  # Unhealthy
+            "openai": 0.1,  # Critically unhealthy
             "anthropic": 0.8,  # Healthy
         }
 
         mock_db_session.query.return_value.filter_by.return_value.first.return_value = None
 
-        with patch('core.llm.byok_handler.get_db_session', return_value=mock_db_session), \
-             patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_pricing_fetcher), \
+        with patch('core.llm.byok_handler.get_db_session', return_value=_db_ctx(mock_db_session)), \
+             patch('core.llm.byok_handler.get_pricing_fetcher_initialized_sync', return_value=mock_pricing_fetcher), \
              patch('core.llm.byok_handler.get_quality_score', return_value=90):
             result = mock_byok_handler.get_ranked_providers(
                 complexity=QueryComplexity.MODERATE,
                 required_capability=None
-            )
+            , is_managed_service=False)
 
             providers = [provider for provider, model in result]
             # OpenAI should be filtered out due to low health score
@@ -292,13 +328,13 @@ class TestCapabilityRouting:
 
         mock_db_session.query.return_value.filter_by.return_value.first.return_value = None
 
-        with patch('core.llm.byok_handler.get_db_session', return_value=mock_db_session), \
-             patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_pricing_fetcher), \
+        with patch('core.llm.byok_handler.get_db_session', return_value=_db_ctx(mock_db_session)), \
+             patch('core.llm.byok_handler.get_pricing_fetcher_initialized_sync', return_value=mock_pricing_fetcher), \
              patch('core.llm.byok_handler.get_quality_score', return_value=90):
             result = mock_byok_handler.get_ranked_providers(
                 complexity=QueryComplexity.MODERATE,
                 required_capability=None
-            )
+            , is_managed_service=False)
 
             providers = [provider for provider, model in result]
             assert "anthropic" in providers, "Healthy providers should be included"
@@ -310,13 +346,13 @@ class TestCapabilityRouting:
 
         mock_db_session.query.return_value.filter_by.return_value.first.return_value = None
 
-        with patch('core.llm.byok_handler.get_db_session', return_value=mock_db_session), \
-             patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_pricing_fetcher), \
+        with patch('core.llm.byok_handler.get_db_session', return_value=_db_ctx(mock_db_session)), \
+             patch('core.llm.byok_handler.get_pricing_fetcher_initialized_sync', return_value=mock_pricing_fetcher), \
              patch('core.llm.byok_handler.get_quality_score', return_value=90):
             result = mock_byok_handler.get_ranked_providers(
                 complexity=QueryComplexity.MODERATE,
                 required_capability=None
-            )
+            , is_managed_service=False)
 
             # Should return results (unknown providers pass through)
             assert len(result) > 0, "Unknown providers should pass through health filter"
@@ -332,19 +368,19 @@ class TestCapabilityRouting:
 
         mock_db_session.query.return_value.filter_by.return_value.first.return_value = lux_model
 
-        # Set up health: anthropic healthy, deepseek unhealthy
+        # Set up health: anthropic healthy, deepseek critically unhealthy
         mock_byok_handler.health_monitor.health_scores = {
             "anthropic": 0.9,
-            "deepseek": 0.3,
+            "deepseek": 0.1,
         }
 
-        with patch('core.llm.byok_handler.get_db_session', return_value=mock_db_session), \
-             patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_pricing_fetcher), \
+        with patch('core.llm.byok_handler.get_db_session', return_value=_db_ctx(mock_db_session)), \
+             patch('core.llm.byok_handler.get_pricing_fetcher_initialized_sync', return_value=mock_pricing_fetcher), \
              patch('core.llm.byok_handler.get_capability_score', return_value=95):
             result = mock_byok_handler.get_ranked_providers(
                 complexity=QueryComplexity.MODERATE,
                 required_capability="computer_use"
-            )
+            , is_managed_service=False)
 
             # LUX should be included (has computer_use) and anthropic is healthy
             model_ids = [model for provider, model in result]
@@ -364,15 +400,15 @@ class TestCapabilityRouting:
 
         mock_db_session.query.return_value.filter_by.return_value.first.return_value = gpt_model
 
-        with patch('core.llm.byok_handler.get_db_session', return_value=mock_db_session), \
-             patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_pricing_fetcher), \
+        with patch('core.llm.byok_handler.get_db_session', return_value=_db_ctx(mock_db_session)), \
+             patch('core.llm.byok_handler.get_pricing_fetcher_initialized_sync', return_value=mock_pricing_fetcher), \
              patch('core.llm.byok_handler.get_capability_score', return_value=92):
             # Test with different capabilities
             for capability in ["vision", "tools", "computer_use"]:
                 result = mock_byok_handler.get_ranked_providers(
                     complexity=QueryComplexity.MODERATE,
                     required_capability=capability
-                )
+                , is_managed_service=False)
                 model_ids = [model for provider, model in result]
                 assert any("gpt-4o" in model for model in model_ids), \
                     f"GPT-4o should be included for {capability} capability"
@@ -401,13 +437,13 @@ class TestCapabilityRouting:
 
         mock_db_session.query.return_value.filter_by.return_value.first.side_effect = mock_first
 
-        with patch('core.llm.byok_handler.get_db_session', return_value=mock_db_session), \
-             patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_pricing_fetcher), \
+        with patch('core.llm.byok_handler.get_db_session', return_value=_db_ctx(mock_db_session)), \
+             patch('core.llm.byok_handler.get_pricing_fetcher_initialized_sync', return_value=mock_pricing_fetcher), \
              patch('core.llm.byok_handler.get_capability_score', return_value=90):
             result = mock_byok_handler.get_ranked_providers(
                 complexity=QueryComplexity.MODERATE,
                 required_capability="vision"
-            )
+            , is_managed_service=False)
 
             # Vision-capable models should be included
             assert len(result) > 0, "Should return vision-capable models"
@@ -423,13 +459,13 @@ class TestCapabilityRouting:
 
         mock_db_session.query.return_value.filter_by.return_value.first.return_value = tools_model
 
-        with patch('core.llm.byok_handler.get_db_session', return_value=mock_db_session), \
-             patch('core.llm.byok_handler.get_pricing_fetcher', return_value=mock_pricing_fetcher), \
+        with patch('core.llm.byok_handler.get_db_session', return_value=_db_ctx(mock_db_session)), \
+             patch('core.llm.byok_handler.get_pricing_fetcher_initialized_sync', return_value=mock_pricing_fetcher), \
              patch('core.llm.byok_handler.get_capability_score', return_value=93):
             result = mock_byok_handler.get_ranked_providers(
                 complexity=QueryComplexity.MODERATE,
                 required_capability="tools"
-            )
+            , is_managed_service=False)
 
             # Tools-capable models should be included
             model_ids = [model for provider, model in result]

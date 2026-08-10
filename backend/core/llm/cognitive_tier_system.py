@@ -139,6 +139,17 @@ class CognitiveClassifier:
         complexity_score = self._calculate_complexity_score(prompt, task_type)
         estimated_tokens = self._estimate_tokens(prompt)
 
+        # BUG-116 (complete): the score cap in _calculate_complexity_score was
+        # insufficient — a long-but-simple prompt (e.g. "hello " x 3000 tokens)
+        # still routed to HEAVY through the max_tokens bound alone. Strong
+        # simple signals also cap the token bound at VERSATILE's ceiling so a
+        # simple prompt never reaches an expensive tier.
+        if self._strong_simple_signals(prompt):
+            estimated_tokens = min(
+                estimated_tokens,
+                TIER_THRESHOLDS[CognitiveTier.VERSATILE]["max_tokens"],  # type: ignore[call-overload]
+            )
+
         # Map score and tokens to tier
         for tier in CognitiveTier:
             threshold = TIER_THRESHOLDS[tier]
@@ -150,6 +161,14 @@ class CognitiveClassifier:
 
         # Fallback to highest tier
         return CognitiveTier.COMPLEX
+
+    def _strong_simple_signals(self, prompt: str) -> bool:
+        """True when the prompt carries strong "simple" keyword signals."""
+        simple_signals = 0
+        for pattern, weight in self._compiled_patterns.values():
+            if pattern.search(prompt) and weight < 0:  # "simple" has negative weight
+                simple_signals += abs(weight)
+        return simple_signals >= 2
 
     def _calculate_complexity_score(self, prompt: str, task_type: str | None = None) -> int:
         """
@@ -173,10 +192,8 @@ class CognitiveClassifier:
         # Check for simple-pattern signals BEFORE applying token weight
         # so they can gate the token contribution.
         simple_signals = 0
-        for pattern, weight in self._compiled_patterns.values():
-            if pattern.search(prompt):
-                if weight < 0:  # "simple" patterns have negative weight
-                    simple_signals += abs(weight)
+        if self._strong_simple_signals(prompt):
+            simple_signals = 2
 
         # Apply token weight, but if the prompt has strong simplicity signals,
         # cap the token contribution so a long-but-simple prompt doesn't

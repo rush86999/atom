@@ -48,6 +48,39 @@ from core.dynamic_pricing_fetcher import (
 from core.llm_call_tracker import get_llm_call_tracker
 
 
+# Dedicated daemon loop for __init__-time credential resolution. FastAPI async
+# routes construct BYOKHandler synchronously while their thread's event loop is
+# RUNNING — loop.run_until_complete() then raises "This event loop is already
+# running" and ABANDONS the coroutine (RuntimeWarning: never awaited), so the
+# credential service never resolved OAuth/subscription credentials on the
+# gateway surface (only BYOK/env fallbacks ever fired).
+_CREDENTIAL_LOOP: Optional["asyncio.AbstractEventLoop"] = None
+_CREDENTIAL_LOOP_LOCK = threading.Lock()
+
+
+def _run_coroutine_sync(coro, timeout: float = 15.0):
+    """Run ``coro`` synchronously from sync code — safe with or without a
+    running event loop on the calling thread."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop on this thread: drive the coroutine directly.
+        return asyncio.get_event_loop().run_until_complete(coro)
+    # A loop IS running here — schedule on the dedicated background loop.
+    global _CREDENTIAL_LOOP
+    with _CREDENTIAL_LOOP_LOCK:
+        if _CREDENTIAL_LOOP is None:
+            _CREDENTIAL_LOOP = asyncio.new_event_loop()
+            _loop_thread = threading.Thread(
+                target=_CREDENTIAL_LOOP.run_forever,
+                daemon=True,
+                name="byok-credential-loop",
+            )
+            _loop_thread.start()
+    future = asyncio.run_coroutine_threadsafe(coro, _CREDENTIAL_LOOP)
+    return future.result(timeout=timeout)
+
+
 class AwaitableResult:
     """A wrapper that allows a synchronous result to be awaited, iterated, indexed, and sized.
 
@@ -777,17 +810,11 @@ class BYOKHandler:
 
             if self.credential_service:
                 try:
-                    # Import asyncio for async call in sync context
-                    import asyncio
-                    # Try to get credential from service (OAuth priority)
-                    try:
-                        loop = asyncio.get_event_loop()
-                    except RuntimeError:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-
-                    # Try to get credential with OAuth priority
-                    credential_type, credential_value = loop.run_until_complete(
+                    # Try to get credential with OAuth priority. The previous
+                    # run_until_complete abandoned the coroutine whenever a
+                    # loop was already running (FastAPI async routes), so
+                    # OAuth/subscription credentials never resolved there.
+                    credential_type, credential_value = _run_coroutine_sync(
                         self.credential_service.get_credential(provider_id)
                     )
                     api_key = credential_value
@@ -1690,7 +1717,11 @@ class BYOKHandler:
             if cognitive_tier:
                 try:
                     forced_tier_enum = CognitiveTier(cognitive_tier.lower())
-                    complexity = "complex"  # placeholder; tier drives selection via cognitive_tier
+                    # Keep the real QueryComplexity enum — a plain string here
+                    # crashes later at ``complexity.value`` (the success path
+                    # logs it), turning EVERY forced-tier request into a fake
+                    # "provider failure" after the model already answered.
+                    complexity = QueryComplexity.COMPLEX
                 except ValueError:
                     logger.warning(f"Invalid cognitive_tier override: {cognitive_tier}")
                     complexity = self.analyze_query_complexity(prompt, task_type)

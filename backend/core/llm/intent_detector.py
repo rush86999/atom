@@ -138,7 +138,11 @@ _TOOL_PREFIX_WEIGHT = 3  # one matching tool prefix == one strong keyword
 # (>=3 above threshold) still flips.
 _STICKY_AGREEMENT_MIN = 3
 _STICKY_HISTORY_WINDOW = 3
-_STICKY_BIAS = 2
+# Must be >= the highest activation threshold (3) so a fully-neutral turn
+# (zero keyword signals) with 3-turn agreement still keeps the intent — the
+# previous bias of 2 could never clear the 3-point bar, so the documented
+# "ambiguous current turn keeps the same routing intent" never happened.
+_STICKY_BIAS = 3
 
 
 @dataclass
