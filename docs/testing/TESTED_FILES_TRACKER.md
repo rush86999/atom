@@ -1958,3 +1958,14 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 **Recurring-pattern sweep (this wave)**: AST-aided sweep of all `api/*.py` for (a) `response_model=X` + `return router.success_response(...)` envelope mismatch, and (b) bare `except Exception` swallowing a raised HTTPException. Found 5 response_model bugs + 15 HTTPException-swallow bugs across the api/ surface; fixed the 9 highest-confidence in this wave (graphrag/governance/learning/deeplinks/dynamic_options/document_ingestion). Remaining surfaced candidates (integration_dashboard /metrics+/health, document_ingestion /upload, canvas_recording list, admin business_facts, memory_backfill ×2, shell_routes) flagged for the next wave.
 
 **Stale-suite realignment**: `tests/api/test_agent_governance_routes.py` had 6 tests asserting `== 500` with comments documenting the buggy "wraps 404 as 500" behavior — realigned to assert the correct `== 404` after the source fix.
+
+## Session 2026-08-09 (wave 12) — tier service 97%, response quality 90%, dedup 73% (test-only)
+
+**Evidence**: `tests/test_covpush_llm_wave12.py` (46 new tests) — 509 passed / 0 failed across LLM+gateway+routing suites. No source changes.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-09 | `core/llm/cognitive_tier_service.py` | ~50%→**97%** | `select_tier` (override valid/invalid, classification, intent nudge, min/max/default clamps incl. default-clamped-by-max, invalid prefs tolerated); `get_optimal_model` (dynamic DB models + cost scoring, hardcoded fallback, preferred-provider filter, no-models, query error fallback); `_get_dynamic_tier_models` (quality bands, tenant filter, MICRO special); `_model_to_provider` mapping; `calculate_request_cost` (shape, discount, default model); `check_budget_constraint` (no-pref/per-request/monthly); `handle_escalation` (auto-escalation-off, delegation); `get_workspace_preference` (tenant/error); `record_cache_outcome`; lazy `cache_router` |
+| 2026-08-09 | `core/llm/response_quality.py` | ~70%→**90%** | all branches: exception hard-failure, schema_error 0.2, truncated 0.3/0.1, empty 0.1, refusal 0.4, substantive 0.7/0.8/0.85/0.78 |
+| 2026-08-09 | `core/llm/compression/session_dedup.py` | 0%→**73%** | index/dedup (repeated→reference marker, unknown unchanged), size/clear (property), LRU max-size bound, hash stability, singleton |
+| 2026-08-09 | `core/llm/routing/request_healer.py` | partial | `classify_error` (SDK status codes + substring fallbacks), `is_repairable`, `heal` contracts (no-patch/repairable/never-raises) — dot-notation cov pre-import trips numpy's reimport guard (tooling artifact; tests import the module directly and pass) |
