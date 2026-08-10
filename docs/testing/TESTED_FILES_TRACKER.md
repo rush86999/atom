@@ -1874,3 +1874,13 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 | 2026-08-09 | `core/llm/byok_handler.py` | 37%→**54%** | `chat_completion` (gateway non-stream): success shape, budget fail-closed (exceeded + tracker-error), trial gate, no-clients, cross-provider fallback, all-fail; `stream_completion`: token streaming, fallback stream, error-token surface, extra_kwargs forwarding; `_rerank_with_learning`: single-option/flag-off/router-unavailable/cold-start unchanged, full re-rank (reorder + decision stash), no-learned-signal, exception; `_adapt_task_type` mapping; BPC static fallback (priority order, managed-plan filter, BYOK tools skip, qwen boost); `_get_provider_fallback_order`; `_filter_by_health` 0.2-threshold boundary |
 
 **Remaining byok_handler gaps** (future waves): `generate_structured_moa` (MoA aggregator, ~310 stmts), streaming governance/AgentExecution paths, vision-coordination, cascade escalation internals.
+
+## Session 2026-08-09 (wave 11c) — MoA + cascade + transcription: byok_handler 54→58% (test-only)
+
+**Evidence**: `tests/test_covpush_llm_wave11c.py` (16 new tests) — 500 passed / 0 failed across LLM+gateway+routing suites. No source changes.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-09 | `core/llm/byok_handler.py` | 54%→**58%** | `generate_structured_moa`: single-sample, aggregator reconcile, all-fail→None, aggregator-fail→best-sample, consensus agreement branches (≥75% harmonize / <50% resolve / partial), sample-exception tolerance, single-option path; `_moa_eligible` matrix; `_render_sample` (model_dump/dict/plain/broken); `_build_moa_aggregator_prompt` 4 branches; cascade escalation (schema-error → frontier retry via instructor ValidationError, transient error NO cascade); `generate_transcription` (success via `.client` wrapper, no-client raise, error propagate) |
+
+**byok_handler cumulative**: 29% → **58%** across waves 11/11b/11c. Remaining: streaming governance/AgentExecution record paths, vision coordination, sub-method helpers.
