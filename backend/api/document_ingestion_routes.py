@@ -453,6 +453,11 @@ async def parse_document_file(
                 error=None
             )
             
+    except HTTPException:
+        # Re-raise documented 4xx (e.g. validation_error for oversized files)
+        # so the client gets the intended status — the broad except below would
+        # otherwise swallow it into a 200-with-error-body.
+        raise
     except Exception as e:
         logger.error(f"Manual parse failed: {e}")
         return ParseResultResponse(

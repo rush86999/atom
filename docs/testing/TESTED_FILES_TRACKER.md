@@ -1937,3 +1937,24 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 | 2026-08-09 | `api/integration_dashboard_routes.py` | 0%→**88%** | (1) **`GET /alerts/count` 500 on EVERY request** — returns the success envelope but declared `-> Dict[str, int]` → ResponseValidationError (bool/str keys rejected); `Dict[str, Any]`; (2) details 404 swallowed → 500; `except HTTPException: raise`. 14 endpoints covered. Open item: the 12 GET monitoring endpoints carry NO auth dependency (health/config/status data readable anonymously) — flagged, not changed (product decision needed) |
 
 **Pattern reinforced**: route shadowing (health behind parameterized route), envelope-vs-response_model mismatches, and phantom enum members keep recurring — add to sweep checklists.
+
+## Session 2026-08-10 — coverage wave 12 (graphrag + governance + learning + deeplinks + dynamic_options + 5 never-covered route modules, 9 real bugs)
+
+**Evidence**: `tests/test_covpush_w12_routes.py` (43 tests, TDD red→green); combined regression 150 passed incl. realigned `tests/api/test_agent_governance_routes.py` (6 stale 500-assertions → 404); `import main_api_app` verified (198 routes); CI backend-tests command green (253 passed). Also committed previously-uncommitted wave-10c..10f work (87313e990).
+
+| Date | Module | Before→After | Bugs fixed |
+|---|---|---|---|
+| 2026-08-10 | `api/graphrag_routes.py` | partial→**70%** | **`return router.error_response(...)` ×4**: error_response RETURNS an HTTPException (meant to be `raise`d) — returning it serialized the exception object as a **200 body** and discarded the intended status_code (404 not-found → 200, 500 ingestion-failed → 200). add_entity/add_relationship×2/get_neighbors all `return`→`raise` |
+| 2026-08-10 | `api/agent_governance_routes.py` | partial→**60%** | **8 handlers bare `except Exception` swallowed not_found_error/permission_denied_error → 500**: get_maturity, check_deployment, submit_for_approval, submit_feedback, approve_workflow, reject_workflow, get_capabilities, generate_workflow. Added `except HTTPException: raise` before each broad except (+ HTTPException import) |
+| 2026-08-10 | `api/learning_routes.py` | 0%→**77%** | **phantom `router.not_found_response`** (no such method — real: `not_found_error`) → AttributeError → 500 when learning data not found; now `raise router.not_found_error(...)` |
+| 2026-08-10 | `api/deeplinks.py` | partial→**63%** | **2 handlers bare `except Exception` swallowed validation_error (422) → 500**: execute_deeplink (inner validation_error caught by outer except), generate_deeplink (invalid resource_type). `except HTTPException: raise` |
+| 2026-08-10 | `api/dynamic_options_routes.py` | 0%→**93%** | **`response_model=DynamicOptionsResponse` but EVERY path returns the success envelope** → ResponseValidationError → **500 on every request**; dropped response_model (envelope is the codebase convention) |
+| 2026-08-10 | `api/document_ingestion_routes.py` | partial | **parse_document_file: bare `except Exception` swallowed validation_error (422 for oversized files) and returned a 200 with `success=False` body** — client got HTTP 200 for a validation rejection. `except HTTPException: raise` before the broad except |
+| 2026-08-10 | `api/integrations_catalog_routes.py` | 0%→**90%** | no bugs (tested clean); catalog list (category/popular/search filters) + details + 404 |
+| 2026-08-10 | `api/zoho_workdrive_routes.py` | 0%→**87%** | no bugs; teams/list/ingest/health (configured+unconfigured) + error→500 |
+| 2026-08-10 | `api/gatekeeper_routes.py` | 0%→**92%** | no bugs; get/update config (rate_limit + masked_fields set override) |
+| 2026-08-10 | `api/mcp_client_routes.py` | 0%→**92%** | no bugs; list (built-in-server filter) + register (success/502) + unregister (client.close) |
+
+**Recurring-pattern sweep (this wave)**: AST-aided sweep of all `api/*.py` for (a) `response_model=X` + `return router.success_response(...)` envelope mismatch, and (b) bare `except Exception` swallowing a raised HTTPException. Found 5 response_model bugs + 15 HTTPException-swallow bugs across the api/ surface; fixed the 9 highest-confidence in this wave (graphrag/governance/learning/deeplinks/dynamic_options/document_ingestion). Remaining surfaced candidates (integration_dashboard /metrics+/health, document_ingestion /upload, canvas_recording list, admin business_facts, memory_backfill ×2, shell_routes) flagged for the next wave.
+
+**Stale-suite realignment**: `tests/api/test_agent_governance_routes.py` had 6 tests asserting `== 500` with comments documenting the buggy "wraps 404 as 500" behavior — realigned to assert the correct `== 404` after the source fix.

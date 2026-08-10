@@ -28,7 +28,9 @@ async def get_agent_learning_progress(
     )
     
     if not progress:
-        return router.not_found_response(f"Learning data for agent {agent_id} not found")
+        raise router.not_found_error(
+            "Learning data", f"agent {agent_id}"
+        )
         
     return router.success_response(data=progress)
 

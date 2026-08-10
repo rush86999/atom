@@ -83,7 +83,10 @@ async def add_entity(workspace_id: str, request: AddEntityRequest, current_user:
     
     entity_id = graphrag_engine.add_entity(entity, workspace_id)
     if not entity_id:
-        return router.error_response("INGESTION_FAILED", "Failed to add entity", status_code=500)
+        # error_response returns an HTTPException — must be raised, not
+        # returned (returning it serializes the exception object as a 200 body
+        # and discards the intended status_code).
+        raise router.error_response("INGESTION_FAILED", "Failed to add entity", status_code=500)
         
     return router.success_response(
         data={"id": entity_id},
@@ -153,7 +156,7 @@ async def add_relationship(workspace_id: str, request: AddRelationshipRequest, c
             dst = session.query(GraphNode).filter_by(workspace_id=workspace_id, id=request.to_entity).first()
             
         if not src or not dst:
-            return router.error_response("NOT_FOUND", "Source or target entity not found", status_code=404)
+            raise router.error_response("NOT_FOUND", "Source or target entity not found", status_code=404)
             
         rel = Relationship(
             id=str(uuid.uuid4()),
@@ -166,7 +169,7 @@ async def add_relationship(workspace_id: str, request: AddRelationshipRequest, c
         
         rel_id = graphrag_engine.add_relationship(rel, workspace_id)
         if not rel_id:
-            return router.error_response("INGESTION_FAILED", "Failed to add relationship", status_code=500)
+            raise router.error_response("INGESTION_FAILED", "Failed to add relationship", status_code=500)
             
         return router.success_response(
             data={"id": rel_id},
@@ -205,7 +208,7 @@ async def get_entity_neighbors(workspace_id: str, entity_id: str, depth: int = 1
     with get_db_session() as session:
         entity = session.query(GraphNode).filter_by(workspace_id=workspace_id, id=entity_id).first()
         if not entity:
-            return router.error_response("NOT_FOUND", "Entity not found", status_code=404)
+            raise router.error_response("NOT_FOUND", "Entity not found", status_code=404)
             
         result = graphrag_engine.local_search(workspace_id, entity.name, depth=depth)
         return router.success_response(

@@ -22,7 +22,7 @@ class DynamicOptionsResponse(BaseModel):
     options: List[Dict[str, Any]]
     placeholder: Optional[str] = None
 
-@router.post("/dynamic-options", response_model=DynamicOptionsResponse)
+@router.post("/dynamic-options")
 async def get_dynamic_options(
     request: DynamicOptionsRequest,
     current_user: User = Depends(get_current_user)

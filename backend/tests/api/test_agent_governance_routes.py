@@ -335,10 +335,11 @@ class TestAgentMaturity:
         """Test getting maturity for non-existent agent."""
         response = client.get("/api/agent-governance/agents/unknown-agent")
 
-        # Note: The route uses router.internal_error() which wraps 404 as 500
-        assert response.status_code == 500
+        # Fixed: not_found_error now surfaces as 404 (was masked as 500 by the
+        # bare ``except Exception`` swallowing the HTTPException).
+        assert response.status_code == 404
         data = response.json()
-        # FastAPI returns error in 'detail' key for 500 errors
+        # FastAPI returns error in 'detail' key for HTTPException errors
         assert "detail" in data or "error" in data
 
 
@@ -448,8 +449,8 @@ class TestDeploymentCheck:
 
         response = client.post("/api/agent-governance/check-deployment", json=request_data)
 
-        # Note: The route uses router.internal_error() which wraps 404 as 500
-        assert response.status_code == 500
+        # Fixed: not_found_error now surfaces as 404 (was masked as 500).
+        assert response.status_code == 404
 
 
 # ============================================================================
@@ -518,8 +519,8 @@ class TestApprovalSubmission:
 
         response = client.post("/api/agent-governance/submit-for-approval", json=request_data)
 
-        # Note: The route uses router.internal_error() which wraps 404 as 500
-        assert response.status_code == 500
+        # Fixed: not_found_error now surfaces as 404 (was masked as 500).
+        assert response.status_code == 404
 
 
 # ============================================================================
@@ -617,8 +618,8 @@ class TestAgentFeedback:
 
         response = client.post("/api/agent-governance/feedback", json=feedback_data)
 
-        # Note: The route uses router.internal_error() which wraps 404 as 500
-        assert response.status_code == 500
+        # Fixed: not_found_error now surfaces as 404 (was masked as 500).
+        assert response.status_code == 404
 
 
 # ============================================================================
@@ -792,8 +793,8 @@ class TestAgentCapabilities:
         """Test capabilities for non-existent agent."""
         response = client.get("/api/agent-governance/agents/unknown-agent/capabilities")
 
-        # Note: The route uses router.internal_error() which wraps 404 as 500
-        assert response.status_code == 500
+        # Fixed: not_found_error now surfaces as 404 (was masked as 500).
+        assert response.status_code == 404
 
 
 # ============================================================================
@@ -995,8 +996,8 @@ class TestWorkflowGeneration:
             f"/api/agent-governance/generate-workflow?description={description}&agent_id=unknown-agent"
         )
 
-        # Note: The route uses router.internal_error() which wraps 404 as 500
-        assert response.status_code == 500
+        # Fixed: not_found_error now surfaces as 404 (was masked as 500).
+        assert response.status_code == 404
 
     def test_generate_workflow_includes_steps(self, client: TestClient):
         """Test generated workflow includes proper steps."""

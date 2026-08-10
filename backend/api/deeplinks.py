@@ -16,6 +16,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 from fastapi import Depends, Query
+from fastapi import HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -186,6 +187,8 @@ async def execute_deeplink_endpoint(
     except (DeepLinkParseException, DeepLinkSecurityException) as e:
         logger.error(f"Deep link execution failed: {e}")
         raise router.validation_error("deeplink_url", "Deep link execution failed")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Unexpected error executing deep link: {e}")
         raise router.internal_error("Internal error")
@@ -321,6 +324,8 @@ async def generate_deeplink_endpoint(request: DeepLinkGenerateRequest, current_u
     except ValueError as e:
         logger.error(f"Failed to generate deep link: {e}")
         raise router.validation_error("request", "Failed to generate deep link")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Unexpected error generating deep link: {e}")
         raise router.internal_error("Internal error")
