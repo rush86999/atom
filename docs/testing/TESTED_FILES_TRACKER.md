@@ -1969,3 +1969,12 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 | 2026-08-09 | `core/llm/response_quality.py` | ~70%→**90%** | all branches: exception hard-failure, schema_error 0.2, truncated 0.3/0.1, empty 0.1, refusal 0.4, substantive 0.7/0.8/0.85/0.78 |
 | 2026-08-09 | `core/llm/compression/session_dedup.py` | 0%→**73%** | index/dedup (repeated→reference marker, unknown unchanged), size/clear (property), LRU max-size bound, hash stability, singleton |
 | 2026-08-09 | `core/llm/routing/request_healer.py` | partial | `classify_error` (SDK status codes + substring fallbacks), `is_repairable`, `heal` contracts (no-patch/repairable/never-raises) — dot-notation cov pre-import trips numpy's reimport guard (tooling artifact; tests import the module directly and pass) |
+
+## Session 2026-08-10 (wave 13) — credential service 87%, self-consistency voter 96% (test-only)
+
+**Evidence**: `tests/test_covpush_llm_wave13.py` (27 new tests) — 504 passed / 0 failed across LLM+gateway+routing suites. No source changes.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/llm_credential_service.py` | ~35%→**87%** | full fallback chain (oauth→subscription→byok→env→ValueError), invalid-credential skip, tenant-vs-workspace BYOK, gemini GOOGLE_API_KEY env fallback, credential info/list/revoke/refresh, provider status + active_method |
+| 2026-08-10 | `core/llm/self_consistency_voter.py` | ~60%→**96%** | vote (all-fail/single/majority/distinct-fallback), kwargs shared across samples, `vote_with_consensus` (shape + all-fail), `_temperatures_for` re-centering, `is_irreversible` (prefix-only + metadata-field immunity — Bug #13), `diversity_overlays`, `_hash_sample` variants, `_level_from_agreement`, `VoteResult` helpers |
