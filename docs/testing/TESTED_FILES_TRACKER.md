@@ -2025,3 +2025,12 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 | Date | File | Coverage change | What was added |
 |---|---|---|---|
 | 2026-08-10 | `api/deeplinks.py` | 56%→**97%** | `/execute` (disabled 503, success, failure→validation, parse-exception, generic 500); `/audit` (user scoping — cross-user user_id ignored, filters + pagination); `/generate` (disabled, invalid resource_type, success, ValueError); `/stats` (non-admin scoped aggregates, admin sees all, top-agents with counts) |
+
+## Session 2026-08-10 (wave 19) — workspace-context routes 100%, enhanced feedback 90% (test-only)
+
+**Evidence**: `tests/test_covpush_llm_wave19.py` (18 new tests) — 644 passed / 0 failed across 20 suites. No source changes.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `api/workspace_context_routes.py` | ~0%→**100%** | GET/PUT context (string coercion, blank filtering, fresh-dict metadata preservation, 404); assign skill (idempotent, missing-skill 404); unassign |
+| 2026-08-10 | `api/feedback_enhanced.py` | ~40%→**90%** | submit (thumbs→approval, rating, correction, missing-agent 404, no-feedback validation, token-identity not body user_id); agent summary (positive/negative/average/distribution/types); analytics (ratios, top/most-corrected agents); trends |
