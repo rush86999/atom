@@ -2099,3 +2099,27 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 - paid models never self-retry; non-balance errors take the normal fallback path; the retry is tracked (health/rate/llm-call/outcome) like a provider fallback.
 
 **Stale-test repair**: `test_byok_handler.py::test_context_window_known_model_defaults` patched `core.dynamic_pricing_fetcher.get_pricing_fetcher` (a no-op — byok_handler binds the function at import) → patched `core.llm.byok_handler.get_pricing_fetcher`; live catalog's deepseek-chat 128k context no longer breaks the fallback-defaults contract.
+
+## Session 2026-08-10 (wave 21) — workflow_engine.py 39→90% + 2 real bugs fixed (TDD)
+
+**Evidence**: `tests/test_covpush_w21_workflow_engine.py` (183 new tests) — 371 passed / 0 failed across the 4 existing workflow_engine suites + wave; e2e workflow suites (13 passed / 23 env skips) green. Also repaired stale `test_topological_sort_with_cycle` (asserted the pre-cycle-check graceful behavior; contract is fail-fast ValueError — repaired).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/workflow_engine.py` | 39%→**90%** (546→1256 lines) | `_check_dependencies`; `_evaluate_condition` (all value types, safe_eval block, fail-safe False); `_resolve_parameter_value` (dict/list recursion, type-preserving pure refs, interpolation, MissingInputError); `_path_exists`/`_get_value_from_path`; input/output schema validation; `_get_token`; `_build_execution_graph`/`_has_conditional_connections`; `_execute_step` dispatcher (generic fallback, fallback-service, timeout → StepTimeoutError, non-success envelopes); ALL service executors (slack/asana/discord/hubspot/salesforce/github/zoom/notion/gmail/email/calendar/database/ai/webhook/mcp/main_agent/agent_with_mcp/email_automation/sub-workflow/outlook/jira/trello/stripe/shopify/zoho-crm/books/inventory/goal_management/generic-catalog); `_load_workflow_by_id`; `resume_workflow`/`cancel_execution`; `start_workflow`; `_run_execution` run-level (linear success/skip/pause/cancel/continue_on_error→PARTIAL/fail→FAILED/error-envelope/governance-block/completed-skip/dependency-skip/marketplace-tracking) + `_execute_workflow_graph` (branching path, cancellation, missing-input pause); exception classes + singleton factory |
+
+**Real bugs fixed (RED → GREEN):**
+1. **`_execute_generic_action` awaited sync cache methods** — `await cache.get(...)`/`await cache.set(..., expire=3600)` on `UniversalCacheService` (sync `get`/`set`, no `expire` kwarg) → `TypeError` on every custom-catalog integration step. Now sync `cache.get`/`cache.set(ttl=3600)` (workflow_engine.py:2483-2499).
+2. **Stale test** `test_topological_sort_with_cycle` (tests/core/test_workflow_engine_coverage.py:506) — expected graceful cycle continuation; code's documented contract (workflow_engine.py:155-164) raises `ValueError` naming cycle nodes. Repaired to assert the raise.
+
+## Session 2026-08-10 (post-wave) — W28: sandbox gate phases + supervision branches
+
+**Evidence**: `tests/test_covpush_w28_sandbox_learning.py` (36 tests), regression: supervision stack + sandbox unit suites (135 + 84 passed).
+
+| File | Coverage | What was added |
+|---|---|---|
+| `core/sandbox_gate.py` | 80%→**98%** | whitelist BLOCKED + audit write, fs_validate review replacement, tripwire blocked, tripwire killrun → `trigger_killrun` under force-enforce, caps review, egress review, KillRunAborted propagation (blocked decision, not raise), non-killrun exception fails open with `metadata_json.error` |
+| `core/supervisor_learning_service.py` | 80%→**97%** | competence thresholds (advanced/intermediate/novice with intervention success-rate criteria), partial-outcome adjustment 0.0, rating-trend improving/declining/stable (≥10 ratings), strengths (rating/success/volume branches), weaknesses (all branches + no-weakness default), recommendations (novice/intermediate/advanced, low-success, low-ratings, declining, empty default), velocity + estimate branches (days/months/ready/expert/zero-rate), `_empty_insights` shape |
+| `core/supervisor_performance_service.py` | 81%→**96%** | leaderboard success_rate (live InterventionOutcome rows) + average_rating + unknown-metric-zero, metrics missing-performance → empty, `track_intervention_outcome` without performance (outcome created, metrics no-op), recommendation imbalance/success-rate/vote-ratio/improving/novice branches, learning-curve empty + weekly + trend branches |
+
+Real API discoveries surfaced by tests (not bugs): `update_competence_level` returns a dict (criteria/level_changed), `SupervisorRating`/`InterventionOutcome` require `supervision_session_id` + `intervention_timestamp` (NOT NULL), `track_intervention_outcome` creates the outcome row before the metrics no-op, leaderboard joins `SupervisionSession` (needs a completed session to appear).
