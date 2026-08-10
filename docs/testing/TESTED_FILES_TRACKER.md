@@ -2017,3 +2017,11 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 |---|---|---|---|
 | 2026-08-10 | `core/llm/opencode_model_limits.py` | 45%→**95%** | `weight_from_prices` (derived/unknown/zero/invalid); registry defaults + set/get limits, zero-weight normalization, empty-noop, empty-model-id; `apply_pricing_weight` (derived + explicit-wins); `summary`; env overrides (valid/invalid JSON/invalid values); singleton |
 | 2026-08-10 | `core/llm/context/token_counter.py` | —→**46%** | count_tokens (model-arg contract, empty), family counting (OPENAI + FALLBACK) |
+
+## Session 2026-08-10 (wave 18) — deeplinks routes 56→97% (test-only)
+
+**Evidence**: `tests/test_covpush_llm_wave18.py` (14 new tests) — 626 passed / 0 failed across 19 LLM+gateway+routing suites. No source changes.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `api/deeplinks.py` | 56%→**97%** | `/execute` (disabled 503, success, failure→validation, parse-exception, generic 500); `/audit` (user scoping — cross-user user_id ignored, filters + pagination); `/generate` (disabled, invalid resource_type, success, ValueError); `/stats` (non-admin scoped aggregates, admin sees all, top-agents with counts) |
