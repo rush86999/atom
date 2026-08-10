@@ -1,6 +1,6 @@
 # Third-Party App Integrations — Complete Guide
 
-> **Status**: 50+ native integrations + Activepieces catalog fallback  
+> **Status**: 44+ native integrations + Activepieces catalog fallback  
 > **Architecture**: `UniversalIntegrationService` + `IntegrationRegistry` + MCP tool exposure  
 > **Governance**: Maturity-gated, capability-bound, sandbox-enforced (P9 default-on)  
 > **Last Updated**: August 2026
@@ -48,7 +48,7 @@
 
 ---
 
-## Supported Integrations (50+ Native)
+## Supported Integrations (44+ Native)
 
 ### Sales & CRM
 | Service | Actions | Search | Webhooks | Notes |
@@ -510,4 +510,4 @@ curl http://localhost:8000/api/governance/interventions
 
 ---
 
-*Last Updated: August 2026 · 50+ native integrations + Activepieces catalog*
+*Last Updated: August 2026 · 44+ native integrations + Activepieces catalog*

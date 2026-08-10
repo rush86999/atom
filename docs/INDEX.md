@@ -78,7 +78,7 @@
 | [Agent Radio / Lateral Messaging](architecture/AGENT_RADIO.md) | **NEW** - Peer-to-peer agent messaging (mention-first) | AI Engineers |
 | [Unstructured Tasks](agents/unstructured-tasks.md) | Intent classification & dynamic routing | AI Engineers |
 | [Agent Guidance System](agents/guidance-system.md) | Real-time operation tracking | Users |
-| [Agent Graduation](agents/agent-graduation.md) | Promotion criteria & validation | Admins |
+| [Agent Graduation](agents/graduation.md) | Promotion criteria & validation | Admins |
 | [Student Training](guides/AGENT_MATURITY_GOVERNANCE.md) | Maturity system (STUDENT→AUTONOMOUS) | Architects |
 
 ### 🔌 Integrations & LLM Providers
@@ -89,11 +89,11 @@
 | [OpenCode Go Provider](guides/OPENCODE_GO_PROVIDER.md) | **NEW** - Low-cost subscription gateway | Cost-conscious |
 | [Ollama Local LLM](getting_started/run-with-ollama.md) | Free local inference | Cost-conscious |
 | [BYOK Integration](integrations/community-skills.md) | Multi-provider LLM setup | Devs |
-| [Integrations Overview](integrations/OVERVIEW.md) | 46+ service integrations | Devs |
-| [Third-Party App Integrations](integrations/THIRD_PARTY_INTEGRATIONS.md) | **NEW** Complete guide: 50+ native, OAuth, governance, webhooks, custom | Devs/Architects |
+| [Integrations Overview](integrations/OVERVIEW.md) | 44+ service integrations | Devs |
+| [Third-Party App Integrations](integrations/THIRD_PARTY_INTEGRATIONS.md) | **NEW** Complete guide: 44+ native, OAuth, governance, webhooks, custom | Devs/Architects |
 | [Browser Automation](integrations/browser-automation.md) | Playwright CDP, INTERN+ required | Devs |
-| [Device Capabilities](guides/DEVICE_CAPABILITIES.md) | Camera, screen, location, exec | Devs |
-| [Deep Linking](architecture/DEEPLINK.md) | `atom://` URLs for external apps | Devs |
+| [Device Capabilities](integrations/device-capabilities.md) | Camera, screen, location, exec | Devs |
+| [Deep Linking](archive/legacy/DEEPLINK_IMPLEMENTATION.md) | `atom://` URLs for external apps | Devs |
 | [Marketplace](marketplace/connection.md) | Commercial marketplace (atomagentos.com) | Enterprise |
 
 ### 🎨 Canvas & Office Automation
@@ -107,7 +107,7 @@
 | [Mini-Apps Architecture](architecture/MINI_APPS.md) | Stateful canvas apps (agent-authored) | AI Engineers |
 | [Mini-Apps User Guide](guides/MINI_APPS_GUIDE.md) | Create, run, collaborate on mini-apps | Users/Devs |
 | [Canvas AI Accessibility](canvas/ai-accessibility.md) | Dual representation for agents | AI Engineers |
-| [Canvas State API](canvas/CANVAS_STATE_API.md) | JavaScript real-time state API | Frontend Devs |
+| [Canvas State API](canvas/reference.md) | JavaScript real-time state API | Frontend Devs |
 | [LLM Canvas Summaries](canvas/llm-summaries.md) | Semantic summaries for memory | AI Engineers |
 
 ### 🔐 Authentication & Federation
@@ -124,20 +124,20 @@
 | Document | Description | Audience |
 |----------|-------------|----------|
 | [Mobile Quick Start](guides/QUICKSTART.md) | React Native setup | Mobile Devs |
-| [Mobile Architecture](https://github.com/rushiparikh/projects/atom/tree/main/mobile) | React Native with Expo | Mobile Devs |
-| [Mobile Secure Storage](mobile/src/storage/secureTokenStorage.ts) | Keychain/EncryptedSharedPreferences | Mobile Devs |
-| [Frontend XSS Protection](frontend-nextjs/lib/sanitize.ts) | DOMPurify sanitization | Frontend Devs |
+| [Mobile Architecture](https://github.com/rush86999/atom/tree/main/mobile) | React Native with Expo | Mobile Devs |
+| [Mobile Secure Storage](../mobile/src/storage/secureTokenStorage.ts) | Keychain/EncryptedSharedPreferences | Mobile Devs |
+| [Frontend XSS Protection](../frontend-nextjs/lib/sanitize.ts) | DOMPurify sanitization | Frontend Devs |
 
 ### 🛠️ Development & Testing
 
 | Document | Description | Audience |
 |----------|-------------|----------|
 | [Development Setup](development/setup.md) | Venv, DB seeding, code style | Devs |
-| [Code Quality](backend/docs/CODE_QUALITY_STANDARDS.md) | Type hints, mypy, Google docstrings | Devs |
+| [Code Quality](../backend/docs/CODE_QUALITY_STANDARDS.md) | Type hints, mypy, Google docstrings | Devs |
 | [E2E Testing Guide](testing/e2e-guide.md) | 486 tests, API-first auth, POM | QA/Devs |
 | [Testing Index](testing/index.md) | Unit, integration, E2E, bug discovery | Devs |
 | [Bug Discovery](testing/BUG_DISCOVERY_INFRASTRUCTURE.md) | Fuzzing, property-based, chaos | QA |
-| [Stress Testing](.planning/phases/236-cross-platform-and-stress-testing/) | k6, network sim, failure injection | QA |
+| [Stress Testing](../.planning/phases/236-cross-platform-and-stress-testing/) | k6, network sim, failure injection | QA |
 | [API Standards](api/API_STANDARDS.md) | Response formats, error codes | Devs |
 | [Database Migrations](getting_started/INSTALLATION.md) | Alembic + SQLite hybrid patterns | Devs |
 
@@ -176,7 +176,7 @@
 ### Agent Maturity & Governance
 - [Agent Overview](agents/overview.md) — System + intent types
 - [Agent Maturity & Governance](guides/AGENT_MATURITY_GOVERNANCE.md) — **NEW** Tier system, governance flow, graduation
-- [Agent Graduation](agents/agent-graduation.md) — Promotion criteria
+- [Agent Graduation](agents/graduation.md) — Promotion criteria
 - [Governance Quick Ref](governance/GOVERNANCE_QUICK_REFERENCE.md) — Permissions matrix
 
 ### Memory & Context
@@ -190,7 +190,7 @@
 - [Office Automation](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) — User guide
 - [Workbook Runtime](architecture/WORKBOOK_RUNTIME.md) — Engine internals
 - [Mini-Apps](architecture/MINI_APPS.md) — Agent-authored apps
-- [Canvas State API](canvas/CANVAS_STATE_API.md) — Frontend integration
+- [Canvas State API](canvas/reference.md) — Frontend integration
 
 ### Third-Party Integrations
 - [Third-Party App Integrations](integrations/THIRD_PARTY_INTEGRATIONS.md) — **NEW** 50+ native services, OAuth, governance, webhooks, custom

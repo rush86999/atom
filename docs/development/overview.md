@@ -456,10 +456,10 @@ systemctl start atom-backend atom-workers
 - **Mini-Apps** — Agent-authored stateful apps ([architecture/MINI_APPS.md](../architecture/MINI_APPS.md))
 - **Office Automation** — Word/Excel/PowerPoint co-editing ([guides/ATOM_OFFICE_AUTOMATION_GUIDE.md](../guides/ATOM_OFFICE_AUTOMATION_GUIDE.md))
 - **Canvas AI Accessibility** — Dual representation for AI agents ([canvas/ai-accessibility.md](../canvas/ai-accessibility.md))
-- **Canvas State API** — JavaScript API for real-time canvas state ([canvas/CANVAS_STATE_API.md](../canvas/CANVAS_STATE_API.md))
+- **Canvas State API** — JavaScript API for real-time canvas state ([canvas/reference.md](../canvas/reference.md))
 - **LLM Canvas Summaries** — LLM-powered semantic summaries ([canvas/llm-summaries.md](../canvas/llm-summaries.md))
-- **Deep Linking** — External app integration via atom:// URLs ([architecture/DEEPLINK.md](../architecture/DEEPLINK.md))
-- **Device Capabilities** — Camera, screen recording, location ([guides/DEVICE_CAPABILITIES.md](../guides/DEVICE_CAPABILITIES.md))
+- **Deep Linking** — External app integration via atom:// URLs ([archive/legacy/DEEPLINK_IMPLEMENTATION.md](../archive/legacy/DEEPLINK_IMPLEMENTATION.md))
+- **Device Capabilities** — Camera, screen recording, location ([integrations/device-capabilities.md](../integrations/device-capabilities.md))
 
 ### Workflow Automation
 - [Workflow Automation Engine](../integrations/OVERVIEW.md) — Complete workflow guide

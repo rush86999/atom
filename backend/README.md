@@ -340,7 +340,7 @@ Agents progress through maturity levels based on performance and constitutional 
 
 - **Documentation**: https://github.com/rush86999/atom/tree/main/docs
 - **Issues**: https://github.com/rush86999/atom/issues
-- **License**: MIT
+- **License**: AGPL v3
 
 ## OpenClaw Integration
 

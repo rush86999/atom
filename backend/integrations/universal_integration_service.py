@@ -55,7 +55,7 @@ class UniversalIntegrationService:
     """
     Unified interface for accessing third-party integrations.
     Provides consistent CRUD and Search capabilities for Agents via MCP.
-    Supports all 39 native integrations + Activepieces catalog fallback.
+    Supports all 44 native integrations + Activepieces catalog fallback.
     """
     
     def __init__(self, workspace_id: str = "default"):

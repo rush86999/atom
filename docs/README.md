@@ -53,7 +53,7 @@ Workflows, event buses, and multi-agent roles (Queen, Fleet Admiral, lateral rad
 ### 5. 🔌 Integrations & Canvas Automation
 Third-party APIs, real-time collaboration canvas, and headless Office co-editing.
 - [Integrations Overview](integrations/OVERVIEW.md) — API integrations, resilience layers, and circuit breakers
-- [Third-Party App Integrations](integrations/THIRD_PARTY_INTEGRATIONS.md) — **NEW** 50+ native services, OAuth, governance, webhooks, custom integration
+- [Third-Party App Integrations](integrations/THIRD_PARTY_INTEGRATIONS.md) — **NEW** 44+ native services, OAuth, governance, webhooks, custom integration
 - [LLM Providers Guide](guides/LLM_PROVIDERS.md) — All providers, setup, costs, routing strategies
 - [OpenCode Go Provider](guides/OPENCODE_GO_PROVIDER.md) — Low-cost subscription gateway (~90% savings)
 - [Office Automation Guide](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) — Word, Excel (with formulas), PowerPoint co-editing, and transactional canvas snapshots/rollbacks
