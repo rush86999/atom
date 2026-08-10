@@ -187,6 +187,40 @@ def groq_client(llm_api_keys: Dict[str, Optional[str]]):
 # BYOK Handler Fixtures
 # =============================================================================
 
+_OPENCODE_CANARY: Optional[str] = None  # None=unprobed, ""=ok, else skip-reason
+
+
+def _probe_opencode_subscription() -> Optional[str]:
+    """Probe the OpenCode Go subscription once per session.
+
+    Returns None when the subscription can complete requests, otherwise the
+    skip reason. The probe itself uses the cheapest model (deepseek-v4-flash,
+    max_tokens=1) so an unfunded/expired subscription costs nothing to detect.
+    """
+    global _OPENCODE_CANARY
+    if _OPENCODE_CANARY is not None:
+        return _OPENCODE_CANARY
+    try:
+        from core.llm.byok_handler import BYOKHandler
+        handler = BYOKHandler(workspace_id="e2e_test", provider_id="auto")
+        client = handler.clients.get("opencode-go")
+        if client is None:
+            _OPENCODE_CANARY = "opencode-go client not initialized"
+            return _OPENCODE_CANARY
+        client.chat.completions.create(
+            model="deepseek-v4-flash",
+            messages=[{"role": "user", "content": "ping"}],
+            max_tokens=1,
+        )
+    except Exception as probe_err:
+        _OPENCODE_CANARY = (
+            f"OpenCode Go subscription cannot complete requests: {probe_err}"
+        )
+        return _OPENCODE_CANARY
+    _OPENCODE_CANARY = ""
+    return None
+
+
 @pytest.fixture(scope="function")
 def e2e_byok_handler(llm_api_keys: Dict[str, Optional[str]]) -> Generator:
     """
@@ -227,22 +261,31 @@ def e2e_byok_handler(llm_api_keys: Dict[str, Optional[str]]) -> Generator:
         from core.llm.byok_handler import BYOKHandler
         handler = BYOKHandler(workspace_id="e2e_test", provider_id="auto")
 
-        # Canary probe: one cheap model call to verify the configured key can
-        # actually complete a request. A valid-but-unfunded subscription
-        # (gateway CreditsError) would otherwise burn retries in every test.
+        # Cost clamp (OpenCode Go subscription): when the opencode key is the
+        # only real credential, pin routing to opencode-go's CHEAPEST model
+        # (deepseek-v4-flash) for every query — the BPC router would otherwise
+        # bill deepseek-v4-pro / kimi-k2.7-code for COMPLEX/ADVANCED queries
+        # during testing. AwaitableResult keeps both the sync and async call
+        # paths working.
         if real_keys and "opencode" in real_keys:
-            try:
-                client = handler.clients.get("opencode-go")
-                if client is not None:
-                    client.chat.completions.create(
-                        model="deepseek-v4-flash",
-                        messages=[{"role": "user", "content": "ping"}],
-                        max_tokens=1,
-                    )
-            except Exception as probe_err:
-                pytest.skip(
-                    f"OpenCode Go subscription cannot complete requests: {probe_err}"
-                )
+            handler.clients = {
+                k: v for k, v in handler.clients.items() if k == "opencode-go"
+            }
+
+            from core.llm.byok_handler import AwaitableResult
+
+            def _cheap_ranked(*args, **kwargs):
+                return AwaitableResult([("opencode-go", "deepseek-v4-flash")])
+
+            handler.get_ranked_providers = _cheap_ranked
+
+        # Canary probe: verify the subscription once per session (cheapest
+        # model, 1 token). An unfunded subscription (gateway CreditsError)
+        # skips the whole suite instead of burning retries in every test.
+        if real_keys and "opencode" in real_keys:
+            skip_reason = _probe_opencode_subscription()
+            if skip_reason:
+                pytest.skip(skip_reason)
 
         yield handler
     finally:

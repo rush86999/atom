@@ -234,6 +234,12 @@ PORT=8000   LOG_LEVEL=INFO   BROWSER_HEADLESS=true
 # OpenCode Go (low-cost subscription gateway, opencode.ai/zen): 
 OPENCODE_API_KEY=                # OPENCODE-GO_API_KEY does NOT work (hyphen); this is the canonical env name
 OPENCODE_BASE_URL=https://opencode.ai/zen/v1
+# Cost-effective LLM testing (e2e fixtures/tests/e2e/fixtures/llm_fixtures.py):
+# with OPENCODE_API_KEY set, e2e LLM tests pin routing to opencode-go's
+# CHEAPEST model (deepseek-v4-flash) for ALL query complexities (BPC would
+# otherwise bill deepseek-v4-pro/kimi-k2.7-code for COMPLEX/ADVANCED) and run
+# a single 1-token canary probe per session — an unfunded subscription skips
+# the suite with a clear reason instead of burning retries.
 # Custom rates/limits feed BPC routing (headroom penalty + context clamp):
 OPENCODE_RPM=60                  # requests/min ceiling for routing headroom
 OPENCODE_TPM=2000000             # tokens/min ceiling for routing headroom
