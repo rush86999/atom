@@ -1894,3 +1894,24 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 | 2026-08-09 | `core/llm/byok_handler.py` | 58%→**62%** | streaming governance path (agent_id+db → AgentExecution create/complete/outcome, governance-off skips record, tracking-error doesn't break tokens); vision coordination (non-vision primary → `_get_coordinated_vision_description` prompt prefix + payload cleared; vision model → image_url message); `get_context_window` (pricing hit / defaults / error); `truncate_to_context` (short unchanged, long head+tail preserved with truncation marker); `_model_supports_tools`/`_model_supports_vision` via pricing capabilities; `_is_trial_restricted` (ended/not/error fail-open); `_stash_decision_features` (flag off / router off / stash) |
 
 **byok_handler cumulative**: 29% → **62%** across waves 11/11b/11c/11d. Remaining: `generate_with_cognitive_tier`, provider-health helpers, rate-limit internals.
+
+## Session 2026-08-09 — coverage wave 10e (agent_guidance + dashboard_data, 0% → 92-99%)
+
+**Evidence**: `tests/test_covpush_w10e_dashboard.py` (43 tests, TDD); combined regression 442 passed incl. waves 10b-10d + jwt + integration suites; mypy 0→0 on touched modules; `import main_api_app` verified.
+
+| Date | Module | Before→After | Result |
+|---|---|---|---|
+| 2026-08-09 | `api/agent_guidance_routes.py` | 0%→**99%** | 12 endpoints (operation start/update/complete/get, view switch/layout, error present/track, permission/decision/respond/get-request) + full error-branch + auth matrix; no source bugs found (tested clean) |
+| 2026-08-09 | `api/dashboard_data_routes.py` | 0%→**92%** | 4 helpers (events/tasks/messages/stats — WorkflowExecution/AgentJob/AuditLog sources) + 5 endpoints + user_id-clamp (cross-user reads forced to token identity) + defensive-degradation contract; uncovered remainder = endpoint 500 branches unreachable behind defensive helpers (accepted) |
+
+**Note**: dashboard tests use an isolated temp-file DB fixture — the shared worker DB must not be mutated by route suites that seed/delete `users` rows (breaking cross-suite fixtures like the gateway key tests).
+
+## Session 2026-08-09 (wave 11e) — tier pipeline + tracking helpers + local providers: byok 62→67% (test-only)
+
+**Evidence**: `tests/test_covpush_llm_wave11e.py` (23 new tests) — 541 passed / 0 failed across LLM+gateway+routing suites. No source changes.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-09 | `core/llm/byok_handler.py` | 62%→**67%** | `generate_with_cognitive_tier` full pipeline (success dict, budget-exceeded, no-models, generation-failure escalation→retry, quality-based escalation via assess_response_quality, exception rate-limit escalation, max-escalations error); `_track_rate_usage`/`_track_llm_call` success + error tolerance; `_monthly_tpm_limit` (unset/valid/invalid); `_monthly_budget_exhausted` (exhausted/not/no-history/error fail-open); `_model_supports_reasoning`; `_load_local_providers` (clients + pricing injection, caps, generic entry without caps, empty, DB error no-op) |
+
+**byok_handler cumulative**: 29% → **67%** across waves 11/11b/11c/11d/11e.
