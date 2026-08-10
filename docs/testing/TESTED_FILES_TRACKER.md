@@ -2084,3 +2084,18 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 | `_is_test_key()` gate | Placeholder keys (`sk-test-…`, `sk-ant-test-…`, any containing `test-key`) are excluded from `_has_any_llm`/`_has_openai`/`_has_anthropic`/`_has_deepseek` and the e2e fixture's `real_keys` — placeholder credentials never trigger real API calls. |
 
 **Real-LLM behavior observed (not a code bug):** the provided OpenCode Go subscription key authenticates against `https://opencode.ai/zen/v1` with correct model IDs (`deepseek-v4-flash`/`deepseek-v4-pro`/`kimi-k2.7-code`) but the account reports `CreditsError: Insufficient balance` — real completions resume automatically once the subscription is funded (no code change needed).
+
+## Session 2026-08-10 (post-wave) — OpenCode Go free→paid retry (TDD, W27)
+
+**Evidence**: `tests/test_covpush_w27_opencode_retry.py` (5 tests, RED→GREEN), regression: `test_byok_handler.py` 197, `test_byok_handler_expanded.py`, `test_covpush_llm_wave15`, `test_request_healer.py`, LLM waves 12-19 (177), `test_covpush_byokroutes.py` (96) — 290 + all green.
+
+**Model naming researched** (opencode.ai/docs/zen, Aug 2026): free-usage models are distinct gateway IDs with a `-free` suffix — `deepseek-v4-flash-free`, `mimo-v2.5-free`, `laguna-s-2.1-free`, `ling-3.0-tiny-free`, `longcat-2.0-free`, `north-mini-code-free`, `nemotron-3-ultra-free`, `big-pickle` — "available for a limited time" (free allowance). `deepseek-v4-flash` ($0.14/$0.28 per 1M) is the cheapest PAID model; `deepseek-v4-pro` $1.74/$3.48, `kimi-k2.7-code` $0.95/$4.00.
+
+**Production change (byok_handler.py)**: when an opencode-go attempt fails on a free-usage model (`*`-free`) with an insufficient-balance error (`CreditsError` / "Insufficient balance" / "credit limit" / 401+billing), the SAME request (messages/temperature) is retried once on the subscription-paid fallback before falling back to the next provider:
+- `deepseek-v4-flash-free` → `deepseek-v4-flash` (documented sibling)
+- `mimo-v2.5-free` → `minimax-m2.7` (documented override)
+- any other `*-free` → `deepseek-v4-flash` (cheapest paid)
+- env overrides: `OPENCODE_FREE_PAID_FALLBACK` (JSON dict)
+- paid models never self-retry; non-balance errors take the normal fallback path; the retry is tracked (health/rate/llm-call/outcome) like a provider fallback.
+
+**Stale-test repair**: `test_byok_handler.py::test_context_window_known_model_defaults` patched `core.dynamic_pricing_fetcher.get_pricing_fetcher` (a no-op — byok_handler binds the function at import) → patched `core.llm.byok_handler.get_pricing_fetcher`; live catalog's deepseek-chat 128k context no longer breaks the fallback-defaults contract.

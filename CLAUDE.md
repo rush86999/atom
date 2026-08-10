@@ -244,6 +244,13 @@ OPENCODE_BASE_URL=https://opencode.ai/zen/v1
 OPENCODE_RPM=60                  # requests/min ceiling for routing headroom
 OPENCODE_TPM=2000000             # tokens/min ceiling for routing headroom
 OPENCODE_MAX_CONTEXT=200000      # gateway context cap (clamps candidate models)
+# Free-usage models (gateway IDs ending in "-free": deepseek-v4-flash-free,
+# mimo-v2.5-free, ...) can exhaust their free allowance even with an active
+# subscription — byok_handler retries the SAME request on a paid model
+# (deepseek-v4-flash cheapest; documented siblings deepseek-v4-flash-free→
+# deepseek-v4-flash, mimo-v2.5-free→minimax-m2.7) when they fail with
+# CreditsError/"Insufficient balance". Override per-model:
+# OPENCODE_FREE_PAID_FALLBACK='{"deepseek-v4-flash-free": "deepseek-v4-flash"}'
 # Local LLM (Ollama, free, keyless): OLLAMA_BASE_URL=http://localhost:11434/v1  OLLAMA_MODEL=llama3:8b
 
 # Governance

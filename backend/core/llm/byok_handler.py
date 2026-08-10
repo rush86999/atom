@@ -371,6 +371,74 @@ MODELS_WITHOUT_TOOLS = {
     "deepseek-v3.2-speciale",
 }
 
+# OpenCode Go free-usage vs subscription-paid split.
+# Per the official Zen docs (opencode.ai/docs/zen): free models carry a
+# "-free" suffix in their gateway ID (deepseek-v4-flash-free, mimo-v2.5-free,
+# laguna-s-2.1-free, ling-3.0-tiny-free, longcat-2.0-free, north-mini-code-free,
+# nemotron-3-ultra-free, big-pickle) and are "available for a limited time".
+# Their free allowance can be exhausted — the gateway then returns
+# CreditsError / "Insufficient balance" even with an ACTIVE subscription,
+# while the paid models would complete fine. When a free-usage attempt fails
+# with an insufficient-balance error, the same request is retried on a paid
+# model before falling back to other providers. Override via env:
+#   OPENCODE_FREE_PAID_FALLBACK='{"deepseek-v4-flash-free": "deepseek-v4-flash"}'
+OPCODE_FREE_MODEL_SUFFIX = "-free"
+
+# Documented paid-sibling fallbacks (model ID as listed on opencode.ai/zen).
+# Any free model WITHOUT an explicit entry falls back to the cheapest PAID
+# model (deepseek-v4-flash, $0.14/$0.28 per 1M tokens).
+OPCODE_FREE_MODEL_PAID_FALLBACK_DEFAULTS = {
+    "deepseek-v4-flash-free": "deepseek-v4-flash",
+    "mimo-v2.5-free": "minimax-m2.7",
+}
+
+
+def _is_opencode_free_model(model: str) -> bool:
+    """True for OpenCode Zen free-usage models (documented "-free" suffix)."""
+    return model.endswith(OPCODE_FREE_MODEL_SUFFIX)
+
+
+def _opencode_free_paid_fallback() -> dict:
+    raw = os.getenv("OPENCODE_FREE_PAID_FALLBACK", "").strip()
+    if raw:
+        try:
+            overrides = json.loads(raw)
+            if isinstance(overrides, dict):
+                return {k: v for k, v in overrides.items() if isinstance(v, str)}
+            logger.warning("OPENCODE_FREE_PAID_FALLBACK must be a JSON object — ignoring")
+        except (ValueError, TypeError):
+            logger.warning("OPENCODE_FREE_PAID_FALLBACK is not valid JSON — ignoring")
+    return dict(OPCODE_FREE_MODEL_PAID_FALLBACK_DEFAULTS)
+
+
+def _opencode_paid_fallback_model(model: str) -> Optional[str]:
+    """Map a free-usage model to the subscription-paid model to retry with."""
+    if not _is_opencode_free_model(model):
+        return None
+    fallbacks = _opencode_free_paid_fallback()
+    paid = fallbacks.get(model)
+    if paid:
+        return paid
+    return "deepseek-v4-flash"  # cheapest paid model
+
+
+def _is_insufficient_balance_error(err: Exception) -> bool:
+    """True when an LLM error means the gateway's free/credit allowance is gone.
+
+    Matches the OpenCode Go gateway CreditsError body:
+    ``{'type': 'CreditsError', 'message': 'Insufficient balance. ...'}`` — but
+    stays loose so any provider reporting credit exhaustion triggers the paid
+    retry path.
+    """
+    text = str(err).lower()
+    return (
+        "insufficient balance" in text
+        or "creditserror" in text
+        or "credit limit" in text
+        or "billing" in text and "401" in text
+    )
+
+
 # Minimum quality scores by CognitiveTier for model filtering
 MIN_QUALITY_BY_TIER = {
     CognitiveTier.MICRO: 0,
@@ -2097,6 +2165,60 @@ class BYOKHandler:
                                     last_error = retry_err
                         except Exception:
                             logger.debug("[SelfHeal] healer raised; skipping", exc_info=True)
+
+                    # --- OpenCode Go free-usage → paid retry ---
+                    # A free-usage model (gateway ID ends in "-free") draws
+                    # from the account's FREE allowance, which can be
+                    # exhausted even with an active subscription — the gateway
+                    # then answers CreditsError / "Insufficient balance" while
+                    # paid models would complete fine. Re-issue the SAME
+                    # request on the subscription-paid fallback model before
+                    # falling back to the next provider.
+                    if (
+                        provider_id == "opencode-go"
+                        and _is_opencode_free_model(model)
+                        and _is_insufficient_balance_error(attempt_err)
+                    ):
+                        paid_model = _opencode_paid_fallback_model(model)
+                        if paid_model and paid_model != model:
+                            try:
+                                response = client.chat.completions.create(
+                                    model=paid_model,
+                                    messages=messages,
+                                    temperature=temperature,
+                                )
+                                result = response.choices[0].message.content
+                                finish_reason = getattr(response.choices[0], "finish_reason", None)
+                                logger.info(
+                                    f"OpenCode Go free-model retry SUCCEEDED on paid model "
+                                    f"{paid_model} (free {model} hit credit limit)"
+                                )
+                                latency_ms = (time.time() - request_start) * 1000
+                                try:
+                                    self.health_monitor.record_call(provider_id, success=True, latency_ms=latency_ms)
+                                except Exception:
+                                    pass
+                                self._track_rate_usage(provider_id, model_id=paid_model)
+                                self._track_llm_call(
+                                    provider=provider_id, model=paid_model, success=True,
+                                    latency_ms=latency_ms,
+                                    fallback=provider_id != primary_provider,
+                                    fallback_provider=primary_provider if provider_id != primary_provider else None,
+                                )
+                                await self._record_outcome_feedback(
+                                    model=paid_model, provider_id=provider_id, task_type=task_type,
+                                    content=result, finish_reason=finish_reason,
+                                    success=True, cost=None, latency_ms=latency_ms,
+                                    routing_result_id=decision_id_for_feedback,
+                                )
+                                self._last_used_model = paid_model
+                                self._last_used_provider = provider_id
+                                return result
+                            except Exception as paid_err:
+                                logger.warning(
+                                    f"OpenCode Go paid retry FAILED for {paid_model}: {paid_err}"
+                                )
+                                last_error = paid_err
 
                     # Learning-router outcome observation for failures.
                     await self._record_outcome_feedback(

@@ -1030,8 +1030,10 @@ class TestContextWindowManagementExtended:
         """Test context window for known model defaults."""
         mock_byok_manager = MagicMock()
 
-        # Mock pricing fetcher BEFORE handler init
-        with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_get_fetcher:
+        # Mock pricing fetcher BEFORE handler init (patch the name bound in
+        # byok_handler's namespace — patching core.dynamic_pricing_fetcher is
+        # a no-op because the module-level import already bound the function)
+        with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_get_fetcher:
             fetcher = MagicMock()
             fetcher.get_model_price.side_effect = Exception("No pricing")
             mock_get_fetcher.return_value = fetcher
