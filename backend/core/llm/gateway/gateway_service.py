@@ -53,7 +53,7 @@ class GatewayService:
     # ------------------------------------------------------------------ #
     # Routing
     # ------------------------------------------------------------------ #
-    def _resolve_route(
+    async def _resolve_route(
         self,
         messages: List[Dict[str, Any]],
         model: Optional[str],
@@ -64,6 +64,11 @@ class GatewayService:
         Header overrides (in precedence order, see docs/reference/ROUTING_HEADERS.md):
         ``x-atom-model`` forces the model; ``x-atom-tier`` forces the cognitive
         tier; ``x-atom-intent`` forces intent. Otherwise cost-aware BPC routing.
+
+        The intent override (when present) is threaded through the same
+        learning-router re-rank ``generate_response`` uses — previously the
+        parsed value was discarded here, so ``x-atom-intent`` was a documented
+        no-op on the gateway surface.
         """
         from core.llm.gateway.wire_formats import prompt_from_messages
 
@@ -74,9 +79,7 @@ class GatewayService:
             model if model and model not in ("auto", "") else None
         )
         forced_tier = overrides.get("tier")
-        # intent override flows through for future ranking hooks; consumed here
-        # for parity with the routing pipeline.
-        overrides.get("intent")
+        forced_intent = overrides.get("intent")
 
         complexity = self.handler.analyze_query_complexity(prompt, "chat")
         prefer_cost = PREFER_COST
@@ -90,14 +93,29 @@ class GatewayService:
                     prefer_cost=prefer_cost,
                     cognitive_tier=tier,
                 )
-                if options:
-                    routed_provider, routed_model = options[0]
-                else:
-                    routed_provider, routed_model = self._absolute_fallback()
             else:
-                routed_provider, routed_model = self._absolute_fallback()
+                options = []
         else:
-            routed_provider, routed_model = self._optimal()
+            try:
+                options = self.handler.get_ranked_providers(
+                    complexity,
+                    "chat",
+                    prefer_cost=prefer_cost,
+                )
+            except NoProvidersConfiguredError:
+                raise
+            except Exception as e:
+                logger.warning(f"Gateway routing fallback to first client: {e}")
+                options = []
+
+        if options:
+            if forced_intent:
+                options = await self.handler._rerank_with_learning(
+                    options, prompt, "chat", intent=forced_intent
+                )
+            routed_provider, routed_model = options[0]
+        else:
+            routed_provider, routed_model = self._absolute_fallback()
 
         if forced_model:
             return self._resolve_provider_for_model(routed_provider, forced_model)
@@ -117,10 +135,24 @@ class GatewayService:
             return self._absolute_fallback()
 
     def _absolute_fallback(self) -> Tuple[str, str]:
+        """First configured client + its configured default model.
+
+        The model comes from the provider's own config (``AIProviderConfig.
+        model``) so an Anthropic-only deployment falls back to a model
+        Anthropic actually serves — the previous hardcoded ``"gpt-4o-mini"``
+        guaranteed a provider-level failure for every non-OpenAI client.
+        """
         clients = self.handler.async_clients or self.handler.clients
         if clients:
             provider_id = list(clients.keys())[0]
-            return provider_id, "gpt-4o-mini"
+            default_model = None
+            try:
+                cfg = (self.handler.byok_manager.providers or {}).get(provider_id)
+                if cfg is not None and isinstance(getattr(cfg, "model", None), str):
+                    default_model = cfg.model
+            except Exception:
+                default_model = None
+            return provider_id, default_model or "gpt-4o-mini"
         raise NoProvidersConfiguredError()
 
     def _resolve_provider_for_model(self, routed_provider: str, model: str) -> Tuple[str, str]:
@@ -154,12 +186,19 @@ class GatewayService:
         return {"object": "list", "data": data}
 
     def _models_for_provider(self, provider_id: str) -> List[str]:
+        """Registry models for a provider; falls back to the configured model.
+
+        Previously imported a nonexistent ``get_models_for_provider`` from
+        ``core.llm.registry.queries`` — the ImportError was swallowed, so the
+        model registry was NEVER consulted and only the config fallback was
+        ever surfaced (``GET /v1/models`` returned a stub). The query now
+        exists (``core/llm/registry/queries.py``) and is invoked with the
+        caller's tenant scope.
+        """
         try:
             from core.llm.registry.queries import get_models_for_provider
 
-            models = get_models_for_provider(provider_id)
-            if models:
-                return models
+            return get_models_for_provider(self.db, provider_id)
         except Exception:
             pass
         cfg = self.handler.byok_manager.providers.get(provider_id)

@@ -24,7 +24,7 @@ class TestAirtableServiceCoverage:
     @pytest.fixture
     def airtable_service(self):
         """Get Airtable service instance."""
-        return AirtableService(tenant_id="default")
+        return AirtableService(tenant_id="default", config={"api_key": "test-key-123"})
 
     # Test: AirtableService initialization
     def test_airtable_service_init(self, airtable_service):
@@ -52,7 +52,7 @@ class TestAirtableServiceCoverage:
             ]
         }
 
-        with patch.object(airtable_service.client, 'get', AsyncMock(return_value=mock_response)):
+        with patch.object(airtable_service.http, 'get', AsyncMock(return_value=mock_response)):
             bases = await airtable_service.get_bases()
 
         assert len(bases) == 2
@@ -65,7 +65,7 @@ class TestAirtableServiceCoverage:
         mock_response.status_code = 200
         mock_response.json.return_value = {"bases": []}
 
-        with patch.object(airtable_service.client, 'get', AsyncMock(return_value=mock_response)):
+        with patch.object(airtable_service.http, 'get', AsyncMock(return_value=mock_response)):
             bases = await airtable_service.get_bases(token="custom-token")
 
         assert isinstance(bases, list)
@@ -76,7 +76,7 @@ class TestAirtableServiceCoverage:
         mock_response = MagicMock()
         mock_response.raise_for_status.side_effect = Exception("API Error")
 
-        with patch.object(airtable_service.client, 'get', AsyncMock(return_value=mock_response)):
+        with patch.object(airtable_service.http, 'get', AsyncMock(return_value=mock_response)):
             bases = await airtable_service.get_bases()
 
         assert bases == []
@@ -94,7 +94,7 @@ class TestAirtableServiceCoverage:
             ]
         }
 
-        with patch.object(airtable_service.client, 'get', AsyncMock(return_value=mock_response)):
+        with patch.object(airtable_service.http, 'get', AsyncMock(return_value=mock_response)):
             tables = await airtable_service.get_tables("base-123")
 
         assert len(tables) == 2
@@ -106,7 +106,7 @@ class TestAirtableServiceCoverage:
         mock_response = MagicMock()
         mock_response.raise_for_status.side_effect = Exception("Base not found")
 
-        with patch.object(airtable_service.client, 'get', AsyncMock(return_value=mock_response)):
+        with patch.object(airtable_service.http, 'get', AsyncMock(return_value=mock_response)):
             tables = await airtable_service.get_tables("nonexistent-base")
 
         assert tables == []
@@ -124,7 +124,7 @@ class TestAirtableServiceCoverage:
             ]
         }
 
-        with patch.object(airtable_service.client, 'get', AsyncMock(return_value=mock_response)):
+        with patch.object(airtable_service.http, 'get', AsyncMock(return_value=mock_response)):
             records = await airtable_service.list_records(
                 base_id="base-123",
                 table_name="Table 1"
@@ -139,7 +139,7 @@ class TestAirtableServiceCoverage:
         mock_response.status_code = 200
         mock_response.json.return_value = {"records": []}
 
-        with patch.object(airtable_service.client, 'get', AsyncMock(return_value=mock_response)):
+        with patch.object(airtable_service.http, 'get', AsyncMock(return_value=mock_response)):
             records = await airtable_service.list_records(
                 base_id="base-123",
                 table_name="Table 1",
@@ -169,7 +169,7 @@ class TestAirtableServiceCoverage:
             "fields": {"Name": "New Record"}
         }
 
-        with patch.object(airtable_service.client, 'post', AsyncMock(return_value=mock_response)):
+        with patch.object(airtable_service.http, 'post', AsyncMock(return_value=mock_response)):
             record = await airtable_service.create_record(
                 base_id="base-123",
                 table_name="Table 1",
@@ -189,7 +189,7 @@ class TestAirtableServiceCoverage:
             "fields": {"Name": "Updated"}
         }
 
-        with patch.object(airtable_service.client, 'patch', AsyncMock(return_value=mock_response)):
+        with patch.object(airtable_service.http, 'patch', AsyncMock(return_value=mock_response)):
             record = await airtable_service.update_record(
                 base_id="base-123",
                 table_name="Table 1",
@@ -207,7 +207,7 @@ class TestAirtableServiceCoverage:
         mock_response.status_code = 200
         mock_response.json.return_value = {"deleted": True, "id": "rec-123"}
 
-        with patch.object(airtable_service.client, 'delete', AsyncMock(return_value=mock_response)):
+        with patch.object(airtable_service.http, 'delete', AsyncMock(return_value=mock_response)):
             result = await airtable_service.delete_record(
                 base_id="base-123",
                 table_name="Table 1",
@@ -383,7 +383,7 @@ class TestIntegrationServicesErrorHandling:
         mock_response = MagicMock()
         mock_response.raise_for_status.side_effect = httpx.NetworkError("Connection failed")
 
-        with patch.object(service.client, 'get', AsyncMock(return_value=mock_response)):
+        with patch.object(service.http, 'get', AsyncMock(return_value=mock_response)):
             bases = await service.get_bases()
 
         assert bases == []
@@ -397,7 +397,7 @@ class TestIntegrationServicesErrorHandling:
         mock_response = MagicMock()
         mock_response.raise_for_status.side_effect = httpx.TimeoutException("Request timeout")
 
-        with patch.object(service.client, 'get', AsyncMock(return_value=mock_response)):
+        with patch.object(service.http, 'get', AsyncMock(return_value=mock_response)):
             bases = await service.get_bases()
 
         assert bases == []
@@ -412,7 +412,7 @@ class TestIntegrationServicesErrorHandling:
         mock_response.status_code = 200
         mock_response.json.side_effect = Exception("Invalid JSON")
 
-        with patch.object(service.client, 'get', AsyncMock(return_value=mock_response)):
+        with patch.object(service.http, 'get', AsyncMock(return_value=mock_response)):
             bases = await service.get_bases()
 
         assert bases == []
@@ -429,7 +429,7 @@ class TestIntegrationServicesErrorHandling:
             "Rate limited", request=MagicMock(), response=mock_response
         )
 
-        with patch.object(service.client, 'get', AsyncMock(return_value=mock_response)):
+        with patch.object(service.http, 'get', AsyncMock(return_value=mock_response)):
             bases = await service.get_bases()
 
         assert bases == []
@@ -446,7 +446,7 @@ class TestIntegrationServicesErrorHandling:
             "Unauthorized", request=MagicMock(), response=mock_response
         )
 
-        with patch.object(service.client, 'get', AsyncMock(return_value=mock_response)):
+        with patch.object(service.http, 'get', AsyncMock(return_value=mock_response)):
             bases = await service.get_bases()
 
         assert bases == []

@@ -334,7 +334,7 @@ class FleetScalerService:
 
         # Update blackboard with new agents
         from core.fleet_orchestration import get_distributed_blackboard
-        blackboard = get_distributed_blackboard(self.db)
+        blackboard = get_distributed_blackboard()
         if blackboard is not None:
             await blackboard.notify_state_update(
                 chain_id=proposal.chain_id,
@@ -385,7 +385,7 @@ class FleetScalerService:
 
         # Update blackboard with removed agents
         from core.fleet_orchestration import get_distributed_blackboard
-        blackboard = get_distributed_blackboard(self.db)
+        blackboard = get_distributed_blackboard()
         if blackboard is not None:
             await blackboard.notify_state_update(
                 chain_id=proposal.chain_id,
@@ -499,68 +499,6 @@ class FleetScalerService:
             "recent_operations": [op.to_dict() for op in recent_ops],
             "last_monitored": datetime.now(timezone.utc).isoformat()
         }
-
-    # ========================================================================
-    # Existing Constraint Checking Methods
-    # ========================================================================
-
-    async def check_scaling_constraints(
-        self,
-        chain_id: str,
-        
-        proposed_size: int
-    ) -> Dict[str, Any]:
-        """
-        Check all scaling constraints before execution.
-
-        Combines:
-        - Effective fleet size limit (base or overage)
-        - Budget validation
-        - Overage expiry check
-
-        Args:
-            chain_id: Delegation chain ID
-            tenant_id: Any UUID
-            proposed_size: Proposed fleet size
-
-        Returns:
-            Dict with constraint check results
-        """
-        results = {
-            "allowed": True,
-            "constraints": {}
-        }
-
-        # 1. Check effective fleet size limit
-        effective_limit = self.overage_service.get_effective_limit(chain_id)
-        results["constraints"]["fleet_size_limit"] = {
-            "current_limit": effective_limit,
-            "proposed_size": proposed_size,
-            "within_limit": proposed_size <= effective_limit
-        }
-
-        if proposed_size > effective_limit:
-            results["allowed"] = False
-            results["constraints"]["fleet_size_limit"]["reason"] = \
-                f"Proposed size {proposed_size} exceeds effective limit {effective_limit}"
-
-        # 2. Check plan-based quota (for new proposals without overage)
-        current_size = await self._get_current_fleet_size(chain_id)
-        quota_check = {"allowed": True, "current_limit": int(os.getenv("MAX_FLEET_SIZE", "100")), "overage_available": True}
-        results["constraints"]["plan_quota"] = quota_check
-
-        if not quota_check.get("allowed") and not quota_check.get("overage_available"):
-            results["allowed"] = False
-
-        # 3. Check for expiring overages
-        if await self.overage_service.check_overage_expiry(chain_id):
-            results["constraints"]["overage_expiry"] = {
-                "status": "expired",
-                "message": "Active overage has expired, fleet should contract"
-            }
-
-        return results
-
     async def _get_current_fleet_size(self, chain_id: str) -> int:
         """
         Get current fleet size for a delegation chain.

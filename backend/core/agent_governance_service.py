@@ -421,6 +421,10 @@ class AgentGovernanceService:
         penalty = 0.1 if impact_level == "high" else 0.02
         
         new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
+        # Round to 4dp: repeated increments accumulate binary noise
+        # (0.4 + 10*0.01 == 0.5000000000000001), which is persisted to the DB
+        # and breaks exact-equality consumers (and pollutes audit output).
+        new_score = round(new_score, 4)
         agent.confidence_score = new_score
         
         prev_status = agent.status
@@ -669,8 +673,17 @@ class AgentGovernanceService:
         if not agent:
             return None
 
+        # Normalize case: the docstring promises an AgentStatus value in
+        # lowercase, but the stored status may be written by API clients in
+        # non-lowercase form (e.g. "AUTONOMOUS") — returning it verbatim
+        # breaks case-sensitive callers (SkillRegistryService maturity gates).
+        maturity = (
+            agent.status.lower()
+            if isinstance(agent.status, str)
+            else agent.status
+        )
         return {
-            "maturity_level": agent.status,
+            "maturity_level": maturity,
             "confidence_score": agent.confidence_score or 0.5,
         }
 
@@ -730,7 +743,16 @@ class AgentGovernanceService:
                 )
 
         # Autonomous Guardrails
-        if check["agent_status"] == AgentStatus.AUTONOMOUS.value:
+        # Normalize the stored status: can_perform_action returns the RAW
+        # agent.status, which API clients may write in non-lowercase form
+        # (e.g. "AUTONOMOUS") — a case-sensitive comparison here would skip
+        # the guardrail service entirely for those agents (fail-open bypass).
+        agent_status = (
+            str(check["agent_status"] or "").lower()
+            if isinstance(check.get("agent_status"), str)
+            else check.get("agent_status")
+        )
+        if agent_status == AgentStatus.AUTONOMOUS.value:
             gr = AutonomousGuardrailService(self.db, workspace_id=self.workspace_id)
             gr_check = gr.check_guardrails(agent_id, action_type, action_details or {})
             if not gr_check["proceed"]:

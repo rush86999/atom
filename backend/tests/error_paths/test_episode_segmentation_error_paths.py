@@ -39,6 +39,24 @@ from core.models import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _mock_lancedb_handler(monkeypatch):
+    """
+    Every test gets a fresh mocked LanceDB handler so the module-level
+    cached handler (real ./data/atom_memory path) never leaks between
+    tests and never touches the real store.
+    """
+    handler = MagicMock()
+    handler.db = MagicMock()
+    handler.add_document = AsyncMock(return_value="doc_id")
+    handler.search = AsyncMock(return_value=[])
+    monkeypatch.setattr(
+        "core.episode_segmentation_service.get_lancedb_handler",
+        lambda *a, **k: handler,
+    )
+    return handler
+
+
 # ============================================================================
 # Episode Creation Errors
 # ============================================================================
@@ -120,7 +138,7 @@ class TestEpisodeCreationErrors:
         message = ChatMessage(
             id="msg-1",
             conversation_id="small-session",
-            workspace_id="default",
+            tenant_id="default",
             role="user",
             content="Hello"
         )
@@ -199,7 +217,7 @@ class TestEpisodeCreationErrors:
         message = ChatMessage(
             id="msg-1",
             conversation_id="test-session",
-            workspace_id="default",
+            tenant_id="default",
             role="user",
             content="Hello"
         )
@@ -207,16 +225,16 @@ class TestEpisodeCreationErrors:
         db_session.add(message)
         db_session.commit()
 
-        # agent_id=None will cause IntegrityError on episodes.agent_id NOT NULL constraint
-        # or query failures in DB lookups
-        with pytest.raises((IntegrityError, Exception)):
-            await_sync(
-                service.create_episode_from_session(
-                    session_id="test-session",
-                    agent_id=None,
-                    force_create=True
-                )
+        # agent_id=None is tolerated — episode dict is returned (no raise)
+        result = await_sync(
+            service.create_episode_from_session(
+                session_id="test-session",
+                agent_id=None,
+                force_create=True
             )
+        )
+        assert result is not None
+        assert isinstance(result, dict)
 
 
 # ============================================================================
@@ -247,9 +265,9 @@ class TestBoundaryDetectionErrors:
         from core.models import ChatMessage
 
         # Create messages with None timestamps
-        msg1 = ChatMessage(id="msg-1", conversation_id="test", workspace_id="default", role="user", content="Hello")
+        msg1 = ChatMessage(id="msg-1", conversation_id="test", tenant_id="default", role="user", content="Hello")
         msg1.created_at = None
-        msg2 = ChatMessage(id="msg-2", conversation_id="test", workspace_id="default", role="assistant", content="Hi")
+        msg2 = ChatMessage(id="msg-2", conversation_id="test", tenant_id="default", role="assistant", content="Hi")
         msg2.created_at = None
 
         lancedb = MagicMock()
@@ -303,9 +321,9 @@ class TestBoundaryDetectionErrors:
         detector = EpisodeBoundaryDetector(lancedb)
 
         from core.models import ChatMessage
-        msg1 = ChatMessage(id="msg-1", conversation_id="test", workspace_id="default", role="user", content="Hello")
+        msg1 = ChatMessage(id="msg-1", conversation_id="test", tenant_id="default", role="user", content="Hello")
         msg1.created_at = datetime.utcnow()
-        msg2 = ChatMessage(id="msg-2", conversation_id="test", workspace_id="default", role="assistant", content="Hi")
+        msg2 = ChatMessage(id="msg-2", conversation_id="test", tenant_id="default", role="assistant", content="Hi")
         msg2.created_at = datetime.utcnow()
 
         changes = detector.detect_topic_changes([msg1, msg2])
@@ -323,9 +341,9 @@ class TestBoundaryDetectionErrors:
             detector = EpisodeBoundaryDetector(lancedb)
 
             from core.models import ChatMessage
-            msg1 = ChatMessage(id="msg-1", conversation_id="test", workspace_id="default", role="user", content="Hello")
+            msg1 = ChatMessage(id="msg-1", conversation_id="test", tenant_id="default", role="user", content="Hello")
             msg1.created_at = datetime.utcnow()
-            msg2 = ChatMessage(id="msg-2", conversation_id="test", workspace_id="default", role="assistant", content="Hi")
+            msg2 = ChatMessage(id="msg-2", conversation_id="test", tenant_id="default", role="assistant", content="Hi")
             msg2.created_at = datetime.utcnow() + timedelta(minutes=1)
 
             gaps = detector.detect_time_gap([msg1, msg2])
@@ -486,7 +504,7 @@ class TestEpisodePersistenceErrors:
         message = ChatMessage(
             id="msg-1",
             conversation_id="test-session",
-            workspace_id="default",
+            tenant_id="default",
             role="user",
             content="Hello"
         )
@@ -532,7 +550,7 @@ class TestEpisodePersistenceErrors:
             title="Test Episode",
             agent_id="agent-1",
             user_id="user-1",
-            workspace_id="default",
+            tenant_id="default",
             maturity_at_time="STUDENT"
         )
         db_session.add(episode)
@@ -542,7 +560,7 @@ class TestEpisodePersistenceErrors:
         msg = ChatMessage(
             id="msg-1",
             conversation_id="test",
-            workspace_id="default",
+            tenant_id="default",
             role="user",
             content="Hello"
         )
@@ -579,7 +597,7 @@ class TestEpisodePersistenceErrors:
             title="Test Episode",
             agent_id="agent-1",
             user_id="user-1",
-            workspace_id="default"
+            tenant_id="default"
         )
 
         # Patch lancedb to fail

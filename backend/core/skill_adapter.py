@@ -596,100 +596,101 @@ class NodeJsSkillAdapter(BaseTool):
             SecurityError: If malicious scripts detected
         """
         from core.npm_script_analyzer import NpmScriptAnalyzer
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import sessionmaker
 
-        # Create database session for governance checks
-        engine = create_engine("sqlite:///./atom_dev.db")
-        SessionLocal = sessionmaker(bind=engine)
-        db = SessionLocal()
+        # Use the app's configured session — the previous hardcoded
+        # ``sqlite:///./atom_dev.db`` engine was CWD-relative (broke under
+        # pytest / non-root launches) and bypassed the configured
+        # DATABASE_URL entirely, silently reading a stale dev DB.
+        from core.database import get_db_session
 
-        try:
-            # Step 1: Check governance permissions for all packages
-            logger.info(f"Checking governance permissions for {len(self.node_packages)} npm packages")
-
-            for pkg in self.node_packages:
-                name, version = self._parse_npm_package(pkg)
-
-                permission = self.governance.check_package_permission(
-                    agent_id=self.agent_id or "system",
-                    package_name=name,
-                    version=version,
-                    package_type="npm",
-                    db=db
-                )
-
-                if not permission["allowed"]:
-                    error_msg = (
-                        f"npm package {name}@{version} blocked by governance: "
-                        f"{permission.get('reason', 'Unknown reason')}"
+        with get_db_session() as db:
+    
+            try:
+                # Step 1: Check governance permissions for all packages
+                logger.info(f"Checking governance permissions for {len(self.node_packages)} npm packages")
+    
+                for pkg in self.node_packages:
+                    name, version = self._parse_npm_package(pkg)
+    
+                    permission = self.governance.check_package_permission(
+                        agent_id=self.agent_id or "system",
+                        package_name=name,
+                        version=version,
+                        package_type="npm",
+                        db=db
                     )
-                    logger.warning(error_msg)
+    
+                    if not permission["allowed"]:
+                        error_msg = (
+                            f"npm package {name}@{version} blocked by governance: "
+                            f"{permission.get('reason', 'Unknown reason')}"
+                        )
+                        logger.warning(error_msg)
+                        return {
+                            "success": False,
+                            "error": error_msg,
+                            "package": name,
+                            "version": version
+                        }
+    
+                    logger.info(f"Governance check passed for {name}@{version}")
+    
+                # Step 2: Analyze package scripts (postinstall/preinstall detection)
+                script_analyzer = NpmScriptAnalyzer()
+                script_warnings = script_analyzer.analyze_package_scripts(
+                    self.node_packages
+                )
+    
+                if script_warnings["malicious"]:
+                    error_msg = (
+                        f"Malicious postinstall/preinstall scripts detected: "
+                        f"{script_warnings['warnings']}"
+                    )
+                    logger.error(error_msg)
                     return {
                         "success": False,
                         "error": error_msg,
-                        "package": name,
-                        "version": version
+                        "script_warnings": script_warnings
                     }
-
-                logger.info(f"Governance check passed for {name}@{version}")
-
-            # Step 2: Analyze package scripts (postinstall/preinstall detection)
-            script_analyzer = NpmScriptAnalyzer()
-            script_warnings = script_analyzer.analyze_package_scripts(
-                self.node_packages
-            )
-
-            if script_warnings["malicious"]:
-                error_msg = (
-                    f"Malicious postinstall/preinstall scripts detected: "
-                    f"{script_warnings['warnings']}"
+    
+                if script_warnings["warnings"]:
+                    logger.warning(f"Suspicious scripts detected: {script_warnings['warnings']}")
+    
+                # Step 3: Install packages using NpmPackageInstaller
+                logger.info(
+                    f"Installing {len(self.node_packages)} npm packages for skill {self.skill_id}"
                 )
-                logger.error(error_msg)
+    
+                install_result = self.installer.install_packages(
+                    skill_id=self.skill_id,
+                    packages=self.node_packages,
+                    package_manager=self.package_manager,
+                    scan_for_vulnerabilities=True
+                )
+    
+                if not install_result["success"]:
+                    error_msg = install_result.get("error", "Unknown installation error")
+                    logger.error(f"npm installation failed: {error_msg}")
+                    return {
+                        "success": False,
+                        "error": error_msg,
+                        "install_result": install_result
+                    }
+    
+                logger.info(
+                    f"Successfully installed npm packages for skill {self.skill_id} "
+                    f"(image: {install_result['image_tag']})"
+                )
+    
                 return {
-                    "success": False,
-                    "error": error_msg,
+                    "success": True,
+                    "image_tag": install_result["image_tag"],
+                    "vulnerabilities": install_result.get("vulnerabilities", []),
                     "script_warnings": script_warnings
                 }
-
-            if script_warnings["warnings"]:
-                logger.warning(f"Suspicious scripts detected: {script_warnings['warnings']}")
-
-            # Step 3: Install packages using NpmPackageInstaller
-            logger.info(
-                f"Installing {len(self.node_packages)} npm packages for skill {self.skill_id}"
-            )
-
-            install_result = self.installer.install_packages(
-                skill_id=self.skill_id,
-                packages=self.node_packages,
-                package_manager=self.package_manager,
-                scan_for_vulnerabilities=True
-            )
-
-            if not install_result["success"]:
-                error_msg = install_result.get("error", "Unknown installation error")
-                logger.error(f"npm installation failed: {error_msg}")
-                return {
-                    "success": False,
-                    "error": error_msg,
-                    "install_result": install_result
-                }
-
-            logger.info(
-                f"Successfully installed npm packages for skill {self.skill_id} "
-                f"(image: {install_result['image_tag']})"
-            )
-
-            return {
-                "success": True,
-                "image_tag": install_result["image_tag"],
-                "vulnerabilities": install_result.get("vulnerabilities", []),
-                "script_warnings": script_warnings
-            }
-
-        finally:
-            db.close()
+    
+            finally:
+                db.close()
 
     def execute_nodejs_code(self, query: str) -> str:
         """

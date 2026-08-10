@@ -124,7 +124,17 @@ class GovernanceCache:
             logger.error(f"Error expiring stale entries: {e}")
 
     def _make_key(self, agent_id: str, action_type: str) -> str:
-        """Generate cache key from agent_id and action_type."""
+        """Generate cache key from agent_id and action_type.
+
+        Action names are lowercased for case-insensitive matching (e.g.
+        ``"Search"`` vs ``"search"``), but directory-permission keys
+        (``dir:<path>``) preserve the path verbatim — filesystem paths are
+        case-sensitive, so ``dir:/tmp/Data`` and ``dir:/tmp/data`` are
+        different permissions and must not share a cache entry (a collision
+        would leak an allow-decision between directories).
+        """
+        if action_type.startswith("dir:"):
+            return f"{agent_id}:{action_type}"
         return f"{agent_id}:{action_type.lower()}"
 
     # ============================================================================

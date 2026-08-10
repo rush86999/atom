@@ -3385,6 +3385,7 @@ class BYOKHandler:
         agent_id: Optional[str] = None,
         db = None,
         task_type: Optional[str] = "chat",
+        extra_kwargs: Optional[Dict[str, Any]] = None,
     ) -> AsyncGenerator[str, None]:
         """
         Stream LLM responses token-by-token with optional governance tracking.
@@ -3399,6 +3400,9 @@ class BYOKHandler:
             max_tokens: Maximum tokens to generate
             agent_id: Optional agent ID for governance tracking
             db: Optional database session for governance tracking
+            extra_kwargs: Extra kwargs forwarded to the provider stream call
+                (e.g. ``stop``/``top_p`` — previously silently dropped, so the
+                gateway's streaming requests could not honor stop sequences).
 
         Yields:
             Individual tokens as they arrive from the LLM
@@ -3480,13 +3484,18 @@ class BYOKHandler:
                     logger.debug(f"Created agent execution {agent_execution.id} for LLM stream")
 
                 # Use async streaming API
-                stream = await client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    stream=True
-                )
+                create_kwargs: Dict[str, Any] = {
+                    "model": model,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "stream": True,
+                }
+                if extra_kwargs:
+                    create_kwargs.update(
+                        {k: v for k, v in extra_kwargs.items() if v is not None}
+                    )
+                stream = await client.chat.completions.create(**create_kwargs)
 
                 token_count = 0
                 # Accumulate streamed content (capped) so the outcome hook can

@@ -11,6 +11,7 @@ Tests cover:
 import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
+from sqlalchemy import text
 
 from core.llm.registry.service import LLMRegistryService
 from core.llm.registry.models import LLMModel
@@ -932,13 +933,13 @@ class TestModelComparison:
             Mock(spec=LLMModel, capabilities=['code']),
         ]
 
-        # Mock overlap query (for match_any=False)
-        # Need to patch LLMModel.capabilities.overlap to avoid SQLAlchemy error
-        mock_overlap = Mock()
-        mock_overlap_op = Mock()
-        mock_overlap_op.overlap = Mock(return_value=mock_overlap)
+        # The impl (since July) builds `or_(*[... .contains([cap]) ...])` —
+        # the or_() args must be REAL SQL expressions (mocks fail SQLAlchemy
+        # WHERE-clause coercion), so use a literal text clause.
+        mock_caps = Mock()
+        mock_caps.contains.return_value = text("1=1")
 
-        with patch.object(LLMModel, 'capabilities', mock_overlap_op):
+        with patch.object(LLMModel, 'capabilities', mock_caps):
             mock_base_query = Mock()
             mock_base_query.filter.return_value = mock_base_query
             mock_base_query.all.return_value = mock_models

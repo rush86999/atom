@@ -59,6 +59,17 @@ class LanceDBService:
         """Stub method for deleting data."""
         logger.warning(f"delete({table_name}) called on LanceDB stub (no-op)")
 
+    def get_or_create_reflection_pool_table(self):
+        """Reflection-pool table accessor.
+
+        The reflection pool is not backed by the upstream stub — callers
+        (``ReflectionService``) already guard ``if not table`` and degrade
+        gracefully, so return None rather than crash with AttributeError
+        (which previously broke the self-critique path on every agent run).
+        """
+        logger.warning("get_or_create_reflection_pool_table() called on LanceDB stub (no table)")
+        return None
+
 def get_lancedb_handler(workspace_id: str = "default", tenant_id: Optional[str] = None) -> LanceDBService:
     """
     Get or create a LanceDB handler for the workspace.

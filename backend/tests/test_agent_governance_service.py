@@ -164,7 +164,7 @@ class TestActionPermissions:
             )
 
             assert result["allowed"] is False
-            assert result["requires_approval"] is True
+            assert result["requires_human_approval"] is True
 
     def test_autonomous_can_perform_critical_actions(self):
         """Test that AUTONOMOUS agents can perform level 4 (critical) actions."""

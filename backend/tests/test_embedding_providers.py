@@ -6,6 +6,7 @@ and failure handling.
 """
 
 import pytest
+from types import SimpleNamespace
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from typing import List
 
@@ -92,7 +93,7 @@ class TestEmbeddingGeneration:
             embedding = await provider.generate_embedding("test text", "text-embedding-3-small")
 
             assert embedding == [0.1, 0.2, 0.3, 0.4]
-            assert len(embedding) == 1536  # text-embedding-3-small dimension
+            assert len(embedding) == 4  # matches the mocked vector
 
     @pytest.mark.asyncio
     async def test_generate_embedding_local(self):
@@ -211,33 +212,33 @@ class TestMultiProviderSupport:
 
     def test_cohere_provider_initialization(self):
         """Test Cohere provider initialization."""
-        with patch('core.llm.embedding.providers.AsyncCohereClient'):
-            try:
-                provider = CohereEmbeddingProvider(api_key="test_key")
-                assert provider is not None
-            except TypeError:
-                # Provider may not be fully implemented
-                pass
+        with patch(
+            "core.llm.embedding.providers.cohere",
+            SimpleNamespace(AsyncClient=lambda **kw: MagicMock()),
+        ):
+            provider = CohereEmbeddingProvider(api_key="test_key")
+            assert provider is not None
+            assert provider._client is not None
 
     def test_voyage_provider_initialization(self):
         """Test Voyage provider initialization."""
-        with patch('core.llm.embedding.providers.AsyncVoyageClient'):
-            try:
-                provider = VoyageEmbeddingProvider(api_key="test_key")
-                assert provider is not None
-            except TypeError:
-                # Provider may not be fully implemented
-                pass
+        with patch(
+            "core.llm.embedding.providers.voyageai",
+            SimpleNamespace(Client=lambda **kw: MagicMock()),
+        ):
+            provider = VoyageEmbeddingProvider(api_key="test_key")
+            assert provider is not None
+            assert provider._client is not None
 
     def test_nomic_provider_initialization(self):
         """Test Nomic provider initialization."""
-        with patch('core.llm.embedding.providers.AsyncNomicClient'):
-            try:
-                provider = NomicEmbeddingProvider(api_key="test_key")
-                assert provider is not None
-            except TypeError:
-                # Provider may not be fully implemented
-                pass
+        with patch(
+            "core.llm.embedding.providers.nomic",
+            SimpleNamespace(Embedding=lambda **kw: MagicMock()),
+        ):
+            provider = NomicEmbeddingProvider(api_key="test_key")
+            assert provider is not None
+            assert provider._client is not None
 
     def test_jina_provider_initialization(self):
         """Test Jina provider initialization."""
@@ -386,6 +387,7 @@ class TestErrorHandling:
 
             provider = OpenAIEmbeddingProvider(api_key="test_key")
 
-            # Should handle empty response gracefully
-            with pytest.raises((IndexError, AttributeError)):
+            # Empty data -> IndexError inside the provider -> wrapped in the
+            # documented EmbeddingProviderError contract.
+            with pytest.raises(EmbeddingProviderError):
                 await provider.generate_embedding("test", "text-embedding-3-small")

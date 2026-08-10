@@ -484,6 +484,25 @@ def get_auto_include_models(
     return query.order_by(LLMModel.quality_score.desc()).all()
 
 
+def get_models_for_provider(
+    db: Session,
+    provider_id: str,
+    tenant_id: Optional[str] = None,
+) -> List[str]:
+    """Return registered model ids (``model_name`` values) for a provider.
+
+    Powers the gateway ``/v1/models`` listing's registry leg. The gateway's
+    ``_models_for_provider`` imported this name for months while it never
+    existed here — the ImportError was swallowed and the registry leg was
+    permanently dead (only provider-config models were ever listed).
+    """
+    query = select(LLMModel.model_name).where(LLMModel.provider == provider_id)
+    if tenant_id:
+        query = query.where(LLMModel.tenant_id == tenant_id)
+    result = db.execute(query).scalars().all()
+    return [str(m) for m in result]
+
+
 def score_model_for_routing(
     model: LLMModel,
     health_priority: Optional[int] = None

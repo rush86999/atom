@@ -484,12 +484,12 @@ class GenericAgent:
         # 2.5: Generate Reflection/Critique on failure (Phase 215)
         if status in ["failed", "timeout", "max_steps_exceeded", "budget_exceeded", "stuck"]:
             try:
-                await self.reflection_service.generate_critique(
+                await self.reflection_service.add_critique(
                     agent_id=self.id,
-                    task_input=task_input,
                     intent=self.config.get("specialty", "general task"),
-                    action="react_loop",
-                    outcome=status
+                    action_taken="react_loop",
+                    outcome_state=status,
+                    critique_text=f"Agent {getattr(self, 'name', self.id)} ended with status {status}: {final_answer[:200]}",
                 )
                 logger.info(f"Self-Evolution: Generated critique for Agent {self.name} failure.")
             except Exception as ref_err:
@@ -906,7 +906,7 @@ ORCHESTRATION POWERS:
         # Retrieve past critiques for context
         critiques = await self.reflection_service.get_relevant_critiques(
             agent_id=self.id,
-            task_input=task_input
+            current_intent=task_input
         )
         critique_display = "\n".join([f"- CRITIQUE: {c.critique}" for c in critiques[:2]])
 

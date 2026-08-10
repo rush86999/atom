@@ -146,7 +146,7 @@ async def chat_completions(
     service = GatewayService(identity, db)
     max_tokens = body.max_tokens or DEFAULT_MAX_TOKENS
     try:
-        provider, model = service._resolve_route(
+        provider, model = await service._resolve_route(
             body.messages, body.model, dict(request.headers)
         )
     except (NoProvidersConfiguredError, ValueError) as exc:
@@ -216,7 +216,8 @@ async def _openai_stream(
             "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}],
         })
         async for delta in service.handler.stream_completion(
-            messages, model, provider, temperature=temperature, max_tokens=max_tokens, task_type="chat"
+            messages, model, provider, temperature=temperature, max_tokens=max_tokens,
+            task_type="chat", extra_kwargs=extra_kwargs or None,
         ):
             if delta.startswith("\n\n[Error:"):
                 stream_status = 502
@@ -288,7 +289,7 @@ async def anthropic_messages(
     messages: List[Dict[str, Any]] = openai_payload["messages"]
     model = body.model if body.model not in ("auto", None) else None
     try:
-        provider, model = service._resolve_route(messages, model, dict(request.headers))
+        provider, model = await service._resolve_route(messages, model, dict(request.headers))
     except (NoProvidersConfiguredError, ValueError) as exc:
         await _log_and_alert(
             identity, db, model=body.model or "auto", provider="unresolved", stream=False,
@@ -361,7 +362,8 @@ async def _anthropic_stream(
             "content_block": {"type": "text", "text": ""},
         })
         async for delta in service.handler.stream_completion(
-            messages, model, provider, temperature=temperature, max_tokens=max_tokens, task_type="chat"
+            messages, model, provider, temperature=temperature, max_tokens=max_tokens,
+            task_type="chat", extra_kwargs=extra_kwargs or None,
         ):
             if delta.startswith("\n\n[Error:"):
                 yield _format_sse("content_block_delta", {

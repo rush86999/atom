@@ -14,6 +14,7 @@ TDD red-green targets:
   status 400 even when the client receives 502/503.
 """
 import hashlib
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import FastAPI
@@ -107,9 +108,11 @@ def _fake_handler(**overrides):
     handler = MagicMock()
     handler.analyze_query_complexity.return_value = "simple"
     handler.get_optimal_provider.return_value = ("openai", "gpt-4o-mini")
+    handler.get_ranked_providers.return_value = [("openai", "gpt-4o-mini")]
     handler._provider_serves_model.return_value = False
     handler.async_clients = {"openai": object(), "anthropic": object()}
     handler.clients = {}
+    handler.byok_manager = SimpleNamespace(providers={})
     handler.chat_completion = AsyncMock(
         return_value={
             "model": "gpt-4o",
@@ -136,28 +139,28 @@ _MSGS = [{"role": "user", "content": "hi"}]
 # B1: explicit model in the request body must be honored.
 # --------------------------------------------------------------------------- #
 class TestExplicitBodyModel:
-    def test_resolve_route_forces_body_model(self):
+    async def test_resolve_route_forces_body_model(self):
         service = _service_harness(_fake_handler())
-        provider, model = service._resolve_route(_MSGS, "gpt-4o")
+        provider, model = await service._resolve_route(_MSGS, "gpt-4o")
         assert provider == "openai"
         assert model == "gpt-4o"
 
-    def test_resolve_route_reroutes_to_provider_serving_model(self):
+    async def test_resolve_route_reroutes_to_provider_serving_model(self):
         handler = _fake_handler()
         handler._provider_serves_model.side_effect = lambda pid, m: pid == "anthropic"
         service = _service_harness(handler)
-        provider, model = service._resolve_route(_MSGS, "claude-3-5-sonnet-20240620")
+        provider, model = await service._resolve_route(_MSGS, "claude-3-5-sonnet-20240620")
         assert provider == "anthropic"
         assert model == "claude-3-5-sonnet-20240620"
 
-    def test_resolve_route_header_override_still_wins(self):
+    async def test_resolve_route_header_override_still_wins(self):
         service = _service_harness(_fake_handler())
-        provider, model = service._resolve_route(_MSGS, "gpt-4o", {"x-atom-model": "deepseek-chat"})
+        provider, model = await service._resolve_route(_MSGS, "gpt-4o", {"x-atom-model": "deepseek-chat"})
         assert model == "deepseek-chat"
 
-    def test_resolve_route_auto_model_still_auto_routes(self):
+    async def test_resolve_route_auto_model_still_auto_routes(self):
         service = _service_harness(_fake_handler())
-        provider, model = service._resolve_route(_MSGS, "auto")
+        provider, model = await service._resolve_route(_MSGS, "auto")
         assert provider == "openai"
         assert model == "gpt-4o-mini"
 

@@ -1772,3 +1772,65 @@ Uncovered (accepted): `google_calendar_service.py:20-27` = import-failure dummy 
 | 2026-08-09 | `core/sandbox_caps.py` | FIXED | Write tools missing from `_WRITE_TOOLS` (`browser_download_file`, `device_execute_command`, `create_folder`, …) = free pass past max_bytes_written; 0-estimate for giant payload under unmapped arg key = free pass; added 10 tool names + `_serialized_char_count` fail-closed fallback |
 
 Verified-clean (regression guards added): RPC action names (`..`/nested/unknown → 404, plain dict lookup); `record_ops` batch = N caps checks (5-appends envelope at max 3 yields 3 rows + 2 structured caps errors); mini-app instance-id traversal (DB-row resolution); series namespace allowlist + injective facade.
+
+## Session 2026-08-09 — coverage wave 10 (gateway wave-10b finish) + wave 10c (never-covered cluster + agent_execution_service + jwt_verifier critical)
+
+**Evidence**: `tests/test_covpush_gateway_wave10b.py` (122) + `tests/test_covpush_w10c_cluster.py` (45) + `tests/test_covpush_w10c_exec_service.py` (32) + `tests/integration/test_agent_execution_orchestration.py` (24, full realignment) — 500+ passed together; `import main_api_app` verified booting.
+
+### Gateway wave-10b completion (in-flight work finished)
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/llm/gateway/wire_formats.py` `prompt_from_messages` | FIXED | multi-part content joined with double spaces (part trailing-space + `" ".join`); stripped parts |
+| 2026-08-09 | `core/llm/gateway/gateway_service.py` `_models_for_provider` | FIXED (REAL) | imported **nonexistent** `get_models_for_provider` from `core.llm.registry.queries` — ImportError swallowed → registry NEVER consulted → `GET /v1/models` returned stub only; query now defined (queries.py, `(db, provider_id, tenant_id=None)`) and invoked |
+| 2026-08-09 | wave-10b tests | TESTED | 21 stale-fake failures realigned (async-gen-object fakes → callable; patch targets to lazy-import modules: `core.pii_redactor`, `core.dynamic_pricing_fetcher`, `core.cost_config`, `core.llm.registry.queries`, `core.auth`, `core.database`, `core.llm.rate_usage_persistence`, `core.llm.opencode_model_limits`; `_fired` stale-binding → module-attr access; `user_id` NOT NULL → graceful-None contract; invalid-tier parse-drop contract) |
+
+### Wave 10c — never-covered cluster (all 0% → 100%)
+| Date | Module | Status | Result |
+|---|---|---|---|
+| 2026-08-09 | `core/vfs_registry` · `core/service_registry` · `core/recruitment_analytics_service` · `core/push_notifications` · `core/marketing_skills_service` · `core/knowledge_vfs_config` · `core/fleet_routing_config` · `api/time_travel_routes` · `core/episode_integration` · `core/orchestration/workflow_patterns` | TESTED | 0% → **100%** each (45 tests, no bugs) |
+| 2026-08-09 | `api/evolution_routes.py` | FIXED (REAL) | **Double prefix** — router declared `prefix="/evolution"` AND mounted at `/api/evolution` → real path `/api/evolution/evolution/run` (documented path 404'd); router prefix removed |
+| 2026-08-09 | `core/episode_integration.py` | FIXED (REAL) | (1) `trigger_episode_creation` called **`await`-ed with `user_id=`/`workspace_id=` kwargs** by `agent_execution_service:423` — sync fn returning None + unexpected kwargs → TypeError on EVERY execution → episode trigger dead; (2) `asyncio.create_task` in sync fn → RuntimeError from sync callers; signature extended (user_id/workspace_id accepted), loop-safe (create_task on running loop, `asyncio.run` fallback), `await` removed at call site |
+| 2026-08-09 | `tests/unit/api/test_evolution_routes.py` | DEAD | phantom populations suite (endpoints never existed) — git rm'd per R71 precedent |
+
+### Wave 10c — `core/agent_execution_service` (11% → 98%)
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/agent_execution_service.py` | FIXED (SECURITY) | Failure return leaked **`str(e)`** to clients (menubar/mobile) — internal paths/SQL/token details escaped; now generic `"Agent chat execution failed"` (detail logged `exc_info=True`); `error_message` audit column likewise generic |
+| 2026-08-09 | `core/agent_execution_service.py` | TESTED | 11% → **98%**: governance gates (block/bypass/disabled), budget alerts (100/80/90 thresholds + error), execution-record create/finalize (metadata merge, real columns), marketplace usage tracking (success + failure + tracker-error), streaming broadcasts (start/update/complete, token estimation), chat-history persistence (create/reuse/error), episode trigger (kwargs + error), failure finalizer (owned-session close/rollback swallows), sync wrapper |
+
+### CRITICAL — `import main_api_app` was crashing (pre-existing, from 42cb9a68a)
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/jwt_verifier.py:416` `verify_token` | FIXED (CRITICAL) | `request: Optional[Request] = None` in a FastAPI dependency — `Optional[Request]` is NOT special-cased (only bare `Request` is) → treated as body field → `FastAPIError` at route registration → **`import main_api_app` crashed → server could not boot** (regression from R98 commit 42cb9a68a; `tests/integration/conftest.py` collection dead since). Fixed to bare `Request = None` (+ targeted mypy ignore; FastAPI injects the request, direct callers pass nothing). Verified: app imports, 198 routes; `tests/contract` + `tests/integration` collect again (146 tests) |
+| 2026-08-09 | `tests/integration/test_agent_execution_orchestration.py` | FIXED | full realignment (was uncollectable, then stale: undefined `llm`/`mock_llm_service`, phantom `provider`/`model` keys, permissive asserts, real-dev-DB SessionLocal hits) → 24 tests vs real contract, includes resolver-patch leak guard (autouse stop) |
+
+**Regression**: 500 tests green across wave-10b/10c + agent-execution + jwt suites; mypy 0 new errors vs HEAD baseline (8→8 on touched set).
+
+## Session 2026-08-09 (evening) — wave-10 stabilization: gateway + governance + agents (12 real bugs, 3 env/DB fixes)
+
+**Evidence**: `tests/test_covpush_gateway_wave10b.py` (122) + `tests/test_covpush_w10_govstack.py` (98) + `tests/test_bughunt_agents_wave10c.py` (7) + `tests/test_agent_governance_{service,runtime}.py` + `tests/test_atom_governance.py` + `tests/test_embedding_providers.py` + `tests/test_llm_registry_service.py` — 378 passed / 0 failed (final sweep); mypy A/B vs HEAD: 0 new errors, 1 removed (generic_agent phantom `generate_critique`); dev-DB schema repaired (78 guarded DDL columns, R71 precedent). Coverage: gateway pkg **94%**, `agent_governance_service` **98%**, `governance_cache` **94%**, `fleet_scaler_service` **47%**.
+
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-09 | `core/llm/gateway/wire_formats.py` | FIXED (HIGH) | `anthropic_request_to_openai` ALIASED the caller's list for unknown-role messages (`msg["content"] = raw["content"]`) then appended into the list it iterated → **infinite loop / hang on every `role:"other"` list message** (gateway DoS); unknown roles now pass a verbatim copy; also system-part join now strips (double spaces) |
+| 2026-08-09 | `core/llm/gateway/wire_formats.py` | FIXED | `openai_response_to_anthropic` emitted `"text": [list]` for multi-part OpenAI content — malformed Anthropic message; parts flattened to a plain string |
+| 2026-08-09 | `core/llm/gateway/budget_alerts.py` | FIXED | `_reset_if_new_day`/`reset_budget_alerts` REBOUND `_fired`/`_daily_spend` to fresh dicts → any held reference (module consumers/tests) went stale; now in-place `.clear()` |
+| 2026-08-09 | `core/llm/registry/queries.py` + `gateway_service._models_for_provider` | FIXED | `get_models_for_provider` **never existed** — the gateway imported it for months; ImportError swallowed → `/v1/models` registry leg permanently dead (only cfg models listed); implemented `(db, provider_id, tenant_id=None)` + call wired with `self.db` |
+| 2026-08-09 | `core/agent_governance_service.py` `enforce_action` | FIXED (SECURITY) | **GOV-10A: uppercase `AUTONOMOUS` status skipped AutonomousGuardrailService** (`check["agent_status"]` returned RAW stored status; case-sensitive compare → fail-open guardrail bypass for non-normalized rows); status normalized before compare |
+| 2026-08-09 | `core/agent_governance_service.py` `get_agent_capabilities` | FIXED | `maturity_level` returned verbatim (e.g. "AUTONOMOUS") though docstring promises lowercase → case-sensitive callers (SkillRegistry maturity gates) broke; normalized |
+| 2026-08-09 | `core/agent_governance_service.py` `_update_confidence_score` | FIXED | Binary-noise accumulation persisted (`0.4 + 10×0.01 == 0.5000000000000001`) — exact-equality consumers + audit pollution; round to 4dp |
+| 2026-08-09 | `core/governance_cache.py` `_make_key` | FIXED (SECURITY) | **GOV-10B: directory-permission keys lowercased** — `dir:/tmp/Data` and `dir:/tmp/data` shared one entry (allow-decision leaked between case-differing dirs); dir keys now preserve case |
+| 2026-08-09 | `core/generic_agent.py:907` | FIXED (HIGH) | `reflection_service.get_relevant_critiques(..., task_input=...)` — signature is `current_intent` → TypeError **crashed every agent run** reaching the critique-context block (caught → status=failed) |
+| 2026-08-09 | `core/generic_agent.py:487` | FIXED | Phantom `reflection_service.generate_critique(...)` (no such method — real: `add_critique(agent_id, intent, action_taken, outcome_state, critique_text)`); self-critique feature silently dead on every failure; rewired (+ mypy error removed) |
+| 2026-08-09 | `core/lancedb_service.py` | FIXED | Stub lacked `get_or_create_reflection_pool_table` → AttributeError in ReflectionService (both call sites guard `if not table`); stub now returns None (fail-soft) |
+| 2026-08-09 | `core/skill_adapter.py:603` | FIXED | Hardcoded CWD-relative `sqlite:///./atom_dev.db` engine (bypassed DATABASE_URL, read the STALE drift DB under pytest, broke non-root launches) → `core.database.get_db_session()` |
+| 2026-08-09 | `core/fleet_orchestration/fleet_scaler_service.py` | FIXED (HIGH) | `check_scaling_constraints` defined TWICE (duplicate shadow; `test_method_defined_once_in_source` RED); `get_distributed_blackboard(self.db)` called with an arg the zero-arg function doesn't take → **TypeError after every successful expansion/contraction commit → operations wrongly FAILED** |
+| 2026-08-09 | `core/agents/queen_agent.py` | FIXED | `realize_blueprint` KeyError on LLM blueprints missing node `id`/`name` → 500 on `/generate-from-agent`; defensive `.get()` + skip; `generate_blueprint` accepts `user_id` (was TypeError from caller) |
+| 2026-08-09 | dev DB (`atom_dev.db`, root) | FIXED (env) | 21 tables drifted vs models (agent_registry missing division_id/parent_agent_id/specialty, agent_executions missing thread_id, …); applied guarded ADD COLUMN DDL (78 columns, R71 precedent) — several suites (test_atom_governance etc.) were order-dependent on which DB the `load_dotenv()`-injected `./atom_dev.db` resolved to |
+| 2026-08-09 | `tests/test_agent_governance_runtime.py` | TESTED | Realigned to hermetic in-memory DB (monkeypatch `generic_agent.get_db_session` + `agent_world_model.SessionLocal`), budget gate mocked, structured LLM mocked with real `ReActStep`; exposed the generic_agent bugs above |
+| 2026-08-09 | `tests/test_atom_governance.py` | TESTED | Same hermetic treatment (tempfile DB + patched SessionLocal + Workspace seed + budget-gate mock) — was order-dependent on shared DB resolution |
+| 2026-08-09 | `tests/test_covpush_gateway_wave10b.py` | TESTED | 21 failures resolved (stale patch targets ×9, generator-object-vs-function ×4, stale assert ×2, `side_effect`-vs-`return_value` mock semantics, `await_args` on MagicMock, system-join spacing, None-identity best-effort contract) |
+| 2026-08-09 | `tests/test_covpush_w10_govstack.py` | TESTED | 10 failures resolved: real fixes GOV-10A/B + rounding + budget patch target + resolver exception-patch targets + flaky `get_event_loop()` → loop-safe helper |
+| 2026-08-09 | `tests/test_embedding_providers.py` + `test_llm_registry_service.py` | TESTED | 6 pre-existing known-fails realigned: real SDK client attrs (`cohere.AsyncClient`/`voyageai.Client`/`nomic.Embedding`), `EmbeddingProviderError` contract, real `or_`/`contains` SQL coercion, mock-vector dim |
+
+**Coverage (wave 10b/10c targets)**: gateway pkg 70%→**94%** (548 stmts); agent_governance_service **98%**; governance_cache **94%**; fleet_scaler_service **47%** (scaling_proposal + wave-10c suites); registry/queries 0%→~90% (unit-tested via gateway suites).

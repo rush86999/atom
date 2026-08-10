@@ -37,7 +37,7 @@ class QueenAgent:
         from core.agents.skill_creation_agent import SkillCreationAgent
         self.skill_creator = SkillCreationAgent(db, llm)
 
-    async def generate_blueprint(self, goal: str, tenant_id: str = "default", execution_mode: str = "one-off") -> Dict[str, Any]:
+    async def generate_blueprint(self, goal: str, tenant_id: str = "default", execution_mode: str = "one-off", user_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Generate a structured blueprint from a natural language goal.
         """
@@ -92,7 +92,8 @@ Return ONLY the JSON object."""
             content = await self.llm.generate(
                 prompt=prompt,
                 system_instruction="You are a master AI architect. Output only valid JSON.",
-                tenant_id=tenant_id
+                tenant_id=tenant_id,
+                user_id=user_id
             )
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0].strip()
@@ -130,8 +131,10 @@ Return ONLY the JSON object."""
 
         nodes = blueprint.get("nodes", [])
         for node in nodes:
-            node_id = node["id"]
-            node_name = node["name"]
+            node_id = node.get("id")
+            node_name = node.get("name")
+            if not node_id or not node_name:
+                continue
             node_type = node.get("type", "agent").upper()
             
             # Label
@@ -194,10 +197,12 @@ Return ONLY the JSON object."""
         # Build Next Steps Adjacency List from Dependencies
         next_steps_map = {} # node_id -> list of next_node_id
         for node in blueprint.get("nodes", []):
-            node_id = node["id"]
+            node_id = node.get("id")
+            if not node_id:
+                continue
             if node_id not in next_steps_map:
                 next_steps_map[node_id] = []
-            
+
             for dep in node.get("dependencies", []):
                 if dep not in next_steps_map:
                     next_steps_map[dep] = []
@@ -207,8 +212,10 @@ Return ONLY the JSON object."""
         triggers = []
 
         for node in blueprint.get("nodes", []):
-            node_type = node["type"]
-            node_id = node["id"]
+            node_id = node.get("id")
+            if not node_id:
+                continue
+            node_type = node.get("type", "agent")
             
             # Map type
             if node_type == "trigger":

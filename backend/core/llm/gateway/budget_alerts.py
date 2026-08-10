@@ -38,19 +38,22 @@ _spend_lock = asyncio.Lock()
 
 def reset_budget_alerts() -> None:
     """Clear in-memory alert state (used by tests)."""
-    global _today, _daily_spend, _fired
+    global _today
     _today = ""
-    _daily_spend = {}
-    _fired = {}
+    _daily_spend.clear()
+    _fired.clear()
 
 
 def _reset_if_new_day() -> None:
-    global _today, _daily_spend, _fired
+    global _today
     today = date.today().isoformat()
     if today != _today:
         _today = today
-        _daily_spend = {}
-        _fired = {}
+        # Mutate in place (never rebind): `_fired`/`_daily_spend` are read
+        # under _spend_lock, and module consumers may hold references to the
+        # dicts — rebinding would strand them on a stale (pre-reset) object.
+        _daily_spend.clear()
+        _fired.clear()
 
 
 def resolve_budget_limit(_workspace_id: str) -> float:

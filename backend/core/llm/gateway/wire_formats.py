@@ -42,7 +42,7 @@ def prompt_from_messages(messages: List[Dict[str, Any]], default: str = "") -> s
                         parts.append(str(part["text"]))
                 elif isinstance(part, str):
                     parts.append(part)
-            return " ".join(parts)
+            return " ".join(p.strip() for p in parts if p.strip())
         return str(content)
     return default
 
@@ -95,7 +95,7 @@ def anthropic_request_to_openai(payload: Dict[str, Any]) -> Dict[str, Any]:
                     parts.append(str(part.get("text", "")))
                 elif isinstance(part, str):
                     parts.append(part)
-            system_text = " ".join(parts)
+            system_text = " ".join(p.strip() for p in parts if p.strip())
         messages.append({"role": "system", "content": system_text})
 
     for raw in payload.get("messages", []):
@@ -105,21 +105,32 @@ def anthropic_request_to_openai(payload: Dict[str, Any]) -> Dict[str, Any]:
         elif role == "user":
             msg = {"role": "user", "content": []}
         else:
-            msg = {"role": role, "content": raw.get("content", "")}
+            # Unknown role: pass content through verbatim — but COPY list
+            # content so the block-mapping loop below never iterates a list
+            # it appends into (aliasing the caller's list hung the gateway
+            # in an infinite loop on role="other" list messages).
+            raw_content = raw.get("content", "")
+            msg = {
+                "role": role,
+                "content": list(raw_content) if isinstance(raw_content, list) else raw_content,
+            }
 
         content = raw.get("content")
         if isinstance(content, str):
             msg["content"] = content
         elif isinstance(content, list):
-            if not isinstance(msg["content"], list):
-                msg["content"] = []
-            for block in content:
-                if isinstance(block, dict):
-                    _content_block_to_openai(block, msg)
-                else:
-                    msg["content"].append({"type": "text", "text": str(block)})
-            if not msg["content"]:
-                msg["content"] = ""
+            if role not in ("user", "assistant"):
+                # Unknown role: keep blocks verbatim (already copied above).
+                if not msg["content"]:
+                    msg["content"] = ""
+            else:
+                for block in content:
+                    if isinstance(block, dict):
+                        _content_block_to_openai(block, msg)
+                    else:
+                        msg["content"].append({"type": "text", "text": str(block)})
+                if not msg["content"]:
+                    msg["content"] = ""
         else:
             msg["content"] = ""
 
@@ -165,6 +176,17 @@ def openai_response_to_anthropic(
     if choices:
         message = choices[0].get("message") or {}
         content_text = message.get("content") or ""
+        if isinstance(content_text, list):
+            # Multi-part OpenAI content (text/image blocks) — Anthropic's
+            # ``content[].text`` must be a plain string; a nested list would
+            # emit a malformed message.
+            parts: List[str] = []
+            for part in content_text:
+                if isinstance(part, dict):
+                    parts.append(str(part.get("text") or part.get("content") or ""))
+                else:
+                    parts.append(str(part))
+            content_text = "".join(parts)
     usage = resp.get("usage") or {}
     return {
         "id": f"msg_atom_{uuid.uuid4().hex}",
