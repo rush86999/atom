@@ -1915,3 +1915,13 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 | 2026-08-09 | `core/llm/byok_handler.py` | 62%→**67%** | `generate_with_cognitive_tier` full pipeline (success dict, budget-exceeded, no-models, generation-failure escalation→retry, quality-based escalation via assess_response_quality, exception rate-limit escalation, max-escalations error); `_track_rate_usage`/`_track_llm_call` success + error tolerance; `_monthly_tpm_limit` (unset/valid/invalid); `_monthly_budget_exhausted` (exhausted/not/no-history/error fail-open); `_model_supports_reasoning`; `_load_local_providers` (clients + pricing injection, caps, generic entry without caps, empty, DB error no-op) |
 
 **byok_handler cumulative**: 29% → **67%** across waves 11/11b/11c/11d/11e.
+
+## Session 2026-08-09 (wave 11f) — provider-model heuristic + tool-pair sanitizer + complexity analyzer (test-only)
+
+**Evidence**: `tests/test_covpush_llm_wave11f.py` (20 new tests) — 463 passed / 0 failed across LLM+gateway suites. No source changes.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-09 | `core/llm/byok_handler.py` | ~66-68% | `_provider_serves_model` (local/gateway always-serve, family prefixes, substring fallback, empty model); `sanitize_tool_pairs` (stub injection for orphan tool msgs, trailing tool_calls drop w/o content, passthrough, empty); `analyze_query_complexity` (simple/long/code/technical/advanced/task-bias/empty); `get_optimal_provider` (top-ranked, empty→first-client fallback) |
+
+**byok_handler cumulative**: 29% → ~67% across waves 11/11b/11c/11d/11e/11f.
