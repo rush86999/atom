@@ -1884,3 +1884,13 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 | 2026-08-09 | `core/llm/byok_handler.py` | 54%→**58%** | `generate_structured_moa`: single-sample, aggregator reconcile, all-fail→None, aggregator-fail→best-sample, consensus agreement branches (≥75% harmonize / <50% resolve / partial), sample-exception tolerance, single-option path; `_moa_eligible` matrix; `_render_sample` (model_dump/dict/plain/broken); `_build_moa_aggregator_prompt` 4 branches; cascade escalation (schema-error → frontier retry via instructor ValidationError, transient error NO cascade); `generate_transcription` (success via `.client` wrapper, no-client raise, error propagate) |
 
 **byok_handler cumulative**: 29% → **58%** across waves 11/11b/11c. Remaining: streaming governance/AgentExecution record paths, vision coordination, sub-method helpers.
+
+## Session 2026-08-09 (wave 11d) — streaming governance, vision coordination, context helpers: byok 58→62% (test-only)
+
+**Evidence**: `tests/test_covpush_llm_wave11d.py` (18 new tests) — 518 passed / 0 failed across LLM+gateway+routing suites. No source changes.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-09 | `core/llm/byok_handler.py` | 58%→**62%** | streaming governance path (agent_id+db → AgentExecution create/complete/outcome, governance-off skips record, tracking-error doesn't break tokens); vision coordination (non-vision primary → `_get_coordinated_vision_description` prompt prefix + payload cleared; vision model → image_url message); `get_context_window` (pricing hit / defaults / error); `truncate_to_context` (short unchanged, long head+tail preserved with truncation marker); `_model_supports_tools`/`_model_supports_vision` via pricing capabilities; `_is_trial_restricted` (ended/not/error fail-open); `_stash_decision_features` (flag off / router off / stash) |
+
+**byok_handler cumulative**: 29% → **62%** across waves 11/11b/11c/11d. Remaining: `generate_with_cognitive_tier`, provider-health helpers, rate-limit internals.
