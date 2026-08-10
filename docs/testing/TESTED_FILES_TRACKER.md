@@ -1864,3 +1864,13 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 | 2026-08-09 | `tests/test_capability_routing.py` (9 stale tests) | TESTED | Realigned to current contract: `get_pricing_fetcher_initialized_sync` (not `get_pricing_fetcher`), `get_db_session` patch must be a context manager, capability-index `.all()` path vs per-model `filter_by().first()`, plan-restriction gate (`is_managed_service=False` for capability tests), `_HEALTH_EXCLUDE_THRESHOLD` is 0.2 not 0.5, cache_router costs must be numeric, real `_refresh_excluded_cache` unbinding, seeded excluded_models |
 
 **Coverage (wave 11)**: cognitive_tier_system 28→**95%**; intent_detector 27→**97%**; escalation_manager 31→**96%**; cache_aware_router 38→**98%**; byok_handler 29→**37%** (real-flow integration tests on both big methods; remaining: BPC ranking internals, MoA, streaming paths).
+
+## Session 2026-08-09 (wave 11b) — byok_handler completion paths: 29→54% (test-only)
+
+**Evidence**: `tests/test_covpush_llm_wave11b.py` (27 new tests) — 484 passed / 0 failed across LLM+gateway+routing suites. No source changes (mypy n/a).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-09 | `core/llm/byok_handler.py` | 37%→**54%** | `chat_completion` (gateway non-stream): success shape, budget fail-closed (exceeded + tracker-error), trial gate, no-clients, cross-provider fallback, all-fail; `stream_completion`: token streaming, fallback stream, error-token surface, extra_kwargs forwarding; `_rerank_with_learning`: single-option/flag-off/router-unavailable/cold-start unchanged, full re-rank (reorder + decision stash), no-learned-signal, exception; `_adapt_task_type` mapping; BPC static fallback (priority order, managed-plan filter, BYOK tools skip, qwen boost); `_get_provider_fallback_order`; `_filter_by_health` 0.2-threshold boundary |
+
+**Remaining byok_handler gaps** (future waves): `generate_structured_moa` (MoA aggregator, ~310 stmts), streaming governance/AgentExecution paths, vision-coordination, cascade escalation internals.
