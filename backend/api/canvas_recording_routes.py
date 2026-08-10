@@ -13,8 +13,8 @@ Features:
 """
 
 import logging
-from typing import Optional
-from fastapi import Depends, status
+from typing import Any, Dict, Optional
+from fastapi import HTTPException, Depends, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -87,6 +87,14 @@ class FlagRecordingRequest(BaseModel):
 
 
 # Endpoints
+@router.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return router.success_response(
+        data={"status": "healthy", "service": "canvas_recording"},
+        message="Canvas recording service is healthy"
+    )
+
 @router.post("/start", response_model=StartRecordingResponse)
 async def start_recording(
     request: StartRecordingRequest,
@@ -241,16 +249,16 @@ async def get_recording(
 
         return RecordingResponse(**recording)
 
+    except HTTPException:
+        raise
     except Exception as e:
-        if isinstance(e, Exception) and "not found" in str(e).lower():
-            raise
         logger.error(f"Failed to get recording: {e}")
         raise router.internal_error(
             message="Failed to get recording"
         )
 
 
-@router.get("", response_model=list[RecordingResponse])
+@router.get("", response_model=Dict[str, Any])
 async def list_recordings(
     agent_id: Optional[str] = None,
     limit: int = 50,
@@ -329,9 +337,9 @@ async def flag_recording(
             message="Recording flagged for review successfully"
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        if isinstance(e, Exception) and "not found" in str(e).lower():
-            raise
         logger.error(f"Failed to flag recording: {e}")
         raise router.internal_error(
             message="Failed to flag recording"
@@ -382,19 +390,12 @@ async def get_recording_replay(
             message="Recording replay data retrieved successfully"
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        if isinstance(e, Exception) and "not found" in str(e).lower():
-            raise
         logger.error(f"Failed to get recording replay: {e}")
         raise router.internal_error(
             message="Failed to get recording replay"
         )
 
 
-@router.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return router.success_response(
-        data={"status": "healthy", "service": "canvas_recording"},
-        message="Canvas recording service is healthy"
-    )

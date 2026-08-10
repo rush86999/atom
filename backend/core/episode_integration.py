@@ -40,10 +40,31 @@ async def _create_episode_after_execution(
         logger.error(f"Failed to create episode: {e}")
 
 
-def trigger_episode_creation(session_id: str, agent_id: str, title: Optional[str] = None):
+def trigger_episode_creation(
+    session_id: str,
+    agent_id: str,
+    title: Optional[str] = None,
+    user_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+):
     """
     Non-blocking trigger for episode creation.
 
-    Call this after agent execution completes.
+    Call this after agent execution completes. Safe from both async callers
+    (schedules on the running loop) and sync callers (runs the coroutine to
+    completion via ``asyncio.run``) — never raises.
+
+    ``user_id``/``workspace_id`` are accepted for call-site compatibility
+    (``core/agent_execution_service`` passes them); the segmentation service
+    derives identity from the session.
     """
-    asyncio.create_task(_create_episode_after_execution(session_id, agent_id, title))
+    coro = _create_episode_after_execution(session_id, agent_id, title)
+    try:
+        asyncio.create_task(coro)
+    except RuntimeError:
+        # No running loop (sync caller) — run inline so the episode is still
+        # created rather than silently dropped.
+        try:
+            asyncio.run(coro)
+        except Exception as e:  # pragma: no cover - defensive
+            logger.error(f"Failed to create episode: {e}")

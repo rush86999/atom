@@ -7,7 +7,7 @@ from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
-from fastapi import Query, Depends
+from fastapi import HTTPException, Query, Depends
 
 from core.base_routes import BaseAPIRouter
 from core.integration_dashboard import (
@@ -182,7 +182,7 @@ async def get_alerts(
 
 
 @router.get("/alerts/count")
-async def get_alerts_count() -> Dict[str, int]:
+async def get_alerts_count() -> Dict[str, Any]:
     """
     Get count of alerts by severity.
 
@@ -409,6 +409,8 @@ async def get_integration_details(integration: str) -> Dict[str, Any]:
             message="Integration details retrieved successfully",
             metadata={"timestamp": datetime.now().isoformat()}
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error getting integration details: {e}")
         raise router.internal_error(message="Internal error")

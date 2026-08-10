@@ -282,6 +282,149 @@ async def get_workflow_versions(
         logger.error(f"Error getting versions for workflow {workflow_id}: {str(e)}")
         raise router.internal_error("Internal error")
 
+@router.get("/{workflow_id}/versions/compare", response_model=VersionDiffResponse)
+async def compare_workflow_versions(
+    workflow_id: str = Path(..., description="ID of the workflow"),
+    from_version: str = Query(..., description="Source version"),
+    to_version: str = Query(..., description="Target version"),
+    user: User = Depends(get_current_user)
+):
+    """
+    Compare two versions of a workflow
+
+    Returns detailed differences between two versions including
+    structural changes, parameter changes, and impact assessment.
+    """
+    try:
+        # Verify both versions exist
+        from_version_obj = await versioning_system.get_version(workflow_id, from_version)
+        to_version_obj = await versioning_system.get_version(workflow_id, to_version)
+
+        if not from_version_obj:
+            raise router.not_found_error("Source version", from_version)
+        if not to_version_obj:
+            raise router.not_found_error("Target version", to_version)
+
+        # Compare versions
+        changes = await version_manager.get_workflow_changes(
+            workflow_id=workflow_id,
+            from_version=from_version,
+            to_version=to_version
+        )
+
+        return VersionDiffResponse(
+            workflow_id=workflow_id,
+            from_version=changes['from_version'],
+            to_version=changes['to_version'],
+            impact_level=changes['impact_level'],
+            added_steps_count=changes['added_steps_count'],
+            removed_steps_count=changes['removed_steps_count'],
+            modified_steps_count=changes['modified_steps_count'],
+            structural_changes=changes['structural_changes'],
+            dependency_changes=changes['dependency_changes'],
+            parametric_changes=changes['parametric_changes'],
+            metadata_changes=changes['metadata_changes']
+        )
+
+    except Exception as e:
+        logger.error(f"Error comparing versions for workflow {workflow_id}: {str(e)}")
+        if "not found" in str(e).lower():
+            raise
+        raise router.internal_error("Internal error")
+
+@router.get("/{workflow_id}/versions/latest")
+async def get_latest_version(
+    workflow_id: str = Path(..., description="ID of the workflow"),
+    branch_name: str = Query("main", description="Branch name"),
+    user: User = Depends(get_current_user)
+):
+    """Get the latest version of a workflow"""
+    try:
+        versions = await versioning_system.get_version_history(
+            workflow_id=workflow_id,
+            branch_name=branch_name,
+            limit=1
+        )
+
+        if not versions:
+            raise router.not_found_error("Version", "latest")
+
+        latest_version = versions[0]
+
+        return VersionResponse(
+            workflow_id=latest_version.workflow_id,
+            version=latest_version.version,
+            version_type=latest_version.version_type.value,
+            change_type=latest_version.change_type.value,
+            created_at=latest_version.created_at.isoformat(),
+            created_by=latest_version.created_by,
+            commit_message=latest_version.commit_message,
+            tags=latest_version.tags,
+            parent_version=latest_version.parent_version,
+            branch_name=latest_version.branch_name,
+            checksum=latest_version.checksum,
+            is_active=latest_version.is_active
+        )
+
+    except Exception as e:
+        logger.error(f"Error getting latest version for workflow {workflow_id}: {str(e)}")
+        if "not found" in str(e).lower():
+            raise
+        raise router.internal_error("Internal error")
+
+@router.get("/{workflow_id}/versions/summary")
+async def get_version_summary(
+    workflow_id: str = Path(..., description="ID of the workflow"),
+    branch_name: str = Query("main", description="Branch name"),
+    user: User = Depends(get_current_user)
+):
+    """Get a summary of all versions for a workflow"""
+    try:
+        versions = await versioning_system.get_version_history(
+            workflow_id=workflow_id,
+            branch_name=branch_name,
+            limit=100
+        )
+
+        # Calculate summary statistics
+        total_versions = len(versions)
+        version_types = {}
+        change_types = {}
+        creators = set()
+
+        for version in versions:
+            # Count version types
+            vtype = version.version_type.value
+            version_types[vtype] = version_types.get(vtype, 0) + 1
+
+            # Count change types
+            ctype = version.change_type.value
+            change_types[ctype] = change_types.get(ctype, 0) + 1
+
+            # Track unique creators
+            creators.add(version.created_by)
+
+        return router.success_response(
+            data={
+                "workflow_id": workflow_id,
+                "branch_name": branch_name,
+                "total_versions": total_versions,
+                "version_types": version_types,
+                "change_types": change_types,
+                "unique_contributors": len(creators),
+                "latest_version": versions[0].version if versions else None,
+                "oldest_version": versions[-1].version if versions else None,
+                "date_range": {
+                    "first_created": versions[-1].created_at.isoformat() if versions else None,
+                    "last_created": versions[0].created_at.isoformat() if versions else None
+                }
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error getting version summary for workflow {workflow_id}: {str(e)}")
+        raise router.internal_error("Internal error")
+
 @router.get("/{workflow_id}/versions/{version}", response_model=VersionResponse)
 async def get_workflow_version(
     workflow_id: str = Path(..., description="ID of the workflow"),
@@ -384,55 +527,6 @@ async def rollback_workflow(
             raise
         raise router.internal_error("Internal error")
 
-@router.get("/{workflow_id}/versions/compare", response_model=VersionDiffResponse)
-async def compare_workflow_versions(
-    workflow_id: str = Path(..., description="ID of the workflow"),
-    from_version: str = Query(..., description="Source version"),
-    to_version: str = Query(..., description="Target version"),
-    user: User = Depends(get_current_user)
-):
-    """
-    Compare two versions of a workflow
-
-    Returns detailed differences between two versions including
-    structural changes, parameter changes, and impact assessment.
-    """
-    try:
-        # Verify both versions exist
-        from_version_obj = await versioning_system.get_version(workflow_id, from_version)
-        to_version_obj = await versioning_system.get_version(workflow_id, to_version)
-
-        if not from_version_obj:
-            raise router.not_found_error("Source version", from_version)
-        if not to_version_obj:
-            raise router.not_found_error("Target version", to_version)
-
-        # Compare versions
-        changes = await version_manager.get_workflow_changes(
-            workflow_id=workflow_id,
-            from_version=from_version,
-            to_version=to_version
-        )
-
-        return VersionDiffResponse(
-            workflow_id=workflow_id,
-            from_version=changes['from_version'],
-            to_version=changes['to_version'],
-            impact_level=changes['impact_level'],
-            added_steps_count=changes['added_steps_count'],
-            removed_steps_count=changes['removed_steps_count'],
-            modified_steps_count=changes['modified_steps_count'],
-            structural_changes=changes['structural_changes'],
-            dependency_changes=changes['dependency_changes'],
-            parametric_changes=changes['parametric_changes'],
-            metadata_changes=changes['metadata_changes']
-        )
-
-    except Exception as e:
-        logger.error(f"Error comparing versions for workflow {workflow_id}: {str(e)}")
-        if "not found" in str(e).lower():
-            raise
-        raise router.internal_error("Internal error")
 
 @router.delete("/{workflow_id}/versions/{version}")
 async def delete_workflow_version(
@@ -626,98 +720,6 @@ async def update_version_metrics(
 
 # Utility Endpoints
 
-@router.get("/{workflow_id}/versions/latest")
-async def get_latest_version(
-    workflow_id: str = Path(..., description="ID of the workflow"),
-    branch_name: str = Query("main", description="Branch name"),
-    user: User = Depends(get_current_user)
-):
-    """Get the latest version of a workflow"""
-    try:
-        versions = await versioning_system.get_version_history(
-            workflow_id=workflow_id,
-            branch_name=branch_name,
-            limit=1
-        )
-
-        if not versions:
-            raise router.not_found_error("Version", "latest")
-
-        latest_version = versions[0]
-
-        return VersionResponse(
-            workflow_id=latest_version.workflow_id,
-            version=latest_version.version,
-            version_type=latest_version.version_type.value,
-            change_type=latest_version.change_type.value,
-            created_at=latest_version.created_at.isoformat(),
-            created_by=latest_version.created_by,
-            commit_message=latest_version.commit_message,
-            tags=latest_version.tags,
-            parent_version=latest_version.parent_version,
-            branch_name=latest_version.branch_name,
-            checksum=latest_version.checksum,
-            is_active=latest_version.is_active
-        )
-
-    except Exception as e:
-        logger.error(f"Error getting latest version for workflow {workflow_id}: {str(e)}")
-        if "not found" in str(e).lower():
-            raise
-        raise router.internal_error("Internal error")
-
-@router.get("/{workflow_id}/versions/summary")
-async def get_version_summary(
-    workflow_id: str = Path(..., description="ID of the workflow"),
-    branch_name: str = Query("main", description="Branch name"),
-    user: User = Depends(get_current_user)
-):
-    """Get a summary of all versions for a workflow"""
-    try:
-        versions = await versioning_system.get_version_history(
-            workflow_id=workflow_id,
-            branch_name=branch_name,
-            limit=100
-        )
-
-        # Calculate summary statistics
-        total_versions = len(versions)
-        version_types = {}
-        change_types = {}
-        creators = set()
-
-        for version in versions:
-            # Count version types
-            vtype = version.version_type.value
-            version_types[vtype] = version_types.get(vtype, 0) + 1
-
-            # Count change types
-            ctype = version.change_type.value
-            change_types[ctype] = change_types.get(ctype, 0) + 1
-
-            # Track unique creators
-            creators.add(version.created_by)
-
-        return router.success_response(
-            data={
-                "workflow_id": workflow_id,
-                "branch_name": branch_name,
-                "total_versions": total_versions,
-                "version_types": version_types,
-                "change_types": change_types,
-                "unique_contributors": len(creators),
-                "latest_version": versions[0].version if versions else None,
-                "oldest_version": versions[-1].version if versions else None,
-                "date_range": {
-                    "first_created": versions[-1].created_at.isoformat() if versions else None,
-                    "last_created": versions[0].created_at.isoformat() if versions else None
-                }
-            }
-        )
-
-    except Exception as e:
-        logger.error(f"Error getting version summary for workflow {workflow_id}: {str(e)}")
-        raise router.internal_error("Internal error")
 
 # Health check endpoint
 @router.get("/versioning/health")

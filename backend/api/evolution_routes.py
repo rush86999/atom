@@ -5,7 +5,7 @@ from core.agent_evolution_loop import AgentEvolutionLoop
 from core.auth import get_current_user
 from typing import Dict, Any, Optional, List
 
-router = APIRouter(prefix="/evolution", tags=["Governance"])
+router = APIRouter(tags=["Governance"])
 
 @router.post("/run")
 async def run_evolution(

@@ -413,7 +413,13 @@ def get_jwt_verifier() -> JWTVerifier:
 
 def verify_token(
     credentials: HTTPAuthorizationCredentials = Security(security),
-    request: Optional[Request] = None,
+    # NOTE: bare Request (NOT Optional[Request]) — FastAPI special-cases the
+    # plain Request type and injects the HTTP request; Optional[Request] is
+    # treated as a body field and raises FastAPIError at route registration,
+    # which crashed `import main_api_app` (regression from 42cb9a68a).
+    # mypy's implicit-optional rule conflicts with FastAPI here, hence the
+    # targeted ignore (the None default is real: direct non-HTTP callers).
+    request: Request = None,  # type: ignore[assignment]
     client_ip: Optional[str] = None,
 ) -> Dict[str, Any]:
     """

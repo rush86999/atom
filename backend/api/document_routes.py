@@ -373,4 +373,4 @@ async def list_documents(
         )
     except Exception as e:
         logger.error(f"Failed to list documents: {e}")
-        return router.internal_error(message="Internal error")
+        raise router.internal_error(message="Internal error")

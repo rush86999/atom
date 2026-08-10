@@ -19,7 +19,11 @@ def execute_agent_background(task_data: Dict[str, Any]):
         # Convert string trigger mode back to enum if needed
         # (Assuming the caller passes the value string)
         
-        logger.info(f"Background worker: Executing agent for {tenant_id} - Request: {request[:50]}...")
+        # ``request`` may be None/absent on malformed tasks; coerce to a string
+        # before slicing so the log line never crashes the worker before it
+        # reaches the agent (and surfaces the missing input downstream).
+        request_str = (request or "")[:50]
+        logger.info(f"Background worker: Executing agent for {tenant_id} - Request: {request_str}...")
         
         # We need an event loop for the async execute method
         import asyncio

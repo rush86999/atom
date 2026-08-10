@@ -111,7 +111,7 @@ async def get_memory_stats(workspace_id: str = "default", current_user: User = D
                 "total_entities": 0,
                 "by_integration": {},
                 "by_entity_type": {},
-                "error": str(e)
+                "error": "Failed to retrieve statistics"
             },
             message="Failed to retrieve statistics"
         )

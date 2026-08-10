@@ -10486,15 +10486,23 @@ class MeetingAttendanceStatus(Base):
     """
     Meeting attendance tracking.
 
-    Stub model for Phase 265 to unblock tests.
-    TODO: Implement full schema for meeting management.
+    Model for meeting attendance monitoring (auto-join bots, Notion
+    summaries). Columns match the ``api/meeting_routes.py`` contract
+    (task_id-keyed records per user).
     """
     __tablename__ = "meeting_attendance"
 
     id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
-    meeting_id = Column(String(255), nullable=False, index=True)
+    task_id = Column(String(255), nullable=False, index=True)
+    meeting_id = Column(String(255), nullable=True, index=True)
     user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    status = Column(String(50), nullable=False)  # accepted, declined, tentative, no_response
+    platform = Column(String(100), nullable=True)
+    meeting_identifier = Column(String(500), nullable=True)
+    status = Column(String(50), nullable=True)  # accepted, declined, tentative, no_response
+    status_timestamp = Column(DateTime(timezone=True), nullable=True)
+    current_status_message = Column(Text, nullable=True)
+    final_notion_page_url = Column(Text, nullable=True)
+    error_details = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

@@ -71,6 +71,13 @@ def classify_responsibility_breakpoints(task_description: str) -> BreakpointVerd
             )
 
     reasons = [pat for pat in BREAKPOINT_PATTERNS if re.search(pat, text)]
+    # De-duplicate overlapping patterns so a single conceptual signal cannot
+    # be counted twice. Today the only overlap is the bare ``integration``
+    # pattern, which is a substring of the more specific ``api integration``
+    # pattern — when the latter matches, drop the former (one concept, one
+    # reason). This keeps the ``>= 2`` threshold honest.
+    if "api integration" in reasons and "integration" in reasons:
+        reasons = [r for r in reasons if r != "integration"]
     return BreakpointVerdict(
         triggered=len(reasons) >= 2, reasons=reasons, score=len(reasons)
     )

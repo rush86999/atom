@@ -17,9 +17,20 @@ _REGISTRY: Dict[str, VFSProvider] = {}
 
 
 def register_provider(provider: VFSProvider) -> None:
-    """Register a VFS provider under its ``prefix``."""
+    """Register a VFS provider under its ``prefix``.
+
+    The prefix is the first path segment used by :func:`resolve_provider`, which
+    splits on ``/`` — so a prefix that itself contains ``/`` can never be
+    resolved. Reject it here (fail fast) rather than silently registering an
+    unreachable provider.
+    """
     if not provider.prefix:
         raise ValueError("VFSProvider must define a non-empty prefix")
+    if "/" in provider.prefix:
+        raise ValueError(
+            f"VFSProvider prefix must not contain '/' (got {provider.prefix!r}); "
+            "a prefix with '/' can never be resolved by resolve_provider"
+        )
     _REGISTRY[provider.prefix] = provider
     logger.info(f"[VFS] registered provider for prefix '{provider.prefix}'")
 

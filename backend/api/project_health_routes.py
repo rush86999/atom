@@ -265,21 +265,24 @@ def generate_overall_recommendations(metrics: dict[str, HealthMetric]) -> List[s
     """Generate recommendations based on health metrics."""
     recommendations = []
 
-    for metric_name, metric in metrics.items():
+    for metric in metrics.values():
         if metric.status in ["warning", "critical"]:
-            if metric_name == "Task Management":
+            # NOTE: compare against the metric's OWN name ("Task Management")
+            # — the dict keys are integration ids ("notion", "github", …), so
+            # key-based comparisons made every recommendation branch dead code.
+            if metric.name == "Task Management":
                 recommendations.append(
                     "Consider prioritizing overdue tasks and breaking down large tasks into smaller chunks"
                 )
-            elif metric_name == "Code Health":
+            elif metric.name == "Code Health":
                 recommendations.append(
                     "Focus on closing open PRs and reducing code review turnaround time"
                 )
-            elif metric_name == "Communication":
+            elif metric.name == "Communication":
                 recommendations.append(
                     "Improve response times and consider async communication for non-urgent matters"
                 )
-            elif metric_name == "Meeting Balance":
+            elif metric.name == "Meeting Balance":
                 recommendations.append(
                     "Reduce meeting load and protect focus time for deep work"
                 )

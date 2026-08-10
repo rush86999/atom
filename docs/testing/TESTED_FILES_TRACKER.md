@@ -1925,3 +1925,15 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 | 2026-08-09 | `core/llm/byok_handler.py` | ~66-68% | `_provider_serves_model` (local/gateway always-serve, family prefixes, substring fallback, empty model); `sanitize_tool_pairs` (stub injection for orphan tool msgs, trailing tool_calls drop w/o content, passthrough, empty); `analyze_query_complexity` (simple/long/code/technical/advanced/task-bias/empty); `get_optimal_provider` (top-ranked, empty→first-client fallback) |
 
 **byok_handler cumulative**: 29% → ~67% across waves 11/11b/11c/11d/11e/11f.
+
+## Session 2026-08-09 — coverage wave 10f (integration_dashboard + canvas_recording + recording_review, 0% → 91-93%)
+
+**Evidence**: `tests/test_covpush_w10f_recording.py` (54 tests, TDD); combined regression 496 passed; mypy 12→12 baseline; `import main_api_app` verified.
+
+| Date | Module | Before→After | Bugs fixed |
+|---|---|---|---|
+| 2026-08-09 | `api/canvas_recording_routes.py` | 0%→**92%** | (1) **403→500**: handlers re-raised only when error text contains "not found" — `permission_denied_error` messages don't → ownership violations on get/flag/replay became 500s; canonical `except HTTPException: raise`; (2) **`/health` shadowed by `GET /{recording_id}`** (registration order) → health check hit the parameterized route (auth → 401); health moved above; (3) list endpoint declared `response_model=list[RecordingResponse]` but returns the envelope → ResponseValidationError → **every list request 500**; `Dict[str, Any]` (+ missing `Dict` typing import) |
+| 2026-08-09 | `api/recording_review_routes.py` | 0%→**93%** | (1) 3 handlers bare `except Exception` → **404/403 → 500**; `except HTTPException: raise`; (2) **phantom `UserRole.SECURITY_ADMIN`** (no such member) → admin-check AttributeError → 500 on every non-owner review read; replaced with `UserRole.ADMIN`; (3) `/health` shadowed by `/{review_id}` → moved above |
+| 2026-08-09 | `api/integration_dashboard_routes.py` | 0%→**88%** | (1) **`GET /alerts/count` 500 on EVERY request** — returns the success envelope but declared `-> Dict[str, int]` → ResponseValidationError (bool/str keys rejected); `Dict[str, Any]`; (2) details 404 swallowed → 500; `except HTTPException: raise`. 14 endpoints covered. Open item: the 12 GET monitoring endpoints carry NO auth dependency (health/config/status data readable anonymously) — flagged, not changed (product decision needed) |
+
+**Pattern reinforced**: route shadowing (health behind parameterized route), envelope-vs-response_model mismatches, and phantom enum members keep recurring — add to sweep checklists.

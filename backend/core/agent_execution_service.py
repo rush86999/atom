@@ -418,9 +418,10 @@ Provide helpful, concise responses. Be direct and practical."""
                 except Exception:
                     pass
 
-        # Trigger episode creation for memory
+        # Trigger episode creation for memory (sync fire-and-forget: the
+        # trigger schedules on the running loop or falls back to asyncio.run)
         try:
-            await trigger_episode_creation(
+            trigger_episode_creation(
                 user_id=user_id,
                 agent_id=agent.id if agent else None,
                 session_id=session_id,
@@ -479,7 +480,11 @@ Provide helpful, concise responses. Be direct and practical."""
                     ).first()
                 if execution:
                     execution.status = "failed"
-                    execution.error_message = str(e)[:500]
+                    # Store a GENERIC failure marker, not raw str(e) — internal
+                    # exception text (paths, SQL, token details) must not be
+                    # persisted to the audit trail or returned to clients.
+                    # Detail is already logged server-side (line ~460).
+                    execution.error_message = "Agent chat execution failed"
                     execution.completed_at = datetime.now()
                     _fail_session.commit()
 
@@ -516,7 +521,10 @@ Provide helpful, concise responses. Be direct and practical."""
 
         return {
             "success": False,
-            "error": str(e),
+            # GENERIC error message — the raw exception (str(e)) may carry
+            # internal paths/SQL/token details and must stay server-side
+            # (it is logged above with exc_info=True).
+            "error": "Agent chat execution failed",
             "agent_id": agent_id,
             "execution_id": execution_id if agent_execution else None
         }

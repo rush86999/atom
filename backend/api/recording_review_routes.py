@@ -83,6 +83,14 @@ class ReviewMetricsResponse(BaseModel):
 
 
 # Endpoints
+@router.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return router.success_response(
+        data={"service": "recording_review"},
+        message="Service is healthy"
+    )
+
 @router.post("", response_model=CreateReviewResponse)
 async def create_review(
     request: CreateReviewRequest,
@@ -185,7 +193,7 @@ async def get_review(
 
         if not recording or (recording.user_id != user.id):
             # Verify user is admin
-            if user.role not in [UserRole.SUPER_ADMIN.value, UserRole.WORKSPACE_ADMIN.value, UserRole.SECURITY_ADMIN.value]:
+            if user.role not in [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.WORKSPACE_ADMIN.value]:
                 raise router.permission_denied_error(
                     action="get_review",
                     resource="Recording",
@@ -216,6 +224,8 @@ async def get_review(
             created_at=review.created_at.isoformat()
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get review: {e}")
         raise router.internal_error(detail="Internal error")
@@ -280,6 +290,8 @@ async def get_recording_reviews(
             for r in reviews
         ]
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get recording reviews: {e}")
         raise router.internal_error(detail="Internal error")
@@ -360,15 +372,10 @@ async def trigger_auto_review(
                 message="Auto-review skipped (low confidence or disabled)"
             )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to trigger auto-review: {e}")
         raise router.internal_error(detail="Internal error")
 
 
-@router.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return router.success_response(
-        data={"service": "recording_review"},
-        message="Service is healthy"
-    )

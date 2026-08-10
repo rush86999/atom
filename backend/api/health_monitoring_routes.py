@@ -7,7 +7,7 @@ integration health, and system metrics.
 
 import logging
 from typing import Optional
-from fastapi import Depends, status
+from fastapi import HTTPException, Depends, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -111,6 +111,8 @@ async def get_agent_health(
 
         return AgentHealthResponse(**health)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get agent health: {e}")
         raise router.internal_error(message="Internal error")
@@ -137,6 +139,8 @@ async def get_integrations_health(
 
         return [IntegrationHealthResponse(**h) for h in health_list]
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get integrations health: {e}")
         raise router.internal_error(message="Internal error")
@@ -164,6 +168,8 @@ async def get_system_metrics(
 
         return SystemMetricsResponse(**metrics)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get system metrics: {e}")
         raise router.internal_error(message="Internal error")
@@ -229,6 +235,8 @@ async def acknowledge_alert(
 
         return router.success_response(message="Alert acknowledged")
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to acknowledge alert: {e}")
         raise router.internal_error(message="Internal error")
@@ -286,7 +294,7 @@ async def external_data_health():
 
     No authentication required for monitoring purposes.
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
     from core.dynamic_pricing_fetcher import get_pricing_fetcher
     from core.dynamic_benchmark_fetcher import get_benchmark_fetcher
 
@@ -297,12 +305,12 @@ async def external_data_health():
         # Calculate pricing cache age
         pricing_age_hours = None
         if pricing_fetcher.last_fetch:
-            pricing_age_hours = (datetime.now() - pricing_fetcher.last_fetch).total_seconds() / 3600
+            pricing_age_hours = (datetime.now(timezone.utc) - pricing_fetcher.last_fetch).total_seconds() / 3600
 
         # Calculate benchmark cache age
         benchmark_age_hours = None
         if benchmark_fetcher.last_fetch:
-            benchmark_age_hours = (datetime.now() - benchmark_fetcher.last_fetch).total_seconds() / 3600
+            benchmark_age_hours = (datetime.now(timezone.utc) - benchmark_fetcher.last_fetch).total_seconds() / 3600
 
         # Collect warnings
         warnings = []
@@ -343,7 +351,7 @@ async def external_data_health():
 
     except Exception as e:
         logger.error(f"Failed to get external data health: {e}")
-        return router.internal_error(message="Internal error")
+        raise router.internal_error(message="Internal error")
 
 
 @router.get("/health")

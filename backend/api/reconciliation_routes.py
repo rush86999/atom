@@ -91,7 +91,9 @@ async def add_bank_entry(
                     raise router.governance_denied_error(
                         agent_id=agent.id,
                         action="financial_data_modification",
-                        reason=governance_check['reason']
+                        maturity_level=str(governance_check.get("agent_maturity_level", "unknown")),
+                        required_level=str(governance_check.get("required_maturity_level", "unknown")),
+                        reason=governance_check.get('reason')
                     )
 
         from core.reconciliation_engine import ReconciliationEntry, reconciliation_engine
@@ -160,7 +162,9 @@ async def add_ledger_entry(
                     raise router.governance_denied_error(
                         agent_id=agent.id,
                         action="financial_data_modification",
-                        reason=governance_check['reason']
+                        maturity_level=str(governance_check.get("agent_maturity_level", "unknown")),
+                        required_level=str(governance_check.get("required_maturity_level", "unknown")),
+                        reason=governance_check.get('reason')
                     )
 
         from core.reconciliation_engine import ReconciliationEntry, reconciliation_engine
@@ -283,6 +287,8 @@ async def resolve_anomaly(
         if not resolved:
             raise router.not_found_error("Anomaly", anomaly_id)
         return {"status": "resolved", "id": anomaly_id}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to resolve anomaly: {e}")
         raise router.internal_error(message="Failed to resolve anomaly", details={"error": "Internal error"})
