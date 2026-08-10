@@ -445,6 +445,17 @@ class BYOKManager:
                 reasoning_level=1
             ),
             AIProviderConfig(
+                id="youcom",
+                name="You.com",
+                description="AI-powered search engine with real-time web results and citations",
+                api_key_env_var="YDC_API_KEY",
+                base_url="https://api.you.com",
+                supported_tasks=["search", "web_search", "research", "rag"],
+                cost_per_token=0.00001, # Per search query (estimated)
+                model="search",
+                reasoning_level=1
+            ),
+            AIProviderConfig(
                 id="glm_5",
                 name="Zhipu GLM 5",
                 description="Next-generation GLM-5 model",
@@ -1025,7 +1036,7 @@ async def store_api_key(
             detail="Invalid API key: must be at least 10 characters"
         )
 
-    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "google_flash_3_5", "gemini_flash", "gemini_flash_3_5", "mistral", "glm", "glm_5", "deepinfra", "tavily", "minimax_m3", "anthropic_opus_4_6", "openai_5_3", "xiaomi", "openrouter"]
+    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "google_flash_3_5", "gemini_flash", "gemini_flash_3_5", "mistral", "glm", "glm_5", "deepinfra", "tavily", "youcom", "minimax_m3", "anthropic_opus_4_6", "openai_5_3", "xiaomi", "openrouter"]
     if provider_id not in valid_providers:
         raise HTTPException(
             status_code=400,

@@ -384,6 +384,17 @@ class BYOKManager:
                 reasoning_level=1
             ),
             AIProviderConfig(
+                id="youcom",
+                name="You.com",
+                description="AI-powered search engine with real-time web results and citations",
+                api_key_env_var="YDC_API_KEY",
+                base_url="https://api.you.com",
+                supported_tasks=["search", "web_search", "research", "rag"],
+                cost_per_token=0.00001, # Per search query (estimated)
+                model="search",
+                reasoning_level=1
+            ),
+            AIProviderConfig(
                 id="brightdata",
                 name="Bright Data",
                 description="Web scraping and data collection with anti-bot protection",

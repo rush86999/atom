@@ -3107,27 +3107,80 @@ class MCPService(IntegrationService):
     async def web_search(self, query: str = None, tenant_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Performs a web search using available search APIs or MCP servers.
-        Supports BYOK - checks tenant-specific Tavily key first, then falls back to env var.
+        Supports BYOK - checks tenant-specific keys, then falls back to env vars.
+        Priority order: You.com, Tavily
         """
         logger.info(f"Performing web search for: {query} (tenant: {tenant_id})")
         
-        # Priority 1: Check for tenant-specific BYOK Tavily key
+        # Priority 1: Check for tenant-specific BYOK You.com key
+        youcom_api_key = None
+        if tenant_id:
+            try:
+                byok_manager = get_byok_manager()
+                youcom_api_key = byok_manager.get_tenant_api_key(tenant_id, "youcom")
+                if youcom_api_key:
+                    logger.info(f"Using BYOK You.com key for tenant {tenant_id}")
+            except Exception as e:
+                logger.warning(f"Failed to get BYOK You.com key: {e}")
+        
+        # Priority 2: Fall back to environment variable (platform-wide You.com key)
+        if not youcom_api_key:
+            youcom_api_key = os.getenv("YDC_API_KEY")
+        
+        # If we have a You.com API key, try it first
+        if youcom_api_key:
+            try:
+                async with httpx.AsyncClient() as client:
+                    headers = {"Authorization": f"Bearer {youcom_api_key}"}
+                    response = await client.post(
+                        "https://api.you.com/search",
+                        headers=headers,
+                        json={
+                            "query": query,
+                            "num_results": 10,
+                            "safesearch": "moderate",
+                            "country": "US"
+                        },
+                        timeout=10.0
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        # Transform You.com response to match expected format
+                        return {
+                            "query": query,
+                            "results": [
+                                {
+                                    "url": hit.get("url", ""),
+                                    "title": hit.get("title", ""),
+                                    "content": hit.get("description", ""),
+                                    "score": hit.get("relevance_score", 0.5)
+                                }
+                                for hit in data.get("hits", [])
+                            ],
+                            "answer": data.get("answer", None),
+                            "provider": "you.com"
+                        }
+                    else:
+                        logger.warning(f"You.com search failed with status {response.status_code}")
+            except Exception as e:
+                logger.error(f"You.com search failed: {e}")
+
+        # Priority 3: Check for tenant-specific BYOK Tavily key (fallback)
         tavily_api_key = None
         if tenant_id:
             try:
                 byok_manager = get_byok_manager()
-                with SessionLocal() as db:
-                    tavily_api_key = byok_manager.get_tenant_api_key(tenant_id, "tavily", db=db)
+                tavily_api_key = byok_manager.get_tenant_api_key(tenant_id, "tavily")
                 if tavily_api_key:
-                    logger.info(f"Using BYOK Tavily key for tenant {tenant_id}")
+                    logger.info(f"Using BYOK Tavily key as fallback for tenant {tenant_id}")
             except Exception as e:
                 logger.warning(f"Failed to get BYOK Tavily key: {e}")
         
-        # Priority 2: Fall back to environment variable (platform-wide key)
+        # Priority 4: Fall back to environment variable (platform-wide Tavily key)
         if not tavily_api_key:
             tavily_api_key = os.getenv("TAVILY_API_KEY")
         
-        # If we have a Tavily API key, use it
+        # If we have a Tavily API key, use it as fallback
         if tavily_api_key:
             try:
                 async with httpx.AsyncClient() as client:
@@ -3141,17 +3194,20 @@ class MCPService(IntegrationService):
                         timeout=10.0
                     )
                     if response.status_code == 200:
-                        return response.json()
+                        data = response.json()
+                        # Add provider info to Tavily response
+                        data["provider"] = "tavily"
+                        return data
             except Exception as e:
                 logger.error(f"Tavily search failed: {e}")
 
-        # No search API key configured - return empty results with error
-        logger.warning("No search API key (TAVILY_API_KEY) configured. Search unavailable.")
+        # No search API keys configured - return empty results with error
+        logger.warning("No search API keys (YDC_API_KEY, TAVILY_API_KEY) configured. Search unavailable.")
         return {
             "query": query,
             "results": [],
             "answer": None,
-            "error": "Web search is not configured. Please add a Tavily API key in Settings > AI Intelligence (BYOK)."
+            "error": "Web search is not configured. Please add a You.com API key (YDC_API_KEY) or Tavily API key in Settings > AI Intelligence (BYOK)."
         }
 
 # Singleton instance
