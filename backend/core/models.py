@@ -2355,8 +2355,36 @@ class SupervisorPerformance(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     supervisor_id = Column(String(255), nullable=False, index=True)
-    supervisor_type = Column(String(50), nullable=False, index=True)  # "user" or "autonomous_agent"
-    tenant_id = Column(String(255), ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False, index=True)
+    supervisor_type = Column(String(50), default="user", nullable=True, index=True)  # "user" or "autonomous_agent"
+    tenant_id = Column(String(255), ForeignKey('tenants.id', ondelete='CASCADE'), default="default", nullable=True, index=True)
+
+    # Two-way learning columns (restored: Hive-port rewrite dropped the schema
+    # every consumer uses — SupervisorLearningService._get_or_create_performance,
+    # FeedbackService._update_supervisor_performance, SupervisorPerformanceService
+    # leaderboard/trends — crashing on first use with "'confidence_score' is an
+    # invalid keyword argument for SupervisorPerformance". See
+    # tests/test_covpush_w20_supervisor_performance.py.)
+    confidence_score = Column(Float, default=0.5)  # 0.0 to 1.0
+    competence_level = Column(String(50), default="novice")  # novice|competent|expert
+    learning_rate = Column(Float, default=0.0)
+    performance_trend = Column(String(50), default="stable")  # improving|stable|declining
+    total_sessions_supervised = Column(Integer, default=0)
+    total_interventions = Column(Integer, default=0)
+    average_rating = Column(Float, default=0.0)
+    total_ratings = Column(Integer, default=0)
+    rating_1_count = Column(Integer, default=0)
+    rating_2_count = Column(Integer, default=0)
+    rating_3_count = Column(Integer, default=0)
+    rating_4_count = Column(Integer, default=0)
+    rating_5_count = Column(Integer, default=0)
+    successful_interventions = Column(Integer, default=0)
+    failed_interventions = Column(Integer, default=0)
+    agents_promoted = Column(Integer, default=0)
+    agent_confidence_boosted = Column(Float, default=0.0)
+    total_comments_given = Column(Integer, default=0)
+    total_upvotes_received = Column(Integer, default=0)
+    total_downvotes_received = Column(Integer, default=0)
+    last_updated = Column(DateTime(timezone=True), nullable=True)
 
     # Supervision statistics
     total_supervisions = Column(Integer, default=0, nullable=False)

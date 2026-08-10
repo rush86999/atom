@@ -80,7 +80,7 @@ class TestSupervisionLearningBasic:
             module_path="agents.test",
             class_name="TestAgent",
             status=AgentStatus.SUPERVISED.value,
-            confidence_score=0.75,
+            workspace_id="default",
         )
         db.add(agent)
 
@@ -159,19 +159,20 @@ class TestSupervisionLearningBasic:
         # Check if columns exist by inspecting the table
         from sqlalchemy import inspect
         inspector = inspect(db.bind)
-        columns = [c['name'] for c in inspector.get_columns('episodes')]
+        columns = [c['name'] for c in inspector.get_columns('agent_episodes')]
 
         supervision_columns = [
             'supervisor_id',
             'supervisor_rating',
-            'intervention_count',
             'intervention_types',
             'proposal_id',
-            'proposal_outcome',
+            'supervision_decision',
+            'supervision_reasoning',
+            'supervision_feedback',
         ]
 
         for col in supervision_columns:
-            assert col in columns, f"Column {col} not found in episodes table"
+            assert col in columns, f"Column {col} not found in agent_episodes table"
 
         print("✓ All supervision columns exist in episodes table")
 
@@ -206,26 +207,28 @@ class TestSupervisionLearningBasic:
             module_path="agents.test",
             class_name="TestAgent",
             status=AgentStatus.SUPERVISED.value,
+            workspace_id="default",
         )
         db.add(agent)
 
-        # Create episode with supervision data
+        # Create episode with supervision data (AgentEpisode columns: the old
+        # title/description/summary/user_id/ended_at fields were renamed in the
+        # agent_episodes rework; task_description + completed_at replace them)
         episode = Episode(
             id=f"test_episode_{uuid.uuid4().hex[:8]}",
-            title="Test Episode",
-            description="Test",
-            summary="Test",
+            tenant_id="default",
+            task_description="Test Episode",
             agent_id=agent_id,
-            user_id=user_id,
             workspace_id=workspace_id,
             supervisor_id=user_id,
             supervisor_rating=5,
-            intervention_count=1,
             intervention_types=["correct"],
+            human_intervention_count=1,
             maturity_at_time=AgentStatus.SUPERVISED.value,
             status="completed",
+            outcome="success",
             started_at=datetime.now(),
-            ended_at=datetime.now(),
+            completed_at=datetime.now(),
         )
         db.add(episode)
         db.commit()

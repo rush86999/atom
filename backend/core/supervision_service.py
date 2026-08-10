@@ -267,14 +267,17 @@ class SupervisionService:
                 f"Session must be RUNNING, current: {session.status}"
             )
 
-        # Record intervention
+        # Record intervention — REBIND the list: JSONColumn is a plain JSON
+        # type, so in-place append is invisible to SQLAlchemy change tracking
+        # and the audit trail (type/guidance/timestamp) was silently lost;
+        # only the scalar intervention_count persisted.
         intervention_record = {
             "timestamp": datetime.now().isoformat(),
             "type": intervention_type,
             "guidance": guidance
         }
 
-        session.interventions.append(intervention_record)
+        session.interventions = list(session.interventions or []) + [intervention_record]
         session.intervention_count += 1
 
         # Handle intervention type
@@ -395,8 +398,11 @@ class SupervisionService:
             ).order_by(AgentExecution.started_at.desc()).first()
 
             if execution:
-                # Create episode asynchronously (non-blocking)
-                import asyncio
+                # Create episode asynchronously (non-blocking). NOTE: the old
+                # local `import asyncio` here shadowed the module-level import
+                # for the WHOLE function — if this block was skipped (no
+                # execution), the two-way-learning block below raised
+                # UnboundLocalError ('cannot access local variable asyncio').
                 episode_service = EpisodeSegmentationService(self.db)
                 asyncio.create_task(
                     episode_service.create_supervision_episode(

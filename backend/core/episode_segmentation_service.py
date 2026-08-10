@@ -1396,6 +1396,47 @@ class EpisodeSegmentationService:
 
             # Note: episode is a SimpleNamespace (not a DB model), save manually if needed
 
+            # Persist a REAL AgentEpisode row — the segments below reference
+            # episode.id (FK to agent_episodes), so the row must exist or they
+            # are orphaned; the two-way-learning path (retrieval, graduation
+            # metrics) reads episodes from this table. The namespace keeps the
+            # title/description/summary/user_id shape used by the LanceDB
+            # archive below.
+            from core.models import AgentEpisode
+            episode_row = AgentEpisode(
+                id=episode.id,
+                agent_id=episode.agent_id,
+                tenant_id=getattr(supervision_session, "tenant_id", None) or "default",
+                execution_id=episode.execution_ids[0] if episode.execution_ids else None,
+                workspace_id=episode.workspace_id,
+                task_description=episode.title,
+                maturity_at_time=AgentStatus.SUPERVISED.value,
+                supervisor_id=episode.supervisor_id,
+                supervisor_rating=episode.supervisor_rating,
+                supervision_feedback=episode.supervision_feedback,
+                intervention_types=episode.intervention_types,
+                human_intervention_count=episode.human_intervention_count,
+                outcome="success" if (supervision_session.supervisor_rating or 3) >= 3 else "failure",
+                success=(supervision_session.supervisor_rating or 3) >= 3,
+                status="completed",
+                started_at=supervision_session.started_at,
+                completed_at=supervision_session.completed_at,
+                duration_seconds=supervision_session.duration_seconds,
+                topics=episode.topics,
+                entities=episode.entities,
+                importance_score=episode.importance_score,
+                metadata_json={
+                    "source": "supervision_session",
+                    "supervision_session_id": supervision_session.id,
+                    "human_edits": [],
+                    "world_model_state": episode.world_model_state,
+                    "title": episode.title,
+                    "description": episode.description,
+                    "summary": episode.summary,
+                },
+            )
+            db.add(episode_row)
+
             # Create segments
             segment_order = 0
 

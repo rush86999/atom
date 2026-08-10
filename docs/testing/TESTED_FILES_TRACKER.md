@@ -2034,3 +2034,17 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 |---|---|---|---|
 | 2026-08-10 | `api/workspace_context_routes.py` | ~0%→**100%** | GET/PUT context (string coercion, blank filtering, fresh-dict metadata preservation, 404); assign skill (idempotent, missing-skill 404); unassign |
 | 2026-08-10 | `api/feedback_enhanced.py` | ~40%→**90%** | submit (thumbs→approval, rating, correction, missing-agent 404, no-feedback validation, token-identity not body user_id); agent summary (positive/negative/average/distribution/types); analytics (ratios, top/most-corrected agents); trends |
+
+## Session 2026-08-10 (wave 19b/20) — supervision two-way-learning unbroken (TDD: real bugs)
+
+**Evidence**: `tests/test_covpush_w19_supervision.py` (27 tests, supervision_service 95%), `tests/test_covpush_w20_supervisor_performance.py` (9 tests) — plus repaired stale suites: `test_supervision_learning_simple.py` (4→3), `test_supervision_learning_integration.py` (8→0), `test_two_way_learning.py` (12 failed + 7 errors → 0).
+
+**Real bugs fixed (RED → GREEN):**
+1. **`core/models.py` `SupervisorPerformance` schema drift** — Hive-port rewrite dropped the learning columns every consumer uses (`confidence_score`, `competence_level`, `learning_rate`, `performance_trend`, counts...); every first-use crashed with `TypeError: 'confidence_score' is an invalid keyword argument` and the two-way-learning path from `complete_supervision` swallowed it (`Error processing supervision feedback`). Restored 21 columns (model + migration `20260810_supervisor_performance_learning` + live-DB patch); `tenant_id`/`supervisor_type` now default so legacy constructors insert.
+2. **`supervision_service.complete_supervision` asyncio shadowing** — local `import asyncio` shadowed module import for the whole function; if the episode-creation block was skipped (no execution), the two-way-learning block raised `UnboundLocalError`. Removed shadow.
+3. **`supervision_service.intervene` JSON-list rebind** — in-place `session.interventions.append(...)` was invisible to SQLAlchemy change tracking; audit trail silently lost (only `intervention_count` persisted). Rebind `list + [record]`.
+4. **`episode_segmentation_service.create_supervision_episode` never persisted the episode** — built a SimpleNamespace + orphaned `episode_segments` (FK to a row that never existed); supervision episodes were no-ops. Now persists a real `AgentEpisode` row (outcome derived from rating, metadata_json carries session linkage).
+
+**Stale-test repairs (pre-existing reds):** `agent_episodes` table-name renames (`episodes`→`agent_episodes`, `title`→`task_description`, `proposal_outcome`→`supervision_decision`+`metadata_json.rejection_reason`, `intervention_count`→`human_intervention_count`, `agent_name`/`task_description` removed from `AgentExecution`); fixed-ID fixtures → UUIDs (shared-DB collisions); `approve/reject_proposal` missing `user_id`; governance `workspace_id="default"`/`tenant_id="default"` on test agents; hypothesis function-scoped-fixture health check + cross-example session/episode accumulation cleanup (same-second `created_at` ties → flaky `.first()`); execution `started_at` must be strictly after `session.started_at` (string-compare race).
+
+**Dev-DB reconciliation:** `backend/atom_dev.db` (the DB pytest's `SessionLocal` actually hits) was missing 3 tables + 45 columns (`division_id`, `agent_episodes`, ...) vs the ORM models → `create_all` + guarded `ALTER TABLE ADD COLUMN` (typed from model metadata).

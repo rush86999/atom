@@ -7,7 +7,7 @@ Tests the complete flow from supervision → episodes → graduation.
 import asyncio
 import pytest
 import uuid
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, strategies as st, settings, HealthCheck
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
@@ -62,9 +62,10 @@ def user(db: Session):
 
 @pytest.fixture
 def workspace(db: Session, user: User):
-    """Create test workspace."""
+    """Create test workspace (unique id per run — fixed ids pollute the
+    shared dev DB and collide with leftover rows from prior runs)."""
     workspace = Workspace(
-        id="test_integration_workspace",
+        id=f"test_integration_workspace_{uuid.uuid4().hex[:8]}",
         name="Integration Test Workspace", )
     db.add(workspace)
     db.commit()
@@ -75,13 +76,17 @@ def workspace(db: Session, user: User):
 def supervised_agent(db: Session, workspace: Workspace, user: User):
     """Create SUPERVISED agent."""
     agent = AgentRegistry(
-        id="test_integration_supervised_agent",
+        id=f"test_integration_supervised_agent_{uuid.uuid4().hex[:8]}",
         name="Test Integration Supervised Agent",
         category="testing",
         module_path="agents.test_agent",
         class_name="TestAgent",
         status=AgentStatus.SUPERVISED.value,
         confidence_score=0.75, 
+        # "default" workspace: governance (AgentGovernanceService(db)) and
+        # EpisodeRetrievalService both hardcode the default workspace scope
+        workspace_id="default",
+        tenant_id="default",
     )
     db.add(agent)
     db.commit()
@@ -92,13 +97,15 @@ def supervised_agent(db: Session, workspace: Workspace, user: User):
 def intern_agent(db: Session, workspace: Workspace, user: User):
     """Create INTERN agent."""
     agent = AgentRegistry(
-        id="test_integration_intern_agent",
+        id=f"test_integration_intern_agent_{uuid.uuid4().hex[:8]}",
         name="Test Integration Intern Agent",
         category="testing",
         module_path="agents.test_agent",
         class_name="TestAgent",
         status=AgentStatus.INTERN.value,
         confidence_score=0.6, 
+        workspace_id="default",
+        tenant_id="default",
     )
     db.add(agent)
     db.commit()
@@ -117,6 +124,7 @@ class TestSupervisionToEndToEnd:
         self,
         db: Session,
         supervised_agent: AgentRegistry,
+        workspace: Workspace,
         user: User,
     ):
         """Test complete flow: supervision → episode → graduation."""
@@ -129,13 +137,16 @@ class TestSupervisionToEndToEnd:
             supervisor_id=user.id,
         )
 
-        # Step 2: Simulate agent execution
+        # Step 2: Simulate agent execution (AgentExecution has no agent_name
+        # column — the name lives on agent_registry). started_at must be
+        # strictly AFTER session.started_at — complete_supervision locates the
+        # execution with `started_at >= session.started_at` and a same-second
+        # naive/UTC string comparison can order them the wrong way.
         execution = AgentExecution(
             id=f"exec_{datetime.now().timestamp()}",
             agent_id=supervised_agent.id,
-            agent_name=supervised_agent.name, status="running",
-            task_description="Test task for supervision",
-            started_at=datetime.now(),
+            status="running",
+            started_at=(session.started_at or datetime.now()) + timedelta(seconds=1),
         )
         db.add(execution)
         db.commit()
@@ -160,7 +171,7 @@ class TestSupervisionToEndToEnd:
         episode = episodes[0]
 
         assert episode.supervisor_rating == 5
-        assert episode.intervention_count == 0
+        assert episode.human_intervention_count == 0
         assert episode.supervision_feedback == "Excellent work!"
 
         # Step 6: Use episode for graduation validation
@@ -178,9 +189,8 @@ class TestSupervisionToEndToEnd:
             execution = AgentExecution(
                 id=f"exec_{datetime.now().timestamp()}_{_}",
                 agent_id=supervised_agent.id,
-                agent_name=supervised_agent.name, status="completed",
-                task_description=f"Test task {_}",
-                started_at=datetime.now(),
+                status="completed",
+                started_at=(session.started_at or datetime.now()) + timedelta(seconds=1),
                 completed_at=datetime.now(),
             )
             db.add(execution)
@@ -222,9 +232,11 @@ class TestSupervisionToEndToEnd:
             reasoning="This proposal presents a chart",
         )
 
-        # Step 2: Approve proposal
+        # Step 2: Approve proposal (user_id param added in proposal-service refactor)
         await proposal_service.approve_proposal(
-            proposal_id=proposal.id, )
+            proposal_id=proposal.id,
+            user_id=user.id,
+        )
 
         # Step 3: Verify episode created
         episodes = db.query(Episode).filter(
@@ -234,7 +246,9 @@ class TestSupervisionToEndToEnd:
         assert len(episodes) > 0
         episode = episodes[0]
 
-        assert episode.proposal_outcome == "approved"
+        # proposal_outcome/rejection_reason moved to metadata_json and the
+        # decision column renamed to supervision_decision (episode rework)
+        assert episode.supervision_decision == "approved"
         assert episode.human_intervention_count == 1
 
         # Step 4: Reject another proposal
@@ -249,7 +263,7 @@ class TestSupervisionToEndToEnd:
         )
 
         await proposal_service.reject_proposal(
-            proposal_id=proposal2.id, reason="Not needed",
+            proposal_id=proposal2.id, user_id=user.id, reason="Not needed",
         )
 
         # Step 5: Verify rejected episode
@@ -258,14 +272,15 @@ class TestSupervisionToEndToEnd:
         ).first()
 
         assert rejected_episode is not None
-        assert rejected_episode.proposal_outcome == "rejected"
-        assert rejected_episode.rejection_reason == "Not needed"
+        assert rejected_episode.supervision_decision == "rejected"
+        assert rejected_episode.metadata_json.get("rejection_reason") == "Not needed"
 
     @pytest.mark.asyncio
     async def test_supervision_retrieval_with_context(
         self,
         db: Session,
         supervised_agent: AgentRegistry,
+        workspace: Workspace,
         user: User,
     ):
         """Test retrieving episodes with supervision context."""
@@ -283,9 +298,8 @@ class TestSupervisionToEndToEnd:
             execution = AgentExecution(
                 id=f"exec_{datetime.now().timestamp()}_{i}",
                 agent_id=supervised_agent.id,
-                agent_name=supervised_agent.name, status="completed",
-                task_description=f"Task {i}",
-                started_at=datetime.now(),
+                status="completed",
+                started_at=(session.started_at or datetime.now()) + timedelta(seconds=1),
                 completed_at=datetime.now(),
             )
             db.add(execution)
@@ -329,6 +343,7 @@ class TestLearningImpact:
         self,
         db: Session,
         supervised_agent: AgentRegistry,
+        workspace: Workspace,
         user: User,
     ):
         """Test graduation validation reflects supervision performance."""
@@ -347,9 +362,8 @@ class TestLearningImpact:
             execution = AgentExecution(
                 id=f"exec_{datetime.now().timestamp()}_{i}",
                 agent_id=supervised_agent.id,
-                agent_name=supervised_agent.name, status="completed",
-                task_description=f"Task {i}",
-                started_at=datetime.now(),
+                status="completed",
+                started_at=(session.started_at or datetime.now()) + timedelta(seconds=1),
                 completed_at=datetime.now(),
             )
             db.add(execution)
@@ -377,6 +391,7 @@ class TestLearningImpact:
         self,
         db: Session,
         supervised_agent: AgentRegistry,
+        workspace: Workspace,
         user: User,
     ):
         """Test low-rated supervision sessions negatively impact graduation."""
@@ -395,9 +410,8 @@ class TestLearningImpact:
             execution = AgentExecution(
                 id=f"exec_{datetime.now().timestamp()}_{i}",
                 agent_id=supervised_agent.id,
-                agent_name=supervised_agent.name, status="completed",
-                task_description=f"Task {i}",
-                started_at=datetime.now(),
+                status="completed",
+                started_at=(session.started_at or datetime.now()) + timedelta(seconds=1),
                 completed_at=datetime.now(),
             )
             db.add(execution)
@@ -435,12 +449,13 @@ class TestIntegrationProperties:
             max_size=30,
         )
     )
-    @settings(max_examples=5)
+    @settings(max_examples=5, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=None)
     @pytest.mark.asyncio
     async def test_average_rating_preserved_through_flow(
         self,
         db: Session,
         supervised_agent: AgentRegistry,
+        workspace: Workspace,
         user: User,
         ratings,
     ):
@@ -449,6 +464,13 @@ class TestIntegrationProperties:
         graduation_service = AgentGraduationService(db)
 
         # Create sessions with specified ratings
+        # NOTE: pytest-hypothesis shares function-scoped fixtures across all
+        # examples, so sessions accumulate on the same agent id — clear them
+        # at the start of every example or the metrics include prior examples.
+        db.query(SupervisionSession).filter(
+            SupervisionSession.agent_id == supervised_agent.id,
+        ).delete(synchronize_session=False)
+        db.commit()
         for i, rating in enumerate(ratings):
             session = await supervision_service.start_supervision_session(
                 agent_id=supervised_agent.id,
@@ -460,9 +482,8 @@ class TestIntegrationProperties:
             execution = AgentExecution(
                 id=f"exec_{datetime.now().timestamp()}_{i}",
                 agent_id=supervised_agent.id,
-                agent_name=supervised_agent.name, status="completed",
-                task_description=f"Task {i}",
-                started_at=datetime.now(),
+                status="completed",
+                started_at=(session.started_at or datetime.now()) + timedelta(seconds=1),
                 completed_at=datetime.now(),
             )
             db.add(execution)
@@ -492,12 +513,13 @@ class TestIntegrationProperties:
             max_size=30,
         )
     )
-    @settings(max_examples=5)
+    @settings(max_examples=5, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=None)
     @pytest.mark.asyncio
     async def test_intervention_count_preserved_through_flow(
         self,
         db: Session,
         supervised_agent: AgentRegistry,
+        workspace: Workspace,
         user: User,
         intervention_counts,
     ):
@@ -505,6 +527,12 @@ class TestIntegrationProperties:
         supervision_service = SupervisionService(db)
 
         # Create sessions with specified intervention counts
+        # (see test_average_rating_preserved_through_flow: fixtures are shared
+        # across hypothesis examples — clear leftovers per example)
+        db.query(SupervisionSession).filter(
+            SupervisionSession.agent_id == supervised_agent.id,
+        ).delete(synchronize_session=False)
+        db.commit()
         for i, count in enumerate(intervention_counts):
             session = await supervision_service.start_supervision_session(
                 agent_id=supervised_agent.id,
@@ -528,9 +556,8 @@ class TestIntegrationProperties:
             execution = AgentExecution(
                 id=f"exec_{datetime.now().timestamp()}_{i}",
                 agent_id=supervised_agent.id,
-                agent_name=supervised_agent.name, status="completed",
-                task_description=f"Task {i}",
-                started_at=datetime.now(),
+                status="completed",
+                started_at=(session.started_at or datetime.now()) + timedelta(seconds=1),
                 completed_at=datetime.now(),
             )
             db.add(execution)
@@ -557,18 +584,30 @@ class TestIntegrationProperties:
         st.integers(min_value=1, max_value=5),
         st.integers(min_value=0, max_value=10),
     )
-    @settings(max_examples=10)
+    @settings(max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=None)
     @pytest.mark.asyncio
     async def test_episode_importance_correlation(
         self,
         db: Session,
         supervised_agent: AgentRegistry,
+        workspace: Workspace,
         user: User,
         rating,
         interventions,
     ):
         """Test episode importance correlates with supervision quality."""
         supervision_service = SupervisionService(db)
+
+        # (fixtures are shared across hypothesis examples — clear leftover
+        # sessions AND episodes; created_at ties on the same second otherwise
+        # make `.order_by(created_at).first()` ambiguous → flaky)
+        db.query(SupervisionSession).filter(
+            SupervisionSession.agent_id == supervised_agent.id,
+        ).delete(synchronize_session=False)
+        db.query(Episode).filter(
+            Episode.agent_id == supervised_agent.id,
+        ).delete(synchronize_session=False)
+        db.commit()
 
         session = await supervision_service.start_supervision_session(
             agent_id=supervised_agent.id,
@@ -592,9 +631,8 @@ class TestIntegrationProperties:
         execution = AgentExecution(
             id=f"exec_{datetime.now().timestamp()}",
             agent_id=supervised_agent.id,
-            agent_name=supervised_agent.name, status="completed",
-            task_description="Test task",
-            started_at=datetime.now(),
+            status="completed",
+            started_at=(session.started_at or datetime.now()) + timedelta(seconds=1),
             completed_at=datetime.now(),
         )
         db.add(execution)

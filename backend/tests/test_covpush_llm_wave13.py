@@ -158,7 +158,9 @@ class TestCredentialService:
         svc = self._service()
         svc.oauth_handler.get_active_credentials.return_value = None
         svc.byok_manager.is_configured.return_value = False
-        status = svc.get_provider_status("openai")
+        # root .env (loaded by other suites) may set OPENAI_API_KEY
+        with patch.dict("os.environ", {"OPENAI_API_KEY": ""}):
+            status = svc.get_provider_status("openai")
         assert status["provider_id"] == "openai"
         assert status["has_oauth"] is False
         assert status["active_method"] is None
