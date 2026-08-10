@@ -2008,3 +2008,12 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 | Date | File | Coverage change | What was added |
 |---|---|---|---|
 | 2026-08-10 | `core/llm/provider_rate_limits.py` | 34%→**79%** | `_env_int`; set/get rate limits (incl. max_context clamp rules); record_usage (no-limits no-op, weighted tracking, persistence fire-and-forget + error tolerance); `_trim` expiry; `_window_totals` (weighted/unweighted, model filter, legacy 3-tuples); `get_headroom` (no-limits full, rpm/tpm consumption, exhaustion); `_headroom_from`; `get_model_headroom` (fallback + own-limits); model registry paths (rate limits, weight + error fallback, set_model_limits); `get_monthly_usage` (none/persistence/error) |
+
+## Session 2026-08-10 (wave 17) — OpencodeModelLimits 45→95%, TokenCounter 46% (test-only)
+
+**Evidence**: `tests/test_covpush_llm_wave17.py` (17 new tests) — 594 passed / 0 failed across 17 LLM+gateway+routing suites. No source changes.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/llm/opencode_model_limits.py` | 45%→**95%** | `weight_from_prices` (derived/unknown/zero/invalid); registry defaults + set/get limits, zero-weight normalization, empty-noop, empty-model-id; `apply_pricing_weight` (derived + explicit-wins); `summary`; env overrides (valid/invalid JSON/invalid values); singleton |
+| 2026-08-10 | `core/llm/context/token_counter.py` | —→**46%** | count_tokens (model-arg contract, empty), family counting (OPENAI + FALLBACK) |
