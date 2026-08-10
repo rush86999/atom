@@ -2000,3 +2000,11 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 **Flagged (observed, not fixed)**: the BPC static fallback fires when every candidate is quota/headroom-skipped — it does NOT re-check the monthly quota or health filters (documented degraded path; `OPENCODE_MONTHLY_TPM` is opt-in). Worth a product decision on whether the fallback should respect quota skips.
 
 **byok_handler cumulative**: 29% → **71%** across waves 11-15 (the largest module in the repo).
+
+## Session 2026-08-10 (wave 16) — ProviderRateTracker 34→79% (test-only)
+
+**Evidence**: `tests/test_covpush_llm_wave16.py` (29 new tests) — 609 passed / 0 failed across 17 LLM+gateway+routing suites. No source changes.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/llm/provider_rate_limits.py` | 34%→**79%** | `_env_int`; set/get rate limits (incl. max_context clamp rules); record_usage (no-limits no-op, weighted tracking, persistence fire-and-forget + error tolerance); `_trim` expiry; `_window_totals` (weighted/unweighted, model filter, legacy 3-tuples); `get_headroom` (no-limits full, rpm/tpm consumption, exhaustion); `_headroom_from`; `get_model_headroom` (fallback + own-limits); model registry paths (rate limits, weight + error fallback, set_model_limits); `get_monthly_usage` (none/persistence/error) |
