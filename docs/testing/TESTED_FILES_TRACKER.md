@@ -1988,3 +1988,15 @@ Verified-clean (regression guards added): RPC action names (`..`/nested/unknown 
 | 2026-08-10 | `core/byok_cache_preseeding.py` | ~30%→**84%** | preseed pricing (counts/providers/feature flags, failure), cognitive models (validation + missing, failure), governance (real agents, dummy fallback, stats, failure), cache-aware router (baseline history), preseed_all (shape + error collection), startup gate (enabled/disabled), print results |
 | 2026-08-10 | `core/llm/compression/__init__.py` | 81%→**97%** | metrics helpers, empty input, singleton, structured skip, engine-failure tolerance |
 | 2026-08-10 | `core/llm/compression/rtk_engine.py` | 72%→**84%** | short/empty passthrough, JSON skip, ANSI strip, repeated-line collapse, section cap, code-fence structured detection |
+
+## Session 2026-08-10 (wave 15) — byok_handler 67→71%: capability index/filter, env init paths, BPC edge branches (test-only)
+
+**Evidence**: `tests/test_covpush_llm_wave15.py` (18 new tests) — 580 passed / 0 failed across 16 LLM+gateway+routing suites. No source changes.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/llm/byok_handler.py` | 67%→**71%** | `_load_capability_index` (rows/None-caps/error); `_filter_by_capabilities` (no-req, index hit/miss/unknown, per-model hit/miss/unknown/error pass-through); `_refresh_excluded_cache` (populate/error-reset); `_initialize_clients` env paths (opencode-go → OPENCODE_API_KEY mapping, gemini → GOOGLE_API_KEY, no-keys); BPC edge branches (monthly-quota skip, per-model/provider headroom skip, extraction o-series exclusion, context-window filter) |
+
+**Flagged (observed, not fixed)**: the BPC static fallback fires when every candidate is quota/headroom-skipped — it does NOT re-check the monthly quota or health filters (documented degraded path; `OPENCODE_MONTHLY_TPM` is opt-in). Worth a product decision on whether the fallback should respect quota skips.
+
+**byok_handler cumulative**: 29% → **71%** across waves 11-15 (the largest module in the repo).
