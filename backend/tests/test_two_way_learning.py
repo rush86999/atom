@@ -3,6 +3,10 @@ Comprehensive tests for Two-Way Learning System.
 
 Tests supervisor learning from feedback, ratings, comments, and votes.
 """
+import os
+
+# Convention: TESTING=1 before core.database import → isolated test_integration.db
+os.environ["TESTING"] = "1"
 
 import pytest
 from datetime import datetime, timedelta

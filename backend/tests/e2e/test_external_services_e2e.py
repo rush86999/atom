@@ -301,9 +301,9 @@ class TestWhatsAppAPI:
         assert response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_whatsapp_webhook_handling(self):
+    async def test_whatsapp_webhook_handling(self, mock_whatsapp_webhook):
         """Test handling incoming WhatsApp webhook."""
-        webhook_data = mock_whatsapp_webhook()
+        webhook_data = mock_whatsapp_webhook
 
         assert webhook_data["object"] == "whatsapp_business_account"
         assert len(webhook_data["entry"]) == 1
@@ -634,12 +634,15 @@ class TestServiceIntegration:
         """Test Tavily search result sent via WhatsApp."""
         import httpx
 
-        # Perform Tavily search
+        # Perform Tavily search (explicit patch so the tavily endpoint is
+        # handled by the tavily mock regardless of fixture patch ordering —
+        # mock_whatsapp_api also patches httpx.post)
         search_payload = {"query": "Python tutorials"}
-        tavily_response = httpx.post(
-            "https://api.tavily.com/search",
-            json=search_payload
-        )
+        with mock.patch("httpx.post", side_effect=mock_tavily_search):
+            tavily_response = httpx.post(
+                "https://api.tavily.com/search",
+                json=search_payload
+            )
         search_data = tavily_response.json()
 
         # Send top result via WhatsApp

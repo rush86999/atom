@@ -21,13 +21,13 @@ from core.models import (
     AgentRegistry,
     AgentExecution,
     CommunitySkill,
-    SkillSecurityScan,
     PackageRegistry,
     CanvasAudit,
-    AgentFeedback
+    AgentFeedback,
+    SkillExecution,
 )
 from core.agent_governance_service import AgentGovernanceService
-from core.skill_adapter import SkillAdapter
+from core.skill_registry_service import SkillRegistryService
 from core.package_governance_service import PackageGovernanceService
 from core.package_installer import PackageInstaller
 from core.llm.byok_handler import BYOKHandler
@@ -136,7 +136,7 @@ def test_function():
     return {'success': True, 'data': 'test'}
 """)
 
-    adapter = SkillAdapter(e2e_postgres_session)
+    adapter = SkillRegistryService(e2e_postgres_session)
 
     yield {
         "adapter": adapter,
@@ -145,12 +145,10 @@ def test_function():
         "session": e2e_postgres_session
     }
 
-    # Cleanup
-    e2e_postgres_session.query(CommunitySkill).filter(
-        CommunitySkill.skill_id == "test_workflow_skill"
-    ).delete()
-    e2e_postgres_session.query(SkillSecurityScan).filter(
-        SkillSecurityScan.skill_id == "test_workflow_skill"
+    # Cleanup (SkillRegistryService stores SkillExecution rows; CommunitySkill
+    # is the marketplace table and no longer holds import records)
+    e2e_postgres_session.query(SkillExecution).filter(
+        SkillExecution.skill_id.like("community_test_workflow_skill%")
     ).delete()
     e2e_postgres_session.commit()
 

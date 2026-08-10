@@ -10821,7 +10821,7 @@ class IngestionJob(Base):
     # Job configuration
     integration_id = Column(String, nullable=False, index=True)
     trigger_type = Column(String, nullable=False)  # "scheduled", "manual", "webhook"
-    source_connection_id = Column(UUID, ForeignKey("user_connections.id", ondelete="CASCADE"), nullable=True)
+    source_connection_id = Column(String, ForeignKey("user_connections.id", ondelete="CASCADE"), nullable=True)
 
     # Job status
     status = Column(String, default="pending")  # pending, running, completed, failed, cancelled
@@ -11122,6 +11122,14 @@ class SupervisorComment(Base):
     downvote_count = Column(Integer, default=0, nullable=False)
     reply_count = Column(Integer, default=0, nullable=False)
 
+    # Edit/resolve tracking (restored: the two-way-learning migration
+    # 20260208 created these columns; the Hive-port rewrite dropped them while
+    # feedback_service.update_comment still sets them — update_comment crashed
+    # with AttributeError on every edit. See
+    # tests/test_covpush_w24_twoway_stack.py.)
+    is_edited = Column(Boolean, default=False)
+    intervention_reference = Column(JSONColumn, nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
     is_resolved = Column(Boolean, default=False)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 

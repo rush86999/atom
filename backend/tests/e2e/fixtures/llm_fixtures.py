@@ -23,6 +23,7 @@ def llm_api_keys():
         "deepseek": os.getenv("DEEPSEEK_API_KEY"),
         "google": os.getenv("GOOGLE_API_KEY"),
         "groq": os.getenv("GROQ_API_KEY"),
+        "opencode": os.getenv("OPENCODE_API_KEY"),
     }
 
 
@@ -191,7 +192,19 @@ def e2e_byok_handler(llm_api_keys: Dict[str, Optional[str]]) -> Generator:
     """
     Create BYOK handler with test configuration and available API keys.
     Sets environment variables for providers that have keys configured.
+
+    Skips when only fake/test keys are present — the real-LLM e2e tests must
+    not burn 401s against placeholder credentials.
     """
+    real_keys = {
+        k: v for k, v in llm_api_keys.items()
+        if v and not v.startswith("sk-test") and "test-key" not in v
+    }
+    if real_keys:
+        os.environ["OPENCODE_API_KEY"] = real_keys.get("opencode") or os.environ.get("OPENCODE_API_KEY", "")
+    if not real_keys:
+        pytest.skip("No real LLM API keys configured (only test/placeholder keys)")
+
     # Set environment variables for providers with keys
     original_env = {}
     for provider_id, env_key in [
@@ -200,6 +213,7 @@ def e2e_byok_handler(llm_api_keys: Dict[str, Optional[str]]) -> Generator:
         ("deepseek", "DEEPSEEK_API_KEY"),
         ("google", "GOOGLE_API_KEY"),
         ("groq", "GROQ_API_KEY"),
+        ("opencode", "OPENCODE_API_KEY"),
     ]:
         key = llm_api_keys.get(provider_id)
         if key:
@@ -212,6 +226,24 @@ def e2e_byok_handler(llm_api_keys: Dict[str, Optional[str]]) -> Generator:
     try:
         from core.llm.byok_handler import BYOKHandler
         handler = BYOKHandler(workspace_id="e2e_test", provider_id="auto")
+
+        # Canary probe: one cheap model call to verify the configured key can
+        # actually complete a request. A valid-but-unfunded subscription
+        # (gateway CreditsError) would otherwise burn retries in every test.
+        if real_keys and "opencode" in real_keys:
+            try:
+                client = handler.clients.get("opencode-go")
+                if client is not None:
+                    client.chat.completions.create(
+                        model="deepseek-v4-flash",
+                        messages=[{"role": "user", "content": "ping"}],
+                        max_tokens=1,
+                    )
+            except Exception as probe_err:
+                pytest.skip(
+                    f"OpenCode Go subscription cannot complete requests: {probe_err}"
+                )
+
         yield handler
     finally:
         # Restore original environment variables

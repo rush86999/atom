@@ -72,17 +72,9 @@ class TestAgentToCanvasWorkflow:
         # Step 2: Execute agent
         execution = AgentExecution(
             agent_id=agent.id,
-            user_id="workflow-test-user",
-            task="Generate insights from data",
+            input_summary="Generate insights from data",
             status="completed",
-            input_data={"query": "analyze sales data"},
-            output_data={
-                "insights": [
-                    "Sales increased by 20%",
-                    "Top product: Widget A",
-                    "Region: North America"
-                ]
-            },
+            output_summary='{"insights": ["Sales increased by 20%", "Top product: Widget A", "Region: North America"]}',
             started_at=datetime.utcnow(),
             completed_at=datetime.utcnow()
         )
@@ -96,15 +88,13 @@ class TestAgentToCanvasWorkflow:
             canvas_id=canvas_id,
             tenant_id="test-tenant",
             action_type="present",
-            canvas_data={
+            details_json={
                 "title": "Sales Insights",
-                "content": execution.output_data["insights"],
+                "content": execution.output_summary,
                 "source_execution_id": execution.id
             },
             created_at=datetime.utcnow(),
-            details_json={
-                'canvas_type': 'docs',
-            },
+            canvas_type='docs',
         )
         db_session.add(canvas)
         db_session.commit()
@@ -115,14 +105,14 @@ class TestAgentToCanvasWorkflow:
         ).first()
         assert retrieved_execution is not None
         assert retrieved_execution.status == "completed"
-        assert "insights" in retrieved_execution.output_data
+        assert "insights" in (retrieved_execution.output_summary or "")
 
         retrieved_canvas = db_session.query(CanvasAudit).filter(
             CanvasAudit.canvas_id == canvas_id
         ).first()
         assert retrieved_canvas is not None
         assert retrieved_canvas.canvas_type == "docs"
-        assert "insights" in retrieved_canvas.canvas_data
+        assert "insights" in retrieved_canvas.details_json["content"]
 
     def test_multi_agent_to_canvas_workflow(self, db_session: Session):
         """
@@ -159,10 +149,9 @@ class TestAgentToCanvasWorkflow:
         for agent in agents:
             execution = AgentExecution(
                 agent_id=agent.id,
-                user_id="multi-agent-user",
-                task=f"Task {agent.id}",
+                input_summary=f"Task {agent.id}",
                 status="completed",
-                output_data={"insight": f"Insight from {agent.id}"},
+                output_summary=f'"Insight from {agent.id}"',
                 started_at=datetime.utcnow(),
                 completed_at=datetime.utcnow()
             )
@@ -172,7 +161,7 @@ class TestAgentToCanvasWorkflow:
 
         # Step 3-4: Combine insights into unified canvas
         combined_insights = [
-            exec.output_data["insight"] for exec in executions
+            exec.output_summary for exec in executions
         ]
 
         canvas_id = "multi-agent-canvas"
@@ -181,15 +170,13 @@ class TestAgentToCanvasWorkflow:
             canvas_id=canvas_id,
             tenant_id="test-tenant",
             action_type="present",
-            canvas_data={
+            details_json={
                 "title": "Combined Insights",
                 "insights": combined_insights,
                 "agent_count": len(agents)
             },
             created_at=datetime.utcnow(),
-            details_json={
-                'canvas_type': 'docs',
-            },
+            canvas_type='docs',
         )
         db_session.add(canvas)
         db_session.commit()
@@ -199,8 +186,8 @@ class TestAgentToCanvasWorkflow:
             CanvasAudit.canvas_id == canvas_id
         ).first()
         assert retrieved is not None
-        assert retrieved.canvas_data["agent_count"] == 3
-        assert len(retrieved.canvas_data["insights"]) == 3
+        assert retrieved.details_json["agent_count"] == 3
+        assert len(retrieved.details_json["insights"]) == 3
 
 
 class TestGovernanceToLLMWorkflow:
@@ -241,15 +228,9 @@ class TestGovernanceToLLMWorkflow:
         # Step 4-5: Simulate LLM call and record execution
         execution = AgentExecution(
             agent_id=agent.id,
-            user_id="llm-workflow-user",
-            task="Generate summary with LLM",
+            input_summary="Generate summary with LLM",
             status="completed",
-            input_data={"prompt": "Summarize the data"},
-            output_data={
-                "llm_response": "This is a summary of the data...",
-                "tokens_used": 150,
-                "model": "gpt-4"
-            },
+            output_summary='{"llm_response": "This is a summary of the data...", "tokens_used": 150, "model": "gpt-4"}',
             started_at=datetime.utcnow(),
             completed_at=datetime.utcnow()
         )
@@ -261,8 +242,8 @@ class TestGovernanceToLLMWorkflow:
             AgentExecution.agent_id == agent.id
         ).first()
         assert retrieved is not None
-        assert "llm_response" in retrieved.output_data
-        assert retrieved.output_data["tokens_used"] == 150
+        assert "llm_response" in (retrieved.output_summary or "")
+        assert "tokens_used" in (retrieved.output_summary or "")
 
     def test_governance_blocks_student_from_llm(self, db_session: Session):
         """
@@ -298,7 +279,7 @@ class TestGovernanceToLLMWorkflow:
         # Step 4: Verify no LLM execution created
         executions = db_session.query(AgentExecution).filter(
             AgentExecution.agent_id == agent.id,
-            AgentExecution.output_data["llm_response"].isnot(None)  # type: ignore
+            AgentExecution.output_summary.isnot(None)  # type: ignore
         ).all()
         assert len(executions) == 0, "STUDENT agent should not have LLM executions"
 
@@ -335,8 +316,7 @@ class TestCanvasToEpisodeWorkflow:
 
         execution = AgentExecution(
             agent_id=agent.id,
-            user_id="canvas-ep-user",
-            task="Present data visualization",
+            input_summary="Present data visualization",
             status="completed",
             started_at=datetime.utcnow(),
             completed_at=datetime.utcnow()
@@ -351,11 +331,9 @@ class TestCanvasToEpisodeWorkflow:
             canvas_id=canvas_id,
             tenant_id="test-tenant",
             action_type="present",
-            canvas_data={"type": "line", "data": [1, 2, 3]},
+            details_json={"type": "line", "data": [1, 2, 3]},
             created_at=datetime.utcnow(),
-            details_json={
-                'canvas_type': 'chart',
-            },
+            canvas_type='chart',
         )
         db_session.add(canvas)
         db_session.commit()
@@ -427,36 +405,35 @@ class TestEpisodeToFeedbackWorkflow:
         # Step 2: User provides feedback
         feedback1 = AgentFeedback(
             agent_id=agent.id,
-            user_id="feedback-user-1",
             feedback_type="thumbs_up",
-            rating=1.0,
-            comments="Great job!",
-            episode_id=episode.id,
-            timestamp=datetime.utcnow()
+            rating=1,
+            user_id="test-user",
+            original_output="Agent output",
+            user_correction="User correction"
         )
         db_session.add(feedback1)
 
         feedback2 = AgentFeedback(
             agent_id=agent.id,
-            user_id="feedback-user-2",
             feedback_type="thumbs_up",
-            rating=1.0,
-            comments="Very helpful",
-            episode_id=episode.id,
-            timestamp=datetime.utcnow()
+            rating=1,
+            user_id="test-user",
+            original_output="Agent output",
+            user_correction="User correction"
         )
         db_session.add(feedback2)
         db_session.commit()
 
-        # Step 3-4: Verify feedback aggregation
+        # Step 3-4: Verify feedback aggregation (no episode linkage exists on
+        # AgentFeedback anymore — verify by agent)
         feedbacks = db_session.query(AgentFeedback).filter(
-            AgentFeedback.episode_id == episode.id
+            AgentFeedback.agent_id == agent.id
         ).all()
         assert len(feedbacks) == 2
 
         # Calculate average rating
         avg_rating = sum(f.rating for f in feedbacks) / len(feedbacks)
-        assert avg_rating == 1.0
+        assert avg_rating == 1
 
 
 class TestMultiServiceChaining:
@@ -491,13 +468,9 @@ class TestMultiServiceChaining:
 
         execution = AgentExecution(
             agent_id=agent.id,
-            user_id="chain-user",
-            task="Analyze and present",
+            input_summary="Analyze and present",
             status="completed",
-            output_data={
-                "llm_response": "Analysis complete",
-                "insights": ["Insight 1", "Insight 2"]
-            },
+            output_summary='{"llm_response": "Analysis complete", "insights": ["Insight 1", "Insight 2"]}',
             started_at=datetime.utcnow(),
             completed_at=datetime.utcnow()
         )
@@ -511,14 +484,12 @@ class TestMultiServiceChaining:
             canvas_id=canvas_id,
             tenant_id="test-tenant",
             action_type="present",
-            canvas_data={
+            details_json={
                 "title": "Analysis Results",
-                "content": execution.output_data["llm_response"]
+                "content": execution.output_summary
             },
             created_at=datetime.utcnow(),
-            details_json={
-                'canvas_type': 'docs',
-            },
+            canvas_type='docs',
         )
         db_session.add(canvas)
         db_session.commit()
@@ -540,13 +511,12 @@ class TestMultiServiceChaining:
         # Step 4: Collect feedback
         feedback = AgentFeedback(
             agent_id=agent.id,
-            user_id="chain-user",
             feedback_type="thumbs_up",
-            rating=1.0,
-            comments="Excellent analysis",
-            canvas_id=canvas_id,
-            episode_id=episode.id,
-            timestamp=datetime.utcnow()
+            rating=1,
+            user_id="test-user",
+            original_output="Agent output",
+            user_correction="User correction",
+            agent_execution_id=execution.id
         )
         db_session.add(feedback)
         db_session.commit()
@@ -555,8 +525,7 @@ class TestMultiServiceChaining:
         assert execution.id is not None
         assert canvas.canvas_id == canvas_id
         assert episode.execution_id == execution.id
-        assert feedback.canvas_id == canvas_id
-        assert feedback.episode_id == episode.id
+        assert feedback.agent_execution_id == execution.id
 
 
 class TestWorkflowRollbackOnFailure:
@@ -591,8 +560,7 @@ class TestWorkflowRollbackOnFailure:
 
         execution = AgentExecution(
             agent_id=agent.id,
-            user_id="rollback-user",
-            task="Task that will fail at canvas stage",
+            input_summary="Task that will fail at canvas stage",
             status="completed",
             started_at=datetime.utcnow(),
             completed_at=datetime.utcnow()
@@ -647,8 +615,7 @@ class TestWorkflowTimeoutHandling:
 
         execution = AgentExecution(
             agent_id=agent.id,
-            user_id="timeout-user",
-            task="Long running task",
+            input_summary="Long running task",
             status="in_progress",
             started_at=datetime.utcnow()
         )
@@ -703,8 +670,7 @@ class TestWorkflowWithConcurrentUsers:
         # User A workflow
         execution_a = AgentExecution(
             agent_id=agent.id,
-            user_id="user-a",
-            task="User A task",
+            input_summary="User A task",
             status="completed",
             started_at=datetime.utcnow(),
             completed_at=datetime.utcnow()
@@ -716,19 +682,16 @@ class TestWorkflowWithConcurrentUsers:
             canvas_id="canvas-a",
             tenant_id="test-tenant",
             action_type="present",
-            canvas_data={"user": "A"},
+            details_json={"user": "A"},
             created_at=datetime.utcnow(),
-            details_json={
-                'canvas_type': 'docs',
-            },
+            canvas_type='docs',
         )
         db_session.add(canvas_a)
 
         # User B workflow
         execution_b = AgentExecution(
             agent_id=agent.id,
-            user_id="user-b",
-            task="User B task",
+            input_summary="User B task",
             status="completed",
             started_at=datetime.utcnow(),
             completed_at=datetime.utcnow()
@@ -740,26 +703,24 @@ class TestWorkflowWithConcurrentUsers:
             canvas_id="canvas-b",
             tenant_id="test-tenant",
             action_type="present",
-            canvas_data={"user": "B"},
+            details_json={"user": "B"},
             created_at=datetime.utcnow(),
-            details_json={
-                'canvas_type': 'docs',
-            },
+            canvas_type='docs',
         )
         db_session.add(canvas_b)
         db_session.commit()
 
         # Verify both workflows complete
         exec_a = db_session.query(AgentExecution).filter(
-            AgentExecution.user_id == "user-a"
+            AgentExecution.input_summary == "User A task"
         ).first()
         exec_b = db_session.query(AgentExecution).filter(
-            AgentExecution.user_id == "user-b"
+            AgentExecution.input_summary == "User B task"
         ).first()
 
         assert exec_a is not None
         assert exec_b is not None
-        assert exec_a.user_id != exec_b.user_id
+        assert exec_a.input_summary != exec_b.input_summary
 
         # Verify no data mixing
         canvas_a_retrieved = db_session.query(CanvasAudit).filter(
@@ -769,5 +730,5 @@ class TestWorkflowWithConcurrentUsers:
             CanvasAudit.canvas_id == "canvas-b"
         ).first()
 
-        assert canvas_a_retrieved.canvas_data["user"] == "A"
-        assert canvas_b_retrieved.canvas_data["user"] == "B"
+        assert canvas_a_retrieved.details_json["user"] == "A"
+        assert canvas_b_retrieved.details_json["user"] == "B"

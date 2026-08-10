@@ -25,26 +25,40 @@ from typing import Dict, Any
 # =============================================================================
 
 def _has_any_llm() -> bool:
-    """Check if any LLM API key is configured."""
+    """Check if any REAL LLM API key is configured (placeholder/test keys excluded)."""
+    def _real(key):
+        return bool(key and not _is_test_key(key))
     return any([
-        os.getenv("OPENAI_API_KEY"),
-        os.getenv("ANTHROPIC_API_KEY"),
-        os.getenv("DEEPSEEK_API_KEY"),
-        os.getenv("GOOGLE_API_KEY"),
-        os.getenv("GROQ_API_KEY"),
+        _real(os.getenv("OPENAI_API_KEY")),
+        _real(os.getenv("ANTHROPIC_API_KEY")),
+        _real(os.getenv("DEEPSEEK_API_KEY")),
+        _real(os.getenv("GOOGLE_API_KEY")),
+        _real(os.getenv("GROQ_API_KEY")),
+        _real(os.getenv("OPENCODE_API_KEY")),
     ])
+
+
+def _is_test_key(key: str) -> bool:
+    """True for placeholder/test API keys (sk-test-... or sk-ant-test-...)."""
+    return key.startswith("sk-test") or "test-key" in key
 
 
 def _has_openai() -> bool:
     """Check if OpenAI API key is configured."""
     key = os.getenv("OPENAI_API_KEY")
-    return bool(key and not key.startswith("sk-test"))
+    return bool(key and not _is_test_key(key))
+
+
+def _has_opencode() -> bool:
+    """Check if the OpenCode Go subscription key is configured."""
+    key = os.getenv("OPENCODE_API_KEY")
+    return bool(key and not _is_test_key(key))
 
 
 def _has_anthropic() -> bool:
     """Check if Anthropic API key is configured."""
     key = os.getenv("ANTHROPIC_API_KEY")
-    return bool(key and not key.startswith("sk-ant-test"))
+    return bool(key and not _is_test_key(key))
 
 
 def _has_deepseek() -> bool:
@@ -478,8 +492,9 @@ class TestBYOKHandlerE2E:
 
     def test_byok_truncation(self, e2e_byok_handler):
         """Test prompt truncation for long inputs."""
-        # Create a very long prompt
-        long_prompt = "This is a test. " * 10000  # Way beyond any context window
+        # Create a very long prompt (~1M chars ≈ 250k tokens — well beyond
+        # gpt-4o-mini's 128k context, so truncation MUST trigger)
+        long_prompt = "This is a test. " * 65000
 
         truncated = e2e_byok_handler.truncate_to_context(
             long_prompt,

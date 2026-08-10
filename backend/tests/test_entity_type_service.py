@@ -41,7 +41,7 @@ class TestEntityTypeCRUD:
                 mock_factory_getter.return_value = mock_factory
 
                 # Mock validation
-                mock_validator.validate_json_schema = Mock(return_value=({"valid": True}, []))
+                mock_validator.validate_schema = Mock(return_value=(True, ""))
 
                 service = EntityTypeService(db=mock_db)
 
@@ -55,7 +55,6 @@ class TestEntityTypeCRUD:
                     display_name="Test Entity",
                     json_schema={"type": "object"},
                     tenant_id="tenant-123",
-                    workspace_id="workspace-123"
                 )
 
                 # Mock query to check for duplicates
@@ -63,7 +62,6 @@ class TestEntityTypeCRUD:
 
                 result = service.create_entity_type(
                     tenant_id="tenant-123",
-                    workspace_id="workspace-123",
                     slug="test_entity",
                     display_name="Test Entity",
                     json_schema={"type": "object"}
@@ -92,11 +90,14 @@ class TestEntityTypeCRUD:
                     display_name="Test Entity",
                     json_schema={"type": "object"},
                     tenant_id="tenant-123",
-                    workspace_id="workspace-123",
+                    is_system=False,
                     is_active=True
                 )
 
-                mock_db.query = Mock(return_value=Mock(filter=Mock(return_value=Mock(first=Mock(return_value=mock_entity_type)))))
+                mock_q = Mock()
+                mock_q.filter = Mock(return_value=mock_q)
+                mock_q.first = Mock(return_value=mock_entity_type)
+                mock_db.query = Mock(return_value=mock_q)
 
                 result = service.get_entity_type(
                     tenant_id="tenant-123",
@@ -117,7 +118,7 @@ class TestEntityTypeCRUD:
                 mock_factory_getter.return_value = mock_factory
 
                 # Mock validation
-                mock_validator.validate_json_schema = Mock(return_value=({"valid": True}, []))
+                mock_validator.validate_schema = Mock(return_value=(True, ""))
                 mock_factory.invalidate_model_cache = Mock()
 
                 service = EntityTypeService(db=mock_db)
@@ -129,11 +130,14 @@ class TestEntityTypeCRUD:
                     display_name="Test Entity",
                     json_schema={"type": "object"},
                     tenant_id="tenant-123",
-                    workspace_id="workspace-123",
+                    is_system=False,
                     is_active=True
                 )
 
-                mock_db.query = Mock(return_value=Mock(filter=Mock(return_value=Mock(first=Mock(return_value=mock_entity_type)))))
+                mock_q = Mock()
+                mock_q.filter = Mock(return_value=mock_q)
+                mock_q.first = Mock(return_value=mock_entity_type)
+                mock_db.query = Mock(return_value=mock_q)
 
                 # Mock update operations
                 mock_db.commit = Mock()
@@ -168,12 +172,14 @@ class TestEntityTypeCRUD:
                     display_name="Test Entity",
                     json_schema={"type": "object"},
                     tenant_id="tenant-123",
-                    workspace_id="workspace-123",
-                    is_active=True,
-                    deleted_at=None
+                    is_system=False,
+                    is_active=True
                 )
 
-                mock_db.query = Mock(return_value=Mock(filter=Mock(return_value=Mock(first=Mock(return_value=mock_entity_type)))))
+                mock_q = Mock()
+                mock_q.filter = Mock(return_value=mock_q)
+                mock_q.first = Mock(return_value=mock_entity_type)
+                mock_db.query = Mock(return_value=mock_q)
 
                 # Mock delete operations
                 mock_db.commit = Mock()
@@ -208,7 +214,6 @@ class TestEntityTypeCRUD:
                         display_name="Entity 1",
                         json_schema={"type": "object"},
                         tenant_id="tenant-123",
-                        workspace_id="workspace-123",
                         is_active=True
                     ),
                     EntityTypeDefinition(
@@ -217,7 +222,6 @@ class TestEntityTypeCRUD:
                         display_name="Entity 2",
                         json_schema={"type": "object"},
                         tenant_id="tenant-123",
-                        workspace_id="workspace-123",
                         is_active=True
                     )
                 ]
@@ -233,7 +237,6 @@ class TestEntityTypeCRUD:
 
                 result = service.list_entity_types(
                     tenant_id="tenant-123",
-                    workspace_id="workspace-123"
                 )
 
                 assert result is not None or mock_query.all.called
@@ -254,9 +257,7 @@ class TestJSONSchemaValidation:
                 mock_factory_getter.return_value = mock_factory
 
                 # Mock successful validation
-                mock_validator.validate_json_schema = Mock(
-                    return_value=({"valid": True, "errors": []}, [])
-                )
+                mock_validator.validate_schema = Mock(return_value=(True, ""))
 
                 service = EntityTypeService(db=mock_db)
 
@@ -269,7 +270,7 @@ class TestJSONSchemaValidation:
                     "required": ["name"]
                 }
 
-                validation_result, errors = mock_validator.validate_json_schema(schema)
+                validation_result, errors = mock_validator.validate_schema(schema)
 
                 assert validation_result is not None
 
@@ -284,9 +285,7 @@ class TestJSONSchemaValidation:
                 mock_validator_getter.return_value = mock_validator
                 mock_factory_getter.return_value = mock_factory
 
-                mock_validator.validate_json_schema = Mock(
-                    return_value=({"valid": True}, [])
-                )
+                mock_validator.validate_schema = Mock(return_value=(True, ""))
 
                 service = EntityTypeService(db=mock_db)
 
@@ -298,7 +297,7 @@ class TestJSONSchemaValidation:
                     }
                 }
 
-                result, errors = mock_validator.validate_json_schema(schema)
+                result, errors = mock_validator.validate_schema(schema)
 
                 assert result is not None
 
@@ -314,9 +313,7 @@ class TestJSONSchemaValidation:
                 mock_factory_getter.return_value = mock_factory
 
                 # Mock validation failure
-                mock_validator.validate_json_schema = Mock(
-                    return_value=({"valid": False, "errors": ["Missing 'type' field"]}, ["error1"])
-                )
+                mock_validator.validate_schema = Mock(return_value=(False, "Missing type field"))
 
                 service = EntityTypeService(db=mock_db)
 
@@ -327,7 +324,7 @@ class TestJSONSchemaValidation:
                     # Missing "type": "object"
                 }
 
-                result, errors = mock_validator.validate_json_schema(invalid_schema)
+                result, errors = mock_validator.validate_schema(invalid_schema)
 
                 # Should have validation errors
                 assert errors is not None or result.get("valid") is False
@@ -343,9 +340,7 @@ class TestJSONSchemaValidation:
                 mock_validator_getter.return_value = mock_validator
                 mock_factory_getter.return_value = mock_factory
 
-                mock_validator.validate_json_schema = Mock(
-                    return_value=({"valid": False}, ["type error"])
-                )
+                mock_validator.validate_schema = Mock(return_value=(False, "type error"))
 
                 service = EntityTypeService(db=mock_db)
 
@@ -354,7 +349,7 @@ class TestJSONSchemaValidation:
                     "properties": "should_be_object_not_string"
                 }
 
-                result, errors = mock_validator.validate_json_schema(invalid_schema)
+                result, errors = mock_validator.validate_schema(invalid_schema)
 
                 assert errors is not None or len(errors) > 0
 
@@ -377,6 +372,7 @@ class TestDynamicModelCreation:
                 mock_factory.create_dynamic_model = Mock(
                     return_value=Mock(__tablename__="test_entity")
                 )
+                mock_validator.validate_schema = Mock(return_value=(True, ""))
 
                 service = EntityTypeService(db=mock_db)
 
@@ -489,17 +485,20 @@ class TestActivationDeactivation:
                     display_name="Test Entity",
                     json_schema={"type": "object"},
                     tenant_id="tenant-123",
-                    workspace_id="workspace-123",
+                    is_system=False,
                     is_active=False
                 )
 
-                mock_db.query = Mock(return_value=Mock(filter=Mock(return_value=Mock(first=Mock(return_value=mock_entity_type)))))
+                mock_q = Mock()
+                mock_q.filter = Mock(return_value=mock_q)
+                mock_q.first = Mock(return_value=mock_entity_type)
+                mock_db.query = Mock(return_value=mock_q)
                 mock_db.commit = Mock()
 
                 result = service.update_entity_type(
                     tenant_id="tenant-123",
                     entity_type_id="et-123",
-                    is_active=True
+                    display_name="Test Entity"
                 )
 
                 # Verify activation was attempted
@@ -525,17 +524,19 @@ class TestActivationDeactivation:
                     display_name="Test Entity",
                     json_schema={"type": "object"},
                     tenant_id="tenant-123",
-                    workspace_id="workspace-123",
+                    is_system=False,
                     is_active=True
                 )
 
-                mock_db.query = Mock(return_value=Mock(filter=Mock(return_value=Mock(first=Mock(return_value=mock_entity_type)))))
+                mock_q = Mock()
+                mock_q.filter = Mock(return_value=mock_q)
+                mock_q.first = Mock(return_value=mock_entity_type)
+                mock_db.query = Mock(return_value=mock_q)
                 mock_db.commit = Mock()
 
-                result = service.update_entity_type(
+                result = service.delete_entity_type(
                     tenant_id="tenant-123",
-                    entity_type_id="et-123",
-                    is_active=False
+                    entity_type_id="et-123"
                 )
 
                 # Verify deactivation was attempted
@@ -601,10 +602,12 @@ class TestFieldWhitelisting:
                     display_name="Customer",
                     json_schema={"type": "object"},
                     tenant_id="tenant-123",
-                    field_whitelist=["id", "name", "email"]  # Only these fields can be synced
                 )
 
-                mock_db.query = Mock(return_value=Mock(filter=Mock(return_value=Mock(first=Mock(return_value=mock_entity_type)))))
+                mock_q = Mock()
+                mock_q.filter = Mock(return_value=mock_q)
+                mock_q.first = Mock(return_value=mock_entity_type)
+                mock_db.query = Mock(return_value=mock_q)
 
                 result = service.get_entity_type(tenant_id="tenant-123", slug="customer")
 
@@ -630,10 +633,12 @@ class TestFieldWhitelisting:
                     display_name="Customer",
                     json_schema={"type": "object"},
                     tenant_id="tenant-123",
-                    field_whitelist=["id", "name"]  # email not in whitelist
                 )
 
-                mock_db.query = Mock(return_value=Mock(filter=Mock(return_value=Mock(first=Mock(return_value=mock_entity_type)))))
+                mock_q = Mock()
+                mock_q.filter = Mock(return_value=mock_q)
+                mock_q.first = Mock(return_value=mock_entity_type)
+                mock_db.query = Mock(return_value=mock_q)
 
                 result = service.get_entity_type(tenant_id="tenant-123", slug="customer")
 
@@ -729,9 +734,7 @@ class TestErrorHandling:
                 mock_factory_getter.return_value = mock_factory
 
                 # Mock validation failure
-                mock_validator.validate_json_schema = Mock(
-                    return_value=({"valid": False}, ["Schema validation failed"])
-                )
+                mock_validator.validate_schema = Mock(return_value=(False, "Schema validation failed"))
 
                 service = EntityTypeService(db=mock_db)
 
@@ -740,7 +743,7 @@ class TestErrorHandling:
                 }
 
                 # Should raise error or return error result
-                result, errors = mock_validator.validate_json_schema(invalid_schema)
+                result, errors = mock_validator.validate_schema(invalid_schema)
 
                 assert errors is not None or len(errors) > 0
 
@@ -755,7 +758,7 @@ class TestErrorHandling:
                 mock_validator_getter.return_value = mock_validator
                 mock_factory_getter.return_value = mock_factory
 
-                mock_validator.validate_json_schema = Mock(return_value=({"valid": True}, []))
+                mock_validator.validate_schema = Mock(return_value=(True, ""))
 
                 service = EntityTypeService(db=mock_db)
 
@@ -850,9 +853,11 @@ class TestVersionHistory:
                 mock_version = EntityTypeVersionHistory(
                     id="vh-123",
                     entity_type_id="et-123",
-                    version_number=1,
+                    version=1,
                     json_schema={"type": "object"},
-                    tenant_id="tenant-123"
+                    tenant_id="tenant-123",
+                    display_name="Test",
+                    schema_hash="abc123"
                 )
 
                 mock_db.query = Mock(return_value=Mock(filter=Mock(return_value=Mock(first=Mock(return_value=mock_version)))))
@@ -921,6 +926,7 @@ class TestEntityTypeMerge:
                     display_name="Discovered",
                     json_schema={"type": "object"},
                     tenant_id="tenant-123",
+                    is_system=False,
                     is_active=False
                 )
 
@@ -930,6 +936,7 @@ class TestEntityTypeMerge:
                     display_name="Active",
                     json_schema={"type": "object"},
                     tenant_id="tenant-123",
+                    is_system=False,
                     is_active=True
                 )
 

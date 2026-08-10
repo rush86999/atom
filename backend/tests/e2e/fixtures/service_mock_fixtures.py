@@ -60,7 +60,7 @@ def mock_tavily_search():
         return MockTavilyResponse()
 
     with mock.patch("httpx.post", side_effect=mock_post):
-        yield
+        yield mock_post
 
 
 @pytest.fixture(scope="function")
@@ -210,13 +210,33 @@ def mock_shopify_api():
 
         def put(self, endpoint, **kwargs):
             if "products" in endpoint:
-                # Extract product ID from endpoint
-                product_id = int(endpoint.split("/")[-1].split("?")[0])
+                # Extract product ID from endpoint (strip trailing .json / ?query)
+                product_segment = endpoint.split("/")[-1].split("?")[0]
+                if product_segment.endswith(".json"):
+                    product_segment = product_segment[:-5]
+                try:
+                    product_id = int(product_segment)
+                except ValueError:
+                    return {}
                 for product in self.products:
                     if product["id"] == product_id:
-                        data = kwargs.get("json", {})
+                        data = kwargs.get("json", {}).get("product", kwargs.get("json", {}))
                         product.update(data)
                         return {"product": product}
+                return {}
+            elif "orders" in endpoint:
+                order_segment = endpoint.split("/")[-1].split("?")[0]
+                if order_segment.endswith(".json"):
+                    order_segment = order_segment[:-5]
+                try:
+                    order_id = int(order_segment)
+                except ValueError:
+                    return {}
+                for order in self.orders:
+                    if order["id"] == order_id:
+                        data = kwargs.get("json", {}).get("order", kwargs.get("json", {}))
+                        order.update(data)
+                        return {"order": order}
             return {}
 
     yield MockShopifyClient()

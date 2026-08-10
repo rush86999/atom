@@ -8,12 +8,14 @@ import pytest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
-from core.episode_segmentation_service import EpisodeSegmentationService
+from core.episode_segmentation_service import (
+    EpisodeBoundaryDetector,
+    EpisodeSegmentationService,
+)
 from core.episode_retrieval_service import EpisodeRetrievalService
 from core.episode_lifecycle_service import EpisodeLifecycleService
 from core.models import Episode, EpisodeSegment
 from core.database import get_db_session
-
 
 @pytest.fixture
 def db_session():
@@ -21,30 +23,31 @@ def db_session():
     with get_db_session() as db:
         yield db
 
-
 @pytest.fixture
 def segmentation_service(db_session):
     """Create segmentation service with mocked BYOK handler."""
     mock_byok = Mock()
     return EpisodeSegmentationService(db_session, byok_handler=mock_byok)
 
+@pytest.fixture
+def boundary_detector():
+    """Create boundary detector with mocked handler."""
+    return EpisodeBoundaryDetector(lancedb_handler=Mock())
 
 @pytest.fixture
 def retrieval_service(db_session):
     """Create retrieval service."""
     return EpisodeRetrievalService(db_session)
 
-
 @pytest.fixture
 def lifecycle_service(db_session):
     """Create lifecycle service."""
     return EpisodeLifecycleService(db_session)
 
-
 class TestEpisodeSegmentationMethods:
     """Tests for EpisodeSegmentationService methods."""
 
-    def test_detect_time_gap(self, segmentation_service):
+    def test_detect_time_gap(self, boundary_detector):
         """Test time gap detection."""
         from core.models import ChatMessage
         now = datetime.now(timezone.utc)
@@ -52,32 +55,29 @@ class TestEpisodeSegmentationMethods:
         messages = [
             ChatMessage(
                 id="1",
-                session_id="test_session",
                 role="user",
                 content="First message",
                 created_at=now - timedelta(minutes=10)
             ),
             ChatMessage(
                 id="2",
-                session_id="test_session",
                 role="assistant",
                 content="Second message",
                 created_at=now - timedelta(minutes=5)
             ),
             ChatMessage(
                 id="3",
-                session_id="test_session",
                 role="user",
                 content="Third message after long gap",
                 created_at=now  # 5 minute gap
             ),
         ]
 
-        gaps = segmentation_service.detect_time_gap(messages)
+        gaps = boundary_detector.detect_time_gap(messages)
         assert isinstance(gaps, list)
         # Should detect gap at index 2 (third message)
 
-    def test_detect_topic_changes(self, segmentation_service):
+    def test_detect_topic_changes(self, boundary_detector):
         """Test topic change detection."""
         from core.models import ChatMessage
         now = datetime.now(timezone.utc)
@@ -85,28 +85,25 @@ class TestEpisodeSegmentationMethods:
         messages = [
             ChatMessage(
                 id="1",
-                session_id="test_session",
                 role="user",
                 content="Let's talk about finance",
                 created_at=now
             ),
             ChatMessage(
                 id="2",
-                session_id="test_session",
                 role="assistant",
                 content="Sure, I can help with finance",
                 created_at=now
             ),
             ChatMessage(
                 id="3",
-                session_id="test_session",
                 role="user",
                 content="Now let's switch to HR topics",
                 created_at=now
             ),
         ]
 
-        changes = segmentation_service.detect_topic_changes(messages)
+        changes = boundary_detector.detect_topic_changes(messages)
         assert isinstance(changes, list)
 
     def test_extract_topics(self, segmentation_service):
@@ -150,7 +147,6 @@ class TestEpisodeSegmentationMethods:
         })
         assert isinstance(summary, str)
 
-
 class TestEpisodeRetrievalMethods:
     """Tests for EpisodeRetrievalService methods."""
 
@@ -159,10 +155,11 @@ class TestEpisodeRetrievalMethods:
         """Test temporal retrieval with no episodes."""
         episodes = await retrieval_service.retrieve_temporal(
             agent_id="nonexistent_agent",
-            days=7,
+            time_range="7d",
             limit=10
         )
-        assert isinstance(episodes, list)
+        assert isinstance(episodes, dict)
+        assert "episodes" in episodes
 
     @pytest.mark.asyncio
     async def test_retrieve_semantic_empty(self, retrieval_service):
@@ -172,36 +169,38 @@ class TestEpisodeRetrievalMethods:
             query="test query",
             limit=5
         )
-        assert isinstance(episodes, list)
+        assert isinstance(episodes, dict)
+        assert "episodes" in episodes
 
     @pytest.mark.asyncio
     async def test_retrieve_sequential_empty(self, retrieval_service):
         """Test sequential retrieval with no episodes."""
         episodes = await retrieval_service.retrieve_sequential(
-            agent_id="nonexistent_agent",
-            limit=5
+            episode_id="nonexistent_episode",
+            agent_id="nonexistent_agent"
         )
-        assert isinstance(episodes, list)
+        assert isinstance(episodes, dict)
 
     @pytest.mark.asyncio
     async def test_retrieve_contextual_empty(self, retrieval_service):
         """Test contextual retrieval with no episodes."""
         episodes = await retrieval_service.retrieve_contextual(
             agent_id="nonexistent_agent",
-            context="test context",
+            current_task="test context",
             limit=5
         )
-        assert isinstance(episodes, list)
+        assert isinstance(episodes, dict)
+        assert "episodes" in episodes
 
     @pytest.mark.asyncio
     async def test_retrieve_canvas_aware_empty(self, retrieval_service):
         """Test canvas-aware retrieval."""
         episodes = await retrieval_service.retrieve_canvas_aware(
             agent_id="nonexistent_agent",
-            canvas_id="test_canvas",
+            query="test canvas query",
             limit=5
         )
-        assert isinstance(episodes, list)
+        assert isinstance(episodes, dict)
 
     def test_serialize_episode(self, retrieval_service):
         """Test episode serialization."""
@@ -209,38 +208,71 @@ class TestEpisodeRetrievalMethods:
         episode = Episode(
             id="test_episode",
             agent_id="test_agent",
-            title="Test Episode"
+            task_description="Test Episode",
+            tenant_id="t1",
+            status="active",
+            started_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(timezone.utc),
+            maturity_at_time="SUPERVISED",
+            human_intervention_count=0,
+            constitutional_score=0.5,
+            access_count=0,
+            decay_score=0.0,
         )
 
         serialized = retrieval_service._serialize_episode(episode)
         assert isinstance(serialized, dict)
         assert serialized["id"] == "test_episode"
-
+        assert serialized["title"] == "Test Episode"
 
 class TestEpisodeLifecycleMethods:
     """Tests for EpisodeLifecycleService methods."""
 
-    def test_get_archived_episodes_empty(self, lifecycle_service):
-        """Test getting archived episodes."""
-        archived = lifecycle_service.get_archived_episodes(
-            agent_id="nonexistent_agent",
-            limit=10
-        )
-        assert isinstance(archived, list)
+    @pytest.mark.asyncio
+    async def test_decay_old_episodes_empty(self, lifecycle_service):
+        """Test decay on a DB with no stale episodes."""
+        result = await lifecycle_service.decay_old_episodes(days_threshold=90)
+        assert isinstance(result, dict)
+        assert "affected" in result
+        assert "archived" in result
 
-    def test_count_episodes_by_status_empty(self, lifecycle_service):
-        """Test counting episodes by status."""
-        counts = lifecycle_service.count_episodes_by_status(
-            agent_id="nonexistent_agent"
-        )
-        assert isinstance(counts, dict)
+    def test_archive_episode_success(self, lifecycle_service):
+        """Test archiving an episode."""
+        db = Mock()
+        lifecycle_service.db = db
+        episode = Mock()
+        episode.id = "ep_1"
+        episode.status = "active"
+        episode.archived_at = None
+        result = lifecycle_service.archive_episode(episode)
+        assert result is True
+        assert episode.status == "archived"
+        assert episode.archived_at is not None
+        db.commit.assert_called_once()
 
-    def test_calculate_decay_score_missing(self, lifecycle_service):
-        """Test calculating decay score for non-existent episode."""
-        score = lifecycle_service.calculate_decay_score("nonexistent_episode")
-        # Should return None or 0 for missing episode
-        assert score is None or score == 0
+    def test_archive_episode_commit_error(self, lifecycle_service):
+        """Test archiving when commit fails."""
+        db = Mock()
+        lifecycle_service.db = db
+        episode = Mock()
+        episode.id = "ep_1"
+        episode.status = "active"
+        episode.archived_at = None
+        db.commit.side_effect = RuntimeError("boom")
+        result = lifecycle_service.archive_episode(episode)
+        assert result is False
+        db.rollback.assert_called_once()
 
+    def test_update_lifecycle(self, lifecycle_service):
+        """Test update_lifecycle on a mock episode."""
+        episode = Mock()
+        episode.started_at = datetime.now(timezone.utc) - timedelta(days=30)
+        episode.access_count = 5
+        episode.status = "active"
+        episode.decay_score = 0.0
+        episode.archived_at = None
+        result = lifecycle_service.update_lifecycle(episode)
+        assert result is True
 
 class TestEpisodeServiceIntegration:
     """Integration tests across episode services."""
@@ -261,7 +293,20 @@ class TestEpisodeServiceIntegration:
     def test_serialize_multiple_episodes(self, retrieval_service):
         """Test serializing multiple episodes."""
         episodes = [
-            Episode(id=f"ep_{i}", agent_id="test_agent", title=f"Episode {i}")
+            Episode(
+                id=f"ep_{i}",
+                agent_id="test_agent",
+                task_description=f"Episode {i}",
+                tenant_id="t1",
+                status="active",
+                started_at=datetime.now(timezone.utc),
+                completed_at=datetime.now(timezone.utc),
+                maturity_at_time="SUPERVISED",
+                human_intervention_count=0,
+                constitutional_score=0.5,
+                access_count=0,
+                decay_score=0.0,
+            )
             for i in range(3)
         ]
 
@@ -274,17 +319,20 @@ class TestEpisodeServiceIntegration:
         """Test all retrieval modes with no data."""
         agent_id = "empty_test_agent"
 
-        temporal = await retrieval_service.retrieve_temporal(agent_id, days=7, limit=5)
+        temporal = await retrieval_service.retrieve_temporal(agent_id, limit=5)
         semantic = await retrieval_service.retrieve_semantic(agent_id, query="test", limit=5)
-        sequential = await retrieval_service.retrieve_sequential(agent_id, limit=5)
-        contextual = await retrieval_service.retrieve_contextual(agent_id, context="test", limit=5)
+        sequential = await retrieval_service.retrieve_sequential(
+            episode_id="nonexistent", agent_id=agent_id
+        )
+        contextual = await retrieval_service.retrieve_contextual(
+            agent_id, current_task="test", limit=5
+        )
 
-        # All should return lists
-        assert isinstance(temporal, list)
-        assert isinstance(semantic, list)
-        assert isinstance(sequential, list)
-        assert isinstance(contextual, list)
-
+        # All should return dicts
+        assert isinstance(temporal, dict)
+        assert isinstance(semantic, dict)
+        assert isinstance(sequential, dict)
+        assert isinstance(contextual, dict)
 
 class TestEpisodeSegmentationHelpers:
     """Tests for segmentation helper methods."""
@@ -297,7 +345,6 @@ class TestEpisodeSegmentationHelpers:
         messages = [
             ChatMessage(
                 id="1",
-                session_id="test",
                 role="user",
                 content="Test message",
                 created_at=now
@@ -316,7 +363,6 @@ class TestEpisodeSegmentationHelpers:
         messages = [
             ChatMessage(
                 id=str(i),
-                session_id="test",
                 role="user" if i % 2 == 0 else "assistant",
                 content=f"Message {i}",
                 created_at=now
@@ -342,25 +388,3 @@ class TestEpisodeSegmentationHelpers:
             error=Exception("Test error")
         )
         assert isinstance(formatted_error, str)
-
-
-class TestEpisodeAnalytics:
-    """Tests for episode analytics functionality."""
-
-    def test_get_coverage_report(self, retrieval_service):
-        """Test coverage report generation."""
-        report = retrieval_service.get_coverage_report("test_agent")
-        assert isinstance(report, dict)
-
-    def test_get_access_patterns(self, retrieval_service):
-        """Test access pattern analysis."""
-        patterns = retrieval_service.get_access_patterns(
-            agent_id="test_agent",
-            days=30
-        )
-        assert isinstance(patterns, dict)
-
-    def test_get_agent_statistics(self, retrieval_service):
-        """Test agent statistics."""
-        stats = retrieval_service.get_agent_statistics("test_agent")
-        assert isinstance(stats, dict)

@@ -15,6 +15,7 @@ from typing import AsyncGenerator, Generator, Dict, Any
 from pathlib import Path
 import pytest
 import pytest_asyncio
+from unittest.mock import MagicMock
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -22,6 +23,17 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 from httpx import AsyncClient
 import httpx
+
+# Fixture modules for E2E suites (database/LLM/workflow/service mocks).
+# Without this wiring the e2e tests fail collection with "fixture not
+# found"; with it, Postgres-dependent fixtures skip cleanly and the
+# SQLite/mocked-LLM e2e tests actually run.
+pytest_plugins = [
+    "tests.e2e.fixtures.database_fixtures",
+    "tests.e2e.fixtures.workflow_fixtures",
+    "tests.e2e.fixtures.llm_fixtures",
+    "tests.e2e.fixtures.service_mock_fixtures",
+]
 
 # Add backend to path
 backend_dir = Path(__file__).parent.parent.parent
@@ -939,8 +951,10 @@ def pytest_sessionstart(session):
 def pytest_runtest_logreport(report):
     """Track test execution metrics."""
     if report.when == "call":
-        # Use the config object instead of report.session (pytest 9.0+ compatibility)
-        session = report.config if hasattr(report, 'config') else None
+        # Prefer the real session object so the summary test can read the
+        # same counters it writes. (report.config is the Config, not the
+        # Session — writing there left the summary reading 0 forever.)
+        session = getattr(report, "session", None)
         if session is None:
             return  # Skip if we can't get session
 
@@ -1162,6 +1176,12 @@ def e2e_db_session_integration(db_session: Session):
 
 
 @pytest.fixture(scope="function")
+def e2e_db_session(e2e_db_session_integration):
+    """Alias kept for the episodic-integration suite (uses the old name)."""
+    yield e2e_db_session_integration
+
+
+@pytest.fixture(scope="function")
 def mock_llm_streaming():
     """
     Mock LLM streaming response for E2E tests.
@@ -1230,29 +1250,30 @@ def mock_websocket():
     """
     Mock WebSocket manager for E2E tests.
 
-    Mocks WebSocket notifications for agent status updates and execution events.
+    NOTE: `core.governance_cache.WebSocketManager` no longer exists (the WS
+    surface moved to core/websocket_manager.DebuggingWebSocketManager and the
+    agent loop no longer references a manager here), so patching it used to
+    raise AttributeError and fail every dependent fixture. Yield a plain mock
+    instead — the notify_* methods remain available for any test that still
+    asserts on them.
     """
-    from unittest.mock import patch, MagicMock
-
-    with patch('core.governance_cache.WebSocketManager') as mock_ws_class:
-        mock_ws_instance = MagicMock()
-        mock_ws_instance.notify_agent_status = MagicMock()
-        mock_ws_instance.notify_execution_start = MagicMock()
-        mock_ws_instance.notify_execution_complete = MagicMock()
-        mock_ws_instance.notify_execution_failed = MagicMock()
-        mock_ws_class.return_value = mock_ws_instance
-        yield mock_ws_instance
+    mock_ws_instance = MagicMock()
+    mock_ws_instance.notify_agent_status = MagicMock()
+    mock_ws_instance.notify_execution_start = MagicMock()
+    mock_ws_instance.notify_execution_complete = MagicMock()
+    mock_ws_instance.notify_execution_failed = MagicMock()
+    return mock_ws_instance
 
 
 @pytest.fixture(scope="function")
-def e2e_client_integration(client, e2e_db_session_integration, mock_websocket):
+def e2e_client_integration(test_client, e2e_db_session_integration, mock_websocket):
     """
     E2E test client with all necessary mocks for integration tests.
 
     Combines TestClient with database session, WebSocket mocks,
     and authentication bypass for comprehensive E2E testing.
     """
-    yield client
+    yield test_client
 
 
 @pytest.fixture(scope="function")

@@ -173,11 +173,9 @@ class TestSyncOnReconnect:
                         canvas_id=data["canvas_id"],
                         tenant_id="test-tenant",
                         action_type="present",
-                        canvas_data=data["canvas_data"],
+                        details_json=data["canvas_data"],
                         created_at=datetime.utcnow(),
-                        details_json={
-                            'canvas_type': data["canvas_type"],
-                        },
+                        canvas_type=data["canvas_type"],
                     )
                     db_session.add(canvas)
             db_session.commit()
@@ -219,11 +217,9 @@ class TestConflictResolutionLatestWins:
             canvas_id="conflict-canvas",
             tenant_id="test-tenant",
             action_type="present",
-            canvas_data={"version": 1, "source": "online"},
+            details_json={"version": 1, "source": "online"},
             created_at=datetime.utcnow(),
-            details_json={
-                'canvas_type': 'docs',
-            },
+            canvas_type='docs',
         )
         db_session.add(canvas)
         db_session.commit()
@@ -242,15 +238,15 @@ class TestConflictResolutionLatestWins:
         offline_time = datetime.fromisoformat(offline_update["timestamp"])
         if offline_time > online_update_timestamp:
             # Offline update is newer, use it
-            canvas.canvas_data = offline_update["canvas_data"]
+            canvas.details_json = offline_update["canvas_data"]
             db_session.commit()
 
         # Step 5: Verify latest won
         retrieved = db_session.query(CanvasAudit).filter(
             CanvasAudit.canvas_id == "conflict-canvas"
         ).first()
-        assert retrieved.canvas_data["version"] == 2
-        assert retrieved.canvas_data["source"] == "offline"
+        assert retrieved.details_json["version"] == 2
+        assert retrieved.details_json["source"] == "offline"
 
 
 class TestConflictResolutionManualMerge:
@@ -277,15 +273,13 @@ class TestConflictResolutionManualMerge:
             canvas_id="manual-merge-canvas",
             tenant_id="test-tenant",
             action_type="present",
-            canvas_data={
+            details_json={
                 "title": "Original",
                 "field_a": "value_a",
                 "field_b": "value_b"
             },
             created_at=datetime.utcnow(),
-            details_json={
-                'canvas_type': 'form',
-            },
+            canvas_type='form',
         )
         db_session.add(canvas)
         db_session.commit()
@@ -360,11 +354,9 @@ class TestPartialSyncHandling:
                 canvas_id=data["canvas_id"],
                 tenant_id="test-tenant",
                 action_type="present",
-                canvas_data=data["canvas_data"],
+                details_json=data["canvas_data"],
                 created_at=datetime.utcnow(),
-                details_json={
-                    'canvas_type': data["canvas_type"],
-                },
+                canvas_type=data["canvas_type"],
             )
             db_session.add(canvas)
             synced_count += 1
@@ -385,11 +377,9 @@ class TestPartialSyncHandling:
                 canvas_id=data["canvas_id"],
                 tenant_id="test-tenant",
                 action_type="present",
-                canvas_data=data["canvas_data"],
+                details_json=data["canvas_data"],
                 created_at=datetime.utcnow(),
-                details_json={
-                    'canvas_type': data["canvas_type"],
-                },
+                canvas_type=data["canvas_type"],
             )
             db_session.add(canvas)
             synced_count += 1
@@ -457,11 +447,9 @@ class TestSyncRetryWithBackoff:
                     canvas_id=data["canvas_id"],
                     tenant_id="test-tenant",
                     action_type="present",
-                    canvas_data=data["canvas_data"],
+                    details_json=data["canvas_data"],
                     created_at=datetime.utcnow(),
-                    details_json={
-                        'canvas_type': data["canvas_type"],
-                    },
+                    canvas_type=data["canvas_type"],
                 )
                 db_session.add(canvas)
                 db_session.commit()
@@ -503,11 +491,9 @@ class TestOfflineToOnlineTransition:
             canvas_id="online-canvas-1",
             tenant_id="test-tenant",
             action_type="present",
-            canvas_data={"source": "online-1"},
+            details_json={"source": "online-1"},
             created_at=datetime.utcnow(),
-            details_json={
-                'canvas_type': 'chart',
-            },
+            canvas_type='chart',
         )
         db_session.add(canvas1)
         db_session.commit()
@@ -538,11 +524,9 @@ class TestOfflineToOnlineTransition:
                 canvas_id=data["canvas_id"],
                 tenant_id="test-tenant",
                 action_type="present",
-                canvas_data=data["canvas_data"],
+                details_json=data["canvas_data"],
                 created_at=datetime.utcnow(),
-                details_json={
-                    'canvas_type': data["canvas_type"],
-                },
+                canvas_type=data["canvas_type"],
             )
             db_session.add(canvas2)
         db_session.commit()
@@ -557,8 +541,8 @@ class TestOfflineToOnlineTransition:
 
         assert online_canvas is not None
         assert offline_canvas is not None
-        assert online_canvas.canvas_data["source"] == "online-1"
-        assert offline_canvas.canvas_data["source"] == "offline"
+        assert online_canvas.details_json["source"] == "online-1"
+        assert offline_canvas.details_json["source"] == "offline"
 
 
 class TestConcurrentSyncConflicts:
@@ -603,11 +587,9 @@ class TestConcurrentSyncConflicts:
             canvas_id="concurrent-canvas",
             tenant_id="test-tenant",
             action_type="present",
-            canvas_data={"source": "original"},
+            details_json={"source": "original"},
             created_at=datetime.utcnow(),
-            details_json={
-                'canvas_type': 'docs',
-            },
+            canvas_type='docs',
         )
         db_session.add(canvas)
         db_session.commit()
@@ -622,7 +604,7 @@ class TestConcurrentSyncConflicts:
             new_time = datetime.fromisoformat(data["timestamp"])
 
             if new_time > existing_time:
-                canvas.canvas_data = data["canvas_data"]
+                canvas.details_json = data["canvas_data"]
                 canvas.created_at = new_time
 
         db_session.commit()
@@ -631,5 +613,5 @@ class TestConcurrentSyncConflicts:
         retrieved = db_session.query(CanvasAudit).filter(
             CanvasAudit.canvas_id == "concurrent-canvas"
         ).first()
-        assert retrieved.canvas_data["source"] == "client-b"
-        assert retrieved.canvas_data["value"] == 200
+        assert retrieved.details_json["source"] == "client-b"
+        assert retrieved.details_json["value"] == 200

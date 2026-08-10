@@ -339,6 +339,11 @@ class FeedbackService:
                 SupervisorComment.id == comment_id
             ).first()
 
+            # Backfill supervision_session_id for votes created before the
+            # stamp was added (session summaries would otherwise miss them).
+            if comment and not existing.supervision_session_id:
+                existing.supervision_session_id = comment.supervision_session_id
+
             # Remove vote if same type (toggle off), otherwise update
             if existing.vote_type == vote_type:
                 # Decrement count before deleting
@@ -371,8 +376,16 @@ class FeedbackService:
                 return existing
 
         # Create new vote
+        # NOTE: stamp supervision_session_id from the comment so session-level
+        # tallies (get_session_feedback_summary) actually see comment votes —
+        # previously only comment_id was set and session summaries always
+        # reported 0 upvotes/downvotes.
+        comment = self.db.query(SupervisorComment).filter(
+            SupervisorComment.id == comment_id
+        ).first()
         vote = FeedbackVote(
             comment_id=comment_id,
+            supervision_session_id=comment.supervision_session_id if comment else None,
             user_id=user_id,
             vote_type=vote_type,
         )
@@ -381,10 +394,6 @@ class FeedbackService:
         self.db.commit()
 
         # Update comment vote counts
-        comment = self.db.query(SupervisorComment).filter(
-            SupervisorComment.id == comment_id
-        ).first()
-
         if comment:
             if vote_type == "up":
                 comment.upvote_count += 1
@@ -552,6 +561,14 @@ class FeedbackService:
         # Get comment and vote metrics
         performance.total_comments_given = self.db.query(SupervisorComment).filter(
             SupervisorComment.author_id == supervisor_id
+        ).count()
+
+        # Session volume — previously never populated, so the "total_sessions"
+        # metric stayed 0 forever for freshly created performance rows even
+        # after many completed supervision sessions.
+        performance.total_sessions_supervised = self.db.query(SupervisionSession).filter(
+            SupervisionSession.supervisor_id == supervisor_id,
+            SupervisionSession.status == "completed",
         ).count()
 
         performance.total_upvotes_received = self.db.query(FeedbackVote).join(

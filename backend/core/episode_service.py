@@ -1111,12 +1111,12 @@ class EpisodeService:
                 
                 # ACU Billing Integration
                 try:
-                    from core.acu_billing_service import ACUBillingService
-                    billing = ACUBillingService(self.db)
-                    billing.record_system_consumption(
-                        tenant_id=episode.tenant_id,
+                    from core.usage_tracking_service import UsageTrackingService
+                    billing = UsageTrackingService(tenant_id=episode.tenant_id, db=self.db)
+                    billing.track_acu_usage(
                         acu_amount=1.0,  # 1 ACU for archival overhead
-                        task_name=f"archive-episode-{episode_id}"
+                        task_name=f"archive-episode-{episode_id}",
+                        tenant_id=episode.tenant_id,
                     )
                 except Exception as billing_err:
                     logger.warning(f"Failed to record ACU consumption for archival: {billing_err}")

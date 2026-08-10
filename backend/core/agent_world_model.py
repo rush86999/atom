@@ -729,12 +729,14 @@ class WorldModelService:
 
                     # ACU Billing Integration
                     try:
-                        from core.acu_billing_service import ACUBillingService
-                        billing_service = ACUBillingService(db)
-                        billing_service.record_system_consumption(
-                            tenant_id=self.db.workspace_id,
+                        from core.usage_tracking_service import UsageTrackingService
+                        billing_service = UsageTrackingService(
+                            tenant_id=self.db.workspace_id, db=db
+                        )
+                        await billing_service.track_acu_usage(
                             acu_amount=2.0,  # 2 ACUs for session archival
-                            task_name=f"archive-session-{conversation_id}"
+                            task_name=f"archive-session-{conversation_id}",
+                            tenant_id=self.db.workspace_id,
                         )
                     except Exception as billing_err:
                         logger.warning(f"Failed to record ACU consumption for session archival: {billing_err}")

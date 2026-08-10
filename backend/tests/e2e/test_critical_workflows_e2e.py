@@ -13,6 +13,7 @@ These tests use real services (PostgreSQL, Redis, LLM providers) to validate
 actual system behavior, not mocked components.
 """
 
+import asyncio
 import pytest
 import time
 from typing import Dict, Any
@@ -210,25 +211,25 @@ class TestSkillLoadingWorkflow:
         skill_dir = skill_workflow["skill_dir"]
         session = skill_workflow["session"]
 
-        # Step 1: Import skill (this validates SKILL.md parsing)
-        # Note: Actual import may fail if skill has issues
+        # Step 1: Import skill (validates SKILL.md parsing via SkillRegistryService)
         try:
-            skill_result = adapter.import_skill_from_directory(str(skill_dir))
+            skill_md = (skill_dir / "SKILL.md").read_text()
+            skill_result = asyncio.run(adapter.import_skill(
+                source="file_upload",
+                content=skill_md,
+                metadata={"author": "e2e-suite"},
+            ))
 
-            # Step 2: Verify skill was stored
-            skill = session.query(CommunitySkill).filter(
-                CommunitySkill.skill_id == "test_workflow_skill"
+            # Step 2: Verify import result + persisted SkillExecution row
+            assert "skill_id" in skill_result
+            assert skill_result["skill_name"] == "test_workflow_skill"
+            assert skill_result["status"] in ("Active", "Untrusted")
+            record = session.query(SkillExecution).filter(
+                SkillExecution.id == skill_result["skill_id"]
             ).first()
-
-            if skill:
-                # Step 3: Security scan is now stored inline on AgentSkill
-                # (see AgentSkill.security_scan_result), so there is no longer
-                # a separate SkillSecurityScan row to assert against.
-
-                # Step 4: Verify skill metadata
-                assert skill.name == "test_workflow_skill"
-                assert skill.version == "1.0.0"
-                assert skill.maturity == "autonomous"
+            assert record is not None
+            assert record.input_params["skill_name"] == "test_workflow_skill"
+            assert record.input_params["skill_body"]
         except Exception as e:
             # Skill import may fail due to missing dependencies
             # This is expected in E2E testing environment
@@ -261,8 +262,19 @@ Test skill with packages.
 
         try:
             # Import should detect packages
-            skill_result = adapter.import_skill_from_directory(str(skill_dir))
-            # Verify package dependencies were detected
+            skill_result = asyncio.run(adapter.import_skill(
+                source="file_upload",
+                content=skill_md.read_text(),
+                metadata={"author": "e2e-suite"},
+            ))
+            # Verify package dependencies were detected in stored metadata
+            record = skill_workflow["session"].query(SkillExecution).filter(
+                SkillExecution.id == skill_result["skill_id"]
+            ).first()
+            if record is not None:
+                packages = record.input_params.get("packages") or []
+                assert any("requests" in pkg for pkg in packages)
+                assert any("pandas" in pkg for pkg in packages)
         except Exception as e:
             pytest.skip(f"Skill import with packages requires setup: {e}")
         finally:
@@ -281,16 +293,21 @@ Test skill with packages.
         session = skill_workflow["session"]
 
         # Create invalid SKILL.md
-        skill_md = skill_dir / "INVALID_SKILL.md"
-        skill_md.write_text("Invalid SKILL.md content without frontmatter")
+        invalid_md = skill_dir / "INVALID_SKILL.md"
+        invalid_md.write_text("Invalid SKILL.md content without frontmatter")
 
         # Try to import - should handle gracefully
         try:
-            result = adapter.import_skill_from_directory(str(skill_dir))
-            # If it succeeds, verify proper error handling
+            result = asyncio.run(adapter.import_skill(
+                source="file_upload",
+                content=invalid_md.read_text(),
+                metadata={},
+            ))
+            # If it succeeds, verify the parser auto-fixed or rejected
+            assert result.get("skill_name") is not None or result.get("error")
         except Exception as e:
             # Expected to fail with proper error message
-            assert "skill" in str(e).lower() or "invalid" in str(e).lower()
+            assert "skill" in str(e).lower() or "invalid" in str(e).lower() or "frontmatter" in str(e).lower()
 
 
 # ============================================================================

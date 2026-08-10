@@ -61,6 +61,7 @@ def test_browser_automation_with_playwright(
     session = BrowserSession(
         session_id="test-browser-session-001",
         workspace_id="test-workspace-001",
+        user_id="test-user-123",
         agent_id=intern_agent.id,
         agent_execution_id=None,
     )
@@ -83,18 +84,21 @@ def test_browser_automation_with_playwright(
         BrowserSession(
             session_id="test-browser-session-002",
             workspace_id="test-workspace-001",
+            user_id="test-user-123",
             agent_id=autonomous_agent.id,
             agent_execution_id=None,
         ),
         BrowserSession(
             session_id="test-browser-session-003",
             workspace_id="test-workspace-001",
+            user_id="test-user-123",
             agent_id=intern_agent.id,
             agent_execution_id=None,
         ),
         BrowserSession(
             session_id="test-browser-session-timeout",
             workspace_id="test-workspace-001",
+            user_id="test-user-123",
             agent_id=autonomous_agent.id,
             agent_execution_id=None,
         ),

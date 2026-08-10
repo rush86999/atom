@@ -438,6 +438,8 @@ class TestE2EPerformanceSummary:
 
         if not start_time:
             pytest.skip("Session tracking unavailable")
+        if started == 0:
+            pytest.skip("No tests tracked in this session (run the full e2e dir)")
 
         duration = time.time() - start_time
         pass_rate = (passed / started * 100) if started > 0 else 0

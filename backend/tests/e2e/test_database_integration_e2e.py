@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any
 from sqlalchemy import text, inspect
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 # Add backend to path
@@ -354,7 +355,7 @@ def test_sqlite_personal_edition_schema(e2e_sqlite_session):
     # Verify core tables exist
     expected_tables = [
         "agent_registry",
-        "agent_execution",
+        "agent_executions",
         "canvas_audit",
     ]
 

@@ -83,22 +83,21 @@ def test_agent_graduation_framework(
         episode = Episode(
             id=f"graduation-episode-{i:03d}",
             agent_id=student_agent.id,
-            user_id="test-user-123",
+            tenant_id="test-tenant-001",
             workspace_id="test-workspace-001",
-            title=f"Graduation Test Episode {i+1}",
-            description=f"Test episode for graduation evaluation - Episode {i+1}",
-            summary=f"Agent completed task {i+1} successfully",
+            task_description=f"Graduation Test Episode {i+1}",
             session_id=f"graduation-session-{i}",
             started_at=datetime.utcnow() - timedelta(days=30-i),
-            ended_at=datetime.utcnow() - timedelta(days=30-i) + timedelta(minutes=5),
+            completed_at=datetime.utcnow() - timedelta(days=30-i) + timedelta(minutes=5),
             duration_seconds=300,
             status="completed",
+            outcome="success",
+            maturity_at_time="autonomous",
             topics=["testing", "graduation"],
             entities=[f"task-{i}"],
             importance_score=0.7,
-            maturity_at_time="STUDENT",
             constitutional_score=1.0,  # Perfect compliance
-            intervention_count=0 if i < 10 else 1,  # Some interventions in later episodes
+            human_intervention_count=0 if i < 10 else 1,  # Some interventions in later episodes
             intervention_types=[],
             decay_score=1.0,
             access_count=0,
@@ -123,7 +122,9 @@ def test_agent_graduation_framework(
     # Calculate readiness score (simulated)
     # 40% episode count, 30% intervention rate, 30% constitutional score
     episode_count = len(episodes)
-    total_interventions = sum(e.intervention_count for e in episodes)
+    total_interventions = sum(
+        (e.human_intervention_count or 0) for e in episodes
+    )
     intervention_rate = total_interventions / episode_count if episode_count > 0 else 0
     avg_constitutional_score = sum(e.constitutional_score for e in episodes) / episode_count
 
@@ -174,22 +175,21 @@ def test_agent_graduation_framework(
     violation_episode = Episode(
         id="graduation-violation-001",
         agent_id=student_agent.id,
-        user_id="test-user-123",
+        tenant_id="test-tenant-001",
         workspace_id="test-workspace-001",
-        title="Episode with Constitutional Violation",
-        description="Agent violated constitutional rule",
-        summary="Agent action required human intervention due to constitutional violation",
+        task_description="Episode with Constitutional Violation",
         session_id="violation-session-001",
         started_at=datetime.utcnow() - timedelta(minutes=10),
-        ended_at=datetime.utcnow() - timedelta(minutes=5),
+        completed_at=datetime.utcnow() - timedelta(minutes=5),
         duration_seconds=300,
         status="completed",
+        outcome="success",
+        maturity_at_time="autonomous",
         topics=["violation", "constitutional"],
         entities=["violation-001"],
         importance_score=0.9,
-        maturity_at_time="INTERN",
         constitutional_score=0.5,  # Low score due to violation
-        intervention_count=1,
+        human_intervention_count=1,
         intervention_types=["constitutional_violation"],
         decay_score=1.0,
         access_count=0,

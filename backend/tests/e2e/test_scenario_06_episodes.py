@@ -85,20 +85,19 @@ def test_episodic_memory_and_retrieval(
     episode1 = Episode(
         id="episode-001",
         agent_id=autonomous_agent.id,
-        user_id="test-user-123",
+        tenant_id="test-tenant-001",
         workspace_id="test-workspace-001",
-        title="Customer Support Query - Billing Issue",
-        description="Agent successfully resolved a customer billing inquiry",
-        summary="Customer asked about $50 charge, explained it was for premium plan upgrade",
+        task_description="Customer Support Query - Billing Issue",
         session_id="test-session-001",
         started_at=datetime.utcnow() - timedelta(minutes=10),
-        ended_at=datetime.utcnow() - timedelta(minutes=8),
+        completed_at=datetime.utcnow() - timedelta(minutes=8),
         duration_seconds=120,
         status="completed",
+        outcome="success",
+        maturity_at_time="autonomous",
         topics=["billing", "premium", "upgrade"],
         entities=["customer-cust-123", "plan-premium"],
         importance_score=0.8,
-        maturity_at_time="AUTONOMOUS",
         constitutional_score=1.0,
         decay_score=1.0,
         access_count=0,
@@ -109,20 +108,19 @@ def test_episodic_memory_and_retrieval(
     episode2 = Episode(
         id="episode-002",
         agent_id=autonomous_agent.id,
-        user_id="test-user-123",
+        tenant_id="test-tenant-001",
         workspace_id="test-workspace-001",
-        title="Technical Troubleshooting - Login Issues",
-        description="Agent helped user troubleshoot login problems",
-        summary="User couldn't log in, agent helped reset password and verify account",
+        task_description="Technical Troubleshooting - Login Issues",
         session_id="test-session-002",
         started_at=datetime.utcnow() - timedelta(minutes=15),
-        ended_at=datetime.utcnow() - timedelta(minutes=12),
+        completed_at=datetime.utcnow() - timedelta(minutes=12),
         duration_seconds=180,
         status="completed",
+        outcome="success",
+        maturity_at_time="autonomous",
         topics=["login", "troubleshooting", "password"],
         entities=["user-test-user", "account"],
         importance_score=0.7,
-        maturity_at_time="AUTONOMOUS",
         constitutional_score=1.0,
         decay_score=1.0,
         access_count=0,
@@ -133,20 +131,19 @@ def test_episodic_memory_and_retrieval(
     episode3 = Episode(
         id="episode-003",
         agent_id=autonomous_agent.id,
-        user_id="test-user-123",
+        tenant_id="test-tenant-001",
         workspace_id="test-workspace-001",
-        title="Feature Request - Dark Mode",
-        description="User requested dark mode feature for the app",
-        summary="User wants dark mode support, agent logged the feature request",
+        task_description="Feature Request - Dark Mode",
         session_id="test-session-003",
         started_at=datetime.utcnow() - timedelta(minutes=5),
-        ended_at=datetime.utcnow() - timedelta(minutes=4),
+        completed_at=datetime.utcnow() - timedelta(minutes=4),
         duration_seconds=60,
         status="completed",
+        outcome="success",
+        maturity_at_time="autonomous",
         topics=["feature-request", "ui", "dark-mode"],
         entities=["feature-dark-mode"],
         importance_score=0.6,
-        maturity_at_time="AUTONOMOUS",
         constitutional_score=1.0,
         decay_score=1.0,
         access_count=0,
@@ -159,9 +156,9 @@ def test_episodic_memory_and_retrieval(
     performance_monitor.stop_timer("episode_creation")
 
     print(f"✓ Created 3 episodes")
-    print(f"   Episode 1: {episode1.title}")
-    print(f"   Episode 2: {episode2.title}")
-    print(f"   Episode 3: {episode3.title}")
+    print(f"   Episode 1: {episode1.task_description}")
+    print(f"   Episode 2: {episode2.task_description}")
+    print(f"   Episode 3: {episode3.task_description}")
 
     # -------------------------------------------------------------------------
     # Test 2: Canvas Integration
@@ -172,7 +169,7 @@ def test_episodic_memory_and_retrieval(
     canvas1 = CanvasAudit(
         canvas_id="test-canvas-001",
         agent_id=autonomous_agent.id,
-        user_id="test-user-123",
+        tenant_id="test-tenant-001",
         session_id="test-session-001",
         action_type='present',
         details_json={'component_type': 'chart', 'episode_id': 'episode-001'},
@@ -182,7 +179,7 @@ def test_episodic_memory_and_retrieval(
     canvas2 = CanvasAudit(
         canvas_id="test-canvas-002",
         agent_id=autonomous_agent.id,
-        user_id="test-user-123",
+        tenant_id="test-tenant-001",
         session_id="test-session-002",
         action_type='present',
         details_json={'component_type': 'sheets', 'episode_id': 'episode-002'},
@@ -227,14 +224,8 @@ def test_episodic_memory_and_retrieval(
     access_log = EpisodeAccessLog(
         episode_id="episode-001",
         access_type="view",
-        accessed_by="test-user-123",
-        retrieval_query="test query",
-        retrieval_mode="test",
+        accessed_by_agent="test-user-123",
         governance_check_passed=True,
-        agent_maturity_at_access="AUTONOMOUS",
-        results_count=1,
-        access_duration_ms=100,
-        created_at=datetime.utcnow(),
     )
     db_session.add(access_log)
     db_session.commit()
@@ -265,7 +256,7 @@ def test_episodic_memory_and_retrieval(
     print("\n7. Testing episode metadata...")
 
     for episode in all_episodes:
-        print(f"   Episode: {episode.title}")
+        print(f"   Episode: {episode.task_description}")
         print(f"   - Status: {episode.status}")
         print(f"   - Duration: {episode.duration_seconds}s")
         print(f"   - Topics: {episode.topics}")

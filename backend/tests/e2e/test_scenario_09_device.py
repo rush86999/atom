@@ -86,7 +86,7 @@ def test_device_capabilities_and_permissions(
 
         session = DeviceSession(
             session_id=f"device-session-{maturity.lower()}",
-            workspace_id="test-workspace-001",
+            tenant_id="test-tenant-001",
             device_node_id="test-device-node-001",
             agent_id=agent.id,
             user_id="test-user-123",
@@ -99,7 +99,6 @@ def test_device_capabilities_and_permissions(
             },
             metadata_json={},
             governance_check_passed=True,
-            created_at=datetime.utcnow(),
         )
         db_session.add(session)
         db_session.commit()

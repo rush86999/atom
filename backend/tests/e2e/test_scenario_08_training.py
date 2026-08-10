@@ -117,20 +117,23 @@ def test_student_agent_training_system(
 
     # Create training proposal
     training_proposal = AgentProposal(
+        tenant_id="test-tenant-001",
+        user_id="test-user-123",
         agent_id=student_agent.id,
         agent_name=student_agent.name,
         proposal_type="workflow",
         title="Training Proposal for Student Agent",
         description="Student agent needs to complete training modules to graduate to INTERN",
-        proposed_action="Complete training modules: governance, canvas, episodes",
-        reasoning="Student agent has demonstrated basic capabilities but needs structured training",
-        learning_objectives=["governance", "canvas", "episodes"],
-        capability_gaps=["automated_triggers", "form_submission"],
-        estimated_duration_hours=1.0,
-        duration_estimation_confidence=0.8,
-        duration_estimation_reasoning="Based on similar agent training history",
-        status="pending",
-        proposed_by="training-system",
+        proposal_data={
+            "proposed_action": "Complete training modules: governance, canvas, episodes",
+            "reasoning": "Student agent has demonstrated basic capabilities but needs structured training",
+            "learning_objectives": ["governance", "canvas", "episodes"],
+            "capability_gaps": ["automated_triggers", "form_submission"],
+            "estimated_duration_hours": 1.0,
+            "duration_estimation_confidence": 0.8,
+            "duration_estimation_reasoning": "Based on similar agent training history",
+        },
+        status="pending_approval",
         created_at=datetime.utcnow(),
     )
     db_session.add(training_proposal)
@@ -139,7 +142,7 @@ def test_student_agent_training_system(
     performance_monitor.stop_timer("proposal_creation")
 
     print(f"✓ Training proposal created")
-    print(f"   Estimate: {training_proposal.estimated_duration_hours}h")
+    print(f"   Estimate: {training_proposal.proposal_data.get('estimated_duration_hours')}h")
 
     # -------------------------------------------------------------------------
     # Test 3: Supervision Session for SUPERVISED Agent
@@ -174,17 +177,20 @@ def test_student_agent_training_system(
 
     # Create action proposal for INTERN agent
     action_proposal = AgentProposal(
+        tenant_id="test-tenant-001",
+        user_id="test-user-123",
         agent_id=intern_agent.id,
         agent_name=intern_agent.name,
         proposal_type="action",
         title="Form Submission Proposal",
         description="INTERN agent requires approval for high-complexity form submission",
-        proposed_action="Submit customer data form",
-        reasoning="INTERN agent requires approval for high-complexity actions",
-        estimated_duration_hours=0.08,  # 5 minutes
-        duration_estimation_confidence=0.9,
-        status="pending",
-        proposed_by="governance-system",
+        proposal_data={
+            "proposed_action": "Submit customer data form",
+            "reasoning": "INTERN agent requires approval for high-complexity actions",
+            "estimated_duration_hours": 0.08,  # 5 minutes
+            "duration_estimation_confidence": 0.9,
+        },
+        status="pending_approval",
         created_at=datetime.utcnow(),
     )
     db_session.add(action_proposal)

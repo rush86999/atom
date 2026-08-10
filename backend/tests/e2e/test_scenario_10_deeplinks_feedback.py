@@ -104,7 +104,7 @@ def test_deeplinking_and_enhanced_feedback(
     # Create audit entries for each deep link
     for resource_type, url in deeplinks.items():
         audit = DeepLinkAudit(
-            workspace_id="test-workspace-001",
+            tenant_id="test-tenant-001",
             agent_id=autonomous_agent.id,
             user_id="test-user-123",
             resource_type=resource_type,

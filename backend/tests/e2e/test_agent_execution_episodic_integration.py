@@ -106,7 +106,7 @@ class TestAutonomousAgentEpisodeCreation:
         self.mock_llm = mock_llm_streaming
         self.mock_ws = mock_websocket
 
-    def test_autonomous_agent_execution_creates_episode(self, e2e_client_integration, e2e_db_session_integration, execution_id):
+    def test_autonomous_agent_execution_creates_episode(self, e2e_client_integration, e2e_db_session, execution_id):
         """
         Test that AUTONOMOUS agent execution creates an episode in episodic memory.
 
@@ -121,7 +121,9 @@ class TestAutonomousAgentEpisodeCreation:
 
         # Execute AUTONOMOUS agent with mocked LLM streaming
         with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
-            response = e2e_client.post("/api/atom-agent/chat", json={
+            if e2e_client_integration is None:
+                pytest.skip("Full app not available in this environment (test_app returns None)")
+            response = e2e_client_integration.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Test message for episode creation",
                 "user_id": "test_user_e2e",
@@ -147,7 +149,7 @@ class TestAutonomousAgentEpisodeCreation:
         execution = assert_execution_logged(e2e_db_session, execution_id, expected_status="completed")
         assert execution.agent_id == agent.id
 
-    def test_autonomous_agent_multiple_actions_creates_segments(self, e2e_client_integration, e2e_db_session_integration, execution_id):
+    def test_autonomous_agent_multiple_actions_creates_segments(self, e2e_client_integration, e2e_db_session, execution_id):
         """
         Test that multiple AUTONOMOUS agent actions create multiple episode segments.
 
@@ -162,8 +164,10 @@ class TestAutonomousAgentEpisodeCreation:
 
         # Execute multiple actions
         for i in range(3):
+            if e2e_client_integration is None:
+                pytest.skip("Full app not available in this environment (test_app returns None)")
             with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
-                response = e2e_client.post("/api/atom-agent/chat", json={
+                response = e2e_client_integration.post("/api/atom-agent/chat", json={
                     "agent_id": agent.id,
                     "message": f"Test action {i+1}",
                     "user_id": "test_user_e2e"
@@ -200,7 +204,7 @@ class TestSupervisedAgentEpisodeCreation:
         self.mock_llm = mock_llm_streaming
         self.mock_ws = mock_websocket
 
-    def test_supervised_agent_execution_creates_monitored_episode(self, e2e_client_integration, e2e_db_session_integration, execution_id):
+    def test_supervised_agent_execution_creates_monitored_episode(self, e2e_client_integration, e2e_db_session, execution_id):
         """
         Test that SUPERVISED agent execution creates episode with supervision metadata.
 
@@ -215,7 +219,9 @@ class TestSupervisedAgentEpisodeCreation:
 
         # Execute SUPERVISED agent
         with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
-            response = e2e_client.post("/api/atom-agent/chat", json={
+            if e2e_client_integration is None:
+                pytest.skip("Full app not available in this environment (test_app returns None)")
+            response = e2e_client_integration.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Supervised execution test",
                 "user_id": "test_user_e2e",
@@ -243,7 +249,7 @@ class TestSupervisedAgentEpisodeCreation:
         if len(supervision_sessions) > 0:
             assert supervision_sessions[0].agent_id == agent.id
 
-    def test_supervised_agent_intervention_creates_episode_segment(self, e2e_client_integration, e2e_db_session_integration, execution_id):
+    def test_supervised_agent_intervention_creates_episode_segment(self, e2e_client_integration, e2e_db_session, execution_id):
         """
         Test that SUPERVISED agent intervention creates episode segment.
 
@@ -258,7 +264,9 @@ class TestSupervisedAgentEpisodeCreation:
 
         # Execute with intervention flag
         with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
-            response = e2e_client.post("/api/atom-agent/chat", json={
+            if e2e_client_integration is None:
+                pytest.skip("Full app not available in this environment (test_app returns None)")
+            response = e2e_client_integration.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Intervention test",
                 "user_id": "test_user_e2e",
@@ -298,7 +306,7 @@ class TestCanvasContextIntegration:
         self.mock_llm = mock_llm_streaming
         self.mock_ws = mock_websocket
 
-    def test_agent_canvas_presentation_creates_canvas_episode(self, e2e_client_integration, e2e_db_session_integration, execution_id):
+    def test_agent_canvas_presentation_creates_canvas_episode(self, e2e_client_integration, e2e_db_session, execution_id):
         """
         Test that agent with canvas presentation creates episode with canvas context.
 
@@ -313,7 +321,9 @@ class TestCanvasContextIntegration:
 
         # Execute agent with canvas context
         with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
-            response = e2e_client.post("/api/atom-agent/chat", json={
+            if e2e_client_integration is None:
+                pytest.skip("Full app not available in this environment (test_app returns None)")
+            response = e2e_client_integration.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Present a chart",
                 "user_id": "test_user_e2e",
@@ -365,7 +375,7 @@ class TestFeedbackContextIntegration:
         self.mock_llm = mock_llm_streaming
         self.mock_ws = mock_websocket
 
-    def test_agent_with_feedback_creates_feedback_episode(self, e2e_client_integration, e2e_db_session_integration, execution_id):
+    def test_agent_with_feedback_creates_feedback_episode(self, e2e_client_integration, e2e_db_session, execution_id):
         """
         Test that agent with feedback creates episode with feedback context.
 
@@ -380,7 +390,9 @@ class TestFeedbackContextIntegration:
 
         # Execute agent
         with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
-            response = e2e_client.post("/api/atom-agent/chat", json={
+            if e2e_client_integration is None:
+                pytest.skip("Full app not available in this environment (test_app returns None)")
+            response = e2e_client_integration.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Generate a response",
                 "user_id": "test_user_e2e",

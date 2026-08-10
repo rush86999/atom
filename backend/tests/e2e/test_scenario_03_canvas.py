@@ -57,6 +57,7 @@ def test_canvas_presentations_with_governance(
     audit_entries = [
         CanvasAudit(
             canvas_id="test-canvas-001",
+            tenant_id="test-tenant-001",
             agent_id=student_agent.id,
             user_id="test-user-123",
             session_id="test-session-1",
@@ -65,6 +66,7 @@ def test_canvas_presentations_with_governance(
         ),
         CanvasAudit(
             canvas_id="test-canvas-002",
+            tenant_id="test-tenant-001",
             agent_id=intern_agent.id,
             user_id="test-user-123",
             session_id="test-session-2",
@@ -73,6 +75,7 @@ def test_canvas_presentations_with_governance(
         ),
         CanvasAudit(
             canvas_id="test-canvas-003",
+            tenant_id="test-tenant-001",
             agent_id=autonomous_agent.id,
             user_id="test-user-123",
             session_id="test-session-3",
@@ -104,6 +107,7 @@ def test_canvas_presentations_with_governance(
     for canvas_type in canvas_types:
         audit = CanvasAudit(
             canvas_id=f"test-{canvas_type}-canvas",
+            tenant_id="test-tenant-001",
             agent_id=autonomous_agent.id,
             user_id="test-user-123",
             session_id=f"test-{canvas_type}-session",

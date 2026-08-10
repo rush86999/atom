@@ -40,7 +40,7 @@ class Board(Base):
     slug = Column(String(120), nullable=True, index=True)
     description = Column(Text, nullable=True)
     owner_user_id = Column(
-        UUID, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
     archived_at = Column(DateTime(timezone=True), nullable=True)
@@ -133,7 +133,7 @@ class BoardTask(Base):
 
     # Assignment (human and/or agent). Nullable to allow unassigned backlog items.
     assignee_user_id = Column(
-        UUID, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     assignee_agent_id = Column(UUID, nullable=True, index=True)
 
@@ -152,12 +152,12 @@ class BoardTask(Base):
     metadata_json = Column(JSONBColumn, default=dict)
 
     created_by_user_id = Column(
-        UUID, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
     # Task workspace (Canvas). Nullable.
     canvas_id = Column(
-        UUID,
+        String,
         ForeignKey("canvases.id", ondelete="SET NULL"),
         nullable=True,
         index=True,

@@ -62,6 +62,7 @@ def test_real_time_agent_guidance(
 
     operation = AgentOperationTracker(
         operation_id="test-operation-001",
+        tenant_id="test-tenant-001",
         agent_id=autonomous_agent.id,
         user_id="test-user-123",
         workspace_id="test-workspace-001",
@@ -164,6 +165,7 @@ def test_real_time_agent_guidance(
 
     for i, error_info in enumerate(error_categories):
         error_resolution = OperationErrorResolution(
+            tenant_id="test-tenant-001",
             error_type=error_info["error_type"],
             error_code=error_info["error_code"],
             resolution_attempted=error_info["resolution_attempted"],
