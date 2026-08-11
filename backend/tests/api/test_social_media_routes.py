@@ -6,7 +6,7 @@ Tests cover posting, scheduling, accounts, analytics, rate limiting, and platfor
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock, patch
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
@@ -653,3 +653,289 @@ def test_post_with_agent_governance_passed(
                 response = client.post("/api/v1/social/post", json=request_data)
 
                 assert response.status_code == 200
+
+
+def test_create_social_post_scheduled(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+):
+    """Test scheduling a social post for the future."""
+    global _current_test_user
+    _current_test_user = mock_user
+
+    request_data = {
+        "text": "Scheduled tweet",
+        "platforms": ["twitter"],
+        "scheduled_for": (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+    }
+
+    with patch("core.task_queue.enqueue_scheduled_post",
+               return_value="job-123"):
+        response = client.post("/api/v1/social/post", json=request_data)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["scheduled"] is True
+    assert data["post_id"] is not None
+
+
+def test_create_social_post_scheduled_queue_unavailable(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+):
+    """Test scheduling when the task queue is unavailable."""
+    global _current_test_user
+    _current_test_user = mock_user
+
+    request_data = {
+        "text": "Scheduled tweet",
+        "platforms": ["twitter"],
+        "scheduled_for": (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+    }
+
+    with patch("core.task_queue.enqueue_scheduled_post",
+               return_value=None):
+        response = client.post("/api/v1/social/post", json=request_data)
+
+    assert response.status_code == 500
+
+
+def test_create_social_post_missing_token(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+):
+    """Test posting when no OAuth token is connected for the platform."""
+    global _current_test_user
+    _current_test_user = mock_user
+
+    request_data = {
+        "text": "No token tweet",
+        "platforms": ["twitter"]
+    }
+
+    response = client.post("/api/v1/social/post", json=request_data)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is False
+    assert "No active" in data["platform_results"]["twitter"]["error"]
+
+
+def test_create_social_post_unknown_platform(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+):
+    """An unsupported platform is rejected at validation (422)."""
+    global _current_test_user
+    _current_test_user = mock_user
+
+    request_data = {
+        "text": "Unknown platform",
+        "platforms": ["tiktok"]
+    }
+
+    response = client.post("/api/v1/social/post", json=request_data)
+
+    assert response.status_code == 422
+
+
+def test_create_social_post_agent_governance_blocked(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+):
+    """Test agent-governance denial creates audit and returns 403."""
+    global _current_test_user
+    _current_test_user = mock_user
+
+    agent = Mock()
+    agent.id = "agent-1"
+    agent.status = "STUDENT"
+
+    with patch("api.social_media_routes.AgentContextResolver") as mock_resolver_cls, \
+         patch("api.social_media_routes.AgentGovernanceService") as mock_gov_cls:
+        resolver = Mock()
+        resolver.resolve_agent_for_request = AsyncMock(
+            return_value=(agent, {"workspace_id": "default"}))
+        mock_resolver_cls.return_value = resolver
+        gov = Mock()
+        gov.can_perform_action.return_value = {"allowed": False,
+                                               "requires_human_approval": False}
+        mock_gov_cls.return_value = gov
+        response = client.post("/api/v1/social/post", json={
+            "text": "Agent post", "platforms": ["twitter"],
+            "agent_id": "agent-1"})
+
+    assert response.status_code == 403
+
+
+def test_create_social_post_rate_limited(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+):
+    """Test rate limiting: 10+ posts in the last hour → 429."""
+    global _current_test_user
+    _current_test_user = mock_user
+
+    # Create 10 recent posts to exceed the limit
+    from core.models import SocialPostHistory
+    for i in range(10):
+        post = SocialPostHistory(
+            id=f"rl-{i}",
+            post_id=f"rl-post-{i}",
+            user_id=mock_user.id,
+            content=f"Post {i}",
+            platforms=["twitter"],
+            status="posted",
+            created_at=datetime.utcnow()
+        )
+        db.add(post)
+    db.commit()
+
+    response = client.post("/api/v1/social/post", json={
+        "text": "Rate limited", "platforms": ["twitter"]})
+
+    assert response.status_code == 429
+
+
+def test_list_connected_accounts(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+    mock_twitter_token: OAuthToken,
+):
+    """Test listing connected social accounts."""
+    global _current_test_user
+    _current_test_user = mock_user
+
+    response = client.get("/api/v1/social/connected-accounts")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "accounts" in data or isinstance(data, dict)
+
+
+def test_list_connected_accounts_empty(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+):
+    """Test listing accounts when none are connected."""
+    global _current_test_user
+    _current_test_user = mock_user
+
+    response = client.get("/api/v1/social/connected-accounts")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data.get("accounts", []) == [] or data.get("connected", []) == []
+
+
+def test_get_rate_limit_status(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+):
+    """Test rate limit status endpoint."""
+    global _current_test_user
+    _current_test_user = mock_user
+
+    response = client.get("/api/v1/social/rate-limit")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["limit"] == 10
+    assert data["used"] == 0
+    assert data["remaining"] == 10
+
+
+def test_create_social_post_poster_exception(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+    mock_twitter_token: OAuthToken,
+):
+    """Test that a poster raising an exception results in a failed result."""
+    global _current_test_user
+    _current_test_user = mock_user
+
+    async def _boom(*a, **k):
+        raise RuntimeError("poster exploded")
+
+    with patch.dict('api.social_media_routes.PLATFORM_POSTERS',
+                    {'twitter': _boom}):
+        response = client.post("/api/v1/social/post", json={
+            "text": "Boom post", "platforms": ["twitter"]})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is False
+    assert data["platform_results"]["twitter"]["success"] is False
+
+
+def test_list_connected_accounts_error(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+):
+    """DB failure → 500."""
+    global _current_test_user
+    _current_test_user = mock_user
+    with patch.object(db, "query", side_effect=RuntimeError("db down")):
+        response = client.get("/api/v1/social/connected-accounts")
+    assert response.status_code == 500
+
+
+def test_get_rate_limit_status_error(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+):
+    """DB failure → 500."""
+    global _current_test_user
+    _current_test_user = mock_user
+    with patch.object(db, "query", side_effect=RuntimeError("db down")):
+        response = client.get("/api/v1/social/rate-limit")
+    assert response.status_code == 500
+
+
+def test_create_social_post_outer_error(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+):
+    """Unexpected outer exception → 500."""
+    global _current_test_user
+    _current_test_user = mock_user
+    with patch.object(db, "query", side_effect=RuntimeError("db down")):
+        response = client.post("/api/v1/social/post", json={
+            "text": "Post", "platforms": ["twitter"]})
+    assert response.status_code == 500
+
+
+def test_create_social_post_decrypt_value_error(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+    mock_twitter_token: OAuthToken,
+):
+    """Token decrypt raising ValueError → failed platform result."""
+    global _current_test_user
+    _current_test_user = mock_user
+
+    async def _poster(*a, **k):
+        raise ValueError("bad token")
+
+    with patch.dict('api.social_media_routes.PLATFORM_POSTERS',
+                    {'twitter': _poster}):
+        response = client.post("/api/v1/social/post", json={
+            "text": "Bad token", "platforms": ["twitter"]})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["platform_results"]["twitter"]["error"] == "Posting failed"
