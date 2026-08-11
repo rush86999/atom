@@ -1822,7 +1822,9 @@ class TestBranches:
             merged = await versioner.merge_branch("w1", "feat", "main", "u1", "ship it")
             assert merged.branch_name == "main"
             assert "ship it" in merged.commit_message
-            assert merged.version == "1.1.0"
+            # Branch continues from base 1.0.0 → first branch version 1.1.0;
+            # merge onto main bumps past it → 1.2.0 (UNIQUE workflow_id+version).
+            assert merged.version == "1.2.0"
             with pytest.raises(ValueError, match="not found"):
                 await versioner.merge_branch("w1", "ghost", "main", "u1", "x")
             with pytest.raises(ValueError, match="not found"):

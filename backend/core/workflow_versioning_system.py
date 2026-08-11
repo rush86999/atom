@@ -375,9 +375,24 @@ class WorkflowVersioningSystem:
             """, (workflow_id, branch_name))
 
             result = cursor.fetchone()
-            # First version has no prior row: start from 0.0.0 so the initial
-            # MAJOR bump yields 1.0.0 (not 2.0.0).
-            latest_version = result[0] if result else "0.0.0"
+            if result:
+                latest_version = result[0]
+            else:
+                # First version on this branch. Seed from the branch's
+                # base_version (if this is a real branch) so branch versions
+                # continue from where they forked instead of restarting at
+                # 0.0.0 — otherwise a branch off a 0.x main tip bumps to the
+                # same number as main's first version and the UNIQUE
+                # (workflow_id, version) constraint blows up.
+                latest_version = "0.0.0"
+                if branch_name != "main":
+                    cursor.execute("""
+                        SELECT base_version FROM workflow_branches
+                        WHERE workflow_id = ? AND branch_name = ?
+                    """, (workflow_id, branch_name))
+                    base_row = cursor.fetchone()
+                    if base_row:
+                        latest_version = base_row[0]
 
             # Get previous version data for change detection
             cursor.execute("""
@@ -413,6 +428,17 @@ class WorkflowVersioningSystem:
             if latest_checksum and latest_checksum[0] == checksum:
                 conn.close()
                 raise ValueError("This workflow version already exists")
+
+            # The (workflow_id, version) pair is UNIQUE across ALL branches, so
+            # a computed version can collide with one already taken on another
+            # branch (e.g. a branch first-version that continues from a 0.x
+            # base, or a merge commit bumping onto a number the source branch
+            # already used). Bump MINOR until a free number is found.
+            taken = {row[0] for row in cursor.execute(
+                "SELECT version FROM workflow_versions WHERE workflow_id = ?",
+                (workflow_id,)).fetchall()}
+            while new_version in taken:
+                new_version = self._bump_version(new_version, VersionType.MINOR)
 
             # Create version object
             workflow_version = WorkflowVersion(

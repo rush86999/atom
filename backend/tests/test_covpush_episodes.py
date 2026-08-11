@@ -591,7 +591,8 @@ class TestEpisodeServiceCanvasAndRecall:
         row = Mock()
         row._mapping = {"id": "ep-1", "task_description": "t"}
         result.fetchall.return_value = [row]
-        service.db.execute = AsyncMock(return_value=result)
+        # W35: Session.execute is synchronous (no await) — plain Mock, not AsyncMock
+        service.db.execute = Mock(return_value=result)
         out = await service.recall_episodes_with_detail(
             "agent-1", "tenant-1", detail_level=DetailLevel.FULL, limit=5
         )
@@ -600,7 +601,7 @@ class TestEpisodeServiceCanvasAndRecall:
     async def test_recall_episodes_tenant_mismatch(self, service):
         result = Mock()
         result.scalar_one_or_none.return_value = None
-        service.db.execute = AsyncMock(return_value=result)
+        service.db.execute = Mock(return_value=result)
         out = await service.recall_episodes_with_detail("agent-1", "tenant-2")
         assert out == []
 
@@ -752,14 +753,15 @@ class TestEpisodeServiceArchival:
         lancedb = Mock()
         lancedb.connect.return_value = True
         lancedb.add_episode.return_value = True
+        # W25: the phantom core.acu_billing_service was replaced with the real
+        # UsageTrackingService shim (track_acu_usage) — assert the new contract.
         billing = Mock()
-        fake_module = types.ModuleType("core.acu_billing_service")
-        fake_module.ACUBillingService = Mock(return_value=billing)
-        with patch.dict(sys.modules, {"core.acu_billing_service": fake_module}), \
+        with patch("core.usage_tracking_service.UsageTrackingService",
+                   return_value=billing), \
              patch("core.episode_service.LanceDBService", return_value=lancedb):
             ok = await service.archive_episode_to_cold_storage("ep-1")
         assert ok is True
-        assert billing.record_system_consumption.called
+        assert billing.track_acu_usage.called
 
     async def test_archive_embedding_failure_uses_zero_vector(self, service):
         episode = make_episode()
@@ -1420,7 +1422,7 @@ class TestSegmentationSupervision:
         assert ep is not None
         assert ep.maturity_at_time == "supervised"
         assert ep.intervention_types == ["correct"]
-        assert len(svc.db.add.call_args_list) == 3
+        assert len(svc.db.add.call_args_list) == 4
 
     async def test_create_supervision_episode_exception(self, svc):
         session = self.make_session()

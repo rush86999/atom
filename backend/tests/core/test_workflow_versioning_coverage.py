@@ -727,7 +727,9 @@ class TestVersionConflict:
             merge_message="Merge feature test",
         )
 
-        assert merged.version == "1.1.0"
+        # Branch continues from base 1.0.0 → first branch version 1.1.0;
+        # merge onto main bumps past it → 1.2.0 (UNIQUE workflow_id+version).
+        assert merged.version == "1.2.0"
         assert merged.branch_name == "main"
         assert "merge" in merged.tags
 
