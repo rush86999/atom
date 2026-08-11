@@ -2638,3 +2638,21 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 |---|---|---|---|
 | 2026-08-11 | `core/intent_classifier.py` | 49%→**100%** | LLM path (chat/workflow/task/unknown categories + flag defaults), markdown-fenced JSON parsing, plain-fence + parse-error default, LLM exception → heuristic fallback, heuristic workflow branch, double-checked singleton |
 | 2026-08-11 | `core/llm/canvas_summary_service.py` | 98%→**100%** | empty-summary richness 0.0, hallucination detection (clean + fabricated wf-id) |
+
+## Session 2026-08-11 (wave 34) — auto_document_ingestion 62→93% (test-only, mocked deps)
+
+**Evidence**: `tests/test_covpush_w34_auto_document.py` (68 new tests) — 146 passed / 0 failed across the 3 ingestion suites.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/auto_document_ingestion.py` | 62%→**93%** (564 lines) | DocumentParser (docling available/unavailable/ImportError, docling success/failure/error → fallback, txt/md/json/csv/pdf/docx/excel/unsupported/outer-exception; CSV+Excel formula extraction + failure tolerance; CSV row truncation; PDF pages/ImportError/corrupt; DOCX paragraphs+tables/ImportError/corrupt; Excel pandas/openpyxl-fallback/no-parser/corrupt); settings CRUD + get_all; `process_file_bytes` (no-extension/parse-fail/no-text/redact+secrets/redact-failure/ingest-fail/add-false/no-handler); sync loop (disabled/recently-synced/full-flow/unchanged+type+size skips/stale→reingest/download-fail/file-error/agent-trigger/outer-exception); freshness helpers (persist new/existing row, mark-stale with/without row, reevaluate, supersession with candidates + no-older-rows); fetchers (list/download dispatchers + unknown + errors, google drive list success/failure/no-token, google drive download export/alt-media/no-token/no-id, dropbox list folder-filtering/no-token, dropbox download link+content/no-path, onedrive/notion stubs); get_ingested_documents filters; remove_integration_documents; singleton + alias |
+
+## Session 2026-08-11 (wave 52) — view_coordinator 16% → 99%
+
+**Evidence**: `tests/test_covpush_w52_view_coordinator.py` (28 tests, in-memory SQLite + mocked WS). Regression: 28 passed.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/view_coordinator.py` | 16%→**99%** | all methods: disabled short-circuits, success (new/existing state), WS broadcasts, audit rows, exception tolerance; session helpers, view types (browser w/url, terminal w/command, plain), close-view filtering |
+
+**Note**: `tests/core/agents/test_queen_agent.py` (Jul 31) is a stale suite with pre-existing 6F+25E failures (missing `db_session` fixture contract) — separate repair lane.
