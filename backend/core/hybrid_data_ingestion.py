@@ -574,7 +574,10 @@ class HybridDataIngestionService:
         records = []
         try:
             from integrations.salesforce_service import get_salesforce_client
-            client = get_salesforce_client(self.workspace_id)
+            # get_salesforce_client is async and takes the workspace/user id
+            client = await get_salesforce_client(self.workspace_id)
+            if not client:
+                return records
             
             for entity_type in config.entity_types:
                 if entity_type == "contacts":
@@ -606,27 +609,30 @@ class HybridDataIngestionService:
         """Fetch data from HubSpot"""
         records = []
         try:
-            from integrations.hubspot_service import get_hubspot_client
-            client = get_hubspot_client(self.workspace_id)
-            
+            from integrations.hubspot_service import get_hubspot_service
+            service = get_hubspot_service()
+            if service is None:
+                logger.warning("HubSpot service not configured — skipping hubspot sync")
+                return records
+
             for entity_type in config.entity_types:
                 if entity_type == "contacts":
-                    contacts = client.crm.contacts.get_all(limit=100)
+                    contacts = await service.get_contacts(limit=100)
                     for c in contacts:
-                        props = c.properties
+                        props = c.get("properties", {})
                         records.append({
-                            "id": c.id,
+                            "id": c.get("id"),
                             "type": "contact",
                             "name": f"{props.get('firstname', '')} {props.get('lastname', '')}".strip(),
                             "email": props.get("email"),
                             "company": props.get("company")
                         })
                 elif entity_type == "deals":
-                    deals = client.crm.deals.get_all(limit=100)
+                    deals = await service.get_deals(limit=100)
                     for d in deals:
-                        props = d.properties
+                        props = d.get("properties", {})
                         records.append({
-                            "id": d.id,
+                            "id": d.get("id"),
                             "type": "deal",
                             "name": props.get("dealname"),
                             "stage": props.get("dealstage"),
@@ -640,15 +646,21 @@ class HybridDataIngestionService:
         """Fetch data from Slack"""
         records = []
         try:
-            from integrations.slack_service import get_slack_client
-            client = get_slack_client(self.workspace_id)
-            
+            from core.token_storage import token_storage
+            from integrations.slack_service_unified import slack_unified_service
+
+            token_data = token_storage.get_token("slack")
+            token = token_data.get("access_token") if token_data else None
+            if not token:
+                logger.warning("Slack token not configured — skipping slack sync")
+                return records
+
             # Fetch recent messages from public channels
-            channels = client.conversations_list(types="public_channel", limit=10)
-            for channel in channels.get("channels", [])[:5]:
-                history = client.conversations_history(
-                    channel=channel["id"],
-                    limit=50
+            channels = await slack_unified_service.list_channels(
+                token=token, types="public_channel")
+            for channel in channels[:5]:
+                history = await slack_unified_service.get_channel_history(
+                    token=token, channel_id=channel.get("id"), limit=50
                 )
                 for msg in history.get("messages", []):
                     if msg.get("type") == "message" and msg.get("text"):
@@ -707,9 +719,9 @@ class HybridDataIngestionService:
         """Fetch data from Notion"""
         records = []
         try:
-            from integrations.notion_service import get_notion_service
+            from integrations.notion_service import NotionService
 
-            notion_service = get_notion_service()
+            notion_service = NotionService()
 
             # Fetch pages
             if "pages" in config.entity_types:
@@ -769,18 +781,24 @@ class HybridDataIngestionService:
         """Fetch data from Jira"""
         records = []
         try:
-            from integrations.jira_service import get_jira_client
-            client = get_jira_client(self.workspace_id)
-            
-            issues = client.search_issues("updated >= -30d", maxResults=100)
-            for issue in issues:
+            from integrations.jira_service import get_jira_service
+            client = get_jira_service()
+            if client is None:
+                logger.warning("Jira service not configured — skipping jira sync")
+                return records
+
+            data = client.search_issues("updated >= -30d", max_results=100)
+            for issue in data.get("issues", []):
+                fields = issue.get("fields", {})
+                assignee = fields.get("assignee")
+                priority = fields.get("priority")
                 records.append({
-                    "id": issue.key,
+                    "id": issue.get("key"),
                     "type": "issue",
-                    "summary": issue.fields.summary,
-                    "status": issue.fields.status.name,
-                    "assignee": issue.fields.assignee.displayName if issue.fields.assignee else None,
-                    "priority": issue.fields.priority.name if issue.fields.priority else None
+                    "summary": fields.get("summary"),
+                    "status": fields.get("status", {}).get("name") if fields.get("status") else None,
+                    "assignee": assignee.get("displayName") if assignee else None,
+                    "priority": priority.get("name") if priority else None
                 })
         except Exception as e:
             logger.error(f"Jira fetch error: {e}")
@@ -790,9 +808,9 @@ class HybridDataIngestionService:
         """Fetch data from Zendesk"""
         records = []
         try:
-            from integrations.zendesk_service import get_zendesk_service
+            from integrations.zendesk_service import ZendeskService
 
-            zendesk_service = get_zendesk_service()
+            zendesk_service = ZendeskService()
 
             # Fetch tickets
             if "tickets" in config.entity_types or not config.entity_types:
