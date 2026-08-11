@@ -2619,3 +2619,13 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | Streaming-callback `ReasoningStepType.FINAL_ANSWER` | `handle_manual_trigger`'s stype_map referenced a non-existent enum member — the dict literal evaluates eagerly, so AttributeError fired on EVERY streamed step and reasoning-chain persistence silently never ran (only WS broadcast worked). Mapped `final_answer` → `CONCLUSION`. |
 
 **Coverage**: execute() ReAct loop (happy/tool/max-steps/budget/mcp_tool_search/parallel/KillRun/404/failure), `_execute_tool_with_governance` (allowed/blocked/HITL/special tools/sandbox/judge), `_execute_parallel_tools` (batch HITL/blocked/error/killrun/serial search), `_wait_for_approval(s)`, `_recruit_fleet`, module routing helpers (`_check_governance`/`_route_to_chat`/`_route_to_workflow`/`_route_to_task`/`_propose_chat_alternative`), `spawn_agent`, `_persist_reasoning_step` (incl. turn-fact dispatch), `handle_manual_trigger` streaming callback, mentorship guidance, Queen-planning + fleet-routing branches.
+
+## Session 2026-08-11 (W45) — Agent Control Center crash fix (TDD)
+
+**Report**: "Failed to load agents: Internal Server Error" on the Agent Control Center page (`/agents`).
+
+**Root cause 1**: `GET /api/agents/` had NO error handling — any backend exception (DB schema drift, missing table, governance-layer failure) surfaced as a bare 500 with an empty body, which the frontend rendered as the useless "Internal Server Error". Fix: wrapped in try/except → structured 500 (`error_code=AGENT_LIST_FAILED`, real message, logged with traceback server-side; no leak). Frontend now parses the structured error and shows the actual cause.
+
+**Root cause 2**: Reasoning Audit dialog (`fetchChain`) called `/api/v1/voice/reasoning/{chainId}` — dead 404, never existed on backend or frontend. Added `GET /api/reasoning/chain/{chain_id}` (backed by the in-memory `ReasoningTracker`) and repointed the viewer at it via API_BASE.
+
+**Verification**: TDD tests (2 for agents 500-path, 2 for chain endpoint found/404) all RED→GREEN; 93 backend tests green; `next build` ✓; live server verified: `/api/agents/` 200, run 200 (structured budget-gated result), chain 404 now structured JSON.
