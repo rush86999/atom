@@ -42,7 +42,7 @@ async def ingest_document(request: IngestRequest, current_user: User = Depends(g
     """Ingest a document into GraphRAG"""
     from core.graphrag_engine import graphrag_engine
 
-    graphrag_engine.ingest_document(
+    await graphrag_engine.ingest_document(
         workspace_id=request.user_id,
         doc_id=request.doc_id,
         text=request.text,
@@ -101,7 +101,11 @@ async def canonical_search(workspace_id: str, type: str, q: str, current_user: U
         raise HTTPException(status_code=422, detail="Search query too long (max 500 chars)")
     from core.graphrag_engine import graphrag_engine
     
-    results = graphrag_engine.canonical_search(workspace_id, type, q)
+    results = graphrag_engine.canonical_search(
+        workspace_id=workspace_id,
+        entity_type=type,
+        query=q
+    )
     return router.success_response(
         data={"results": results}
     )
@@ -192,7 +196,7 @@ async def query_graphrag(request: QueryRequest, current_user: User = Depends(get
     """Query GraphRAG (global or local search)"""
     from core.graphrag_engine import graphrag_engine
 
-    result = graphrag_engine.query(request.workspace_id, request.query, request.mode)
+    result = await graphrag_engine.query(request.workspace_id, request.query, request.mode)
     return router.success_response(
         data=result,
         message="Query executed successfully"
@@ -219,9 +223,12 @@ async def get_entity_neighbors(workspace_id: str, entity_id: str, depth: int = 1
 @router.get("/context")
 async def get_ai_context(user_id: str, query: str, current_user: User = Depends(get_current_user)):
     """Get context for AI nodes"""
-    from core.graphrag_engine import get_graphrag_context
+    from core.graphrag_engine import graphrag_engine
 
-    context = get_graphrag_context(user_id, query)
+    context = await graphrag_engine.get_context_for_ai(
+        workspace_id=user_id,
+        query=query
+    )
     return router.success_response(
         data={"user_id": user_id, "context": context},
         message="Context retrieved successfully"

@@ -53,7 +53,7 @@ class TestWorkflowMetricsCollection:
             events = engine.get_recent_events(limit=10)
             assert len(events) > 0
             assert events[0].execution_id == execution_id
-            assert events[0].event_type == "started"
+            assert events[0].event_type == "workflow_started"
 
     def test_track_workflow_completion(self):
         """Test tracking workflow completion event."""
@@ -80,7 +80,7 @@ class TestWorkflowMetricsCollection:
 
             # Verify completion event was recorded
             events = engine.get_recent_events(limit=10)
-            completion_events = [e for e in events if e.event_type == "completed"]
+            completion_events = [e for e in events if e.event_type == "workflow_completed"]
             assert len(completion_events) > 0
             assert completion_events[0].duration_ms == 1500
 

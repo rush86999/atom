@@ -454,7 +454,8 @@ class TestGraphRAGAuth:
     def test_authenticated_query_works(self):
         from api.graphrag_routes import router
         with patch("core.graphrag_engine.graphrag_engine") as engine:
-            engine.query.return_value = {"results": []}
+            # query() is async on the engine — the route now awaits it.
+            engine.query = AsyncMock(return_value={"results": []})
             client = make_client(router, current_user=MagicMock(id="u-42"))
             resp = client.post(
                 "/api/graphrag/query",

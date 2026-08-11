@@ -94,7 +94,7 @@ class CompressionPipeline:
             from core.llm.context.token_counter import TokenCounter
 
             tc = TokenCounter()
-            metrics.original_tokens = tc.count_tokens(text)
+            metrics.original_tokens = tc.count_tokens(text, "gpt-4o")
         except Exception:
             metrics.original_tokens = len(text) // 4
 
@@ -115,7 +115,7 @@ class CompressionPipeline:
             from core.llm.context.token_counter import TokenCounter
 
             tc = TokenCounter()
-            metrics.compressed_tokens = tc.count_tokens(result)
+            metrics.compressed_tokens = tc.count_tokens(result, "gpt-4o")
         except Exception:
             metrics.compressed_tokens = len(result) // 4
 

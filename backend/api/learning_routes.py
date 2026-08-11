@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import User
+from core.models import User, AgentLearning
 from core.security_dependencies import get_current_user
 from core.continuous_learning_service import ContinuousLearningService
 
@@ -60,9 +60,19 @@ async def get_tenant_learning_summary(
     Get a summary of continuous learning progress across all agents for the tenant.
     """
     service = ContinuousLearningService(db)
-    # get_learning_progress without agent_id returns tenant-wide summary
-    summary = service.get_learning_progress(
-        tenant_id=current_user.tenant_id
-    )
-    
+    # get_learning_progress requires an agent_id; aggregate per-agent across
+    # the tenant's learning records (agent_id-less call previously raised
+    # TypeError -> 500 on every request).
+    agent_rows = db.query(AgentLearning.agent_id).filter(
+        AgentLearning.tenant_id == current_user.tenant_id
+    ).distinct().all()
+    progress = [
+        service.get_learning_progress(
+            tenant_id=current_user.tenant_id,
+            agent_id=agent_id
+        )
+        for (agent_id,) in agent_rows
+    ]
+    summary = {"agents": progress, "count": len(progress)}
+
     return router.success_response(data=summary)

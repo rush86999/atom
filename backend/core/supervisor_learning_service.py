@@ -12,7 +12,7 @@ Key Features:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
@@ -125,7 +125,7 @@ class SupervisorLearningService:
         if not performance:
             return self._empty_insights()
 
-        cutoff = datetime.now() - timedelta(days=time_range_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=time_range_days)
 
         # Get recent ratings
         recent_ratings = self.db.query(SupervisorRating).filter(
@@ -259,7 +259,7 @@ class SupervisorLearningService:
             new_level = "novice"
 
         performance.competence_level = new_level
-        performance.last_updated = datetime.now()
+        performance.last_updated = datetime.now(timezone.utc)
 
         self.db.commit()
 
@@ -371,7 +371,7 @@ class SupervisorLearningService:
         supervisor_id = performance.supervisor_id
 
         # Get recent ratings for trend calculation
-        cutoff = datetime.now() - timedelta(days=30)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=30)
         recent_ratings = self.db.query(SupervisorRating).filter(
             SupervisorRating.supervisor_id == supervisor_id,
             SupervisorRating.created_at >= cutoff
@@ -402,7 +402,7 @@ class SupervisorLearningService:
             performance.performance_trend = "stable"
             performance.learning_rate = 0.0
 
-        performance.last_updated = datetime.now()
+        performance.last_updated = datetime.now(timezone.utc)
 
     async def _identify_strengths(
         self,

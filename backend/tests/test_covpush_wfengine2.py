@@ -442,9 +442,9 @@ class TestGenericExecutorAndBranches:
             id="svc", actions=[{"name": "do_it", "method": "POST",
                                 "url": "https://api.example.com/v1/{thing}"}]
         )
-        cache = AsyncMock()
-        cache.get = AsyncMock(return_value=None)
-        cache.set = AsyncMock()
+        cache = Mock()
+        cache.get = Mock(return_value=None)
+        cache.set = Mock()
         with patch("core.cache.cache", cache), \
              patch("core.workflow_engine.get_db_session") as gds, \
              patch("core.workflow_engine.httpx.AsyncClient") as _Client:
@@ -460,15 +460,16 @@ class TestGenericExecutorAndBranches:
             out = await e._execute_generic_action(
                 "svc", "do_it", {"thing": "abc", "x": 1}, connection_id="conn")
         assert out == {"ok": True}
-        cache.set.assert_awaited_once()
+        cache.set.assert_called_once_with(
+            "catalog:svc", {"id": "svc", "actions": catalog_item.actions}, ttl=3600)
         _Client.return_value.__aenter__.return_value.request.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_generic_executor_cached(self):
         e = _engine()
-        cache = AsyncMock()
-        cache.get = AsyncMock(return_value={"actions": [{"name": "a1", "method": "GET",
-                                                         "url": "https://x.example/u"}]})
+        cache = Mock()
+        cache.get = Mock(return_value={"actions": [{"name": "a1", "method": "GET",
+                                                    "url": "https://x.example/u"}]})
         with patch("core.cache.cache", cache), \
              patch("core.workflow_engine.httpx.AsyncClient") as _Client:
             resp = Mock()
@@ -481,9 +482,9 @@ class TestGenericExecutorAndBranches:
     @pytest.mark.asyncio
     async def test_generic_executor_missing_path_param(self):
         e = _engine()
-        cache = AsyncMock()
-        cache.get = AsyncMock(return_value={"actions": [{"name": "a1", "method": "GET",
-                                                         "url": "https://x.example/{req}"}]})
+        cache = Mock()
+        cache.get = Mock(return_value={"actions": [{"name": "a1", "method": "GET",
+                                                    "url": "https://x.example/{req}"}]})
         with patch("core.cache.cache", cache):
             with pytest.raises(ValueError):
                 await e._execute_generic_action("svc", "a1", {})

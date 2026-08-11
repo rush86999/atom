@@ -310,14 +310,25 @@ class WorkflowAnalyticsEngine:
         )
         self.metrics_buffer.append(metric)
 
+        # Write-through when no background thread is running (default):
+        # without this, buffered events/metrics are silently lost and every
+        # read (dashboard feed, aggregations) sees an empty store.
+        if not self.enable_background_thread:
+            self._persist_buffers_sync(clear=False)
+
     def track_workflow_completion(self, workflow_id: str, execution_id: str,
                                 status: WorkflowStatus, duration_ms: int,
                                 step_outputs: Optional[Dict] = None,
                                 error_message: Optional[str] = None,
                                 user_id: str = "default_user",
                                 workspace_id: str = "default",
-                                tenant_id: Optional[str] = None):
+                                tenant_id: Optional[str] = None,
+                                metadata: Optional[Dict] = None):
         """Track workflow execution completion"""
+        status_value = status.value if isinstance(status, WorkflowStatus) else status
+        event_metadata = {"step_count": len(step_outputs) if step_outputs else 0}
+        if metadata:
+            event_metadata.update(metadata)
         event = WorkflowExecutionEvent(
             event_id=str(uuid.uuid4()),
             workflow_id=workflow_id,
@@ -328,9 +339,9 @@ class WorkflowAnalyticsEngine:
             event_type="workflow_completed",
             timestamp=datetime.now(),
             duration_ms=duration_ms,
-            status=status.value,
+            status=status_value,
             error_message=error_message,
-            metadata={"step_count": len(step_outputs) if step_outputs else 0}
+            metadata=event_metadata
         )
 
         self.events_buffer.append(event)
@@ -342,7 +353,7 @@ class WorkflowAnalyticsEngine:
             metric_type=MetricType.HISTOGRAM,
             value=duration_ms,
             timestamp=datetime.now(),
-            tags={"status": status.value},
+            tags={"status": status_value},
             user_id=user_id,
             workspace_id=workspace_id,
             tenant_id=tenant_id
@@ -356,19 +367,25 @@ class WorkflowAnalyticsEngine:
             metric_type=MetricType.COUNTER,
             value=1,
             timestamp=datetime.now(),
-            tags={"status": status.value},
+            tags={"status": status_value},
             user_id=user_id,
             workspace_id=workspace_id,
             tenant_id=tenant_id
         )
         self.metrics_buffer.append(status_metric)
 
+        if not self.enable_background_thread:
+            self._persist_buffers_sync(clear=False)
+
     def track_step_execution(self, workflow_id: str, execution_id: str, step_id: str,
-                           step_name: str, event_type: str, duration_ms: Optional[int] = None,
+                           step_name: str, event_type: Optional[str] = None,
+                           duration_ms: Optional[int] = None,
                            status: Optional[str] = None, error_message: Optional[str] = None,
                            resource_id: Optional[str] = None, user_id: str = "default_user",
                            workspace_id: str = "default", tenant_id: Optional[str] = None):
         """Track individual step execution"""
+        if event_type is None:
+            event_type = f"step_{status}" if status else "step_executed"
         event = WorkflowExecutionEvent(
             event_id=str(uuid.uuid4()),
             workflow_id=workflow_id,
@@ -403,11 +420,24 @@ class WorkflowAnalyticsEngine:
             )
             self.metrics_buffer.append(metric)
 
+        if not self.enable_background_thread:
+            self._persist_buffers_sync(clear=False)
+
     def track_manual_override(self, workflow_id: str, execution_id: str, resource_id: str, 
-                             action: str, original_value: Any = None, new_value: Any = None,
+                             action: Optional[str] = None, original_value: Any = None, new_value: Any = None,
                              user_id: str = "default_user", workspace_id: str = "default",
-                             tenant_id: Optional[str] = None):
+                             tenant_id: Optional[str] = None, reason: Optional[str] = None,
+                             metadata: Optional[Dict] = None):
         """Track when a user manually overrides an automated action"""
+        override_metadata = {
+            "action": action,
+            "original_value": original_value,
+            "new_value": new_value
+        }
+        if reason is not None:
+            override_metadata["reason"] = reason
+        if metadata:
+            override_metadata.update(metadata)
         event = WorkflowExecutionEvent(
             event_id=str(uuid.uuid4()),
             workflow_id=workflow_id,
@@ -418,16 +448,15 @@ class WorkflowAnalyticsEngine:
             event_type="manual_override",
             timestamp=datetime.now(),
             resource_id=resource_id,
-            metadata={
-                "action": action,
-                "original_value": original_value,
-                "new_value": new_value
-            },
+            metadata=override_metadata,
             status="OVERRIDDEN",
-            step_name=action # Using step_name to store the override action (e.g., "modified_deadline")
+            step_name=action or reason or resource_id  # e.g. "modified_deadline"
         )
         
         self.events_buffer.append(event)
+
+        if not self.enable_background_thread:
+            self._persist_buffers_sync(clear=False)
         
         # Also increment a specific metric for easy reporting
         self.track_metric(
@@ -507,6 +536,9 @@ class WorkflowAnalyticsEngine:
             )
             self.metrics_buffer.append(network_metric)
 
+        if not self.enable_background_thread:
+            self._persist_buffers_sync(clear=False)
+
     def track_user_activity(self, user_id: str, action: str, workflow_id: Optional[str] = None,
                           metadata: Optional[Dict] = None, workspace_id: Optional[str] = None,
                           tenant_id: Optional[str] = None):
@@ -523,6 +555,23 @@ class WorkflowAnalyticsEngine:
             tenant_id=tenant_id
         )
         self.metrics_buffer.append(metric)
+
+        # Also emit a user_activity event so the real-time feed surfaces it
+        event = WorkflowExecutionEvent(
+            event_id=str(uuid.uuid4()),
+            workflow_id=workflow_id or "system",
+            execution_id="",
+            user_id=user_id,
+            workspace_id=workspace_id or "default",
+            tenant_id=tenant_id,
+            event_type="user_activity",
+            timestamp=datetime.now(),
+            metadata={"action": action, **(metadata or {})}
+        )
+        self.events_buffer.append(event)
+
+        if not self.enable_background_thread:
+            self._persist_buffers_sync(clear=False)
 
     def track_metric(self, workflow_id: str, metric_name: str, metric_type: MetricType,
                      value: Any, tags: Dict[str, str] = None, step_id: str = None,
@@ -543,6 +592,9 @@ class WorkflowAnalyticsEngine:
             tenant_id=tenant_id
         )
         self.metrics_buffer.append(metric)
+
+        if not self.enable_background_thread:
+            self._persist_buffers_sync(clear=False)
 
     def get_workflow_performance_metrics(self, workflow_id: str, time_window: str = "24h") -> PerformanceMetrics:
         """Get aggregated performance metrics for a workflow"""
@@ -802,10 +854,11 @@ class WorkflowAnalyticsEngine:
 
     def check_alerts(self):
         """Check all active alerts against current metrics"""
-        conn = sqlite3.connect(str(self.db_path))
-        cursor = conn.cursor()
-
+        conn = None
         try:
+            conn = sqlite3.connect(str(self.db_path))
+            cursor = conn.cursor()
+
             # Get active alerts
             cursor.execute("SELECT * FROM analytics_alerts WHERE enabled = 1")
             alerts_data = cursor.fetchall()
@@ -843,7 +896,8 @@ class WorkflowAnalyticsEngine:
         except Exception as e:
             logger.error(f"Error checking alerts: {e}")
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
 
     def _trigger_alert(self, alert_id: str):
         """Trigger an alert"""
@@ -896,6 +950,45 @@ class WorkflowAnalyticsEngine:
         # For now, just log the alert
         logger.critical(f"ALERT: {alert.name} - {alert.description} (Severity: {alert.severity.value})")
 
+    def _persist_buffers_sync(self, clear: bool = True):
+        """Synchronously persist both buffers to the SQLite store.
+
+        The track_* methods buffer events/metrics and rely on either the
+        background thread (enable_background_thread=True) or an explicit
+        flush() to persist them. With the default (background thread OFF —
+        the configuration every production caller uses), buffered data was
+        silently LOST: reads always saw an empty feed. Write-through here
+        whenever the background thread is not running.
+
+        clear=False keeps the in-memory buffers intact (write-through from
+        track_*) so code that inspects events_buffer/metrics_buffer after a
+        track_* call still sees the fresh entries; clear=True drains them
+        (explicit flush()).
+        """
+        if self.metrics_buffer:
+            metrics = list(self.metrics_buffer)
+            if clear:
+                self.metrics_buffer.clear()
+            self._persist_metrics_batch(metrics)
+
+        if self.events_buffer:
+            events = list(self.events_buffer)
+            if clear:
+                self.events_buffer.clear()
+            self._persist_events_batch(events)
+
+    def _flush_buffers_sync(self):
+        """Compatibility alias: full drain + persist (explicit flush)."""
+        self._persist_buffers_sync(clear=True)
+
+    async def _process_metrics_batch(self, metrics: List[WorkflowMetric]):
+        """Backward-compatible async wrapper (renamed to _persist_metrics_batch)."""
+        self._persist_metrics_batch(metrics)
+
+    async def _process_events_batch(self, events: List[WorkflowExecutionEvent]):
+        """Backward-compatible async wrapper (renamed to _persist_events_batch)."""
+        self._persist_events_batch(events)
+
     def _start_background_processing(self):
         """Start background processing for analytics"""
         if not self.enable_background_thread:
@@ -908,13 +1001,13 @@ class WorkflowAnalyticsEngine:
                     if self.metrics_buffer:
                         metrics = list(self.metrics_buffer)
                         self.metrics_buffer.clear()
-                        await self._process_metrics_batch(metrics)
+                        self._persist_metrics_batch(metrics)
 
                     # Process events buffer
                     if self.events_buffer:
                         events = list(self.events_buffer)
                         self.events_buffer.clear()
-                        await self._process_events_batch(events)
+                        self._persist_events_batch(events)
 
                     # Check alerts
                     self.check_alerts()
@@ -940,12 +1033,13 @@ class WorkflowAnalyticsEngine:
         self._background_thread = thread
         self._stop_event = threading.Event()
 
-    async def _process_metrics_batch(self, metrics: List[WorkflowMetric]):
-        """Process a batch of metrics"""
-        conn = sqlite3.connect(str(self.db_path))
-        cursor = conn.cursor()
-
+    def _persist_metrics_batch(self, metrics: List[WorkflowMetric]):
+        """Process a batch of metrics (synchronous sqlite write-through)."""
+        conn = None
         try:
+            conn = sqlite3.connect(str(self.db_path))
+            cursor = conn.cursor()
+
             for metric in metrics:
                 cursor.execute("""
                     INSERT INTO workflow_metrics
@@ -967,16 +1061,19 @@ class WorkflowAnalyticsEngine:
 
         except Exception as e:
             logger.error(f"Error processing metrics batch: {e}")
-            conn.rollback()
+            if conn is not None:
+                conn.rollback()
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
 
-    async def _process_events_batch(self, events: List[WorkflowExecutionEvent]):
-        """Process a batch of events"""
-        conn = sqlite3.connect(str(self.db_path))
-        cursor = conn.cursor()
-
+    def _persist_events_batch(self, events: List[WorkflowExecutionEvent]):
+        """Process a batch of events (synchronous sqlite write-through)."""
+        conn = None
         try:
+            conn = sqlite3.connect(str(self.db_path))
+            cursor = conn.cursor()
+
             for event in events:
                 cursor.execute("""
                     INSERT OR REPLACE INTO workflow_events
@@ -1003,41 +1100,38 @@ class WorkflowAnalyticsEngine:
 
         except Exception as e:
             logger.error(f"Error processing events batch: {e}")
-            conn.rollback()
+            if conn is not None:
+                conn.rollback()
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
 
     async def _cleanup_old_data(self):
         """Clean up old analytics data"""
         # Keep data for 90 days
         cutoff_date = datetime.now() - timedelta(days=90)
 
-        conn = sqlite3.connect(str(self.db_path))
-        cursor = conn.cursor()
-
+        conn = None
         try:
+            conn = sqlite3.connect(str(self.db_path))
+            cursor = conn.cursor()
+
             cursor.execute("DELETE FROM workflow_metrics WHERE timestamp < ?", (cutoff_date.isoformat(),))
             cursor.execute("DELETE FROM workflow_events WHERE timestamp < ?", (cutoff_date.isoformat(),))
             conn.commit()
 
         except Exception as e:
             logger.error(f"Error cleaning up old data: {e}")
-            conn.rollback()
+            if conn is not None:
+                conn.rollback()
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
 
 
     async def flush(self):
         """Manually flush all buffers to database"""
-        if self.metrics_buffer:
-            metrics = list(self.metrics_buffer)
-            self.metrics_buffer.clear()
-            await self._process_metrics_batch(metrics)
-
-        if self.events_buffer:
-            events = list(self.events_buffer)
-            self.events_buffer.clear()
-            await self._process_events_batch(events)
+        self._flush_buffers_sync()
 
     # ============== ANALYTICS DASHBOARD HELPER METHODS ==============
 
@@ -1316,19 +1410,20 @@ class WorkflowAnalyticsEngine:
         Get error breakdown by type and workflow.
         Returns error types with counts, workflows with most errors, recent error messages.
         """
-        conn = sqlite3.connect(str(self.db_path))
-        cursor = conn.cursor()
-
-        time_map = {
-            "1h": timedelta(hours=1),
-            "24h": timedelta(days=1),
-            "7d": timedelta(days=7),
-            "30d": timedelta(days=30)
-        }
-        time_delta = time_map.get(time_window, timedelta(days=1))
-        start_time = datetime.now() - time_delta
-
+        conn = None
         try:
+            conn = sqlite3.connect(str(self.db_path))
+            cursor = conn.cursor()
+
+            time_map = {
+                "1h": timedelta(hours=1),
+                "24h": timedelta(days=1),
+                "7d": timedelta(days=7),
+                "30d": timedelta(days=30)
+            }
+            time_delta = time_map.get(time_window, timedelta(days=1))
+            start_time = datetime.now() - time_delta
+
             if workflow_id == "*":
                 # Get errors by workflow
                 cursor.execute("""
@@ -1408,16 +1503,18 @@ class WorkflowAnalyticsEngine:
             logger.error(f"Error getting error breakdown: {e}")
             return {}
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
 
     def get_all_alerts(self, workflow_id: Optional[str] = None, enabled_only: bool = False) -> List[Alert]:
         """
         Get all configured alerts, optionally filtered by workflow and enabled status.
         """
-        conn = sqlite3.connect(str(self.db_path))
-        cursor = conn.cursor()
-
+        conn = None
         try:
+            conn = sqlite3.connect(str(self.db_path))
+            cursor = conn.cursor()
+
             query = """SELECT alert_id, name, description, severity, condition,
                               threshold_value, metric_name, workflow_id, step_id,
                               enabled, created_at, triggered_at, resolved_at,
@@ -1461,16 +1558,18 @@ class WorkflowAnalyticsEngine:
             logger.error(f"Error getting alerts: {e}")
             return []
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
 
     def get_recent_events(self, limit: int = 50, workflow_id: Optional[str] = None) -> List[WorkflowExecutionEvent]:
         """
         Get recent execution events for real-time feed.
         """
-        conn = sqlite3.connect(str(self.db_path))
-        cursor = conn.cursor()
-
+        conn = None
         try:
+            conn = sqlite3.connect(str(self.db_path))
+            cursor = conn.cursor()
+
             if workflow_id:
                 cursor.execute("""
                     SELECT event_id, workflow_id, execution_id, user_id, event_type, timestamp,
@@ -1516,7 +1615,8 @@ class WorkflowAnalyticsEngine:
             logger.error(f"Error getting recent events: {e}")
             return []
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
 
     # Create and update alert methods (wrappers for compatibility with API)
     def create_alert(self, alert=None, *, name: str = None, description: str = None,
@@ -1580,7 +1680,8 @@ class WorkflowAnalyticsEngine:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             alert.alert_id, alert.name, alert.description, alert.severity.value,
-            alert.condition, str(alert.threshold_value), alert.metric_name,
+            json.dumps(alert.condition) if not isinstance(alert.condition, str) else alert.condition,
+            str(alert.threshold_value), alert.metric_name,
             alert.workflow_id, alert.step_id, json.dumps(alert.notification_channels)
         ))
 

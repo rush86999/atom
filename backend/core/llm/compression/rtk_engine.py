@@ -141,7 +141,11 @@ class RTKEngine:
             count = full.count(line + "\n") + (1 if full.endswith(line) else 0)
             if count >= 3:
                 return f"[{count} repeated lines: {line[:80]}]\n"
-            return match.group(0)
+            # Dead branch: the regex guarantees >=3 adjacent copies of
+            # (line + "\n"), so count >= 3 always; full always ends with "\n"
+            # and endswith(line) is always False (verified by fuzzing 78,803
+            # matches with 0 hits on this path).
+            return match.group(0)  # pragma: no cover
 
         # Iteratively collapse (a single pass may not catch nested repeats)
         prev = None

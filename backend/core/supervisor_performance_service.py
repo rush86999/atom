@@ -11,7 +11,7 @@ Calculates:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
@@ -89,7 +89,7 @@ class SupervisorPerformanceService:
             return self._empty_metrics()
 
         # Calculate time-range filtered metrics
-        cutoff = datetime.now() - timedelta(days=time_range_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=time_range_days)
 
         # Get recent sessions
         recent_sessions = self.db.query(SupervisionSession).filter(
@@ -243,7 +243,7 @@ class SupervisorPerformanceService:
         Returns:
             List of supervisors ranked by metric
         """
-        cutoff = datetime.now() - timedelta(days=time_range_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=time_range_days)
 
         # Get all supervisors with activity in time range
         supervisors = self.db.query(SupervisorPerformance).join(
@@ -390,7 +390,7 @@ class SupervisorPerformanceService:
             # Ineffective interventions decrease confidence more
             performance.confidence_score = max(0.1, performance.confidence_score - 0.02)
 
-        performance.last_updated = datetime.now()
+        performance.last_updated = datetime.now(timezone.utc)
         self.db.commit()
 
     def _empty_metrics(self) -> Dict[str, Any]:
@@ -439,7 +439,7 @@ class SupervisorPerformanceService:
         Returns:
             Success rate (0.0 to 1.0)
         """
-        cutoff = datetime.now() - timedelta(days=time_range_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=time_range_days)
 
         outcomes = self.db.query(InterventionOutcome).filter(
             InterventionOutcome.supervisor_id == supervisor_id,
@@ -469,7 +469,7 @@ class SupervisorPerformanceService:
                 "trend": str
             }
         """
-        cutoff = datetime.now() - timedelta(days=time_range_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=time_range_days)
 
         # Get sessions in date order
         sessions = self.db.query(SupervisionSession).filter(
