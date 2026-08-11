@@ -2713,3 +2713,13 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 |---|---|---|---|
 | 2026-08-11 | `core/llm/routing/per_model_router.py` | 22%→**96%** | training (multi-class + weights, single-class constant, no-examples failure, MLP unweighted fallback), all 4 estimator types, prediction (cold-start, single-class rate, proba class mapping, non-proba fallback), confidence scaling, persistence roundtrip + corrupt tolerance + unknown-model raise, factory |
 | 2026-08-11 | `core/llm/routing/request_healer.py` | 78%→**99%** | classify unknown + auth substring, abstract-rule NotImplementedError, param-rename no-token, multimodal skips (non-dict/non-list), LLM healer (fenced JSON success, patch-null, no-change, disallowed keys, bad JSON, exception, timeout), summarize (non-list/multimodal/non-dict/truncation), heal integration (flag on/off/raise) |
+
+## Session 2026-08-11 (wave 55) — preference_collector 66% → 100% + real bug (TDD)
+
+**Evidence**: `tests/test_covpush_w55_preference_collector.py` (18 tests). Combined: 57 passed (w55 + learning-routing suite).
+
+**Real bug fixed**: `get_collection_stats` did `self.decisions.get(f.decision_id, {}).get("workspace_id")` — dict-style `.get` on `RoutingDecision` dataclass objects → AttributeError whenever feedback existed (stats/filtering silently broke). Now `getattr(decision, "workspace_id", None)`.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/llm/routing/preference_collector.py` | 66%→**100%** | feedback recording (unknown/success), A/B assignment + learning gate, dataset generation (workspace/age/feedback/quality filters, weights), feature extraction (code/numbers/word-length), token buckets (all 5), example weights (explicit/rejected/extreme), stats (empty/full/preferred-models), factory |

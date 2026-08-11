@@ -495,10 +495,11 @@ class PreferenceDataCollector:
             d for d in self.decisions.values()
             if d.workspace_id == workspace_id
         ]
-        workspace_feedback = [
-            f for f in self.feedback_records.values()
-            if self.decisions.get(f.decision_id, {}).get("workspace_id") == workspace_id
-        ]
+        workspace_feedback = []
+        for f in self.feedback_records.values():
+            decision = self.decisions.get(f.decision_id)
+            if decision is not None and getattr(decision, "workspace_id", None) == workspace_id:
+                workspace_feedback.append(f)
 
         # Calculate stats
         total_decisions = len(workspace_decisions)
