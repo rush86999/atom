@@ -2337,3 +2337,15 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | 2026-08-10 | `core/vfs_base.py` | 66%→**100%** | to_dict helpers, to_line_numbered empty, default grep (bad regex / ls failure / dir skip / cat failure / match with line number), default scan (root failure, nested depth failure), ask_image degrade |
 | 2026-08-10 | `core/vfs_registry.py` | 83%→**100%** | empty/slash-prefix rejection, empty-path resolve, register/get/resolve roundtrip, list_prefixes |
 | 2026-08-10 | `core/knowledge_vfs_config.py` | 88%→**100%** | _env_bool set + unset |
+
+## Session 2026-08-10 (W35) — episode_service 85%→96% + recall_episodes_with_detail await-crash (TDD)
+
+**Evidence**: `tests/test_covpush_w35_episode_canvas.py` (20 tests, RED→GREEN), regression: 281 passed across episode/graduation suites (5 pre-existing graduation-fixture errors, verified identical pre-change).
+
+| File | Change |
+|---|---|
+| `core/episode_service.py` | 85%→**96%** (551/571). **Real bug (RED→GREEN)**: `recall_episodes_with_detail` awaited `Session.execute` at BOTH sites — sync SQLAlchemy → `TypeError: object CursorResult can't be used in 'await' expression` on every recall call. Removed awaits. Repaired 3 stale tests that mocked `db.execute` as AsyncMock (matching the buggy code). |
+| W35 suite | `_extract_canvas_metadata` end-to-end (no-exec/{} — no-metadata/{} — canvas-missing → `{"canvas_id":...}` — full path with artifact/comment counts + CanvasAudit linkage + semantic summary — summary-service failure swallowed — outer-exception {}), `_get_canvas_summary_service`/`_get_canvas_context_provider` singletons, `create_episode_from_execution` (agent-not-found, activity_publisher success/raise, auto-dev event-hooks success/fail/ImportError), `update_episode_feedback`, cold-storage archive, proposal-quality metrics. |
+| Dead code documented | session-fallback branches in `_extract_canvas_metadata` read `AgentExecution.session_id` — **no such column exists** (commented out in models.py:3990), so the branches are unreachable (AttributeError → outer except → {}). Tests assert observable behavior. |
+
+**Pre-existing reds left as-is**: `test_episode_retrieval_service.py` 2 failures (`Episode` model renamed to `AgentEpisode` — different module's stale suite); `test_agent_graduation_service.py` 5 errors (UNIQUE constraint fixture pollution).
