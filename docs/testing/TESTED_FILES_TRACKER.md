@@ -2349,3 +2349,11 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | Dead code documented | session-fallback branches in `_extract_canvas_metadata` read `AgentExecution.session_id` — **no such column exists** (commented out in models.py:3990), so the branches are unreachable (AttributeError → outer except → {}). Tests assert observable behavior. |
 
 **Pre-existing reds left as-is**: `test_episode_retrieval_service.py` 2 failures (`Episode` model renamed to `AgentEpisode` — different module's stale suite); `test_agent_graduation_service.py` 5 errors (UNIQUE constraint fixture pollution).
+
+## Session 2026-08-10 (wave 37) — turn_fact_extractor 89% → 100%
+
+**Evidence**: `tests/test_covpush_w37_turn_fact.py` (26 tests). Regression: 123 passed (w37 + w23 + w24 suites).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/turn_fact_extractor.py` | 89%→**100%** | _TTLSet expiry/prune, sample-rate skip, extract_from_prompt success+exception swallow, vector-write exception swallow, EWMA bump on existing rows, _compose_turn_text part matrix, _extract_json_array fallback exception, prefetch_relevant_facts (flag-gate, no-ids, relevance ordering, trivial-query skip, exception), lexical search (short/empty-token queries, postgresql branch, sqlite execution_id filter, other-dialect), remember_fact_explicit (empty/bad-category/success/extractor-error) |
