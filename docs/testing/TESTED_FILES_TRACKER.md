@@ -2696,3 +2696,9 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **Evidence**: `tests/api/test_admin_routes_user_role_crud.py` (29 tests), 95 tests green across all admin_routes suites (unit/part2/coverage-extend/sync/CRUD).
 
 **Coverage**: user CRUD (create: success/role-not-found/duplicate-email; update: success incl. role change/not-found/invalid-role/invalid-status 422; get/delete found+not-found; last-login), role CRUD (create: success/duplicate-name 409; update: success/not-found/duplicate; delete: success/role-in-use 409; get: found/not-found), list users/roles, status-validator success branch, bulk-resolve resolver-exception path. Remaining 2 lines provably unreachable (hardcoded `user_maturity = "AUTONOMOUS"` guards).
+
+## Session 2026-08-11 (W49) — debug_routes 39%→92% (49 tests)
+
+**Evidence**: `tests/api/test_debug_routes_comprehensive.py` (49 tests), 59 tests green including the old loose unit suite.
+
+**Coverage**: events (collect/batch/query/get + 404), state snapshots (collect/get), insights (query/get/generate/resolve), sessions (create/list/close), analytics (component-health, error-patterns via real DB query, error-rate via DebugMonitor, system-health, active-operations, throughput, insights-summary, performance), opencode-usage (success/model-filter/500 via rate-tracker + model-limits mocks), time-range parser, natural-language query (DebugAIAssistant), collector-init fallback, `_get_storage` instance, disabled-mode sweep (all 18 endpoints: enabled:False or 400 DEBUG_DISABLED).
