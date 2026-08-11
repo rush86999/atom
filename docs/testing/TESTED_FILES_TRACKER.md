@@ -2462,3 +2462,11 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 |---|---|---|---|
 | 2026-08-11 | `core/tool_outcome_verifier.py` | 34%→**100%** | None/plain/JSON-string/python-repr (valid + trailing-comma failure)/non-string returns, verified True/False/absent tri-state, success inference, evidence dict/list jsonify + verification_evidence fallback, storage coercion, is_verified |
 | 2026-08-11 | `core/agent_context_resolver.py` | 91%→**100%** | legacy-row workspace/tenant backfill (heal + commit), system-default-agent creation exception → None |
+
+## Session 2026-08-10 (post-wave) — W37: error_guidance_engine 0→94% (40 tests)
+
+**Evidence**: `tests/test_covpush_w37_error_guidance.py` (40 tests); module previously had NO suite.
+
+**Covered**: categorize_error (code-first: 401-expired/token→auth_expired, 401/403→permission_denied, 429, 404, 400; message-based: permission/expired/rate/network/not-found/invalid; unknown default), get_suggested_resolution (unknown type, no-history→0, most-successful mapped back to template index — resolution titles are the template's ("Let Agent Reconnect" etc.), template-mismatch fallback), track_resolution (flag-off no-op, success row, exception rollback), get_historical_resolutions (+exception), get_resolution_success_rate (none/mixed/exception), get_resolution_statistics (empty/grouped/filtered/exception), suggest_fixes_from_history (template fallback, unknown-type empty, historical success-rate sorting, exception), get_error_fix_suggestions (full/flag/exception), _explain_what_happened/_why/_impact (all categories + unknown fallback), present_error (broadcast + audit, flag-off, exception swallowed).
+
+**Notes**: `ws_manager.broadcast` is awaited — tests must use AsyncMock or the await raises and the audit never runs; `engine.db` must be a MagicMock for exception tests (the fixture's real session methods can't take side_effect).
