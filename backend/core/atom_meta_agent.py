@@ -2694,9 +2694,17 @@ async def handle_manual_trigger(request: str, user: User,
             if execution_id:
                 # Use standard ReasoningStepType if possible
                 from core.reasoning_chain import ReasoningStepType
+                # BUG FIX (W44): the map previously referenced
+                # ReasoningStepType.FINAL_ANSWER which does NOT exist in the
+                # enum (members: INTENT_ANALYSIS, MEMORY_QUERY, AGENT_SELECTION,
+                # AGENT_SPAWN, INTEGRATION_CALL, WORKFLOW_TRIGGER, DECISION,
+                # ACTION, CONCLUSION). The dict literal evaluates ALL values
+                # eagerly, so AttributeError fired on EVERY step and the
+                # reasoning-chain persistence silently never ran. CONCLUSION
+                # is the closest semantic match for a final answer.
                 stype_map = {
                     "action": ReasoningStepType.ACTION,
-                    "final_answer": ReasoningStepType.FINAL_ANSWER,
+                    "final_answer": ReasoningStepType.CONCLUSION,
                     "planning": ReasoningStepType.INTENT_ANALYSIS,
                     "hitl_paused": ReasoningStepType.DECISION
                 }

@@ -746,3 +746,184 @@ class TestSpawnAgent:
             "custom", {"name": "Custom Agent", "capabilities": ["read"]},
             persist=False)
         assert result is not None
+
+
+class TestPersistReasoningStepBranches:
+    def test_persist_reasoning_step_success(self):
+        agent = make_agent()
+        db = MagicMock()
+        db_step = MagicMock()
+        db_step.id = "rs-99"
+        db.add = MagicMock()
+        db.commit = MagicMock()
+        db.query.return_value.get.return_value = db_step
+        # make AgentReasoningStep construct return our mock via patched class
+        with patch("core.atom_meta_agent.AgentReasoningStep",
+                   return_value=db_step), \
+             patch("core.atom_meta_agent.SessionLocal") as mock_session:
+            mock_session.return_value.__enter__.return_value = db
+            step_id = agent._persist_reasoning_step(
+                execution_id="ex-1", step_number=1, step_type="action",
+                thought="t", action_dict={"tool": "a"}, observation="o",
+                confidence=0.9, verified_kind="unverified",
+                verification_evidence=None, duration_ms=10.0,
+                request="r", final_answer=None, context={},
+                dispatch_turn_fact=False)
+        assert step_id == "rs-99"
+
+    def test_persist_reasoning_step_db_error(self):
+        agent = make_agent()
+        with patch("core.atom_meta_agent.SessionLocal",
+                   side_effect=RuntimeError("db down")):
+            step_id = agent._persist_reasoning_step(
+                execution_id="ex-1", step_number=1, step_type="action",
+                thought="t", action_dict=None, observation="o",
+                confidence=0.9, verified_kind="unverified",
+                verification_evidence=None, duration_ms=1.0,
+                request="r", final_answer=None, context={})
+        assert step_id == ""
+
+    def test_persist_reasoning_step_turn_fact_dispatch(self):
+        agent = make_agent()
+        db = MagicMock()
+        db_step = MagicMock()
+        db_step.id = "rs-100"
+        db.add = MagicMock()
+        db.commit = MagicMock()
+        extractor = MagicMock()
+        extractor.extract_from_turn = AsyncMock()
+        with patch("core.atom_meta_agent.AgentReasoningStep",
+                   return_value=db_step), \
+             patch("core.atom_meta_agent.SessionLocal") as mock_session, \
+             patch("core.atom_meta_agent.get_turn_fact_extractor",
+                   return_value=extractor), \
+             patch("core.atom_meta_agent._TURN_FACT_EXTRACTION_ENABLED", True):
+            mock_session.return_value.__enter__.return_value = db
+            step_id = agent._persist_reasoning_step(
+                execution_id="ex-1", step_number=1, step_type="action",
+                thought="t", action_dict=None, observation="o",
+                confidence=0.9, verified_kind="unverified",
+                verification_evidence=None, duration_ms=1.0,
+                request="r", final_answer="done", context={"user_id": "u-1"},
+                dispatch_turn_fact=True)
+        assert step_id == "rs-100"
+        extractor.extract_from_turn.assert_called_once()
+
+    def test_persist_reasoning_step_extraction_error(self):
+        agent = make_agent()
+        db = MagicMock()
+        db_step = MagicMock()
+        db_step.id = "rs-101"
+        db.add = MagicMock()
+        db.commit = MagicMock()
+        with patch("core.atom_meta_agent.AgentReasoningStep",
+                   return_value=db_step), \
+             patch("core.atom_meta_agent.SessionLocal") as mock_session, \
+             patch("core.atom_meta_agent.get_turn_fact_extractor",
+                   side_effect=RuntimeError("extractor down")), \
+             patch("core.atom_meta_agent._TURN_FACT_EXTRACTION_ENABLED", True):
+            mock_session.return_value.__enter__.return_value = db
+            step_id = agent._persist_reasoning_step(
+                execution_id="ex-1", step_number=1, step_type="action",
+                thought="t", action_dict=None, observation="o",
+                confidence=0.9, verified_kind="unverified",
+                verification_evidence=None, duration_ms=1.0,
+                request="r", final_answer=None, context={})
+        assert step_id == "rs-101"  # step persisted; extraction failure swallowed
+
+
+class TestHandleManualTrigger:
+    async def test_handle_manual_trigger_success(self):
+        from core.atom_meta_agent import handle_manual_trigger
+        user = MagicMock()
+        user.id = "u-1"
+        user.email = "u@example.com"
+        with patch("core.atom_meta_agent.AtomMetaAgent") as mock_cls:
+            agent = MagicMock()
+            agent.execute = AsyncMock(return_value={
+                "final_output": "done", "actions_executed": [],
+                "status": "success"})
+            mock_cls.return_value = agent
+            result = await handle_manual_trigger(
+                "hello", user, execution_id="ex-1")
+        assert result["status"] == "success"
+        agent.execute.assert_awaited_once()
+
+    async def test_handle_manual_trigger_streaming_callback(self):
+        from core.atom_meta_agent import handle_manual_trigger
+        user = MagicMock()
+        user.id = "u-1"
+        user.email = "u@example.com"
+        captured = {}
+
+        async def _execute(request, context, trigger_mode, step_callback,
+                           execution_id):
+            captured["cb"] = step_callback
+            await step_callback({
+                "execution_id": execution_id,
+                "step": 1, "step_type": "action",
+                "thought": "thinking", "action": {"tool": "a"},
+                "output": "obs", "confidence": 0.9,
+                "duration_ms": 5.0,
+            })
+            return {"final_output": "done", "actions_executed": [],
+                    "status": "success"}
+
+        with patch("core.atom_meta_agent.AtomMetaAgent") as mock_cls, \
+             patch("core.websockets.manager") as mock_ws:
+            mock_ws.broadcast = AsyncMock()
+            tracker = MagicMock()
+            with patch("core.reasoning_chain.get_reasoning_tracker",
+                       return_value=tracker):
+                agent = MagicMock()
+                agent.execute = AsyncMock(side_effect=_execute)
+                mock_cls.return_value = agent
+                result = await handle_manual_trigger(
+                    "hello", user, execution_id="ex-1")
+        assert result["status"] == "success"
+        mock_ws.broadcast.assert_awaited_once()
+        tracker.persist_step_to_db.assert_called_once()
+
+    async def test_handle_manual_trigger_callback_error_swallowed(self):
+        from core.atom_meta_agent import handle_manual_trigger
+        user = MagicMock()
+        user.id = "u-1"
+        user.email = "u@example.com"
+
+        async def _execute(request, context, trigger_mode, step_callback,
+                           execution_id):
+            await step_callback({"execution_id": execution_id, "step": 1,
+                                 "step_type": "action", "thought": "t"})
+            return {"final_output": "done", "actions_executed": [],
+                    "status": "success"}
+
+        with patch("core.atom_meta_agent.AtomMetaAgent") as mock_cls, \
+             patch("core.websockets.manager") as mock_ws, \
+             patch("core.reasoning_chain.get_reasoning_tracker",
+                   side_effect=RuntimeError("tracker down")):
+            mock_ws.broadcast = AsyncMock(side_effect=RuntimeError("ws down"))
+            agent = MagicMock()
+            agent.execute = AsyncMock(side_effect=_execute)
+            mock_cls.return_value = agent
+            result = await handle_manual_trigger(
+                "hello", user, execution_id="ex-1")
+        assert result["status"] == "success"
+
+    async def test_handle_manual_trigger_additional_context(self):
+        from core.atom_meta_agent import handle_manual_trigger
+        user = MagicMock()
+        user.id = "u-1"
+        user.email = "u@example.com"
+        with patch("core.atom_meta_agent.AtomMetaAgent") as mock_cls:
+            agent = MagicMock()
+            agent.execute = AsyncMock(return_value={
+                "final_output": "done", "actions_executed": [],
+                "status": "success"})
+            mock_cls.return_value = agent
+            result = await handle_manual_trigger(
+                "hello", user, additional_context={"channel": "web"},
+                execution_id="ex-1")
+        assert result["status"] == "success"
+        ctx = agent.execute.await_args.kwargs["context"]
+        assert ctx["channel"] == "web"
+        assert ctx["user_id"] == "u-1"
