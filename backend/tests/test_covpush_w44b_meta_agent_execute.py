@@ -141,6 +141,84 @@ class TestExecuteSpecialPaths:
         assert "Budget limit" in result["final_output"]
         assert result["failure_mode"] == "soft_stop"
 
+    async def test_complex_request_queen_planning(self):
+        agent = make_agent()
+        agent, db = _env(agent, [
+            ReActStep(thought="planning done", final_answer="planned"),
+        ])
+        from ai.nlp_engine import RouteCategory
+        route = MagicMock()
+        route.category = RouteCategory.ONE_OFF
+        route.reasoning = "complex task"
+        queen = MagicMock()
+        queen.generate_blueprint = AsyncMock(return_value={
+            "architecture_name": "Blueprint A",
+            "nodes": [{"name": "n1", "type": "action", "capability_required": "x"}],
+            "missing_capabilities": ["y"],
+        })
+        agent.queen = queen
+        with patch("ai.nlp_engine.NaturalLanguageEngine") as mock_nlu:
+            nlu = MagicMock()
+            nlu.classify_route = AsyncMock(return_value=route)
+            mock_nlu.return_value = nlu
+            result = await _run(
+                agent, db,
+                "analyze the quarterly sales report and create a detailed summary",
+                {}, execution_id="ex-12")
+        assert result["status"] == "success"
+        queen.generate_blueprint.assert_awaited_once()
+
+    async def test_queen_planning_falls_back(self):
+        agent = make_agent()
+        agent, db = _env(agent, [
+            ReActStep(thought="fallback", final_answer="done"),
+        ])
+        from ai.nlp_engine import RouteCategory
+        route = MagicMock()
+        route.category = RouteCategory.ONE_OFF
+        route.reasoning = "r"
+        agent.queen = MagicMock()
+        agent.queen.generate_blueprint = AsyncMock(
+            side_effect=RuntimeError("queen down"))
+        agent.orchestrator.generate_dynamic_workflow = AsyncMock(
+            return_value={"nodes": [{"name": "n1", "type": "action"}]})
+        with patch("ai.nlp_engine.NaturalLanguageEngine") as mock_nlu:
+            nlu = MagicMock()
+            nlu.classify_route = AsyncMock(return_value=route)
+            mock_nlu.return_value = nlu
+            result = await _run(
+                agent, db,
+                "analyze the quarterly sales report and create a detailed summary",
+                {}, execution_id="ex-13")
+        assert result["status"] == "success"
+        agent.orchestrator.generate_dynamic_workflow.assert_awaited_once()
+
+    async def test_fleet_routing_force_enforce(self):
+        agent = make_agent()
+        agent, db = _env(agent, [])
+        from ai.nlp_engine import RouteCategory
+        route = MagicMock()
+        route.category = RouteCategory.ONE_OFF
+        route.reasoning = "fleet task"
+        with patch("ai.nlp_engine.NaturalLanguageEngine") as mock_nlu, \
+             patch("core.fleet_routing_config.fleet_routing_enabled",
+                   return_value=True), \
+             patch("core.fleet_routing_config.fleet_routing_force_enforce",
+                   return_value=True), \
+             patch.object(agent, "route_with_governance",
+                          new=AsyncMock(return_value={
+                              "status": "fleet_recruited",
+                              "recruited": ["sales", "marketing"],
+                          })):
+            nlu = MagicMock()
+            nlu.classify_route = AsyncMock(return_value=route)
+            mock_nlu.return_value = nlu
+            result = await _run(
+                agent, db,
+                "coordinate a full marketing campaign launch across multiple channels",
+                {}, execution_id="ex-14")
+        assert result["status"] == "fleet_recruited"
+
     async def test_mcp_tool_search_in_loop(self):
         agent = make_agent()
         agent, db = _env(agent, [
