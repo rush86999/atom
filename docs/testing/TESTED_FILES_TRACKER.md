@@ -2453,3 +2453,12 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | 2026-08-11 | `core/sandbox_killrun.py` | 52%→**100%** | real SQLite persistence, missing-row no-op, own-session close, error tolerance, double-checked lock, idempotent trigger |
 
 **Note**: transient full-combo errors during measurement traced to concurrent-session activity (index-create collision while another session held the dev DB); full combo re-ran clean (168 passed).
+
+## Session 2026-08-11 (wave 41) — outcome verifier + context resolver (100%)
+
+**Evidence**: `tests/test_covpush_w41_outcome_verifier.py` (21 tests). Regression: 89 passed (w41 + w36 + w37 + resolver suites).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/tool_outcome_verifier.py` | 34%→**100%** | None/plain/JSON-string/python-repr (valid + trailing-comma failure)/non-string returns, verified True/False/absent tri-state, success inference, evidence dict/list jsonify + verification_evidence fallback, storage coercion, is_verified |
+| 2026-08-11 | `core/agent_context_resolver.py` | 91%→**100%** | legacy-row workspace/tenant backfill (heal + commit), system-default-agent creation exception → None |
