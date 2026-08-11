@@ -12,6 +12,7 @@ import asyncio
 import logging
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta, timezone
+from sqlalchemy import func
 from core.database import SessionLocal
 from core.models import User
 from core.notification_service import NotificationService
@@ -93,37 +94,36 @@ class PersonalBudgetService:
     def get_current_spend_usd(self) -> float:
         """
         Get total spend for current month.
-        
+
         Returns:
             Total spend in USD for current month
         """
-        db = SessionLocal()
+        db = None
         try:
-            # For single-tenant, aggregate across all agent executions
-            from core.models import AgentExecution
-            
+            db = SessionLocal()
+            # Single-tenant: sum the per-call cost ledger (TokenUsage) for the
+            # current month. AgentExecution has no cost columns — the previous
+            # query raised AttributeError on every call (caught, swallowed),
+            # so spend always read $0.00 and budget alerts never fired.
+            from core.models import TokenUsage
+
             # Get current month's start
             now = datetime.now(timezone.utc)
             month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            
-            # Query total spend from agent executions
-            executions = db.query(AgentExecution).filter(
-                AgentExecution.created_at >= month_start,
-                AgentExecution.status == 'completed'
-            ).all()
-            
-            # Sum up all costs (ACU + API costs)
-            total_spend = sum(
-                (e.acu_cost_usd or 0.0) + (e.api_cost_usd or 0.0)
-                for e in executions
-            )
-            
-            return total_spend
+
+            total = db.query(
+                func.sum(TokenUsage.cost_usd)
+            ).filter(
+                TokenUsage.timestamp >= month_start
+            ).scalar()
+
+            return float(total or 0.0)
         except Exception as e:
             logger.error(f"Error getting current spend: {e}")
             return 0.0
         finally:
-            db.close()
+            if db is not None:
+                db.close()
     
     def get_budget_forecast(self, budget_limit_usd: float) -> Dict[str, Any]:
         """
@@ -260,15 +260,27 @@ class PersonalBudgetService:
         falls back to any user if no admin exists.
         """
         try:
-            db = SessionLocal()
+            db = None
             try:
-                user = db.query(User).filter(User.is_admin == True).first()
+                db = SessionLocal()
+                # The User model has no is_admin column — role-based admin
+                # lookup (same rule as core/llm/gateway/budget_alerts.py).
+                from core.models import UserRole
+
+                admin_roles = (
+                    UserRole.SUPER_ADMIN.value,
+                    UserRole.OWNER.value,
+                    UserRole.ADMIN.value,
+                    UserRole.WORKSPACE_ADMIN.value,
+                )
+                user = db.query(User).filter(User.role.in_(admin_roles)).first()
                 if user:
                     return str(user.id)
                 user = db.query(User).first()
                 return str(user.id) if user else None
             finally:
-                db.close()
+                if db is not None:
+                    db.close()
         except Exception as e:
             logger.debug(f"Could not resolve budget alert recipient: {e}")
             return None
@@ -296,21 +308,34 @@ class PersonalBudgetService:
         Returns:
             Budget limit in USD (default: $100/month)
         """
-        db = SessionLocal()
+        db = None
         try:
-            # For single-tenant, use first admin user's settings or default
-            user = db.query(User).filter(User.is_admin == True).first()
-            
+            db = SessionLocal()
+            # For single-tenant, use first admin user's settings or default.
+            # Role-based admin lookup: the User model has no is_admin column
+            # (the old attribute raised AttributeError, swallowed, so the
+            # limit silently defaulted to $100 forever).
+            from core.models import UserRole
+
+            admin_roles = (
+                UserRole.SUPER_ADMIN.value,
+                UserRole.OWNER.value,
+                UserRole.ADMIN.value,
+                UserRole.WORKSPACE_ADMIN.value,
+            )
+            user = db.query(User).filter(User.role.in_(admin_roles)).first()
+
             if user and hasattr(user, 'budget_limit_usd') and user.budget_limit_usd:
                 return user.budget_limit_usd
-            
+
             # Default budget limit for personal use
             return 100.0
         except Exception as e:
             logger.error(f"Error getting budget limit: {e}")
             return 100.0  # Default fallback
         finally:
-            db.close()
+            if db is not None:
+                db.close()
     
     def record_spend(self, amount: float, execution_id: Optional[str] = None):
         """

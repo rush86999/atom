@@ -2546,3 +2546,13 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | Date | File | Coverage change | What was added |
 |---|---|---|---|
 | 2026-08-11 | `api/gateway_key_routes.py` | ~0%→**100%** | create (plaintext-once + hash-only storage, custom fields, 422 validation), list (empty/serialized rows), revoke (owned success, other-user 404, missing 404), rotate (revoke+new key with inherited fields, 404), auth 401s on all routes |
+
+## Session 2026-08-11 (wave 47) — personal_budget_service 70%→100% + 2 real bugs (TDD)
+
+**Evidence**: `tests/test_covpush_w47_budget_service.py` (23 tests), stale-suite repair `tests/test_personal_budget.py` (7 failed → 21 passed). Regression: 44 passed (w47 + stale) + 73 (w44 + r79 alerts + agent-execution suites).
+
+**Real bugs fixed (RED → GREEN):**
+1. **`get_current_spend_usd` read $0.00 forever** — queried `AgentExecution.created_at`/`acu_cost_usd`/`api_cost_usd`, columns that don't exist on the model → AttributeError swallowed on every call. Now sums the per-call cost ledger (`TokenUsage.cost_usd`, `timestamp` month window). Budget tracking/forecasting/alerts were all silently blind.
+2. **`User.is_admin` AttributeError in `_get_budget_limit` + `_get_alert_recipient_id`** — the User model has no `is_admin` column → limit always defaulted to $100 and budget alerts NEVER delivered. Role-based admin lookup (SUPER_ADMIN/OWNER/ADMIN/WORKSPACE_ADMIN) — same fix as `core/llm/gateway/budget_alerts.py`. Bonus: `SessionLocal()` now inside try (connection failure tolerated, matching "never raises" contract).
+
+**Stale repairs**: aggregates test → scalar ledger contract; forecast tests → deterministic `datetime` patch (module-level fake, day-10/day-25); docstring checks → `import stripe` (docstring legitimately says "Removed Stripe"); singleton test dropped `importlib.reload` (creates a new class — asserts identity instead); no-tenant query test → new mock contract.
