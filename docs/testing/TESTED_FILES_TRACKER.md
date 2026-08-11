@@ -2202,3 +2202,19 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | Enforce/approval | BLOCKED / PENDING_APPROVAL (SUPERVISED+submit_form) / Arbor syntax-error + high-complexity (≥50 branches) + non-python pass / guardrail block + downgrade-handled / APPROVED; find_relevant_policies; request_approval (plain + chain metadata_json snapshot), get_approval_status found/not-found |
 | Misc | record_outcome confidence bump, validate_evolution_directive (danger pattern in prompt/directives, protected keys w/ harness_patches exception, privilege escalation, clean pass), _max_nesting_depth (flat/empty/cycle), arbor non-python, adjudicate non-trusted → PENDING |
 | Also learned | `update_competence_level` returns a dict (W28), `DelegationChain.metadata_json` EXISTS (chain snapshot test validated the real capture — do not "fix" it), `read_memory` is complexity 1 (STUDENT+ allowed) |
+
+## Session 2026-08-10 (wave 24) — atom_agent_endpoints 77→93% (test-only, zero LLM spend)
+
+**Evidence**: `tests/test_covpush_w22_atom_agent_endpoints.py` wave-24/24b appended (27 new tests; 155 total in file) — 234 passed / 0 failed across the 3 atom-agent suites. Also verified `core/lancedb_handler.py` is actually at **98%** (15 remaining lines are import-time fallback branches) and `core/agent_world_model.py` at **93%** (wave-25 landed) — both stale in the April aggregate.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/atom_agent_endpoints.py` | 77%→**93%** (813 lines) | `/chat/stream` full path (governance resolution + block, execution audit record, NoProvidersConfiguredError → 503 structured CTA, generic 503, WS token broadcast/complete, session create/reuse, history save, outcome record, stream-error → failed execution + error broadcast), `retrieve-hybrid`/`retrieve-baseline` (success + error), chat-route dispatch coverage for remaining intents (finance/system/insights/stakeholders/followup/wellness/goal/conflicts/help/CRM/create-workflow/search) + task-reference resolution + >5-results search branch + episode-trigger exception tolerance. Pattern: stream_completion mocked as async-generator FUNCTION (real contract — call site does NOT await), resolver/governance patched to (None, {}) |
+
+## Session 2026-08-10 (post-wave) — W30+W31: action_registry 98%, generic_agent 96%
+
+**Evidence**: `tests/test_covpush_w30_action_registry.py` (39), `tests/test_covpush_w31_generic_agent.py` (13); regression generic-agent suites 214 passed (1 pre-existing red: `test_covpush_genericagent.py::test_critique_generation_on_failure`, fails on HEAD).
+
+**W30 — action_registry 78→98%**: registry basics (register/get/get_all/list/list_action_names, decorator, execute found/not-found, singleton ≥30 actions), `_context_user_id` variants, documents.search (missing query, legacy flag-off parity, hybrid success/exception), canvas.read/update (validation + mocked success), tasks.create (validation/success/exception), agents.list (filter/success/exception), 14 mini_app_* delegate wirings (each → `tools.mini_app_tool`).
+
+**W31 — generic_agent 91→96%**: `register_action` is ASYNC (await required — tests originally called it sync and silently no-oped); `_custom_action_visible` maturity floors (no-floor visible, unknown false, floor w/o maturity hidden, below/above); `_step_act` custom dispatch (sync/async handlers, raising handler → Error string); `_measure_success_rate` (metrics + exception → None); stuck-detector serial + parallel (3x identical tool+args → status "stuck"; parallel flag defaults ON so `_execute_parallel_tools` must be mocked); oracle verify-before-retry timeout path (`pre_approved=True` skips governance/HITL; error message must contain literal "timeout" — "timed out" does NOT match the string check); result dict key is `"output"` (not `final_answer`).
