@@ -2672,3 +2672,13 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **Real bug (RED→GREEN)**: `optimize_cost_usage` + `optimize_pdf_processing` raised `HTTPException(400)` inside `try`, but the generic `except Exception` re-wrapped it as **500** — the no-provider 400 branch was dead (clients got the wrong status for "no suitable providers"). Added `except HTTPException: raise` before the generic handler in both.
 
 **Coverage**: BYOKManager internals (encryption key lifecycle, Fernet, store/get/decrypt, track_usage, get_optimal_provider routing incl. fallbacks + budget/reasoning filters, provider status, config load incl. corrupt/unknown-field, dynamic cost updates), store_api_key endpoint (validation/provider/error branches), key status/delete, pricing refresh/model/provider/estimate (incl. token-estimate + fallback paths), optimize-cost/pdf (success/400/500), usage track/stats.
+
+## Session 2026-08-11 (wave 53) — core/byok_endpoints 58% → 93%
+
+**Evidence**: `tests/test_covpush_w53_byok_manager.py` (70 tests). Regression: 170 passed (w53 + byokroutes + TOCTOU suites).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/byok_endpoints.py` | 58%→**93%** | manager: config load/save (valid/corrupt/missing, atomic-write cleanup), defaults init, dynamic cost updates, encryption key lifecycle (env/generate/persist/reuse/fail-loud), Fernet round-trips, store/get flows (env fallback, usage bump, decrypt failure), usage tracking, optimal-provider (filters/budget/reasoning/fallbacks), provider status, aliases, normalization, singleton. Routes: health (incl. 503), keys (masked list/add 200/400/404/500 + provider-key store/status/delete + pydantic 422s), providers list/detail, optimize-cost (success+alternatives/400s/500), usage track/stats (404/500), PDF providers/optimize (3 task types/400/500), pricing (success/error/refresh/model/provider/estimate fallback+unavailable) |
+
+**Note**: `tests/unit/test_byok_endpoints.py` (stale) has 7 pre-existing failures — its OptimizeEndpoints/UsageEndpoints classes test phantom endpoints removed from the module; separate repair lane.
