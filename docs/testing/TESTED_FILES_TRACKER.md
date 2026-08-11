@@ -2438,3 +2438,18 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **Test repairs**: fixed `test@example.com` collision (unique per test — the shared SessionLocal DB persists rows across tests), `agent_type` → current AgentRegistry schema.
 
 **Also**: `agent_objective` 71→100% (env-bool matrix, flag default/off, Objective.is_satisfied incl. predicate-exception tolerance, objective_from_context branches).
+
+## Session 2026-08-10/11 (wave 40) — gate/selector/encryption + tiebreaker/egress/killrun (all 90%+)
+
+**Evidence**: `tests/test_covpush_w40_gate_selector_encryption.py` (30), `w40_tiebreaker_egress_killrun.py` (46). Regression: 168 passed across w40 + W28 + r79 + proposal-gating + runtime-egress suites.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/sandbox_gate.py` | 92%→**100%** | disabled/no-run-id/no-tier short-circuits, whitelist-enabled check path, KillRunAborted propagation |
+| 2026-08-11 | `core/selector_confidence_service.py` | 86%→**99%** | property matrix (is_high/is_credible/needs_external_validation), empty/no-match/late-appearance scoring, storage coercion, attach_tiebreak bridge states (non-PARTIAL/no-LLM/exception/unused → unchanged; used → NEEDS_EXTERNAL_VALIDATION) |
+| 2026-08-11 | `core/privsec/token_encryption.py` | 74%→**97%** | key persist failure, cached key, InvalidKeyError, api-key wrappers (empty/success), rotation (success/partial failure — arg order old/new/tokens), stamp_credential_metadata, hash |
+| 2026-08-11 | `core/llm/match_confidence_tiebreaker.py` | 40%→**100%** | response parse branches, cache hit+amortization+TTL+eviction, circuit-breaker transitions, timeout, out-of-range index, disabled flags |
+| 2026-08-11 | `core/sandbox_egress_proxy.py` | 31%→**100%** | wildcard subdomains, fail-closed paths (no-host/non-http/parse-error), allowlist, RESTRICTED/BLOCKED dominance |
+| 2026-08-11 | `core/sandbox_killrun.py` | 52%→**100%** | real SQLite persistence, missing-row no-op, own-session close, error tolerance, double-checked lock, idempotent trigger |
+
+**Note**: transient full-combo errors during measurement traced to concurrent-session activity (index-create collision while another session held the dev DB); full combo re-ran clean (168 passed).
