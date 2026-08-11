@@ -2377,3 +2377,19 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 ## Session 2026-08-10 (wave 38b) — integrations_core stale mock-wiring repair
 
 **Evidence**: `tests/test_covpush_integrations_core.py` 4 failed → **189 passed**. The local-tools implementations in `integrations/mcp_service.py` import **classes/factories** (`get_analytics_engine()`, `ZoomService`, `ShopifyService`, `DataIntelligenceEngine`) but the R90-era tests mocked instance attributes (`analyzer`, `zoom_service`, `shopify_service`, `engine`) — auto-MagicMocks leaked into results. Fixed mocks: `get_analytics_engine=Mock(return_value=analyzer)`, `ZoomService=_cls(zoom)`, `ShopifyService=_cls(shopify)`, `DataIntelligenceEngine=_cls(engine)`.
+
+## Session 2026-08-10 (wave 28) — advanced_workflow_system 27→97% (test-only, temp-dir isolated)
+
+**Evidence**: `tests/test_covpush_w28_advanced_workflow.py` (71 new tests) — 95 passed / 0 failed with the existing advanced-workflow suites.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/advanced_workflow_system.py` | 27%→**97%** (553 lines) | definition model (advance_to_step, missing-inputs with show-when/defaults, step outputs, step-id validator); StateManager (memory/file persistence, traversal-safe id sanitization + ValueError, listing with status/category/tag filters + sort asc/desc + pagination, summary with enum-state coercion, delete from memory+file); ParameterValidator (required/default/optional, string/number/bool/array/select/multiselect types, min/max length+value, pattern + over-length guard, exception → "Validation failed"); ExecutionEngine (create/validate: missing-dep, circular, exception; DFS cycle detection incl. self-cycle; start: not-found, already-running, missing-inputs → waiting, type-validation errors → waiting, success; missing-inputs global+step; show-when complex operators equals/not_equals/contains; execution plan ordering + parallel groups + cycle marker −1; execute loop: completed, error-step → FAILED, paused break, completed-step skip, exception; step dispatch all 5 types + error envelope; pause (cancel task), resume (+additional inputs), cancel, status + progress); high-level facade (create_parallel branches, create_conditional, execute_with_retry); result objects |
+
+## Session 2026-08-10 (post-wave) — W34: ingestion_pipeline 53→79%
+
+**Evidence**: `tests/test_covpush_w34_ingestion.py` (93 tests), regression ingestion suites 492 passed.
+
+**Covered**: `_hash_text` (deterministic/differing), `_record_doc_ingestion` (create/update/IntegrityError rollback/generic error), `_is_doc_already_ingested` (match/differ/missing), `_get_user_credentials` (found w/ + w/o expiry, not-found, exception), `_create_ingestion_job` (success via patched model, flag-off fallback, exception fallback + rollback), `_update_ingestion_job` (success/not-found/exception), slack/hubspot/salesforce/gmail/notion transforms, ALL 10 zoho transforms (verified actual record shapes — desk/campaigns/forms/showtime/meeting/assist use fixed singular types), `_transform_webhook_payload` dispatcher (known/unknown/exception), plus a parametrized sweep driving all 55 registered transformers with empty payloads (all return lists without raising).
+
+**Notes**: gmail transform falls back to a generic record when no connection id (not []); zoho transforms each use bespoke id keys (`ticketId`, `entityId`, `campaign_id`, `submission_id`, `session_id`, `meeting_id`); `_create_ingestion_job` builds its own `IngestionJob` (patch the model class, not a mock row).
