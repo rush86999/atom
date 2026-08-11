@@ -72,6 +72,7 @@ class ViewCoordinator:
             if not state:
                 state = ViewOrchestrationState(
                     id=str(uuid.uuid4()),
+                    tenant_id="default",
                     user_id=user_id,
                     session_id=session_id,
                     active_views=[],
@@ -97,6 +98,8 @@ class ViewCoordinator:
             existing_view_ids = [v.get("view_id") for v in state.active_views]
             if browser_view["view_id"] not in existing_view_ids:
                 state.active_views.append(browser_view)
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(state, "active_views")
 
             state.layout = "split_vertical"
             state.updated_at = datetime.now(timezone.utc)
@@ -171,6 +174,7 @@ class ViewCoordinator:
             if not state:
                 state = ViewOrchestrationState(
                     id=str(uuid.uuid4()),
+                    tenant_id="default",
                     user_id=user_id,
                     session_id=session_id,
                     active_views=[],
@@ -196,6 +200,8 @@ class ViewCoordinator:
             existing_view_ids = [v.get("view_id") for v in state.active_views]
             if terminal_view["view_id"] not in existing_view_ids:
                 state.active_views.append(terminal_view)
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(state, "active_views")
 
             state.layout = "split_horizontal"
             state.updated_at = datetime.now(timezone.utc)
@@ -321,6 +327,7 @@ class ViewCoordinator:
             if not state:
                 state = ViewOrchestrationState(
                     id=str(uuid.uuid4()),
+                    tenant_id="default",
                     user_id=user_id,
                     session_id=session_id,
                     active_views=[],
@@ -349,6 +356,8 @@ class ViewCoordinator:
             existing_view_ids = [v.get("view_id") for v in state.active_views]
             if view["view_id"] not in existing_view_ids:
                 state.active_views.append(view)
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(state, "active_views")
                 state.updated_at = datetime.now(timezone.utc)
                 self.db.commit()
 
@@ -475,7 +484,7 @@ class ViewCoordinator:
                 tenant_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
-                canvas_id=None,
+                canvas_id=f"view_orchestration_{session_id}",
                 session_id=session_id,
                 action_type=action,
                 details_json={

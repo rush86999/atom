@@ -2425,3 +2425,16 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | 2026-08-10 | `core/sandbox_audit.py` | 29%→**100%** | allowed/disabled no-ops, violation write (owned/provided session), exception swallow, run-policy write (success/disabled/exception/provided-session) |
 | 2026-08-10 | `core/sandbox_policy.py` | 92%→**100%** | is_terminal_block, invalid-override fallback, sandbox-disabled decision, _redact list + unhashable payload, default-issuer singleton |
 | 2026-08-10 | `core/sandbox_fs.py` | 94%→**96%** | mkdir OSError tolerance, invalid-path fallback (2 lines remain: resolve-pass + exception branch — accepted) |
+
+## Session 2026-08-10 (post-wave) — W36: view_coordinator repairs + agent_objective 100%
+
+**Evidence**: `tests/test_view_coordinator.py` (11 passed, was 1 passed + 10 errors), `tests/test_covpush_w36_agent_objective.py` (20 tests); regression guidance suites 96 passed.
+
+**Real bugs fixed (RED→GREEN):**
+1. **`ViewOrchestrationState` created without `tenant_id`** (NOT NULL) — every switch/activate silently failed to persist state (errors swallowed). Added `tenant_id="default"` at all 3 construction sites.
+2. **JSON in-place mutation not tracked** — `state.active_views.append(...)` on a plain JSON column is invisible to SQLAlchemy flush; the FIRST insert persisted (new-object flush serializes current value) but every subsequent view append was silently lost (layout assignment kept the row dirty, so the UPDATE fired without active_views). Fixed with `flag_modified(state, "active_views")` after each append (3 sites).
+3. **`_create_audit` used `canvas_id=None`** — `canvas_audit.canvas_id` is NOT NULL → audits always failed. Placeholder `view_orchestration_<session_id>` (SQLite doesn't enforce the canvases FK).
+
+**Test repairs**: fixed `test@example.com` collision (unique per test — the shared SessionLocal DB persists rows across tests), `agent_type` → current AgentRegistry schema.
+
+**Also**: `agent_objective` 71→100% (env-bool matrix, flag default/off, Objective.is_satisfied incl. predicate-exception tolerance, objective_from_context branches).

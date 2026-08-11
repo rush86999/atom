@@ -29,7 +29,7 @@ def test_user(db):
     """Create test user."""
     user = User(
         id=str(uuid.uuid4()),
-        email="test@example.com",
+        email=f"test-{uuid.uuid4().hex[:8]}@example.com",
         hashed_password="hash",
         first_name="Test",
         last_name="User",
@@ -47,9 +47,12 @@ def test_agent(db):
     agent = AgentRegistry(
         id=str(uuid.uuid4()),
         name="Test Agent",
-        agent_type="assistant",
+        category="general",
         status="intern",
-        confidence_score=0.6
+        confidence_score=0.6,
+        module_path="core.agents.generic_agent",
+        class_name="GenericAgent",
+        workspace_id="default",
     )
     db.add(agent)
     db.commit()
