@@ -328,3 +328,81 @@ class TestAllTransformers:
     async def test_transformer_handles_empty_payload(self, svc, integration):
         records = await svc._transform_webhook_payload(integration, {})
         assert isinstance(records, list)
+
+
+class TestIntegrationServiceErrors:
+    """integration_service.py error hierarchy + helpers."""
+
+    def test_base_error_to_dict(self):
+        from core.integration_service import IntegrationServiceError
+        err = IntegrationServiceError(
+            "bad thing", "E1", retryable=True, status_code=429,
+            tenant_id="0123456789abcdef", connector_id="c1", operation="op",
+        )
+        d = err.to_dict()
+        assert d["error_code"] == "E1"
+        assert d["retryable"] is True
+        assert d["tenant_id"] == "01234567"  # PII-truncated
+        assert d["connector_id"] == "c1"
+        assert str(err) == "bad thing"
+
+    def test_error_subclasses(self):
+        from core.integration_service import (
+            AuthenticationError, RateLimitError, ValidationError, NetworkError,
+            IntegrationNotFoundError, PermissionError, CircuitBreakerOpenError,
+        )
+        auth = AuthenticationError("no creds")
+        assert auth.error_code == "AUTH_FAILED" and auth.status_code == 401
+        assert auth.retryable is False
+
+        rl = RateLimitError("slow down", wait_time=2.5)
+        assert rl.error_code == "RATE_LIMITED" and rl.status_code == 429
+        assert rl.retryable is True and rl.wait_time == 2.5
+
+        val = ValidationError("bad input")
+        assert val.error_code == "VALIDATION_ERROR" and val.status_code == 400
+
+        net = NetworkError("dns fail")
+        assert net.error_code == "NETWORK_ERROR" and net.status_code == 503
+        assert net.retryable is True
+
+        nf = IntegrationNotFoundError("nope")
+        assert nf.error_code == "INTEGRATION_NOT_FOUND" and nf.status_code == 404
+
+        perm = PermissionError("denied")
+        assert perm.error_code == "PERMISSION_DENIED" and perm.status_code == 403
+
+        cb = CircuitBreakerOpenError("open")
+        assert cb.error_code == "CIRCUIT_OPEN" and cb.status_code == 503
+
+    def test_error_code_enum_members(self):
+        from core.integration_service import IntegrationErrorCode
+        codes = [c.value for c in IntegrationErrorCode]
+        assert "RATE_LIMIT" in codes
+        assert "LICENSE_RESTRICTED" in codes  # H4-merged member
+
+    def test_operation_result_model(self):
+        from core.integration_service import OperationResult, IntegrationErrorCode
+        ok = OperationResult(success=True, data={"a": 1})
+        assert ok.success is True and ok.data == {"a": 1}
+        bad = OperationResult(success=False, error=IntegrationErrorCode.API_ERROR)
+        assert bad.error == IntegrationErrorCode.API_ERROR
+
+    def test_get_operation_details_found_and_missing(self):
+        from core.integration_service import IntegrationService
+
+        class Fake(IntegrationService):
+            def get_capabilities(self):
+                return {"operations": [{"id": "send", "name": "send"}]}
+
+            def health_check(self):
+                return {"healthy": True}
+
+            async def execute_operation(self, operation, parameters, context=None):
+                return {}
+
+        svc = Fake("t1", {})
+        assert svc.get_operation_details("send")["id"] == "send"
+        assert svc.get_operation_details("missing") is None
+        assert svc.get_operations() == []
+        assert svc.tenant_id == "t1"
