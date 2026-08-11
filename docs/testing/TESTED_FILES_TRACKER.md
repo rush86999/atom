@@ -2690,3 +2690,9 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **Coverage**: `generate_structured_with_consensus` (flag on/off, voter/audit failure degradation), `_run_self_consistency_vote`, `_write_self_consistency_audit` (caller-db + own-session + import-failure), `generate_structured` consensus branch, embeddings/speech client paths, `stream_completion` (auto-model via AwaitableResult + static), `get_provider` (all provider mappings), `estimate_tokens`/`estimate_cost`, `analyze_proposal` (JSON/block/parse-failure), `_resolve_governance_model` (frugal de-escalation matrix), `generate` personalization, factory.
 
 **Note**: `stream_completion`/`generate_embedding`/`generate_embeddings_batch` each have a shadowed earlier definition (Python uses the later one) — tests target the active (later) definitions; the shadowed blocks remain as documented dead code.
+
+## Session 2026-08-11 (W48) — admin_routes 78%→99% (29 tests)
+
+**Evidence**: `tests/api/test_admin_routes_user_role_crud.py` (29 tests), 95 tests green across all admin_routes suites (unit/part2/coverage-extend/sync/CRUD).
+
+**Coverage**: user CRUD (create: success/role-not-found/duplicate-email; update: success incl. role change/not-found/invalid-role/invalid-status 422; get/delete found+not-found; last-login), role CRUD (create: success/duplicate-name 409; update: success/not-found/duplicate; delete: success/role-in-use 409; get: found/not-found), list users/roles, status-validator success branch, bulk-resolve resolver-exception path. Remaining 2 lines provably unreachable (hardcoded `user_maturity = "AUTONOMOUS"` guards).
