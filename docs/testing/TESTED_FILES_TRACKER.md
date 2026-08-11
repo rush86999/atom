@@ -2572,3 +2572,21 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | Date | File | Coverage change | What was added |
 |---|---|---|---|
 | 2026-08-11 | `api/health_routes.py` | 36%→**100%** | liveness, readiness (healthy/503-db/503-disk), _check_database (success/timeout/SQLAlchemy/generic + session close), query executor (success/re-raise), /health/db (healthy + pool status, slow-query warning, failure 503), disk space (healthy/low/exception), prometheus metrics, sync health (healthy/unhealthy via direct get_db call), sync metrics |
+
+## Session 2026-08-11 (wave 32) — ai_accounting_engine 68→100% (test-only, in-memory)
+
+**Evidence**: `tests/test_covpush_w32_accounting_engine.py` (49 new tests) — 85 passed / 0 failed with the existing suite. Zero missing lines.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/ai_accounting_engine.py` | 68%→**100%** | CSV-injection sanitization (all prefix classes + non-string passthrough); ingest (high→CATEGORIZED, low→REVIEW_REQUIRED, bank-feed bulk incl. str/ISO dates + source enum + default id); categorization (merchant pattern 0.95, historical 0.90/0.75, keyword 0.70–0.85, uncategorized); learn (missing tx/account, history append, pending removal); post (missing, review-no-user, user/system, auto-post); pending/all queries (date desc); update (re-categorize → review queue add/remove, date-string, amount-only); delete; audit log filtered/unfiltered; GL CSV sanitized cells; trial balance aggregation; 13-week forecast (history, empty fallback −2500, cash-transfer exclusion); scenarios (expense/hire $11k medium-risk, lose-client high-risk, revenue $5,000 with comma, k-suffix, default −1000); ledger integration (not-found/review/already-posted/mock DB-post/ImportError standalone/failure) |
+
+## Session 2026-08-11 (wave 49) — core/monitoring 46% → 100%
+
+**Evidence**: `tests/test_covpush_w49_monitoring.py` (19 tests). Regression: 57 passed (w49 + test_monitoring suites).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/monitoring.py` | 46%→**100%** | structlog processors (level/name), configure + get_logger, RequestContext bind/restore, all metric trackers (http/agent/skill/db/active-agents/connections), deployment + smoke context managers (success/failure), rollback, canary traffic, prometheus-query records, metrics-server init (success/OSError) |
+
+**Note**: `--noconftest` required for some measurements — the repo conftest intermittently hits a numpy double-load ImportError (pre-existing env flake, unrelated to coverage).
