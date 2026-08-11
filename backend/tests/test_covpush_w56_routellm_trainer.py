@@ -206,3 +206,21 @@ class TestEvaluator:
     def test_factories(self, tmp_path):
         assert isinstance(get_router_trainer(), RouteLLMTrainer)
         assert isinstance(get_router_evaluator(), RouterEvaluator)
+
+
+class TestRestrictedPickle:
+    def test_restricted_loads_allowed_and_forbidden(self):
+        import io
+        import pickle as pkl
+        from core.llm.routing.restricted_pickle import (
+            restricted_load, restricted_loads)
+        data = pkl.dumps({"a": [1, 2, 3]})
+        assert restricted_loads(data) == {"a": [1, 2, 3]}
+        assert restricted_load(io.BytesIO(data)) == {"a": [1, 2, 3]}
+
+        class Evil:
+            def __reduce__(self):
+                return (eval, ("1+1",))
+
+        with pytest.raises(pkl.UnpicklingError):
+            restricted_loads(pkl.dumps(Evil()))
