@@ -2556,3 +2556,19 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 2. **`User.is_admin` AttributeError in `_get_budget_limit` + `_get_alert_recipient_id`** — the User model has no `is_admin` column → limit always defaulted to $100 and budget alerts NEVER delivered. Role-based admin lookup (SUPER_ADMIN/OWNER/ADMIN/WORKSPACE_ADMIN) — same fix as `core/llm/gateway/budget_alerts.py`. Bonus: `SessionLocal()` now inside try (connection failure tolerated, matching "never raises" contract).
 
 **Stale repairs**: aggregates test → scalar ledger contract; forecast tests → deterministic `datetime` patch (module-level fake, day-10/day-25); docstring checks → `import stripe` (docstring legitimately says "Removed Stripe"); singleton test dropped `importlib.reload` (creates a new class — asserts identity instead); no-tenant query test → new mock contract.
+
+## Session 2026-08-11 (wave 31) — atom_saas_client 65→96% (test-only, mocked httpx/websockets)
+
+**Evidence**: `tests/test_covpush_w31_saas_client.py` (34 new tests) — 71 passed in batch; 1 pre-existing stale failure in `test_atom_saas_client.py` (patches nonexistent `core.atom_saas_client.websockets` module attr — inner import).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/atom_saas_client.py` | 65%→**96%** (327 lines) | `_load_config` (env, token-derived instance id, missing-token warning); `_get_http_client` (creation + reuse, headers); every marketplace endpoint success + HTTPError branch (fetch_skills/get_skill_by_id/get_categories/rate_skill incl. 1-5 guard/install+uninstall_skill/fetch_agents/get_agent_template/install_agent/fetch_workflows/get_workflow_template/fetch_domains/get_domain_template/install_domain/register_instance/push_analytics incl. empty-reports/fetch_components/get_component_details/install_component/health_check); `search_skills` pass-through; WebSocket connect (missing dep ImportError, missing token, already-connected no-op, handshake failure → RuntimeError, dispatch loop: JSON bytes/str, non-JSON tolerated, handler-error tolerated, server ConnectionClosed graceful, connected-state reset); disconnect + close; all 22 sync wrappers; `AtomSaaSClient` alias |
+
+## Session 2026-08-11 (wave 48) — health_routes 36% → 100%
+
+**Evidence**: `tests/test_covpush_w48_health_routes.py` (20 tests). Regression: 48 passed (w48 + health + monitoring suites).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `api/health_routes.py` | 36%→**100%** | liveness, readiness (healthy/503-db/503-disk), _check_database (success/timeout/SQLAlchemy/generic + session close), query executor (success/re-raise), /health/db (healthy + pool status, slow-query warning, failure 503), disk space (healthy/low/exception), prometheus metrics, sync health (healthy/unhealthy via direct get_db call), sync metrics |
