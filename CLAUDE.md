@@ -105,6 +105,7 @@
 55. **Agent Radio (Lateral Coordination)** — `core/agent_radio/` (`radio_service`, `radio_server`, `radio_guard`, `radio_breaker`, `radio_config`), `alembic/versions/20260808_add_lateral_messaging.py`: passive-awareness peer messaging — `radio.create_thread`/`radio.send_message`/`radio.wait_for_mention` via the Unified Action Registry (P2/P9 gates apply); `agent_threads` + `lateral_messages` tables, `agent_executions.thread_id`; mention-first delivery, budget accounting (`ATOM_RADIO_TEAM_BUDGET_USD`), passive inbox drain in both ReAct loops (`generic_agent.py`, `atom_meta_agent.py`), fleet bridge in `_recruit_fleet`; teams opt-in via `config/lateral_teams/*.yaml`; flag `ATOM_RADIO_ENABLED` (default ON). See `docs/architecture/AGENT_RADIO.md`
 56. **Fleet Orchestration Wiring (W4)** — `core/fleet_routing_config.py`, `core/specialist_matcher.py`, `core/fleet_orchestration/fleet_scaler_service.py`: dead `route_with_governance` wired into live `AtomMetaAgent.execute()`; real `SpecialistMatcher` (capability overlap + tier + verified-episode ratio); `DelegationChain.max_depth` enforced on nesting DEPTH not link count; fleet budget/memory hooks; flag `ATOM_FLEET_ROUTING_ENABLED` (default OFF — live-traffic change; `ATOM_FLEET_ROUTING_FORCE_ENFORCE` shadow). See `docs/architecture/FLEET_ORCHESTRATION.md`
 57. **Agent Environment / Goal-Driven Loop (W5)** — `core/agent_objective.py`, `core/generic_agent.py`: Objective + `definition_of_done` termination predicate (early exit instead of always-`max_steps`), maturity success-ratio as utility target, maturity-gated custom action surface (`register_action`), stuck-detector (P5b/P5c); flag `ATOM_OBJECTIVE_LOOP_ENABLED` (default ON; off restores exact pre-P5 loop). See `docs/architecture/AGENT_ENVIRONMENT.md` + `docs/architecture/STANFORD_VIRTUAL_BIOTECH_PAPERCLIP.md`
+58. **Stage Router (Switchyard port)** — `core/llm/stage_router.py`, `core/llm/routing/traffic_split.py`, `alembic/versions/20260811_add_stage_router_audit.py`, `scripts/calibrate_stage_router.py`: proactive turn-level tier routing in both ReAct loops (`generic_agent._react_step`, `atom_meta_agent._react_step`) from tool-result signals — windowed error severity, spinning (churn, no reads/writes), exploring (reads without writes), production intensity; tanh-corroborative scoring (one full signal ≈ 0.46 < default 0.5 threshold; critical error = hard override), pickers (`efficient_first`/`capable_first`), decision-source taxonomy (`override`/`dimensions`/`fall_open`), handoff notes on tier switches. **Harness-first**: `ATOM_TRAFFIC_SPLIT`/`ATOM_STAGE_ROUTING_SPLIT` enable a weighted-random A/B split; every decision is audited (`llm_stage_router_audit`, outcome-joined from `byok_handler._record_outcome_feedback` via a contextvar carrier — cost/quality/latency per decision) so `scripts/calibrate_stage_router.py` can certify per-workload thresholds (RESCUE/LOSS quadrants) before enforcement. Shadow by default (`ATOM_STAGE_ROUTING_ENABLED` alone = audit-only; `ATOM_STAGE_ROUTING_FORCE_ENFORCE` = live override of the agent loop's model type, explicit model pins never overridden). Never raises. See `docs/architecture/SWITCHYARD_GAP_ANALYSIS.md`
 
 ---
 
@@ -310,6 +311,16 @@ ATOM_FLEET_ROUTING_FORCE_ENFORCE=false
 ATOM_RADIO_ENABLED=true                    # lateral peer messaging (3 radio.* actions) — default ON
 ATOM_RADIO_TEAM_BUDGET_USD=0.20   ATOM_RADIO_INBOX_CAP=10   ATOM_RADIO_BACKLOG_TTL_MIN=30
 ATOM_RADIO_WAIT_TIMEOUT_SECONDS=30   ATOM_RADIO_BREAKPOINT_GATE=true
+
+# Stage Router (Switchyard port, #58) — docs/architecture/SWITCHYARD_GAP_ANALYSIS.md
+ATOM_STAGE_ROUTING_ENABLED=true               # master switch; on alone = shadow (audit-only, default ON)
+ATOM_STAGE_ROUTING_FORCE_ENFORCE=false        # live override of loop model type (fast/quality)
+ATOM_STAGE_ROUTING_PICKER=efficient_first     # efficient_first | capable_first (default tier)
+ATOM_STAGE_ROUTING_CONFIDENCE_THRESHOLD=0.5   # corroborative signals must clear this
+ATOM_STAGE_ROUTING_WINDOW=3                   # recent turns scored per decision
+ATOM_TRAFFIC_SPLIT=false                      # A/B harness master switch (calibration)
+ATOM_STAGE_ROUTING_SPLIT=                     # JSON weights, e.g. '{"efficient": 0.7, "capable": 0.3}'
+ATOM_STAGE_ROUTING_SPLIT_SEED=                # optional int for reproducible splits
 
 # Security (Rounds 18-69)
 MAX_UPLOAD_BYTES=52428800                # 50 MiB upload cap

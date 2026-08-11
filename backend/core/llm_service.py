@@ -871,6 +871,7 @@ class LLMService:
         enable_self_consistency: bool = False,
         session_id: Optional[str] = None,
         user_id: Optional[str] = None,
+        stage_decision_id: Optional[str] = None,
     ) -> Optional[BaseModel]:
         """
         Generate structured output using Pydantic model validation.
@@ -957,6 +958,7 @@ class LLMService:
                 agent_id=agent_id,
                 image_payload=image_payload,
                 cascade=cascade_on,
+                stage_decision_id=stage_decision_id,
             )
             return result
         except Exception as e:

@@ -11387,6 +11387,72 @@ class LocalModelCapabilities(Base):
 
 
 # ============================================================================
+# Stage Router — turn-level tier routing audit (Switchyard port)
+# ============================================================================
+
+class StageRouterAudit(Base):
+    """One shadow or enforced routing decision of the stage router.
+
+    The stage router scores each ReAct turn from recent tool-result signals
+    (error severity, spinning, exploring, production intensity) and picks the
+    ``capable`` or ``efficient`` tier group. See
+    ``core/llm/stage_router.py`` for the algorithm.
+
+    Every row records BOTH the stage router's would-have pick
+    (``selected_group``) and the group that actually ran (``applied_group`` —
+    the weighted-random A/B split may force a different group in harness
+    mode). That pairing is the calibration data for the RESCUE/LOSS quadrant
+    methodology: for each turn we know what the signal-driven router wanted
+    vs. what the workload actually needed, so ``confidence_threshold`` can be
+    certified per workload before enforcement is flipped on.
+    """
+
+    __tablename__ = "llm_stage_router_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, nullable=True, index=True)
+    workspace_id = Column(String, nullable=True, index=True)
+    agent_id = Column(String, nullable=True, index=True)
+    execution_id = Column(String, nullable=True, index=True)
+    step_index = Column(Integer, nullable=True)
+
+    # Configuration snapshot at decision time
+    picker = Column(String(length=24), nullable=True)
+    confidence_threshold = Column(Float, nullable=True)
+
+    # Signals + decision
+    signals = Column(JSONColumn, nullable=True)  # serialized StageSignals JSON
+    selected_group = Column(String(length=16), nullable=True)  # would-have pick
+    applied_group = Column(String(length=16), nullable=True)  # what actually ran
+    split_group = Column(String(length=16), nullable=True)  # A/B assignment
+    default_group = Column(String(length=16), nullable=True)
+    confidence = Column(Float, nullable=True)
+    decision_source = Column(String(length=24), nullable=True)  # override|dimensions|fall_open
+    enforced = Column(Boolean, nullable=False, default=False)  # shadow vs live
+    model_type = Column(String(length=24), nullable=True)  # fast|quality when enforced
+
+    handoff_note = Column(Text, nullable=True)
+    rationale = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Outcome join (written from byok_handler._record_outcome_feedback via a
+    # per-request contextvar carrier): what actually happened on the turn the
+    # decision shadowed. Null until the turn's generation attempt completes —
+    # only rows with these populated are calibration-eligible.
+    success = Column(Boolean, nullable=True)
+    quality_satisfied = Column(Boolean, nullable=True)
+    actual_cost = Column(Float, nullable=True)
+    actual_latency_ms = Column(Float, nullable=True)
+    actual_model = Column(String, nullable=True)
+    actual_provider = Column(String, nullable=True)
+
+    __table_args__ = (
+        Index("ix_stage_router_audit_ws_created", "workspace_id", "created_at"),
+        Index("ix_stage_router_audit_agent", "agent_id", "created_at"),
+    )
+
+
+# ============================================================================
 # Federation Identity Persistence — DB-backed DID/VC storage
 # ============================================================================
 

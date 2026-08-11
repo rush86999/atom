@@ -55,6 +55,13 @@ from core.llm.routing.cache_optimizer import (
     get_pattern_analyzer,
 )
 
+from core.llm.routing.traffic_split import (
+    assign_arm,
+    get_traffic_split,
+    pick_arm,
+    traffic_split_enabled,
+)
+
 __all__ = [
     # Preference collector
     "PreferenceDataCollector",
@@ -93,4 +100,10 @@ __all__ = [
     "get_cache_optimizer",
     "get_cache_warmer",
     "get_pattern_analyzer",
+
+    # Stage router A/B harness (calibration)
+    "assign_arm",
+    "get_traffic_split",
+    "pick_arm",
+    "traffic_split_enabled",
 ]

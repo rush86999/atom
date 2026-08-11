@@ -401,6 +401,11 @@ class AtomMetaAgent:
         self.canvas_provider = get_canvas_provider()  # Canvas context provider
         self.queen = None # Lazy loaded
 
+        # Stage router (Switchyard port): tier group of the previous ReAct
+        # turn (``capable``/``efficient``), tracked so handoff notes fire on
+        # group switches. None = first turn of the run.
+        self._stage_group: Optional[str] = None
+
         
     async def execute(self, request: str, context: Dict[str, Any] = None, 
                       trigger_mode: AgentTriggerMode = AgentTriggerMode.MANUAL,
@@ -1330,7 +1335,40 @@ You are the Admiral of the Atom Fleet. For complex, multi-domain tasks, do NOT a
             skill_instructions=self._retrieve_skill_instructions(request),
             canvas_segment=canvas_segment
         )
-        
+
+        # Stage router (Switchyard port): turn-level tier routing from
+        # tool-result signals. Shadow by default — audited, never applied;
+        # ATOM_STAGE_ROUTING_FORCE_ENFORCE=true flips it live. Never raises.
+        _stage_model = "reasoning"
+        _stage_decision = None
+        stage_handoff_note = ""
+        try:
+            from core.llm.stage_router import get_stage_router, map_decision_to_model_type
+
+            _stage_router = get_stage_router()
+            if _stage_router.enabled:
+                _stage_decision = await _stage_router.decide_for_history(
+                    execution_history,
+                    previous_group=self._stage_group,
+                    use_split=True,
+                    agent_id="atom_main",
+                    workspace_id=self.workspace_id,
+                    tenant_id=self.tenant_id,
+                    step_index=turn_index,
+                )
+                self._stage_group = (
+                    _stage_decision.applied_group if _stage_decision else self._stage_group
+                )
+                _model_override = map_decision_to_model_type(_stage_decision, _stage_router.enforce)
+                if _model_override:
+                    _stage_model = _model_override
+                if _stage_router.enforce and _stage_decision and _stage_decision.handoff_note:
+                    stage_handoff_note = _stage_decision.handoff_note
+        except Exception as _stage_err:
+            logger.debug(f"Stage router unavailable, keeping model selection: {_stage_err}")
+        if stage_handoff_note:
+            system_prompt += f"\n{stage_handoff_note}\n"
+
         # Build rich memory context for the prompt
         experiences = memory_context.get('experiences', [])
         knowledge = memory_context.get('knowledge', [])
@@ -1415,8 +1453,9 @@ What is your next step?"""
             system_instruction=system_prompt,
             response_model=ReActStep,
             temperature=0.2,
-            model="reasoning",
-            agent_id="atom_main"
+            model=_stage_model,
+            agent_id="atom_main",
+            stage_decision_id=_stage_decision.id if _stage_decision else None,
         )
         
         if structured_result:

@@ -15,6 +15,28 @@ Key Features:
 - Database logging for analytics and auditing
 - Max escalation limit prevents infinite loops
 
+Relationship to the Stage Router (proactive vs reactive):
+- This manager is REACTIVE: it bumps the tier *up* only AFTER a generation
+  attempt fails, returns low quality, or hits a rate limit. It never runs
+  before the first attempt on a turn.
+- ``core/llm/stage_router.py`` is PROACTIVE: it nudges the tier up OR down
+  BEFORE the first attempt, from the conversation's tool-result history
+  (error severity / spinning / exploring / production intensity). It is the
+  Switchyard-style signal-driven router; this manager is its fallback.
+- They are complementary, not redundant. The intended flow on the agent path
+  is: StageRouter picks the starting tier for the turn → the agent attempts
+  generation → on failure/low-quality, ``handle_escalation`` (this manager)
+  bumps up and retries, up to the max-escalation cap.
+- The two share the CognitiveTier vocabulary but do NOT call each other. The
+  only data coupling is observational: the stage router's audit row
+  (``llm_stage_router_audit``, outcome-joined in
+  ``byok_handler._record_outcome_feedback``) records whether a turn that the
+  stage router demoted later got rescued by this manager's escalation — that
+  RESCUE signal is what ``scripts/calibrate_stage_router.py`` uses to certify
+  or reject the stage router's threshold per workload.
+- See ``docs/architecture/SWITCHYARD_GAP_ANALYSIS.md`` for the full
+  proactive/reactive design rationale.
+
 Author: Atom AI Platform
 Created: 2026-02-20
 """

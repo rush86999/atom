@@ -103,6 +103,11 @@ class GenericAgent:
         # set once per execution run, None = unrestricted.
         self._run_maturity: Optional[str] = None
 
+        # Stage router (Switchyard port): tier group of the previous ReAct
+        # turn (``capable``/``efficient``), tracked so handoff notes fire on
+        # group switches. None = first turn of the run.
+        self._stage_group: Optional[str] = None
+
         
         # Extract Agent Config
         self.system_prompt = self.config.get("system_prompt", f"You are {self.name}, a helpful assistant.")
@@ -782,7 +787,48 @@ class GenericAgent:
         optimization = context.get("optimization", {})
         agent_model_tier = optimization.get("model") or "auto"
         mentorship_mode = optimization.get("mentorship_mode", False)
-        
+
+        # Stage router (Switchyard port): turn-level tier routing from
+        # tool-result signals. Shadow by default — the decision is audited but
+        # the model type is untouched; ATOM_STAGE_ROUTING_FORCE_ENFORCE=true
+        # (plus the master switch) flips it live. The weighted-random A/B
+        # split (ATOM_STAGE_ROUTING_SPLIT) may force the group in harness
+        # mode so RESCUE/LOSS calibration data accumulates. Never raises — a
+        # failure leaves the loop's existing model selection untouched.
+        stage_decision = None
+        stage_handoff_note = ""
+        try:
+            from core.llm.stage_router import get_stage_router, map_decision_to_model_type
+
+            _stage_router = get_stage_router()
+            if _stage_router.enabled:
+                stage_decision = await _stage_router.decide_for_history(
+                    history,
+                    previous_group=self._stage_group,
+                    use_split=True,
+                    agent_id=self.id,
+                    workspace_id=self.workspace_id,
+                    step_index=history.count("Action:"),
+                )
+                self._stage_group = (
+                    stage_decision.applied_group if stage_decision else self._stage_group
+                )
+                _model_override = map_decision_to_model_type(stage_decision, _stage_router.enforce)
+                # Explicit model pins (optimization.model = "gpt-4o", ...) are
+                # never overridden; the handoff note only fires when the
+                # override actually lands.
+                _stage_applied = (
+                    _model_override
+                    if _model_override and agent_model_tier in ("auto", "fast", "quality", "reasoning")
+                    else None
+                )
+                if _stage_applied:
+                    agent_model_tier = _stage_applied
+                if _stage_applied and stage_decision and stage_decision.handoff_note:
+                    stage_handoff_note = f"\n{stage_decision.handoff_note}\n"
+        except Exception as _stage_err:
+            logger.debug(f"Stage router unavailable, keeping model selection: {_stage_err}")
+
         mentorship_focus = ""
         if mentorship_mode:
             mentorship_focus = f"\nMENTORSHIP FOCUS: This task has high historical complexity or rejection rates. Be extra cautious, verify all tool outputs, and provide detailed reasoning for every step.\n"
@@ -810,6 +856,7 @@ class GenericAgent:
 
         system_prompt = f"""{self.system_prompt}{mentorship_focus}
 
+{stage_handoff_note}
 {workspace_context}
 
 {skill_instructions}
@@ -937,7 +984,8 @@ What is your next step?"""
             temperature=0.2,
             model=agent_model_tier,
             agent_id=self.id,
-            image_payload=image_payload
+            image_payload=image_payload,
+            stage_decision_id=stage_decision.id if stage_decision else None
         )
         
         # Consume the screenshot after one use to prevent stale visual context

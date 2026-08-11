@@ -1702,6 +1702,17 @@ class BYOKHandler:
         Generate a response using cost-optimized provider routing.
         Supports multimodal inputs (text + image) via `image_payload`.
         """
+        # Stage router: clear any stale decision carrier from a previous
+        # structured call in this task — plain/fallback generations must not
+        # write outcomes onto a prior turn's audit row. (The structured path
+        # records its own attempts and re-sets the carrier per call.)
+        try:
+            from core.llm.stage_router import set_stage_decision_carrier
+
+            set_stage_decision_carrier(None)
+        except Exception:
+            pass
+
         # Phase 72: Trial Restriction Check
         if self._is_trial_restricted():
             logger.warning(f"AI Blocked: Trial expired for workspace {self.workspace_id}")
@@ -2266,6 +2277,30 @@ class BYOKHandler:
         per-decision prompt features — eliminating train/serve skew. When None,
         a random id is used (feedback falls back to task-level feature defaults).
         """
+        # Stage router outcome join (independent of the learning router flag):
+        # when a stage decision is active for this request, write the attempt's
+        # outcome back onto the audit row so the calibration script gets
+        # cost/quality/latency per decision. Never raises.
+        try:
+            from core.llm.stage_router import get_stage_decision_carrier, record_stage_outcome
+
+            stage_decision_id = get_stage_decision_carrier()
+            if stage_decision_id:
+                record_stage_outcome(
+                    decision_id=stage_decision_id,
+                    success=success,
+                    schema_error=schema_error,
+                    exception=exception,
+                    content=content,
+                    finish_reason=finish_reason,
+                    actual_cost=cost,
+                    actual_latency_ms=latency_ms,
+                    actual_model=model,
+                    actual_provider=provider_id,
+                )
+        except Exception:
+            pass  # stage outcome is best-effort; never blocks generation
+
         if os.getenv("ATOM_LEARNING_ROUTER", "false").lower() != "true":
             return
         try:
@@ -2721,6 +2756,7 @@ class BYOKHandler:
         cascade: bool = False,  # Phase 2 hallucination mitigation
         provider_model: Optional[tuple] = None,  # R72 F: pin a single (provider, model)
         allow_moa: bool = True,                  # R72 F: opt out of MoA dispatch
+        stage_decision_id: Optional[str] = None,  # Stage router: audit-row join
     ) -> Any:
         """
         Generate a structured response using instructor with tenant-aware routing.
@@ -2777,6 +2813,17 @@ class BYOKHandler:
         Returns:
             Instance of response_model or None if parsing fails
         """
+        # Stage router outcome join: stash the decision id on the per-request
+        # carrier so _record_outcome_feedback writes the attempt's outcome
+        # back onto the audit row (calibration data). Best-effort, never
+        # blocks generation.
+        try:
+            from core.llm.stage_router import set_stage_decision_carrier
+
+            set_stage_decision_carrier(stage_decision_id)
+        except Exception:
+            pass
+
         # Check trial/budget restrictions
         if self._is_trial_restricted():
             logger.warning(f"AI Blocked: Trial expired for workspace {self.workspace_id}")

@@ -2763,3 +2763,47 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 ## Session 2026-08-11 (wave 56c) — w8_sandbox monitoring fixture order-independence
 
 **Evidence**: full covpush family **4649 passed / 0 failed** (up from 3911 — waves 54-56 added 738 tests). The `_fake_prom` fixture in `tests/test_covpush_w8_sandbox.py` re-imported `core.monitoring` expecting a fresh module — once any earlier suite imported it (wave-49), `import_module` returned the cached module with REAL prometheus metrics → 12 failures. Fixed: `sys.modules.pop("core.monitoring", None)` before re-import.
+
+## Session 2026-08-11 (W51) — api/canvas_routes 34%→100% (56 new tests)
+
+**Evidence**: `tests/api/test_canvas_routes_coverage_w51.py` (56 tests, 56/56 pass; w51 + `test_api_canvas_routes.py` + `test_canvas_routes_integration.py` = 83 passed / 19 failed — the 19 are the pre-existing stale integration suite, unchanged from baseline).
+
+**Coverage**: `api/canvas_routes.py` 34%→**100%** (310/310 lines). Newly covered: fork_canvas (success: fresh id/share_token reset/audit row/components stripped; read_canvas fail 500; DB-miss 404), summary (success/context-404/TimeoutError 504/generic 500/empty 500), history (found/not-found/DB-error 500), list_user_canvases (mocked + filtered), recordings start (mocked service), submit_canvas (success/agent-governance 403/persistence-failure swallowed), CanvasStateConnectionManager, and the full `/ws/{canvas_id}` receive_json loop (auth guards: missing/invalid token → 1008, non-owner → 1008; broadcast + persist via update_canvas_content; persist-failure swallowed; broadcast-error → generic except → disconnect). WS tests mint real JWTs (core.auth SECRET_KEY/ALGORITHM) and patch `core.database.SessionLocal` → fixture session.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `api/canvas_routes.py` | 34%→**100%** (310 lines) | fork, summary, history, list, recordings/start, submit (success/gov/persist-fail), WS loop (auth ×3, broadcast+persist, persist-fail, broadcast-error) |
+
+## Session 2026-08-11 (wave 36) — enhanced_execution_state_manager 24→99% (test-only, mocked db)
+
+**Evidence**: `tests/test_covpush_w36_enhanced_state.py` (36 new tests) — 36/36 pass. 4 missing lines are deep branches. Pre-existing: `test_execution_state_manager.py` has 1 fail + 6 errors (stale suite infra).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/enhanced_execution_state_manager.py` | 24%→**99%** (286 lines) | enums/models/state-init; `create_enhanced_execution` (multi-output config, step init); `get_enhanced_execution_state` (memory hit, DB rehydrate incl. enums + multi-output config, not-found, DB-error fallback); `_save_enhanced_state` (INSERT + UPDATE paths, enhanced-data serialization); `_ensure_enhanced_table`; step lifecycle (start/missing, complete final → COMPLETED, missing-input → WAITING_FOR_INPUT + pause callback + callback-error tolerance, next-inputs + aggregation, fail, skip); pause (reason + step inputs) / resume (not-paused, still-missing keeps paused, success); `_check_missing_inputs` (required/hidden semantics) + `_should_show_parameter` (scalar + equals/not_equals/contains operators); `_aggregate_outputs` (multiple/aggregated/stream/no-config); progress (completed+skipped count, percentage, step states) + step-details (is_current, unknown step) + missing-execution errors; callback registration; singleton factory |
+
+## Session 2026-08-11 — Stage router (Switchyard port) v1: harness + shadow + wiring
+
+**Evidence**: `tests/unit/core/test_stage_router.py` (68 tests), `tests/unit/core/test_stage_router_wiring.py` (7 tests), `tests/unit/core/test_traffic_split.py` (17 tests) — **92/92 pass**. mypy clean on new modules (`--follow-imports=skip`). `test_atom_meta_agent.py` 39 passed / 6 skipped (regression, meta-agent wiring); `test_agent_governance_runtime.py` 1 passed / 1 deselected.
+
+| Date | File | Status | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/llm/stage_router.py` | TESTED | NEW — Switchyard-style turn-level tier router: tool-history parser, severity/read-write classifiers, tanh-corroborative scorer (1 signal ≈0.46 < 0.5), pickers, decision sources (override/dimensions/fall_open), handoff notes, weighted-random split, audit + outcome-join (contextvar carrier, `record_stage_outcome`) |
+| 2026-08-11 | `core/llm/routing/traffic_split.py` | TESTED | NEW — A/B harness: `traffic_split_enabled`/`get_traffic_split`/`pick_arm`/`assign_arm`; flags `ATOM_TRAFFIC_SPLIT`/`ATOM_STAGE_ROUTING_SPLIT` |
+| 2026-08-11 | `core/models.py` | TESTED | `StageRouterAudit` (`llm_stage_router_audit`) + outcome columns (success/quality_satisfied/actual_cost/actual_latency_ms/actual_model/actual_provider) |
+| 2026-08-11 | `alembic/versions/20260811_add_stage_router_audit.py` | TESTED | Guarded create + SQLite-safe `_ensure_column` batch alters for already-created dev DBs |
+| 2026-08-11 | `core/generic_agent.py` | TESTED | Stage block in `_react_step`: shadow/enforce model-type override (`fast`/`quality`), handoff note injection, explicit-pin protection, `stage_decision_id` threading |
+| 2026-08-11 | `core/atom_meta_agent.py` | TESTED | Same stage block in meta-agent `_react_step` (`_stage_model` replaces hardcoded `model="reasoning"`) |
+| 2026-08-11 | `core/llm/byok_handler.py` | TESTED | `stage_decision_id` param + carrier set in `generate_structured_response`; outcome join in `_record_outcome_feedback` (pre-learning-gate, flag-independent); carrier clear in `generate_response` (stale-join guard) |
+| 2026-08-11 | `core/llm_service.py` | TESTED | `stage_decision_id` param on `generate_structured` (forwarded to handler) |
+| 2026-08-11 | `core/llm/routing/__init__.py` | TESTED | traffic_split exports |
+| 2026-08-11 | `scripts/calibrate_stage_router.py` | TESTED | NEW — offline RESCUE/LOSS quadrant calibration per workload (agent_id), recommends threshold + picker |
+| 2026-08-11 | `docs/architecture/SWITCHYARD_GAP_ANALYSIS.md` | ASPIRATIONAL | Referenced by stage_router.py, the migration, and calibrate_stage_router.py, but the file/directory is not present — follows the repo's existing convention (9 other `docs/architecture/*.md` refs are similarly dangling). Gap-analysis content lives in the originating planning session, not a checked-in doc. |
+| 2026-08-11 | `backend/.env.example`, `CLAUDE.md` | TESTED | Flag docs (#58 component entry + env block) |
+
+### Followup 2026-08-11 — handoff notes (#3) + conflict resolution + re-verification
+| Date | File | Status | What was done |
+|---|---|---|---|
+| 2026-08-11 | `core/llm/escalation_manager.py` | TESTED | Added module-docstring section documenting the proactive (stage_router) ↔ reactive (escalation_manager) pairing, the intended flow, and the RESCUE-signal data coupling via `llm_stage_router_audit` — the one code-level gap from the plan (#3). |
+| 2026-08-11 | (removed) `core/llm/routing/stage_router.py`, `tests/test_covpush_w57_stage_router.py`, `tests/test_covpush_w57_traffic_split.py` | DEAD | A second, parallel stage-router implementation landed at 19:06 (more complete, Switchyard-faithful, already wired) and overwrote a shared `traffic_split.py`. After user decision, the redundant duplicate (this agent's earlier 19:04 cut) was removed to resolve the fork; the parallel implementation was adopted wholesale. |
+| 2026-08-11 | full stage-router suite | GREEN | Re-verified: `tests/unit/core/test_stage_router.py` + `test_traffic_split.py` + `test_stage_router_wiring.py` = **94/94 pass**; `import core.llm.stage_router` / `routing.traffic_split` / `core.models.StageRouterAudit` all clean. |
