@@ -65,7 +65,7 @@ async def test_register_action_dispatches_locally():
     async def _handler(args, context):
         received.append((args, context))
 
-    await agent.register_action("custom_probe", _handler, description="probe it")
+    agent.register_action("custom_probe", _handler, description="probe it")
     assert "custom_probe" in agent._custom_actions
 
     # Dispatch path (custom actions are agent-scoped, pre-authorized).
@@ -89,7 +89,7 @@ async def test_register_action_sync_handler_supported():
     def _sync_handler(args, context):
         return f"handled:{args.get('v')}"
 
-    await agent.register_action("sync_probe", _sync_handler, description="sync")
+    agent.register_action("sync_probe", _sync_handler, description="sync")
     out = await agent._step_act("sync_probe", {"v": 7}, {})
     assert out == "handled:7"
 
@@ -97,16 +97,16 @@ async def test_register_action_sync_handler_supported():
 def test_register_action_maturity_gated_discovery():
     """Custom actions are hidden when the agent's maturity < the floor."""
     agent = _build_agent(_agent_model())
-    asyncio.run(agent.register_action(
+    agent.register_action(
         "senior_probe", lambda a, c: None,
         description="senior only", min_maturity="SUPERVISED",
-    ))
+    )
     agent._run_maturity = "INTERN"
     assert agent._custom_action_visible("senior_probe") is False
     agent._run_maturity = "AUTONOMOUS"
     assert agent._custom_action_visible("senior_probe") is True
     # Unspecified floor → always visible.
-    asyncio.run(agent.register_action("open_probe", lambda a, c: None))
+    agent.register_action("open_probe", lambda a, c: None)
     agent._run_maturity = None
     assert agent._custom_action_visible("open_probe") is True
 
@@ -122,8 +122,8 @@ async def test_registered_actions_appear_in_available_tools():
     agent.llm.generate_structured = AsyncMock(
         return_value=ReActStep(thought="t", final_answer="done")
     )
-    await agent.register_action("probe_a", lambda a, c: None, description="probe A")
-    await agent.register_action(
+    agent.register_action("probe_a", lambda a, c: None, description="probe A")
+    agent.register_action(
         "probe_hidden", lambda a, c: None, description="hidden", min_maturity="AUTONOMOUS"
     )
     agent._run_maturity = "INTERN"

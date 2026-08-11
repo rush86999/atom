@@ -926,7 +926,8 @@ class TestGenericAgentCustomActions:
         async def handler(args, context):
             return {"ok": True}
 
-        await agent.register_action("custom.echo", handler, description="desc", min_maturity="INTERN")
+        # register_action is sync (W31 fix) — no await
+        agent.register_action("custom.echo", handler, description="desc", min_maturity="INTERN")
         assert "custom.echo" in agent._custom_actions
         assert agent._custom_action_specs["custom.echo"] == {
             "description": "desc",
@@ -984,9 +985,9 @@ class TestGenericAgentCustomActions:
         def broken_handler(args, context):
             raise RuntimeError("boom")
 
-        await agent.register_action("custom.sync", sync_handler)
-        await agent.register_action("custom.async", async_handler)
-        await agent.register_action("custom.broken", broken_handler)
+        agent.register_action("custom.sync", sync_handler)
+        agent.register_action("custom.async", async_handler)
+        agent.register_action("custom.broken", broken_handler)
 
         assert await agent._step_act("custom.sync", {"a": 1}, {}) == "sync-ok"
         assert await agent._step_act("custom.async", {}, {}) == "async-ok"
