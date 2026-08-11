@@ -496,6 +496,19 @@ class AtomMetaAgent:
         # entirely, orphaning the AgentExecution row in "running" forever (Bug 4).
         status = "failed"
         final_answer = ""
+        # `steps` is normally initialized inside the ReAct section (~line 770),
+        # but a KillRunAborted raised BEFORE that point (e.g. at memory recall)
+        # still flows into the kill handler, which builds result_payload with
+        # actions_executed=steps — an unbound local crashed the handler with
+        # UnboundLocalError, turning a clean sandbox kill into a 500. Init here
+        # alongside the other pre-try state (W44b).
+        steps: list = []
+        # Same story for the machine-readable budget signal: failure_reason /
+        # failure_mode are set inside the ReAct loop, but the result_payload
+        # builder reads them unconditionally — the kill handler must not
+        # UnboundLocalError on a pre-loop kill.
+        failure_reason: Optional[str] = None
+        failure_mode: Optional[str] = None
 
         # KillRunAborted handling (below) references this name at except-match
         # time — import it before the body's try so the branch is reachable.
