@@ -5,6 +5,7 @@ monkeypatched SessionLocal); monitoring mocks prometheus_client.
 """
 from __future__ import annotations
 
+import sys
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
@@ -220,8 +221,11 @@ class TestMonitoring:
             {"prometheus_client": prom},
         ):
             # Force re-import so module-level metric creation hits the fakes.
+            # Pop core.monitoring first: if another suite already imported it,
+            # import_module would return the cached module with REAL metrics.
             import importlib
 
+            sys.modules.pop("core.monitoring", None)
             yield importlib.import_module("core.monitoring")
 
     def _find(self, mod, name):

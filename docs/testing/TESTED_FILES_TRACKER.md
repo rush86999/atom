@@ -2744,3 +2744,22 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **Evidence**: `tests/api/test_social_media_platform_posts.py` (19 tests) + `tests/api/test_social_media_routes.py` (+15), 67 tests green across all social suites.
 
 **Coverage**: `post_to_twitter` (success/with-link/401/429/500/ImportError/exception), `post_to_linkedin` (success/profile-fail/no-profile/post-fail/with-link/ImportError/exception), `post_to_facebook` (success/api-error/with-link/ImportError/exception) — all via mocked httpx; `create_social_post` (scheduled, queue-unavailable 500, missing-token, unsupported-platform 422, agent-governance 403, rate-limited 429, poster-exception, decrypt ValueError), `list_connected_accounts` (with/without tokens/DB error), `get_rate_limit_status` (normal/DB error), outer-error 500. Remaining 4 lines unreachable (poster-not-found for validated platforms, HTTPException passthrough in 2 endpoints).
+
+## Session 2026-08-11 (wave 35) — workflow_ui_endpoints 33→88% + 5 DB-mode crash bugs (TDD)
+
+**Evidence**: `tests/test_covpush_w35_workflow_ui.py` (37 new tests) — 37/37 pass; coverage 88%. Pre-existing: 22 failures in `test_workflow_ui_endpoints.py` are Starlette TestClient infra issues (`fastapi_middleware_astack not found in request scope` — framework/version mismatch in the old suite's client fixture), not route logic.
+
+**Real bugs fixed (RED → GREEN) — every DB-mode route 500'd at runtime** because `WorkflowTemplate` has `id` as PK and only ORM columns (no `template_id`/`complexity`/`tags`/`steps_schema`/`inputs_schema`/`output_schema`/`template_json`/`parent_template_id`/`rating_sum`/`is_featured`):
+1. `import_template` — queried `WorkflowTemplate.template_id` (AttributeError) and constructed with 10 nonexistent kwargs → now `id` + ORM columns (tenant_id/icon/steps/input_schema/is_approved/rating).
+2. `get_workflows` (/definitions) — read `template_id`/`steps_schema`/`inputs_schema`/`complexity` → now `id`/`steps`/`input_schema`/`icon`.
+3. `create_workflow` DB branch — constructed with 7 nonexistent kwargs → now ORM columns.
+4. `update_workflow` DB branch — queried `template_id` + wrote 5 nonexistent attrs → now `id` + name/description/category/icon/input_schema/steps/is_public.
+5. `delete_workflow` DB branch — queried `template_id` → now `id`.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/workflow_ui_endpoints.py` | 33%→**88%** (332 lines) | templates (mock + DB + category filter), import (mock found/missing, DB success/missing), services, definitions (mock/DB), workflow CRUD (mock + DB + missing paths), execute-by-id (gate + schedule), history, executions (orchestrator contexts incl. dict-context, ImportError fallback, persisted-row merge incl. bad-JSON + error columns), /execute mock-bridge (template → orchestrator def mapping with step-type inference + sequential linking, known-id, not-found), cancel (mock/DB/orchestrator/404), debug/state, create_workflow_definition |
+
+## Session 2026-08-11 (wave 56c) — w8_sandbox monitoring fixture order-independence
+
+**Evidence**: full covpush family **4649 passed / 0 failed** (up from 3911 — waves 54-56 added 738 tests). The `_fake_prom` fixture in `tests/test_covpush_w8_sandbox.py` re-imported `core.monitoring` expecting a fresh module — once any earlier suite imported it (wave-49), `import_module` returned the cached module with REAL prometheus metrics → 12 failures. Fixed: `sys.modules.pop("core.monitoring", None)` before re-import.
