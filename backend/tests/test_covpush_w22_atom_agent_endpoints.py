@@ -6,13 +6,17 @@ classifier, workflow handlers, calendar/email/task/finance/system handlers,
 save_chat_interaction and the execute-generated route.
 """
 import asyncio
+import os
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from core.atom_agent_endpoints import (
+    chat_stream_agent,
     chat_with_agent,
+    retrieve_baseline,
+    retrieve_hybrid,
     classify_intent_with_llm,
     create_new_session,
     get_session_history,
@@ -1046,3 +1050,473 @@ class TestClassifyIntentWithLlm:
              patch("core.knowledge_query_endpoints.get_knowledge_query_manager", return_value=km):
             result = await classify_intent_with_llm("help", [])
         assert result["intent"] == "HELP"
+
+
+# ---------------------------------------------------------------------------
+# wave-24 — /chat/stream + hybrid retrieval routes (LLM/service mocked)
+# ---------------------------------------------------------------------------
+
+
+
+class _AsyncTokens:
+    """Minimal async iterator of string tokens."""
+
+    def __init__(self, tokens):
+        self._tokens = list(tokens)
+        self._i = 0
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self._i >= len(self._tokens):
+            raise StopAsyncIteration
+        tok = self._tokens[self._i]
+        self._i += 1
+        return tok
+
+
+class _AsyncTokens:
+    """Minimal async iterator of string tokens."""
+
+    def __init__(self, tokens):
+        self._tokens = list(tokens)
+        self._i = 0
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self._i >= len(self._tokens):
+            raise StopAsyncIteration
+        tok = self._tokens[self._i]
+        self._i += 1
+        return tok
+
+
+def _make_stream(*tokens):
+    """Returns an async-generator FUNCTION (the real stream_completion
+    contract: callable → async iterable, NOT awaited at the call site)."""
+
+    async def _stream(**kwargs):
+        for tok in tokens:
+            yield tok
+
+    return _stream
+
+
+class TestChatStreamRoute:
+    def _stream_env(self, llm_service_cls=None, ws_manager=None, agent=None,
+                    governance_allowed=True, resolve_agent=True):
+        """Build patch contexts for chat_stream_agent."""
+        if llm_service_cls is None:
+            llm_service_cls = MagicMock()
+            llm_service_cls.return_value.analyze_query_complexity.return_value = "simple"
+            llm_service_cls.return_value.get_optimal_provider.return_value = ("opencode-go", "deepseek-v4-flash")
+            llm_service_cls.return_value.stream_completion = _make_stream("Hel", "lo", "!")
+        if ws_manager is None:
+            ws_manager = MagicMock()
+            ws_manager.broadcast = AsyncMock()
+            ws_manager.STREAMING_UPDATE = "streaming:update"
+            ws_manager.STREAMING_COMPLETE = "streaming:complete"
+            ws_manager.STREAMING_ERROR = "streaming:error"
+        return llm_service_cls, ws_manager
+
+    async def test_success_stream_full_path(self):
+        llm_cls, ws = self._stream_env()
+        agent = SimpleNamespace(id="ag-1", name="Test Agent")
+        resolver = MagicMock()
+        resolver.return_value.resolve_agent_for_request = AsyncMock(
+            return_value=(agent, {"mode": "default"}))
+        governance_cls = MagicMock()
+        governance_cls.return_value.can_perform_action.return_value = {
+            "allowed": True, "reason": "ok"}
+        governance_cls.return_value.record_outcome = AsyncMock()
+        db = MagicMock()
+        agent_exec = SimpleNamespace(id="exec-1", name="Test Agent")
+        db.add = MagicMock()
+        db.commit = MagicMock()
+        db.refresh = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = agent_exec
+        session_manager = MagicMock()
+        session_manager.create_session.return_value = "sess-1"
+        chat = MagicMock()
+        with patch("core.agent_context_resolver.AgentContextResolver", resolver), \
+             patch("core.agent_governance_service.AgentGovernanceService", governance_cls), \
+             patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.LLMService", llm_cls), \
+             patch("core.websockets.manager", ws), \
+             patch("core.atom_agent_endpoints.get_chat_history_manager", return_value=chat), \
+             patch("core.atom_agent_endpoints.get_chat_session_manager", return_value=session_manager), \
+             patch("operations.system_intelligence_service.SystemIntelligenceService") as intel_cls:
+            intel_cls.return_value.get_aggregated_context.return_value = "business ctx"
+            mock_session.return_value.__enter__.return_value = db
+            result = await chat_stream_agent(req("hello", session_id="sess-x"), SimpleNamespace(id="u1"))
+        assert result["success"] is True
+        assert result["message_id"]
+        assert result["session_id"] == "sess-x"
+        # broadcast: start + 3 tokens + complete
+        assert ws.broadcast.call_count == 5
+        complete_call = ws.broadcast.call_args_list[-1].args[1]
+        assert complete_call["type"] == "streaming:complete"
+        assert complete_call["content"] == "Hello!"
+        chat.add_message.assert_any_call("sess-x", "user", "hello")
+        chat.add_message.assert_any_call("sess-x", "assistant", "Hello!")
+
+    async def test_success_new_session_created(self):
+        llm_cls, ws = self._stream_env()
+        resolver = MagicMock()
+        resolver.return_value.resolve_agent_for_request = AsyncMock(return_value=(None, {}))
+        db = MagicMock()
+        session_manager = MagicMock()
+        session_manager.create_session.return_value = "sess-new"
+        with patch("core.agent_context_resolver.AgentContextResolver", resolver), \
+             patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.LLMService", llm_cls), \
+             patch("core.websockets.manager", ws), \
+             patch("core.atom_agent_endpoints.get_chat_history_manager", return_value=MagicMock()), \
+             patch("core.atom_agent_endpoints.get_chat_session_manager", return_value=session_manager), \
+             patch("operations.system_intelligence_service.SystemIntelligenceService") as intel_cls:
+            intel_cls.return_value.get_aggregated_context.side_effect = RuntimeError("no ctx")
+            mock_session.return_value.__enter__.return_value = db
+            result = await chat_stream_agent(req("hello"), SimpleNamespace(id="u1"))
+        assert result["success"] is True
+        assert result["session_id"] == "sess-new"
+
+    async def test_governance_disabled_skips_resolution(self):
+        llm_cls, ws = self._stream_env()
+        db = MagicMock()
+        session_manager = MagicMock()
+        session_manager.create_session.return_value = "sess-1"
+        with patch.dict(os.environ, {"STREAMING_GOVERNANCE_ENABLED": "false"}), \
+             patch("core.agent_context_resolver.AgentContextResolver") as resolver, \
+             patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.LLMService", llm_cls), \
+             patch("core.websockets.manager", ws), \
+             patch("core.atom_agent_endpoints.get_chat_history_manager", return_value=MagicMock()), \
+             patch("core.atom_agent_endpoints.get_chat_session_manager", return_value=session_manager), \
+             patch("operations.system_intelligence_service.SystemIntelligenceService") as intel_cls:
+            intel_cls.return_value.get_aggregated_context.return_value = None
+            mock_session.return_value.__enter__.return_value = db
+            result = await chat_stream_agent(req("hello"), SimpleNamespace(id="u1"))
+        assert result["success"] is True
+        resolver.assert_not_called()
+
+    async def test_governance_blocked(self):
+        llm_cls, ws = self._stream_env()
+        agent = SimpleNamespace(id="ag-1", name="A")
+        resolver = MagicMock()
+        resolver.return_value.resolve_agent_for_request = AsyncMock(
+            return_value=(agent, {}))
+        governance_cls = MagicMock()
+        governance_cls.return_value.can_perform_action.return_value = {
+            "allowed": False, "reason": "maturity too low"}
+        db = MagicMock()
+        with patch("core.agent_context_resolver.AgentContextResolver", resolver), \
+             patch("core.agent_governance_service.AgentGovernanceService", governance_cls), \
+             patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.LLMService", llm_cls), \
+             patch("core.websockets.manager", ws):
+            mock_session.return_value.__enter__.return_value = db
+            result = await chat_stream_agent(req("hello"), SimpleNamespace(id="u1"))
+        assert result["success"] is False
+        assert "not permitted" in result["error"]
+        assert result["governance_check"]["allowed"] is False
+
+    async def test_no_providers_configured_error(self):
+        from core.llm.byok_handler import NoProvidersConfiguredError
+        llm_cls = MagicMock()
+        llm_cls.return_value.analyze_query_complexity.return_value = "simple"
+        llm_cls.return_value.get_optimal_provider.side_effect = NoProvidersConfiguredError(
+            message="No LLM providers configured.", recovery_url="/settings/ai")
+        resolver = MagicMock()
+        resolver.return_value.resolve_agent_for_request = AsyncMock(return_value=(None, {}))
+        db = MagicMock()
+        with patch("core.agent_context_resolver.AgentContextResolver", resolver), \
+             patch("core.agent_governance_service.AgentGovernanceService"), \
+             patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.LLMService", llm_cls), \
+             patch("core.websockets.manager", MagicMock()):
+            mock_session.return_value.__enter__.return_value = db
+            result = await chat_stream_agent(req("hello"), SimpleNamespace(id="u1"))
+        assert result["success"] is False
+        assert result["status_code"] == 503
+        assert result["error_code"] == "no_llm_provider"
+        assert result["recovery_url"] == "/settings/ai"
+
+    async def test_other_provider_error(self):
+        llm_cls = MagicMock()
+        llm_cls.return_value.analyze_query_complexity.return_value = "simple"
+        llm_cls.return_value.get_optimal_provider.side_effect = RuntimeError("routing exploded")
+        resolver = MagicMock()
+        resolver.return_value.resolve_agent_for_request = AsyncMock(return_value=(None, {}))
+        db = MagicMock()
+        with patch("core.agent_context_resolver.AgentContextResolver", resolver), \
+             patch("core.agent_governance_service.AgentGovernanceService"), \
+             patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.LLMService", llm_cls), \
+             patch("core.websockets.manager", MagicMock()):
+            mock_session.return_value.__enter__.return_value = db
+            result = await chat_stream_agent(req("hello"), SimpleNamespace(id="u1"))
+        assert result["success"] is False
+        assert result["status_code"] == 503
+        assert result["error_code"] == "llm_provider_error"
+        assert "Could not select" in result["message"]
+
+    async def test_stream_error_broadcasts_and_marks_failed(self):
+        llm_cls, ws = self._stream_env()
+
+        async def _failing_stream(**kwargs):
+            yield "partial"
+            raise RuntimeError("stream died")
+
+        llm_cls.return_value.stream_completion = _failing_stream
+        agent = SimpleNamespace(id="ag-1", name="A")
+        resolver = MagicMock()
+        resolver.return_value.resolve_agent_for_request = AsyncMock(
+            return_value=(agent, {}))
+        governance_cls = MagicMock()
+        governance_cls.return_value.can_perform_action.return_value = {
+            "allowed": True, "reason": "ok"}
+        governance_cls.return_value.record_outcome = AsyncMock()
+        db = MagicMock()
+        agent_exec = SimpleNamespace(id="exec-1")
+        db.add = MagicMock()
+        db.commit = MagicMock()
+        db.refresh = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = agent_exec
+        with patch("core.agent_context_resolver.AgentContextResolver", resolver), \
+             patch("core.agent_governance_service.AgentGovernanceService", governance_cls), \
+             patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.LLMService", llm_cls), \
+             patch("core.websockets.manager", ws), \
+             patch("operations.system_intelligence_service.SystemIntelligenceService") as intel_cls:
+            intel_cls.return_value.get_aggregated_context.return_value = None
+            mock_session.return_value.__enter__.return_value = db
+            result = await chat_stream_agent(req("hello"), SimpleNamespace(id="u1"))
+        assert result["success"] is False
+        assert result["error"] == "Internal server error"
+        error_call = [c.args[1] for c in ws.broadcast.call_args_list
+                      if c.args[1]["type"] == "streaming:error"]
+        assert error_call
+        assert agent_exec.status == "failed"
+
+    async def test_dict_conversation_history(self):
+        llm_cls, ws = self._stream_env()
+        captured = {}
+
+        def _record_stream(**kwargs):
+            captured["kwargs"] = kwargs
+            return _make_stream("ok")(**kwargs)
+
+        llm_cls.return_value.stream_completion = _record_stream
+        resolver = MagicMock()
+        resolver.return_value.resolve_agent_for_request = AsyncMock(return_value=(None, {}))
+        db = MagicMock()
+        session_manager = MagicMock()
+        session_manager.create_session.return_value = "sess-1"
+        with patch("core.agent_context_resolver.AgentContextResolver", resolver), \
+             patch("core.database.get_db_session") as mock_session, \
+             patch("core.llm_service.LLMService", llm_cls), \
+             patch("core.websockets.manager", ws), \
+             patch("core.atom_agent_endpoints.get_chat_history_manager", return_value=MagicMock()), \
+             patch("core.atom_agent_endpoints.get_chat_session_manager", return_value=session_manager), \
+             patch("operations.system_intelligence_service.SystemIntelligenceService") as intel_cls:
+            intel_cls.return_value.get_aggregated_context.return_value = None
+            mock_session.return_value.__enter__.return_value = db
+            request = req("hello", conversation_history=[
+                {"role": "user", "content": "prev"}])
+            result = await chat_stream_agent(request, SimpleNamespace(id="u1"))
+        assert result["success"] is True
+        sent_messages = captured["kwargs"]["messages"]
+        assert any(m.get("role") == "user" and m.get("content") == "prev" for m in sent_messages)
+
+
+class TestRetrieveRoutes:
+    async def test_retrieve_hybrid_success(self):
+        service_cls = MagicMock()
+        service_cls.return_value.retrieve_semantic_hybrid = AsyncMock(
+            return_value=[("ep-1", 0.9, "reranked"), ("ep-2", 0.7, "coarse")])
+        db = MagicMock()
+        with patch("core.atom_agent_endpoints.HybridRetrievalService", service_cls):
+            result = await retrieve_hybrid(
+                "ag-1", "query", 100, 50, True,
+                SimpleNamespace(id="u1"), db)
+        assert result["success"] is True
+        assert result["count"] == 2
+        assert result["results"][0]["episode_id"] == "ep-1"
+
+    async def test_retrieve_hybrid_exception(self):
+        service_cls = MagicMock()
+        service_cls.return_value.retrieve_semantic_hybrid = AsyncMock(
+            side_effect=RuntimeError("db down"))
+        db = MagicMock()
+        with patch("core.atom_agent_endpoints.HybridRetrievalService", service_cls):
+            result = await retrieve_hybrid(
+                "ag-1", "query", 100, 50, True,
+                SimpleNamespace(id="u1"), db)
+        assert result["success"] is False
+        assert result["results"] == []
+
+    async def test_retrieve_baseline_success(self):
+        service_cls = MagicMock()
+        service_cls.return_value.retrieve_semantic_baseline = AsyncMock(
+            return_value=[("ep-1", 0.8)])
+        db = MagicMock()
+        with patch("core.atom_agent_endpoints.HybridRetrievalService", service_cls):
+            result = await retrieve_baseline(
+                "ag-1", "query", 50, SimpleNamespace(id="u1"), db)
+        assert result["success"] is True
+        assert result["count"] == 1
+        assert result["method"] == "fastembed_baseline"
+
+    async def test_retrieve_baseline_exception(self):
+        service_cls = MagicMock()
+        service_cls.return_value.retrieve_semantic_baseline = AsyncMock(
+            side_effect=RuntimeError("db down"))
+        db = MagicMock()
+        with patch("core.atom_agent_endpoints.HybridRetrievalService", service_cls):
+            result = await retrieve_baseline(
+                "ag-1", "query", 50, SimpleNamespace(id="u1"), db)
+        assert result["success"] is False
+        assert result["results"] == []
+
+
+# ---------------------------------------------------------------------------
+# wave-24b — remaining dispatch/reference branches
+# ---------------------------------------------------------------------------
+
+
+class TestChatRouteBranchCoverage:
+    async def _route_with_intent(self, intent, entities=None, message="x",
+                                 conversation_history=None, context=None):
+        session_manager = MagicMock()
+        session_manager.create_session.return_value = "sess-new"
+        ctx_manager = MagicMock()
+        ctx_manager.resolve_reference = AsyncMock(return_value={"id": "task-1"})
+        with patch("core.atom_agent_endpoints.get_chat_session_manager", return_value=session_manager), \
+             patch("core.atom_agent_endpoints.get_chat_history_manager", return_value=MagicMock()), \
+             patch("core.atom_agent_endpoints.get_chat_context_manager", return_value=ctx_manager), \
+             patch("core.board_command_router.parse_slash", return_value=None), \
+             patch("core.atom_agent_endpoints.classify_intent_with_llm",
+                   new=AsyncMock(return_value={"intent": intent, "entities": entities or {}})), \
+             patch("core.atom_agent_endpoints.save_chat_interaction", new=MagicMock()), \
+             patch("core.behavior_analyzer.get_behavior_analyzer", return_value=MagicMock()):
+            return await chat_with_agent(
+                req(message, conversation_history=conversation_history or [], context=context),
+                SimpleNamespace(id="u1"))
+
+    async def test_task_reference_resolution(self):
+        with patch("core.atom_agent_endpoints.get_tasks",
+                   new=AsyncMock(return_value={"tasks": []})):
+            result = await self._route_with_intent("LIST_TASKS", {"task_ref": "that"})
+        assert result["success"] is True
+
+    async def test_dispatch_finance(self):
+        result = await self._route_with_intent("CHECK_BALANCE")
+        assert result["success"] is True
+        assert result["response"]["data"]["balance"] == 12450.00
+
+    async def test_dispatch_system_status(self):
+        status = MagicMock()
+        status.get_overall_status.return_value = "healthy"
+        status.get_system_info.return_value = {"platform": {"system": "Linux"}}
+        status.get_resource_usage.return_value = {"cpu": {"percent": 5.0}, "memory": {"percent": 30.0}}
+        status.get_service_status.return_value = {"api": {"status": "healthy"}}
+        with patch("core.atom_agent_endpoints.SystemStatus", status):
+            result = await self._route_with_intent("GET_SYSTEM_STATUS")
+        assert result["success"] is True
+
+    async def test_dispatch_automation_insights(self):
+        insight_manager = MagicMock()
+        insight_manager.generate_all_insights.return_value = {
+            "drift_insights": [], "summary": {}}
+        behavior = MagicMock()
+        behavior.detect_patterns.return_value = []
+        with patch("core.automation_insight_manager.get_insight_manager", return_value=insight_manager), \
+             patch("core.behavior_analyzer.get_behavior_analyzer", return_value=behavior):
+            result = await self._route_with_intent("GET_AUTOMATION_INSIGHTS")
+        assert result["success"] is True
+
+    async def test_dispatch_stakeholders(self):
+        engine = MagicMock()
+        engine.identify_silent_stakeholders = AsyncMock(return_value=[])
+        with patch("core.stakeholder_engine.get_stakeholder_engine", return_value=engine):
+            result = await self._route_with_intent("GET_SILENT_STAKEHOLDERS")
+        assert result["success"] is True
+
+    async def test_dispatch_followup(self):
+        tm = MagicMock()
+        tm.get_template.return_value = {"id": "email_followup"}
+        with patch("core.workflow_template_system.template_manager", tm, create=True):
+            result = await self._route_with_intent("FOLLOW_UP_EMAILS")
+        assert result["success"] is True
+
+    async def test_dispatch_wellness(self):
+        with patch("core.workflow_template_system.template_manager", MagicMock(), create=True):
+            result = await self._route_with_intent("WELLNESS_CHECK")
+        assert result["success"] is True
+
+    async def test_dispatch_goal_status(self):
+        result = await self._route_with_intent("GOAL_STATUS")
+        assert result["success"] is True
+
+    async def test_dispatch_resolve_conflicts(self):
+        result = await self._route_with_intent("RESOLVE_CONFLICTS")
+        assert result["success"] is True
+
+    async def test_dispatch_help(self):
+        result = await self._route_with_intent("HELP")
+        assert result["success"] is True
+        assert "Universal ATOM Assistant" in result["response"]["message"]
+
+    async def test_dispatch_crm(self):
+        assistant_cls = MagicMock()
+        assistant_cls.return_value.answer_sales_query = AsyncMock(return_value="leads answer")
+        db = MagicMock()
+        with patch("sales.assistant.SalesAssistant", assistant_cls), \
+             patch("core.database.get_db_session") as mock_session:
+            mock_session.return_value.__enter__.return_value = db
+            result = await self._route_with_intent("CRM_QUERY")
+        assert result["success"] is True
+
+    async def test_dispatch_create_workflow(self):
+        orchestrator = MagicMock()
+        orchestrator.generate_dynamic_workflow = AsyncMock(return_value={"id": "wf-1", "name": "Generated"})
+        with patch("core.atom_agent_endpoints.get_orchestrator", return_value=orchestrator), \
+             patch("core.atom_agent_endpoints.save_workflows", return_value=True):
+            result = await self._route_with_intent("CREATE_WORKFLOW", {"description": "d"})
+        assert result["success"] is True
+
+    async def test_dispatch_search_platform(self):
+        response = SimpleNamespace(success=True, results=[], total_count=0)
+        with patch("core.atom_agent_endpoints.unified_hybrid_search", new=AsyncMock(return_value=response)):
+            result = await self._route_with_intent("SEARCH_PLATFORM", {"query": "docs"})
+        assert result["success"] is True
+
+    async def test_platform_search_more_than_five(self):
+        result_item = SimpleNamespace(
+            metadata={"type": "document"}, text="A" * 50,
+            dict=lambda: {"text": "A" * 50})
+        response = SimpleNamespace(
+            success=True,
+            results=[result_item] * 7,
+            total_count=7)
+        with patch("core.atom_agent_endpoints.unified_hybrid_search", new=AsyncMock(return_value=response)):
+            result = await handle_platform_search(req("find"), {"query": "find"})
+        assert result["success"] is True
+        assert "...and 2 more results" in result["response"]["message"]
+
+    async def test_episode_trigger_exception_tolerated(self):
+        with patch("core.atom_agent_endpoints.get_chat_session_manager", return_value=MagicMock()), \
+             patch("core.atom_agent_endpoints.get_chat_history_manager", return_value=MagicMock()), \
+             patch("core.atom_agent_endpoints.get_chat_context_manager", return_value=MagicMock()), \
+             patch("core.board_command_router.parse_slash", return_value=None), \
+             patch("core.atom_agent_endpoints.classify_intent_with_llm",
+                   new=AsyncMock(return_value={"intent": "BOGUS", "entities": {}})), \
+             patch("core.atom_agent_endpoints.save_chat_interaction", new=MagicMock()), \
+             patch("core.atom_agent_endpoints.trigger_episode_creation",
+                   side_effect=RuntimeError("episode down")), \
+             patch("core.behavior_analyzer.get_behavior_analyzer", return_value=MagicMock()):
+            result = await chat_with_agent(req("hello", agent_id="ag-1"), SimpleNamespace(id="u1"))
+        assert result["success"] is True
