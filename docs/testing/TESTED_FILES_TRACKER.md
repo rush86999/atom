@@ -2470,3 +2470,11 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **Covered**: categorize_error (code-first: 401-expired/token→auth_expired, 401/403→permission_denied, 429, 404, 400; message-based: permission/expired/rate/network/not-found/invalid; unknown default), get_suggested_resolution (unknown type, no-history→0, most-successful mapped back to template index — resolution titles are the template's ("Let Agent Reconnect" etc.), template-mismatch fallback), track_resolution (flag-off no-op, success row, exception rollback), get_historical_resolutions (+exception), get_resolution_success_rate (none/mixed/exception), get_resolution_statistics (empty/grouped/filtered/exception), suggest_fixes_from_history (template fallback, unknown-type empty, historical success-rate sorting, exception), get_error_fix_suggestions (full/flag/exception), _explain_what_happened/_why/_impact (all categories + unknown fallback), present_error (broadcast + audit, flag-off, exception swallowed).
 
 **Notes**: `ws_manager.broadcast` is awaited — tests must use AsyncMock or the await raises and the audit never runs; `engine.db` must be a MagicMock for exception tests (the fixture's real session methods can't take side_effect).
+
+## Session 2026-08-11 (wave 42) — feedback_analytics 15% → 100%
+
+**Evidence**: `tests/test_covpush_w42_feedback_analytics.py` (14 tests, real in-memory SQLite).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/feedback_analytics.py` | 15%→**100%** | agent summary (missing-agent ValueError, empty, full, days window), overall statistics (empty/full incl. distinct-agent count), top performers (qualification ≥5, sorting, missing-registry skip), most-corrected (grouped counts, empty), daily trends (multi-day grouping, averages), breakdown by type (incl. None-type skip) |
