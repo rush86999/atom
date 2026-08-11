@@ -397,6 +397,146 @@ class TestExecuteParallelTools:
         assert len(results) == 1
         assert results[0]["tool_name"] == "a"
 
+    async def test_parallel_batch_hitl_approved(self):
+        from core.atom_meta_agent import ToolCall
+        agent = make_agent()
+        gov = _gov(can_perform_action_async=AsyncMock(
+            return_value={"allowed": True, "action_complexity": 3,
+                          "requires_human_approval": True, "reason": "complex"}))
+        agent._execute_tool_with_governance = AsyncMock(return_value="pre-ok")
+        with patch("core.atom_meta_agent.SessionLocal") as mock_session, \
+             patch("core.atom_meta_agent.AgentGovernanceService",
+                   return_value=gov), \
+             patch("core.hallucination_config.is_parallel_tools_enabled",
+                   return_value=True), \
+             patch("core.hallucination_config.get_max_parallel_tools",
+                   return_value=4), \
+             patch.object(agent, "_wait_for_all_approvals",
+                          new=AsyncMock(return_value=True)):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            results = await agent._execute_parallel_tools(
+                [ToolCall(tool="a", params={})], {}, None)
+        assert results[0]["output"] == "pre-ok"
+        agent._execute_tool_with_governance.assert_awaited_once()
+        assert agent._execute_tool_with_governance.await_args.kwargs["pre_approved"] is True
+
+    async def test_parallel_batch_hitl_rejected(self):
+        from core.atom_meta_agent import ToolCall
+        agent = make_agent()
+        gov = _gov(can_perform_action_async=AsyncMock(
+            return_value={"allowed": True, "action_complexity": 3,
+                          "requires_human_approval": True, "reason": "complex"}))
+        with patch("core.atom_meta_agent.SessionLocal") as mock_session, \
+             patch("core.atom_meta_agent.AgentGovernanceService",
+                   return_value=gov), \
+             patch("core.hallucination_config.is_parallel_tools_enabled",
+                   return_value=True), \
+             patch("core.hallucination_config.get_max_parallel_tools",
+                   return_value=4), \
+             patch.object(agent, "_wait_for_all_approvals",
+                          new=AsyncMock(return_value=False)):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            results = await agent._execute_parallel_tools(
+                [ToolCall(tool="a", params={})], {}, None)
+        assert "REJECTED" in results[0]["output"]
+        assert results[0]["verified_kind"] == "rejected"
+
+    async def test_parallel_batch_blocked(self):
+        from core.atom_meta_agent import ToolCall
+        agent = make_agent()
+        gov = _gov(can_perform_action_async=AsyncMock(
+            return_value={"allowed": False, "action_complexity": 1,
+                          "reason": "denied"}))
+        with patch("core.atom_meta_agent.SessionLocal") as mock_session, \
+             patch("core.atom_meta_agent.AgentGovernanceService",
+                   return_value=gov), \
+             patch("core.hallucination_config.is_parallel_tools_enabled",
+                   return_value=True), \
+             patch("core.hallucination_config.get_max_parallel_tools",
+                   return_value=4):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            results = await agent._execute_parallel_tools(
+                [ToolCall(tool="a", params={})], {}, None)
+        assert "Governance blocked" in results[0]["output"]
+        assert results[0]["verified_kind"] == "blocked"
+
+    async def test_parallel_batch_tool_error(self):
+        from core.atom_meta_agent import ToolCall
+        agent = make_agent()
+        gov = _gov()
+        agent._execute_tool_with_governance = AsyncMock(
+            side_effect=RuntimeError("tool boom"))
+        with patch("core.atom_meta_agent.SessionLocal") as mock_session, \
+             patch("core.atom_meta_agent.AgentGovernanceService",
+                   return_value=gov), \
+             patch("core.hallucination_config.is_parallel_tools_enabled",
+                   return_value=True), \
+             patch("core.hallucination_config.get_max_parallel_tools",
+                   return_value=4):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            results = await agent._execute_parallel_tools(
+                [ToolCall(tool="a", params={})], {}, None)
+        assert "Tool error" in results[0]["output"]
+        assert results[0]["verified_kind"] == "error"
+
+    async def test_parallel_batch_killrun_reraises(self):
+        from core.sandbox_killrun import KillRunAborted
+        from core.atom_meta_agent import ToolCall
+        agent = make_agent()
+        gov = _gov()
+        agent._execute_tool_with_governance = AsyncMock(
+            side_effect=KillRunAborted("killed"))
+        with patch("core.atom_meta_agent.SessionLocal") as mock_session, \
+             patch("core.atom_meta_agent.AgentGovernanceService",
+                   return_value=gov), \
+             patch("core.hallucination_config.is_parallel_tools_enabled",
+                   return_value=True), \
+             patch("core.hallucination_config.get_max_parallel_tools",
+                   return_value=4):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            with pytest.raises(KillRunAborted):
+                await agent._execute_parallel_tools(
+                    [ToolCall(tool="a", params={})], {}, None)
+
+    async def test_parallel_batch_serial_tool_search(self):
+        from core.atom_meta_agent import ToolCall
+        agent = make_agent()
+        gov = _gov()
+        agent.mcp = MagicMock()
+        agent.mcp.search_tools = AsyncMock(
+            return_value=[{"name": "found_tool", "description": "d"}])
+        agent.session_tools = []
+        with patch("core.atom_meta_agent.SessionLocal") as mock_session, \
+             patch("core.atom_meta_agent.AgentGovernanceService",
+                   return_value=gov), \
+             patch("core.hallucination_config.is_parallel_tools_enabled",
+                   return_value=True), \
+             patch("core.hallucination_config.get_max_parallel_tools",
+                   return_value=4):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            results = await agent._execute_parallel_tools(
+                [ToolCall(tool="mcp_tool_search", params={"query": "q"})], {}, None)
+        assert any("found_tool" in r["output"] for r in results)
+
+    async def test_parallel_batch_serial_search_error(self):
+        from core.atom_meta_agent import ToolCall
+        agent = make_agent()
+        gov = _gov()
+        agent.mcp = MagicMock()
+        agent.mcp.search_tools = AsyncMock(side_effect=RuntimeError("search down"))
+        agent.session_tools = []
+        with patch("core.atom_meta_agent.SessionLocal") as mock_session, \
+             patch("core.atom_meta_agent.AgentGovernanceService",
+                   return_value=gov), \
+             patch("core.hallucination_config.is_parallel_tools_enabled",
+                   return_value=True), \
+             patch("core.hallucination_config.get_max_parallel_tools",
+                   return_value=4):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            results = await agent._execute_parallel_tools(
+                [ToolCall(tool="mcp_tool_search", params={"query": "q"})], {}, None)
+        assert "Tool search failed" in results[0]["output"]
+
 
 class TestRecruitFleet:
     async def test_recruit_fleet_no_subtasks(self):
