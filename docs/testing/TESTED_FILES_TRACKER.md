@@ -2281,3 +2281,11 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **Remaining uncovered (provably unreachable in unit tests)**: shadowed dead `create_alert` at line 812 (superseded by the 1603 dispatcher), the background-thread loop body (runs only in a live daemon thread). **Pre-existing reds left as-is** (verified identical pre-change): `test_workflow_analytics_engine_coverage_extend.py` 7 tests — schema NOT-NULL `metric_name`/`condition` mismatch + `event_type=="failed"` stale assertion; `tests/standalone/test_analytics_dashboard.py` 2 errors (missing `engine` fixture, never defined).
 
 **Note**: mid-session the concurrent agent committed this wave's engine + test files inside `bc63185a1` (waves 30-33); verified the committed content matches my working tree exactly. Resolved an unrelated stash-pop conflict in `tests/api/test_business_facts_routes_coverage.py` in favor of the committed upstream (`/tmp/test-policy.pdf` — route only probes /tmp, gettempdir() fails on macOS).
+
+## Session 2026-08-10 (post-wave) — W32: atom_meta_agent 87→90% + W31 prod fixes
+
+**Evidence**: `tests/test_covpush_w32_meta_agent.py` (11 tests), regression meta-agent suites 172 passed / 7 skipped.
+
+**W32 — atom_meta_agent**: `_meta_agent_sandbox_check` phases (fs review, tripwire blocked, tripwire killrun trigger, caps review, non-killrun fail-open, KillRunAborted PROPAGATES — documented); execute: killed run → `killed_sandbox` status (KillRunAborted from _react_step), vector-recall prefetch populates context (NOTE: `prefetch_relevant_facts` is SYNC, called WITHOUT await — an AsyncMock stub returns an unawaited coroutine and the block's try/except silently swallows the TypeError), execution-creation DB error tolerated, field-guide failure tolerated, turn-fact extraction dispatch on session end (fire-and-forget).
+
+**W31 prod fixes (commit e47dc5a11)**: `GenericAgent.register_action` async→sync (un-awaited calls silently no-op'd); `_step_act` timeout branch now matches TimeoutError TYPE + "timeout"/"timed out" strings (previously "timed out" skipped the oracle verify-before-retry → duplicate side-effect risk). +2 regression tests.
