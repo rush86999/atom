@@ -2702,3 +2702,14 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **Evidence**: `tests/api/test_debug_routes_comprehensive.py` (49 tests), 59 tests green including the old loose unit suite.
 
 **Coverage**: events (collect/batch/query/get + 404), state snapshots (collect/get), insights (query/get/generate/resolve), sessions (create/list/close), analytics (component-health, error-patterns via real DB query, error-rate via DebugMonitor, system-health, active-operations, throughput, insights-summary, performance), opencode-usage (success/model-filter/500 via rate-tracker + model-limits mocks), time-range parser, natural-language query (DebugAIAssistant), collector-init fallback, `_get_storage` instance, disabled-mode sweep (all 18 endpoints: enabled:False or 400 DEBUG_DISABLED).
+
+## Session 2026-08-11 (wave 54) — routing package unlocked + per_model_router 22→96%, request_healer 78→99%
+
+**Measurement breakthrough**: `COVERAGE_CORE=sysmon coverage run -m pytest` bypasses the numpy 2.4 + coverage C-tracer double-load ImportError that previously made `core/llm/routing/*` (sklearn) unmeasurable — the whole routing package is now measurable.
+
+**Evidence**: `tests/test_covpush_w54_per_model_router.py` (21), `w54_request_healer.py` (21). Combined: 62 passed (w54 + test_request_healer).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/llm/routing/per_model_router.py` | 22%→**96%** | training (multi-class + weights, single-class constant, no-examples failure, MLP unweighted fallback), all 4 estimator types, prediction (cold-start, single-class rate, proba class mapping, non-proba fallback), confidence scaling, persistence roundtrip + corrupt tolerance + unknown-model raise, factory |
+| 2026-08-11 | `core/llm/routing/request_healer.py` | 78%→**99%** | classify unknown + auth substring, abstract-rule NotImplementedError, param-rename no-token, multimodal skips (non-dict/non-list), LLM healer (fenced JSON success, patch-null, no-change, disallowed keys, bad JSON, exception, timeout), summarize (non-list/multimodal/non-dict/truncation), heal integration (flag on/off/raise) |
