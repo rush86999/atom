@@ -2506,3 +2506,13 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | 2026-08-11 | `core/turn_fact_queue.py` | 0%→**100%** | enqueue gates (flag/prompt/queue-full), worker lifecycle (idempotent/closed-loop/no-loop deferral), drain_once, stats, worker exception survival + cancellation, _process success/exception, singleton |
 
 **Test-infra fix (event-loop pollution)**: `await_coroutine` helpers across w30/w31/w34/w35/w36/w37/w40/w43 files used `asyncio.get_event_loop().run_until_complete` — after any pytest-asyncio suite runs, the ambient loop is closed in Python 3.11 and combined runs failed with "no current event loop" / "future belongs to a different loop". All helpers now create a fresh `asyncio.new_event_loop()` per call (finally-closed). Verified: w30_action_registry + w36_oracle_vfs + w43 combined 114 passed; full covpush family 3679 passed.
+
+## Session 2026-08-11 (W43) — episode_segmentation_service 87%→93% (43 tests)
+
+**Evidence**: `tests/test_covpush_w43_episode_segmentation.py` (43 tests, all green), combined regression 260 passed / 7 skipped across all episode suites.
+
+| File | Change |
+|---|---|
+| `core/episode_segmentation_service.py` | 87%→**93%** (623/672). Boundary detector cosine/keyword similarity fallbacks, `_extract_entities` (phones/URLs/metadata/execution capitalized words), `_extract_topics` execution branch, `create_episode_from_session` (no-data/too-small/forced + canvas-audit + feedback back-linkage), active `_extract_canvas_context` (1174 def: first-audit-wins, interaction map, critical-data flat fields, exception), `_fetch_feedback_context`, `_calculate_feedback_score`, `_archive_supervision_episode_to_lancedb` (missing/existing table/no-db/exception), `_ensure_episode_columns`, `_get_agent_maturity`, `_filter_canvas_context_detail`, `_format_agent_actions`. |
+
+**Dead code documented**: the `_extract_canvas_context` at line 853 (~45 lines) is **shadowed by the 1174 definition** — Python uses the later one; the earlier is unreachable. The 4 remaining non-dead lines (189 `union` empty — provably unreachable since empty tokens return earlier; 1304-1306 filter except — behavior verified via direct call, coverage-instrumentation quirk with dict-subclass `get` override).
