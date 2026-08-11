@@ -46,8 +46,10 @@ def _build_agent(model, **patches):
 
 
 class TestCustomActions:
-    async def _register(self, agent, name, handler, **kw):
-        await agent.register_action(name, handler, "desc", **kw)
+    def _register(self, agent, name, handler, **kw):
+        # register_action is intentionally SYNC — calling without await must
+        # work (regression: async signature silently no-op'd un-awaited calls)
+        agent.register_action(name, handler, "desc", **kw)
 
     @pytest.mark.asyncio
     async def test_register_action_sync_and_async(self):
@@ -59,15 +61,15 @@ class TestCustomActions:
         async def async_handler(args, context):
             return "async-ok"
 
-        await self._register(agent, "act_sync", sync_handler)
-        await self._register(agent, "act_async", async_handler, min_maturity="INTERN")
+        self._register(agent, "act_sync", sync_handler)
+        self._register(agent, "act_async", async_handler, min_maturity="INTERN")
         assert agent._custom_actions["act_sync"] is sync_handler
         assert agent._custom_action_specs["act_async"]["min_maturity"] == "INTERN"
 
     @pytest.mark.asyncio
     async def test_custom_action_visible_no_floor(self):
         agent = _build_agent(_agent_model())
-        await self._register(agent, "act_1", lambda a, c: "x")
+        self._register(agent, "act_1", lambda a, c: "x")
         assert agent._custom_action_visible("act_1") is True
 
     def test_custom_action_visible_unknown(self):
@@ -77,21 +79,21 @@ class TestCustomActions:
     @pytest.mark.asyncio
     async def test_custom_action_visible_floor_without_maturity(self):
         agent = _build_agent(_agent_model())
-        await self._register(agent, "act_2", lambda a, c: "x", min_maturity="INTERN")
+        self._register(agent, "act_2", lambda a, c: "x", min_maturity="INTERN")
         agent._run_maturity = None
         assert agent._custom_action_visible("act_2") is False
 
     @pytest.mark.asyncio
     async def test_custom_action_visible_below_floor(self):
         agent = _build_agent(_agent_model())
-        await self._register(agent, "act_3", lambda a, c: "x", min_maturity="SUPERVISED")
+        self._register(agent, "act_3", lambda a, c: "x", min_maturity="SUPERVISED")
         agent._run_maturity = "intern"
         assert agent._custom_action_visible("act_3") is False
 
     @pytest.mark.asyncio
     async def test_custom_action_visible_above_floor(self):
         agent = _build_agent(_agent_model())
-        await self._register(agent, "act_4", lambda a, c: "x", min_maturity="INTERN")
+        self._register(agent, "act_4", lambda a, c: "x", min_maturity="INTERN")
         agent._run_maturity = "AUTONOMOUS"
         assert agent._custom_action_visible("act_4") is True
 
@@ -105,8 +107,8 @@ class TestCustomActions:
         async def async_handler(args, context):
             return {"handled": "async"}
 
-        await self._register(agent, "custom_sync", sync_handler)
-        await self._register(agent, "custom_async", async_handler)
+        self._register(agent, "custom_sync", sync_handler)
+        self._register(agent, "custom_async", async_handler)
 
         sync_result = await agent._step_act("custom_sync", {"x": 1}, {})
         assert sync_result == {"handled": 1}
@@ -120,7 +122,7 @@ class TestCustomActions:
         def bad_handler(args, context):
             raise RuntimeError("custom boom")
 
-        await self._register(agent, "custom_bad", bad_handler)
+        self._register(agent, "custom_bad", bad_handler)
         result = await agent._step_act("custom_bad", {}, {})
         assert "custom boom" in result
 
@@ -193,6 +195,34 @@ class TestStuckDetector:
              patch("core.hallucination_config.is_parallel_tools_enabled", return_value=True):
             result = await agent.execute("do it")
         assert result["status"] == "stuck"
+
+    @pytest.mark.asyncio
+    async def test_timed_out_message_hits_oracle_path(self):
+        # regression: "timed out" (with space) previously fell through the
+        # "timeout" string check to the generic error return
+        agent = _build_agent(_agent_model())
+        agent.mcp.call_tool = AsyncMock(side_effect=asyncio.TimeoutError("tool timed out"))
+        with patch("core.oracle.verify_before_retry", new=AsyncMock(return_value=True)):
+            with patch("core.generic_agent.get_db_session") as gds:
+                gds.return_value.__enter__.return_value = MagicMock()
+                result = await agent._step_act(
+                    "documents.search", {"query": "x"}, {}, pre_approved=True
+                )
+        assert "Do NOT retry" in result
+
+    @pytest.mark.asyncio
+    async def test_timeout_error_type_hits_oracle_path(self):
+        # regression: a bare TimeoutError with an unrelated message must still
+        # route through verify-before-retry (type check, not just string)
+        agent = _build_agent(_agent_model())
+        agent.mcp.call_tool = AsyncMock(side_effect=asyncio.TimeoutError("deadline"))
+        with patch("core.oracle.verify_before_retry", new=AsyncMock(return_value=False)):
+            with patch("core.generic_agent.get_db_session") as gds:
+                gds.return_value.__enter__.return_value = MagicMock()
+                result = await agent._step_act(
+                    "documents.search", {"query": "x"}, {}, pre_approved=True
+                )
+        assert "try once more" in result
 
     @pytest.mark.asyncio
     async def test_oracle_timeout_postcondition_met(self):

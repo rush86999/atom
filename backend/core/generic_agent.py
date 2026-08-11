@@ -673,7 +673,7 @@ class GenericAgent:
             logger.warning(f"Budget pre-check failed (fail-open): {e}")
             return {"allowed": True, "reason": "budget-check-error", "enforcement_mode": "unknown"}
 
-    async def register_action(
+    def register_action(
         self,
         name: str,
         handler: Any,
@@ -688,6 +688,10 @@ class GenericAgent:
         floor, e.g. "INTERN", "SUPERVISED") and dispatched locally in
         ``_step_act`` before any MCP tool call. Registration is additive;
         governance/capability/sandbox layers are unaffected.
+
+        NOTE: this is intentionally SYNC. It only assigns dict entries —
+        an async signature made un-awaited calls silently no-op (a footgun
+        that cost real debugging time). Call it without ``await``.
         """
         self._custom_actions[name] = handler
         self._custom_action_specs[name] = {
@@ -1035,7 +1039,11 @@ What is your next step?"""
                 return f"Error: Tool '{tool_name}' not found. Check tool name."
             elif "validation" in error_msg.lower() or "invalid" in error_msg.lower():
                 return f"Error: Invalid arguments for '{tool_name}': {error_msg}. Please check schema and retry."
-            elif "timeout" in error_msg.lower():
+            elif (
+                isinstance(e, (asyncio.TimeoutError, TimeoutError))
+                or "timeout" in error_msg.lower()
+                or "timed out" in error_msg.lower()
+            ):
                 # P3b (arXiv 2608.02645): verify-before-retry. The effect may
                 # have landed despite the timeout — re-derive against the
                 # system of record BEFORE telling the LLM to try once more,

@@ -2218,3 +2218,51 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **W30 — action_registry 78→98%**: registry basics (register/get/get_all/list/list_action_names, decorator, execute found/not-found, singleton ≥30 actions), `_context_user_id` variants, documents.search (missing query, legacy flag-off parity, hybrid success/exception), canvas.read/update (validation + mocked success), tasks.create (validation/success/exception), agents.list (filter/success/exception), 14 mini_app_* delegate wirings (each → `tools.mini_app_tool`).
 
 **W31 — generic_agent 91→96%**: `register_action` is ASYNC (await required — tests originally called it sync and silently no-oped); `_custom_action_visible` maturity floors (no-floor visible, unknown false, floor w/o maturity hidden, below/above); `_step_act` custom dispatch (sync/async handlers, raising handler → Error string); `_measure_success_rate` (metrics + exception → None); stuck-detector serial + parallel (3x identical tool+args → status "stuck"; parallel flag defaults ON so `_execute_parallel_tools` must be mocked); oracle verify-before-retry timeout path (`pre_approved=True` skips governance/HITL; error message must contain literal "timeout" — "timed out" does NOT match the string check); result dict key is `"output"` (not `final_answer`).
+
+## Session 2026-08-10 (wave 25) — episode_service 43→85% (test-only, mocked db)
+
+**Evidence**: `tests/test_covpush_w25_episode_service.py` (60 new tests) — 143 passed / 0 failed across the episode suites + wave. 2 pre-existing failures in `test_episode_retrieval_service.py` (committed, unrelated to this wave — `'Mock' object is not iterable` at episode_retrieval_service.py:387).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/episode_service.py` | 43%→**85%** (488 lines) | readiness metrics (None-safe constitutional/confidence, step-efficiency None-skip); supervision metrics (approval/execution rates, supervisor-type breakdown); skill diversity + proposal quality metrics; `get_agent_episodes` filters; `archive_episode_to_cold_storage` (not-found, embedding-fail → zero vector, LanceDB unavailable, billing, add-fail, outer-exception); constitutional severity scoring (cap + floor); step efficiency; level progression/thresholds/min-episodes; `update_episode_feedback` (ValueError, note truncation, capability-graduation tolerance, no-loop LanceDB skip); `get_episode_feedback`; `get_domain_feedback_metrics` (improving/declining/stable/insufficient/no-data + by-capability); `_sync_feedback_to_lancedb`; canvas actions get/link (all branches); skill performance stats (empty/named/episodes), usage grouping (no-skill-id skip, DESC sort), usage count, required-skills, `assess_skill_mastery`; `get_proposal_episodes_for_learning` (capability-tag filter); `get_graduation_readiness` (agent-missing ValueError, no-episodes, full path with override); `ReadinessResponse.to_dict`; `_get_embedding_dimension` (getter/model/provider) |
+
+## Session 2026-08-10 (waves 32–33) — token counting + compression pipeline + route waves
+
+**Evidence**: `tests/test_covpush_w32_token_counter.py` (18), `w32_session_dedup.py` (6), `w32_rtk_engine.py` (2), `w32_learning_graphrag_routes.py` (28), `w33_compression_pipeline.py` (3, RED→GREEN). Full covpush regression: 2394 passed / 15 failed (all 15 in other concurrent sessions' mid-edit files: w31_generic_agent, w33_analytics, wfengine* — verified source files were actively being written during the run; zero failures in this session's lanes).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/llm/context/token_counter.py` | 46%→**100%** | tiktoken-missing reload, encoding-failure fallback, family detection (claude/cohere/google/fallback), `_get_encoding` anthropic+ValueError, validator fits/exceeds (tiktoken+estimate), context-limit exact/prefix/default, truncate fits/clamp/boundary, request-token estimation, all 4 `_truncate_at_boundary` paths |
+| 2026-08-10 | `core/llm/compression/session_dedup.py` | 73%→**100%** | `_chunk` empty/merge/flush/tail-buffer, no-match multi-chunk, defensive empty-chunks guard |
+| 2026-08-10 | `core/llm/compression/rtk_engine.py` | 84%→**100%** | blank line in diff block, non-diff line context flush; `# pragma: no cover` on `_collapse_repeated_lines._replace` unreachable path (fuzzed 78,803 matches, 0 hits) |
+| 2026-08-10 | `api/learning_routes.py` | 77%→**100%** | **Real bug: `/tenant/summary` called `get_learning_progress(tenant_id=...)` without required `agent_id` → TypeError → 500 on every call**; now aggregates per-agent from `AgentLearning` rows |
+| 2026-08-10 | `api/graphrag_routes.py` | 70%→**100%** | **4 real bugs: (1) `/ingest` async `ingest_document()` never awaited → silent no-op 200; (2) `/query` async `query()` never awaited → coroutine in 500 body; (3) `/context` imported phantom `get_graphrag_context` → ImportError → 500; now `graphrag_engine.get_context_for_ai`; (4) `/canonical-search` positional call mapped `q` onto `entity_type` → always-empty results; keyword args now** |
+| 2026-08-10 | `core/llm/compression/__init__.py` | FIXED | **`compress_tool_output` called `count_tokens(text)` without required `model` arg → TypeError every call → swallowed → `original_tokens`/`compressed_tokens` always `len//4` heuristic; now `count_tokens(text, "gpt-4o")`** (strict-counter test proves real counting) |
+
+**Collateral**: `tests/test_round39_remaining_auth_sweep.py` mock updated (sync MagicMock was masking the unawaited `/query` coroutine bug).
+
+## Session 2026-08-10 (wave 26) — hybrid_data_ingestion 32→78% + 6 dead-import fixes (TDD)
+
+**Evidence**: `tests/test_covpush_w26_hybrid_ingestion.py` (81 new tests) — 81 passed / 0 failed in wave; 156 passed in the ingestion regression batch. Pre-existing flake (NOT this wave): `test_covpush_ingestion_lancedb.py` + `bughunt2` batch → `TestRecordUsage::test_disable_auto_sync` fails with "no current event loop" (sync `asyncio.Future()` after the lancedb suite; passes alone).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/hybrid_data_ingestion.py` | 32%→**78%** (512 lines) | usage tracking + auto-enable threshold; enable/disable auto-sync (config/default/basic); sync pipeline (no-config, recently-synced skip, force, full ingest w/ discovery + GraphRAG counts, short-text skip, >50% error → partial-fail, minority → partial-success, outer-exception); fetch dispatcher (all branches + max-records cap); universal adapter (missing method, pagination full-page/partial/cap, per-entity error, discovery variants, no-fetch_records zoho fallback/warn, outer exception); salesforce/hubspot/slack/gmail/notion/jira/zendesk/zoho-multi/shopify/onedrive/google-drive/telegram fetchers; schema discovery (all types, LLM refinement + failure); record-to-text; usage summary; scheduled-sync loop (due/not-due, error tolerance); stop; singleton factory; `record_integration_call` |
+
+**Real bugs fixed (RED → GREEN) — six dead fetcher imports made every app-specific sync silently return []:**
+1. `_fetch_salesforce_data` — `get_salesforce_client` is **async** (and takes user_id); was called sync → coroutine crash. Now `await get_salesforce_client(self.workspace_id)` + None-guard.
+2. `_fetch_hubspot_data` — imported nonexistent `get_hubspot_client`; now `get_hubspot_service()` (None-guard) + async `get_contacts`/`get_deals` list-of-dicts API.
+3. `_fetch_slack_data` — imported nonexistent `integrations.slack_service`; now `slack_unified_service.list_channels`/`get_channel_history` with token from `token_storage` (token-missing guard).
+4. `_fetch_notion_data` — imported nonexistent `get_notion_service`; now `NotionService()`.
+5. `_fetch_jira_data` — imported nonexistent `get_jira_client`; now `get_jira_service()` + `search_issues` dict API (`{"issues": [...]}` with `fields` dicts).
+6. `_fetch_zendesk_data` — imported commented-out `get_zendesk_service`; now `ZendeskService()`.
+
+## Session 2026-08-10 (post-wave) — W31 follow-up: prod fixes for noted footguns
+
+**Evidence**: `tests/test_covpush_w31_generic_agent.py` (15 tests, +2 regression), generic-agent suites 216 passed (1 pre-existing red unchanged).
+
+1. **`GenericAgent.register_action` async → SYNC** — the method only assigns dict entries; an async signature meant un-awaited calls silently no-op'd (the W31 test originally hit exactly this). Converted to sync with a docstring note; tests now call without `await`.
+2. **Timeout-branch string check fixed** — `_step_act` matched only literal `"timeout"` in the error message, so `"timed out"` (and bare `TimeoutError` with an unrelated message) fell through to the generic error return, skipping the oracle verify-before-retry. Now: `isinstance(e, (asyncio.TimeoutError, TimeoutError)) or "timeout" in msg or "timed out" in msg`. Regression tests cover both the string and the type path.
+3. **Parallel-tools flag default ON** — documented (not a bug): single-action steps route through `_execute_parallel_tools`, so tests must mock it; the parallel-batch stuck-detector covers the serial case.
+4. **Result key `"output"`** — by design (execute() contract); no change.
