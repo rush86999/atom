@@ -2738,3 +2738,9 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **Evidence**: `TestRestrictedPickle` (3 tests in w56_routellm_trainer). Routing package regression: 101 passed.
 
 **Security bug fixed**: `RestrictedUnpickler._ALLOWED_PREFIXES` included `"builtins"` — the module-prefix rule ran BEFORE the name allowlist, so ANY `builtins.*` global (including `eval`, `exec`, `open`, `compile`, `__import__`) passed through `find_class`. A crafted `.pkl` planted in the model dir could execute arbitrary code — the no-arbitrary-code-execution guarantee was defeated. Builtins are now name-allowlisted only (data containers: list/dict/tuple/set/frozenset/complex/float/int/str/bytes/bool) and checked before the prefix rule; everything else raises `UnpicklingError`.
+
+## Session 2026-08-11 (W50) — social_media_routes 56%→98% (34 new tests)
+
+**Evidence**: `tests/api/test_social_media_platform_posts.py` (19 tests) + `tests/api/test_social_media_routes.py` (+15), 67 tests green across all social suites.
+
+**Coverage**: `post_to_twitter` (success/with-link/401/429/500/ImportError/exception), `post_to_linkedin` (success/profile-fail/no-profile/post-fail/with-link/ImportError/exception), `post_to_facebook` (success/api-error/with-link/ImportError/exception) — all via mocked httpx; `create_social_post` (scheduled, queue-unavailable 500, missing-token, unsupported-platform 422, agent-governance 403, rate-limited 429, poster-exception, decrypt ValueError), `list_connected_accounts` (with/without tokens/DB error), `get_rate_limit_status` (normal/DB error), outer-error 500. Remaining 4 lines unreachable (poster-not-found for validated platforms, HTTPException passthrough in 2 endpoints).
