@@ -1168,6 +1168,10 @@ async def optimize_cost_usage(
     except ValueError as e:
         logger.warning("Optimization ValueError: %s", e)
         raise HTTPException(status_code=400, detail="Invalid request")
+    except HTTPException:
+        # W46: the no-provider 400 was previously swallowed by the generic
+        # except below (HTTPException IS an Exception) and re-wrapped as 500.
+        raise
     except Exception as e:
         logger.error(f"Optimization failed: {e}")
         raise HTTPException(status_code=500, detail="Optimization failed")
@@ -1370,6 +1374,10 @@ async def optimize_pdf_processing(
     except ValueError as e:
         logger.warning("PDF optimization ValueError: %s", e)
         raise HTTPException(status_code=400, detail="Invalid request")
+    except HTTPException:
+        # W46: same fix as optimize_cost_usage — the 400 must not be
+        # swallowed and re-wrapped as a 500 by the generic handler.
+        raise
     except Exception as e:
         logger.error(f"PDF optimization failed: {e}")
         raise HTTPException(

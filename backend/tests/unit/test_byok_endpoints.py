@@ -12,7 +12,7 @@ Tests cover:
 
 import json
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -520,3 +520,341 @@ class TestValidation:
         response = client.post("/api/ai/keys", json=key_data)
         # Should not error due to extra field
         assert response.status_code in [200, 400]
+
+
+class TestStoreApiKeyEndpoint:
+    """W46: /api/ai/providers/{id}/keys — validation + error branches."""
+
+    def test_store_api_key_too_short(self, client):
+        # Pydantic enforces min_length=10 → 422 (the endpoint's own <10
+        # check is unreachable dead code).
+        response = client.post(
+            "/api/ai/providers/openai/keys",
+            json={"api_key": "short", "key_name": "default"})
+        assert response.status_code == 422
+
+    def test_store_api_key_invalid_provider(self, client):
+        response = client.post(
+            "/api/ai/providers/not_a_provider/keys",
+            json={"api_key": "sk-valid-key-12345", "key_name": "default"})
+        assert response.status_code == 400
+        assert "Invalid provider_id" in response.json()["detail"]
+
+    def test_store_api_key_value_error_404(self, client, mock_byok_manager):
+        mock_byok_manager.encrypt_api_key.return_value = "encrypted"
+
+        def _boom(provider_id, api_key, key_name="default", environment="production"):
+            raise ValueError("Provider not found")
+
+        mock_byok_manager.store_api_key = _boom
+        response = client.post(
+            "/api/ai/providers/openai/keys",
+            json={"api_key": "sk-valid-key-12345", "key_name": "default"})
+        assert response.status_code == 404
+
+    def test_store_api_key_exception_500(self, client, mock_byok_manager):
+        mock_byok_manager.encrypt_api_key.side_effect = RuntimeError("boom")
+        response = client.post(
+            "/api/ai/providers/openai/keys",
+            json={"api_key": "sk-valid-key-12345", "key_name": "default"})
+        assert response.status_code == 500
+
+    def test_store_api_key_success(self, client, mock_byok_manager):
+        mock_byok_manager.store_api_key.return_value = "openai_default_production"
+        response = client.post(
+            "/api/ai/providers/openai/keys",
+            json={"api_key": "sk-valid-key-12345", "key_name": "default"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["key_preview"] == "sk-v...2345"
+
+
+class TestApiKeyStatusAndDelete:
+    def test_get_key_status_not_found(self, client, mock_byok_manager):
+        mock_byok_manager.api_keys = {}
+        response = client.get("/api/ai/providers/openai/keys/default")
+        assert response.status_code == 404
+
+    def test_get_key_status_found(self, client, mock_byok_manager):
+        from core.byok_endpoints import APIKey
+        from datetime import datetime
+        mock_byok_manager.api_keys = {
+            "openai_default_production": APIKey(
+                provider_id="openai", key_name="default",
+                encrypted_key="enc", key_hash="h",
+                created_at=datetime.now(), environment="production"),
+        }
+        response = client.get("/api/ai/providers/openai/keys/default")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["has_key"] is True
+        assert data["provider_id"] == "openai"
+
+    def test_delete_key_not_found(self, client, mock_byok_manager):
+        mock_byok_manager.api_keys = {}
+        response = client.delete("/api/ai/providers/openai/keys/default")
+        assert response.status_code == 404
+
+    def test_delete_key_success(self, client, mock_byok_manager):
+        from core.byok_endpoints import APIKey
+        from datetime import datetime
+        mock_byok_manager.api_keys = {
+            "openai_default_production": APIKey(
+                provider_id="openai", key_name="default",
+                encrypted_key="enc", key_hash="h",
+                created_at=datetime.now(), environment="production"),
+        }
+        response = client.delete("/api/ai/providers/openai/keys/default")
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+        assert "openai_default_production" not in mock_byok_manager.api_keys
+        mock_byok_manager._save_configuration.assert_called_once()
+
+
+class TestPricingEndpoints:
+    """W46: pricing refresh/model/provider/estimate endpoints."""
+
+    def test_refresh_pricing_success(self, client, mock_byok_manager):
+        mock_refresh = AsyncMock(return_value=[{"model": "gpt-4o"}])
+        with patch("core.dynamic_pricing_fetcher.refresh_pricing_cache",
+                   new=mock_refresh):
+            response = client.post("/api/ai/pricing/refresh")
+        assert response.status_code == 200
+        assert response.json()["status"] == "success"
+        mock_byok_manager.update_provider_costs.assert_called_once()
+
+    def test_refresh_pricing_error(self, client, mock_byok_manager):
+        with patch("core.dynamic_pricing_fetcher.refresh_pricing_cache",
+                   side_effect=RuntimeError("fetch failed")):
+            response = client.post("/api/ai/pricing/refresh")
+        assert response.status_code == 200
+        assert response.json()["status"] == "error"
+
+    def test_get_model_pricing_found(self, client):
+        fetcher = MagicMock()
+        fetcher.get_model_price.return_value = {
+            "input_cost_per_token": 0.01, "output_cost_per_token": 0.02}
+        with patch("core.dynamic_pricing_fetcher.get_pricing_fetcher",
+                   return_value=fetcher):
+            response = client.get("/api/ai/pricing/model/gpt-4o")
+        assert response.status_code == 200
+        assert response.json()["status"] == "success"
+        assert response.json()["pricing"]["input_cost_per_token"] == 0.01
+
+    def test_get_model_pricing_not_found(self, client):
+        fetcher = MagicMock()
+        fetcher.get_model_price.return_value = None
+        with patch("core.dynamic_pricing_fetcher.get_pricing_fetcher",
+                   return_value=fetcher):
+            response = client.get("/api/ai/pricing/model/unknown-model")
+        assert response.status_code == 200
+        assert response.json()["status"] == "not_found"
+
+    def test_get_model_pricing_error(self, client):
+        with patch("core.dynamic_pricing_fetcher.get_pricing_fetcher",
+                   side_effect=RuntimeError("boom")):
+            response = client.get("/api/ai/pricing/model/gpt-4o")
+        assert response.status_code == 200
+        assert response.json()["status"] == "error"
+
+    def test_get_provider_pricing_success(self, client):
+        fetcher = MagicMock()
+        fetcher.get_provider_models.return_value = [{"id": "m1"}, {"id": "m2"}]
+        with patch("core.dynamic_pricing_fetcher.get_pricing_fetcher",
+                   return_value=fetcher):
+            response = client.get("/api/ai/pricing/provider/openai")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["model_count"] == 2
+
+    def test_get_provider_pricing_error(self, client):
+        with patch("core.dynamic_pricing_fetcher.get_pricing_fetcher",
+                   side_effect=RuntimeError("boom")):
+            response = client.get("/api/ai/pricing/provider/openai")
+        assert response.status_code == 200
+        assert response.json()["status"] == "error"
+
+    def test_estimate_cost_success(self, client):
+        fetcher = MagicMock()
+        fetcher.estimate_cost.return_value = 0.005
+        with patch("core.dynamic_pricing_fetcher.get_pricing_fetcher",
+                   return_value=fetcher):
+            response = client.post("/api/ai/pricing/estimate",
+                                   json={"model": "gpt-4o-mini",
+                                         "input_tokens": 100,
+                                         "output_tokens": 200})
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["estimated_cost_usd"] == 0.005
+
+    def test_estimate_cost_prompt_token_estimate(self, client):
+        fetcher = MagicMock()
+        fetcher.estimate_cost.return_value = 0.01
+        with patch("core.dynamic_pricing_fetcher.get_pricing_fetcher",
+                   return_value=fetcher):
+            response = client.post("/api/ai/pricing/estimate",
+                                   json={"model": "m",
+                                         "prompt": "x" * 100,
+                                         "output_tokens": 10})
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["input_tokens"] == 25  # len(prompt) // 4
+
+    def test_estimate_cost_fallback_to_model_price(self, client):
+        fetcher = MagicMock()
+        fetcher.estimate_cost.return_value = None
+        fetcher.get_model_price.return_value = {
+            "input_cost_per_token": 0.01, "output_cost_per_token": 0.02}
+        with patch("core.dynamic_pricing_fetcher.get_pricing_fetcher",
+                   return_value=fetcher):
+            response = client.post("/api/ai/pricing/estimate",
+                                   json={"model": "m",
+                                         "input_tokens": 100,
+                                         "output_tokens": 200})
+        data = response.json()
+        assert data["status"] == "success"
+        # 0.01*100 + 0.02*200 = 1 + 4 = 5
+        assert data["estimated_cost_usd"] == 5.0
+
+    def test_estimate_cost_unavailable(self, client):
+        fetcher = MagicMock()
+        fetcher.estimate_cost.return_value = None
+        fetcher.get_model_price.return_value = None
+        with patch("core.dynamic_pricing_fetcher.get_pricing_fetcher",
+                   return_value=fetcher):
+            response = client.post("/api/ai/pricing/estimate",
+                                   json={"model": "unknown"})
+        assert response.json()["status"] == "pricing_unavailable"
+
+    def test_estimate_cost_error(self, client):
+        with patch("core.dynamic_pricing_fetcher.get_pricing_fetcher",
+                   side_effect=RuntimeError("boom")):
+            response = client.post("/api/ai/pricing/estimate", json={})
+        assert response.json()["status"] == "error"
+
+
+class TestOptimizeEndpoints:
+    """W46: optimize-cost + optimize-pdf endpoints."""
+
+    def test_optimize_cost_success(self, client, mock_byok_manager):
+        mock_byok_manager.get_optimal_provider.return_value = "openai"
+        mock_byok_manager.providers["openai"].cost_per_token = 0.00003
+        mock_byok_manager.get_api_key.side_effect = None
+        response = client.post("/api/ai/optimize-cost",
+                               json={"task_type": "general",
+                                     "estimated_tokens": 1000})
+        data = response.json()
+        assert data["success"] is True
+        assert data["recommended_provider"] == "openai"
+        assert data["estimated_cost"] == 1000 * 0.00003
+
+    def test_optimize_cost_no_provider(self, client, mock_byok_manager):
+        mock_byok_manager.get_optimal_provider.return_value = None
+        response = client.post("/api/ai/optimize-cost",
+                               json={"task_type": "general"})
+        assert response.status_code == 400
+
+    def test_optimize_cost_value_error(self, client, mock_byok_manager):
+        mock_byok_manager.get_optimal_provider.side_effect = ValueError("bad")
+        response = client.post("/api/ai/optimize-cost",
+                               json={"task_type": "general"})
+        assert response.status_code == 400
+
+    def test_optimize_cost_exception(self, client, mock_byok_manager):
+        mock_byok_manager.get_optimal_provider.side_effect = RuntimeError("boom")
+        response = client.post("/api/ai/optimize-cost",
+                               json={"task_type": "general"})
+        assert response.status_code == 500
+
+    def test_optimize_pdf_success(self, client, mock_byok_manager):
+        mock_byok_manager.get_optimal_provider.return_value = "deepseek"
+        mock_byok_manager.providers["deepseek"].cost_per_token = 0.00000014
+        response = client.post("/api/ai/pdf/optimize",
+                               json={"pdf_type": "scanned",
+                                     "needs_ocr": True,
+                                     "needs_image_comprehension": False,
+                                     "estimated_pages": 10})
+        data = response.json()
+        assert data["success"] is True
+        assert data["recommended_provider"]["provider_id"] == "deepseek"
+        assert data["pdf_analysis"]["estimated_tokens"] == 5000
+
+    def test_optimize_pdf_image_comprehension(self, client, mock_byok_manager):
+        mock_byok_manager.get_optimal_provider.return_value = "openai"
+        response = client.post("/api/ai/pdf/optimize",
+                               json={"pdf_type": "complex",
+                                     "needs_image_comprehension": True,
+                                     "estimated_pages": 5})
+        data = response.json()
+        assert data["success"] is True
+        assert data["pdf_analysis"]["needs_image_comprehension"] is True
+
+    def test_optimize_pdf_no_provider(self, client, mock_byok_manager):
+        mock_byok_manager.get_optimal_provider.return_value = None
+        response = client.post("/api/ai/pdf/optimize",
+                               json={"pdf_type": "scanned",
+                                     "needs_ocr": True,
+                                     "estimated_pages": 10})
+        assert response.status_code == 400
+
+    def test_optimize_pdf_value_error(self, client, mock_byok_manager):
+        mock_byok_manager.get_optimal_provider.side_effect = ValueError("bad")
+        response = client.post("/api/ai/pdf/optimize",
+                               json={"pdf_type": "x", "estimated_pages": 1})
+        assert response.status_code == 400
+
+    def test_optimize_pdf_exception(self, client, mock_byok_manager):
+        mock_byok_manager.get_optimal_provider.side_effect = RuntimeError("boom")
+        response = client.post("/api/ai/pdf/optimize",
+                               json={"pdf_type": "x", "estimated_pages": 1})
+        assert response.status_code == 500
+
+
+class TestPricingSummary:
+    """W46: GET /api/ai/pricing summary endpoint."""
+
+    def test_get_ai_pricing_success(self, client):
+        fetcher = MagicMock()
+        fetcher.pricing_cache = {"gpt-4o": {}, "deepseek": {}}
+        fetcher.last_fetch = None
+        fetcher._is_cache_valid.return_value = True
+        fetcher.get_cheapest_models.return_value = [{"model": "deepseek"}]
+        fetcher.compare_providers.return_value = {"openai": {"cheapest": 1}}
+        with patch("core.dynamic_pricing_fetcher.get_pricing_fetcher",
+                   return_value=fetcher):
+            response = client.get("/api/ai/pricing")
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["model_count"] == 2
+        assert data["cache_valid"] is True
+
+    def test_get_ai_pricing_error(self, client):
+        with patch("core.dynamic_pricing_fetcher.get_pricing_fetcher",
+                   side_effect=RuntimeError("boom")):
+            response = client.get("/api/ai/pricing")
+        assert response.json()["status"] == "error"
+
+
+class TestUsageEndpoints:
+    """W46: usage track + stats endpoints."""
+
+    def test_track_ai_usage_success(self, client, mock_byok_manager):
+        mock_byok_manager.track_usage = MagicMock()
+        response = client.post("/api/ai/usage/track",
+                               json={"provider_id": "openai",
+                                     "success": True,
+                                     "tokens_used": 100})
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+
+    def test_get_usage_stats(self, client, mock_byok_manager):
+        from core.byok_endpoints import ProviderUsage
+        mock_byok_manager.usage_stats = {
+            "openai": ProviderUsage(provider_id="openai")}
+        response = client.get("/api/ai/usage/stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_providers"] == 1
+        assert "openai" in data["usage_stats"]
