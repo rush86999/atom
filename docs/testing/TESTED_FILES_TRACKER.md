@@ -2656,3 +2656,11 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | 2026-08-11 | `core/view_coordinator.py` | 16%→**99%** | all methods: disabled short-circuits, success (new/existing state), WS broadcasts, audit rows, exception tolerance; session helpers, view types (browser w/url, terminal w/command, plain), close-view filtering |
 
 **Note**: `tests/core/agents/test_queen_agent.py` (Jul 31) is a stale suite with pre-existing 6F+25E failures (missing `db_session` fixture contract) — separate repair lane.
+
+## Session 2026-08-11 (wave 52b) — queen_agent 54% → 100%
+
+**Evidence**: `tests/test_covpush_w52_queen_agent.py` (15 tests). Regression: 42 passed (w52 view_coordinator + queen_agent).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/agents/queen_agent.py` | 54%→**100%** | blueprint generation (one-off/recurring modes, fenced JSON, missing-capabilities, LLM failure → fallback), mermaid (statuses, missing id/name skip, pending default), fallback shape, realization (trigger/agent/entity/unknown type mapping, adjacency incl. ghost deps + missing ids, start-step resolution: trigger → first-no-deps → first-node, orchestrator-missing) |
