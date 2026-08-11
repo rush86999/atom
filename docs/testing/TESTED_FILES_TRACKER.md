@@ -2664,3 +2664,11 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | Date | File | Coverage change | What was added |
 |---|---|---|---|
 | 2026-08-11 | `core/agents/queen_agent.py` | 54%→**100%** | blueprint generation (one-off/recurring modes, fenced JSON, missing-capabilities, LLM failure → fallback), mermaid (statuses, missing id/name skip, pending default), fallback shape, realization (trigger/agent/entity/unknown type mapping, adjacency incl. ghost deps + missing ids, start-step resolution: trigger → first-no-deps → first-node, orchestrator-missing) |
+
+## Session 2026-08-11 (W46) — byok_endpoints 59%→92% + optimize 400-swallow bug (TDD)
+
+**Evidence**: `tests/test_covpush_w46_byok_manager.py` (40 tests) + `tests/unit/test_byok_endpoints.py` (+21 tests), regression 254 byok-endpoints tests + 295 byok_handler tests green.
+
+**Real bug (RED→GREEN)**: `optimize_cost_usage` + `optimize_pdf_processing` raised `HTTPException(400)` inside `try`, but the generic `except Exception` re-wrapped it as **500** — the no-provider 400 branch was dead (clients got the wrong status for "no suitable providers"). Added `except HTTPException: raise` before the generic handler in both.
+
+**Coverage**: BYOKManager internals (encryption key lifecycle, Fernet, store/get/decrypt, track_usage, get_optimal_provider routing incl. fallbacks + budget/reasoning filters, provider status, config load incl. corrupt/unknown-field, dynamic cost updates), store_api_key endpoint (validation/provider/error branches), key status/delete, pricing refresh/model/provider/estimate (incl. token-estimate + fallback paths), optimize-cost/pdf (success/400/500), usage track/stats.
