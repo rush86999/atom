@@ -2357,3 +2357,11 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | Date | File | Coverage change | What was added |
 |---|---|---|---|
 | 2026-08-10 | `core/turn_fact_extractor.py` | 89%→**100%** | _TTLSet expiry/prune, sample-rate skip, extract_from_prompt success+exception swallow, vector-write exception swallow, EWMA bump on existing rows, _compose_turn_text part matrix, _extract_json_array fallback exception, prefetch_relevant_facts (flag-gate, no-ids, relevance ordering, trivial-query skip, exception), lexical search (short/empty-token queries, postgresql branch, sqlite execution_id filter, other-dialect), remember_fact_explicit (empty/bad-category/success/extractor-error) |
+
+## Session 2026-08-10 (wave 38) — zoho_workdrive_routes → 100%
+
+**Evidence**: `tests/test_covpush_w38_zoho_workdrive.py` (12 tests).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `api/zoho_workdrive_routes.py` | ~0%→**100%** | teams (success/500/401), files/list (success/default-parent/500/422), ingest (success/500/422), health (configured/unconfigured) |
