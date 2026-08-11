@@ -355,7 +355,7 @@ def test_G7_existing_providers_still_have_frontier_targets():
         "anthropic": "claude-3-5-sonnet",
         "deepseek": "deepseek-reasoner",
         "gemini": "gemini-1.5-pro",
-        "minimax": "minimax-m2.7",
+        "minimax": "MiniMax-M3",
         "mistral": "mistral-large-latest",
         "qwen": "qwen-max",
         "groq": "llama-3.3-70b-versatile",

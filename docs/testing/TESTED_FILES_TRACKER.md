@@ -2312,3 +2312,16 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **canvas_context_provider**: get/create/update/missing, global singleton + reset.
 
 **Notes**: `replace` is imported inside `run()` (patch `dataclasses.replace`, not the module attr); `release_run` only fires when policy is not None; `check_governance` raises (callers must catch) rather than returning an error payload.
+
+## Session 2026-08-10 (wave 35) — cache-aware router, response quality, cognitive tiers
+
+**Evidence**: `tests/test_covpush_w35_cache_aware_router.py` (27), `w35_response_quality.py` (5), `w35_cognitive_tier.py` (6), stale repair `tests/unit/llm/test_glm_routing.py` (minimax frontier expectation). Regression: 169 passed across w35 + ema-router/preseed/cognitive/glm suites.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/llm/cache_aware_router.py` | 17%→**100%** | effective-cost matrix (no-pricing inf, deterministic turn mode, probabilistic explicit/predicted/default/clamped, below-min full price, no-cache provider), predict (no history / ratio / zero-total / 16-char key truncation), record (new/miss/accumulate, rolling-window scaling, FIFO eviction), capability (direct/case-insensitive/google-fuzzy/default), history views (filter/defensive copy), clear (workspace-scoped FIFO consistency / all) |
+| 2026-08-10 | `core/llm/response_quality.py` | 92%→**100%** | >8000-char score diminution, score cap, `_classify_exception` context_length/auth by message+name/provider-error fallback |
+| 2026-08-10 | `core/llm/cognitive_tier_system.py` | 81%→**99%** | `get_tier_models` workspace `CognitiveTierPreference.tier_models` override (user models / empty-list fall-through / no-pref fall-through / DB-exception tolerance / no-workspace defaults) |
+| 2026-08-10 | `tests/unit/llm/test_glm_routing.py` | FIXED | stale minimax frontier expectation (`minimax-m2.7` → `MiniMax-M3`, matching `hallucination_config.py:226`) |
+
+**Known**: `core/llm/cognitive_tier_system.py:163` (classify COMPLEX fallback) not directly hit — a threshold-matched COMPLEX is asserted instead; `tests/unit/test_byok_handler.py` + `test_covpush_w21_llm_router.py` cannot be measured with `--cov` in-process (pre-existing numpy double-load ImportError).
