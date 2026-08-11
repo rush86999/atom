@@ -25,7 +25,11 @@ def _price(input_cost=10.0, output_cost=20.0):
 
 
 def await_value(result):
-    return asyncio.get_event_loop().run_until_complete(asyncio.ensure_future(result))
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(result)
+    finally:
+        loop.close()
 
 
 class TestCalculateEffectiveCost:

@@ -122,7 +122,12 @@ def _rating(db, supervisor_id="u-sup", rating=5):
 
 def await_coroutine(coro):
     import asyncio
-    return asyncio.get_event_loop().run_until_complete(coro)
+
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 
 # ============================================================================

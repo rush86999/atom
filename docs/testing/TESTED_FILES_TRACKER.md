@@ -2494,3 +2494,15 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **Retrieval covered**: `_log_access` (commit + exception), `_serialize_segment`, `_fetch_canvas_context` (empty/found/exception — reads `details_json` for canvas_type per the flat-schema note), `_fetch_feedback_context`, `_filter_canvas_context_detail` (full/standard/summary), `_create_supervision_context`, `_summarize_feedback` (none/short/100-char truncate), `_assess_outcome_quality` (unknown/excellent/good/fair/poor — 5-rating with >2 interventions falls to fair), `_filter_improvement_trend` (<5, no-ratings, improving keep, declining empty), `retrieve_sequential` not-found (`{"error": "Episode not found"}`), `retrieve_with_supervision_context` (governance-blocked, sequential+min_rating/max_interventions, high_rated, low_intervention, recent_improvement, string-mode coercion + invalid fallback, semantic via agent name).
 
 **Stale-suite repairs (pre-existing reds)**: `tests/test_chat_history_retrieval.py` (7 tests): ChatMessage `workspace_id` → `tenant_id` (model has no workspace_id), `create_session(history=...)` kwarg removed (messages are DB-path only), and the critical one — `get_session` reads via `get_db_session()` (core.database), NOT the manager's `SessionLocal`, so the old patch target silently queried the real dev DB and always returned 0 messages. Patched `core.chat_session_manager.get_db_session` with a contextmanager over the test session.
+
+## Session 2026-08-11 (wave 43) — capability resolver + turn-fact vector store/queue (all 100%)
+
+**Evidence**: `tests/test_covpush_w43_resolver_vector_queue.py` (38 tests). Full covpush regression: **3679 passed / 1 failed (other session's mid-edit file)**.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/capability_resolver.py` | 67%→**100%** | string caps wrap, TypeError→unrestricted, blank/wildcard normalization, tier-from-status fallback, unknown-tier→student floor, intersection narrowing, is_tool_allowed (non-str/dotted registered-unregistered/registry-error/empty-set), agent-from-context (none/empty/db-error/success) |
+| 2026-08-11 | `core/turn_fact_vector_store.py` | 47%→**100%** | handler-unavailable write/search, short-query gate, per-row success/failure counting, metadata kwargs, empty/dict/object results, exception tolerance |
+| 2026-08-11 | `core/turn_fact_queue.py` | 0%→**100%** | enqueue gates (flag/prompt/queue-full), worker lifecycle (idempotent/closed-loop/no-loop deferral), drain_once, stats, worker exception survival + cancellation, _process success/exception, singleton |
+
+**Test-infra fix (event-loop pollution)**: `await_coroutine` helpers across w30/w31/w34/w35/w36/w37/w40/w43 files used `asyncio.get_event_loop().run_until_complete` — after any pytest-asyncio suite runs, the ambient loop is closed in Python 3.11 and combined runs failed with "no current event loop" / "future belongs to a different loop". All helpers now create a fresh `asyncio.new_event_loop()` per call (finally-closed). Verified: w30_action_registry + w36_oracle_vfs + w43 combined 114 passed; full covpush family 3679 passed.
