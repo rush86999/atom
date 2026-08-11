@@ -2325,3 +2325,15 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | 2026-08-10 | `tests/unit/llm/test_glm_routing.py` | FIXED | stale minimax frontier expectation (`minimax-m2.7` → `MiniMax-M3`, matching `hallucination_config.py:226`) |
 
 **Known**: `core/llm/cognitive_tier_system.py:163` (classify COMPLEX fallback) not directly hit — a threshold-matched COMPLEX is asserted instead; `tests/unit/test_byok_handler.py` + `test_covpush_w21_llm_router.py` cannot be measured with `--cov` in-process (pre-existing numpy double-load ImportError).
+
+## Session 2026-08-10 (wave 36) — oracle verifiers + VFS stack (all 100%)
+
+**Evidence**: `tests/test_covpush_w36_oracle_vfs.py` (35 tests). Regression: 79 passed across w36 + oracle-confidence + knowledge-vfs suites.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/oracle/__init__.py` | 88%→**100%** | env_bool set-truthy/garbage, to_dict with claim, validate unknown-action None + verifier-exception tolerance, verify_before_retry disabled/met/unmet |
+| 2026-08-10 | `core/oracle/postcondition_verifiers.py` | 57%→**100%** | workflow verifier (missing ctx, not-in-DB, active/inactive status, DB read-back exception), task verifier (missing ctx, present/absent, exception) |
+| 2026-08-10 | `core/vfs_base.py` | 66%→**100%** | to_dict helpers, to_line_numbered empty, default grep (bad regex / ls failure / dir skip / cat failure / match with line number), default scan (root failure, nested depth failure), ask_image degrade |
+| 2026-08-10 | `core/vfs_registry.py` | 83%→**100%** | empty/slash-prefix rejection, empty-path resolve, register/get/resolve roundtrip, list_prefixes |
+| 2026-08-10 | `core/knowledge_vfs_config.py` | 88%→**100%** | _env_bool set + unset |
