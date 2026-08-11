@@ -600,3 +600,149 @@ class TestMentorship:
             result = await agent.generate_mentorship_guidance(
                 "student-1", "create_record", {}, "needs approval")
         assert isinstance(result, str)
+
+
+class TestRoutingHelpers:
+    """Module-level routing methods (single-tenant port)."""
+
+    async def test_check_governance_allowed(self):
+        from core.atom_meta_agent import _check_governance
+        agent = make_agent()
+        decision = MagicMock()
+        decision.allowed = True
+        decision.reason = None
+        gov = MagicMock()
+        gov.canPerformAction = AsyncMock(return_value=decision)
+        with patch("core.database.SessionLocal") as mock_session, \
+             patch("core.atom_meta_agent.AgentGovernanceService",
+                   return_value=gov):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            allowed, reason = await _check_governance(agent, "u-1", "a-1", "chat")
+        assert allowed is True
+        assert reason is None
+
+    async def test_check_governance_denied(self):
+        from core.atom_meta_agent import _check_governance
+        agent = make_agent()
+        decision = MagicMock()
+        decision.allowed = False
+        decision.reason = "maturity too low"
+        gov = MagicMock()
+        gov.canPerformAction = AsyncMock(return_value=decision)
+        with patch("core.database.SessionLocal") as mock_session, \
+             patch("core.atom_meta_agent.AgentGovernanceService",
+                   return_value=gov):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            allowed, reason = await _check_governance(agent, "u-1", "a-1", "task")
+        assert allowed is False
+        assert reason == "maturity too low"
+
+    async def test_route_to_chat(self):
+        from core.atom_meta_agent import _route_to_chat
+        agent = make_agent()
+        agent.llm.generate_response = AsyncMock(return_value="chat reply")
+        result = await _route_to_chat(agent, "hello", "u-1")
+        assert result["route"] == "CHAT"
+        assert result["response"] == "chat reply"
+
+    async def test_route_to_workflow(self):
+        from core.atom_meta_agent import _route_to_workflow
+        agent = make_agent()
+        queen = MagicMock()
+        queen.generate_blueprint = AsyncMock(return_value={
+            "blueprint_id": "bp-1", "architecture_name": "Arch",
+            "nodes": [{"name": "n1"}]})
+        with patch("core.database.SessionLocal") as mock_session:
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            agent.queen = queen
+            result = await _route_to_workflow(agent, "build pipeline", "u-1")
+        assert result["route"] == "WORKFLOW"
+        assert result["blueprint_id"] == "bp-1"
+        assert result["node_count"] == 1
+
+    async def test_route_to_workflow_lazy_queen(self):
+        from core.atom_meta_agent import _route_to_workflow
+        agent = make_agent()
+        queen = MagicMock()
+        queen.generate_blueprint = AsyncMock(return_value={
+            "blueprint_id": "bp-2", "architecture_name": "Arch",
+            "nodes": []})
+        with patch("core.database.SessionLocal") as mock_session, \
+             patch("core.agents.queen_agent.QueenAgent",
+                   return_value=queen):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            result = await _route_to_workflow(agent, "build", "u-1")
+        assert result["status"] == "blueprint_generated"
+        assert agent.queen is queen
+
+    async def test_route_to_task(self):
+        from core.atom_meta_agent import _route_to_task
+        agent = make_agent()
+        fleet = MagicMock()
+        fleet.recruit_and_execute = AsyncMock(return_value={"done": True})
+        with patch("core.database.SessionLocal") as mock_session, \
+             patch("core.fleet_admiral.FleetAdmiral",
+                   return_value=fleet):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            result = await _route_to_task(agent, "do task", "u-1")
+        assert result["route"] == "TASK"
+        assert result["status"] == "task_routed"
+
+    async def test_route_to_task_exception(self):
+        from core.atom_meta_agent import _route_to_task
+        agent = make_agent()
+        fleet = MagicMock()
+        fleet.recruit_and_execute = AsyncMock(side_effect=RuntimeError("fleet down"))
+        with patch("core.database.SessionLocal") as mock_session, \
+             patch("core.fleet_admiral.FleetAdmiral",
+                   return_value=fleet):
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            with pytest.raises(RuntimeError, match="fleet down"):
+                await _route_to_task(agent, "do task", "u-1")
+
+    async def test_propose_chat_alternative(self):
+        from core.atom_meta_agent import _propose_chat_alternative
+        agent = make_agent()
+        agent.llm.generate_response = AsyncMock(return_value="chat alternative")
+        result = await _propose_chat_alternative(
+            agent, "original", "workflow", "not enough maturity", "u-1")
+        assert isinstance(result, dict)
+        assert "chat_response" in result or "response" in result or "proposal" in result
+
+
+class TestRecruitFleetBranches:
+    async def test_recruit_fleet_specialist_not_found(self):
+        agent = make_agent()
+        with patch("core.business_agents.get_specialized_agent",
+                   return_value=None):
+            result = await agent._recruit_fleet(
+                "goal", [{"agent": "ghost", "task": "t"}], {}, None)
+        assert isinstance(result, str)
+
+    async def test_recruit_fleet_subagent_error(self):
+        agent = make_agent()
+        sub = MagicMock()
+        sub.name = "Sales"
+        sub.execute = AsyncMock(side_effect=RuntimeError("subagent boom"))
+        with patch("core.business_agents.get_specialized_agent",
+                   return_value=sub):
+            result = await agent._recruit_fleet(
+                "goal", [{"agent": "sales", "task": "t"}], {}, None)
+        assert isinstance(result, str)
+
+
+class TestSpawnAgent:
+    async def test_spawn_agent_template(self):
+        agent = make_agent()
+        with patch("core.atom_meta_agent.SessionLocal") as mock_session:
+            mock_session.return_value.__enter__.return_value = MagicMock()
+            result = await agent.spawn_agent(
+                "finance_analyst", {"region": "west"}, persist=False)
+        assert result is not None
+
+    async def test_spawn_agent_custom(self):
+        agent = make_agent()
+        result = await agent.spawn_agent(
+            "custom", {"name": "Custom Agent", "capabilities": ["read"]},
+            persist=False)
+        assert result is not None
