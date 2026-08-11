@@ -1650,7 +1650,10 @@ class EpisodeService:
             List of episodes with detail appropriate to level
         """
         # Verify tenant owns agent
-        agent_check = await self.db.execute(
+        # BUG FIX (W35): Session.execute is synchronous — awaiting it raised
+        # "TypeError: object CursorResult can't be used in 'await' expression"
+        # on every recall call, so recall_episodes_with_detail always crashed.
+        agent_check = self.db.execute(
             text("SELECT id FROM agent_registry WHERE id = :agent_id AND tenant_id = :tenant_id"),
             {"agent_id": agent_id, "tenant_id": tenant_id}
         )
@@ -1662,7 +1665,7 @@ class EpisodeService:
         query = PROGRESSIVE_QUERIES.get(detail_level, PROGRESSIVE_QUERIES[DetailLevel.SUMMARY])
 
         # Execute query
-        result = await self.db.execute(
+        result = self.db.execute(
             text(query),
             {"agent_id": agent_id, "limit": limit}
         )

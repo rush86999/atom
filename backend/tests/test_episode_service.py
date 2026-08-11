@@ -601,7 +601,7 @@ class TestEpisodeServiceProgressiveRetrieval:
         mock_episode_result.fetchall.return_value = []  # Empty list for no episodes
 
         # Return different mocks for different calls
-        mock_db.execute = AsyncMock(side_effect=[mock_check_result, mock_episode_result])
+        mock_db.execute = Mock(side_effect=[mock_check_result, mock_episode_result])
 
         with patch('core.lancedb_service.get_lancedb_handler'):
             with patch('core.embedding_service.EmbeddingService'):
@@ -629,7 +629,7 @@ class TestEpisodeServiceProgressiveRetrieval:
         mock_episode_result.fetchall.return_value = []
 
         # Return different mocks for different calls
-        mock_db.execute = AsyncMock(side_effect=[mock_check_result, mock_episode_result])
+        mock_db.execute = Mock(side_effect=[mock_check_result, mock_episode_result])
 
         with patch('core.lancedb_service.get_lancedb_handler'):
             with patch('core.embedding_service.EmbeddingService'):
@@ -657,7 +657,7 @@ class TestEpisodeServiceProgressiveRetrieval:
         mock_episode_result.fetchall.return_value = []
 
         # Return different mocks for different calls
-        mock_db.execute = AsyncMock(side_effect=[mock_check_result, mock_episode_result])
+        mock_db.execute = Mock(side_effect=[mock_check_result, mock_episode_result])
 
         with patch('core.lancedb_service.get_lancedb_handler'):
             with patch('core.embedding_service.EmbeddingService'):
