@@ -2302,3 +2302,13 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | 2026-08-10 | `api/integration_dashboard_routes.py` | 91%→**100%** | stale-suite repair: `tests/api/test_integration_dashboard_routes.py` built a bare app without the `get_current_user` override added in the auth sweeps → update_configuration/reset_metrics 401'd (10 tests); fixture now overrides auth with a real User |
 
 **Pre-existing notes**: `tests/unit/api/test_project_health_routes.py` targets phantom paths (`/api/project-health/...` — real prefix is `/api/v1/projects`); loose any-status assertions, contributes nothing but passes.
+
+## Session 2026-08-10 (post-wave) — W33: canvas_logic_service 23→95%, canvas_context_provider 100%
+
+**Evidence**: `tests/test_covpush_w33_canvas_logic.py` (24 tests), regression canvas suites 109 passed.
+
+**canvas_logic_service (P7 per-canvas runtime)**: `sanitize_namespace` (empty→unknown, plain, hostile traversal chars, injective dot-vs-dash, `_5f_` underscore escape, 128-char cap, unicode→ascii), save_logic create/update (+created_by preservation), load_logic found/missing, check_governance (no-agent/unknown/non-AUTONOMOUS raise, AUTONOMOUS passes), run (no-logic error, governance PermissionError PROPAGATES, success with storage namespace + cwd + policy, scopes replace tool_whitelist via `dataclasses.replace`, policy-issue failure → policy None fallback with NO caps release, runtime failure passthrough).
+
+**canvas_context_provider**: get/create/update/missing, global singleton + reset.
+
+**Notes**: `replace` is imported inside `run()` (patch `dataclasses.replace`, not the module attr); `release_run` only fires when policy is not None; `check_governance` raises (callers must catch) rather than returning an error payload.
