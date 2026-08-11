@@ -2607,3 +2607,15 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 |---|---|---|---|
 | 2026-08-11 | `api/office_routes.py` | 72%→**100%** | every endpoint success + service-failure 400 + path-validation 400 + 401; excel (read/write/recalculate/rows/columns/formula/pivot/macro), word (read/modify), pptx (read/modify), present (token identity + canvas id gen), sync-update (token identity + 400) |
 | 2026-08-11 | `api/rpc_routes.py` | ~0%→**100%** | list actions (full/empty/401), call action (params forwarding + token-identity context, 404 registry-miss, 404 ActionNotFoundError, 500 no-detail-leak, 401) |
+
+## Session 2026-08-11 (W44) — atom_meta_agent 53%→89% + 3 real bugs (TDD)
+
+**Evidence**: `tests/test_covpush_w44_meta_agent_governance.py` (58 tests) + `tests/test_covpush_w44b_meta_agent_execute.py` (14 tests), regression 176 passed across all meta-agent suites (w30/w32/atom_meta_agent + W44).
+
+| Bug (RED→GREEN) | What |
+|---|---|
+| `_trigger_workflow` never defined | Called from `_execute_tool_with_governance` but missing since the Jan 2026 port — every `trigger_workflow` tool call crashed with AttributeError (masked as "Tool error"). Implemented (delegates to workflow-engine `start_workflow`; missing-id + error paths return structured messages). |
+| Pre-loop KillRunAborted UnboundLocalError | Kill raised BEFORE the ReAct loop (memory recall) left `steps` AND `failure_reason`/`failure_mode` unbound — the kill handler crashed instead of returning `killed_sandbox` (clean kill → 500). All three initialized with the pre-try state. |
+| Streaming-callback `ReasoningStepType.FINAL_ANSWER` | `handle_manual_trigger`'s stype_map referenced a non-existent enum member — the dict literal evaluates eagerly, so AttributeError fired on EVERY streamed step and reasoning-chain persistence silently never ran (only WS broadcast worked). Mapped `final_answer` → `CONCLUSION`. |
+
+**Coverage**: execute() ReAct loop (happy/tool/max-steps/budget/mcp_tool_search/parallel/KillRun/404/failure), `_execute_tool_with_governance` (allowed/blocked/HITL/special tools/sandbox/judge), `_execute_parallel_tools` (batch HITL/blocked/error/killrun/serial search), `_wait_for_approval(s)`, `_recruit_fleet`, module routing helpers (`_check_governance`/`_route_to_chat`/`_route_to_workflow`/`_route_to_task`/`_propose_chat_alternative`), `spawn_agent`, `_persist_reasoning_step` (incl. turn-fact dispatch), `handle_manual_trigger` streaming callback, mentorship guidance, Queen-planning + fleet-routing branches.
