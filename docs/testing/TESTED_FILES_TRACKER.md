@@ -2732,3 +2732,9 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 |---|---|---|---|
 | 2026-08-11 | `core/llm/routing/cache_optimizer.py` | 69%→**96%** | statistics update, pattern detection (cache hit/short history/temporal/sequential/frequency), next-access probability, warmer (probability + frequency paths, candidate filtering/sorting), recommendations (hit-rate low/high, dynamic sizing min/max/disabled), optimal size (empty/target), factories |
 | 2026-08-11 | `core/llm/routing/routellm_trainer.py` | 78%→**97%** | empty targets/weights, unavailable flag, insufficient samples, train success/failure, all 4 model types + unsupported, save/load (skip/missing/corrupt), predict (no-model/single-class-invert/no-proba), best-model selection + all-fail restore, evaluator (significant/insufficient, CI + short data), factories |
+
+## Session 2026-08-11 (wave 56b) — restricted_pickle RCE gap closed (TDD, security)
+
+**Evidence**: `TestRestrictedPickle` (3 tests in w56_routellm_trainer). Routing package regression: 101 passed.
+
+**Security bug fixed**: `RestrictedUnpickler._ALLOWED_PREFIXES` included `"builtins"` — the module-prefix rule ran BEFORE the name allowlist, so ANY `builtins.*` global (including `eval`, `exec`, `open`, `compile`, `__import__`) passed through `find_class`. A crafted `.pkl` planted in the model dir could execute arbitrary code — the no-arbitrary-code-execution guarantee was defeated. Builtins are now name-allowlisted only (data containers: list/dict/tuple/set/frozenset/complex/float/int/str/bytes/bool) and checked before the prefix rule; everything else raises `UnpicklingError`.

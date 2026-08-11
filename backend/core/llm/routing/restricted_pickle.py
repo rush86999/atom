@@ -22,6 +22,10 @@ class RestrictedUnpickler(pickle.Unpickler):
     # pickle globals sometimes use the top-level module name with the class
     # as the symbol (e.g. "numpy" + "ndarray", "numpy" + "dtype",
     # "numpy.core.multiarray" + "_reconstruct").
+    # Security: "builtins" is NOT a prefix — it is matched name-by-name via
+    # _ALLOWED_NAMES so dangerous builtins (eval/exec/open/compile/...) can
+    # never pass the module-prefix rule (previously any builtins.* global was
+    # allowed, defeating the no-arbitrary-code-execution guarantee).
     _ALLOWED_PREFIXES = (
         "sklearn.",
         "numpy.",
@@ -29,10 +33,9 @@ class RestrictedUnpickler(pickle.Unpickler):
         "scipy.",
         "scipy",
         "collections",
-        "builtins",
     )
 
-    # Specific allowed built-in names (in addition to the prefixes above).
+    # Specific allowed built-in names (checked BEFORE the prefix rule).
     _ALLOWED_NAMES = frozenset({
         "list", "dict", "tuple", "set", "frozenset",
         "complex", "float", "int", "str", "bytes", "bool",
@@ -40,11 +43,17 @@ class RestrictedUnpickler(pickle.Unpickler):
     })
 
     def find_class(self, module, name):
+        # Builtins are name-allowlisted only — never by prefix. This closes
+        # the RCE gap where a crafted .pkl referenced builtins.eval/exec/open.
+        if module == "builtins":
+            if name in self._ALLOWED_NAMES:
+                return super().find_class(module, name)
+            raise pickle.UnpicklingError(
+                f"RestrictedUnpickler: forbidden built-in '{name}' — "
+                f"only data containers are allowed"
+            )
         # Allow by module prefix (sklearn.*, numpy.*, scipy.*).
         if any(module.startswith(prefix) for prefix in self._ALLOWED_PREFIXES):
-            return super().find_class(module, name)
-        # Allow specific built-in names.
-        if module == "builtins" and name in self._ALLOWED_NAMES:
             return super().find_class(module, name)
         raise pickle.UnpicklingError(
             f"RestrictedUnpickler: forbidden class '{module}.{name}' — "
