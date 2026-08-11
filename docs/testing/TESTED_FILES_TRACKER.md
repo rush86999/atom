@@ -2529,3 +2529,12 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | 2026-08-11 | `core/llm/gateway/budget_alerts.py` | 68%→**95%** | budget-limit fallback, recipient matrix (caller/admin/none/exception), zero-limit skip, fire-once thresholds, no-recipient skip, sync shim, master-flag gate |
 | 2026-08-11 | `core/llm/gateway/request_logger.py` | 73%→**93%** | header dropping, redaction fail-closed, sanitize fallbacks, cost-estimate chain, log-write + sweep exception tolerance |
 | 2026-08-11 | `core/llm/gateway/__init__.py` | 75%→**100%** | error-map branches: NoProviders (default+custom recovery), GatewayBlocked, AllProvidersFailed, HTTPException, ValueError, generic, anthropic shape |
+
+## Session 2026-08-11 (wave 45) — gateway routes + governance middleware
+
+**Evidence**: `tests/test_covpush_w45_gateway_routes.py` (22), `w45_governance_middleware.py` (5). Regression: 67 passed (w45 + round70 gateway + gatekeeper + bughunt suites).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `api/openai_gateway_routes.py` | 62%→**98%** | chat completions (success/extra-kwargs forwarding/route-503/completion-429/400/stream-SSE/stream-error-502), _openai_stream full generator (clean/error-delta/exception), anthropic messages (success-translated/stop+top_p/error shape/stream), _anthropic_stream (clean/error/exception), list_models (+401) |
+| 2026-08-11 | `middleware/governance_middleware.py` | 92%→**90%+** (held) | response-mask list branch + non-dict passthrough, mutations default, rate-limit exception tolerance, taint-check exception tolerance, HITL escalation exception tolerance |
