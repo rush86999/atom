@@ -6,7 +6,7 @@ import asyncio
 import sys
 from datetime import datetime, timedelta, timezone
 from types import ModuleType
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -851,7 +851,7 @@ class TestExecuteToolLocalTools:
         engine.entity_registry = {"e1": entity}
         with _mock_imports({
             "integrations.universal_integration_service": MagicMock(UniversalIntegrationService=_cls(uis)),
-            "ai.data_intelligence": MagicMock(engine=engine),
+            "ai.data_intelligence": MagicMock(DataIntelligenceEngine=_cls(engine)),
         }):
             r = await _run_local(svc, "search_files", {"query": "q", "platform": "google_drive"})
             assert r == {"results": 1}
@@ -956,7 +956,7 @@ class TestExecuteToolLocalTools:
         zoho.get_inventory_levels = AsyncMock(return_value=[{"z": 1}])
         with _mock_imports({
             "core.connection_service": MagicMock(ConnectionService=_cls(conn_service)),
-            "integrations.shopify_service": MagicMock(shopify_service=shopify),
+            "integrations.shopify_service": MagicMock(ShopifyService=_cls(shopify)),
             "integrations.zoho_inventory_service": MagicMock(zoho_inventory_service=zoho),
         }):
             r = await _run_local(svc, "get_inventory_levels", {"platform": "shopify"}, {"user_id": "u"})
@@ -1037,7 +1037,7 @@ class TestExecuteToolLocalTools:
         zoom.create_meeting = AsyncMock(return_value={"link": 1})
         with _mock_imports({
             "core.connection_service": MagicMock(ConnectionService=_cls(conn_service)),
-            "integrations.zoom_service": MagicMock(zoom_service=zoom),
+            "integrations.zoom_service": MagicMock(ZoomService=_cls(zoom)),
         }):
             r = await _run_local(svc, "create_zoom_meeting", {}, {"user_id": "u"})
             assert r["error"] == "Zoom not connected"
@@ -1048,7 +1048,7 @@ class TestExecuteToolLocalTools:
             conn_service2.list_connections = AsyncMock(return_value=[conn])
             with _mock_imports({
                 "core.connection_service": MagicMock(ConnectionService=_cls(conn_service2)),
-                "integrations.zoom_service": MagicMock(zoom_service=zoom),
+                "integrations.zoom_service": MagicMock(ZoomService=_cls(zoom)),
             }):
                 r = await _run_local(svc, "create_zoom_meeting", {"topic": "t", "duration": 30}, {"user_id": "u"})
             assert r == {"link": 1}
@@ -1063,7 +1063,10 @@ class TestExecuteToolLocalTools:
         analyzer.get_global_performance_report.return_value = {"g": 1}
         with _mock_imports({
             "core.circuit_breaker": MagicMock(circuit_breaker=cb),
-            "core.analytics_engine": MagicMock(analyzer=analyzer),
+            "core.analytics_engine": MagicMock(
+                analyzer=analyzer,
+                get_analytics_engine=Mock(return_value=analyzer),
+            ),
         }):
             r = await _run_local(svc, "get_system_health", {"service": "shopify"})
             assert r == {"stats": {"s": 1}, "drift": {"drift": 1}}

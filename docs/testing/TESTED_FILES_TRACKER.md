@@ -2365,3 +2365,15 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | Date | File | Coverage change | What was added |
 |---|---|---|---|
 | 2026-08-10 | `api/zoho_workdrive_routes.py` | ~0%→**100%** | teams (success/500/401), files/list (success/default-parent/500/422), ingest (success/500/422), health (configured/unconfigured) |
+
+## Session 2026-08-10 (wave 27) — proposal_service 8→99% (test-only, mocked db + executors)
+
+**Evidence**: `tests/test_covpush_w27_proposal_service.py` (62 new tests) — 109 passed / 0 failed with the scaling suite. Remaining 6 lines are import/header. Pre-existing: `test_proposal_service.py` (296-01 era) is a stale suite calling the removed `ProposalService.create_proposal` API (26 failures, committed, untouched).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/proposal_service.py` | 8%→**99%** (426 lines) | `create_action_proposal` (agent-missing ValueError, non-INTERN PermissionError, selector-candidates block incl. per-field confidence); `submit_for_approval` (status guard); `approve_proposal` (not-found/status, execution-failure → EXECUTION_FAILED + re-raise, modifications applied post-execution w/ Bug-12 copy semantics + learning correction, non-success result); `reject_proposal` (guards + episode + record_rejection); pending/history queries (all filters, async); `_execute_proposed_action` (disabled flag, 6-way dispatch, unknown type, wrapped exceptions, prepared-action swap-back); browser executor (steps, missing url/session ValueError, ImportError); canvas/integration (dict + non-dict results, error envelope)/workflow (not-found, success)/device/agent executors (registry-missing, plain-string result wrap); `_create_proposal_episode` (dict → list modification normalization, None → [], exception tolerance); formatting/entity/topic/importance helpers; autonomous supervisor (human-available, no-agent, no-supervisor, autonomous review, approve-executed/failed, reject + audit-trail status guard) |
+
+## Session 2026-08-10 (wave 38b) — integrations_core stale mock-wiring repair
+
+**Evidence**: `tests/test_covpush_integrations_core.py` 4 failed → **189 passed**. The local-tools implementations in `integrations/mcp_service.py` import **classes/factories** (`get_analytics_engine()`, `ZoomService`, `ShopifyService`, `DataIntelligenceEngine`) but the R90-era tests mocked instance attributes (`analyzer`, `zoom_service`, `shopify_service`, `engine`) — auto-MagicMocks leaked into results. Fixed mocks: `get_analytics_engine=Mock(return_value=analyzer)`, `ZoomService=_cls(zoom)`, `ShopifyService=_cls(shopify)`, `DataIntelligenceEngine=_cls(engine)`.
