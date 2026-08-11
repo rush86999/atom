@@ -2516,3 +2516,16 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | `core/episode_segmentation_service.py` | 87%→**93%** (623/672). Boundary detector cosine/keyword similarity fallbacks, `_extract_entities` (phones/URLs/metadata/execution capitalized words), `_extract_topics` execution branch, `create_episode_from_session` (no-data/too-small/forced + canvas-audit + feedback back-linkage), active `_extract_canvas_context` (1174 def: first-audit-wins, interaction map, critical-data flat fields, exception), `_fetch_feedback_context`, `_calculate_feedback_score`, `_archive_supervision_episode_to_lancedb` (missing/existing table/no-db/exception), `_ensure_episode_columns`, `_get_agent_maturity`, `_filter_canvas_context_detail`, `_format_agent_actions`. |
 
 **Dead code documented**: the `_extract_canvas_context` at line 853 (~45 lines) is **shadowed by the 1174 definition** — Python uses the later one; the earlier is unreachable. The 4 remaining non-dead lines (189 `union` empty — provably unreachable since empty tokens return earlier; 1304-1306 filter except — behavior verified via direct call, coverage-instrumentation quirk with dict-subclass `get` override).
+
+## Session 2026-08-11 (wave 44) — LLM gateway stack (all 90%+)
+
+**Evidence**: `tests/test_covpush_w44_gateway_service_formats.py` (64, subagent), `w44_gateway_misc.py` (45). Regression: 142 passed across w44 + round70 gateway/logs + channel-binding suites.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/llm/gateway/gateway_service.py` | 36%→**100%** | route resolution (tier overrides, NoProviders re-raise, learning-router intent rerank, header model override), optimal/absolute-fallback branches, list_models, per-provider models, all 7 error-map branches, tier parsing, enabled gates (subagent) |
+| 2026-08-11 | `core/llm/gateway/wire_formats.py` | 69%→**100%** | prompt_from_messages coercions, content-block translation (str/base64/URL/tool/thinking), anthropic→openai (system str/list, unknown roles, top_p=0, stop passthrough), openai→anthropic (multipart join, stop-reason map), error shape mapping (subagent) |
+| 2026-08-11 | `core/llm/gateway/auth.py` | 84%→**91%** | to_audit, key prefix format, rate-limit (disabled/exceeded/stale purge), api-key resolution (revoked/naive-expired/user-missing/non-active/rollback), non-atom_sk 401 |
+| 2026-08-11 | `core/llm/gateway/budget_alerts.py` | 68%→**95%** | budget-limit fallback, recipient matrix (caller/admin/none/exception), zero-limit skip, fire-once thresholds, no-recipient skip, sync shim, master-flag gate |
+| 2026-08-11 | `core/llm/gateway/request_logger.py` | 73%→**93%** | header dropping, redaction fail-closed, sanitize fallbacks, cost-estimate chain, log-write + sweep exception tolerance |
+| 2026-08-11 | `core/llm/gateway/__init__.py` | 75%→**100%** | error-map branches: NoProviders (default+custom recovery), GatewayBlocked, AllProvidersFailed, HTTPException, ValueError, generic, anthropic shape |
