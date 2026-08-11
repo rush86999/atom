@@ -34,8 +34,15 @@ def db_session():
 @pytest.fixture(scope="function")
 def chat_manager(db_session, monkeypatch):
     """Create chat manager with test database"""
-    # Patch SessionLocal to use test database
-    monkeypatch.setattr("core.chat_session_manager.SessionLocal", lambda: db_session)
+    from contextlib import contextmanager
+
+    # get_session reads via get_db_session() (core.database), not the
+    # manager's SessionLocal — patch the real access path.
+    @contextmanager
+    def _fake_get_db():
+        yield db_session
+
+    monkeypatch.setattr("core.chat_session_manager.get_db_session", _fake_get_db)
 
     # Force DB mode
     manager = ChatSessionManager()
@@ -58,7 +65,7 @@ def test_get_session_with_history(chat_manager, db_session):
         ChatMessage(
             id="msg1",
             conversation_id=session_id,
-            workspace_id="default",
+            tenant_id="default",
             role="user",
             content="Hello, how are you?",
             created_at=datetime.utcnow() - timedelta(minutes=10)
@@ -66,7 +73,7 @@ def test_get_session_with_history(chat_manager, db_session):
         ChatMessage(
             id="msg2",
             conversation_id=session_id,
-            workspace_id="default",
+            tenant_id="default",
             role="assistant",
             content="I'm doing well, thank you!",
             created_at=datetime.utcnow() - timedelta(minutes=9)
@@ -74,7 +81,7 @@ def test_get_session_with_history(chat_manager, db_session):
         ChatMessage(
             id="msg3",
             conversation_id=session_id,
-            workspace_id="default",
+            tenant_id="default",
             role="user",
             content="What can you help me with?",
             created_at=datetime.utcnow() - timedelta(minutes=8)
@@ -82,7 +89,7 @@ def test_get_session_with_history(chat_manager, db_session):
         ChatMessage(
             id="msg4",
             conversation_id=session_id,
-            workspace_id="default",
+            tenant_id="default",
             role="assistant",
             content="I can help with many tasks!",
             created_at=datetime.utcnow() - timedelta(minutes=7)
@@ -124,10 +131,10 @@ def test_get_session_history_limit(chat_manager, db_session):
     messages = []
     for i in range(150):
         role = "user" if i % 2 == 0 else "assistant"
-        msg = ChatMessage(
+        msg = ChatMessage(tenant_id="default",
             id=f"msg{i}",
             conversation_id=session_id,
-            workspace_id="default",
+
             role=role,
             content=f"Message {i}",
             created_at=datetime.utcnow() - timedelta(minutes=150-i)
@@ -175,10 +182,10 @@ def test_get_session_history_with_different_conversations(chat_manager, db_sessi
 
     # Add messages to session1
     for i in range(3):
-        msg = ChatMessage(
+        msg = ChatMessage(tenant_id="default",
             id=f"session1_msg{i}",
             conversation_id=session1_id,
-            workspace_id="default",
+
             role="user",
             content=f"Session 1 - Message {i}",
             created_at=datetime.utcnow() - timedelta(minutes=10-i)
@@ -187,10 +194,10 @@ def test_get_session_history_with_different_conversations(chat_manager, db_sessi
 
     # Add messages to session2
     for i in range(5):
-        msg = ChatMessage(
+        msg = ChatMessage(tenant_id="default",
             id=f"session2_msg{i}",
             conversation_id=session2_id,
-            workspace_id="default",
+
             role="user",
             content=f"Session 2 - Message {i}",
             created_at=datetime.utcnow() - timedelta(minutes=10-i)
@@ -224,7 +231,7 @@ def test_history_preserves_message_structure(chat_manager, db_session):
     msg = ChatMessage(
         id="test_msg",
         conversation_id=session_id,
-        workspace_id="default",
+        tenant_id="default",
         role="user",
         content="Test message with special chars: <>&\"'",
         created_at=test_time
@@ -253,13 +260,9 @@ def test_file_mode_fallback(monkeypatch, tmp_path):
     manager = ChatSessionManager(sessions_file=str(sessions_file))
     manager.use_db = False
 
-    # Create session with history
-    session_id = manager.create_session(
-        user_id="test_user",
-        history=[
-            {"role": "user", "content": "Test message"}
-        ]
-    )
+    # Create session (create_session has no history kwarg — messages are
+    # persisted via the DB path only)
+    session_id = manager.create_session(user_id="test_user")
 
     # Retrieve session
     session = manager.get_session(session_id)
