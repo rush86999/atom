@@ -2538,3 +2538,11 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 |---|---|---|---|
 | 2026-08-11 | `api/openai_gateway_routes.py` | 62%→**98%** | chat completions (success/extra-kwargs forwarding/route-503/completion-429/400/stream-SSE/stream-error-502), _openai_stream full generator (clean/error-delta/exception), anthropic messages (success-translated/stop+top_p/error shape/stream), _anthropic_stream (clean/error/exception), list_models (+401) |
 | 2026-08-11 | `middleware/governance_middleware.py` | 92%→**90%+** (held) | response-mask list branch + non-dict passthrough, mutations default, rate-limit exception tolerance, taint-check exception tolerance, HITL escalation exception tolerance |
+
+## Session 2026-08-11 (wave 46) — gateway key routes 0% → 100%
+
+**Evidence**: `tests/test_covpush_w46_gateway_keys.py` (10 tests, in-memory SQLite + StaticPool).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `api/gateway_key_routes.py` | ~0%→**100%** | create (plaintext-once + hash-only storage, custom fields, 422 validation), list (empty/serialized rows), revoke (owned success, other-user 404, missing 404), rotate (revoke+new key with inherited fields, 404), auth 401s on all routes |
