@@ -504,7 +504,11 @@ class TestWorkflowEngineTopologicalSort:
     """Test topological sorting logic in graph conversion."""
 
     def test_topological_sort_with_cycle(self):
-        """Test handling of cycles in graph (should not hang)."""
+        """Cycles must fail fast with a ValueError naming the cycle nodes.
+
+        Contract (workflow_engine.py:155-164): a cycle means the graph cannot
+        be linearized — raising beats silently dropping the cyclic nodes.
+        """
         engine = WorkflowEngine()
         workflow = {
             "nodes": [
@@ -518,10 +522,11 @@ class TestWorkflowEngineTopologicalSort:
                 {"source": "node3", "target": "node1"}  # Cycle!
             ]
         }
-        # Should handle gracefully ( Kahn's algorithm will just process what it can)
-        steps = engine._convert_nodes_to_steps(workflow)
-        # Some nodes should be processed
-        assert len(steps) >= 0
+        with pytest.raises(ValueError) as exc_info:
+            engine._convert_nodes_to_steps(workflow)
+        message = str(exc_info.value)
+        assert "node1" in message and "node2" in message and "node3" in message
+        assert "circular" in message.lower()
 
     def test_topological_sort_disconnected_graph(self):
         """Test topological sort with disconnected components."""

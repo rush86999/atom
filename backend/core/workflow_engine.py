@@ -2480,7 +2480,7 @@ Use the available tools as needed to complete the action. Return your response i
         
         # 0. Try Cache
         cache_key = f"catalog:{service_name}"
-        catalog_data = await cache.get(cache_key)
+        catalog_data = cache.get(cache_key)
         
         if not catalog_data:
             # 1. Fetch metadata from DB
@@ -2496,7 +2496,7 @@ Use the available tools as needed to complete the action. Return your response i
                         "actions": catalog_item.actions
                     }
                     # Cache for 1 hour
-                    await cache.set(cache_key, catalog_data, expire=3600)
+                    cache.set(cache_key, catalog_data, ttl=3600)
                 except Exception as e:
                     logger.error(f"Failed to fetch catalog item: {e}")
                     raise
@@ -2646,6 +2646,12 @@ Use the available tools as needed to complete the action. Return your response i
                     tree.negative_constraints = list(prev_record.negative_constraints)
 
         logger.info(f"[Arbor/Workflow] Initialized Workflow OptimizationTree={tree_id} tier={tier}")
+
+        # Normalize graph-format workflows (nodes/connections) to steps BEFORE
+        # measuring parallelizability — start_workflow does the same conversion
+        # later, so measuring the raw nodes dict would always report ratio 0.
+        if "steps" not in workflow and "nodes" in workflow:
+            workflow["steps"] = self._convert_nodes_to_steps(workflow)
 
         # Measure parallelizable nodes vs sequential nodes
         steps = workflow.get("steps", [])
