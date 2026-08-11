@@ -1407,3 +1407,50 @@ class TestAgentIntegrationPoints:
 # =============================================================================
 # End of Tests
 # =============================================================================
+
+
+class TestListAgentsResilience:
+    """W45: /api/agents/ must never raw-500 — the Agent Control Center page
+    shows 'Failed to load agents: Internal Server Error' on ANY backend
+    exception (e.g. DB schema drift, missing table). The endpoint should
+    catch and return a structured error so the frontend can render the real
+    cause instead of a blank failure."""
+
+    def test_list_agents_governance_error_returns_500_json(self, client: TestClient, monkeypatch):
+        """Governance service raising must yield a structured 500, not a crash."""
+        def _boom(db, *a, **k):
+            raise RuntimeError("agent_registry table missing")
+
+        monkeypatch.setattr(
+            "api.agent_routes.AgentGovernanceService",
+            lambda db, *a, **k: type("Gov", (), {
+                "list_agents": lambda self, category=None: (_ for _ in ()).throw(
+                    RuntimeError("agent_registry table missing"))
+            })())
+        response = client.get("/api/agents/")
+        assert response.status_code == 500
+        body = response.json()
+        # FastAPI wraps HTTPException's dict body under "detail"
+        payload = body.get("detail") or body
+        assert payload.get("success") is False
+        error = payload.get("error") or {}
+        assert error.get("code") == "AGENT_LIST_FAILED"
+        assert "agent_registry" in error.get("message", "")
+        assert "Traceback" not in str(body)
+
+    def test_list_agents_job_query_error_returns_500_json(self, client: TestClient, test_agent_factory, monkeypatch):
+        """AgentJob aggregation failing (schema drift) must also be structured."""
+        test_agent_factory(name="Job Agent", category="test")
+
+        def _boom_max(col):
+            raise RuntimeError("no such column: agent_jobs.start_time")
+
+        monkeypatch.setattr(
+            "sqlalchemy.func.max", _boom_max)
+        response = client.get("/api/agents/")
+        assert response.status_code == 500
+        body = response.json()
+        payload = body.get("detail") or body
+        assert payload.get("success") is False
+        error = payload.get("error") or {}
+        assert "start_time" in error.get("message", "")

@@ -116,31 +116,45 @@ async def list_agents(
     db: Session = Depends(get_db)
 ):
     """List all available Computer Use Agents from Registry"""
-    governance_service = AgentGovernanceService(db)
-    agents_db = governance_service.list_agents(category)
+    # W45 (Agent Control Center crash): the endpoint previously had NO error
+    # handling — any DB hiccup (schema drift, missing table, permission-layer
+    # failure) surfaced as a raw 500 with an empty body, which the frontend
+    # rendered as the useless "Failed to load agents: Internal Server Error".
+    # Catch, log the real cause server-side, and return a structured error so
+    # the page can show what actually went wrong.
+    try:
+        governance_service = AgentGovernanceService(db)
+        agents_db = governance_service.list_agents(category)
 
-    # Get last run times
-    from sqlalchemy import func
-    latest_jobs = db.query(AgentJob.agent_id, func.max(AgentJob.start_time).label('last_run'))\
-        .group_by(AgentJob.agent_id)\
-        .all()
-    last_run_map = {job.agent_id: job.last_run.isoformat() for job in latest_jobs if job.last_run}
+        # Get last run times
+        from sqlalchemy import func
+        latest_jobs = db.query(AgentJob.agent_id, func.max(AgentJob.start_time).label('last_run'))\
+            .group_by(AgentJob.agent_id)\
+            .all()
+        last_run_map = {job.agent_id: job.last_run.isoformat() for job in latest_jobs if job.last_run}
 
-    agents_list = [
-        AgentInfo(
-            id=a.id,
-            name=a.name,
-            description=a.description,
-            status=a.status,
-            last_run=last_run_map.get(a.id),
-            category=a.category
-        ) for a in agents_db
-    ]
+        agents_list = [
+            AgentInfo(
+                id=a.id,
+                name=a.name,
+                description=a.description,
+                status=a.status,
+                last_run=last_run_map.get(a.id),
+                category=a.category
+            ) for a in agents_db
+        ]
 
-    return router.success_response(
-        data=agents_list,
-        message=f"Retrieved {len(agents_list)} agents"
-    )
+        return router.success_response(
+            data=agents_list,
+            message=f"Retrieved {len(agents_list)} agents"
+        )
+    except Exception as e:
+        logger.error(f"Failed to list agents: {e}", exc_info=True)
+        raise router.error_response(
+            error_code="AGENT_LIST_FAILED",
+            message=f"Failed to load agents: {e}",
+            status_code=500,
+        ) from e
 
 # --- Endpoints ---
 

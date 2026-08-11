@@ -118,7 +118,19 @@ const AgentsDashboard = () => {
                 localStorage.removeItem('auth_token'); // Clear invalid token
                 router.push('/login');
             } else {
-                setError(`Failed to load agents: ${res.statusText}`);
+                // Surface the backend's structured error (W45): the list
+                // endpoint now returns {error: {message}} on failure so the
+                // real cause (e.g. DB schema drift) is visible instead of a
+                // generic "Internal Server Error".
+                let detail = res.statusText || "Unknown error";
+                try {
+                    const json = await res.json();
+                    const payload = json?.detail || json;
+                    detail = payload?.error?.message || payload?.message || detail;
+                } catch {
+                    // non-JSON error body — keep statusText
+                }
+                setError(`Failed to load agents: ${detail}`);
             }
         } catch (err: any) {
             console.error("Agents fetch error:", err);

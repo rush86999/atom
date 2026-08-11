@@ -414,3 +414,50 @@ class TestReasoningRoutes:
 
             # Should accept various ID formats
             assert response.status_code in [200, 401, 404, 422]
+
+
+class TestReasoningChainEndpoint:
+    """W45: Reasoning Audit dialog endpoint — was a dead 404
+    (/api/v1/voice/reasoning/{id} never existed). Adds GET
+    /api/reasoning/chain/{chain_id} backed by the in-memory tracker."""
+
+    @pytest.fixture
+    def mock_user(self):
+        user = Mock()
+        user.id = "test-user-123"
+        return user
+
+    @pytest.fixture
+    def client(self, mock_user):
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        try:
+            yield TestClient(app)
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_get_chain_found(self, client):
+        from core.reasoning_chain import ReasoningChain
+        chain = ReasoningChain(
+            execution_id="ex-1",
+            started_at=__import__("datetime").datetime.now(),
+            completed_at=None,
+            total_duration_ms=100,
+            final_outcome=None,
+        )
+        tracker = Mock()
+        tracker.get_chain = Mock(return_value=chain)
+        with patch("core.reasoning_chain.get_reasoning_tracker",
+                   return_value=tracker):
+            response = client.get("/api/reasoning/chain/ex-1")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["execution_id"] == "ex-1"
+
+    def test_get_chain_not_found(self, client):
+        tracker = Mock()
+        tracker.get_chain = Mock(return_value=None)
+        with patch("core.reasoning_chain.get_reasoning_tracker",
+                   return_value=tracker):
+            response = client.get("/api/reasoning/chain/ghost")
+        assert response.status_code == 404
+        assert response.json()["success"] is False

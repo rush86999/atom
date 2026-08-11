@@ -70,9 +70,18 @@ const ReasoningChainViewer: React.FC<ReasoningChainViewerProps> = ({ chainId, ch
     const fetchChain = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`/api/v1/voice/reasoning/${chainId}`);
-            if (!response.ok) throw new Error('Failed to fetch reasoning chain');
-            const data = await response.json();
+            // W45: was /api/v1/voice/reasoning/{chainId} — a dead 404 endpoint.
+            // The real backend route is /api/reasoning/chain/{chainId} (via
+            // API_BASE, same as every other call on this page).
+            const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, "");
+            const token = localStorage.getItem('auth_token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const response = await fetch(`${apiBase}/api/reasoning/chain/${chainId}`, { headers });
+            if (!response.ok) throw new Error(`Failed to fetch reasoning chain (${response.status})`);
+            const json = await response.json();
+            const data = json?.data || json;
+            if (!data) throw new Error('Empty reasoning chain response');
             setChain(data);
         } catch (err: any) {
             setError(err.message);

@@ -22,6 +22,29 @@ class ReasoningStepFeedback(BaseModel):
     feedback_type: str  # "thumbs_up", "thumbs_down"
     comment: Optional[str] = None
 
+
+@router.get("/chain/{chain_id}")
+async def get_reasoning_chain(
+    chain_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get a reasoning chain by id for the Reasoning Audit dialog.
+
+    W45: the frontend called /api/v1/voice/reasoning/{chain_id} which never
+    existed (404) — the audit dialog was dead. The tracker is in-memory
+    (core.reasoning_chain.ReasoningTracker), so serve what it holds.
+    """
+    from core.reasoning_chain import get_reasoning_tracker
+
+    chain = get_reasoning_tracker().get_chain(chain_id)
+    if not chain:
+        raise router.not_found_error("ReasoningChain", chain_id)
+    return router.success_response(
+        data=chain.dict() if hasattr(chain, "dict") else chain.__dict__,
+        message="Reasoning chain retrieved",
+    )
+
 @router.post("/feedback")
 async def submit_step_feedback(
     feedback: ReasoningStepFeedback,
