@@ -2723,3 +2723,12 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | Date | File | Coverage change | What was added |
 |---|---|---|---|
 | 2026-08-11 | `core/llm/routing/preference_collector.py` | 66%→**100%** | feedback recording (unknown/success), A/B assignment + learning gate, dataset generation (workspace/age/feedback/quality filters, weights), feature extraction (code/numbers/word-length), token buckets (all 5), example weights (explicit/rejected/extreme), stats (empty/full/preferred-models), factory |
+
+## Session 2026-08-11 (wave 56) — routing package complete: cache_optimizer 96%, routellm_trainer 97%
+
+**Evidence**: `tests/test_covpush_w56_cache_optimizer.py` (21), `w56_routellm_trainer.py` (22). Combined: 47-62 passed with existing routing suites. Routing package total: **per_model_router 96%, request_healer 99%, preference_collector 100%, cache_optimizer 96%, routellm_trainer 97%** — the entire previously environment-blocked package is now covered.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/llm/routing/cache_optimizer.py` | 69%→**96%** | statistics update, pattern detection (cache hit/short history/temporal/sequential/frequency), next-access probability, warmer (probability + frequency paths, candidate filtering/sorting), recommendations (hit-rate low/high, dynamic sizing min/max/disabled), optimal size (empty/target), factories |
+| 2026-08-11 | `core/llm/routing/routellm_trainer.py` | 78%→**97%** | empty targets/weights, unavailable flag, insufficient samples, train success/failure, all 4 model types + unsupported, save/load (skip/missing/corrupt), predict (no-model/single-class-invert/no-proba), best-model selection + all-fail restore, evaluator (significant/insufficient, CI + short data), factories |
