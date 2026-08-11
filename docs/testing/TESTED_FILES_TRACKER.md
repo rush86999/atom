@@ -2629,3 +2629,12 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **Root cause 2**: Reasoning Audit dialog (`fetchChain`) called `/api/v1/voice/reasoning/{chainId}` — dead 404, never existed on backend or frontend. Added `GET /api/reasoning/chain/{chain_id}` (backed by the in-memory `ReasoningTracker`) and repointed the viewer at it via API_BASE.
 
 **Verification**: TDD tests (2 for agents 500-path, 2 for chain endpoint found/404) all RED→GREEN; 93 backend tests green; `next build` ✓; live server verified: `/api/agents/` 200, run 200 (structured budget-gated result), chain 404 now structured JSON.
+
+## Session 2026-08-11 (wave 51) — intent_classifier 49→100%, canvas_summary 98→100%
+
+**Evidence**: `tests/test_covpush_w51_intent_classifier.py` (13 tests). Regression: 71 passed (w51 + intent-classifier + canvas-summary suites).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/intent_classifier.py` | 49%→**100%** | LLM path (chat/workflow/task/unknown categories + flag defaults), markdown-fenced JSON parsing, plain-fence + parse-error default, LLM exception → heuristic fallback, heuristic workflow branch, double-checked singleton |
+| 2026-08-11 | `core/llm/canvas_summary_service.py` | 98%→**100%** | empty-summary richness 0.0, hallucination detection (clean + fabricated wf-id) |
