@@ -2682,3 +2682,11 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | 2026-08-11 | `core/byok_endpoints.py` | 58%→**93%** | manager: config load/save (valid/corrupt/missing, atomic-write cleanup), defaults init, dynamic cost updates, encryption key lifecycle (env/generate/persist/reuse/fail-loud), Fernet round-trips, store/get flows (env fallback, usage bump, decrypt failure), usage tracking, optimal-provider (filters/budget/reasoning/fallbacks), provider status, aliases, normalization, singleton. Routes: health (incl. 503), keys (masked list/add 200/400/404/500 + provider-key store/status/delete + pydantic 422s), providers list/detail, optimize-cost (success+alternatives/400s/500), usage track/stats (404/500), PDF providers/optimize (3 task types/400/500), pricing (success/error/refresh/model/provider/estimate fallback+unavailable) |
 
 **Note**: `tests/unit/test_byok_endpoints.py` (stale) has 7 pre-existing failures — its OptimizeEndpoints/UsageEndpoints classes test phantom endpoints removed from the module; separate repair lane.
+
+## Session 2026-08-11 (W47) — llm_service 65%→87% (37 tests)
+
+**Evidence**: `tests/test_covpush_w47_llm_consensus.py` (37 tests), regression 278 llm_service tests + 134 byok_handler tests green.
+
+**Coverage**: `generate_structured_with_consensus` (flag on/off, voter/audit failure degradation), `_run_self_consistency_vote`, `_write_self_consistency_audit` (caller-db + own-session + import-failure), `generate_structured` consensus branch, embeddings/speech client paths, `stream_completion` (auto-model via AwaitableResult + static), `get_provider` (all provider mappings), `estimate_tokens`/`estimate_cost`, `analyze_proposal` (JSON/block/parse-failure), `_resolve_governance_model` (frugal de-escalation matrix), `generate` personalization, factory.
+
+**Note**: `stream_completion`/`generate_embedding`/`generate_embeddings_batch` each have a shadowed earlier definition (Python uses the later one) — tests target the active (later) definitions; the shadowed blocks remain as documented dead code.
