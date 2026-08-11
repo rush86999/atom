@@ -2393,3 +2393,21 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **Covered**: `_hash_text` (deterministic/differing), `_record_doc_ingestion` (create/update/IntegrityError rollback/generic error), `_is_doc_already_ingested` (match/differ/missing), `_get_user_credentials` (found w/ + w/o expiry, not-found, exception), `_create_ingestion_job` (success via patched model, flag-off fallback, exception fallback + rollback), `_update_ingestion_job` (success/not-found/exception), slack/hubspot/salesforce/gmail/notion transforms, ALL 10 zoho transforms (verified actual record shapes — desk/campaigns/forms/showtime/meeting/assist use fixed singular types), `_transform_webhook_payload` dispatcher (known/unknown/exception), plus a parametrized sweep driving all 55 registered transformers with empty payloads (all return lists without raising).
 
 **Notes**: gmail transform falls back to a generic record when no connection id (not []); zoho transforms each use bespoke id keys (`ticketId`, `entityId`, `campaign_id`, `submission_id`, `session_id`, `meeting_id`); `_create_ingestion_job` builds its own `IngestionJob` (patch the model class, not a mock row).
+
+## Session 2026-08-10 (wave 29) — agent_social_layer 31→91% (test-only, mocked db + redactor)
+
+**Evidence**: `tests/test_covpush_w29_social_layer.py` (71 new tests) — 71/71 pass in wave; social-layer coverage 91%. Pre-existing (committed round-18-era suites, unrelated): 5 fails in `test_social_layer_properties.py` + 1 in `test_agent_social_layer_reactions.py`.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `core/agent_social_layer.py` | 31%→**91%** (364 lines) | `create_post` (STUDENT/agent-missing/no-db governance, type mapping + validation, PII redaction success/failure/skip, mentions + channel/reply/auto metadata, agent tenant-id propagation); `get_feed` (no-db, all filters); `add_reaction` (dict/list reaction posts, broadcast); `get_trending_topics` (mention counting by type, top-10); `add_reply` (parent-missing, STUDENT block, success) + `get_replies`; channels (create existing/new, list); cursor feed (compound + legacy cursors, invalid tolerated, has_more + next_cursor); episode-linked posts (retrieval, segment creation + failure tolerance, episode context + error tolerance, summaries); positive-interaction tracking (non-agent skip, negative skip, feedback record, ImportError tolerance, exception tolerance); `_is_positive_interaction` keyword sets; reputation (full score, exception, helpful-reply count, percentile incl. empty registry, 30-day trend grouping); graduation milestone (agent-missing, publish); rate limits (STUDENT read-only, INTERN/SUPERVISED hourly caps, AUTONOMOUS unlimited, no-db fail-open, limit info incl. unlimited + missing-agent) |
+
+## Session 2026-08-10 (post-wave) — W35: episode_lifecycle_service 32→82% + naive-datetime fix
+
+**Evidence**: `tests/test_covpush_w35_lifecycle.py` (17 tests), regression lifecycle+episode suites 189 passed.
+
+**Real bug fixed (RED→GREEN)**: `update_lifecycle` crashed on offset-NAIVE `started_at` — `datetime.now(tzinfo=None)` raises TypeError → caught → always returned False for naive rows. Now normalizes the episode side (`started_at.replace(tzinfo=timezone.utc)`), mirroring `decay_old_episodes`.
+
+**Covered**: consolidate_similar_episodes (string metadata JSON parse, `_distance`→similarity threshold filter, already-consolidated child skip, lancedb exception → rollback), archive_to_cold_storage (found/missing), update_importance_scores (feedback clamping incl. >1, not-found, computed blend), batch_update_access_counts (mixed), update_lifecycle (no-started_at guard via detached object — DB default fires on real rows, naive/aware, archive >180d, commit-exception rollback), apply_decay (single + list), consolidate_episodes sync wrapper (agent object, exception).
+
+**Note**: `AgentEpisode.started_at` has `server_default=func.now()` — a real row always gets a timestamp, so the no-started_at guard needs a detached object in tests.

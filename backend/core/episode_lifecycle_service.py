@@ -330,13 +330,16 @@ class EpisodeLifecycleService:
                 return False
 
             # Calculate episode age in days (float for precision)
-            # Handle both offset-aware and offset-naive datetimes
+            # Handle both offset-aware and offset-naive datetimes. Naive
+            # timestamps are assumed UTC — datetime.now(tzinfo=None) raises
+            # TypeError, so normalize the episode side instead.
+            started_at = episode.started_at
+            if started_at.tzinfo is None:
+                started_at = started_at.replace(tzinfo=timezone.utc)
             now = datetime.now(timezone.utc)
-            if episode.started_at.tzinfo is not None:
-                now = datetime.now(episode.started_at.tzinfo)
 
             # Use total_seconds() for floating-point precision
-            age_timedelta = now - episode.started_at
+            age_timedelta = now - started_at
             days_old = age_timedelta.total_seconds() / 86400.0  # Convert to days
 
             # Apply decay formula: decay_score = min(1, days_old / 90)
