@@ -2411,3 +2411,17 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **Covered**: consolidate_similar_episodes (string metadata JSON parse, `_distance`→similarity threshold filter, already-consolidated child skip, lancedb exception → rollback), archive_to_cold_storage (found/missing), update_importance_scores (feedback clamping incl. >1, not-found, computed blend), batch_update_access_counts (mixed), update_lifecycle (no-started_at guard via detached object — DB default fires on real rows, naive/aware, archive >180d, commit-exception rollback), apply_decay (single + list), consolidate_episodes sync wrapper (agent object, exception).
 
 **Note**: `AgentEpisode.started_at` has `server_default=func.now()` — a real row always gets a timestamp, so the no-started_at guard needs a detached object in tests.
+
+## Session 2026-08-10 (wave 39) — sandbox stack + governance routes (all 100%)
+
+**Evidence**: `tests/test_covpush_w39_agent_governance_routes.py` (52), `w39_sandbox_tripwire_caps.py` (57), `w39_sandbox_misc.py` (24). Regression: 269 passed across all sandbox + governance suites.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `api/agent_governance_routes.py` | 53%→**100%** | all 7 except→500 paths, approve/reject (404/403/200/400/500), enforce-action 4 decision branches + substring action matching + default-complexity, check-deployment approver-role branches, category filter, pending-approvals, generate-workflow/submit-for-approval |
+| 2026-08-10 | `core/sandbox_tripwire.py` | 66%→**100%** | AST checker full matrix (Import/ImportFrom forbidden modules, eval/exec/open/getattr, dunder-class traversal, globals[] subscript, os.environ secret keys, JS markers), matcher (scalar fallback, re.error tolerance, fail-closed vs shadow), MegafileDetector lifecycle |
+| 2026-08-10 | `core/sandbox_caps.py` | 75%→**100%** | payload counting (str/bytes/dict/list + serialized fallback), estimate helpers, exec-seconds cap, in-lock race re-check, accrual in both paths, record/release exception containment |
+| 2026-08-10 | `core/sandbox_config.py` | 54%→**100%** | _flag value matrix, all resolvers env-unset defaults + env-set, runtime validation (invalid→docker, uppercase), all 10 numeric tunable exception branches + clamps |
+| 2026-08-10 | `core/sandbox_audit.py` | 29%→**100%** | allowed/disabled no-ops, violation write (owned/provided session), exception swallow, run-policy write (success/disabled/exception/provided-session) |
+| 2026-08-10 | `core/sandbox_policy.py` | 92%→**100%** | is_terminal_block, invalid-override fallback, sandbox-disabled decision, _redact list + unhashable payload, default-issuer singleton |
+| 2026-08-10 | `core/sandbox_fs.py` | 94%→**96%** | mkdir OSError tolerance, invalid-path fallback (2 lines remain: resolve-pass + exception branch — accepted) |
