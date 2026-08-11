@@ -271,34 +271,34 @@ async def import_template(template_id: str, db: Session = Depends(get_db)):
              raise HTTPException(status_code=404, detail="Template not found")
         return {"success": True, "workflow_id": f"imported_{template_id}"}
 
-    # Fetch source template
+    # Fetch source template (ORM PK is `id` — the WorkflowTemplate model has
+    # no `template_id` column, so the old filter crashed on every DB-mode
+    # import).
     source = db.query(WorkflowTemplate).filter(
-        WorkflowTemplate.template_id == template_id
+        WorkflowTemplate.id == template_id
     ).first()
 
     if not source:
         raise HTTPException(status_code=404, detail="Template not found")
 
-    # Create private copy
+    # Create private copy (ORM columns only — the model has no
+    # complexity/tags/steps_schema/inputs_schema/output_schema/etc.)
     new_id = f"wf_{uuid.uuid4().hex[:8]}"
     new_template = WorkflowTemplate(
-        template_id=new_id,
+        id=new_id,
+        tenant_id=source.tenant_id,
+        author_id=None,  # In real app, would be current user
         name=f"Copy of {source.name}",
         description=source.description,
         category=source.category,
-        complexity=source.complexity,
-        tags=source.tags,
-        is_public=False, # Private by default
-        is_featured=False,
-        author_id=None, # In real app, would be current user
-        template_json=source.template_json,
-        inputs_schema=source.inputs_schema,
-        steps_schema=source.steps_schema,
-        output_schema=source.output_schema,
+        icon=source.icon,
+        steps=source.steps or [],
+        input_schema=source.input_schema,
+        is_public=False,  # Private by default
+        is_approved=False,
         version="1.0.0",
-        parent_template_id=source.template_id,
         usage_count=0,
-        rating_sum=0,
+        rating=0.0,
         rating_count=0
     )
 
@@ -312,7 +312,7 @@ async def import_template(template_id: str, db: Session = Depends(get_db)):
 
     return {
         "success": True,
-        "workflow_id": new_template.template_id,
+        "workflow_id": new_template.id,
         "message": "Template imported successfully"
     }
 
@@ -341,17 +341,18 @@ async def get_workflows(
 
     result = []
     for template in templates:
+        steps = template.steps or []
         result.append({
-            "id": template.template_id,
+            "id": template.id,
             "name": template.name,
             "description": template.description,
-            "steps": template.steps_schema or [],
-            "input_schema": template.inputs_schema or {},
+            "steps": steps,
+            "input_schema": template.input_schema or {},
             "created_at": template.created_at.isoformat() if template.created_at else None,
             "updated_at": template.updated_at.isoformat() if template.updated_at else None,
-            "steps_count": len(template.steps_schema) if template.steps_schema else 0,
+            "steps_count": len(steps),
             "category": template.category,
-            "complexity": template.complexity,
+            "icon": template.icon,
             "rating": template.rating,
             "usage_count": template.usage_count
         })
@@ -432,21 +433,19 @@ async def create_workflow(
         MOCK_WORKFLOWS.insert(0, new_workflow)
         return {"success": True, "workflow": new_workflow.dict()}
 
-    # Create database record
+    # Create database record (ORM columns only)
     template_id = f"tpl_{uuid.uuid4().hex[:8]}"
     template = WorkflowTemplate(
-        template_id=template_id,
+        id=template_id,
+        author_id=author_id,
         name=payload.get("name", "New Workflow"),
         description=payload.get("description", ""),
         category=payload.get("category", "automation"),
-        complexity=payload.get("complexity", "beginner"),
-        tags=payload.get("tags", []),
-        author_id=author_id,
+        icon=payload.get("icon", "workflow"),
         is_public=payload.get("is_public", False),
-        template_json=payload,
-        inputs_schema=payload.get("input_schema", {}),
-        steps_schema=payload.get("steps", []),
-        output_schema=payload.get("output_schema", {}),
+        is_approved=False,
+        steps=payload.get("steps", []),
+        input_schema=payload.get("input_schema", {}),
         version="1.0.0"
     )
 
@@ -457,20 +456,18 @@ async def create_workflow(
     return {
         "success": True,
         "workflow": {
-            "id": template.template_id,
+            "id": template.id,
             "name": template.name,
             "description": template.description,
             "category": template.category,
-            "complexity": template.complexity,
-            "tags": template.tags,
+            "icon": template.icon,
             "author_id": template.author_id,
             "is_public": template.is_public,
-            "steps": template.steps_schema or [],
-            "input_schema": template.inputs_schema or {},
-            "output_schema": template.output_schema or {},
+            "steps": template.steps or [],
+            "input_schema": template.input_schema or {},
             "created_at": template.created_at.isoformat() if template.created_at else None,
             "updated_at": template.updated_at.isoformat() if template.updated_at else None,
-            "steps_count": len(template.steps_schema) if template.steps_schema else 0,
+            "steps_count": len(template.steps or []),
             "version": template.version
         }
     }
@@ -499,31 +496,27 @@ async def update_workflow(
                 return {"success": True, "workflow": MOCK_WORKFLOWS[i].dict()}
         raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
 
-    # Update database record
+    # Update database record (ORM PK is `id`)
     template = db.query(WorkflowTemplate).filter(
-        WorkflowTemplate.template_id == workflow_id
+        WorkflowTemplate.id == workflow_id
     ).first()
 
     if not template:
         raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
 
-    # Update fields
+    # Update fields (ORM columns only)
     if "name" in payload:
         template.name = payload["name"]
     if "description" in payload:
         template.description = payload["description"]
     if "category" in payload:
         template.category = payload["category"]
-    if "complexity" in payload:
-        template.complexity = payload["complexity"]
-    if "tags" in payload:
-        template.tags = payload["tags"]
+    if "icon" in payload:
+        template.icon = payload["icon"]
     if "input_schema" in payload:
-        template.inputs_schema = payload["input_schema"]
+        template.input_schema = payload["input_schema"]
     if "steps" in payload:
-        template.steps_schema = payload["steps"]
-    if "output_schema" in payload:
-        template.output_schema = payload["output_schema"]
+        template.steps = payload["steps"]
     if "is_public" in payload:
         template.is_public = payload["is_public"]
 
@@ -533,19 +526,17 @@ async def update_workflow(
     return {
         "success": True,
         "workflow": {
-            "id": template.template_id,
+            "id": template.id,
             "name": template.name,
             "description": template.description,
             "category": template.category,
-            "complexity": template.complexity,
-            "tags": template.tags,
+            "icon": template.icon,
             "is_public": template.is_public,
-            "steps": template.steps_schema or [],
-            "input_schema": template.inputs_schema or {},
-            "output_schema": template.output_schema or {},
+            "steps": template.steps or [],
+            "input_schema": template.input_schema or {},
             "created_at": template.created_at.isoformat() if template.created_at else None,
             "updated_at": template.updated_at.isoformat() if template.updated_at else None,
-            "steps_count": len(template.steps_schema) if template.steps_schema else 0,
+            "steps_count": len(template.steps or []),
             "version": template.version
         }
     }
@@ -561,9 +552,9 @@ async def delete_workflow(workflow_id: str, db: Session = Depends(get_db)):
                 return {"success": True, "message": f"Workflow '{workflow_id}' deleted"}
         raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
 
-    # Delete from database
+    # Delete from database (ORM PK is `id`)
     template = db.query(WorkflowTemplate).filter(
-        WorkflowTemplate.template_id == workflow_id
+        WorkflowTemplate.id == workflow_id
     ).first()
 
     if not template:
