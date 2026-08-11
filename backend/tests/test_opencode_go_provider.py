@@ -15,7 +15,7 @@ import os
 os.environ["TESTING"] = "1"
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from core.llm.byok_handler import BYOKHandler, QueryComplexity, PROVIDER_TIERS, COST_EFFICIENT_MODELS
 from core.llm.provider_rate_limits import (
@@ -577,3 +577,190 @@ class TestOpenCodeUsageDebugEndpoint:
         assert response.status_code == 200
         models = response.json()["data"]["models"]
         assert list(models.keys()) == ["kimi-k3"]
+
+
+# ============================================================================
+# Streaming free-usage → paid retry (TDD wave-23)
+# ============================================================================
+
+class _StreamChunk:
+    """Minimal OpenAI-compatible stream chunk."""
+
+    def __init__(self, content=None, finish_reason=None):
+        self.choices = []
+        if content is not None or finish_reason:
+            self.choices = [
+                type("C", (), {
+                    "delta": type("D", (), {"content": content})(),
+                    "finish_reason": finish_reason,
+                })()
+            ]
+
+
+class _AsyncChunks:
+    """Async iterable of chunks, optionally raising after N yields."""
+
+    def __init__(self, chunks, fail_after=None):
+        self._chunks = list(chunks)
+        self._fail_after = fail_after
+        self._i = 0
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self._fail_after is not None and self._i >= self._fail_after:
+            self._fail_after = None
+            raise RuntimeError("stream cut mid-way")
+        if self._i >= len(self._chunks):
+            raise StopAsyncIteration
+        chunk = self._chunks[self._i]
+        self._i += 1
+        return chunk
+
+
+def _insufficient_balance_error():
+    return TypeError(
+        "Error code: 402 - {'type': 'CreditsError', 'message': "
+        "'Insufficient balance. The free usage of this model has been "
+        "exhausted. Subscribe or switch to a paid model.'}"
+    )
+
+
+class TestOpenCodeGoFreePaidRetryStreaming:
+    """The streaming path must retry a -free model on its paid sibling when
+    the gateway reports the free allowance exhausted (active subscription)."""
+
+    def _handler_with_client(self, byok_handler, client):
+        byok_handler.async_clients = {"opencode-go": client}
+        byok_handler.clients = {"opencode-go": client}
+        return byok_handler
+
+    async def _collect(self, handler, **kwargs):
+        chunks = []
+        async for chunk in handler.stream_completion(
+            [{"role": "user", "content": "hello"}],
+            provider_id="opencode-go",
+            **kwargs,
+        ):
+            chunks.append(chunk)
+        return chunks
+
+    async def test_free_model_insufficient_balance_retries_on_paid(
+        self, byok_handler
+    ):
+        client = Mock()
+        create_calls = {"n": 0}
+
+        def _create(**kwargs):
+            create_calls["n"] += 1
+            if create_calls["n"] == 1:
+                raise _insufficient_balance_error()
+            return _AsyncChunks([
+                _StreamChunk("from ", None),
+                _StreamChunk("paid", "stop"),
+            ])
+
+        client.chat.completions.create = AsyncMock(side_effect=_create)
+        handler = self._handler_with_client(byok_handler, client)
+        with patch.object(handler, "_record_outcome_feedback", new=AsyncMock()):
+            chunks = await self._collect(
+                handler, model="deepseek-v4-flash-free", max_tokens=500)
+        assert "".join(chunks) == "from paid"
+        assert client.chat.completions.create.call_count == 2
+        second_call = client.chat.completions.create.call_args_list[1]
+        assert second_call.kwargs["model"] == "deepseek-v4-flash"
+        assert second_call.kwargs["stream"] is True
+
+    async def test_non_free_model_no_retry(self, byok_handler):
+        client = Mock()
+        client.chat.completions.create.side_effect = _insufficient_balance_error()
+        handler = self._handler_with_client(byok_handler, client)
+        with patch.object(handler, "_record_outcome_feedback", new=AsyncMock()):
+            chunks = await self._collect(handler, model="deepseek-v4-flash")
+        assert client.chat.completions.create.call_count == 1
+        assert "Error: All LLM providers failed" in "".join(chunks)
+
+    async def test_free_model_other_error_no_retry(self, byok_handler):
+        client = Mock()
+        client.chat.completions.create.side_effect = RuntimeError("401 invalid key")
+        handler = self._handler_with_client(byok_handler, client)
+        with patch.object(handler, "_record_outcome_feedback", new=AsyncMock()):
+            chunks = await self._collect(handler, model="deepseek-v4-flash-free")
+        assert client.chat.completions.create.call_count == 1
+
+    async def test_retry_preserves_extra_kwargs(self, byok_handler):
+        client = Mock()
+        create_calls = {"n": 0}
+
+        def _create(**kwargs):
+            create_calls["n"] += 1
+            if create_calls["n"] == 1:
+                raise _insufficient_balance_error()
+            return _AsyncChunks([_StreamChunk("ok", "stop")])
+
+        client.chat.completions.create = AsyncMock(side_effect=_create)
+        handler = self._handler_with_client(byok_handler, client)
+        with patch.object(handler, "_record_outcome_feedback", new=AsyncMock()):
+            chunks = await self._collect(
+                handler, model="mimo-v2.5-free", max_tokens=200,
+                extra_kwargs={"stop": ["\n"], "top_p": 0.5})
+        assert "".join(chunks) == "ok"
+        retry_kwargs = client.chat.completions.create.call_args_list[1].kwargs
+        assert retry_kwargs["model"] == "minimax-m2.7"
+        assert retry_kwargs["stop"] == ["\n"]
+        assert retry_kwargs["top_p"] == 0.5
+
+    async def test_retry_failure_falls_through_to_error(self, byok_handler):
+        client = Mock()
+        client.chat.completions.create.side_effect = [
+            _insufficient_balance_error(),
+            RuntimeError("paid also failed"),
+        ]
+        handler = self._handler_with_client(byok_handler, client)
+        with patch.object(handler, "_record_outcome_feedback", new=AsyncMock()):
+            chunks = await self._collect(handler, model="deepseek-v4-flash-free")
+        assert client.chat.completions.create.call_count == 2
+        assert "Error: All LLM providers failed" in "".join(chunks)
+
+    async def test_mid_stream_failure_does_not_duplicate_retry(
+        self, byok_handler
+    ):
+        client = Mock()
+        client.chat.completions.create = AsyncMock(return_value=_AsyncChunks(
+            [_StreamChunk("partial", None)], fail_after=1))
+        handler = self._handler_with_client(byok_handler, client)
+        with patch.object(handler, "_record_outcome_feedback", new=AsyncMock()), \
+             patch("core.llm.routing.request_healer.get_request_healer",
+                   return_value=Mock(heal=lambda *a, **k: type("H", (), {"patched_kwargs": None})())):
+            chunks = await self._collect(handler, model="deepseek-v4-flash-free")
+        assert client.chat.completions.create.call_count == 1
+        assert "partial" in "".join(chunks)
+
+
+class TestOpenCodePaidFallbackHelper:
+    def test_mapping_defaults(self):
+        from core.llm.byok_handler import (
+            _is_opencode_free_model,
+            _opencode_paid_fallback_model,
+        )
+        assert _is_opencode_free_model("deepseek-v4-flash-free")
+        assert not _is_opencode_free_model("deepseek-v4-flash")
+        assert _opencode_paid_fallback_model("deepseek-v4-flash-free") == "deepseek-v4-flash"
+        assert _opencode_paid_fallback_model("mimo-v2.5-free") == "minimax-m2.7"
+        assert _opencode_paid_fallback_model("mystery-model-free") == "deepseek-v4-flash"
+        assert _opencode_paid_fallback_model("deepseek-v4-flash") is None
+
+    def test_env_override(self, monkeypatch):
+        from core.llm.byok_handler import _opencode_paid_fallback_model
+        monkeypatch.setenv(
+            "OPENCODE_FREE_PAID_FALLBACK",
+            '{"custom-free": "custom-paid"}')
+        assert _opencode_paid_fallback_model("custom-free") == "custom-paid"
+        monkeypatch.delenv("OPENCODE_FREE_PAID_FALLBACK")
+
+    def test_invalid_env_ignored(self, monkeypatch):
+        from core.llm.byok_handler import _opencode_paid_fallback_model
+        monkeypatch.setenv("OPENCODE_FREE_PAID_FALLBACK", "{broken")
+        assert _opencode_paid_fallback_model("deepseek-v4-flash-free") == "deepseek-v4-flash"
+        monkeypatch.delenv("OPENCODE_FREE_PAID_FALLBACK")

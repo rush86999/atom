@@ -3621,6 +3621,9 @@ class BYOKHandler:
             try:
                 import time
                 request_start = time.time()
+                # True once any token has been yielded — a mid-stream failure
+                # must NOT re-issue the request (would duplicate content).
+                _tokens_yielded = False
                 # Create execution record if agent_id provided (only on first attempt)
                 if agent_execution is None and agent_id and governance_enabled and db:
                     agent_execution = AgentExecution(
@@ -3668,6 +3671,7 @@ class BYOKHandler:
                             if _stream_content_chars < _STREAM_CONTENT_CAP:
                                 _stream_content_parts.append(delta.content)
                                 _stream_content_chars += len(delta.content)
+                            _tokens_yielded = True
                             yield delta.content
                         # Capture the real finish_reason from the final chunk
                         # (OpenAI/compatible APIs populate it on the last choice).
@@ -3787,6 +3791,7 @@ class BYOKHandler:
                                             if _stream_content_chars < _STREAM_CONTENT_CAP:
                                                 _stream_content_parts.append(delta.content)
                                                 _stream_content_chars += len(delta.content)
+                                            _tokens_yielded = True
                                             yield delta.content
                                         if getattr(choice, 'finish_reason', None):
                                             _stream_finish_reason = choice.finish_reason
@@ -3820,6 +3825,86 @@ class BYOKHandler:
                                 last_error = retry_err
                     except Exception:
                         logger.debug("[SelfHeal-stream] healer raised; skipping", exc_info=True)
+
+                # --- OpenCode Go free-usage → paid retry (streaming) ---
+                # Mirrors the non-streaming retry: a free-usage model
+                # (gateway ID ends in "-free") draws from the account's FREE
+                # allowance, which can be exhausted even with an ACTIVE
+                # subscription — the gateway then answers CreditsError /
+                # "Insufficient balance" while paid models would complete
+                # fine. Re-issue the SAME streaming request on the paid
+                # fallback model before falling back to the next provider.
+                # Only when the failure happened BEFORE any token was
+                # yielded — a mid-stream error must not duplicate content.
+                if (
+                    not _tokens_yielded
+                    and attempt_provider_id == "opencode-go"
+                    and _is_opencode_free_model(model)
+                    and _is_insufficient_balance_error(e)
+                ):
+                    paid_model = _opencode_paid_fallback_model(model)
+                    if paid_model and paid_model != model:
+                        try:
+                            retry_kwargs: Dict[str, Any] = {
+                                "model": paid_model,
+                                "messages": messages,
+                                "temperature": temperature,
+                                "max_tokens": max_tokens,
+                                "stream": True,
+                            }
+                            if extra_kwargs:
+                                retry_kwargs.update(
+                                    {k: v for k, v in extra_kwargs.items() if v is not None}
+                                )
+                            stream = await client.chat.completions.create(**retry_kwargs)
+                            logger.info(
+                                f"OpenCode Go free-model stream retry started on paid model "
+                                f"{paid_model} (free {model} hit credit limit)"
+                            )
+                            token_count = 0
+                            _stream_content_parts = []
+                            _stream_content_chars = 0
+                            _STREAM_CONTENT_CAP = 4000
+                            _stream_finish_reason = None
+                            async for chunk in stream:
+                                if chunk.choices:
+                                    choice = chunk.choices[0]
+                                    delta = choice.delta
+                                    if hasattr(delta, 'content') and delta.content:
+                                        token_count += 1
+                                        if _stream_content_chars < _STREAM_CONTENT_CAP:
+                                            _stream_content_parts.append(delta.content)
+                                            _stream_content_chars += len(delta.content)
+                                        yield delta.content
+                                    if getattr(choice, 'finish_reason', None):
+                                        _stream_finish_reason = choice.finish_reason
+                            latency_ms = (time.time() - request_start) * 1000
+                            try:
+                                self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
+                            except Exception:
+                                pass
+                            self._track_rate_usage(attempt_provider_id, output_tokens=token_count,
+                                                   model_id=paid_model)
+                            self._track_llm_call(
+                                provider=attempt_provider_id, model=paid_model, success=True,
+                                latency_ms=latency_ms, output_tokens=token_count,
+                                fallback=attempt_provider_id != primary_provider,
+                                fallback_provider=primary_provider if attempt_provider_id != primary_provider else None,
+                            )
+                            await self._record_outcome_feedback(
+                                model=paid_model, provider_id=attempt_provider_id, task_type=task_type,
+                                content="".join(_stream_content_parts),
+                                finish_reason=_stream_finish_reason or "stop",
+                                success=True, cost=None, latency_ms=latency_ms,
+                                routing_result_id=stream_decision_id,
+                            )
+                            return
+                        except Exception as retry_err:
+                            logger.warning(
+                                f"OpenCode Go free-model stream retry FAILED on paid model "
+                                f"{paid_model}: {retry_err}"
+                            )
+                            last_error = retry_err
 
                 # Learning-router outcome observation (streaming failure).
                 await self._record_outcome_feedback(
