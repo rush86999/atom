@@ -33,8 +33,14 @@ from api.integration_dashboard_routes import router
 def client():
     """Create TestClient for integration dashboard routes."""
     from fastapi import FastAPI
+    from core.auth import get_current_user
+    from core.models import User
     app = FastAPI()
     app.include_router(router)
+    app.dependency_overrides[get_current_user] = lambda: User(
+        id="admin-1", email="admin@example.com", first_name="Admin",
+        last_name="User", role="admin", status="active",
+    )
     return TestClient(app)
 
 

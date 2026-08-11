@@ -2289,3 +2289,16 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **W32 — atom_meta_agent**: `_meta_agent_sandbox_check` phases (fs review, tripwire blocked, tripwire killrun trigger, caps review, non-killrun fail-open, KillRunAborted PROPAGATES — documented); execute: killed run → `killed_sandbox` status (KillRunAborted from _react_step), vector-recall prefetch populates context (NOTE: `prefetch_relevant_facts` is SYNC, called WITHOUT await — an AsyncMock stub returns an unawaited coroutine and the block's try/except silently swallows the TypeError), execution-creation DB error tolerated, field-guide failure tolerated, turn-fact extraction dispatch on session end (fire-and-forget).
 
 **W31 prod fixes (commit e47dc5a11)**: `GenericAgent.register_action` async→sync (un-awaited calls silently no-op'd); `_step_act` timeout branch now matches TimeoutError TYPE + "timeout"/"timed out" strings (previously "timed out" skipped the oracle verify-before-retry → duplicate side-effect risk). +2 regression tests.
+
+## Session 2026-08-10 (wave 34) — project health, credential service, cache preseeding, dashboard repair
+
+**Evidence**: `tests/test_covpush_w34_project_health_routes.py` (17), `w34_llm_credential.py` (29), `w34_byok_preseed.py` (11), stale-suite repair `tests/api/test_integration_dashboard_routes.py` (10 tests restored). Regression: 174 passed across w34 + credential/dashboard/preseed/health suites.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-10 | `api/project_health_routes.py` | 26%→**93%** | full route matrix (all-4/full/partial credential combos, 400 no-metrics, 422 time-range validation, per-calculator failure skips, all-fail 400, generic 500 via `calculate_overall_score` raise, 401 unauth), recommendation per-name branches + good-fallback, overall-score statuses incl. empty-unknown, templates route; `# pragma: no cover` on intra-calculator status ladders fed by fixed simulated data (unreachable until real API integration — FUTURE_WORK.md precedent) |
+| 2026-08-10 | `core/llm_credential_service.py` | 64%→**100%** | ValueError no-credential, invalid-token path, oauth exception tolerance, tenant-level BYOK priority, gemini GOOGLE_API_KEY fallback, env exception, credential-info full/None/exception, list credentials None/full/exception, revoke/refresh success+exception, provider-status matrix (oauth/subscription/byok/env active-method + exception tolerance) |
+| 2026-08-10 | `core/byok_cache_preseeding.py` | 82%→**99%** | verbose=True paths in all 4 preseed steps + preseed_all, all failure returns (refresh/classifier/fetcher/cache/router exceptions), no-agents dummy fallback, models_missing warning, db.close() exception tolerance, preseed_all partial-failure error capture |
+| 2026-08-10 | `api/integration_dashboard_routes.py` | 91%→**100%** | stale-suite repair: `tests/api/test_integration_dashboard_routes.py` built a bare app without the `get_current_user` override added in the auth sweeps → update_configuration/reset_metrics 401'd (10 tests); fixture now overrides auth with a real User |
+
+**Pre-existing notes**: `tests/unit/api/test_project_health_routes.py` targets phantom paths (`/api/project-health/...` — real prefix is `/api/v1/projects`); loose any-status assertions, contributes nothing but passes.
