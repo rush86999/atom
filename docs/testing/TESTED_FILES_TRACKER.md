@@ -2590,3 +2590,20 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | 2026-08-11 | `core/monitoring.py` | 46%→**100%** | structlog processors (level/name), configure + get_logger, RequestContext bind/restore, all metric trackers (http/agent/skill/db/active-agents/connections), deployment + smoke context managers (success/failure), rollback, canary traffic, prometheus-query records, metrics-server init (success/OSError) |
 
 **Note**: `--noconftest` required for some measurements — the repo conftest intermittently hits a numpy double-load ImportError (pre-existing env flake, unrelated to coverage).
+
+## Session 2026-08-11 (wave 33) — productivity/notion_service 62→99% (test-only, mocked httpx/db)
+
+**Evidence**: `tests/test_covpush_w33_notion_service.py` (29 new tests) — 54 passed / 0 failed with the existing suite. 1 missing line (an unreachable branch).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/productivity/notion_service.py` | 62%→**99%** (280 lines) | token resolution (API-key mode + missing-key 401, OAuth success/missing 401/expired 401 + decrypt); request pipeline (success with auth header, lazy token fetch, 429 rate-limit w/ Retry-After, 401/404/400/500 mapping, JSON error-message extraction, network failure → 502); OAuth (authorization URL with/without state + OAuthState persistence, code exchange create + update-token paths with workspace metadata); workspace search (page title/untitled, database_id/page_id/workspace parents, database branch); list_databases; query_database + pagination; get_database_schema; get_page + get_page_blocks pagination; create/update/append_page_blocks; `_format_page_properties` (all 17 property types + fallback); `_format_block` (all 12 block types + fallback); `_extract_rich_text`; module-level helper functions |
+
+## Session 2026-08-11 (wave 50) — office_routes + rpc_routes (both 100%)
+
+**Evidence**: `tests/test_covpush_w50_office_routes.py` (21), `w50_rpc_routes.py` (8). Regression: 42 passed (w50 + round52/53/58 office suites).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `api/office_routes.py` | 72%→**100%** | every endpoint success + service-failure 400 + path-validation 400 + 401; excel (read/write/recalculate/rows/columns/formula/pivot/macro), word (read/modify), pptx (read/modify), present (token identity + canvas id gen), sync-update (token identity + 400) |
+| 2026-08-11 | `api/rpc_routes.py` | ~0%→**100%** | list actions (full/empty/401), call action (params forwarding + token-identity context, 404 registry-miss, 404 ActionNotFoundError, 500 no-detail-leak, 401) |
