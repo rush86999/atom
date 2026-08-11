@@ -1436,6 +1436,29 @@ What is your next step?"""
             final_answer=raw_response
         )
 
+    async def _trigger_workflow(self, workflow_id: Optional[str], params: Dict,
+                                context: Dict) -> str:
+        """Trigger a workflow by id via the workflow engine.
+
+        BUG FIX (W44): this method was called from _execute_tool_with_governance
+        but never defined — every ``trigger_workflow`` tool call crashed with
+        AttributeError (masked as "Tool error. Please try again."). The special
+        tool was dead since the Jan 2026 port. Now delegates to the workflow
+        engine's execution path.
+        """
+        try:
+            from core.workflow_engine import get_workflow_engine
+            if not workflow_id:
+                return "Error: workflow_id is required for trigger_workflow"
+            engine = get_workflow_engine()
+            input_data = params or {}
+            execution_id = await engine.start_workflow(
+                {"id": workflow_id}, input_data)
+            return f"Workflow {workflow_id} triggered (execution {execution_id})"
+        except Exception as e:
+            logger.error(f"Failed to trigger workflow {workflow_id}: {e}")
+            return f"Error triggering workflow {workflow_id}: {e}"
+
     async def _execute_tool_with_governance(self, tool_name: str, args: Dict,
                                             context: Dict, step_callback: Optional[callable],
                                             pre_approved: bool = False) -> str:
