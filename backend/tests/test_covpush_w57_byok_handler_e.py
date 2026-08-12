@@ -16,6 +16,7 @@ import pytest
 from core.llm.byok_handler import (
     AwaitableResult,
     BYOKHandler,
+    QueryComplexity,
 )
 
 
@@ -250,3 +251,95 @@ class TestStructuredSuccess:
         mid = BYOKHandler._build_moa_aggregator_prompt(
             "q", ["a"], agreement=0.6)
         assert "partially agree" in mid
+
+
+class TestStructuredMoa:
+    async def test_no_valid_samples_returns_none(self):
+        h = make_handler()
+        with patch("core.hallucination_config.get_moa_samples", return_value=2), \
+             patch("core.hallucination_config.is_moa_diversity_enabled",
+                   return_value=False), \
+             patch.object(h, "generate_structured_response",
+                          new=AsyncMock(return_value=None)):
+            result = await h.generate_structured_moa(
+                "p", "s", Mock(), 0.2, "chat", None, None,
+                [("a", "m1"), ("b", "m2")], "premium", True,
+                QueryComplexity.COMPLEX, cascade=False)
+        assert result is None
+
+    async def test_single_valid_returns_sample(self):
+        h = make_handler()
+        with patch("core.hallucination_config.get_moa_samples", return_value=2), \
+             patch("core.hallucination_config.is_moa_diversity_enabled",
+                   return_value=False), \
+             patch.object(h, "generate_structured_response",
+                          new=AsyncMock(side_effect=[None, SimpleNamespace(answer="ok")])):
+            result = await h.generate_structured_moa(
+                "p", "s", Mock(), 0.2, "chat", None, None,
+                [("a", "m1"), ("b", "m2")], "premium", True,
+                QueryComplexity.COMPLEX, cascade=False)
+        assert result.answer == "ok"
+
+    async def test_aggregator_reconciles(self):
+        from pydantic import BaseModel
+
+        class Model(BaseModel):
+            answer: str
+
+        h = make_handler()
+        sample_a = Model(answer="alpha")
+        sample_b = Model(answer="beta")
+        aggregated = Model(answer="alpha+beta")
+        calls = {"n": 0}
+
+        async def gen(**kw):
+            calls["n"] += 1
+            if calls["n"] <= 2:
+                return sample_a if calls["n"] == 1 else sample_b
+            return aggregated
+
+        with patch("core.hallucination_config.get_moa_samples", return_value=2), \
+             patch("core.hallucination_config.is_moa_diversity_enabled",
+                   return_value=False), \
+             patch.object(h, "generate_structured_response", new=gen):
+            result = await h.generate_structured_moa(
+                "p", "s", Model, 0.2, "chat", None, None,
+                [("a", "m1"), ("b", "m2")], "premium", True,
+                QueryComplexity.COMPLEX, cascade=False)
+        assert result == aggregated
+        assert calls["n"] == 3  # 2 samples + 1 aggregator
+
+    async def test_aggregator_failure_degrades_to_best_sample(self):
+        h = make_handler()
+        sample = SimpleNamespace(answer="best")
+        calls = {"n": 0}
+
+        async def gen(**kw):
+            calls["n"] += 1
+            if calls["n"] <= 2:
+                return sample
+            return None
+
+        with patch("core.hallucination_config.get_moa_samples", return_value=2), \
+             patch("core.hallucination_config.is_moa_diversity_enabled",
+                   return_value=False), \
+             patch.object(h, "generate_structured_response", new=gen):
+            result = await h.generate_structured_moa(
+                "p", "s", Mock(), 0.2, "chat", None, None,
+                [("a", "m1"), ("b", "m2")], "premium", True,
+                QueryComplexity.COMPLEX, cascade=False)
+        assert result == sample
+
+    async def test_sample_exception_tolerated(self):
+        h = make_handler()
+        async def gen(**kw):
+            raise RuntimeError("sample boom")
+        with patch("core.hallucination_config.get_moa_samples", return_value=2), \
+             patch("core.hallucination_config.is_moa_diversity_enabled",
+                   return_value=False), \
+             patch.object(h, "generate_structured_response", new=gen):
+            result = await h.generate_structured_moa(
+                "p", "s", Mock(), 0.2, "chat", None, None,
+                [("a", "m1"), ("b", "m2")], "premium", True,
+                QueryComplexity.COMPLEX, cascade=False)
+        assert result is None
