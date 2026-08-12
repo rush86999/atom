@@ -2827,3 +2827,70 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | 2026-08-11 | `core/llm/stage_router.py` | TESTED | `stage_router_status` includes automation block; `get_stage_router` lazily starts the automation loop |
 | 2026-08-11 | `main_api_app.py` | TESTED | Stage router management router mounted |
 | 2026-08-11 | `backend/.env.example`, `CLAUDE.md`, `docs/architecture/SWITCHYARD_GAP_ANALYSIS.md` | TESTED | Automation flags + consent/notification/management docs |
+
+## Session 2026-08-11 (wave 37) — integration_data_mapper 60→98% (test-only, pure)
+
+**Evidence**: `tests/test_covpush_w37_data_mapper.py` (45 new tests) — 87 passed / 0 failed with the unit suite. 10 missing lines are deep fallback branches.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/integration_data_mapper.py` | 60%→**98%** (401 lines) | `transform_field` (None+default, None+required re-raise, None optional, unknown transform, failure tracking: required re-raise vs optional→default); all 7 transformations (direct copy, value mapping hit/miss/non-str, date_to_iso str/datetime, date_format str/datetime, lowercase/uppercase/title_case/remove_spaces, sum_fields/multiply/percentage/round, concatenation self+fields, conditional with default + self-condition, generate_id/slugify/extract_domain (scheme/no-scheme)/phone_format 10-digit/other/unknown); all 9 condition operators; `_convert_type` all 11 FieldTypes (string/int/float/bool string-set/date str+datetime/datetime/email valid+invalid/url scheme-add/json str+dict+other/array str+list+other/object dict+str+other/None/conversion-error re-raise); default schemas (asana/jira/salesforce); register_schema; create_mapping (source/target/target-field ValueError, source-warning, constant allowed); transform_data bulk/single/missing-mapping; `_transform_single` (constant value, optional-default, required re-raise); `_value_matches_type` (all types incl. bool-integer nuance, float-string parsing, boolean string set, date/datetime parsing, email/url/json/array/object, unknown enum → True); validate_data (missing schema, required+type errors, unknown-type warning, bulk item indexing); get_schema_info/list_schemas/list_mappings; export/import mapping; singleton factory |
+
+## Session 2026-08-11 (W52) — api/document_routes 31%→99% (35 new tests)
+
+**Evidence**: `tests/api/test_document_routes_coverage_w52.py` (35 tests, 35/35 pass; w52 + `tests/unit/api/test_document_routes.py` + `test_document_ingestion_routes.py` = 57 passed / 0 failed).
+
+**Real bugs fixed (TDD, RED → GREEN)**:
+1. `get_document` not-found → **500 instead of 404**: `raise router.not_found(...)` is Starlette's internal `Router.not_found(scope, receive, send)` response-sender, NOT an exception factory — raising it threw TypeError, swallowed by the blanket `except` → 500. Fixed: `raise router.not_found_error("Document", doc_id)`.
+2. Same endpoint's blanket `except Exception` swallowed the new HTTPException → added `except HTTPException: raise` passthrough (BUG-124 class fix; previously applied to upload only).
+
+**Coverage**: `api/document_routes.py` 31%→**99%** (171/173). Newly covered: ingest (success + empty-content placeholder + workspace resolution via real Workspace row, handler-missing 500, add-failure 500, exception 500), upload (success via mocked `DocumentParser.parse_document`, declared-size 413 with 50MiB+1 payload, unsupported-ext 415, empty-parse placeholder, add-failure 500, parse-exception 500, handler-missing 500, workspace-resolution-exception → warned & continues with None via `user.__dict__` bypass), search (results, string metadata JSON-parsed, bad-JSON → {}, empty, limit 0/500 → 422, handler-missing 500, exception 500), get (success, not-found 404, handler-missing 500, exception 500), delete (user-initiated, agent_id → `perform_governance_check` awaited, handler-missing 500), list (success + metadata, handler-missing → empty 200, exception 500), plus workspace-branch assertions (`get_lancedb_handler(ws_id)` arg) for search/get/delete/list. Remaining 2 lines (164/170) unreachable post-read defensive size/ext re-checks (starlette always populates `file.size`).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `api/document_routes.py` | 31%→**99%** (173 lines) | ingest/upload/search/get/delete/list full matrix + workspace branches + 2 real 404-bug fixes (bogus `router.not_found` raise; HTTPException passthrough) |
+
+## Session 2026-08-12 (wave 38) — agent_world_model 93→95% (test-only, mocked db/lancedb)
+
+**Evidence**: `tests/test_covpush_w38_world_model.py` (18 new tests) — 122 passed / 0 failed across the 5 world-model suites.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-12 | `core/agent_world_model.py` | 93%→**95%** (783 lines) | `recall_episodes` (full scoring: canvas same/different boost, feedback positive/negative boost, role/agent/type filters, min-feedback threshold, sort + limit, learnings extraction with/without marker, score-key fallback, exception → []); `recall_experiences_with_detail` (agent-id path via EpisodeService, FULL → semantic, SUMMARY/STANDARD → PostgreSQL text query with per-level columns); `_format_episodes_as_experiences` (SUMMARY/STANDARD/FULL fields); `recommend_skills_for_task` (agent-missing, no-skill-episodes, full path: recall → stats → PG detail → ranking by success_rate, recall-failure tolerance, outer exception); `get_successful_skills_for_agent` (unique skill ids incl. empty/None metadata, exception → set()); `recall_experiences` hot-formula fallback (dedup + append) + conversation recall |
+
+## Session 2026-08-11 (W53) — api/agent_governance_routes 53%→100% (41 new tests)
+
+**Evidence**: `tests/api/test_agent_governance_routes_coverage_w53.py` (41 tests, 41/41 pass; w53 + `tests/unit/api/test_agent_governance_routes.py` = 65 passed / 0 failed).
+
+**Coverage**: `api/agent_governance_routes.py` 53%→**100%** (250/250). Filled the gaps the existing suite (rules/list/single/deploy-check/capabilities/helpers/feedback happy paths) missed: submit-for-approval (success w/ generated `apr_*` id + 404 + 500 via `datetime.now` side-effect), pending-approvals (all/by-approver/500 via mocked `intervention_service`), approve (user-missing 404, TEAM_LEAD role check 403/200, service-failure 400, 500 — dependency-override swapped to lead user per test), reject (success w/ reason echo + 422 missing reason + 400 + 500), enforce-action (unknown-agent BLOCKED, autonomous APPROVED, supervised-complexity PENDING_APPROVAL, student-delete BLOCKED, case-insensitive action matching, 500), generate-workflow (POST — autonomous can_deploy vs supervised requires_approval, 404, 422 missing params, 500), helper boundaries (0.5/0.7/0.9 thresholds; supervised 0.8 deploy boundary), plus all remaining error paths (category filter incl. no-match empty, exception 500s on every endpoint via `MOCK_AGENTS.__contains__`/`__getitem__`/`.items` side-effects — feedback only does membership so `__contains__` must raise, not `__getitem__`).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `api/agent_governance_routes.py` | 53%→**100%** (250 lines) | submit/pending/approve (role-gated)/reject/enforce/generate full matrix + all endpoint error paths + category filter + helper boundaries |
+
+## Session 2026-08-11 (W54) — api/messaging_routes 66%→100% (18 new tests)
+
+**Evidence**: `tests/api/test_messaging_routes_coverage_w54.py` (18 tests, 18/18 pass; w54 + `tests/unit/api/test_messaging_routes.py` = 31 passed / 1 failed — the 1 failure is a pre-existing phantom-route smoke test hitting `/api/messaging/messages` (the real prefix is `/api/v1/messaging`), unchanged from baseline).
+
+**Coverage**: `api/messaging_routes.py` 66%→**100%** (102/102). The old suite never exercised the actual proactive-messaging routes. New: `_require_scheduler_secret` (fail-closed 401 when `ATOM_SCHEDULER_SECRET` unset or `X-Scheduler-Secret` mismatched via constant-time compare; 200 on match), send (success + service-403 propagation + 422 missing fields), schedule (422 without `scheduled_for`, success with `send_now` forced False), queue (defaults + agent/platform/limit filters), approve (token identity attribution — client-supplied id ignored), reject (422 missing reason, success + token attribution), cancel, history (defaults + all 4 filters), get-by-id (found/404), send_scheduled (secret gate 401 ×2 + success, awaited). Service fully mocked with response-model-shaped dicts (`ProactiveMessageResponse` requires all 18 fields — partial dicts cause 500 ResponseValidationError).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `api/messaging_routes.py` | 66%→**100%** (102 lines) | scheduler-secret gate, send/schedule/queue/approve/reject/cancel/history/get/send_scheduled with token attribution + fail-closed auth |
+
+## Session 2026-08-12 (wave 39) — hybrid_data_ingestion 95→98% + 5 stale fetcher tests repaired
+
+**Evidence**: `tests/test_covpush_w39_hybrid_edges.py` (10 new tests) — 176 passed / 0 failed across the 4 hybrid suites. Also repaired 5 stale tests in `test_covpush_ingestion_hybrid.py` (committed pre-wave-26, mocked the OLD fetcher APIs — get_salesforce_client sync-lambda, get_hubspot_client, get_notion_service, get_jira_client, get_zendesk_service — which wave-26 removed): now against the current contracts (async get_salesforce_client, get_hubspot_service + get_contacts/get_deals, NotionService class, get_jira_service + search_issues dict API, ZendeskService class).
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-12 | `core/hybrid_data_ingestion.py` | 95%→**98%** (664 lines) | `__init__` ImportError fallbacks (lancedb/graphrag/llm → None); universal adapter discovery schema-extraction variants (notion id, airtable base:id, jira project:type, zoho api_name) + legacy zoho fallback; OneDrive download-failure tolerance + ingestor-unavailable; Google Drive content-error tolerance + ingestor-unavailable + oauth failure |
+
+## Session 2026-08-12 (wave 58) — office service layer: office_service 22→61%, office_sync_service 37→93%
+
+**Evidence**: `tests/test_covpush_w58_office_service.py` (29), `w58_office_sync.py` (17). Combined: 46 passed.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-12 | `core/office_service.py` | 22%→**61%** | path validation (valid/traversal/escape/empty), Excel parse-path + read (missing/overview/range/single-cell-formula/default-sheet/corrupt), write (new/existing/formula/invalid), Word read/modify (append/replace), PPTX read/modify (mocked module — not installed), renderer (docx w/ mammoth mock + missing, xlsx basic runtime, pptx mock, unsupported, invalid), manager dispatch |
+| 2026-08-12 | `core/office_sync_service.py` | 37%→**93%** | sync_canvas_to_file (containment/missing/xlsx-cell/docx-rewrite/unsupported/exception), broadcast (invalid path/render-fail/audit+WS/no-loop sync-fallback), ingest async/sync (success/missing/exception), read-file-bytes |
