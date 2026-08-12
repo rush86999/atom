@@ -410,8 +410,11 @@ class TestHybridFetch:
             },
             {"records": [{"Id": "o1", "Name": "Opp", "StageName": "Won", "Amount": 100}]},
         ]
+        async def _get_sf_client(ws, db_conn_pool=None):
+            return client
+
         monkeypatch.setattr(
-            "integrations.salesforce_service.get_salesforce_client", lambda ws: client
+            "integrations.salesforce_service.get_salesforce_client", _get_sf_client
         )
         config = SyncConfiguration(
             integration_id="salesforce", entity_types=["contacts", "opportunities"]
@@ -432,21 +435,15 @@ class TestHybridFetch:
 
     @pytest.mark.asyncio
     async def test_fetch_hubspot_data(self, monkeypatch, hybrid):
-        contact = MagicMock()
-        contact.id = "c1"
-        contact.properties = {
-            "firstname": "Alice",
-            "lastname": "B",
-            "email": "a@b.c",
-            "company": "Acme",
-        }
-        deal = MagicMock()
-        deal.id = "d1"
-        deal.properties = {"dealname": "Deal", "dealstage": "Won", "amount": "10"}
-        client = MagicMock()
-        client.crm.contacts.get_all.return_value = [contact]
-        client.crm.deals.get_all.return_value = [deal]
-        monkeypatch.setattr("integrations.hubspot_service.get_hubspot_client", lambda ws: client, raising=False)
+        service = MagicMock()
+        service.get_contacts = AsyncMock(return_value=[
+            {"id": "c1", "properties": {
+                "firstname": "Alice", "lastname": "B",
+                "email": "a@b.c", "company": "Acme"}}])
+        service.get_deals = AsyncMock(return_value=[
+            {"id": "d1", "properties": {"dealname": "Deal", "dealstage": "Won", "amount": "10"}}])
+        monkeypatch.setattr("integrations.hubspot_service.get_hubspot_service",
+                            lambda: service, raising=False)
         config = SyncConfiguration(integration_id="hubspot", entity_types=["contacts", "deals"])
         records = await hybrid._fetch_hubspot_data(config)
         assert len(records) == 2
@@ -507,7 +504,8 @@ class TestHybridFetch:
             {"id": "d1", "title": [{"plain_text": "DB"}], "created_time": "t", "properties": {"a": 1}}
         ]
         service.get_database.return_value = {"title": [{"plain_text": "DB"}], "properties": {"a": 1}}
-        monkeypatch.setattr("integrations.notion_service.get_notion_service", lambda: service, raising=False)
+        monkeypatch.setattr("integrations.notion_service.NotionService",
+                            lambda *a, **kw: service, raising=False)
         config = SyncConfiguration(integration_id="notion", entity_types=["pages", "databases"])
         records = await hybrid._fetch_notion_data(config)
         assert len(records) == 2
@@ -524,28 +522,27 @@ class TestHybridFetch:
 
     @pytest.mark.asyncio
     async def test_fetch_jira_data(self, monkeypatch, hybrid):
-        issue = MagicMock()
-        issue.key = "J-1"
-        issue.fields.summary = "Summary"
-        issue.fields.status.name = "Open"
-        issue.fields.assignee.displayName = "Bob"
-        issue.fields.priority.name = "High"
-        client = MagicMock()
-        client.search_issues.return_value = [issue]
+        service = MagicMock()
+        service.search_issues.return_value = {"issues": [
+            {"key": "J-1", "fields": {
+                "summary": "Summary", "status": {"name": "Open"},
+                "assignee": {"displayName": "Bob"}, "priority": {"name": "High"}}}]}
         monkeypatch.setattr(
-            "integrations.jira_service.get_jira_client", lambda ws: client, raising=False
+            "integrations.jira_service.get_jira_service", lambda: service, raising=False
         )
         config = SyncConfiguration(integration_id="jira")
         records = await hybrid._fetch_jira_data(config)
         assert len(records) == 1
         assert records[0]["type"] == "issue"
+        assert records[0]["assignee"] == "Bob"
 
     @pytest.mark.asyncio
     async def test_fetch_zendesk_data(self, monkeypatch, hybrid):
         service = MagicMock()
         service.get_tickets = AsyncMock(return_value=[{"id": 1, "subject": "S", "status": "open"}])
         service.get_users = AsyncMock(return_value=[{"id": 2, "name": "U", "email": "e"}])
-        monkeypatch.setattr("integrations.zendesk_service.get_zendesk_service", lambda: service, raising=False)
+        monkeypatch.setattr("integrations.zendesk_service.ZendeskService",
+                            lambda *a, **kw: service, raising=False)
         config = SyncConfiguration(integration_id="zendesk", entity_types=["tickets", "users"])
         records = await hybrid._fetch_zendesk_data(config)
         assert len(records) == 2
