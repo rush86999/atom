@@ -62,6 +62,7 @@
 | [GraphRAG](intelligence/graphrag.md) | Knowledge graph, entity extraction | AI Engineers |
 | [Cognitive Tier System](architecture/COGNITIVE_TIER_SYSTEM.md) | 5-tier LLM routing | AI Engineers |
 | [Arbor Framework](architecture/ARBOR_FRAMEWORK.md) | Hypothesis Tree Refinement (MCTS) | Researchers |
+| [Stage Router / Switchyard](architecture/SWITCHYARD_GAP_ANALYSIS.md) | **NEW** - Shadow-first turn-level LLM routing, A/B harness, consent-gated automation | AI Engineers |
 | [Self-Evolving Harness](architecture/HARNESS_EVOLUTION.md) | Offline trace analysis, auto-patches | Researchers |
 | [Hermes Comparison](architecture/HERMES_COMPARISON.md) | Atom vs Hermes — what we built/didn't | Architects |
 

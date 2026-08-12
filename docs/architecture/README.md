@@ -29,6 +29,9 @@ System architecture, design patterns, and technical specifications.
 - **[Pre-Action Match-Confidence Layer](MATCH_CONFIDENCE.md)** - Pre-action selector-certainty scorer mirroring the post-action `VerifiedOutcome` tri-state; gates ambiguous/partial matches through ProposalService for ALL tiers (including AUTONOMOUS) ✨
 - **[Selector Confidence Thresholds](SELECTOR_CONFIDENCE_THRESHOLDS.md)** - One-pager on tuning env vars, score curve, per-agent opt-out
 
+### Stage Router (Turn-Level Routing)
+- **[Switchyard Gap Analysis & Stage Router](SWITCHYARD_GAP_ANALYSIS.md)** ✨ NEW (Aug 2026) — Shadow-first turn-level LLM routing inside the ReAct loop: signal-driven tier switching (efficient/capable), weighted-random A/B harness, calibration script (`calibrate_stage_router.py`), consent-gated automation (off/notify/approve/auto), per-workload policy override. Closes the Switchyard gap for cost-aware mid-run routing.
+
 ### Search & Retrieval
 - **[Agent Hybrid Search (BM25 + Vector RRF)](AGENT_HYBRID_SEARCH.md)** ✨ NEW (Aug 2026) - `documents.search` fused from two legs via Reciprocal Rank Fusion (k=60): BM25 over FTS5 (SQLite) / tsvector+GIN (Postgres) + 1536-dim LanceDB ANN. Join-key bridge (`pg_document_id`) closes the PG↔LanceDB silo; legacy ILIKE fallback ladder; multi-source legs (episodes/turn_facts/reasoning-steps) are additive.
 - **[Knowledge VFS](KNOWLEDGE_VFS.md)** ✨ NEW (Aug 2026) - Agent-native virtual document tree under `knowledge/` — `documents.ls/cat/grep/head/tail/search/…` (11 actions) with line-numbered, VFS-citable content (`knowledge/documents/<id>/content.lines:L47`). Additive, flag-gated (`ATOM_KNOWLEDGE_VFS_ENABLED`), legacy ILIKE preserved as kill-switch path. Composes with hybrid search: search finds the doc, VFS cites the line.

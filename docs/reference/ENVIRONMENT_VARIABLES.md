@@ -160,6 +160,42 @@ Set **at least one** cloud key, OR set `ATOM_LOCAL_ONLY=true` for Ollama.
 
 ---
 
+## 6a. Stage Router (Switchyard port — turn-level LLM routing)
+
+Shadow-first per-turn model routing in the ReAct loop; calibrate per workload
+before enforcing. See [`docs/architecture/SWITCHYARD_GAP_ANALYSIS.md`](../architecture/SWITCHYARD_GAP_ANALYSIS.md).
+
+### Core flags
+
+| Variable | Default | Required? | Description |
+|----------|---------|-----------|-------------|
+| `ATOM_STAGE_ROUTING_ENABLED` | `true` | — | Master switch. `true` = shadow (audit-only, no model override); `false` = kill switch (pre-stage-router loop). |
+| `ATOM_STAGE_ROUTING_FORCE_ENFORCE` | `false` | — | `true` = live model-type override (efficient→fast, capable→quality). Only enable after per-workload calibration. |
+| `ATOM_STAGE_ROUTING_PICKER` | `efficient_first` | — | Default arm picker when the router is ambiguous (`efficient_first` or `capable_first`). |
+| `ATOM_STAGE_ROUTING_CONFIDENCE_THRESHOLD` | `0.5` | — | Corroborative signal score threshold for `dimensions` decision. |
+| `ATOM_STAGE_ROUTING_WINDOW` | `3` | — | Number of recent turns scored per decision. |
+
+### A/B harness (calibration)
+
+| Variable | Default | Required? | Description |
+|----------|---------|-----------|-------------|
+| `ATOM_TRAFFIC_SPLIT` | `false` | — | A/B harness master switch. Forces weighted-random arm per turn for calibration. |
+| `ATOM_STAGE_ROUTING_SPLIT` | _(empty)_ | — | JSON weights, e.g. `{"efficient": 0.7, "capable": 0.3}`. |
+| `ATOM_STAGE_ROUTING_SPLIT_SEED` | _(empty)_ | — | Optional integer for reproducible splits. |
+
+### Consent-gated automation
+
+| Variable | Default | Required? | Description |
+|----------|---------|-----------|-------------|
+| `ATOM_STAGE_ROUTER_AUTO_ENFORCE` | `approve` | — | `off` \| `notify` \| `approve` \| `auto`. Escalation requires admin consent; revocation is always automatic. |
+| `ATOM_STAGE_ROUTER_AUTO_INTERVAL_MIN` | `60` | — | Background certification cadence (minutes). |
+| `ATOM_STAGE_ROUTER_AUTO_SUCCESS_GAP` | `0.03` | — | Min capable-arm success advantage to certify. |
+| `ATOM_STAGE_ROUTER_AUTO_MAX_COST_RATIO` | `8.0` | — | Max capable/efficient cost ratio to certify. |
+| `ATOM_STAGE_ROUTER_AUTO_REVOKE_GAP` | `0.02` | — | Capable-arm deficit that triggers automatic revocation. |
+| `ATOM_STAGE_ROUTER_AUTO_NOTIFY_COOLDOWN_HOURS` | `24` | — | Min hours between admin notifications per agent (dedupe). |
+
+---
+
 ## 6b. Multi-Agent Coordination (AgentRadio)
 
 See [`docs/architecture/AGENT_RADIO.md`](../architecture/AGENT_RADIO.md).

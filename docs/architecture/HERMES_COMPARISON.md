@@ -50,6 +50,7 @@ Legend: ✅ strong · ◐ partial / opt-in · ❌ absent · ➖ not applicable (
 | **HITL supervision** | ✅ | ❌ | Atom has real-time supervision sessions. |
 | **Multi-agent orchestration** | ✅ | ❌ | Atom: Queen + Fleet Admiral + spawnable specialists. Hermes is single-loop. |
 | **Canvas / rich presentations** | ✅ | ❌ | 7 canvas types, WebSocket, a11y. Hermes is terminal + messaging. |
+| **Stage router (turn-level LLM routing)** | ✅ | ❌ | Atom: signal-driven per-turn model routing in the ReAct loop (shadow-first, A/B harness, consent-gated automation, per-workload calibration). See [Switchyard Gap Analysis](SWITCHYARD_GAP_ANALYSIS.md). Hermes has none. |
 | **Cognitive-tier cost routing** | ✅ | ◐ | Atom 5-tier routing + learning predictors + EMA + intent detection + offline Pareto tuner. Hermes has aux-model only. |
 | **Data analysis & predictive modeling** | ✅ | ❌ | Atom: code-interpreter tools (pandas/DuckDB/sklearn in sandbox), dataset management, forecasting, regression/classification. Hermes has none. See [Data Analysis](DATA_ANALYSIS.md). |
 | **Production observability** | ✅ | ❌ | Prometheus, `/health/*`, structlog. Hermes has WARNING logs. |

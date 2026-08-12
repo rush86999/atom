@@ -77,6 +77,15 @@ Build stateful, resumable canvas apps (spreadsheets, docs, decks) by chatting wi
 - **Versioned copy-on-install** — publish snapshots a credential-stripped blueprint; installs are fresh immutable instances
 - See [docs/architecture/MINI_APPS.md](architecture/MINI_APPS.md).
 
+### 🎚️ Stage Router — Turn-Level LLM Routing (Switchyard Port)
+Signal-driven, per-turn model routing inside the ReAct loop — route cheap tasks to fast models and hard tasks to capable ones, calibrated per workload:
+
+- **Shadow-first v1** — scores every turn but changes nothing by default; audit rows with outcome feedback for calibration
+- **A/B harness** — weighted-random traffic splits to measure both arms per workload; `scripts/calibrate_stage_router.py` computes RESCUE/LOSS quadrants
+- **Consent-gated automation** — background certification pass proposes per-workload enforcement; admin approves via API; revocation is always automatic (fail-safe)
+- **Per-workload control** — every agent can be at a different phase (shadow / calibrated / enforcing); `configuration["stage_routing"]` per-agent overrides the global
+- See [docs/architecture/SWITCHYARD_GAP_ANALYSIS.md](architecture/SWITCHYARD_GAP_ANALYSIS.md).
+
 ### 🐝 Swarm Coordination (newest)
 Four advanced multi-agent coordination patterns derived from Cursor's swarm
 research and the domain-aware verification literature (MAV, AlphaCodium, VERGE):
