@@ -135,7 +135,13 @@ class AgentFleetService:
         if status in ["completed", "failed"]:
             link.completed_at = datetime.now(timezone.utc)
             if link.started_at:
-                delta = link.completed_at - link.started_at
+                # started_at comes from the DB (server_default=func.now()) and
+                # SQLite stores it NAIVE — subtracting an aware completed_at
+                # raised TypeError on every completion. Normalize to UTC.
+                started_at = link.started_at
+                if started_at.tzinfo is None:
+                    started_at = started_at.replace(tzinfo=timezone.utc)
+                delta = link.completed_at - started_at
                 link.duration_ms = int(delta.total_seconds() * 1000)
 
         self.db.commit()
