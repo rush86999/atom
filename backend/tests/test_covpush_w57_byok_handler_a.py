@@ -43,7 +43,8 @@ def make_handler(**attrs):
     h.db_session = None
     h.tier_service = Mock()
     h.excluded_models = set()
-    h.health_monitor = Mock()
+    h.health_monitor = MagicMock()
+    h.health_monitor.health_scores = {}
     h.rate_tracker = Mock()
     h._last_used_model = None
     h._last_used_provider = None
@@ -51,6 +52,9 @@ def make_handler(**attrs):
     h._embedding_initialized = False
     h._embedding_init_lock = None
     h._clients_initialized = True
+    h.workspace_id = "ws1"
+    h.tenant_id = "tenant"
+    h.default_provider_id = None
     for k, v in attrs.items():
         setattr(h, k, v)
     return h
