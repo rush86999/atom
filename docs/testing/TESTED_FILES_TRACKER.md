@@ -2928,3 +2928,11 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | Date | File | Coverage change | What was added |
 |---|---|---|---|
 | 2026-08-12 | `core/student_training_service.py` | 13%→**92%** | create proposal (missing agent/full flow), approve (missing/wrong-status/success), complete session (missing/success w/ confidence boost + proposal/trigger resolution + promotion-to-INTERN), duration estimate (factors + history/learning-rate branches), capability-gap mapping (known/unknown), learning objectives, scenario template, confidence-boost ladder, similar-agents history, learning rate |
+
+## Session 2026-08-12 (wave 59b) — agent_graduation_service 50% → 91%
+
+**Evidence**: `tests/test_covpush_w59_graduation_service.py` (38 tests). Combined: 38 passed.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-12 | `core/agent_graduation_service.py` | 50%→**91%** | readiness score (missing/unknown/rich gaps contract), learning consistency (POMDP-gated/insufficient/full), score + recommendation helpers, graduation exam (skip-missing/full/executor), constitutional validation (missing/no-segments/validator), promote (missing/invalid/success/db-error/rollback + notification), audit trail, supervision metrics (empty/full/trend improving/declining/stable), supervision validation + scoring, skill usage + readiness-with-skills, exam execution, experience-driven readiness (fallback/missing/unknown/full) + intervention trajectory (unknown/insufficient/improving/declining) + experience recommendation |
