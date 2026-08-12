@@ -2902,3 +2902,29 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | Date | File | Coverage change | What was added |
 |---|---|---|---|
 | 2026-08-12 | `core/workbook_runtime.py` | 0%→**97%** | engine detection (libreoffice/formulas/openpyxl + soffice discovery + formulas availability), basic HTML render (success/error), insert rows/cols (success/missing-sheet), evaluated range reads (single/range/missing + alias), recalculate branches (missing-file raise, soffice dispatch, formulas dispatch, openpyxl fallback, soffice exec success/no-output/timeout, formulas lib real write-back), run_macro gates + sandbox success/failure, render dispatch + soffice success/fallback, pivot table (success/missing-sheet/empty-data/overwrite-existing), singleton |
+
+## Session 2026-08-11 (W55) — api/canvas_docs_routes 48%→99% (24 new tests)
+
+**Evidence**: `tests/api/test_canvas_docs_routes_coverage_w55.py` (24 tests, 24/24 pass; w55 + `tests/unit/api/test_canvas_docs_routes.py` = 37 passed / 0 failed).
+
+**Coverage**: `api/canvas_docs_routes.py` 48%→**99%** (107/108). Real CanvasAudit rows (docs-type, token-owner) satisfy the R66 ownership gate; `_other_canvas` helper creates a second user's canvas for 403-denial tests. New: create (success w/ token-identity assertion vs spoofed body `user_id`, service-failure 400, 422), get (success incl. metadata/versions/comments passthrough, ownership 403, missing 404), update (success + identity, 400, 403), comment (success + identity, 400, 403), resolve (success + identity, 400, 403), versions (success, failure→404, 403), restore (success + identity, 400, 403), toc (success, failure→404, 403). Remaining 1 line (144) unreachable — the ownership gate guarantees the audit row exists before the endpoint re-queries it.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-11 | `api/canvas_docs_routes.py` | 48%→**99%** (108 lines) | full endpoint matrix × {success, service-failure, 403 ownership, 404} + token-identity attribution asserts |
+
+## Session 2026-08-12 (wave 40) — episode_service 86→97% (test-only, mocked db)
+
+**Evidence**: `tests/test_covpush_w40_episode_edges.py` (20 new tests) — 154 passed / 0 failed across the 5 episode suites. 17 remaining lines are deep branches.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-12 | `core/episode_service.py` | 86%→**97%** (554 lines) | `_get_canvas_context_provider` / `_get_canvas_summary_service` (lazy init + caching + default-workspace ValueError); `_get_lancedb` connect-fail → None; `_extract_canvas_metadata` (no-execution, no-metadata + session-audit fallback incl. presentation summary, no-session, canvas-id-missing fallback, canvas-not-found → id-only, full path with artifact/comment counts + audit ids + semantic summary via mocked provider/summary service, summary-failure tolerance, outer exception); `create_episode_from_execution` (execution/agent not-found ValueErrors, activity-publisher success + failure tolerance); `_calculate_step_efficiency` thought→observation + thought→action→observation cycle skips; `update_episode_feedback` capability-tracking success path; `recall_episodes_with_detail` agent-ownership check (missing agent → [], found → progressive query) |
+
+## Session 2026-08-12 (wave 59) — student_training_service 13% → 92%
+
+**Evidence**: `tests/test_covpush_w59_student_training.py` (19 tests). Combined: 19 passed.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-12 | `core/student_training_service.py` | 13%→**92%** | create proposal (missing agent/full flow), approve (missing/wrong-status/success), complete session (missing/success w/ confidence boost + proposal/trigger resolution + promotion-to-INTERN), duration estimate (factors + history/learning-rate branches), capability-gap mapping (known/unknown), learning objectives, scenario template, confidence-boost ladder, similar-agents history, learning rate |
