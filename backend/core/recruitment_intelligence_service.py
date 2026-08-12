@@ -216,7 +216,10 @@ Return JSON matching the RecruitmentPlan schema."""
             domain_rationale=domain_rationale,
             complexity_estimate="medium",
             estimated_parallelizable=False,
-            suggested_specialist_count=len(matched_domains)
+            # Clamp to >= 1: RecruitmentPlan requires a positive count and a
+            # no-match fallback with 0 would raise ValidationError, crashing
+            # the very fallback path meant to keep recruitment working.
+            suggested_specialist_count=max(1, len(matched_domains))
         )
 
     async def orchestrate_recruitment(
