@@ -4,7 +4,7 @@ Quick start guides, installation options, and first steps with Atom.
 
 ## 📚 Quick Navigation
 
-### Essential Guides (verified working June 2026)
+### Essential Guides (verified working August 2026)
 - **[Quick Start](quick-start.md)** ⭐ — Fastest path to a running local server (start here)
 - **[First Steps](FIRST_STEPS.md)** — What to do after the server is running
 - **[Troubleshooting](TROUBLESHOOTING.md)** — Common errors and fixes
@@ -17,7 +17,7 @@ Quick start guides, installation options, and first steps with Atom.
 
 ### Option 1: Native (SQLite, no external DB) ⭐ RECOMMENDED for first-run
 
-**Verified working June 2026.** See [quick-start.md](./quick-start.md) for
+**Verified working August 2026.** See [quick-start.md](./quick-start.md) for
 the full version; the essentials:
 
 ```bash
@@ -34,7 +34,7 @@ cd ../frontend-nextjs && npm install --legacy-peer-deps && cd ..
 cp backend/.env.example backend/.env
 
 # Launch backend (FROM REPO ROOT — main_api_app.py uses backend.* imports;
-# main_api_app:app is the FULL app, all 80+ routers)
+# main_api_app:app is the FULL app, 197 routers)
 PYTHONPATH=$PWD:$PWD/backend DISABLE_AUTH_RATE_LIMIT=1 \
   ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
 
@@ -68,7 +68,7 @@ piece-engine), use `docker-compose.yml`.
 
 ### Requirements
 - **Python**: 3.11+
-- **Node.js**: 18+, **npm**: 9+
+- **Node.js**: 22+, **npm**: 9+
 - **Database**: SQLite (default — zero setup) or PostgreSQL (production)
 - **LLM API Key**: at least one provider (OpenAI, Anthropic, DeepSeek, Gemini, GLM, MiniMax, or Ollama for free local)
 - **Optional**: Docker for containerized deployment
@@ -139,5 +139,5 @@ See **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** for the full guide. Most comm
 
 ---
 
-*Last Updated: July 2026*
+*Last Updated: August 2026*
 

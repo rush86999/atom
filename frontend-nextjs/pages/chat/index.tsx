@@ -12,10 +12,31 @@ const ChatPage = () => {
     const { agent_id } = router.query;
     const initialAgentId = Array.isArray(agent_id) ? agent_id[0] : agent_id || null;
 
-    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+    // Restore the last active session after a page reload so the conversation
+    // isn't lost (the chat sidebar lists sessions, but the middle pane should
+    // resume where the user left off).
+    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(() => {
+        if (typeof window === "undefined") return null;
+        const saved = window.localStorage.getItem("atom_chat_session_id");
+        return saved && saved !== "new" ? saved : null;
+    });
     // Mobile drawer state.
     const [showSidebar, setShowSidebar] = useState(false);
     const [showWorkspace, setShowWorkspace] = useState(false);
+
+    const handleSessionCreated = (sessionId: string) => {
+        setSelectedSessionId(sessionId);
+        if (sessionId && sessionId !== "new" && sessionId !== "unknown") {
+            window.localStorage.setItem("atom_chat_session_id", sessionId);
+        }
+    };
+
+    const handleSelectSession = (id: string) => {
+        setSelectedSessionId(id);
+        if (id && id !== "new") {
+            window.localStorage.setItem("atom_chat_session_id", id);
+        }
+    };
 
     return (
         <div className="h-[calc(100vh-2rem)] w-full bg-background overflow-hidden rounded-lg border border-border shadow-sm flex flex-col">
@@ -37,7 +58,7 @@ const ChatPage = () => {
                     <ResizablePanel defaultSize={15} minSize={10} maxSize={25} className="bg-muted/30">
                         <ChatHistorySidebar
                             selectedSessionId={selectedSessionId}
-                            onSelectSession={setSelectedSessionId}
+                            onSelectSession={handleSelectSession}
                         />
                     </ResizablePanel>
 
@@ -47,7 +68,7 @@ const ChatPage = () => {
                     <ResizablePanel defaultSize={40} minSize={30}>
                         <ChatInterface
                             sessionId={selectedSessionId}
-                            onSessionCreated={setSelectedSessionId}
+                            onSessionCreated={handleSessionCreated}
                             initialAgentId={initialAgentId}
                         />
                     </ResizablePanel>
@@ -70,7 +91,7 @@ const ChatPage = () => {
                 <div className="h-full">
                     <ChatInterface
                         sessionId={selectedSessionId}
-                        onSessionCreated={setSelectedSessionId}
+                        onSessionCreated={handleSessionCreated}
                         initialAgentId={initialAgentId}
                     />
                 </div>
@@ -85,7 +106,7 @@ const ChatPage = () => {
                         </div>
                         <ChatHistorySidebar
                             selectedSessionId={selectedSessionId}
-                            onSelectSession={(id) => { setSelectedSessionId(id); setShowSidebar(false); }}
+                            onSelectSession={(id) => { handleSelectSession(id); setShowSidebar(false); }}
                         />
                     </div>
                 )}

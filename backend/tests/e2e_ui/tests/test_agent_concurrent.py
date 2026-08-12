@@ -79,13 +79,11 @@ def create_agent_concurrent(db_session, index: int) -> str:
     agent = AgentRegistry(
         id=agent_id,
         name=f"ConcurrentAgent_{index}_{str(uuid.uuid4())[:8]}",
-        maturity_level="INTERN",
-        status="active",
+        status="intern",
         category="testing",
         module_path="backend/test_agents",
         class_name="TestAgent",
         confidence_score=0.6,
-        created_at=datetime.utcnow()
     )
     db_session.add(agent)
     db_session.commit()
@@ -244,13 +242,11 @@ class TestConcurrentAgentExecution:
             agent = AgentRegistry(
                 id=agent_id,
                 name=agent_name,
-                maturity_level="INTERN",
-                status="active",
+                status="intern",
                 category="testing",
                 module_path="backend/test_agents",
                 class_name="TestAgent",
                 confidence_score=0.6,
-                created_at=datetime.utcnow()
             )
             db_session.add(agent)
             db_session.commit()
@@ -290,8 +286,8 @@ class TestConcurrentAgentExecution:
         # Verify each agent has correct data
         for agent in agents:
             assert agent.id in agent_ids, f"Agent {agent.id} should be in created list"
-            assert agent.maturity_level == "INTERN", f"Agent maturity should be INTERN, got {agent.maturity_level}"
-            assert agent.status == "active", f"Agent status should be active, got {agent.status}"
+            assert agent.maturity_level == "intern", f"Agent maturity should be intern, got {agent.maturity_level}"
+            assert agent.status == "intern", f"Agent status should be intern, got {agent.status}"
             assert agent.category == "testing", f"Agent category should be testing, got {agent.category}"
 
         print("✓ 5 agents created concurrently with unique IDs")

@@ -1535,7 +1535,8 @@ class TestManualTrigger:
              patch("core.reasoning_chain.get_reasoning_tracker", return_value=tracker), \
              patch("core.reasoning_chain.ReasoningStep", MagicMock()), \
              patch("core.reasoning_chain.ReasoningStepType", type("T", (), {
-                 "ACTION": "action", "FINAL_ANSWER": "final", "INTENT_ANALYSIS": "plan", "DECISION": "decision"
+                 "ACTION": "action", "FINAL_ANSWER": "final", "INTENT_ANALYSIS": "plan", "DECISION": "decision",
+                 "CONCLUSION": "conclusion"
              })):
             user = SimpleNamespace(id="u1", email="e@x.com")
             result = await handle_manual_trigger("do it", user, additional_context={"board_id": "b1"})
@@ -1563,7 +1564,8 @@ class TestManualTrigger:
              patch("core.reasoning_chain.get_reasoning_tracker", return_value=tracker), \
              patch("core.reasoning_chain.ReasoningStep", MagicMock()), \
              patch("core.reasoning_chain.ReasoningStepType", type("T", (), {
-                 "ACTION": "action", "FINAL_ANSWER": "final", "INTENT_ANALYSIS": "plan", "DECISION": "decision"
+                 "ACTION": "action", "FINAL_ANSWER": "final", "INTENT_ANALYSIS": "plan", "DECISION": "decision",
+                 "CONCLUSION": "conclusion"
              })):
             user = SimpleNamespace(id="u1", email="e@x.com")
             await handle_manual_trigger("do it", user)

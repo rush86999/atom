@@ -1,18 +1,19 @@
 # Atom Documentation Index
 
 > **Last Updated**: August 2026  
+> **Version**: v8.0.0 (main_api_app, 197 routers)  
 > **Purpose**: Comprehensive index of all Atom documentation with quick links and descriptions
 
 **📚 [Documentation Hub](../README.md)** — Browse by category (Getting Started, Security, Intelligence, Orchestration, Integrations, Development)
 
 ---
 
-## 🎯 Quick Start by Role
+## Quick Start by Role
 
 | Role | Start Here | Time |
 |------|------------|------|
 | **New User** | [Quick Start](getting_started/quick-start.md) | 15 min |
-| **Developer** | [Development Setup](development/setup.md) | 20 min |
+| **Developer** | [Development Setup](development/setup.md) + [Makefile](../../Makefile) | 20 min |
 | **Admin** | [Production Readiness](operations/production-readiness.md) | 30 min |
 | **AI Engineer** | [LLM Providers Guide](guides/LLM_PROVIDERS.md) | 15 min |
 
@@ -133,7 +134,7 @@
 
 | Document | Description | Audience |
 |----------|-------------|----------|
-| [Development Setup](development/setup.md) | Venv, DB seeding, code style | Devs |
+| [Development Setup](development/setup.md) | Venv, Makefile, code style (macOS/Linux) | Devs |
 | [Code Quality](../backend/docs/CODE_QUALITY_STANDARDS.md) | Type hints, mypy, Google docstrings | Devs |
 | [E2E Testing Guide](testing/e2e-guide.md) | 486 tests, API-first auth, POM | QA/Devs |
 | [Testing Index](testing/index.md) | Unit, integration, E2E, bug discovery | Devs |
@@ -141,6 +142,7 @@
 | [Stress Testing](../.planning/phases/236-cross-platform-and-stress-testing/) | k6, network sim, failure injection | QA |
 | [API Standards](api/API_STANDARDS.md) | Response formats, error codes | Devs |
 | [Database Migrations](getting_started/INSTALLATION.md) | Alembic + SQLite hybrid patterns | Devs |
+| [Makefile Reference](../../Makefile) | `make setup`, `make backend`, `make test` | Devs |
 
 ### 📊 Reference
 

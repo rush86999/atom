@@ -102,6 +102,7 @@ The UI gives you:
 - [Architecture Overview](../architecture/README.md) — How the pieces fit
 - [Agent Systems](../agents/overview.md) — Governance, maturity, intent types
 - [Execution Sandbox](../architecture/SANDBOX_LAYER.md) — How blast radius is bounded
+- [Makefile Reference](../../Makefile) — `make backend`, `make test`, `make setup`
 
 ### Features
 - [LLM Providers Guide](../guides/LLM_PROVIDERS.md) — All providers, costs, routing
@@ -120,4 +121,4 @@ The UI gives you:
 
 ---
 
-**Last Updated**: June 30, 2026
+**Last Updated**: August 2026

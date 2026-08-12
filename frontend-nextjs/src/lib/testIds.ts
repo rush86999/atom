@@ -161,8 +161,5 @@ export const TEST_IDS = {
   SETTINGS,
 } as const;
 
-// Export individual constants for named imports
-export { AGENT_CHAT, CANVAS, AUTH, FORM, SKILLS, SETTINGS };
-
 // Default export for quick access
 export default TEST_IDS;

@@ -23,6 +23,8 @@ const API_URL = typeof window !== 'undefined' ? "" : (process.env.NEXT_PUBLIC_AP
 const USER_ID = "default_user";
 const WORKSPACE_ID = "default";
 
+const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
 export function PreferencesTab() {
     const [prefs, setPrefs] = useState<PreferenceState>(DEFAULT_PREFS);
     const [loading, setLoading] = useState(true);
@@ -119,7 +121,7 @@ export function PreferencesTab() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6" data-testid="settings-preferences">
             <Card>
                 <CardHeader>
                     <CardTitle>Appearance</CardTitle>
@@ -131,24 +133,29 @@ export function PreferencesTab() {
                             <Label>Theme</Label>
                             <div className="text-sm text-muted-foreground">Select your preferred color theme.</div>
                         </div>
-                        <Select
-                            value={prefs.theme}
-                            onValueChange={(val) => handleSave("theme", val)}
-                        >
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Select theme" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="light">Light</SelectItem>
-                                <SelectItem value="dark">Dark</SelectItem>
-                                <SelectItem value="system">System</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-3">
+                            <span data-testid="settings-theme-label" className="text-sm font-medium text-muted-foreground min-w-[52px] text-right">
+                                {capitalize(prefs.theme)}
+                            </span>
+                            <Select
+                                value={prefs.theme}
+                                onValueChange={(val) => handleSave("theme", val)}
+                            >
+                                <SelectTrigger className="w-[180px]" data-testid="settings-theme-toggle">
+                                    <SelectValue placeholder="Select theme" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="light">Light</SelectItem>
+                                    <SelectItem value="dark">Dark</SelectItem>
+                                    <SelectItem value="system">System</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
-            <Card>
+            <Card data-testid="settings-notifications-section">
                 <CardHeader>
                     <CardTitle>Notifications</CardTitle>
                     <CardDescription>Manage your alert preferences.</CardDescription>
@@ -160,6 +167,7 @@ export function PreferencesTab() {
                             <div className="text-sm text-muted-foreground">Receive alerts about critical events.</div>
                         </div>
                         <Switch
+                            data-testid="settings-notifications-toggle"
                             checked={prefs.notifications_enabled}
                             onCheckedChange={(val) => handleSave("notifications_enabled", val)}
                         />
@@ -174,7 +182,7 @@ export function PreferencesTab() {
                             value={prefs.email_frequency}
                             onValueChange={(val) => handleSave("email_frequency", val)}
                         >
-                            <SelectTrigger className="w-[180px]">
+                            <SelectTrigger className="w-[180px]" data-testid="settings-email-frequency-select">
                                 <SelectValue placeholder="Select frequency" />
                             </SelectTrigger>
                             <SelectContent>

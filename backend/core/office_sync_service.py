@@ -219,14 +219,20 @@ class OfficeSyncService:
             from core.auto_document_ingestion import AutoDocumentIngestionService
 
             ingestor = AutoDocumentIngestionService()
-            result = asyncio.new_event_loop().run_until_complete(
-                ingestor.process_file_bytes(
-                    content=content,
-                    file_name=Path(file_path).name,
-                    source="office_canvas",
-                    user_id=user_id,
+            loop = asyncio.new_event_loop()
+            try:
+                result = loop.run_until_complete(
+                    ingestor.process_file_bytes(
+                        content=content,
+                        file_name=Path(file_path).name,
+                        source="office_canvas",
+                        user_id=user_id,
+                    )
                 )
-            )
+            finally:
+                # Always close the throwaway loop — leaking it keeps an open
+                # selector FD per sync-context office edit.
+                loop.close()
             return result.get("status") in ("ingested", "skipped")
         except Exception as e:
             logger.debug(f"Office→memory sync ingestion skipped for {file_path}: {e}")

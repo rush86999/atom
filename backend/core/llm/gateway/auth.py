@@ -163,7 +163,9 @@ async def _resolve_api_key(
             detail={"error": {"type": "authentication_error", "code": "invalid_api_key", "message": "User account is not active"}},
         )
 
-    rate_limit = row.rate_limit_per_minute or 60
+    # NULL -> 60 default, but an explicit 0 must stay 0 (<=0 = unlimited, per
+    # _check_rate_limit's contract); `or 60` would silently coerce it back.
+    rate_limit = row.rate_limit_per_minute if row.rate_limit_per_minute is not None else 60
     _check_rate_limit(key_hash, rate_limit)
 
     # Best-effort usage bump (never fails the request).

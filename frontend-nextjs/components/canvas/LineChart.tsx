@@ -56,9 +56,10 @@ export function LineChartCanvas({ data, title, color = "#8884d8" }: LineChartPro
             const api = (window as any).atom.canvas as CanvasStateAPI;
             const originalGetState = api.getState;
             api.getState = (canvasId: string) => {
-                const originalResult = originalGetState(canvasId);
-                if (originalResult) return originalResult;
-                return canvasId === state.canvas_id ? state : null;
+                // The most specific registered state wins: the chart's own state
+                // must shadow any host-level registration under the same id.
+                if (canvasId === state.canvas_id) return state;
+                return originalGetState(canvasId);
             };
 
             const originalGetAllStates = api.getAllStates;

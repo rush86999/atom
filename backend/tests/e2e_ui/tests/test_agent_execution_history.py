@@ -28,7 +28,6 @@ from tests.e2e_ui.utils.api_setup import create_test_user, authenticate_user, AP
 from core.models import User, AgentRegistry, AgentExecution
 from core.auth import get_password_hash
 
-
 def create_test_user_db(db_session: Session, email: str, password: str) -> User:
     """Create a test user in the database.
 
@@ -42,11 +41,11 @@ def create_test_user_db(db_session: Session, email: str, password: str) -> User:
     """
     user = User(
         email=email,
-        username=f"historyuser_{str(uuid.uuid4())[:8]}",
         hashed_password=get_password_hash(password),
-        is_active=True,
-        status="active",
-        created_at=datetime.utcnow()
+        first_name="Test",
+        last_name="User",
+        role="member",
+        status="active"
     )
 
     db_session.add(user)
@@ -69,12 +68,13 @@ def create_test_agent(db_session: Session, name: str = "TestAgent") -> AgentRegi
     agent = AgentRegistry(
         id=str(uuid.uuid4()),
         name=name,
-        maturity_level="AUTONOMOUS",
+        status="autonomous",
+        category="testing",
+        module_path="core.agents.generic_agent",
+        class_name="GenericAgent",
         description="Test agent for E2E tests",
-        system_prompt="You are a helpful test agent",
         capabilities=["test"],
-        is_active=True,
-        created_at=datetime.utcnow()
+        enabled=True,
     )
 
     db_session.add(agent)
@@ -128,22 +128,37 @@ def create_agent_execution(
     return execution
 
 
-def create_authenticated_page(browser, user: User, token: str) -> Page:
-    """Create a Playwright page with JWT token pre-set in localStorage.
+def create_authenticated_page(browser, user: User, password: str) -> Page:
+    """Create a Playwright page with a real JWT token pre-set.
+
+    The token is minted by the LIVE backend via the login API (the backend's
+    JWT secret is auto-generated at boot, so tokens forged in this process are
+    rejected). The auth_token COOKIE is required too — the frontend middleware
+    (middleware.ts) redirects to /login when only localStorage is set.
 
     Args:
         browser: Playwright browser fixture
         user: User instance
-        token: JWT token string
+        password: Plain-text password used to log in via the API
 
     Returns:
         Page: Authenticated Playwright page
     """
+    # Login through the live backend so the token is signed with its secret.
+    api = APIClient(base_url=os.getenv("E2E_API_URL", "http://localhost:8001"))
+    auth_resp = authenticate_user(api, email=user.email, password=password)
+    token = auth_resp["access_token"]
+
     context = browser.new_context()
     page = context.new_page()
 
+    # Pre-seed the auth_token cookie so the frontend middleware passes.
+    context.add_cookies([
+        {"name": "auth_token", "value": token, "url": "http://localhost:3001"},
+    ])
+
     # Set JWT token in localStorage before navigating
-    page.goto("http://localhost:3000")
+    page.goto("http://localhost:3001")
     page.evaluate(f"() => localStorage.setItem('auth_token', '{token}')")
     page.evaluate(f"() => localStorage.setItem('user_id', '{user.id}')")
 
@@ -189,12 +204,8 @@ def test_execution_history_display(browser, db_session: Session):
     )
     assert execution.id is not None
 
-    # Generate JWT token for authentication
-    import jwt
-    token = jwt.encode({"user_id": str(user.id), "email": email}, "test_secret", algorithm="HS256")
-
-    # Create authenticated page
-    page = create_authenticated_page(browser, user, token)
+    # Create authenticated page (real token via backend login API)
+    page = create_authenticated_page(browser, user, password)
 
     # Navigate to execution history page
     history_page = ExecutionHistoryPage(page)
@@ -257,10 +268,8 @@ def test_history_timestamp_format(browser, db_session: Session):
         started_at=execution_time
     )
 
-    # Generate JWT token and create authenticated page
-    import jwt
-    token = jwt.encode({"user_id": str(user.id), "email": email}, "test_secret", algorithm="HS256")
-    page = create_authenticated_page(browser, user, token)
+    # Create authenticated page (real token via backend login API)
+    page = create_authenticated_page(browser, user, password)
 
     # Navigate to history page
     history_page = ExecutionHistoryPage(page)
@@ -336,10 +345,8 @@ def test_history_status_indicators(browser, db_session: Session):
         started_at=datetime.utcnow() - timedelta(seconds=5)
     )
 
-    # Generate JWT token and create authenticated page
-    import jwt
-    token = jwt.encode({"user_id": str(user.id), "email": email}, "test_secret", algorithm="HS256")
-    page = create_authenticated_page(browser, user, token)
+    # Create authenticated page (real token via backend login API)
+    page = create_authenticated_page(browser, user, password)
 
     # Navigate to history page
     history_page = ExecutionHistoryPage(page)
@@ -404,10 +411,8 @@ def test_history_persistence_across_refresh(browser, db_session: Session):
         started_at=datetime.utcnow()
     )
 
-    # Generate JWT token and create authenticated page
-    import jwt
-    token = jwt.encode({"user_id": str(user.id), "email": email}, "test_secret", algorithm="HS256")
-    page = create_authenticated_page(browser, user, token)
+    # Create authenticated page (real token via backend login API)
+    page = create_authenticated_page(browser, user, password)
 
     # Navigate to history page
     history_page = ExecutionHistoryPage(page)

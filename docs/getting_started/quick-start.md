@@ -1,4 +1,4 @@
-# Atom — Quick Start (Verified Working July 2026)
+# Atom — Quick Start (Verified Working August 2026)
 
 > **Fastest path to a running local server.** Verified end-to-end (backend
 > boots, health endpoints respond, login returns a JWT). For the full
@@ -11,7 +11,7 @@
 | Tool | Version | Why |
 |------|---------|-----|
 | Python | 3.11+ | Backend runtime |
-| Node.js | 18+ | Frontend runtime |
+| Node.js | 22+ | Frontend runtime (Next.js 16.2.2) |
 | npm | 9+ | Frontend deps |
 | git | any | Clone the repo |
 
@@ -27,6 +27,10 @@ python3.11 --version && node --version && npm --version
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
+
+# One-shot bootstrap (venv + deps + .env)
+make setup
+# — OR do it manually:
 
 # Backend deps in a venv
 cd backend
@@ -65,13 +69,18 @@ A complete template lives at `backend/.env.example`; the full reference
 
 ## 3. Launch the backend
 
-Run the **FULL app** (`main_api_app:app`, all 80+ routers). **From the repo
+Run the **FULL app** (`main_api_app:app`, 197 routers). **From the repo
 root** (not from `backend/`):
 
 ```bash
 cd /path/to/atom
 PYTHONPATH=$PWD:$PWD/backend DISABLE_AUTH_RATE_LIMIT=1 \
   ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
+```
+
+Or use the Makefile shortcut:
+```bash
+make backend   # runs on :8001 with auth rate limit disabled
 ```
 
 You should see:
@@ -87,7 +96,7 @@ create test users freely; remove it for any shared/production deployment.
 > fast checks (`uvicorn minimal_app:app --port 8000`). It lacks skills,
 > marketplace, workflows, canvas, integrations, etc. Use `main_api_app:app`
 > (above) to actually use Atom. The `scripts/dev.sh` helper launches
-> `minimal_app:app` — use `make backend` for the full app.
+> `minimal_app:app` — use `make backend` for the full app (v8.0.0).
 
 ### Where's my admin password?
 
@@ -158,7 +167,7 @@ CORS-enabled for `http://localhost:3001` by default.
 | Error | Fix |
 |-------|-----|
 | `ModuleNotFoundError: No module named 'backend.api'` | Run from repo root with `PYTHONPATH=$PWD:$PWD/backend` (see step 3) |
-| `ModuleNotFoundError: No module named 'main'` / `Could not import module "main"` | You're using `main:app` — there is no `backend/main.py`. Use `main_api_app:app` (the full app) or `minimal_app:app` (smoke). |
+| `ModuleNotFoundError: No module named 'main'` / `Could not import module "main"` | You're using `main:app` — there is no `backend/main.py`. Use `main_api_app:app` (the full app, v8.0.0) or `minimal_app:app` (smoke). |
 | `Could not validate credentials` on every request | `SECRET_KEY` not set — tokens reset on restart. Set it in `backend/.env` |
 | Admin password lost | Delete the user and restart, or set `ADMIN_PASSWORD` in `backend/.env` |
 | Port 8001 in use | Use `--port 8002` (or any free port). Update `frontend-nextjs/.env.local`'s `NEXT_PUBLIC_API_URL` to match. |
@@ -185,6 +194,7 @@ For the full troubleshooting guide see [`docs/getting_started/TROUBLESHOOTING.md
 ### 🧪 Develop & Test
 - **Run unit tests**: `pytest backend/tests/unit/ -v`
 - **Run E2E tests**: `cd backend/tests/e2e_ui && ./scripts/start-e2e-env.sh && pytest -v -n 4`
+- **Makefile shortcuts**: `make test-backend`, `make test-e2e`
 
 ### 🚀 Deploy
 | Target | Guide |
@@ -201,4 +211,4 @@ For the full troubleshooting guide see [`docs/getting_started/TROUBLESHOOTING.md
 
 ---
 
-**Last Updated**: July 2026 · **Status**: Verified working ✅
+**Last Updated**: August 2026 · **Status**: Verified working ✅

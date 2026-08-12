@@ -57,7 +57,21 @@ export default function CanvasDetailPage() {
             const resp = await apiClient.get(`/api/canvas/${canvasId}`);
             const data = (resp as any).data || resp;
             if (data.success !== false) {
-                setCanvasData(data);
+                // Derive the version from the append-only audit trail: each
+                // present/update appends a row, matching the v{n} badge that
+                // the chat flow shows. Best-effort — never blocks rendering.
+                let version: number | undefined;
+                try {
+                    const hist = await apiClient.get(`/api/canvas/${canvasId}/history`);
+                    const histData = (hist as any).data || hist;
+                    const count = histData?.count ?? histData?.history?.length;
+                    if (typeof count === "number" && count > 0) {
+                        version = count;
+                    }
+                } catch {
+                    // History is best-effort; version badge simply stays hidden.
+                }
+                setCanvasData({ ...data, version });
             }
         } catch (e) {
             console.error("Failed to load canvas:", e);
@@ -186,6 +200,7 @@ export default function CanvasDetailPage() {
             canvas_id: canvasId,
             data: canvasData.content,
             title: canvasData.title,
+            version: canvasData.version,
         },
     } : lastMessage;
 

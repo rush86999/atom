@@ -170,7 +170,11 @@ def init_db(
         # SQLite: Create tables directly in main database
         Base.metadata.create_all(get_engine)
         yield
-        Base.metadata.drop_all(get_engine)
+        # When the e2e suite shares its DATABASE_URL with a live backend
+        # process (ATOM_E2E_PRESERVE_DB=1), dropping every table at teardown
+        # destroys the backend's working schema mid-session.
+        if os.getenv("ATOM_E2E_PRESERVE_DB", "0") != "1":
+            Base.metadata.drop_all(get_engine)
     else:
         # PostgreSQL: Create engine with schema translation
         engine = get_engine.execution_options(

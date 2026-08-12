@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { ChatMessage, ChatMessageData } from "../GlobalChat/ChatMessage";
 import { marked } from "marked";
 import { renderMarkdownSafe } from "@/lib/sanitize";
+import { AGENT_CHAT } from "@/src/lib/testIds";
 
 interface MessageListProps {
     messages: ChatMessageData[];
@@ -31,7 +32,7 @@ export const MessageList: React.FC<MessageListProps> = ({
     handleRegenerate,
 }) => {
     return (
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea className="flex-1 p-4" data-testid="message-list">
             <div className="space-y-4 max-w-3xl mx-auto">
                 {Array.isArray(messages) && messages.map((msg) => (
                     <ChatMessage
@@ -45,7 +46,11 @@ export const MessageList: React.FC<MessageListProps> = ({
 
                 {/* Show streaming message */}
                 {currentStreamId && streamingContent.get(currentStreamId) && (
-                    <div className="flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2">
+                    <div
+                        className="flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2"
+                        data-testid={AGENT_CHAT.STREAMING_INDICATOR}
+                        aria-live="polite"
+                    >
                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                             <Loader2 className="h-4 w-4 animate-spin text-primary" />
                         </div>
@@ -61,7 +66,11 @@ export const MessageList: React.FC<MessageListProps> = ({
                 )}
 
                 {isProcessing && !currentStreamId && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground ml-2 animate-in fade-in slide-in-from-bottom-2">
+                    <div
+                        className="flex items-center gap-2 text-xs text-muted-foreground ml-2 animate-in fade-in slide-in-from-bottom-2"
+                        data-testid={AGENT_CHAT.STREAMING_INDICATOR}
+                        aria-live="polite"
+                    >
                         <Loader2 className="h-3 w-3 animate-spin" />
                         <span>{statusMessage}</span>
                     </div>

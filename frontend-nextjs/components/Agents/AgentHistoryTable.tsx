@@ -2,88 +2,157 @@ import React, { useEffect, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Loader2 } from "lucide-react";
 
-interface AgentJob {
+interface ExecutionJob {
     id: string;
     agent_id: string;
+    agent_name?: string;
     status: string;
-    start_time: string;
-    end_time: string;
-    logs: string;
-    result_summary: string;
+    started_at: string | null;
+    completed_at: string | null;
+    duration_seconds?: number | null;
+    result_summary?: string;
+    error_message?: string;
+    triggered_by?: string;
 }
 
+// Renders the started_at timestamp in an ISO-8601 style ("2026-08-12 22:45")
+// so it carries the calendar date AND time-of-day information.
+const formatTimestamp = (value: string | null | undefined): string => {
+    if (!value) return "—";
+    try {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toISOString().replace('T', ' ').slice(0, 16);
+    } catch {
+        return value;
+    }
+};
+
 export const AgentHistoryTable: React.FC = () => {
-    const [jobs, setJobs] = useState<AgentJob[]>([]);
+    const [jobs, setJobs] = useState<ExecutionJob[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fetchHistory();
-        const interval = setInterval(fetchHistory, 5000); // Auto-refresh
+        const interval = setInterval(fetchHistory, 15000);
         return () => clearInterval(interval);
     }, []);
 
     const fetchHistory = async () => {
         try {
-            const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-            const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-            const res = await fetch(`${API_BASE}/api/agents/history`, {
-                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setJobs(data);
+            setLoading(true);
+            const { apiClient } = await import('../../lib/api-client');
+
+            const [historyRes, agentsRes] = await Promise.allSettled([
+                apiClient.get('/api/agents/history'),
+                apiClient.get('/api/agents'),
+            ]);
+
+            let history: any[] = [];
+            if (historyRes.status === 'fulfilled') {
+                const data = historyRes.value.data;
+                history = Array.isArray(data) ? data : (data?.data || []);
             }
-        } catch (error) {
-            console.error("Failed to fetch history", error);
+
+            // Map agent ids to names so rows show a human-readable agent
+            // (the /history endpoint only returns agent_id).
+            const agentNames: Record<string, string> = {};
+            if (agentsRes.status === 'fulfilled') {
+                const data = agentsRes.value.data;
+                const agents: any[] = Array.isArray(data) ? data : (data?.data || []);
+                agents.forEach((a: any) => {
+                    if (a?.id) agentNames[a.id] = a.name || a.id;
+                });
+            }
+
+            setJobs(history.map((job: any) => ({
+                id: job.id,
+                agent_id: job.agent_id,
+                agent_name: agentNames[job.agent_id] || job.agent_id,
+                status: job.status || 'unknown',
+                started_at: job.started_at || job.start_time || null,
+                completed_at: job.completed_at || job.end_time || null,
+                duration_seconds: job.duration_seconds,
+                result_summary: job.result_summary || job.logs || "",
+                error_message: job.error_message,
+                triggered_by: job.triggered_by,
+            })));
+            setError(null);
+        } catch (err) {
+            console.error("Failed to fetch history", err);
+            setError("Failed to load execution history.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const statusVariant = (status: string) => {
+        switch (status) {
+            case 'success': return 'default';
+            case 'failed': case 'error': return 'destructive';
+            case 'running': case 'blocked': return 'secondary';
+            default: return 'outline';
         }
     };
 
     return (
-        <Card className="h-full border-gray-200 dark:border-gray-700">
+        <Card className="h-full border-gray-200 dark:border-gray-700" data-testid="execution-history-container">
             <CardHeader>
                 <CardTitle>Execution History</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="rounded-md border h-96 overflow-y-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Agent</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Start Time</TableHead>
-                                <TableHead>Result</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {jobs.map((job) => (
-                                <TableRow key={job.id}>
-                                    <TableCell className="font-medium">{job.agent_id}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={
-                                            job.status === 'success' ? 'default' :
-                                                job.status === 'failed' ? 'destructive' :
-                                                    job.status === 'running' ? 'secondary' : 'outline'
-                                        }>
-                                            {job.status.toUpperCase()}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>{new Date(job.start_time).toLocaleString()}</TableCell>
-                                    <TableCell className="max-w-[200px] truncate" title={job.result_summary || job.logs}>
-                                        {job.result_summary || job.logs || "-"}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {jobs.length === 0 && (
+                <div className="rounded-md border h-96 overflow-y-auto" data-testid="execution-history-list">
+                    {loading && (
+                        <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground" data-testid="history-loading-spinner">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading history...
+                        </div>
+                    )}
+                    {!loading && jobs.length === 0 && (
+                        <div className="p-6 text-center text-sm text-muted-foreground" data-testid="empty-history-message">
+                            No history available.
+                        </div>
+                    )}
+                    {!loading && jobs.length > 0 && (
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
-                                        No history available.
-                                    </TableCell>
+                                    <TableHead>Agent</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Start Time</TableHead>
+                                    <TableHead>Result</TableHead>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {jobs.map((job) => (
+                                    <TableRow key={job.id} data-testid="execution-history-entry">
+                                        <TableCell className="font-medium" data-testid="history-entry-agent">{job.agent_name}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={statusVariant(job.status)} data-testid="history-entry-status">
+                                                {job.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell data-testid="history-entry-timestamp">{formatTimestamp(job.started_at)}</TableCell>
+                                        <TableCell className="max-w-[200px] truncate" title={job.result_summary || job.error_message || ""}>
+                                            <span data-testid="history-entry-result">{job.result_summary || job.error_message || "-"}</span>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                    {error && (
+                        <div className="p-4 text-center text-sm text-destructive" data-testid="execution-error-message">
+                            {error}
+                        </div>
+                    )}
                 </div>
             </CardContent>
         </Card>
     );
 };
+
+export default AgentHistoryTable;

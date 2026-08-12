@@ -205,7 +205,9 @@ class TestPageObjectIntegration:
         settings = SettingsPage(authenticated_page)
         settings.navigate()
 
-        # Verify all main sections are visible
-        assert settings.theme_toggle.is_visible(), "Theme toggle should be visible"
+        # Verify all main sections are visible (real PreferencesTab UI —
+        # auto-save form; there is no Save button, see SettingsPage docstring)
+        assert settings.theme_toggle.is_visible(), "Theme select should be visible"
+        assert settings.theme_label.is_visible(), "Theme label should be visible"
         assert settings.notifications_section.is_visible(), "Notifications section should be visible"
-        assert settings.save_button.is_visible(), "Save button should be visible"
+        assert settings.notifications_toggle.is_visible(), "Notifications switch should be visible"

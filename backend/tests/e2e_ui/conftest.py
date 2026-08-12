@@ -32,7 +32,7 @@ from .fixtures import test_data_factory  # Factory functions module
 from .fixtures import journey_fixtures  # Realistic user-journey suite fixtures
 
 # Re-export commonly used fixtures for backward compatibility
-from .fixtures.auth_fixtures import authenticated_page, authenticated_page_api, test_user, authenticated_user
+from .fixtures.auth_fixtures import authenticated_page, authenticated_page_api, test_user, authenticated_user, admin_user
 from .fixtures.database_fixtures import db_session, worker_schema, create_worker_schema, get_engine, drop_worker_schema, is_sqlite, init_db
 from .fixtures.api_fixtures import setup_test_user, setup_test_project, api_client, api_base_url, test_user_data
 # Journey-suite fixtures must be re-exported here so pytest registers them as

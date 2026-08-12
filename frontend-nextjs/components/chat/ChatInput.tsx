@@ -4,6 +4,7 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Input as UiInput } from "@/components/ui/input";
 import { Send, StopCircle, Paperclip, Mic, X, Loader2 } from "lucide-react";
+import { AGENT_CHAT } from "@/src/lib/testIds";
 
 interface ChatInputProps {
     input: string;
@@ -104,13 +105,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         placeholder="Type a message..."
                         className="flex-1"
                         disabled={isProcessing}
+                        data-testid={AGENT_CHAT.INPUT}
                     />
                     {isProcessing ? (
                         <Button variant="destructive" size="icon" onClick={handleStop} title="Stop Agent">
                             <StopCircle className="h-5 w-5" />
                         </Button>
                     ) : (
-                        <Button onClick={handleSend} size="icon" disabled={!input.trim()}>
+                        <Button onClick={() => handleSend()} size="icon" disabled={!input.trim()} data-testid={AGENT_CHAT.SEND_BUTTON}>
                             <Send className="h-5 w-5" />
                         </Button>
                     )}

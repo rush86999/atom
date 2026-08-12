@@ -71,7 +71,7 @@ class TestComprehensiveUserJourney:
         # ============================================================================
         
         # Navigate to dashboard
-        page.goto("/dashboard")
+        page.goto("http://localhost:3001/dashboard")
         expect(page).to_have_url("*/dashboard")
         
         dashboard = DashboardPage(page)
@@ -118,7 +118,7 @@ class TestComprehensiveUserJourney:
         # ============================================================================
         
         # Navigate to canvas
-        page.goto("/canvas")
+        page.goto("http://localhost:3001/canvas")
         expect(page).to_have_url("*/canvas", timeout=5000)
         
         canvas_host = CanvasHostPage(page)
@@ -142,7 +142,7 @@ class TestComprehensiveUserJourney:
         # ============================================================================
         
         # Navigate to skills marketplace
-        page.goto("/skills")
+        page.goto("http://localhost:3001/skills")
         expect(page).to_have_url("*/skills", timeout=5000)
         
         skills_page = SkillsMarketplacePage(page)
@@ -176,7 +176,7 @@ class TestComprehensiveUserJourney:
         # ============================================================================
         
         # Navigate to projects/workflows section
-        page.goto("/projects")
+        page.goto("http://localhost:3001/projects")
         expect(page).to_have_url("*/projects", timeout=5000)
         
         projects_page = ProjectsPage(page)
@@ -217,7 +217,7 @@ class TestComprehensiveUserJourney:
         # ============================================================================
         
         # Test camera access (if available)
-        page.goto("/device/camera")
+        page.goto("http://localhost:3001/device/camera")
         expect(page).to_have_url("*/device/camera", timeout=5000)
         
         # Check if camera permissions are requested/granted
@@ -227,11 +227,11 @@ class TestComprehensiveUserJourney:
         # We'll just verify the page loads - actual camera testing requires user interaction
         
         # Test location access
-        page.goto("/device/location")
+        page.goto("http://localhost:3001/device/location")
         expect(page).to_have_url("*/device/location", timeout=5000)
         
         # Test screen sharing (if available)
-        page.goto("/device/screen")
+        page.goto("http://localhost:3001/device/screen")
         expect(page).to_have_url("*/device/screen", timeout=5000)
         
         # ============================================================================
@@ -239,7 +239,7 @@ class TestComprehensiveUserJourney:
         # ============================================================================
         
         # Navigate to browser automation section
-        page.goto("/browser")
+        page.goto("http://localhost:3001/browser")
         # Note: Full browser automation testing would require navigating to external sites
         # For this test, we'll verify the browser tool is accessible
         
@@ -267,7 +267,7 @@ class TestComprehensiveUserJourney:
         # ============================================================================
         
         # Navigate to settings
-        page.goto("/settings")
+        page.goto("http://localhost:3001/settings")
         expect(page).to_have_url("*/settings", timeout=5000)
         
         settings_page = SettingsPage(page)
@@ -302,7 +302,7 @@ class TestComprehensiveUserJourney:
         # ============================================================================
         
         # Navigate back to dashboard for logout
-        page.goto("/dashboard")
+        page.goto("http://localhost:3001/dashboard")
         expect(page).to_have_url("*/dashboard", timeout=5000)
         
         dashboard.navigate()
@@ -318,7 +318,7 @@ class TestComprehensiveUserJourney:
         expect(login_page.is_loaded()).to_be_truthy()
         
         # Verify we're logged out by trying to access a protected route
-        page.goto("/dashboard")
+        page.goto("http://localhost:3001/dashboard")
         # Should redirect to login or show login prompt
         expect(page).to_have_url("*/login", timeout=5000)
         
@@ -336,7 +336,7 @@ class TestEdgeCasesAndErrorHandling:
         page = authenticated_page
         chat_page = ChatPage(page)
         
-        page.goto("/chat")
+        page.goto("http://localhost:3001/chat")
         expect(chat_page.is_loaded()).to_be_truthy()
         
         # Get initial message count
@@ -364,7 +364,7 @@ class TestEdgeCasesAndErrorHandling:
         page = authenticated_page
         
         # Create a simple canvas for accessibility testing
-        page.goto("/canvas")
+        page.goto("http://localhost:3001/canvas")
         expect(page).to_have_url("*/canvas", timeout=5000)
         
         # In a real test, we would create an accessible canvas and test:
@@ -375,7 +375,7 @@ class TestEdgeCasesAndErrorHandling:
         # For now, we'll verify the accessibility testing framework is in place
         
         # Navigate to accessibility test page if available
-        page.goto("/accessibility/test")
+        page.goto("http://localhost:3001/accessibility/test")
         # If page exists, verify accessibility features
         # If not, that's okay - we're testing that the route exists
         
@@ -387,7 +387,7 @@ class TestEdgeCasesAndErrorHandling:
         page = authenticated_page
         skills_page = SkillsMarketplacePage(page)
         
-        page.goto("/skills")
+        page.goto("http://localhost:3001/skills")
         expect(skills_page.is_loaded()).to_be_truthy()
         
         # Try to install a non-existent skill

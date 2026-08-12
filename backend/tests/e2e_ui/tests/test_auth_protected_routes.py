@@ -15,19 +15,30 @@ import os
 def create_expired_token() -> str:
     """Create an expired JWT token for testing.
 
+    The token is signed with the LIVE backend's SECRET_KEY (core.auth reads it
+    from backend/.env — the e2e fixtures load that file, see
+    fixtures/auth_fixtures.py) so the backend actually attempts to verify the
+    signature and rejects it on expiry rather than on signature mismatch.
+
     Returns:
         Expired JWT token string
     """
     payload = {
         'sub': 'test-user-id',
         'exp': datetime.utcnow() - timedelta(hours=1),
-        'iat': datetime.utcnow() - timedelta(hours=1, minutes=15)
     }
 
-    # Use test SECRET_KEY (must match backend)
-    secret = os.getenv('SECRET_KEY', 'test-secret-key')
+    # Same key the running backend uses for HS256 verification.
+    # fallback is only for environments where the backend was started with a
+    # different/auto-generated key (then expiry rejection still works because
+    # a signature mismatch is also rejected — but we prefer the real key).
+    from core.auth import SECRET_KEY as backend_secret
+    secret = backend_secret or os.getenv('SECRET_KEY', 'test-secret-key')
 
     return jwt.encode(payload, secret, algorithm='HS256')
+
+
+BACKEND_URL = "http://localhost:8001"  # live e2e backend (api_base_url fixture)
 
 
 class TestProtectedRoutes:
@@ -48,7 +59,7 @@ class TestProtectedRoutes:
         Coverage: AUTH-05 (Protected route redirects)
         """
         # Test 1: Try to access /dashboard without auth
-        page.goto("http://localhost:3000/dashboard")
+        page.goto("http://localhost:3001/dashboard")
         page.wait_for_timeout(1000)
 
         current_url = page.url.lower()
@@ -56,7 +67,7 @@ class TestProtectedRoutes:
             f"Should redirect to login when accessing /dashboard, got URL: {current_url}"
 
         # Test 2: Try to access /agents without auth
-        page.goto("http://localhost:3000/agents")
+        page.goto("http://localhost:3001/agents")
         page.wait_for_timeout(1000)
 
         current_url = page.url.lower()
@@ -64,7 +75,7 @@ class TestProtectedRoutes:
             f"Should redirect to login when accessing /agents, got URL: {current_url}"
 
         # Test 3: Try to access /settings without auth
-        page.goto("http://localhost:3000/settings")
+        page.goto("http://localhost:3001/settings")
         page.wait_for_timeout(1000)
 
         current_url = page.url.lower()
@@ -77,23 +88,23 @@ class TestProtectedRoutes:
         """Verify protected API endpoints return 401 without authentication token.
 
         This test validates:
-        1. GET request to /api/v1/agents without token returns 401
-        2. GET request to /api/v1/workflows without token returns 401
+        1. GET request to /api/agents without token returns 401
+        2. GET request to /api/users/me without token returns 401
         3. Response indicates authentication required
 
         Coverage: AUTH-05 (Protected API returns 401)
         """
-        # Test 1: Try to access /api/v1/agents without token
-        response = requests.get("http://localhost:8000/api/v1/agents", timeout=5)
+        # Test 1: Try to access /api/agents without token
+        response = requests.get(f"{BACKEND_URL}/api/agents", timeout=5)
 
         assert response.status_code == 401, \
-            f"Should return 401 for /api/v1/agents without token, got {response.status_code}"
+            f"Should return 401 for /api/agents without token, got {response.status_code}"
 
-        # Test 2: Try to access /api/v1/workflows without token
-        response = requests.get("http://localhost:8000/api/v1/workflows", timeout=5)
+        # Test 2: Try to access /api/users/me without token
+        response = requests.get(f"{BACKEND_URL}/api/users/me", timeout=5)
 
         assert response.status_code == 401, \
-            f"Should return 401 for /api/v1/workflows without token, got {response.status_code}"
+            f"Should return 401 for /api/users/me without token, got {response.status_code}"
 
         print("✓ Protected API endpoints return 401 without authentication")
 
@@ -114,24 +125,21 @@ class TestProtectedRoutes:
 
         # Make GET request with valid token
         response = requests.get(
-            "http://localhost:8000/api/v1/agents",
+            f"{BACKEND_URL}/api/agents",
             headers={"Authorization": f"Bearer {token}"},
             timeout=10
         )
 
-        # Verify 200 response (or 401 if endpoint doesn't exist)
-        # We accept 200 or 401 (if endpoint doesn't exist, auth was still checked)
-        assert response.status_code in [200, 401], \
-            f"Backend should validate token, got status {response.status_code}"
+        # The fixture token is signed with the backend's SECRET_KEY (fixtures
+        # load backend/.env, see fixtures/auth_fixtures.py) and /api/agents is
+        # a real protected endpoint — a valid token must be accepted with 200.
+        assert response.status_code == 200, \
+            f"Backend should accept valid token, got status {response.status_code}"
 
-        if response.status_code == 200:
-            # Verify response contains valid data (not just error)
-            data = response.json()
-            assert isinstance(data, (dict, list)), "Response should be valid JSON"
-            print("✓ Protected API accepts valid JWT token")
-        else:
-            # Endpoint might not exist, but auth check happened
-            print("✓ Token validation checked (endpoint may not exist)")
+        # Verify response contains valid data (not just error)
+        data = response.json()
+        assert isinstance(data, (dict, list)), "Response should be valid JSON"
+        print("✓ Protected API accepts valid JWT token")
 
     def test_protected_api_rejects_expired_token(self):
         """Verify protected API endpoints reject expired JWT tokens.
@@ -149,7 +157,7 @@ class TestProtectedRoutes:
 
         # Make request with expired token
         response = requests.get(
-            "http://localhost:8000/api/v1/agents",
+            f"{BACKEND_URL}/api/agents",
             headers={"Authorization": f"Bearer {expired_token}"},
             timeout=5
         )
@@ -189,7 +197,7 @@ class TestProtectedRouteVariations:
         malformed_token = "not.a.valid.jwt.token"
 
         response = requests.get(
-            "http://localhost:8000/api/v1/agents",
+            f"{BACKEND_URL}/api/agents",
             headers={"Authorization": f"Bearer {malformed_token}"},
             timeout=5
         )
@@ -206,7 +214,7 @@ class TestProtectedRouteVariations:
         Coverage: AUTH-05 (Missing token rejection)
         """
         # Make request without Authorization header
-        response = requests.get("http://localhost:8000/api/v1/agents", timeout=5)
+        response = requests.get(f"{BACKEND_URL}/api/agents", timeout=5)
 
         assert response.status_code == 401, \
             f"Should reject missing token with 401, got {response.status_code}"
@@ -225,7 +233,7 @@ class TestProtectedRouteVariations:
 
         # Use wrong scheme (Basic instead of Bearer)
         response = requests.get(
-            "http://localhost:8000/api/v1/agents",
+            f"{BACKEND_URL}/api/agents",
             headers={"Authorization": f"Basic {token}"},
             timeout=5
         )

@@ -1,63 +1,43 @@
 # ATOM Development Setup Guide
 
+> **Last Updated**: August 2026
+
 ## Quick Start
 
 ### Prerequisites
-- **Python 3.8+** (Detected: Python 3.13.1 ✓)
-- **Node.js 14+** (Detected: Node.js v22.14.0 ✓)
+- **Python 3.11+** (required)
+- **Node.js 22+** (required, Next.js 16.2.2)
 - **Git** (for cloning and version control)
 
 ### Starting the Application
 
-#### Option 1: Start Both Services (Recommended)
+#### Option 1: Makefile (Recommended)
 
-Open **two separate terminal windows**:
-
-**Terminal 1 - Backend:**
-```powershell
-cd c:\Users\Mannan Bajaj\atom
-.\start-backend.ps1
-```
-
-**Terminal 2 - Frontend:**
-```powershell
-cd c:\Users\Mannan Bajaj\atom
-.\start-frontend.ps1
+```bash
+make setup       # one-shot: venv + deps + .env
+make backend     # full backend on :8001
+make frontend    # frontend dev server on :3001
+make dev         # both together (tmux or two terminals)
 ```
 
 #### Option 2: Manual Start
 
 **Backend (Python/FastAPI):**
-```powershell
+```bash
 cd backend
-python -m venv venv
-.\venv\Scripts\Activate.ps1
+python3.11 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-python main_api_app.py
+cd ..
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
 ```
 
 **Frontend (Next.js):**
-```powershell
+```bash
 cd frontend-nextjs
 npm install --legacy-peer-deps
-npm run dev
+npm run dev -- -p 3001
 ```
-
-## What the Startup Scripts Do
-
-### Backend Script (`start-backend.ps1`)
-1. ✓ Checks Python installation
-2. ✓ Creates virtual environment (if needed)
-3. ✓ Activates virtual environment
-4. ✓ Installs/updates dependencies from `requirements.txt`
-5. ✓ Checks for `.env` configuration
-6. ✓ Starts FastAPI server on port 8000
-
-### Frontend Script (`start-frontend.ps1`)
-1. ✓ Checks Node.js installation
-2. ✓ Installs dependencies (if needed)
-3. ✓ Creates `.env.local` with default settings
-4. ✓ Starts Next.js dev server on port 3000
 
 ## Accessing the Application
 
@@ -65,27 +45,24 @@ Once both services are running:
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| **Frontend** | http://localhost:3000 | Main application UI |
-| **Backend API** | http://localhost:8001 | API server |
+| **Frontend** | http://localhost:3001 | Main application UI |
+| **Backend API** | http://localhost:8001 | API server (v8.0.0, 197 routers) |
 | **API Docs** | http://localhost:8001/docs | Interactive API documentation (Swagger UI) |
-| **Health Check** | http://localhost:8001/health | Backend health status |
+| **Health Check** | http://localhost:8001/health/live | Backend liveness probe |
 
 ## Environment Configuration
 
-### Backend Environment (`.env`)
-
-The backend uses the root `.env` file located at `c:\Users\Mannan Bajaj\atom\.env`.
+### Backend Environment (`backend/.env`)
 
 **Key settings for development:**
-- `DATABASE_URL`: SQLite database (default) or PostgreSQL
-- `OPENAI_API_KEY`: Required for AI features
-- `USE_MOCK_DATA=true`: Use mock data for testing
-- `ENABLE_OAUTH_DEMO=true`: Enable OAuth demo mode
-- `PORT=8000`: Backend server port
+- `DATABASE_URL=sqlite:///./atom_dev.db` — SQLite (default, zero setup)
+- `SECRET_KEY=<openssl rand -base64 48>` — required for persistent JWTs
+- `OPENAI_API_KEY=sk-...` — at least one LLM provider (or `ATOM_LOCAL_ONLY=true` for Ollama)
+- `DISABLE_AUTH_RATE_LIMIT=1` — lift rate limits for dev (set by `make backend`)
 
-### Frontend Environment (`.env.local`)
+### Frontend Environment (`frontend-nextjs/.env.local`)
 
-Auto-created by the startup script with:
+Auto-created with:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8001
 NEXT_PUBLIC_APP_NAME=ATOM Platform
@@ -96,59 +73,51 @@ NEXT_PUBLIC_APP_NAME=ATOM Platform
 ### Backend Issues
 
 **Problem: "Module not found" errors**
-```powershell
-# Reinstall dependencies
-cd backend
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt --force-reinstall
+```bash
+# You're probably inside backend/ — run from repo root
+cd /path/to/atom
+PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:app --port 8001
 ```
 
-**Problem: Port 8000 already in use**
-```powershell
+**Problem: Port 8001 already in use**
+```bash
 # Find and kill the process
-netstat -ano | findstr :8000
-taskkill /PID <process_id> /F
+lsof -i :8001          # macOS/Linux
+kill -9 <PID>
+# Or use a different port: --port 8002
 ```
+
+**Problem: `Could not import module "main"`**
+- There is no `backend/main.py`. Use `main_api_app:app` (full app) or `minimal_app:app` (smoke).
 
 **Problem: Database errors**
-- Delete `atom_data.db` to reset the database
-- Check `DATABASE_URL` in `.env`
+```bash
+rm backend/atom_dev.db   # delete dev DB
+# Restart server — bootstrap recreates everything
+```
 
 ### Frontend Issues
 
-**Problem: TypeScript errors**
-```powershell
+**Problem: `npm install` fails with peer-dep conflicts**
+```bash
 cd frontend-nextjs
-npm run type-check
-```
-
-**Problem: Port 3000 already in use**
-- Next.js will automatically try port 3001, 3002, etc.
-- Or manually kill the process using port 3000
-
-**Problem: Module resolution errors**
-```powershell
-# Clean install
-cd frontend-nextjs
-Remove-Item -Recurse -Force node_modules
-Remove-Item package-lock.json
 npm install --legacy-peer-deps
 ```
 
+**Problem: Frontend can't reach backend**
+1. Verify backend: `curl http://localhost:8001/health/live`
+2. Check `frontend-nextjs/.env.local`: `NEXT_PUBLIC_API_URL=http://localhost:8001`
+3. Restart the frontend dev server after editing `.env.local`
+
 ### Common Issues
 
-**Problem: PowerShell execution policy error**
-```powershell
-# Run as Administrator
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-
 **Problem: Virtual environment activation fails**
-```powershell
-# Delete and recreate
+```bash
 cd backend
-Remove-Item -Recurse -Force venv
-python -m venv venv
+rm -rf venv
+python3.11 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ## Development Workflow
@@ -156,7 +125,7 @@ python -m venv venv
 ### Making Changes
 
 1. **Backend changes**: Edit Python files in `backend/`
-   - FastAPI auto-reloads on file changes
+   - FastAPI auto-reloads on file changes (`--reload` flag)
    - Check terminal for errors
 
 2. **Frontend changes**: Edit files in `frontend-nextjs/`
@@ -166,57 +135,73 @@ python -m venv venv
 ### Running Tests
 
 **Backend:**
-```powershell
-cd backend
-.\venv\Scripts\Activate.ps1
-pytest
+```bash
+make test               # unit tests
+# or
+cd backend && pytest tests/ -q --tb=short
+```
+
+**E2E UI:**
+```bash
+make test-e2e           # E2E journey suite
+# or
+cd backend/tests/e2e_ui && ./scripts/start-e2e-env.sh && pytest -v -n 4
 ```
 
 **Frontend:**
-```powershell
-cd frontend-nextjs
-npm test
+```bash
+cd frontend-nextjs && npm test
 ```
 
 ### Type Checking
 
-**Frontend TypeScript:**
-```powershell
-cd frontend-nextjs
-npm run type-check
+**Backend (mypy):**
+```bash
+cd backend && mypy --config-file mypy.ini core/ api/
+```
+
+**Frontend (TypeScript):**
+```bash
+cd frontend-nextjs && npx tsc --noEmit
 ```
 
 ## Architecture Overview
 
 ```
 ATOM Platform
-├── backend/              # Python/FastAPI API server
-│   ├── main_api_app.py  # Main entry point
-│   ├── core/            # Core functionality
-│   ├── integrations/    # Third-party integrations
+├── backend/              # Python 3.11 + FastAPI API server
+│   ├── main_api_app.py  # Main entry point (v8.0.0, 197 routers)
+│   ├── minimal_app.py   # Smoke subset (~125 routes)
+│   ├── core/            # Core business logic
+│   ├── api/             # Route handlers
+│   ├── tools/           # Agent tools
+│   ├── integrations/    # 44+ integrations
+│   ├── llm/             # LLM providers, BYOK, gateway
+│   ├── tests/           # 1250+ test files
 │   └── requirements.txt # Python dependencies
 │
-└── frontend-nextjs/     # Next.js web application
-    ├── pages/           # Next.js pages
-    ├── components/      # React components
+└── frontend-nextjs/     # Next.js 16.2.2 (Pages Router)
+    ├── pages/           # Next.js pages (Pages Router)
+    ├── components/      # React 18.3 components
+    ├── hooks/           # Custom hooks
     ├── lib/             # Utilities
     └── package.json     # Node.js dependencies
 ```
 
 ## Next Steps
 
-1. **Configure API Keys**: Update `.env` with your actual API keys
-2. **Set up Database**: Configure PostgreSQL if needed (optional)
-3. **Explore API**: Visit http://localhost:8001/docs
-4. **Test Features**: Try creating workflows, integrations, etc.
+1. **Configure API Keys**: Update `backend/.env` with your actual API keys
+2. **Explore API**: Visit http://localhost:8001/docs
+3. **Test Features**: Try creating workflows, integrations, etc.
+4. **Read the docs**: [Documentation Index](../INDEX.md)
 
 ## Getting Help
 
 - Check the [API Documentation](http://localhost:8001/docs) when running
 - Review error messages in terminal output
-- Check browser console for frontend errors
-- Refer to `DEPLOYMENT_GUIDE.md` for production setup
+- Read `CLAUDE.md` in the repo root for the engineering reference
+- File issues at https://github.com/rush86999/atom/issues
 
 ---
 
-**Happy coding! 🚀**
+*Last Updated: August 2026*

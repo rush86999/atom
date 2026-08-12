@@ -1,26 +1,38 @@
 """
 E2E Tests for Canvas Chart Presentations.
 
-Tests verify all chart types (line, bar, pie) render correctly with:
-- Proper data points and values
-- Axes labels and titles
-- Tooltips on hover
-- Legends with correct items
-- Responsive containers
+Tests verify all chart types (line, bar, pie) render correctly through the
+REAL rendering path — no phantom state injection:
 
-Chart Components:
-- LineChartCanvas: timestamp/value data with dots
-- BarChartCanvas: category/value data with bars
-- PieChartCanvas: segment data with labels
+1. A chart canvas is created as `Canvas` + `CanvasAudit` rows in the e2e
+   database via `tests/canvas_helpers.create_chart_canvas()` (mirroring what
+   `tools/canvas_tool.present_chart()` persists).
+2. Tests navigate to `http://localhost:3001/canvas/{id}`, where
+   `pages/canvas/[id].tsx` loads `/api/canvas/{id}` and `CanvasPanel` renders
+   the Recharts component (LineChartCanvas/BarChartCanvas/PieChartCanvas).
+
+Chart data shapes (from frontend-nextjs/components/canvas/*.tsx):
+- LineChartCanvas: [{timestamp, value, label?}] — dots
+- BarChartCanvas:  [{name, value}] — bars
+- PieChartCanvas:  [{name, value}] — sectors with labels
 
 Uses CanvasChartPage Page Object for chart interactions.
 """
 
 import pytest
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 from uuid import uuid4
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
+from sqlalchemy.orm import Session
+
+# Add backend to path for imports
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+
 from tests.e2e_ui.pages.page_objects import CanvasChartPage
+from tests.e2e_ui.tests.canvas_helpers import create_chart_canvas
+from core.models import User
 
 
 # =============================================================================
@@ -36,10 +48,6 @@ def create_test_chart_data(chart_type: str, point_count: int = 5) -> list[dict]:
 
     Returns:
         list[dict]: Chart data points
-
-    Example:
-        data = create_test_chart_data("line", 5)
-        assert len(data) == 5
     """
     unique_id = str(uuid4())[:8]
     data = []
@@ -70,76 +78,19 @@ def create_test_chart_data(chart_type: str, point_count: int = 5) -> list[dict]:
     return data
 
 
-def trigger_chart_canvas(page: Page, chart_type: str, data: list[dict], title: str = None) -> str:
-    """Trigger chart canvas presentation via WebSocket simulation.
-
-    Simulates canvas:update WebSocket message to trigger chart rendering.
-    Uses page.evaluate() to inject canvas state directly.
-
-    Args:
-        page: Playwright page instance
-        chart_type: Type of chart ("line", "bar", "pie")
-        data: Chart data points
-        title: Optional chart title
-
-    Returns:
-        str: Canvas ID for the created chart
-
-    Example:
-        canvas_id = trigger_chart_canvas(page, "line", data, "Sales Data")
-        assert canvas_id is not None
-    """
-    canvas_id = f"chart-{chart_type}-{uuid4()}"
-
-    # Determine component type
-    component_map = {
-        "line": "line_chart",
-        "bar": "bar_chart",
-        "pie": "pie_chart"
-    }
-    component_type = component_map.get(chart_type, "line_chart")
-
-    # Simulate canvas state registration (chart component does this via useEffect)
-    chart_state = {
-        "canvas_id": canvas_id,
-        "canvas_type": "generic",
-        "component": component_type,
-        "chart_type": chart_type,
-        "data_points": data,
-        "title": title,
-        "timestamp": "2024-02-23T12:00:00Z"
-    }
-
-    # Register with window.atom.canvas API (if available)
-    page.evaluate("""
-        ([canvasId, state]) => {
-            if (!window.atom) window.atom = {};
-            if (!window.atom.canvas) {
-                window.atom.canvas = {
-                    getState: () => null,
-                    getAllStates: () => [],
-                    subscribe: () => () => {},
-                    subscribeAll: () => () => {}
-                };
-            }
-            // Store canvas state
-            window.atom.canvas[canvasId] = state;
-        }
-    """, [canvas_id, chart_state])
-
-    return canvas_id
+def open_chart_canvas(page: Page, canvas_id: str) -> CanvasChartPage:
+    """Navigate to the real /canvas/{id} route and wait for the chart."""
+    page.goto(f"http://localhost:3001/canvas/{canvas_id}")
+    page.wait_for_load_state("networkidle")
+    page.wait_for_selector(
+        ".recharts-wrapper, .recharts-line-chart, .recharts-bar-chart, .recharts-pie-chart",
+        timeout=10000,
+    )
+    return CanvasChartPage(page)
 
 
 def wait_for_chart_render(page: Page, timeout: int = 3000) -> None:
-    """Wait for chart to finish rendering.
-
-    Args:
-        page: Playwright page instance
-        timeout: Maximum time to wait in milliseconds
-
-    Example:
-        wait_for_chart_render(page, timeout=5000)
-    """
+    """Wait for chart to finish rendering."""
     from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
     try:
         page.wait_for_selector(
@@ -154,18 +105,19 @@ def wait_for_chart_render(page: Page, timeout: int = 3000) -> None:
 # Line Chart Tests
 # =============================================================================
 
-def test_line_chart_renders(page: Page):
+def test_line_chart_renders(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test line chart renders with correct SVG structure.
 
     GIVEN line chart data with 5 points
-    WHEN chart is triggered
+    WHEN canvas is opened via /canvas/{id}
     THEN line_chart_svg should be visible
     AND chart type should be "line"
     """
-    chart_page = CanvasChartPage(page)
+    user, _ = authenticated_user
     data = create_test_chart_data("line", 5)
-    trigger_chart_canvas(page, "line", data, "Test Line Chart")
-    wait_for_chart_render(page)
+    canvas_id = create_chart_canvas(db_session, user, "line_chart", data, "Test Line Chart")
+
+    chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
     # Verify line chart SVG is visible
     assert chart_page.is_loaded(), "Line chart should be loaded"
@@ -173,19 +125,19 @@ def test_line_chart_renders(page: Page):
     assert chart_page.line_chart_svg.is_visible(), "Line chart SVG should be visible"
 
 
-def test_line_chart_data_points(page: Page):
+def test_line_chart_data_points(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test line chart displays correct number of data points.
 
     GIVEN line chart with known data values
     WHEN chart renders
     THEN data point count should match input
-    AND timestamps should be on X axis
     """
-    chart_page = CanvasChartPage(page)
+    user, _ = authenticated_user
     expected_count = 7
     data = create_test_chart_data("line", expected_count)
-    trigger_chart_canvas(page, "line", data, "Data Points Test")
-    wait_for_chart_render(page)
+    canvas_id = create_chart_canvas(db_session, user, "line_chart", data, "Data Points Test")
+
+    chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
     # Verify data point count
     actual_count = chart_page.get_data_point_count()
@@ -195,26 +147,25 @@ def test_line_chart_data_points(page: Page):
     assert chart_page.verify_line_chart_data(data), "Data points should match"
 
 
-def test_line_chart_tooltip(page: Page):
+def test_line_chart_tooltip(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test line chart tooltip appears on hover.
 
     GIVEN line chart with data points
     WHEN hovering over a data point
     THEN tooltip should appear with correct value
-    AND tooltip should show formatted data
     """
-    chart_page = CanvasChartPage(page)
+    user, _ = authenticated_user
     data = create_test_chart_data("line", 5)
-    trigger_chart_canvas(page, "line", data, "Tooltip Test")
-    wait_for_chart_render(page)
+    canvas_id = create_chart_canvas(db_session, user, "line_chart", data, "Tooltip Test")
+
+    chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
     # Hover over first data point
     chart_page.hover_data_point(0)
-    page.wait_for_timeout(300)  # Wait for tooltip animation
+    authenticated_page.wait_for_timeout(300)  # Wait for tooltip animation
 
     # Verify tooltip appears
     tooltip_text = chart_page.get_tooltip_text()
-    # Tooltip should contain some data (format varies by Recharts)
     assert chart_page.chart_tooltip.is_visible() or len(tooltip_text) > 0, \
         "Tooltip should appear on hover"
 
@@ -223,18 +174,19 @@ def test_line_chart_tooltip(page: Page):
 # Bar Chart Tests
 # =============================================================================
 
-def test_bar_chart_renders(page: Page):
+def test_bar_chart_renders(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test bar chart renders with correct SVG structure.
 
     GIVEN bar chart data with categories
-    WHEN chart is triggered
+    WHEN canvas is opened via /canvas/{id}
     THEN bar_chart_svg should be visible
     AND bars should be rendered
     """
-    chart_page = CanvasChartPage(page)
+    user, _ = authenticated_user
     data = create_test_chart_data("bar", 4)
-    trigger_chart_canvas(page, "bar", data, "Test Bar Chart")
-    wait_for_chart_render(page)
+    canvas_id = create_chart_canvas(db_session, user, "bar_chart", data, "Test Bar Chart")
+
+    chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
     # Verify bar chart is visible
     assert chart_page.is_loaded(), "Bar chart should be loaded"
@@ -242,22 +194,22 @@ def test_bar_chart_renders(page: Page):
     assert chart_page.bar_chart_svg.is_visible(), "Bar chart SVG should be visible"
 
 
-def test_bar_chart_categories(page: Page):
+def test_bar_chart_categories(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test bar chart displays categories on X axis.
 
     GIVEN bar chart with named categories
     WHEN chart renders
-    THEN X axis should show category names
-    AND Y axis should show numeric values
+    THEN bar count matches categories
     """
-    chart_page = CanvasChartPage(page)
+    user, _ = authenticated_user
     data = [
         {"name": "Category A", "value": 100},
         {"name": "Category B", "value": 200},
         {"name": "Category C", "value": 150}
     ]
-    trigger_chart_canvas(page, "bar", data, "Categories Test")
-    wait_for_chart_render(page)
+    canvas_id = create_chart_canvas(db_session, user, "bar_chart", data, "Categories Test")
+
+    chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
     # Verify bar count matches categories
     bar_count = chart_page.get_data_point_count()
@@ -267,18 +219,18 @@ def test_bar_chart_categories(page: Page):
     assert chart_page.verify_bar_chart_data(data), "Bar data should match"
 
 
-def test_bar_chart_colors(page: Page):
+def test_bar_chart_colors(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test bar chart uses fill color for bars.
 
     GIVEN bar chart with data
     WHEN chart renders
     THEN bars should have fill color
-    AND color should match expected value
     """
-    chart_page = CanvasChartPage(page)
+    user, _ = authenticated_user
     data = create_test_chart_data("bar", 3)
-    trigger_chart_canvas(page, "bar", data, "Colors Test")
-    wait_for_chart_render(page)
+    canvas_id = create_chart_canvas(db_session, user, "bar_chart", data, "Colors Test")
+
+    chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
     # Verify bars have fill color
     colors = chart_page.get_chart_colors()
@@ -292,18 +244,19 @@ def test_bar_chart_colors(page: Page):
 # Pie Chart Tests
 # =============================================================================
 
-def test_pie_chart_renders(page: Page):
+def test_pie_chart_renders(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test pie chart renders with correct SVG structure.
 
     GIVEN pie chart data with segments
-    WHEN chart is triggered
+    WHEN canvas is opened via /canvas/{id}
     THEN pie_chart_svg should be visible
     AND all segments should be present
     """
-    chart_page = CanvasChartPage(page)
+    user, _ = authenticated_user
     data = create_test_chart_data("pie", 4)
-    trigger_chart_canvas(page, "pie", data, "Test Pie Chart")
-    wait_for_chart_render(page)
+    canvas_id = create_chart_canvas(db_session, user, "pie_chart", data, "Test Pie Chart")
+
+    chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
     # Verify pie chart is visible
     assert chart_page.is_loaded(), "Pie chart should be loaded"
@@ -311,19 +264,19 @@ def test_pie_chart_renders(page: Page):
     assert chart_page.pie_chart_svg.is_visible(), "Pie chart SVG should be visible"
 
 
-def test_pie_chart_labels(page: Page):
+def test_pie_chart_labels(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test pie chart displays labels on segments.
 
     GIVEN pie chart with segment data
     WHEN chart renders
     THEN labels should appear on/near segments
-    AND labels should show "name: value" format
-    AND COLORS array should cycle correctly
+    AND all segments present
     """
-    chart_page = CanvasChartPage(page)
+    user, _ = authenticated_user
     data = create_test_chart_data("pie", 3)
-    trigger_chart_canvas(page, "pie", data, "Labels Test")
-    wait_for_chart_render(page)
+    canvas_id = create_chart_canvas(db_session, user, "pie_chart", data, "Labels Test")
+
+    chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
     # Verify all segments present
     sector_count = chart_page.get_data_point_count()
@@ -333,25 +286,24 @@ def test_pie_chart_labels(page: Page):
     assert chart_page.verify_pie_chart_data(data), "Pie data should match"
 
 
-def test_pie_chart_legend(page: Page):
+def test_pie_chart_legend(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test pie chart displays legend with segment names.
 
     GIVEN pie chart with segment data
     WHEN chart renders
     THEN legend should be displayed
-    AND legend items should match data names
     """
-    chart_page = CanvasChartPage(page)
+    user, _ = authenticated_user
     data = create_test_chart_data("pie", 4)
-    trigger_chart_canvas(page, "pie", data, "Legend Test")
-    wait_for_chart_render(page)
+    canvas_id = create_chart_canvas(db_session, user, "pie_chart", data, "Legend Test")
+
+    chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
     # Verify legend is displayed
     assert chart_page.has_legend(), "Pie chart should have legend"
 
     # Verify legend items (if available)
     legend_items = chart_page.get_legend_items()
-    # Legend might be empty for some configurations, so just check it doesn't error
     assert isinstance(legend_items, list), "Legend items should be a list"
 
 
@@ -359,7 +311,7 @@ def test_pie_chart_legend(page: Page):
 # Common Chart Tests
 # =============================================================================
 
-def test_chart_title_displays(page: Page):
+def test_chart_title_displays(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test chart title displays above all chart types.
 
     GIVEN charts with titles
@@ -367,41 +319,42 @@ def test_chart_title_displays(page: Page):
     THEN title should appear above chart
     AND title text should match input
     """
-    chart_page = CanvasChartPage(page)
+    user, _ = authenticated_user
 
     for chart_type in ["line", "bar", "pie"]:
         title = f"Test {chart_type.title()} Chart"
         data = create_test_chart_data(chart_type, 3)
-        trigger_chart_canvas(page, chart_type, data, title)
-        wait_for_chart_render(page)
+        canvas_id = create_chart_canvas(db_session, user, f"{chart_type}_chart", data, title)
+
+        chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
         # Verify title displays
         chart_title = chart_page.get_title()
         assert title in chart_title or chart_title == title, \
-            f"Chart title should be displayed for {chart_type}"
+            f"Chart title should be displayed for {chart_type}, got '{chart_title}'"
 
 
-def test_chart_responsive(page: Page):
+def test_chart_responsive(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test chart uses ResponsiveContainer for flexibility.
 
     GIVEN any chart type
     WHEN chart renders
     THEN chart should use ResponsiveContainer
-    AND chart should fit container width
     """
-    chart_page = CanvasChartPage(page)
+    user, _ = authenticated_user
 
     for chart_type in ["line", "bar"]:
         data = create_test_chart_data(chart_type, 3)
-        trigger_chart_canvas(page, chart_type, data, "Responsive Test")
-        wait_for_chart_render(page)
+        canvas_id = create_chart_canvas(db_session, user, f"{chart_type}_chart", data, "Responsive Test")
+
+        chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
         # Verify ResponsiveContainer wrapper exists
         assert chart_page.chart_container.is_visible(), \
             f"Chart {chart_type} should have ResponsiveContainer wrapper"
 
 
-def test_all_chart_types_use_unique_data(page: Page):
+def test_all_chart_types_use_unique_data(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test that unique data prevents cross-test pollution.
 
     GIVEN multiple charts with unique data
@@ -409,23 +362,23 @@ def test_all_chart_types_use_unique_data(page: Page):
     THEN each chart should show its own data
     AND no data mixing should occur
     """
-    chart_page = CanvasChartPage(page)
+    user, _ = authenticated_user
 
     # Create three charts with different data
     line_data = create_test_chart_data("line", 3)
     bar_data = create_test_chart_data("bar", 4)
     pie_data = create_test_chart_data("pie", 5)
 
-    trigger_chart_canvas(page, "line", line_data, "Line Chart")
-    wait_for_chart_render(page)
+    line_id = create_chart_canvas(db_session, user, "line_chart", line_data, "Line Chart")
+    chart_page = open_chart_canvas(authenticated_page, line_id)
     line_count = chart_page.get_data_point_count()
 
-    trigger_chart_canvas(page, "bar", bar_data, "Bar Chart")
-    wait_for_chart_render(page)
+    bar_id = create_chart_canvas(db_session, user, "bar_chart", bar_data, "Bar Chart")
+    chart_page = open_chart_canvas(authenticated_page, bar_id)
     bar_count = chart_page.get_data_point_count()
 
-    trigger_chart_canvas(page, "pie", pie_data, "Pie Chart")
-    wait_for_chart_render(page)
+    pie_id = create_chart_canvas(db_session, user, "pie_chart", pie_data, "Pie Chart")
+    chart_page = open_chart_canvas(authenticated_page, pie_id)
     pie_count = chart_page.get_data_point_count()
 
     # Verify each chart has correct data count
@@ -438,38 +391,30 @@ def test_all_chart_types_use_unique_data(page: Page):
 # Chart Integration Tests
 # =============================================================================
 
-def test_chart_legend_displays_for_all_types(page: Page):
-    """Test legend displays for all chart types.
-
-    GIVEN line, bar, and pie charts
-    WHEN charts render
-    THEN each should have a legend
-    """
-    chart_page = CanvasChartPage(page)
+def test_chart_legend_displays_for_all_types(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
+    """Test legend displays for all chart types."""
+    user, _ = authenticated_user
 
     for chart_type in ["line", "bar", "pie"]:
         data = create_test_chart_data(chart_type, 3)
-        trigger_chart_canvas(page, chart_type, data, f"{chart_type.title()} Legend Test")
-        wait_for_chart_render(page)
+        canvas_id = create_chart_canvas(db_session, user, f"{chart_type}_chart", data, f"{chart_type.title()} Legend Test")
+
+        chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
         # All charts should have legend by default
         has_legend = chart_page.has_legend()
         assert has_legend, f"{chart_type.title()} chart should have legend"
 
 
-def test_chart_grid_lines_for_cartesian_charts(page: Page):
-    """Test grid lines display for Cartesian charts (line, bar).
-
-    GIVEN line and bar charts
-    WHEN charts render
-    THEN grid lines should be visible
-    """
-    chart_page = CanvasChartPage(page)
+def test_chart_grid_lines_for_cartesian_charts(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
+    """Test grid lines display for Cartesian charts (line, bar)."""
+    user, _ = authenticated_user
 
     for chart_type in ["line", "bar"]:
         data = create_test_chart_data(chart_type, 3)
-        trigger_chart_canvas(page, chart_type, data, "Grid Lines Test")
-        wait_for_chart_render(page)
+        canvas_id = create_chart_canvas(db_session, user, f"{chart_type}_chart", data, "Grid Lines Test")
+
+        chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
         # Cartesian charts have grid lines
         # Note: grid_lines may not be visible if strokeDasharray makes them very faint
@@ -477,38 +422,30 @@ def test_chart_grid_lines_for_cartesian_charts(page: Page):
         _ = chart_page.grid_lines.count()  # Should not raise error
 
 
-def test_chart_colors_extractable(page: Page):
-    """Test chart colors can be extracted from SVG.
-
-    GIVEN all chart types
-    WHEN charts render
-    THEN colors should be extractable from SVG
-    """
-    chart_page = CanvasChartPage(page)
+def test_chart_colors_extractable(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
+    """Test chart colors can be extracted from SVG."""
+    user, _ = authenticated_user
 
     for chart_type in ["line", "bar", "pie"]:
         data = create_test_chart_data(chart_type, 3)
-        trigger_chart_canvas(page, chart_type, data, "Color Extraction Test")
-        wait_for_chart_render(page)
+        canvas_id = create_chart_canvas(db_session, user, f"{chart_type}_chart", data, "Color Extraction Test")
+
+        chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
         # Extract colors
         colors = chart_page.get_chart_colors()
         assert len(colors) > 0, f"{chart_type.title()} chart should have extractable colors"
 
 
-def test_chart_axes_labels_for_cartesian(page: Page):
-    """Test axes labels for Cartesian charts.
-
-    GIVEN line and bar charts
-    WHEN charts render
-    THEN X and Y axes should be present
-    """
-    chart_page = CanvasChartPage(page)
+def test_chart_axes_labels_for_cartesian(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
+    """Test axes labels for Cartesian charts."""
+    user, _ = authenticated_user
 
     for chart_type in ["line", "bar"]:
         data = create_test_chart_data(chart_type, 3)
-        trigger_chart_canvas(page, chart_type, data, "Axes Labels Test")
-        wait_for_chart_render(page)
+        canvas_id = create_chart_canvas(db_session, user, f"{chart_type}_chart", data, "Axes Labels Test")
+
+        chart_page = open_chart_canvas(authenticated_page, canvas_id)
 
         # Axes should exist (labels may be empty)
         _ = chart_page.get_x_axis_label()  # Should not error

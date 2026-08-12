@@ -2,6 +2,7 @@
 Chat Routes - API endpoints for the ATOM chat interface
 """
 import logging
+from datetime import datetime
 from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -51,6 +52,8 @@ class ChatMessageResponse(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata and structured actions")
     model: Optional[str] = Field(None, description="Which model produced the response")
     provider: Optional[str] = Field(None, description="Which provider served the response")
+    error_code: Optional[str] = Field(None, description="Structured error code (e.g. no_llm_provider, budget_exceeded)")
+    recovery_url: Optional[str] = Field(None, description="Recovery URL for structured errors")
 
 
 class ChatHistoryRequest(BaseModel):
@@ -250,27 +253,38 @@ async def send_chat_message(
             "no eligible llm providers",
         )
         if any(m in response_msg.lower() for m in _NO_PROVIDER_MARKERS):
-            return {
-                "success": False,
-                "error_code": "no_llm_provider",
-                "message": "You need an AI provider to use chat. Add an API key in Settings to get started.",
-                "recovery_url": "/settings/ai",
-                "session_id": request.session_id or "unknown",
-            }
+            return ChatMessageResponse(
+                success=False,
+                message="You need an AI provider to use chat. Add an API key in Settings to get started.",
+                session_id=response.get("session_id") or request.session_id or "unknown",
+                intent="unknown",
+                confidence=0.5,
+                suggested_actions=[],
+                requires_confirmation=False,
+                next_steps=[],
+                timestamp=datetime.utcnow().isoformat(),
+                error_code="no_llm_provider",
+                recovery_url="/settings/ai",
+            )
 
         # Budget-exceeded short-circuit: surface the structured signal so the
         # frontend can render a distinct budget-halted UI (mirrors the
         # no_llm_provider convention above). The orchestrator sets error_code
         # when the agent's budget gate halted the run.
         if response.get("error_code") == "budget_exceeded":
-            return {
-                "success": False,
-                "error_code": "budget_exceeded",
-                "message": response.get("message", "Budget limit reached — execution halted."),
-                "failure_reason": response.get("failure_reason"),
-                "recovery_url": response.get("recovery_url", "/settings/billing"),
-                "session_id": response.get("session_id", request.session_id or "unknown"),
-            }
+            return ChatMessageResponse(
+                success=False,
+                message=response.get("message", "Budget limit reached — execution halted."),
+                session_id=response.get("session_id") or request.session_id or "unknown",
+                intent="unknown",
+                confidence=0.5,
+                suggested_actions=[],
+                requires_confirmation=False,
+                next_steps=[],
+                timestamp=datetime.utcnow().isoformat(),
+                error_code="budget_exceeded",
+                recovery_url=response.get("recovery_url", "/settings/billing"),
+            )
 
         return ChatMessageResponse(
             success=response.get("success", True),

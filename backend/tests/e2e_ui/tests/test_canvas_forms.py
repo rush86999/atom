@@ -1,17 +1,23 @@
 """
-E2E tests for canvas form submission and validation.
+E2E tests for canvas form rendering, validation, and submission.
 
-These tests verify the complete form workflow including:
-- Form rendering with title and field types
-- Required field validation
-- Email pattern validation
-- Number min/max validation
-- Form submission with API integration
-- Form governance enforcement (SUPERVISED+ required)
-- Form state API access (window.atom.canvas.getState)
+These tests drive the REAL rendering path — no phantom state injection:
+1. A form canvas is created as `Canvas` + `CanvasAudit` rows in the e2e
+   database via `tests/canvas_helpers.create_form_canvas()`.
+2. Tests navigate to `http://localhost:3001/canvas/{id}`, where
+   `pages/canvas/[id].tsx` loads `/api/canvas/{id}` and `CanvasPanel` renders
+   the `InteractiveForm` component.
+3. Submission posts to the REAL backend endpoint `POST /api/canvas/submit`
+   (no mock), which persists a `CanvasAudit` row with action_type="submit".
 
-Tests use page.evaluate() to trigger form canvas presentations
-and page.route() to mock form submission API responses.
+Covered: title, all field types, required indicators, required/email/
+min-max validation, validation summary, real submission with success
+message + audit persistence, disabled button during submission.
+
+The governance-blocked submission test is skipped: the backend enforces
+governance only when the request carries an `agent_id`, and the frontend
+form submit path intentionally does not send one (user-driven submissions
+are not agent actions).
 
 Run with: pytest backend/tests/e2e_ui/tests/test_canvas_forms.py -v
 """
@@ -19,9 +25,9 @@ Run with: pytest backend/tests/e2e_ui/tests/test_canvas_forms.py -v
 import pytest
 import uuid
 import json
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
 from sqlalchemy.orm import Session
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 # Add backend to path for imports
 import os
@@ -29,125 +35,42 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 from tests.e2e_ui.pages.page_objects import CanvasFormPage, CanvasHostPage
-from core.models import User, AgentRegistry, AgentExecution, CanvasAudit
-from core.auth import get_password_hash
-from datetime import datetime
+from tests.e2e_ui.tests.canvas_helpers import create_form_canvas
+from core.models import User
 
 
-def create_test_form_schema(field_configs: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Create a test form schema with specified field configurations.
-
-    Args:
-        field_configs: List of field config dicts with keys:
-            - name, label, type, placeholder, defaultValue, required, validation, options
-
-    Returns:
-        dict: Form schema compatible with InteractiveForm component
-    """
-    return {
-        "canvas_type": "generic",
-        "canvas_id": f"form-{str(uuid.uuid4())}",
-        "timestamp": datetime.utcnow().isoformat(),
-        "component": "form",
-        "title": field_configs[0].get("form_title", "Test Form"),
-        "form_schema": {
-            "fields": field_configs
-        }
-    }
-
-
-def trigger_form_canvas(page: Page, schema: Dict[str, Any], title: str = "Test Form") -> str:
-    """Simulate WebSocket canvas:update event to trigger form canvas presentation.
-
-    This function uses page.evaluate() to directly dispatch the canvas event,
-    simulating what would happen when the backend sends a WebSocket message.
-
-    Args:
-        page: Playwright page
-        schema: Form schema with fields configuration
-        title: Form title
-
-    Returns:
-        str: Canvas ID for the triggered form
-    """
-    canvas_id = schema.get("canvas_id", f"form-{str(uuid.uuid4())}")
-
-    # Simulate WebSocket message by setting lastMessage in window
-    canvas_message = {
-        "type": "canvas:update",
-        "canvas_id": canvas_id,
-        "data": {
-            "component": "form",
-            "title": title,
-            "schema": schema
-        }
-    }
-
-    # Inject canvas message into window (simulates WebSocket delivery)
-    page.evaluate(f"(msg) => window.lastCanvasMessage = msg", canvas_message)
-
-    # Dispatch custom event to trigger canvas host useEffect
-    page.evaluate(f"""
-        () => {{
-            const event = new CustomEvent('canvas:update', {{
-                detail: {{ type: 'canvas:update' }}
-            }});
-            window.dispatchEvent(event);
-        }}
-    """)
-
-    return canvas_id
-
-
-def mock_canvas_submit_api(page: Page, response_data: Dict[str, Any], status_code: int = 200) -> None:
-    """Mock the /api/canvas/submit endpoint to return custom response.
-
-    Args:
-        page: Playwright page
-        response_data: Response data to return
-        status_code: HTTP status code
-    """
-    def handle_route(route):
-        route.fulfill(
-            status=status_code,
-            content_type="application/json",
-            body=json.dumps({
-                "success": status_code == 200,
-                "data": response_data,
-                "message": "Form submitted successfully" if status_code == 200 else "Submission failed"
-            })
-        )
-
-    page.route("http://localhost:8001/api/canvas/submit", handle_route)
+def open_form_canvas(page: Page, canvas_id: str) -> CanvasFormPage:
+    """Navigate to the real /canvas/{id} route and wait for the form."""
+    page.goto(f"http://localhost:3001/canvas/{canvas_id}")
+    page.wait_for_load_state("networkidle")
+    canvas_host = CanvasHostPage(page)
+    canvas_host.wait_for_canvas_visible(timeout=10000)
+    return CanvasFormPage(page)
 
 
 # ============================================================================
 # Form Rendering Tests
 # ============================================================================
 
-def test_form_renders_with_title(authenticated_page: Page):
+def test_form_renders_with_title(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test that form displays title correctly."""
-    # Create form schema with title
-    form_schema = create_test_form_schema([
-        {
-            "form_title": "User Registration Form",
-            "name": "full_name",
-            "label": "Full Name",
-            "type": "text",
-            "placeholder": "Enter your full name",
-            "required": True
-        }
-    ])
+    user, _ = authenticated_user
+    canvas_id = create_form_canvas(
+        db_session,
+        user,
+        [
+            {
+                "name": "full_name",
+                "label": "Full Name",
+                "type": "text",
+                "placeholder": "Enter your full name",
+                "required": True,
+            }
+        ],
+        "User Registration Form",
+    )
 
-    # Trigger form canvas
-    canvas_id = trigger_form_canvas(authenticated_page, form_schema, "User Registration Form")
-
-    # Wait for canvas to appear
-    canvas_host = CanvasHostPage(authenticated_page)
-    canvas_host.wait_for_canvas_visible(timeout=5000)
-
-    # Initialize form page
-    form_page = CanvasFormPage(authenticated_page)
+    form_page = open_form_canvas(authenticated_page, canvas_id)
 
     # Verify form is loaded
     assert form_page.is_loaded() is True, "Form should be visible"
@@ -157,12 +80,11 @@ def test_form_renders_with_title(authenticated_page: Page):
     assert "User Registration Form" in title, f"Form title should contain 'User Registration Form', got: {title}"
 
 
-def test_form_field_types(authenticated_page: Page):
+def test_form_field_types(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test that all field types render correctly."""
-    # Create form with all field types
-    form_schema = create_test_form_schema([
+    user, _ = authenticated_user
+    fields = [
         {
-            "form_title": "All Field Types",
             "name": "text_field",
             "label": "Text Input",
             "type": "text",
@@ -195,19 +117,12 @@ def test_form_field_types(authenticated_page: Page):
             "label": "Checkbox Field",
             "type": "checkbox"
         }
-    ])
+    ]
+    canvas_id = create_form_canvas(db_session, user, fields, "All Field Types")
 
-    # Trigger form canvas
-    trigger_form_canvas(authenticated_page, form_schema)
+    form_page = open_form_canvas(authenticated_page, canvas_id)
 
-    # Wait for canvas to appear
-    canvas_host = CanvasHostPage(authenticated_page)
-    canvas_host.wait_for_canvas_visible(timeout=5000)
-
-    # Initialize form page
-    form_page = CanvasFormPage(authenticated_page)
-
-    # Verify all fields render
+    # Verify all fields render (data-testid="form-field-{name}")
     assert form_page.get_field_count() == 5, "Should have 5 form fields"
 
     # Verify each field type
@@ -225,40 +140,36 @@ def test_form_field_types(authenticated_page: Page):
     assert form_page.get_field_label("checkbox_field") == "Checkbox Field"
 
 
-def test_form_required_fields(authenticated_page: Page):
+def test_form_required_fields(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test that required fields show asterisk indicator."""
-    # Create form with mix of required and optional fields
-    form_schema = create_test_form_schema([
-        {
-            "form_title": "Required Fields Test",
-            "name": "required_field1",
-            "label": "Required Field 1",
-            "type": "text",
-            "required": True
-        },
-        {
-            "name": "optional_field",
-            "label": "Optional Field",
-            "type": "text",
-            "required": False
-        },
-        {
-            "name": "required_field2",
-            "label": "Required Field 2",
-            "type": "email",
-            "required": True
-        }
-    ])
+    user, _ = authenticated_user
+    canvas_id = create_form_canvas(
+        db_session,
+        user,
+        [
+            {
+                "name": "required_field1",
+                "label": "Required Field 1",
+                "type": "text",
+                "required": True
+            },
+            {
+                "name": "optional_field",
+                "label": "Optional Field",
+                "type": "text",
+                "required": False
+            },
+            {
+                "name": "required_field2",
+                "label": "Required Field 2",
+                "type": "email",
+                "required": True
+            }
+        ],
+        "Required Fields Test",
+    )
 
-    # Trigger form canvas
-    trigger_form_canvas(authenticated_page, form_schema)
-
-    # Wait for canvas to appear
-    canvas_host = CanvasHostPage(authenticated_page)
-    canvas_host.wait_for_canvas_visible(timeout=5000)
-
-    # Initialize form page
-    form_page = CanvasFormPage(authenticated_page)
+    form_page = open_form_canvas(authenticated_page, canvas_id)
 
     # Verify required fields have asterisk
     assert form_page.is_field_required("required_field1") is True, "required_field1 should be marked as required"
@@ -270,35 +181,31 @@ def test_form_required_fields(authenticated_page: Page):
 # Form Validation Tests
 # ============================================================================
 
-def test_form_required_field_validation(authenticated_page: Page):
+def test_form_required_field_validation(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test that required fields show validation errors when empty."""
-    # Create form with required fields
-    form_schema = create_test_form_schema([
-        {
-            "form_title": "Validation Test",
-            "name": "required_name",
-            "label": "Name",
-            "type": "text",
-            "required": True
-        },
-        {
-            "name": "required_email",
-            "label": "Email",
-            "type": "email",
-            "required": True,
-            "validation": {"pattern": r"^[^\s@]+@[^\s@]+\.[^\s@]+$"}
-        }
-    ])
+    user, _ = authenticated_user
+    canvas_id = create_form_canvas(
+        db_session,
+        user,
+        [
+            {
+                "name": "required_name",
+                "label": "Name",
+                "type": "text",
+                "required": True
+            },
+            {
+                "name": "required_email",
+                "label": "Email",
+                "type": "email",
+                "required": True,
+                "validation": {"pattern": r"^[^\s@]+@[^\s@]+\.[^\s@]+$"}
+            }
+        ],
+        "Validation Test",
+    )
 
-    # Trigger form canvas
-    trigger_form_canvas(authenticated_page, form_schema)
-
-    # Wait for canvas to appear
-    canvas_host = CanvasHostPage(authenticated_page)
-    canvas_host.wait_for_canvas_visible(timeout=5000)
-
-    # Initialize form page
-    form_page = CanvasFormPage(authenticated_page)
+    form_page = open_form_canvas(authenticated_page, canvas_id)
 
     # Try to submit without filling fields
     form_page.click_submit()
@@ -317,32 +224,28 @@ def test_form_required_field_validation(authenticated_page: Page):
     assert "required" in email_error.lower() or "email" in email_error.lower(), f"Expected 'required' error, got: {email_error}"
 
 
-def test_form_email_validation(authenticated_page: Page):
+def test_form_email_validation(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test email pattern validation."""
-    # Create form with email validation
-    form_schema = create_test_form_schema([
-        {
-            "form_title": "Email Validation Test",
-            "name": "email",
-            "label": "Email Address",
-            "type": "email",
-            "required": True,
-            "validation": {
-                "pattern": r"^[^\s@]+@[^\s@]+\.[^\s@]+$",
-                "custom": "Please enter a valid email address"
+    user, _ = authenticated_user
+    canvas_id = create_form_canvas(
+        db_session,
+        user,
+        [
+            {
+                "name": "email",
+                "label": "Email Address",
+                "type": "email",
+                "required": True,
+                "validation": {
+                    "pattern": r"^[^\s@]+@[^\s@]+\.[^\s@]+$",
+                    "custom": "Please enter a valid email address"
+                }
             }
-        }
-    ])
+        ],
+        "Email Validation Test",
+    )
 
-    # Trigger form canvas
-    trigger_form_canvas(authenticated_page, form_schema)
-
-    # Wait for canvas to appear
-    canvas_host = CanvasHostPage(authenticated_page)
-    canvas_host.wait_for_canvas_visible(timeout=5000)
-
-    # Initialize form page
-    form_page = CanvasFormPage(authenticated_page)
+    form_page = open_form_canvas(authenticated_page, canvas_id)
 
     # Enter invalid email
     form_page.fill_email_field("email", "invalid-email")
@@ -365,29 +268,25 @@ def test_form_email_validation(authenticated_page: Page):
     assert form_page.has_field_error("email") is False, "Error should clear for valid email"
 
 
-def test_form_number_min_max_validation(authenticated_page: Page):
+def test_form_number_min_max_validation(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test number field min/max validation."""
-    # Create form with number validation
-    form_schema = create_test_form_schema([
-        {
-            "form_title": "Number Validation Test",
-            "name": "age",
-            "label": "Age",
-            "type": "number",
-            "required": True,
-            "validation": {"min": 18, "max": 100}
-        }
-    ])
+    user, _ = authenticated_user
+    canvas_id = create_form_canvas(
+        db_session,
+        user,
+        [
+            {
+                "name": "age",
+                "label": "Age",
+                "type": "number",
+                "required": True,
+                "validation": {"min": 18, "max": 100}
+            }
+        ],
+        "Number Validation Test",
+    )
 
-    # Trigger form canvas
-    trigger_form_canvas(authenticated_page, form_schema)
-
-    # Wait for canvas to appear
-    canvas_host = CanvasHostPage(authenticated_page)
-    canvas_host.wait_for_canvas_visible(timeout=5005)
-
-    # Initialize form page
-    form_page = CanvasFormPage(authenticated_page)
+    form_page = open_form_canvas(authenticated_page, canvas_id)
 
     # Enter number below min
     form_page.fill_number_field("age", 15)
@@ -419,42 +318,38 @@ def test_form_number_min_max_validation(authenticated_page: Page):
     assert form_page.has_field_error("age") is False, "Error should clear for valid number"
 
 
-def test_form_validation_summary(authenticated_page: Page):
+def test_form_validation_summary(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test that multiple validation errors display simultaneously."""
-    # Create form with multiple required fields
-    form_schema = create_test_form_schema([
-        {
-            "form_title": "Multiple Validation Test",
-            "name": "name",
-            "label": "Name",
-            "type": "text",
-            "required": True
-        },
-        {
-            "name": "email",
-            "label": "Email",
-            "type": "email",
-            "required": True,
-            "validation": {"pattern": r"^[^\s@]+@[^\s@]+\.[^\s@]+$"}
-        },
-        {
-            "name": "age",
-            "label": "Age",
-            "type": "number",
-            "required": True,
-            "validation": {"min": 18, "max": 100}
-        }
-    ])
+    user, _ = authenticated_user
+    canvas_id = create_form_canvas(
+        db_session,
+        user,
+        [
+            {
+                "name": "name",
+                "label": "Name",
+                "type": "text",
+                "required": True
+            },
+            {
+                "name": "email",
+                "label": "Email",
+                "type": "email",
+                "required": True,
+                "validation": {"pattern": r"^[^\s@]+@[^\s@]+\.[^\s@]+$"}
+            },
+            {
+                "name": "age",
+                "label": "Age",
+                "type": "number",
+                "required": True,
+                "validation": {"min": 18, "max": 100}
+            }
+        ],
+        "Multiple Validation Test",
+    )
 
-    # Trigger form canvas
-    trigger_form_canvas(authenticated_page, form_schema)
-
-    # Wait for canvas to appear
-    canvas_host = CanvasHostPage(authenticated_page)
-    canvas_host.wait_for_canvas_visible(timeout=5000)
-
-    # Initialize form page
-    form_page = CanvasFormPage(authenticated_page)
+    form_page = open_form_canvas(authenticated_page, canvas_id)
 
     # Submit empty form
     form_page.click_submit()
@@ -481,49 +376,41 @@ def test_form_validation_summary(authenticated_page: Page):
 # Form Submission Tests
 # ============================================================================
 
-def test_form_submit_success(authenticated_page: Page, db_session: Session):
-    """Test successful form submission with API call."""
-    # Create form schema
-    form_schema = create_test_form_schema([
-        {
-            "form_title": "Submit Test",
-            "name": "name",
-            "label": "Name",
-            "type": "text",
-            "required": True
-        },
-        {
-            "name": "email",
-            "label": "Email",
-            "type": "email",
-            "required": True,
-            "validation": {"pattern": r"^[^\s@]+@[^\s@]+\.[^\s@]+$"}
-        }
-    ])
+def test_form_submit_success(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
+    """Test successful form submission against the REAL /api/canvas/submit endpoint.
 
-    # Trigger form canvas
-    canvas_id = trigger_form_canvas(authenticated_page, form_schema)
+    The backend persists a CanvasAudit row with action_type="submit"; the
+    form shows the success message.
+    """
+    user, _ = authenticated_user
+    canvas_id = create_form_canvas(
+        db_session,
+        user,
+        [
+            {
+                "name": "name",
+                "label": "Name",
+                "type": "text",
+                "required": True
+            },
+            {
+                "name": "email",
+                "label": "Email",
+                "type": "email",
+                "required": True,
+                "validation": {"pattern": r"^[^\s@]+@[^\s@]+\.[^\s@]+$"}
+            }
+        ],
+        "Submit Test",
+    )
 
-    # Wait for canvas to appear
-    canvas_host = CanvasHostPage(authenticated_page)
-    canvas_host.wait_for_canvas_visible(timeout=5000)
-
-    # Mock successful API response
-    mock_canvas_submit_api(authenticated_page, {
-        "submission_id": str(uuid.uuid4()),
-        "agent_execution_id": None,
-        "agent_id": None,
-        "governance_check": {"allowed": True}
-    })
-
-    # Initialize form page
-    form_page = CanvasFormPage(authenticated_page)
+    form_page = open_form_canvas(authenticated_page, canvas_id)
 
     # Fill form with valid data
     form_page.fill_text_field("name", "John Doe")
     form_page.fill_email_field("email", "john@example.com")
 
-    # Submit form
+    # Submit form (real POST /api/canvas/submit)
     form_page.click_submit()
 
     # Wait for submission to complete
@@ -535,40 +422,31 @@ def test_form_submit_success(authenticated_page: Page, db_session: Session):
     assert "submitted successfully" in success_msg.lower() or "check" in success_msg.lower(), f"Expected success message, got: {success_msg}"
 
 
-def test_form_submit_button_disabled_during_submission(authenticated_page: Page):
+def test_form_submit_button_disabled_during_submission(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
     """Test that submit button is disabled during submission."""
-    # Create form schema
-    form_schema = create_test_form_schema([
-        {
-            "form_title": "Submit Button Test",
-            "name": "name",
-            "label": "Name",
-            "type": "text",
-            "required": True
-        }
-    ])
+    user, _ = authenticated_user
+    canvas_id = create_form_canvas(
+        db_session,
+        user,
+        [
+            {
+                "name": "name",
+                "label": "Name",
+                "type": "text",
+                "required": True
+            }
+        ],
+        "Submit Button Test",
+    )
 
-    # Trigger form canvas
-    trigger_form_canvas(authenticated_page, form_schema)
+    form_page = open_form_canvas(authenticated_page, canvas_id)
 
-    # Wait for canvas to appear
-    canvas_host = CanvasHostPage(authenticated_page)
-    canvas_host.wait_for_canvas_visible(timeout=5000)
-
-    # Mock API response with delay (simulate slow submission)
+    # Delay the real submit endpoint so the in-flight state is observable
     def handle_route(route):
-        # Delay response to observe button state
         authenticated_page.wait_for_timeout(1000)
-        route.fulfill(
-            status=200,
-            content_type="application/json",
-            body=json.dumps({"success": True, "data": {"submission_id": str(uuid.uuid4())}})
-        )
+        route.continue_()
 
-    authenticated_page.route("http://localhost:8001/api/canvas/submit", handle_route)
-
-    # Initialize form page
-    form_page = CanvasFormPage(authenticated_page)
+    authenticated_page.route("**/api/canvas/submit", handle_route)
 
     # Fill form
     form_page.fill_text_field("name", "John Doe")
@@ -584,78 +462,35 @@ def test_form_submit_button_disabled_during_submission(authenticated_page: Page)
     assert form_page.is_submit_enabled() is False, "Button should be disabled during submission"
 
     # Wait for submission to complete
-    form_page.wait_for_submission(timeout=5000)
+    form_page.wait_for_submission(timeout=10000)
 
-    # Verify button re-enables after success (form is replaced by success message)
-    # After submission, form is replaced by success message, so button is no longer visible
+    # Verify success message appears (form is replaced by success message)
     assert form_page.is_success_message_visible() is True, "Success message should appear"
 
 
-def test_form_submit_with_agent_context(authenticated_page: Page, db_session: Session):
-    """Test form submission with agent_id and agent_execution_id context."""
-    # Create agent for testing
-    agent = AgentRegistry(
-        id=str(uuid.uuid4()),
-        name=f"TestAgent_{str(uuid.uuid4())[:8]}",
-        maturity_level="SUPERVISED",  # SUPERVISED+ can submit forms
-        agent_type="assistant",
-        description="Test agent for form submission",
-        system_prompt="You are a test agent",
-        capabilities=["present_canvas", "submit_form"],
-        config={},
-        is_active=True,
-        created_at=datetime.utcnow()
+def test_form_submit_with_agent_context(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
+    """Test form submission persists an audit trail with form data.
+
+    The real POST /api/canvas/submit writes a CanvasAudit row with
+    action_type="submit" and the submitted form_data — verify via the
+    backend's history endpoint (real API, not a mock).
+    """
+    user, token = authenticated_user
+    canvas_id = create_form_canvas(
+        db_session,
+        user,
+        [
+            {
+                "name": "user_input",
+                "label": "Input",
+                "type": "text",
+                "required": True
+            }
+        ],
+        "Agent Context Test",
     )
-    db_session.add(agent)
-    db_session.commit()
-    db_session.refresh(agent)
 
-    # Create form schema
-    form_schema = create_test_form_schema([
-        {
-            "form_title": "Agent Context Test",
-            "name": "user_input",
-            "label": "Input",
-            "type": "text",
-            "required": True
-        }
-    ])
-
-    # Trigger form canvas
-    canvas_id = trigger_form_canvas(authenticated_page, form_schema)
-
-    # Wait for canvas to appear
-    canvas_host = CanvasHostPage(authenticated_page)
-    canvas_host.wait_for_canvas_visible(timeout=5000)
-
-    # Mock API response that includes agent execution
-    mock_response = {
-        "submission_id": str(uuid.uuid4()),
-        "agent_execution_id": str(uuid.uuid4()),
-        "agent_id": agent.id,
-        "governance_check": {"allowed": True, "reason": "Agent has SUPERVISED maturity"}
-    }
-
-    # Intercept and verify request contains agent context
-    def handle_route(route):
-        # Get request body
-        request = route.request
-        body = json.loads(request.post_data)
-
-        # Verify agent context is included
-        # Note: In real scenario, this would be added by the frontend
-        # For this test, we just verify the mock response is used
-
-        route.fulfill(
-            status=200,
-            content_type="application/json",
-            body=json.dumps({"success": True, "data": mock_response})
-        )
-
-    authenticated_page.route("http://localhost:8001/api/canvas/submit", handle_route)
-
-    # Initialize form page
-    form_page = CanvasFormPage(authenticated_page)
+    form_page = open_form_canvas(authenticated_page, canvas_id)
 
     # Fill and submit form
     form_page.fill_text_field("user_input", "Test input")
@@ -667,120 +502,72 @@ def test_form_submit_with_agent_context(authenticated_page: Page, db_session: Se
     # Verify success
     assert form_page.is_success_message_visible() is True, "Form should submit successfully"
 
-    # Verify agent execution record exists (if we had real governance)
-    # In this mocked scenario, we verify the response structure
-    assert "agent_id" in mock_response, "Response should include agent_id"
-    assert "governance_check" in mock_response, "Response should include governance_check"
-
-
-def test_form_submit_governance_blocked(authenticated_page: Page, db_session: Session):
-    """Test that STUDENT agents cannot submit forms (governance enforcement)."""
-    # Create STUDENT agent (below SUPERVISED)
-    student_agent = AgentRegistry(
-        id=str(uuid.uuid4()),
-        name=f"StudentAgent_{str(uuid.uuid4())[:8]}",
-        maturity_level="STUDENT",  # STUDENT cannot submit forms
-        agent_type="assistant",
-        description="Test STUDENT agent",
-        system_prompt="You are a student agent",
-        capabilities=["present_canvas"],  # No submit_form capability
-        config={},
-        is_active=True,
-        created_at=datetime.utcnow()
+    # Verify the submit audit row exists via the real backend history endpoint
+    import requests
+    resp = requests.get(
+        f"http://localhost:8001/api/canvas/{canvas_id}/history",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=10,
     )
-    db_session.add(student_agent)
-    db_session.commit()
-    db_session.refresh(student_agent)
+    assert resp.status_code == 200, f"History endpoint failed: {resp.status_code}"
+    history = resp.json().get("history", [])
+    submit_rows = [h for h in history if h.get("action_type") == "submit"]
+    assert len(submit_rows) >= 1, "Submit audit row should exist after form submission"
+    details = submit_rows[0].get("details") or {}
+    assert details.get("form_data", {}).get("user_input") == "Test input", \
+        "Submitted form data should be persisted in the audit trail"
 
-    # Create form schema
-    form_schema = create_test_form_schema([
-        {
-            "form_title": "Governance Test",
-            "name": "data",
-            "label": "Data",
-            "type": "text",
-            "required": True
-        }
-    ])
 
-    # Trigger form canvas
-    trigger_form_canvas(authenticated_page, form_schema)
+def test_form_submit_governance_blocked(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
+    """Governance-blocked form submission (STUDENT agents).
 
-    # Wait for canvas to appear
-    canvas_host = CanvasHostPage(authenticated_page)
-    canvas_host.wait_for_canvas_visible(timeout=5000)
-
-    # Mock governance blocked response
-    def handle_route(route):
-        route.fulfill(
-            status=403,
-            content_type="application/json",
-            body=json.dumps({
-                "success": False,
-                "error_code": "GOVERNANCE_DENIED",
-                "message": "Form submission requires SUPERVISED maturity level or higher",
-                "details": {
-                    "agent_id": student_agent.id,
-                    "action": "submit_form",
-                    "required_level": "SUPERVISED",
-                    "current_level": "STUDENT"
-                }
-            })
-        )
-
-    authenticated_page.route("http://localhost:8001/api/canvas/submit", handle_route)
-
-    # Initialize form page
-    form_page = CanvasFormPage(authenticated_page)
-
-    # Fill and submit form
-    form_page.fill_text_field("data", "Test data")
-    form_page.click_submit()
-
-    # Wait for response
-    authenticated_page.wait_for_timeout(1000)
-
-    # Verify governance error is shown (form-level error)
-    # Note: The InteractiveForm component shows form-level error in errors._form
-    # After governance failure, the form should show error state
-    # In the current implementation, errors are shown in red text below fields
-
-    # The success message should NOT appear
-    assert form_page.is_success_message_visible() is False, "Success message should not appear for blocked submission"
+    Skipped: the backend enforces governance on /api/canvas/submit ONLY when
+    the request carries an `agent_id`; the InteractiveForm submit path is
+    user-driven and never sends one (there is no agent context in the canvas
+    detail route). Driving this test would require an agent-driven form
+    presentation (LLM/WebSocket flow) or an agent_id-carrying submit path
+    that the frontend does not implement — neither is available without an
+    LLM key.
+    """
+    pytest.skip(
+        "Backend governance on /api/canvas/submit only applies to agent_id-carrying "
+        "requests; the InteractiveForm path is user-driven and sends no agent_id. "
+        "Requires an agent-driven (LLM) form presentation to exercise."
+    )
 
 
 # ============================================================================
 # Form State API Tests
 # ============================================================================
 
-def test_form_state_api(authenticated_page: Page):
-    """Test that form state is accessible via window.atom.canvas.getState()."""
-    # Create form schema
-    form_schema = create_test_form_schema([
-        {
-            "form_title": "State API Test",
-            "name": "text_field",
-            "label": "Text Field",
-            "type": "text",
-            "required": True
-        },
-        {
-            "name": "number_field",
-            "label": "Number Field",
-            "type": "number",
-            "defaultValue": 42
-        }
-    ])
+def test_form_state_api(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
+    """Test that form state is accessible via window.atom.canvas.getState().
 
-    # Trigger form canvas
-    canvas_id = trigger_form_canvas(authenticated_page, form_schema)
+    InteractiveForm registers its state (FormCanvasState) with
+    window.atom.canvas on mount — the real AI-accessibility contract.
+    """
+    user, _ = authenticated_user
+    canvas_id = create_form_canvas(
+        db_session,
+        user,
+        [
+            {
+                "name": "text_field",
+                "label": "Text Field",
+                "type": "text",
+                "required": True
+            },
+            {
+                "name": "number_field",
+                "label": "Number Field",
+                "type": "number",
+                "defaultValue": 42
+            }
+        ],
+        "State API Test",
+    )
 
-    # Wait for canvas to appear
-    canvas_host = CanvasHostPage(authenticated_page)
-    canvas_host.wait_for_canvas_visible(timeout=5000)
-
-    # Initialize form page
-    form_page = CanvasFormPage(authenticated_page)
+    form_page = open_form_canvas(authenticated_page, canvas_id)
 
     # Fill form fields
     form_page.fill_text_field("text_field", "Test value")
@@ -789,8 +576,10 @@ def test_form_state_api(authenticated_page: Page):
     # Wait for state to update
     authenticated_page.wait_for_timeout(500)
 
-    # Access form state via canvas state API
-    form_state = authenticated_page.evaluate(f"(canvasId) => window.atom.canvas.getState(canvasId)", canvas_id)
+    # Access form state via canvas state API (registered by InteractiveForm)
+    form_state = authenticated_page.evaluate(
+        "(canvasId) => window.atom.canvas.getState(canvasId)", canvas_id
+    )
 
     # Verify state structure
     assert form_state is not None, "Form state should be accessible via API"

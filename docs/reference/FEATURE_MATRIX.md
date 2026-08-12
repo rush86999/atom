@@ -1,6 +1,7 @@
 # Atom Feature Matrix
 
 > **Compare Personal and Enterprise editions**
+> **Last Updated**: August 2026 · **Version**: v8.0.0
 
 | Feature | Personal | Enterprise | Description |
 |---------|----------|------------|-------------|

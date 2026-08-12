@@ -47,7 +47,7 @@ def make_platform_request(
         Dictionary with response data and status code
     """
     # Get user data and token
-    user_data = setup_test_user()
+    user_data = setup_test_user
     token = user_data.get("access_token")
 
     # Build headers
@@ -371,7 +371,7 @@ class TestAgentStreamingFormat:
             json_data={
                 "message": "Hello",
                 "agent_id": agent_id,
-                "user_id": setup_test_user()["user"].get("id", "test-user")
+                "user_id": setup_test_user["user"].get("id", "test-user")
             }
         )
 
@@ -394,7 +394,7 @@ class TestAgentStreamingFormat:
             json_data={
                 "message": "Hello",
                 "agent_id": agent_id,
-                "user_id": setup_test_user()["user"].get("id", "test-user")
+                "user_id": setup_test_user["user"].get("id", "test-user")
             }
         )
 
@@ -670,7 +670,7 @@ class TestCrossPlatformAgentExecution:
             json_data={
                 "message": "Say hello",
                 "agent_id": agent_id,
-                "user_id": setup_test_user()["user"].get("id", "test-user")
+                "user_id": setup_test_user["user"].get("id", "test-user")
             }
         )
 
@@ -693,7 +693,7 @@ class TestCrossPlatformAgentExecution:
             json_data={
                 "message": "Say hello",
                 "agent_id": agent_id,
-                "user_id": setup_test_user()["user"].get("id", "test-user")
+                "user_id": setup_test_user["user"].get("id", "test-user")
             }
         )
 
@@ -712,7 +712,7 @@ class TestCrossPlatformAgentExecution:
             json_data={
                 "message": "Say hello",
                 "agent_id": agent_id,
-                "user_id": setup_test_user()["user"].get("id", "test-user")
+                "user_id": setup_test_user["user"].get("id", "test-user")
             }
         )
 

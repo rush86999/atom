@@ -1852,8 +1852,12 @@ What is your next step?"""
             # Extract capabilities for graduation registration
             initial_capabilities = template.get("capabilities", [])
             
-            with SessionLocal() as db:
-                # Register capabilities at STUDENT level if they don't exist
+            with SessionLocal() as reset_db:
+                # Register capabilities at STUDENT level if they don't exist.
+                # NOTE: must NOT shadow the `db` parameter — doing so made
+                # the `if db is None:` fresh-session persist branch below
+                # unreachable (persistence ran on the already-closed
+                # reset-block session instead of a new one).
                 for capability in initial_capabilities:
                     self.graduation_service.reset_maturity(
                         "atom_specialty_init",
@@ -1968,10 +1972,9 @@ What is your next step?"""
                     return cat, count
             except Exception as e:
                 logger.warning(f"Failed to check for supervisors: {e}")
-                return "General", 1 # Default to assuming supervisor exists to be safe, or 0? 
-                                    # Safe fallback: assume 0 to force Meta Agent help? 
-                                    # Actually, if DB fails, maybe we WANT Meta Agent help.
-                                    # Let's return 0 on error to be safe (Meta Agent steps in).
+                # DB failure → assume NO supervisors so the Meta-Agent steps
+                # in as interim supervisor (documented intent; the earlier
+                # `return 1` contradicted it and left this unreachable).
                 return "General", 0
 
         student_category, supervisors_count = await asyncio.to_thread(_check_supervisors_sync)

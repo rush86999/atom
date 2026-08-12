@@ -19,7 +19,7 @@ Usage:
 
     # In a test with worker_id fixture
     user_data = user_factory(worker_id)
-    agent_data = agent_factory(worker_id, maturity_level="AUTONOMOUS")
+    agent_data = agent_factory(worker_id, status="autonomous")
 """
 
 from datetime import datetime, timedelta
@@ -89,22 +89,22 @@ def agent_factory(unique_test_id: str, **kwargs) -> Dict[str, Any]:
     Create agent test data.
 
     Default values include realistic agent names, descriptions, and capabilities.
-    Maturity level defaults to "INTERN" but can be overridden for different
+    Status defaults to "intern" but can be overridden for different
     governance scenarios.
 
     Args:
         unique_test_id: Unique identifier from worker_id + uuid4
-        **kwargs: Field overrides (name, category, maturity_level, capabilities, etc.)
+        **kwargs: Field overrides (name, category, status, capabilities, etc.)
 
     Returns:
         Dictionary with agent fields
 
     Example:
-        agent = agent_factory("gw0_abc123", maturity_level="AUTONOMOUS")
+        agent = agent_factory("gw0_abc123", status="autonomous")
         # Returns: {
         #     "name": "Test Agent gw0_abc1",
         #     "category": "testing",
-        #     "maturity_level": "AUTONOMOUS",
+        #     "status": "autonomous",
         #     "description": "Test agent created by gw0_abc123",
         #     "capabilities": ["markdown", "charts"],
         #     "confidence_score": 0.95
@@ -115,7 +115,7 @@ def agent_factory(unique_test_id: str, **kwargs) -> Dict[str, Any]:
     agent_data = {
         "name": f"Test Agent {short_id}",
         "category": "testing",
-        "maturity_level": "INTERN",
+        "status": "intern",
         "description": f"Test agent created by {unique_test_id}",
         "capabilities": ["markdown", "charts"],
         "confidence_score": 0.6,
@@ -125,13 +125,12 @@ def agent_factory(unique_test_id: str, **kwargs) -> Dict[str, Any]:
             "timeout": 30,
             "max_retries": 3
         },
-        "version": "1.0.0",
-        "status": "ACTIVE"
+        "version": "1.0.0"
     }
 
-    # Adjust confidence_score based on maturity_level if not overridden
-    if "maturity_level" in kwargs and "confidence_score" not in kwargs:
-        maturity = kwargs["maturity_level"].upper()
+    # Adjust confidence_score based on status if not overridden
+    if "status" in kwargs and "confidence_score" not in kwargs:
+        maturity = kwargs["status"].upper()
         confidence_map = {
             "STUDENT": 0.4,
             "INTERN": 0.6,

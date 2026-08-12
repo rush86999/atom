@@ -59,7 +59,7 @@ def test_screenshot_on_failure(page: Page):
     capture functionality by triggering it.
     """
     # Navigate to a known page
-    page.goto("/")
+    page.goto("http://localhost:3001/")
 
     # Deliberately fail to trigger screenshot capture
     # The hook should capture a screenshot before test completes
@@ -79,7 +79,7 @@ def test_video_captured_on_failure_in_ci(page: Page):
     capture functionality by triggering it. Only runs in CI.
     """
     # Navigate to a known page
-    page.goto("/")
+    page.goto("http://localhost:3001/")
 
     # Deliberately fail to trigger video capture
     # The hook should capture a video before test completes
@@ -98,7 +98,7 @@ def test_video_not_captured_locally(page: Page, monkeypatch):
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
 
     # This test passes - verify no video was created
-    page.goto("/")
+    page.goto("http://localhost:3001/")
     assert page.title() is not None
 
 
@@ -111,7 +111,7 @@ def test_screenshot_works_with_different_fixtures(page_type: str, request):
     the basic 'page' fixture and 'authenticated_page' fixture.
     """
     page = request.getfixturevalue(page_type)
-    page.goto("/")
+    page.goto("http://localhost:3001/")
     assert page.url is not None
 
 
@@ -211,7 +211,7 @@ def test_html_report_contains_required_elements(page: Page):
     happens during pytest run with --html flag).
     """
     # Navigate to base URL
-    page.goto("/")
+    page.goto("http://localhost:3001/")
 
     # Verify page loaded successfully
     assert page.url is not None

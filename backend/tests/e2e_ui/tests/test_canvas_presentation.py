@@ -1,155 +1,48 @@
 """
 E2E Tests for Canvas Presentation Workflows.
 
-Tests verify complete canvas workflows including:
-- Chart presentation (line, bar, pie)
-- Form submission and state changes
-- Accessibility tree validation
-- Canvas lifecycle management
+Tests verify complete canvas workflows through the REAL rendering path —
+no phantom state injection and no weakened "assert True" fallbacks:
+
+1. Chart presentation (line, bar, pie) via /canvas/{id} (DB-created canvases)
+2. Form submission and success state
+3. Agent-readable state exposure (the AI-accessibility contract)
+4. Canvas update lifecycle (PUT /api/canvas/{id} → WS broadcast → re-render)
+5. State serialization with complex data (unicode, special chars)
 
 Run with: pytest backend/tests/e2e_ui/tests/test_canvas_presentation.py -v
 """
 
 import pytest
+import re
 import uuid
+import json
 from playwright.sync_api import Page, expect
 from sqlalchemy.orm import Session
+from typing import Tuple
 
 # Add backend to path for imports
 import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
-from tests.e2e_ui.pages.page_objects import CanvasChartPage
-from core.models import User, CanvasAudit
-from core.auth import get_password_hash
-from datetime import datetime
+from tests.e2e_ui.pages.page_objects import CanvasHostPage, CanvasChartPage, CanvasFormPage
+from tests.e2e_ui.tests.canvas_helpers import (
+    create_canvas,
+    create_chart_canvas,
+    create_form_canvas,
+    create_markdown_canvas,
+)
+from core.models import User, Canvas, CanvasAudit
 
 
-# =============================================================================
-# Helper Functions
-# =============================================================================
-
-def create_test_user(db_session: Session, email: str, password: str) -> User:
-    """Create a test user in the database.
-
-    Args:
-        db_session: Database session
-        email: User email
-        password: Plain text password (will be hashed)
-
-    Returns:
-        User: Created user instance
-    """
-    user = User(
-        email=email,
-        username=f"canvase2e_{str(uuid.uuid4())[:8]}",
-        hashed_password=get_password_hash(password),
-        is_active=True,
-        status="active",
-        created_at=datetime.utcnow()
-    )
-
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-
-    return user
-
-
-def create_canvas_via_api(db_session: Session, canvas_id: str, canvas_type: str = "generic", user_id: str = None) -> CanvasAudit:
-    """Create a canvas via database for faster test setup.
-
-    Args:
-        db_session: Database session
-        canvas_id: Unique canvas identifier
-        canvas_type: Type of canvas (generic, chart, form, etc.)
-        user_id: User ID for canvas ownership
-
-    Returns:
-        CanvasAudit: Created canvas instance
-    """
-    canvas = CanvasAudit(
-        canvas_id=canvas_id,
-        action_type="present",
-        user_id=user_id or str(uuid.uuid4()),
-        timestamp=datetime.utcnow(),
-        metadata={
-            "component": "test_canvas",
-            "data_points": [],
-            "title": f"Test Canvas {canvas_id}",
-            "canvas_type": canvas_type,
-        },
-    )
-
-    db_session.add(canvas)
-    db_session.commit()
-    db_session.refresh(canvas)
-
-    return canvas
-
-
-def trigger_canvas_via_page(page: Page, canvas_type: str, data: dict) -> str:
-    """Trigger canvas presentation via page evaluation.
-
-    Simulates canvas state registration by injecting state into window.atom.canvas.
-
-    Args:
-        page: Playwright page instance
-        canvas_type: Type of canvas (chart, form, etc.)
-        data: Canvas data
-
-    Returns:
-        str: Canvas ID for the created canvas
-    """
-    canvas_id = f"canvas-{canvas_type}-{uuid.uuid4()}"
-
-    # Simulate canvas state registration
-    canvas_state = {
-        "canvas_id": canvas_id,
-        "canvas_type": "generic",
-        "component": f"{canvas_type}_component",
-        "data": data,
-        "timestamp": "2024-03-06T12:00:00Z"
-    }
-
-    # Register with window.atom.canvas API
-    page.evaluate("""
-        ([canvasId, state]) => {
-            if (!window.atom) window.atom = {};
-            if (!window.atom.canvas) {
-                window.atom.canvas = {
-                    getState: () => null,
-                    getAllStates: () => [],
-                    subscribe: () => () => {},
-                    subscribeAll: () => () => {}
-                };
-            }
-            window.atom.canvas[canvasId] = state;
-        }
-    """, [canvas_id, canvas_state])
-
-    return canvas_id
-
-
-def cleanup_test_canvas(db_session: Session, canvas_id: str):
-    """Cleanup test canvas after test.
-
-    Args:
-        db_session: Database session
-        canvas_id: Canvas ID to delete
-    """
-    try:
-        canvas = db_session.query(CanvasAudit).filter(
-            CanvasAudit.canvas_id == canvas_id
-        ).first()
-
-        if canvas:
-            db_session.delete(canvas)
-            db_session.commit()
-    except Exception as e:
-        # Log but don't fail test if cleanup fails
-        print(f"Warning: Failed to cleanup canvas {canvas_id}: {e}")
+def open_canvas(page: Page, canvas_id: str) -> CanvasHostPage:
+    """Navigate to the real /canvas/{id} route and wait for the host."""
+    authenticated_page.goto(f"http://localhost:3001/canvas/{canvas_id}")
+    authenticated_page.wait_for_load_state("networkidle")
+    canvas_page = CanvasHostPage(page)
+    canvas_page.wait_for_canvas_visible(timeout=10000)
+    return canvas_page
 
 
 # =============================================================================
@@ -157,186 +50,103 @@ def cleanup_test_canvas(db_session: Session, canvas_id: str):
 # =============================================================================
 
 @pytest.mark.e2e
-def test_canvas_chart_presentation(page: Page, db_session: Session):
-    """Test canvas chart presentation workflow.
+def test_canvas_chart_presentation(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
+    """Test chart canvas presentation workflow via the real /canvas/{id} route.
 
-    This test verifies:
-    1. Navigate to canvas page
-    2. Click "New Canvas" button
-    3. Select chart type (line)
-    4. Submit and wait for canvas rendering
-    5. Assert chart renders with correct attributes
-
-    Args:
-        page: Playwright page fixture
-        db_session: Database session fixture
+    Verifies:
+    1. Chart canvas created in the DB (as present_chart() would)
+    2. /canvas/{id} renders the Recharts line chart
+    3. Chart SVG + host container are visible
     """
-    # Navigate to canvas page
-    page.goto("http://localhost:3001/canvas")
-    page.wait_for_load_state("networkidle")
+    user, _ = authenticated_user
+    data = [
+        {"timestamp": "2024-02-23 12:00", "value": 10, "label": "A"},
+        {"timestamp": "2024-02-24 12:00", "value": 20, "label": "B"},
+        {"timestamp": "2024-02-25 12:00", "value": 30, "label": "C"},
+    ]
+    canvas_id = create_chart_canvas(db_session, user, "line_chart", data, "Sales Data")
 
-    try:
-        # Click "New Canvas" button
-        new_canvas_button = page.locator("button:has-text('New Canvas'), button:has-text('Create Canvas'), button:has-text('Add Canvas')").first
+    canvas_page = open_canvas(authenticated_page, canvas_id)
 
-        if new_canvas_button.is_visible():
-            new_canvas_button.click()
-            page.wait_for_timeout(500)
+    assert canvas_page.is_loaded() is True, "Canvas host should be loaded"
+    assert canvas_page.get_component_type() == "line_chart", "Badge should show line_chart"
 
-            # Select chart type
-            chart_type_button = page.locator("button[value='line'], .chart-type-line, label:has-text('Line Chart')").first
-
-            if chart_type_button.is_visible():
-                chart_type_button.click()
-
-                # Submit form
-                submit_button = page.locator("button[type='submit'], button:has-text('Create')").first
-                submit_button.click()
-
-                # Wait for canvas to render
-                page.wait_for_selector(".canvas-container, .chart-container, canvas", timeout=5000)
-
-                # Assert chart renders
-                canvas_element = page.locator("canvas, .chart-container, .recharts-wrapper").first
-                expect(canvas_element).to_be_visible(timeout=3000)
-
-                # Check for data-chart-type attribute
-                canvas_container = page.locator(".canvas-container").first
-                if canvas_container.is_visible():
-                    chart_type = canvas_container.get_attribute("data-chart-type")
-                    assert chart_type == "line" or chart_type is None, "Chart type should be line"
-    except:
-        # Canvas creation UI might not be fully implemented, create via API
-        unique_id = str(uuid.uuid4())[:8]
-        canvas_id = f"test-chart-{unique_id}"
-        create_canvas_via_api(db_session, canvas_id, "chart")
-
-        # Navigate to canvas page directly
-        page.goto(f"http://localhost:3001/canvas/{canvas_id}")
-        page.wait_for_load_state("networkidle")
-
-        # Verify canvas page loads
-        expect(page).to_have_url(/canvas\/.*/, timeout=3000)
-
-    # Cleanup
-    cleanup_test_canvas(db_session, canvas_id)
+    chart_page = CanvasChartPage(authenticated_page)
+    assert chart_page.is_loaded(), "Line chart should render"
+    assert chart_page.get_chart_type() == "line"
+    assert chart_page.get_data_point_count() == len(data)
 
 
 @pytest.mark.e2e
-def test_canvas_form_submission(page: Page, db_session: Session):
-    """Test canvas form submission workflow.
+def test_canvas_form_submission(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
+    """Test canvas form submission workflow via the real /canvas/{id} route.
 
-    This test verifies:
-    1. Create form canvas via API for faster setup
-    2. Navigate to canvas page
-    3. Fill form fields (email, message)
-    4. Submit form
-    5. Wait for success message
-    6. Assert canvas state changed to submitted
-
-    Args:
-        page: Playwright page fixture
-        db_session: Database session fixture
+    Verifies:
+    1. Form canvas created in the DB (as present_form() would)
+    2. /canvas/{id} renders the InteractiveForm
+    3. Filling + submitting shows the success state
     """
-    # Setup: Create form canvas via API
-    unique_id = str(uuid.uuid4())[:8]
-    canvas_id = f"test-form-{unique_id}"
-    canvas = create_canvas_via_api(db_session, canvas_id, "form")
+    user, _ = authenticated_user
+    canvas_id = create_form_canvas(
+        db_session,
+        user,
+        [
+            {"name": "email", "type": "email", "label": "Email", "required": True},
+            {"name": "message", "type": "text", "label": "Message", "required": True},
+        ],
+        "Contact Form",
+    )
 
-    # Navigate to canvas page
-    page.goto(f"http://localhost:3001/canvas/{canvas_id}")
-    page.wait_for_load_state("networkidle")
+    open_canvas(authenticated_page, canvas_id)
+    form_page = CanvasFormPage(authenticated_page)
 
-    try:
-        # Fill form fields
-        email_input = page.locator("input[name='email'], input[type='email'], input[placeholder*='email']").first
-        if email_input.is_visible():
-            email_input.fill(f"e2e{unique_id}@test.com")
+    assert form_page.is_loaded() is True, "Form should render"
 
-            message_input = page.locator("textarea[name='message'], textarea[placeholder*='message']").first
-            if message_input.is_visible():
-                message_input.fill("Test message from E2E test")
+    form_page.fill_email_field("email", f"e2e{uuid.uuid4()[:8]}@test.com")
+    form_page.fill_text_field("message", "Test message from E2E test")
+    form_page.click_submit()
 
-            # Submit form
-            submit_button = page.locator("button[type='submit'], button:has-text('Submit'), button:has-text('Send')").first
-            submit_button.click()
-
-            # Wait for success message
-            page.wait_for_selector(".success-message, .form-success, [role='status']", timeout=5000)
-
-            # Assert canvas state changed
-            canvas_state = page.locator(".canvas-state, .form-state, [data-canvas-state]").first
-            if canvas_state.is_visible():
-                expect(canvas_state).to_contain_text("submitted", timeout=3000)
-    except:
-        # Form UI might not be fully implemented, just verify page loads
-        assert page.url.endswith(canvas_id), "Should be on canvas page"
-
-    # Cleanup
-    cleanup_test_canvas(db_session, canvas_id)
+    form_page.wait_for_submission(timeout=5000)
+    assert form_page.is_success_message_visible() is True, "Success message should appear"
 
 
 @pytest.mark.e2e
-def test_canvas_accessibility_tree(page: Page, db_session: Session):
-    """Test canvas accessibility tree validation.
+def test_canvas_accessibility_tree(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
+    """Test the agent-readable state exposure (the app's accessibility layer).
 
-    This test verifies:
-    1. Navigate to canvas page with existing canvas
-    2. Get canvas state via window.atom.canvas API
-    3. Assert state contains required fields (type, data, timestamp)
-    4. Verify hidden accessibility tree exists
-
-    Args:
-        page: Playwright page fixture
-        db_session: Database session fixture
+    Verifies:
+    1. A rendered chart registers its state with window.atom.canvas
+    2. State contains required fields (canvas_id, component, timestamp)
+    3. State survives JSON serialization (agent read-back contract)
     """
-    # Setup: Create canvas via API
-    unique_id = str(uuid.uuid4())[:8]
-    canvas_id = f"test-a11y-{unique_id}"
-    canvas = create_canvas_via_api(db_session, canvas_id, "generic")
+    user, _ = authenticated_user
+    data = [
+        {"timestamp": "2024-02-23 12:00", "value": 100},
+        {"timestamp": "2024-02-24 12:00", "value": 150},
+    ]
+    canvas_id = create_chart_canvas(db_session, user, "line_chart", data, "A11y Canvas")
 
-    # Navigate to canvas page
-    page.goto(f"http://localhost:3001/canvas/{canvas_id}")
-    page.wait_for_load_state("networkidle")
+    open_canvas(authenticated_page, canvas_id)
 
-    try:
-        # Get canvas state via API
-        canvas_state = page.evaluate("window.atom.canvas.getState")
+    states = authenticated_page.evaluate(
+        "() => { if (window.atom?.canvas?.getAllStates) { return window.atom.canvas.getAllStates(); } return []; }"
+    )
+    assert isinstance(states, list)
+    chart_states = [
+        s["state"] for s in states
+        if (s.get("state") or {}).get("component") == "line_chart"
+    ]
+    assert len(chart_states) >= 1, "Line chart should register its state"
+    state = chart_states[0]
 
-        # Assert state is object (might be null if canvas not initialized)
-        assert canvas_state is None or isinstance(canvas_state, dict), "Canvas state should be object or null"
+    # Required fields
+    for field in ("canvas_id", "component", "timestamp"):
+        assert field in state, f"State should have required field '{field}'"
+        assert isinstance(state[field], str) and state[field], \
+            f"Field '{field}' should be a non-empty string"
 
-        if canvas_state:
-            # Verify required fields exist
-            if "canvas_id" in canvas_state:
-                assert canvas_state["canvas_id"] == canvas_id, "Canvas ID should match"
-            if "canvas_type" in canvas_state:
-                assert isinstance(canvas_state["canvas_type"], str), "Canvas type should be string"
-            if "timestamp" in canvas_state:
-                assert isinstance(canvas_state["timestamp"], str), "Timestamp should be string"
-
-        # Verify hidden accessibility tree exists
-        a11y_tree = page.locator("div[role='log'][aria-live], [data-canvas-state], .accessibility-tree")
-
-        # Check if any accessibility tree elements exist
-        a11y_count = a11y_tree.count()
-        assert a11y_count >= 0, "Accessibility tree check should not error"
-
-        # If accessibility tree exists, verify it's hidden
-        if a11y_count > 0:
-            first_a11y = a11y_tree.first
-            expect(first_a11y).to_have_attribute("role", "log")
-
-            # Check if hidden via display:none or similar
-            style = first_a11y.get_attribute("style") or ""
-            is_hidden = "display: none" in style or "display:none" in style
-            assert is_hidden, "Accessibility tree should be hidden"
-    except:
-        # Canvas API might not be fully implemented, just verify page loads
-        assert page.url.endswith(canvas_id), "Should be on canvas page"
-
-    # Cleanup
-    cleanup_test_canvas(db_session, canvas_id)
+    # JSON round-trip
+    assert json.loads(json.dumps(state)) == state, "State should survive JSON serialization"
 
 
 # =============================================================================
@@ -344,112 +154,57 @@ def test_canvas_accessibility_tree(page: Page, db_session: Session):
 # =============================================================================
 
 @pytest.mark.e2e
-def test_canvas_multiple_chart_types(page: Page, db_session: Session):
-    """Test multiple chart types render correctly.
+def test_canvas_multiple_chart_types(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
+    """Test multiple chart types render correctly via the real route."""
+    user, _ = authenticated_user
 
-    This test verifies:
-    1. Create line chart canvas
-    2. Create bar chart canvas
-    3. Create pie chart canvas
-    4. Verify each chart type renders with correct structure
+    for chart_type, component in [("line", "line_chart"), ("bar", "bar_chart"), ("pie", "pie_chart")]:
+        data = [
+            {"timestamp": f"P{i}", "value": i * 10} if chart_type == "line"
+            else {"name": f"Cat{i}", "value": i * 10}
+            for i in range(3)
+        ]
+        canvas_id = create_chart_canvas(db_session, user, component, data, f"{chart_type} chart")
 
-    Args:
-        page: Playwright page fixture
-        db_session: Database session fixture
-    """
-    unique_id = str(uuid.uuid4())[:8]
-    chart_types = ["line", "bar", "pie"]
-    canvas_ids = []
+        open_canvas(authenticated_page, canvas_id)
+        chart_page = CanvasChartPage(authenticated_page)
 
-    for chart_type in chart_types:
-        canvas_id = f"test-{chart_type}-{unique_id}"
-        canvas_ids.append(canvas_id)
-
-        # Create canvas via API
-        create_canvas_via_api(db_session, canvas_id, "chart")
-
-        # Trigger chart rendering via page
-        trigger_canvas_via_page(page, chart_type, {"type": chart_type})
-
-        # Navigate to canvas page
-        page.goto(f"http://localhost:3001/canvas/{canvas_id}")
-        page.wait_for_load_state("networkidle")
-
-        try:
-            # Verify chart renders
-            chart_container = page.locator(".canvas-container, .chart-container, .recharts-wrapper").first
-            expect(chart_container).to_be_visible(timeout=3000)
-        except:
-            # Chart rendering might not be fully implemented
-            assert page.url.endswith(canvas_id), "Should be on canvas page"
-
-    # Cleanup
-    for canvas_id in canvas_ids:
-        cleanup_test_canvas(db_session, canvas_id)
+        assert chart_page.is_loaded(), f"{chart_type} chart should render"
+        assert chart_page.get_chart_type() == chart_type, \
+            f"Expected {chart_type} chart type, got {chart_page.get_chart_type()}"
 
 
 @pytest.mark.e2e
-def test_canvas_state_serialization(page: Page, db_session: Session):
-    """Test canvas state serialization with complex data.
+def test_canvas_state_serialization(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
+    """Test canvas state serialization with complex data (real registration)."""
+    user, _ = authenticated_user
 
-    This test verifies:
-    1. Create canvas with complex data (nested objects, arrays, special chars)
-    2. Serialize state via API
-    3. Verify roundtrip preservation
-    4. Test special characters (Unicode, emoji, escape sequences)
+    complex_data = [
+        {"timestamp": "Line1\nLine2\tTabbed", "value": 42.195},
+        {"timestamp": "Unicode © ñ 🎨", "value": 7},
+        {"timestamp": "Escapes \\\"quoted\\\"", "value": -3},
+    ]
+    canvas_id = create_chart_canvas(db_session, user, "line_chart", complex_data, "Serial Test")
 
-    Args:
-        page: Playwright page fixture
-        db_session: Database session fixture
-    """
-    # Setup: Create canvas with complex data
-    unique_id = str(uuid.uuid4())[:8]
-    canvas_id = f"test-serial-{unique_id}"
+    open_canvas(authenticated_page, canvas_id)
 
-    # Complex test data
-    complex_data = {
-        "nested": {
-            "object": {
-                "with": {
-                    "deep": "nesting"
-                }
-            },
-            "array": [1, 2, 3, "four", {"five": 5}]
-        },
-        "special_chars": "Test with © Unicode ñ and emoji 🎨",
-        "escape_sequences": "Line1\nLine2\tTabbed\r\nWindows",
-        "numbers": 42.195,
-        "boolean": True,
-        "null_value": None
-    }
+    states = authenticated_page.evaluate(
+        "() => { if (window.atom?.canvas?.getAllStates) { return window.atom.canvas.getAllStates(); } return []; }"
+    )
+    chart_states = [
+        s["state"] for s in states
+        if (s.get("state") or {}).get("component") == "line_chart"
+    ]
+    assert len(chart_states) >= 1, "Chart state should be registered"
 
-    create_canvas_via_api(db_session, canvas_id, "generic")
-    trigger_canvas_via_page(page, "complex", complex_data)
-
-    # Navigate to canvas page
-    page.goto(f"http://localhost:3001/canvas/{canvas_id}")
-    page.wait_for_load_state("networkidle")
-
-    try:
-        # Get all canvas states
-        all_states = page.evaluate("window.atom.canvas.getAllStates")
-
-        # Verify we get an array (or object)
-        assert isinstance(all_states, (list, dict)), "getAllStates should return array or object"
-
-        # Verify our canvas is in the states
-        if isinstance(all_states, list):
-            found = any(state.get("canvas_id") == canvas_id for state in all_states)
-        else:
-            found = canvas_id in all_states
-
-        assert found or len(all_states) == 0, f"Canvas {canvas_id} should be in states or states empty"
-    except:
-        # Canvas API might not be fully implemented
-        assert True  # Test passes if API doesn't exist
-
-    # Cleanup
-    cleanup_test_canvas(db_session, canvas_id)
+    state = chart_states[0]
+    roundtripped = json.loads(json.dumps(state))
+    assert roundtripped == state, "Complex state should survive JSON round-trip"
+    assert state["data_points"][0]["x"] == "Line1\nLine2\tTabbed", \
+        "Special characters should be preserved"
+    assert state["data_points"][1]["x"] == "Unicode © ñ 🎨", \
+        "Unicode should be preserved"
+    assert state["data_points"][2]["y"] == -3, "Negative numbers should be preserved"
 
 
 # =============================================================================
@@ -457,52 +212,37 @@ def test_canvas_state_serialization(page: Page, db_session: Session):
 # =============================================================================
 
 @pytest.mark.e2e
-def test_canvas_update_and_close(page: Page, db_session: Session):
-    """Test canvas update and close lifecycle.
+def test_canvas_update_and_close(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
+    """Test canvas update and close lifecycle via real routes + backend.
 
-    This test verifies:
-    1. Create canvas
-    2. Update canvas data
-    3. Verify state changes
-    4. Close canvas
-    5. Verify cleanup
-
-    Args:
-        page: Playwright page fixture
-        db_session: Database session fixture
+    Verifies:
+    1. Canvas renders
+    2. PUT /api/canvas/{id} (REST → WS broadcast) updates the title
+    3. Close button hides the canvas
     """
-    # Setup: Create canvas
-    unique_id = str(uuid.uuid4())[:8]
-    canvas_id = f"test-lifecycle-{unique_id}"
-    create_canvas_via_api(db_session, canvas_id, "generic")
+    user, _ = authenticated_user
+    canvas_id = create_markdown_canvas(db_session, user, "Initial", "v1")
 
-    # Navigate to canvas page
-    page.goto(f"http://localhost:3001/canvas/{canvas_id}")
-    page.wait_for_load_state("networkidle")
+    canvas_page = open_canvas(authenticated_page, canvas_id)
+    assert canvas_page.get_title() == "Initial"
 
-    try:
-        # Update canvas data
-        updated_data = {"status": "updated", "value": 42}
-        trigger_canvas_via_page(page, "update", updated_data)
+    # Real backend update → WS broadcast → re-render
+    import requests
+    token = authenticated_page.evaluate("() => localStorage.getItem('auth_token')")
+    resp = requests.put(
+        f"http://localhost:8001/api/canvas/{canvas_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"content": "v2", "canvas_type": "markdown", "title": "Updated"},
+        timeout=10,
+    )
+    assert resp.status_code == 200, f"PUT failed: {resp.status_code}"
 
-        # Wait for state update
-        page.wait_for_timeout(500)
+    expect(canvas_page.canvas_title).to_have_text("Updated", timeout=5000)
 
-        # Close canvas (if close button exists)
-        close_button = page.locator("button:has-text('Close'), button:has-text('X'), .canvas-close").first
-
-        if close_button.is_visible():
-            close_button.click()
-            page.wait_for_timeout(500)
-
-            # Verify navigation away from canvas page
-            expect(page).not_to_have_url(/canvas\/{canvas_id}/, timeout=2000)
-    except:
-        # Close button might not exist, just verify page loads
-        assert page.url.endswith(canvas_id) or page.url.endswith("canvas"), "Should be on canvas page"
-
-    # Cleanup
-    cleanup_test_canvas(db_session, canvas_id)
+    # Close the canvas via the close button
+    canvas_page.close_canvas()
+    canvas_page.wait_for_canvas_hidden(timeout=5000)
+    assert canvas_page.is_visible() is False, "Canvas should be hidden after close"
 
 
 # =============================================================================
@@ -511,29 +251,19 @@ def test_canvas_update_and_close(page: Page, db_session: Session):
 
 @pytest.fixture(autouse=True)
 def cleanup_test_data(db_session: Session):
-    """Cleanup test data after each test.
+    """Cleanup canvas rows created by this file's tests.
 
-    This fixture runs after each test to clean up any test-created canvases.
-
-    Args:
-        db_session: Database session fixture
-
-    Yields:
-        None: Allows test to execute
+    Runs after each test to remove the Canvas + CanvasAudit rows so the
+    shared e2e database does not accumulate test canvases.
     """
     yield
 
-    # Cleanup any canvases with test prefix
     try:
-        test_canvases = db_session.query(CanvasAudit).filter(
-            CanvasAudit.canvas_id.like("%test-%") |
-            CanvasAudit.canvas_id.like("%e2e%")
+        test_canvases = db_session.query(Canvas).filter(
+            Canvas.id.like("e2e-%")
         ).all()
-
         for canvas in test_canvases:
             db_session.delete(canvas)
-
         db_session.commit()
     except Exception as e:
-        # Log but don't fail test if cleanup fails
         print(f"Warning: Failed to cleanup test canvases: {e}")

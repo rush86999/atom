@@ -47,6 +47,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
         setActiveAttachments,
         isUploading,
         streamingContent,
+        currentStreamId,
         handleSend,
         handleStop,
         handleTitleSave,
@@ -72,7 +73,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
     const showEmptyState = messages.length === 0 && !providerError;
 
     return (
-        <div className="flex flex-col h-full bg-background relative">
+        <div className="flex flex-col h-full bg-background relative" data-testid="chat-container">
             <VoiceModeOverlay
                 isOpen={isVoiceModeOpen}
                 onClose={() => setIsVoiceModeOpen(false)}
@@ -148,7 +149,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
 
             <MessageList
                 messages={messages}
-                currentStreamId={null} /* Stream ID handling moved inside useChatInterface */
+                currentStreamId={currentStreamId}
                 streamingContent={streamingContent}
                 isProcessing={isProcessing}
                 statusMessage={statusMessage}

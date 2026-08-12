@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AGENT_CHAT } from "@/src/lib/testIds";
 import {
     User,
     Bot,
@@ -102,7 +103,7 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate }
             // their run was halted (e.g. budget-exceeded) at a glance, rather
             // than reading a normal assistant bubble. role="alert" makes it
             // accessible and queryable in tests.
-            <div className="flex w-full justify-start gap-2 mb-4 group" role="alert">
+            <div className="flex w-full justify-start gap-2 mb-4 group" role="alert" data-testid="chat-error-message">
                 <Avatar className="h-8 w-8">
                     <AvatarFallback className="bg-amber-100 text-amber-700">
                         <AlertTriangle className="h-4 w-4" />
@@ -120,7 +121,10 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate }
                 </div>
             </div>
         ) : (
-        <div className={cn("flex w-full gap-2 mb-4 group", isUser ? "justify-end" : "justify-start")}>
+        <div
+            className={cn("flex w-full gap-2 mb-4 group", isUser ? "justify-end" : "justify-start")}
+            data-testid={isUser ? "user-message" : "assistant-message"}
+        >
             {!isUser && (
                 <Avatar className="h-8 w-8">
                     <AvatarImage src="/bot-avatar.png" />
@@ -129,10 +133,13 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate }
             )}
 
             <div className={cn("flex flex-col max-w-[80%]", isUser ? "items-end" : "items-start")}>
-                <Card className={cn(
-                    "border-none shadow-sm",
-                    isUser ? "bg-primary text-primary-foreground" : "bg-muted"
-                )}>
+                <Card
+                    className={cn(
+                        "border-none shadow-sm",
+                        isUser ? "bg-primary text-primary-foreground" : "bg-muted"
+                    )}
+                    data-testid={isUser ? undefined : AGENT_CHAT.RESPONSE}
+                >
                     <CardContent className="p-3 text-sm whitespace-pre-wrap">
                         {message.content}
 

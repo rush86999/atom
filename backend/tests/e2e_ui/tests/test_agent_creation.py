@@ -1,349 +1,201 @@
 """
-E2E tests for agent creation workflow via web UI (AGNT-01).
+E2E tests for agent creation workflow (AGNT-01).
+
+Rewritten 2026-08-12 to match the ACTUAL agents UI ("Agent Control Center"):
+the create-agent modal was removed, so agents are created via the real API
+endpoint (POST /api/agents/custom, requires AGENT_MANAGE) and VERIFIED in the
+UI (AgentCard with name/status/maturity badges).
 
 Run with: pytest backend/tests/e2e_ui/tests/test_agent_creation.py -v
 """
 
-import pytest
 import uuid
-from datetime import datetime
+import requests
 from playwright.sync_api import Page, expect
-from sqlalchemy.orm import Session
 
 from core.models import AgentRegistry
 
 
+def create_agent_via_api(token: str, name: str, category: str = "testing", description: str = None) -> dict:
+    """POST the real agent-create endpoint (AGENT_MANAGE required).
+
+    Returns the parsed JSON body. Raises for HTTP errors.
+    """
+    base_url = "http://localhost:8001"
+    payload = {"name": name, "category": category}
+    if description is not None:
+        payload["description"] = description
+    response = requests.post(
+        f"{base_url}/api/agents/custom",
+        headers={"Authorization": f"Bearer {token}"},
+        json=payload,
+        timeout=15,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
 class TestAgentCreation:
-    """E2E tests for agent creation workflow via web UI (AGNT-01)."""
+    """E2E tests for agent creation (API-first, verified in the UI)."""
 
-    def test_create_agent_via_ui(self, authenticated_page_api: Page, db_session: Session):
-        """Verify user can create agent via web UI form.
+    def test_create_agent_via_api_and_verify_in_ui(
+        self,
+        authenticated_page_api: Page,
+        db_session,
+        setup_test_user,
+        admin_user,
+    ):
+        """Verify agent creation via the real API and UI listing.
 
-        This test validates:
-        1. Navigate to agents page
-        2. Click "Create Agent" button
-        3. Wait for agent creation modal
-        4. Fill agent form (name, category, description)
-        5. Submit form
-        6. Verify success notification
-        7. Verify agent appears in agent list
-        8. Verify agent in database registry
-        9. Verify agent status is active and maturity is STUDENT
+        1. POST /api/agents/custom (admin token) -> 201 with agent_id
+        2. Verify registry row: status=student (STUDENT default), enabled
+        3. GET /api/agents/{id} round-trips name/category
+        4. UI: AgentCard appears with name, STUDENT maturity badge, Idle status
+        5. UI: Run button present (agent is runnable surface)
 
-        Args:
-            authenticated_page_api: Authenticated Playwright page
-            db_session: Database session for verification
-
-        Coverage: AGNT-01 (Agent creation via UI)
+        Coverage: AGNT-01 (Agent creation via API + UI verification)
         """
-        # Generate unique agent name
-        agent_name = f"E2E Test Agent {uuid.uuid4()[:8]}"
+        _, admin_token = admin_user
+        agent_name = f"E2E Created Agent {str(uuid.uuid4())[:8]}"
 
-        # Navigate to agents page
-        authenticated_page_api.goto("/agents")
-        authenticated_page_api.wait_for_load_state("networkidle")
+        response = create_agent_via_api(
+            admin_token, agent_name, category="productivity", description="Created by e2e"
+        )
+        data = response.get("data", response)
+        agent_id = data["agent_id"]
+        assert agent_id, "Create response must include agent_id"
 
-        # Click "Create Agent" button
-        create_agent_button = authenticated_page_api.locator('[data-testid="create-agent-button"]')
-        expect(create_agent_button).to_be_visible(timeout=10000)
-        create_agent_button.click()
+        agent = db_session.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        assert agent is not None, f"Agent {agent_name} should be in registry"
+        assert agent.name == agent_name
+        assert agent.status == "student", "New agents should start at STUDENT maturity"
+        assert agent.enabled is True, "New agents should be enabled"
 
-        # Wait for agent creation modal
-        modal = authenticated_page_api.locator('[data-testid="agent-creation-modal"]')
-        expect(modal).to_be_visible(timeout=10000)
+        detail = requests.get(
+            f"http://localhost:8001/api/agents/{agent_id}",
+            headers={"Authorization": f"Bearer {setup_test_user['access_token']}"},
+            timeout=15,
+        ).json()["data"]
+        assert detail["name"] == agent_name
+        assert detail["category"] == "productivity"
 
-        # Fill agent form
-        authenticated_page_api.fill('[data-testid="agent-name-input"]', agent_name)
-        authenticated_page_api.select_option('[data-testid="agent-category-select"]', "productivity")
-        authenticated_page_api.fill('[data-testid="agent-description-input"]', "E2E test agent for verification")
+        authenticated_page_api.goto("http://localhost:3001/agents")
+        card = authenticated_page_api.locator(f'[data-testid="agent-card-{agent_name}"]')
+        expect(card).to_be_visible(timeout=15000)
+        expect(card.locator('[data-testid="agent-maturity-badge"]')).to_have_text("student")
+        expect(card.locator('[data-testid="agent-status-badge"]')).to_have_text("Idle")
+        expect(card.get_by_role("button", name="Run")).to_be_visible()
 
-        # Submit form
-        submit_button = authenticated_page_api.locator('[data-testid="create-agent-submit-button"]')
-        expect(submit_button).to_be_visible()
-        submit_button.click()
-
-        # Wait for success notification
-        success_notification = authenticated_page_api.locator('[data-testid="agent-created-success"]')
-        expect(success_notification).to_be_visible(timeout=10000)
-
-        # Verify agent appears in agent list
-        agent_card = authenticated_page_api.locator(f'[data-testid="agent-card-{agent_name}"]')
-        expect(agent_card).to_be_visible(timeout=10000)
-
-        # Verify agent in database
-        agent = db_session.query(AgentRegistry).filter(
-            AgentRegistry.name == agent_name
-        ).first()
-
-        assert agent is not None, f"Agent {agent_name} should be in database"
-        assert agent.status == "active", "Agent should be active"
-        assert agent.maturity_level == "STUDENT", "New agents should start at STUDENT maturity"
-
-    def test_create_agent_with_validation_errors(self, authenticated_page_api: Page, db_session: Session):
+    def test_create_agent_with_validation_errors(self, db_session, setup_test_user, admin_user):
         """Verify validation errors prevent creating agents with invalid data.
 
-        This test validates:
-        1. Navigate to agents page
-        2. Click "Create Agent" button
-        3. Try to submit form without required fields (empty name)
-        4. Verify validation error appears
-        5. Verify agent not created in database
-
-        Args:
-            authenticated_page_api: Authenticated Playwright page
-            db_session: Database session for verification
+        1. POST /api/agents/custom with empty name -> 422
+        2. POST with whitespace-only name -> 422
+        3. POST with empty category -> 422
+        4. Verify no registry row created for the rejected payloads
 
         Coverage: AGNT-01 (Agent creation validation)
         """
-        # Navigate to agents page
-        authenticated_page_api.goto("/agents")
-        authenticated_page_api.wait_for_load_state("networkidle")
+        _, admin_token = admin_user
+        base_url = "http://localhost:8001"
+        headers = {"Authorization": f"Bearer {admin_token}"}
 
-        # Click "Create Agent" button
-        create_agent_button = authenticated_page_api.locator('[data-testid="create-agent-button"]')
-        expect(create_agent_button).to_be_visible(timeout=10000)
-        create_agent_button.click()
+        invalid_payloads = [
+            {"name": "", "category": "testing"},
+            {"name": "   ", "category": "testing"},
+            {"name": f"Valid Name {str(uuid.uuid4())[:8]}", "category": ""},
+            {"name": "  ", "category": "  "},
+        ]
+        for payload in invalid_payloads:
+            response = requests.post(f"{base_url}/api/agents/custom", headers=headers, json=payload, timeout=15)
+            assert response.status_code == 422, (
+                f"Create with {payload!r} should 422, got {response.status_code}"
+            )
 
-        # Wait for agent creation modal
-        modal = authenticated_page_api.locator('[data-testid="agent-creation-modal"]')
-        expect(modal).to_be_visible(timeout=10000)
+        row = db_session.query(AgentRegistry).filter(
+            AgentRegistry.name == "   "
+        ).first()
+        assert row is None, "Whitespace-only name must not create a registry row"
 
-        # Try to submit without filling required fields
-        submit_button = authenticated_page_api.locator('[data-testid="create-agent-submit-button"]')
-        expect(submit_button).to_be_visible()
-        submit_button.click()
+    def test_create_agent_requires_manage_permission(self, db_session, setup_test_user):
+        """Verify agent creation is governance-gated (AGENT_MANAGE required).
 
-        # Verify validation error appears
-        validation_error = authenticated_page_api.locator('[data-testid="validation-error"]')
-        expect(validation_error).to_be_visible(timeout=5000)
+        A regular (member) user must be rejected with 403 — creation is an
+        agent-management action, not available to every authenticated user.
 
-        # Verify modal still open (agent not created)
-        expect(modal).to_be_visible()
-
-        # Verify no agent was created in database
-        # Should not find any agent created in the last minute
-        one_minute_ago = datetime.utcnow()
-        agents_created = db_session.query(AgentRegistry).filter(
-            AgentRegistry.created_at >= one_minute_ago
-        ).count()
-
-        assert agents_created == 0, "No agents should be created when validation fails"
-
-    def test_create_agent_via_api_faster(self, authenticated_page_api: Page, db_session: Session):
-        """Verify creating agent via API is faster than UI.
-
-        This test validates:
-        1. Create agent directly via API (or database for speed)
-        2. Verify agent in database
-        3. Refresh UI and verify agent appears
-        4. Compare timing with UI creation (API should be faster)
-
-        Args:
-            authenticated_page_api: Authenticated Playwright page
-            db_session: Database session for verification
-
-        Coverage: AGNT-01 (Agent creation via API)
+        Coverage: AGNT-01 (Creation permission enforcement)
         """
-        import time
-
-        # Generate unique agent name
-        agent_name = f"API Test Agent {uuid.uuid4()[:8]}"
-
-        # Create agent via database (fastest method for testing)
-        start_time = time.time()
-
-        agent = AgentRegistry(
-            name=agent_name,
-            category="testing",
-            module_path="test.module",
-            class_name="TestAgent",
-            description="E2E test agent created via API",
-            status="active",
-            maturity_level="INTERN",
-            confidence_score=0.6,
-            created_at=datetime.utcnow()
+        token = setup_test_user["access_token"]
+        response = requests.post(
+            "http://localhost:8001/api/agents/custom",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"name": f"Member Agent {str(uuid.uuid4())[:8]}", "category": "testing"},
+            timeout=15,
+        )
+        assert response.status_code == 403, (
+            f"Member create should be 403, got {response.status_code}"
         )
 
-        db_session.add(agent)
-        db_session.commit()
-        db_session.refresh(agent)
-
-        api_creation_time = time.time() - start_time
-
-        # Navigate to agents page and verify agent appears
-        authenticated_page_api.goto("/agents")
-        authenticated_page_api.wait_for_load_state("networkidle")
-
-        # Wait for agent to appear in list (with timeout)
-        agent_card = authenticated_page_api.locator(f'[data-testid="agent-card-{agent_name}"]')
-        expect(agent_card).to_be_visible(timeout=10000)
-
-        # Verify agent in database
-        db_agent = db_session.query(AgentRegistry).filter(
-            AgentRegistry.name == agent_name
-        ).first()
-
-        assert db_agent is not None, "Agent should be in database"
-        assert db_agent.name == agent_name
-        assert db_agent.maturity_level == "INTERN"
-        assert db_agent.status == "active"
-
-        # API creation should be fast (< 1 second)
-        assert api_creation_time < 1.0, f"API creation should be fast, took {api_creation_time:.2f}s"
-
-    def test_agent_maturity_level_default(self, authenticated_page_api: Page, db_session: Session):
+    def test_agent_maturity_level_default(self, db_session, admin_user):
         """Verify new agents default to STUDENT maturity level.
 
-        This test validates:
-        1. Create agent via UI (no maturity level selection)
-        2. Verify default maturity_level == "STUDENT"
-        3. Verify new agents cannot perform restricted actions
-
-        Args:
-            authenticated_page_api: Authenticated Playwright page
-            db_session: Database session for verification
+        1. Create agent via API (no maturity selection possible)
+        2. Verify DB status == student
+        3. Verify GET /api/agents/{id}/status reports student
+        4. Verify the governance rules document STUDENT as max-complexity-1
+           (read-only tier — creation default cannot perform restricted actions)
 
         Coverage: AGNT-01 (Agent default maturity level)
         """
-        # Generate unique agent name
-        agent_name = f"Student Agent {uuid.uuid4()[:8]}"
+        _, admin_token = admin_user
+        agent_name = f"Student Agent {str(uuid.uuid4())[:8]}"
+        response = create_agent_via_api(admin_token, agent_name, category="productivity")
+        agent_id = response["data"]["agent_id"]
 
-        # Navigate to agents page
-        authenticated_page_api.goto("/agents")
-        authenticated_page_api.wait_for_load_state("networkidle")
+        agent = db_session.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        assert agent is not None
+        assert agent.status == "student", "New agents should default to STUDENT maturity"
 
-        # Click "Create Agent" button
-        create_agent_button = authenticated_page_api.locator('[data-testid="create-agent-button"]')
-        expect(create_agent_button).to_be_visible(timeout=10000)
-        create_agent_button.click()
+        status = requests.get(
+            f"http://localhost:8001/api/agents/{agent_id}/status",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=15,
+        ).json()["data"]
+        assert status["status"] == "student"
 
-        # Wait for agent creation modal
-        modal = authenticated_page_api.locator('[data-testid="agent-creation-modal"]')
-        expect(modal).to_be_visible(timeout=10000)
+        rules = requests.get(
+            "http://localhost:8001/api/agent-governance/rules",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            timeout=15,
+        ).json()["maturity_levels"]
+        assert rules["student"]["max_complexity"] == 1, (
+            "STUDENT tier must be read-only (complexity 1) per governance rules"
+        )
 
-        # Fill agent form (without selecting maturity level)
-        authenticated_page_api.fill('[data-testid="agent-name-input"]', agent_name)
-        authenticated_page_api.select_option('[data-testid="agent-category-select"]', "productivity")
-        authenticated_page_api.fill('[data-testid="agent-description-input"]', "Test STUDENT agent")
+    def test_multiple_agents_can_be_created(self, authenticated_page_api: Page, db_session, admin_user):
+        """Verify multiple agents can be created and all appear in the UI.
 
-        # Submit form
-        submit_button = authenticated_page_api.locator('[data-testid="create-agent-submit-button"]')
-        expect(submit_button).to_be_visible()
-        submit_button.click()
-
-        # Wait for success notification
-        success_notification = authenticated_page_api.locator('[data-testid="agent-created-success"]')
-        expect(success_notification).to_be_visible(timeout=10000)
-
-        # Verify agent in database has STUDENT maturity
-        agent = db_session.query(AgentRegistry).filter(
-            AgentRegistry.name == agent_name
-        ).first()
-
-        assert agent is not None, "Agent should be in database"
-        assert agent.status == "active", "Agent should be active"
-        assert agent.maturity_level == "STUDENT", "New agents should default to STUDENT maturity"
-
-        # Verify STUDENT agent cannot perform restricted actions (e.g., automated triggers)
-        # This is verified by checking the maturity_level field in the database
-        assert agent.maturity_level == "STUDENT", "STUDENT agents should not have restricted permissions"
-
-    def test_multiple_agents_can_be_created(self, authenticated_page_api: Page, db_session: Session):
-        """Verify multiple agents can be created sequentially.
-
-        This test validates:
-        1. Create 3 agents sequentially via UI
-        2. Use unique names with UUID for each
-        3. Verify all 3 appear in agent list
-        4. Verify all 3 in database with unique IDs
-        5. Verify no ID collisions
-
-        Args:
-            authenticated_page_api: Authenticated Playwright page
-            db_session: Database session for verification
+        1. Create 3 agents via API with unique names
+        2. Verify all 3 in registry with unique IDs
+        3. UI: all 3 AgentCards visible
 
         Coverage: AGNT-01 (Multiple agent creation)
         """
+        _, admin_token = admin_user
         agent_names = []
         agent_ids = []
-
-        # Create 3 agents
         for i in range(3):
-            # Generate unique agent name
-            agent_name = f"Multi Agent {i+1}-{uuid.uuid4()[:8]}"
-
-            # Navigate to agents page
-            authenticated_page_api.goto("/agents")
-            authenticated_page_api.wait_for_load_state("networkidle")
-
-            # Click "Create Agent" button
-            create_agent_button = authenticated_page_api.locator('[data-testid="create-agent-button"]')
-            expect(create_agent_button).to_be_visible(timeout=10000)
-            create_agent_button.click()
-
-            # Wait for agent creation modal
-            modal = authenticated_page_api.locator('[data-testid="agent-creation-modal"]')
-            expect(modal).to_be_visible(timeout=10000)
-
-            # Fill agent form
-            authenticated_page_api.fill('[data-testid="agent-name-input"]', agent_name)
-            authenticated_page_api.select_option('[data-testid="agent-category-select"]', "productivity")
-            authenticated_page_api.fill('[data-testid="agent-description-input"]', f"Test agent {i+1}")
-
-            # Submit form
-            submit_button = authenticated_page_api.locator('[data-testid="create-agent-submit-button"]')
-            expect(submit_button).to_be_visible()
-            submit_button.click()
-
-            # Wait for success notification
-            success_notification = authenticated_page_api.locator('[data-testid="agent-created-success"]')
-            expect(success_notification).to_be_visible(timeout=10000)
-
-            # Store agent name
+            agent_name = f"Multi Agent {i + 1}-{str(uuid.uuid4())[:8]}"
+            response = create_agent_via_api(admin_token, agent_name, description=f"Test agent {i + 1}")
+            agent_ids.append(response["data"]["agent_id"])
             agent_names.append(agent_name)
 
-        # Verify all 3 agents in database
-        for agent_name in agent_names:
-            agent = db_session.query(AgentRegistry).filter(
-                AgentRegistry.name == agent_name
-            ).first()
-
-            assert agent is not None, f"Agent {agent_name} should be in database"
-            agent_ids.append(agent.id)
-
-        # Verify all IDs are unique
         assert len(set(agent_ids)) == 3, "All agent IDs should be unique"
+        rows = db_session.query(AgentRegistry).filter(AgentRegistry.id.in_(agent_ids)).all()
+        assert len(rows) == 3, "All 3 agents should be in registry"
+        assert {a.id for a in rows} == set(agent_ids)
 
-        # Navigate to agents page and verify all agents appear in list
-        authenticated_page_api.goto("/agents")
-        authenticated_page_api.wait_for_load_state("networkidle")
-
+        authenticated_page_api.goto("http://localhost:3001/agents")
         for agent_name in agent_names:
-            agent_card = authenticated_page_api.locator(f'[data-testid="agent-card-{agent_name}"]')
-            expect(agent_card).to_be_visible(timeout=10000)
-
-
-# Helper functions
-
-def verify_agent_in_db(db_session: Session, agent_name: str) -> AgentRegistry:
-    """Verify agent exists in database with correct attributes.
-
-    Args:
-        db_session: Database session
-        agent_name: Agent name to verify
-
-    Returns:
-        AgentRegistry: Agent instance if found
-
-    Raises:
-        AssertionError: If agent not found or attributes incorrect
-    """
-    agent = db_session.query(AgentRegistry).filter(
-        AgentRegistry.name == agent_name
-    ).first()
-
-    assert agent is not None, f"Agent {agent_name} should be in database"
-    assert agent.status == "active", "Agent should be active"
-    assert agent.maturity_level == "STUDENT", "New agents should be STUDENT"
-
-    return agent
+            card = authenticated_page_api.locator(f'[data-testid="agent-card-{agent_name}"]')
+            expect(card).to_be_visible(timeout=15000)

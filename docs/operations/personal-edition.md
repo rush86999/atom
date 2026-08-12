@@ -91,8 +91,8 @@ docker compose -f docker-compose-personal.yml ps
 ✅ atom-personal-frontend - Up
 ```
 
-**Note:** The Personal Edition runs the **full app** (`main_api_app:app`, all
-80+ routers) on SQLite — no PostgreSQL or Redis required. The optional
+**Note:** The Personal Edition runs the **full app** (`main_api_app:app`, v8.0.0,
+197 routers) on SQLite — no PostgreSQL or Redis required. The optional
 browser-node is commented out by default; uncomment it in
 `docker-compose-personal.yml` if you need browser automation.
 
@@ -226,7 +226,7 @@ docker compose -f docker-compose-personal.yml logs -f
 
 Personal Edition includes all necessary services via Docker Compose:
 
-- **Backend API** - FastAPI server running the full `main_api_app:app` (all 80+ routers)
+- **Backend API** - FastAPI server running the full `main_api_app:app` (v8.0.0, 197 routers)
 - **Frontend** - Next.js app
 - **Browser Node** - Chrome automation (optional, commented out by default)
 - **SQLite** - Embedded database (no PostgreSQL required)

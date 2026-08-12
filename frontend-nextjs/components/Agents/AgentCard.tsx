@@ -9,7 +9,7 @@ export interface AgentInfo {
     id: string;
     name: string;
     description: string;
-    status: "idle" | "running" | "success" | "failed";
+    status: string; // execution state: idle | running | success | failed | paused
     last_run?: string;
     category: string;
     maturity_level?: 'student' | 'intern' | 'supervised' | 'autonomous';
@@ -43,7 +43,7 @@ const TIER_COLORS: Record<NonNullable<AgentInfo["maturity_level"]>, string> = {
 
 function getMaturityBadge(level: NonNullable<AgentInfo["maturity_level"]>) {
     return (
-        <Badge variant="outline" className={`text-[10px] uppercase tracking-wide ${TIER_COLORS[level]}`} title={`Maturity: ${level}`}>
+        <Badge variant="outline" className={`text-[10px] uppercase tracking-wide ${TIER_COLORS[level]}`} title={`Maturity: ${level}`} data-testid="agent-maturity-badge">
             {level}
         </Badge>
     );
@@ -59,17 +59,21 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun, onStop, onChat, onE
                 return <Badge variant="secondary" className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" /> Success</Badge>;
             case "failed":
                 return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" /> Failed</Badge>;
+            case "paused":
+                return <Badge variant="outline" className="bg-amber-100 text-amber-800"><AlertTriangle className="w-3 h-3 mr-1" /> Paused</Badge>;
+            case "stopped":
+                return <Badge variant="outline" className="bg-gray-200 text-gray-700"><XCircle className="w-3 h-3 mr-1" /> Stopped</Badge>;
             default:
                 return <Badge variant="outline">Idle</Badge>;
         }
     };
 
     return (
-        <Card className="w-full hover:shadow-md transition-shadow">
+        <Card className="w-full hover:shadow-md transition-shadow" data-testid={`agent-card-${agent.name}`}>
             <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
                     <Badge variant="outline" className="mb-2 text-xs">{agent.category}</Badge>
-                    {getStatusBadge(agent.status)}
+                    <div data-testid="agent-status-badge">{getStatusBadge(agent.status)}</div>
                 </div>
                 <CardTitle className="text-lg">{agent.name}</CardTitle>
                 <CardDescription className="line-clamp-2 h-10">{agent.description}</CardDescription>

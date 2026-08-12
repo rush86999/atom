@@ -328,6 +328,111 @@ class TestWorkspaceHandling:
             assert service.workspace_id == "custom-workspace"
 
 
+class TestListAgentsWorkspaceScope:
+    """Real-DB tests for list_agents workspace scoping.
+
+    Regression for the agents-UI e2e cluster (2026-08-12): the service
+    defaults to workspace_id="default" and list_agents filtered
+    ``workspace_id == "default"`` — agents registered WITHOUT a workspace
+    (workspace_id NULL, e.g. via POST /api/agents/custom or direct DB
+    seeding) were invisible in GET /api/agents/ and thus never appeared
+    in the "Agent Control Center" UI, which only ever showed the seeded
+    Demo Assistant.
+    """
+
+    @pytest.fixture()
+    def sqlite_db(self):
+        """In-memory SQLite session with the AgentRegistry table."""
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from core.models import Base
+        engine = create_engine("sqlite:///:memory:")
+        Base.metadata.create_all(engine)
+        Session = sessionmaker(bind=engine, expire_on_commit=False)
+        db = Session()
+        yield db
+        db.close()
+        Base.metadata.drop_all(engine)
+
+    def test_list_agents_returns_unscoped_agents(self, sqlite_db):
+        """Agents without a workspace must be visible in the default scope.
+
+        Regression: before the fix, list_agents (workspace_id="default")
+        filtered ``workspace_id == "default"``, hiding every agent whose
+        workspace_id is NULL — which is how the API create endpoint and
+        direct seeding store agents.
+        """
+        from core.models import AgentRegistry
+        sqlite_db.add(AgentRegistry(
+            name="Unscoped Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestAgent",
+            description="Created without a workspace (API create path)",
+        ))
+        sqlite_db.commit()
+        with patch('core.agent_governance_service.ContinuousLearningService'):
+            service = AgentGovernanceService(db=sqlite_db)  # default workspace
+            listed = service.list_agents()
+            assert any(a.name == "Unscoped Agent" for a in listed), \
+                "Agents with NULL workspace_id must be visible in the default scope"
+
+    def test_list_agents_keeps_legacy_default_rows(self, sqlite_db):
+        """Legacy rows stamped workspace_id='default' stay visible."""
+        from core.models import AgentRegistry
+        sqlite_db.add(AgentRegistry(
+            name="Legacy Default Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestAgent",
+            workspace_id="default",
+        ))
+        sqlite_db.commit()
+        with patch('core.agent_governance_service.ContinuousLearningService'):
+            service = AgentGovernanceService(db=sqlite_db)
+            listed = service.list_agents()
+            assert any(a.name == "Legacy Default Agent" for a in listed)
+
+    def test_list_agents_still_scopes_custom_workspaces(self, sqlite_db):
+        """Tenant-scoped callers must NOT see unscoped/default rows."""
+        from core.models import AgentRegistry
+        sqlite_db.add(AgentRegistry(
+            name="Tenant Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestAgent",
+            workspace_id="tenant-ws-1",
+        ))
+        sqlite_db.commit()
+        with patch('core.agent_governance_service.ContinuousLearningService'):
+            service = AgentGovernanceService(db=sqlite_db, workspace_id="tenant-ws-1")
+            listed = service.list_agents()
+            assert [a.name for a in listed] == ["Tenant Agent"]
+
+            other = AgentGovernanceService(db=sqlite_db, workspace_id="tenant-ws-2")
+            assert other.list_agents() == [], \
+                "Other tenants must not see tenant-ws-1 rows"
+
+    def test_list_agents_filters_by_category(self, sqlite_db):
+        """Category filtering still applies in the default scope."""
+        with patch('core.agent_governance_service.ContinuousLearningService'):
+            service = AgentGovernanceService(db=sqlite_db)
+            service.register_or_update_agent(
+                name="Sales Agent",
+                category="sales",
+                module_path="s.mod",
+                class_name="A",
+            )
+            service.register_or_update_agent(
+                name="Ops Agent",
+                category="ops",
+                module_path="o.mod",
+                class_name="B",
+            )
+            sales = service.list_agents(category="sales")
+            assert [a.name for a in sales] == ["Sales Agent"]
+
+
 class TestErrorHandling:
     """Test error handling."""
 

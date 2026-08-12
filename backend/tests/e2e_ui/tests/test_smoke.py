@@ -162,7 +162,7 @@ def test_page_object_navigation(authenticated_page: Page):
     # Note: This will fail if frontend is not running, but that's expected
     # The test verifies the navigation mechanism works
     try:
-        authenticated_page.goto("/dashboard")
+        authenticated_page.goto("http://localhost:3001/dashboard")
         url = authenticated_page.url
         assert "dashboard" in url or "localhost" in url
         print(f"✓ Page navigation works: {url}")

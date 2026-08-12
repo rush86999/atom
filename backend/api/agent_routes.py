@@ -850,7 +850,7 @@ class CustomAgentRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100, description="Agent name (1-100 characters)")
     description: Optional[str] = "Custom Agent"
     category: str = Field(min_length=1, max_length=50, description="Agent category (1-50 characters)")
-    configuration: Dict[str, Any]
+    configuration: Optional[Dict[str, Any]] = None
     schedule_config: Optional[Dict[str, Any]] = None
 
     @field_validator('name', 'category')

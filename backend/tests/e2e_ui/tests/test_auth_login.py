@@ -113,17 +113,13 @@ class TestWebUILoginLogout:
         # Verify logged in
         assert dashboard.is_loaded(), "Should be logged in initially"
 
-        # Logout (click user profile button first, then logout)
+        # Logout via the real UI: the sidebar profile row's sign-out button is
+        # only revealed on hover (opacity-0 group-hover:opacity-100), so use
+        # DashboardPage.logout() which hovers the profile row first.
         try:
             # Try to click user profile button to open menu
             if dashboard.user_profile_button.is_visible():
-                dashboard.user_profile_button.click()
-                authenticated_page_api.wait_for_timeout(500)
-
-                # Then click logout button
-                if dashboard.logout_button.is_visible():
-                    dashboard.logout_button.click()
-                    authenticated_page_api.wait_for_timeout(1000)
+                dashboard.logout()
         except Exception:
             # If logout buttons don't exist, manually clear token and navigate
             authenticated_page_api.evaluate("""() => {
@@ -131,12 +127,20 @@ class TestWebUILoginLogout:
                 localStorage.removeItem('auth_token');
                 localStorage.removeItem('next-auth.session-token');
             }""")
-            authenticated_page_api.goto("http://localhost:3000/login")
-            authenticated_page_api.wait_for_timeout(1000)
+            authenticated_page_api.goto("http://localhost:3001/login")
+
+        # Wait for the signOut redirect to settle — during the redirect the
+        # page can pass through an opaque origin where localStorage reads
+        # throw SecurityError ("Access is denied for this document").
+        try:
+            authenticated_page_api.wait_for_url("**/auth/signin**", timeout=10000)
+        except Exception:
+            authenticated_page_api.wait_for_url("**/login**", timeout=5000)
+        authenticated_page_api.wait_for_timeout(500)
 
         # Verify redirected to login or logged out state
         current_url = authenticated_page_api.url
-        is_on_login = "login" in current_url.lower()
+        is_on_login = "login" in current_url.lower() or "signin" in current_url.lower()
 
         # Check if dashboard content is still visible
         try:

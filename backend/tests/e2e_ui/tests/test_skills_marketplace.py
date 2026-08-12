@@ -51,11 +51,11 @@ def create_test_user(db_session: Session, email: str, password: str = "TestPassw
     """
     user = User(
         email=email,
-        username=f"marketplace_user_{str(uuid.uuid4())[:8]}",
         hashed_password=get_password_hash(password),
-        is_active=True,
-        status="active",
-        created_at=datetime.utcnow()
+        first_name="Test",
+        last_name="User",
+        role="member",
+        status="active"
     )
 
     db_session.add(user)
@@ -158,7 +158,7 @@ def setup_marketplace_page(browser, user: User, token: str) -> SkillsMarketplace
     page = context.new_page()
 
     # Set JWT token in localStorage before navigating
-    page.goto("http://localhost:3000")  # Load app first
+    page.goto("http://localhost:3001")  # Load app first
     page.evaluate(f"() => localStorage.setItem('auth_token', '{token}')")
     page.evaluate(f"() => localStorage.setItem('user_id', '{user.id}')")
 

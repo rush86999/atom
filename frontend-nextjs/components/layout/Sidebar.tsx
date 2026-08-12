@@ -48,6 +48,12 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             localStorage.setItem("atom_explicit_logout", "1");
             localStorage.removeItem("auth_token");
             localStorage.removeItem("token");
+            // Also clear the API-first credentials. persistBackendToken (lib/backendAuth.ts)
+            // stores access_token + user_email alongside auth_token; leaving them behind
+            // after logout keeps stale credentials in storage (e2e logout assertions and
+            // any later "user email" reads pick them up).
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("user_email");
             document.cookie = "auth_token=; path=/; max-age=0";
             document.cookie = "next-auth.session-token=; path=/; max-age=0";
         }
@@ -220,7 +226,10 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             {/* Footer / User Profile & Toggle */}
             <div className="p-3 border-t border-border bg-secondary/20 space-y-3">
                 {!isCollapsed && (
-                    <div className="flex items-center p-2 rounded-xl bg-background/50 border border-border/50 group cursor-pointer hover:bg-background/80 transition-all">
+                    <div
+                        data-testid="dashboard-user-profile-button"
+                        className="flex items-center p-2 rounded-xl bg-background/50 border border-border/50 group cursor-pointer hover:bg-background/80 transition-all"
+                    >
                         <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white ring-2 ring-background border border-blue-400/30">
                             <User className="h-5 w-5" />
                         </div>
@@ -231,6 +240,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                         <Button
                             variant="ghost"
                             size="icon"
+                            data-testid="dashboard-logout-button"
                             className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Sign out"
                             onClick={handleSignOut}

@@ -2,10 +2,21 @@
 E2E UI tests for Settings page functionality.
 
 This test suite validates settings page access and preference updates:
-- Theme preference (light/dark mode toggle)
-- Notification preferences (email and push notifications)
+- Theme preference (light/dark/system select)
+- Notification preference (enable/disable switch)
+- Email digest frequency (daily/weekly/never select)
 - Settings persistence across page refresh
 - Unauthenticated access control
+
+NOTE (2026-08-12 repair): the real settings UI is
+frontend-nextjs/components/Settings/PreferencesTab.tsx — an AUTO-SAVE form
+(no Save button, no success toast; every change POSTs to /api/v1/preferences
+immediately). The previous suite targeted a settings UI that does not exist
+(email/push checkboxes, save button, success message, account/security
+sections) and used testids that were never wired. Tests now target the real
+component; the canonical testid contract lives in
+frontend-nextjs/src/lib/testIds.ts (SETTINGS.THEME_TOGGLE /
+NOTIFICATIONS_TOGGLE / PREFERENCES_SECTION).
 
 Tests use authenticated_page fixture for API-first authentication (10-100x faster than UI login).
 """
@@ -24,9 +35,8 @@ class TestSettingsPageAccess:
 
         Verifies:
         1. Settings page loads successfully
-        2. Theme toggle is visible
-        3. All sections are present (Theme, Notifications, Account)
-        4. Save button is visible
+        2. Theme select and current-theme label are visible
+        3. Notifications section is present (switch + email frequency select)
 
         Args:
             authenticated_page: Page with JWT token pre-set in localStorage
@@ -38,24 +48,21 @@ class TestSettingsPageAccess:
         # Verify settings page loads (theme_toggle is visible)
         assert settings.is_loaded(), "Settings page should be loaded"
 
-        # Verify all sections are present
-        assert settings.theme_toggle.is_visible(), "Theme toggle should be visible"
+        # Verify preferences section is present
+        assert settings.preferences_section.is_visible(), \
+            "Preferences section should be visible"
+
+        # Verify theme controls are present
+        assert settings.theme_toggle.is_visible(), "Theme select should be visible"
         assert settings.theme_label.is_visible(), "Theme label should be visible"
 
+        # Verify notifications section is present
         assert settings.notifications_section.is_visible(), \
             "Notifications section should be visible"
-        assert settings.email_notifications_checkbox.is_visible(), \
-            "Email notifications checkbox should be visible"
-        assert settings.push_notifications_checkbox.is_visible(), \
-            "Push notifications checkbox should be visible"
-
-        assert settings.account_section.is_visible(), \
-            "Account section should be visible"
-        assert settings.security_section.is_visible(), \
-            "Security section should be visible"
-
-        # Verify save button is visible
-        assert settings.save_button.is_visible(), "Save button should be visible"
+        assert settings.notifications_toggle.is_visible(), \
+            "Notifications switch should be visible"
+        assert settings.email_frequency_select.is_visible(), \
+            "Email frequency select should be visible"
 
 
 class TestThemePreference:
@@ -66,10 +73,9 @@ class TestThemePreference:
 
         Verifies:
         1. Initial theme can be retrieved
-        2. Theme can be toggled
-        3. Save button shows success message
-        4. Theme changes after toggle
-        5. Theme persists across page reload
+        2. Theme can be toggled via the select dropdown
+        3. Theme changes after toggle
+        4. Theme persists across page reload (auto-save round-trip)
 
         Args:
             authenticated_page: Page with JWT token pre-set in localStorage
@@ -80,17 +86,12 @@ class TestThemePreference:
 
         # Get current theme
         initial_theme = settings.get_current_theme()
-        assert initial_theme in ["Light", "Dark"], \
-            f"Initial theme should be Light or Dark, got: {initial_theme}"
+        assert initial_theme in ["Light", "Dark", "System"], \
+            f"Initial theme should be Light, Dark or System, got: {initial_theme}"
 
-        # Toggle theme
+        # Toggle theme (auto-save UI — no Save button to click)
         settings.toggle_theme()
-
-        # Click save button
-        settings.click_save()
-
-        # Wait for success message
-        authenticated_page.wait_for_timeout(500)  # Brief wait for save operation
+        settings.click_save()  # waits for the auto-save round-trip
 
         # Verify theme changed
         new_theme = settings.get_current_theme()
@@ -117,10 +118,9 @@ class TestNotificationPreferences:
 
         Verifies:
         1. Initial notification state can be retrieved
-        2. Email notifications can be toggled
-        3. Push notifications can be toggled
-        4. Save button shows success message
-        5. Checkbox states reflect changes
+        2. Notifications can be toggled via the switch
+        3. Switch state reflects the change
+        4. Preference persists across page reload (auto-save round-trip)
 
         Args:
             authenticated_page: Page with JWT token pre-set in localStorage
@@ -129,38 +129,27 @@ class TestNotificationPreferences:
         settings = SettingsPage(authenticated_page)
         settings.navigate()
 
-        # Get initial email notification state
-        initial_email_checked = settings.email_notifications_checkbox.is_checked()
+        # Get initial notification state
+        initial_enabled = settings.is_notifications_enabled()
 
-        # Toggle email notifications
-        new_email_state = not initial_email_checked
-        settings.set_email_notifications(new_email_state)
+        # Toggle notifications (auto-save UI — no Save button to click)
+        new_state = not initial_enabled
+        settings.set_notifications(new_state)
+        settings.click_save()  # waits for the auto-save round-trip
 
-        # Get initial push notification state
-        initial_push_checked = settings.push_notifications_checkbox.is_checked()
+        # Verify switch state reflects the change
+        actual_state = settings.is_notifications_enabled()
+        assert actual_state == new_state, \
+            f"Notifications should be {'enabled' if new_state else 'disabled'}"
 
-        # Toggle push notifications
-        new_push_state = not initial_push_checked
-        settings.set_push_notifications(new_push_state)
+        # Reload page
+        authenticated_page.reload()
+        settings.wait_for_load(timeout=5000)
 
-        # Click save button
-        settings.click_save()
-
-        # Verify success message displayed
-        authenticated_page.wait_for_timeout(500)  # Brief wait for save operation
-        success_msg = settings.get_success_message()
-        assert success_msg is not None, "Success message should be displayed"
-        assert "saved" in success_msg.lower(), \
-            f"Success message should contain 'saved', got: {success_msg}"
-
-        # Verify checkbox states reflect changes
-        actual_email_state = settings.email_notifications_checkbox.is_checked()
-        assert actual_email_state == new_email_state, \
-            f"Email notifications should be {'checked' if new_email_state else 'unchecked'}"
-
-        actual_push_state = settings.push_notifications_checkbox.is_checked()
-        assert actual_push_state == new_push_state, \
-            f"Push notifications should be {'checked' if new_push_state else 'unchecked'}"
+        # Verify preference persists
+        persisted_state = settings.is_notifications_enabled()
+        assert persisted_state == new_state, \
+            f"Notifications should persist as {'enabled' if new_state else 'disabled'} after reload"
 
 
 class TestSettingsPersistence:
@@ -171,8 +160,8 @@ class TestSettingsPersistence:
 
         Verifies:
         1. Theme can be changed to dark mode
-        2. Email notifications can be enabled
-        3. Settings save successfully
+        2. Notifications can be enabled
+        3. Settings save automatically
         4. Settings persist after page reload
         5. Multiple settings persist together
 
@@ -186,18 +175,17 @@ class TestSettingsPersistence:
         # Change theme to dark
         settings.set_theme("dark")
 
-        # Enable email notifications
-        settings.set_email_notifications(True)
+        # Enable notifications
+        settings.set_notifications(True)
 
-        # Save settings
+        # Auto-save round-trip
         settings.click_save()
-
-        # Wait for save confirmation
-        authenticated_page.wait_for_timeout(500)
 
         # Verify theme is dark before reload
         theme_before = settings.get_current_theme()
-        email_checked_before = settings.email_notifications_checkbox.is_checked()
+        notifications_before = settings.is_notifications_enabled()
+        assert theme_before == "Dark", f"Theme should be Dark, got: {theme_before}"
+        assert notifications_before is True, "Notifications should be enabled"
 
         # Reload page
         authenticated_page.reload()
@@ -210,10 +198,10 @@ class TestSettingsPersistence:
         assert theme_after == "Dark", \
             f"Theme should persist as Dark after reload, got: {theme_after}"
 
-        # Verify email notifications still enabled
-        email_checked_after = settings.email_notifications_checkbox.is_checked()
-        assert email_checked_after is True, \
-            "Email notifications should still be enabled after reload"
+        # Verify notifications still enabled
+        notifications_after = settings.is_notifications_enabled()
+        assert notifications_after is True, \
+            "Notifications should still be enabled after reload"
 
 
 class TestUnauthenticatedAccess:
@@ -235,7 +223,7 @@ class TestUnauthenticatedAccess:
 
         try:
             # Navigate to settings
-            page.goto("http://localhost:3000/settings")
+            page.goto("http://localhost:3001/settings")
 
             # Wait for redirect
             page.wait_for_timeout(1000)

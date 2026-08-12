@@ -74,15 +74,17 @@ class TestWorkerSchemaIsolation:
         agent = AgentRegistry(
             id="test-isolation-agent",
             name="Test Agent",
-            maturity_level="AUTONOMOUS",
-            status="ACTIVE"
+            status="autonomous",
+            category="testing",
+            module_path="core.agents.generic_agent",
+            class_name="GenericAgent",
         )
         db_session.add(agent)
         db_session.commit()
 
         # Verify agent exists in worker schema
         result = db_session.execute(text(
-            "SELECT COUNT(*) FROM agents WHERE id = 'test-isolation-agent'"
+            "SELECT COUNT(*) FROM agent_registry WHERE id = 'test-isolation-agent'"
         ))
         count = result.scalar()
         assert count == 1
@@ -110,15 +112,17 @@ class TestTransactionRollback:
         agent = AgentRegistry(
             id="test-rollback-agent",
             name="Test Rollback Agent",
-            maturity_level="STUDENT",
-            status="ACTIVE"
+            status="student",
+            category="testing",
+            module_path="core.agents.generic_agent",
+            class_name="GenericAgent",
         )
         db_session.add(agent)
         db_session.commit()
 
         # Verify agent exists
         result = db_session.execute(text(
-            "SELECT COUNT(*) FROM agents WHERE id = 'test-rollback-agent'"
+            "SELECT COUNT(*) FROM agent_registry WHERE id = 'test-rollback-agent'"
         ))
         count = result.scalar()
         assert count == 1
@@ -135,7 +139,7 @@ class TestTransactionRollback:
         """
         # This agent should NOT exist (rolled back from previous test)
         result = db_session.execute(text(
-            "SELECT COUNT(*) FROM agents WHERE id = 'test-rollback-agent'"
+            "SELECT COUNT(*) FROM agent_registry WHERE id = 'test-rollback-agent'"
         ))
         count = result.scalar()
         assert count == 0, "Data from previous test should be rolled back"
@@ -154,14 +158,16 @@ class TestTransactionRollback:
         agent = AgentRegistry(
             id="duplicate-test-agent",
             name="Duplicate Test Agent",
-            maturity_level="INTERN",
-            status="ACTIVE"
+            status="intern",
+            category="testing",
+            module_path="core.agents.generic_agent",
+            class_name="GenericAgent",
         )
         db_session.add(agent)
         db_session.commit()
 
         result = db_session.execute(text(
-            "SELECT COUNT(*) FROM agents WHERE id = 'duplicate-test-agent'"
+            "SELECT COUNT(*) FROM agent_registry WHERE id = 'duplicate-test-agent'"
         ))
         count = result.scalar()
         assert count == 1
@@ -180,13 +186,13 @@ class TestDatabaseInitialization:
         Fixed in: database_fixtures.py v1.0 - init_db uses schema_translate_map
         Scenario: Parallel tests creating tables with same names
         """
-        # Check that agents table exists in worker schema
+        # Check that agent_registry table exists in worker schema
         result = db_session.execute(text(
             f"SELECT table_name FROM information_schema.tables "
-            f"WHERE table_schema = '{worker_schema}' AND table_name = 'agents'"
+            f"WHERE table_schema = '{worker_schema}' AND table_name = 'agent_registry'"
         ))
         tables = [row[0] for row in result]
-        assert "agents" in tables
+        assert "agent_registry" in tables
 
     def test_search_path_set_correctly(self, db_session, worker_schema: str):
         """

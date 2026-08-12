@@ -31,7 +31,7 @@ AND `backend.*` imports both resolve.
 **Cause**: You're using `main:app` as the entrypoint. There is **no**
 `backend/main.py` — the canonical full app is `main_api_app:app`.
 
-**Fix**: Use `main_api_app:app` (the full app, all 80+ routers):
+**Fix**: Use `main_api_app:app` (the full app, v8.0.0, 197 routers):
 ```bash
 PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:app --port 8001
 ```
@@ -301,4 +301,4 @@ https://github.com/rush86999/atom/issues with:
 
 ---
 
-**Last Updated**: July 2026
+**Last Updated**: August 2026

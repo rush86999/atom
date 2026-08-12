@@ -46,7 +46,7 @@ docker compose up -d --build
 ```
 
 The Personal Edition compose file (`docker-compose-personal.yml`) runs the
-**full app** (`main_api_app:app`, all 80+ routers) on SQLite. The backend
+**full app** (`main_api_app:app`, v8.0.0, 197 routers) on SQLite. The backend
 Dockerfile sets `WORKDIR /app/backend` and `PYTHONPATH=/app:/app/backend` so
 both bare and `backend.*` imports resolve.
 
@@ -56,6 +56,11 @@ Ideal for contribution and running the latest changes from `main`:
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
+
+# One-shot bootstrap (recommended):
+make setup
+
+# — OR do it manually:
 
 # 1. Setup Backend
 cd backend
@@ -68,10 +73,11 @@ cp .env.example .env   # edit: SECRET_KEY + one LLM key (or ATOM_LOCAL_ONLY=true
 cd ../frontend-nextjs
 npm install --legacy-peer-deps
 
-# 3. Launch (from repo root — main_api_app:app is the FULL app)
+# 3. Launch (from repo root — main_api_app:app is the FULL app, v8.0.0)
 cd ..
 PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
 # In another terminal: cd frontend-nextjs && npm run dev -- -p 3001
+# — OR use the Makefile: make backend / make frontend / make dev
 ```
 
 ### Method 3: Automated Installer Script
@@ -79,6 +85,17 @@ Atom provides a one-shot shell script to automate repository cloning, dependency
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rush86999/atom/main/scripts/install.sh | bash
+```
+
+### Method 4: Makefile (recommended for contributors)
+
+```bash
+make setup       # one-shot: venv + deps + .env
+make backend     # run full backend on :8001
+make frontend    # run frontend dev server on :3001
+make dev         # run both (tmux or two terminals)
+make test        # run backend unit tests
+make test-e2e    # run E2E journey suite
 ```
 
 ---
@@ -95,12 +112,12 @@ Deploying Atom on a dedicated host (e.g., Apple Silicon Mac Mini) for office aut
 2. **Local Inference (Ollama)**: Optimize local models by enabling Apple Silicon GPU acceleration:
    ```bash
    brew install ollama
-   ollama run llama3
+   ollama run llama3:8b
    ```
    Configure `.env` to route local execution queries:
    ```bash
    ATOM_LOCAL_ONLY=true
-   OLLAMA_HOST=http://localhost:11434
+   OLLAMA_BASE_URL=http://localhost:11434/v1
    ```
 
 ### Enterprise Deployment (PostgreSQL + Redis)

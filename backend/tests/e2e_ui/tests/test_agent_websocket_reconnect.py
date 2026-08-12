@@ -36,8 +36,12 @@ def inject_websocket_tracker(page: Page):
     - WebSocket close events
     - Reconnection attempts
     - Connection state
+
+    Injected via add_init_script (not page.evaluate) so the patch survives
+    the full-page navigation in ChatPage.navigate() and observes the
+    page-load WebSocket connection.
     """
-    page.evaluate("""() => {
+    page.context.add_init_script("""
         window.atomWebSocketEvents = [];
         window.atomReconnectAttempts = 0;
         window.wsConnected = false;
@@ -68,7 +72,7 @@ def inject_websocket_tracker(page: Page):
 
             return ws;
         };
-    }""")
+    """)
 
 
 def get_websocket_state(page: Page) -> Dict[str, Any]:
@@ -122,14 +126,16 @@ def test_websocket_connection_established(
     Coverage: AGNT-05 (WebSocket connection establishment)
     """
     # Setup
-    user_data = setup_test_user()
+    user_data = setup_test_user
     chat_page = ChatPage(authenticated_page_api)
+
+    # Inject WebSocket tracker BEFORE navigation (page-load connects
+    # happen before the tracker could observe them otherwise)
+    inject_websocket_tracker(authenticated_page_api)
+
     chat_page.navigate()
 
     assert chat_page.is_loaded(), "Chat page should be loaded"
-
-    # Inject WebSocket tracker
-    inject_websocket_tracker(authenticated_page_api)
 
     # Send initial message to establish connection
     unique_message = f"Hello {uuid.uuid4()}"
@@ -180,8 +186,13 @@ def test_websocket_reconnect_on_disconnect(
     Coverage: AGNT-05 (WebSocket reconnection on disconnect)
     """
     # Setup
-    user_data = setup_test_user()
+    user_data = setup_test_user
     chat_page = ChatPage(authenticated_page_api)
+
+    # Inject WebSocket tracker BEFORE navigation (page-load connects
+    # happen before the tracker could observe them otherwise)
+    inject_websocket_tracker(authenticated_page_api)
+
     chat_page.navigate()
 
     assert chat_page.is_loaded(), "Chat page should be loaded"
@@ -194,9 +205,6 @@ def test_websocket_reconnect_on_disconnect(
         chat_page.wait_for_response(timeout=15000)
     except TimeoutError:
         pytest.skip("WebSocket not implemented - skipping reconnection test")
-
-    # Inject WebSocket reconnection tracker
-    inject_websocket_tracker(authenticated_page_api)
 
     # Get initial state
     initial_state = get_websocket_state(authenticated_page_api)
@@ -249,23 +257,13 @@ def test_websocket_message_queue_during_reconnect(
     Coverage: AGNT-05 (Message queuing during reconnection)
     """
     # Setup
-    user_data = setup_test_user()
+    user_data = setup_test_user
     chat_page = ChatPage(authenticated_page_api)
-    chat_page.navigate()
 
-    assert chat_page.is_loaded(), "Chat page should be loaded"
-
-    # Establish connection
-    unique_message = f"Establish connection {uuid.uuid4()}"
-    chat_page.send_message(unique_message)
-
-    try:
-        chat_page.wait_for_response(timeout=15000)
-    except TimeoutError:
-        pytest.skip("WebSocket not implemented - skipping message queue test")
-
-    # Inject message queue tracker
-    authenticated_page_api.evaluate("""() => {
+    # Inject message queue tracker BEFORE navigation (page-load connects
+    # happen before the tracker could observe them otherwise). add_init_script
+    # (not evaluate) so the send override survives the navigation.
+    authenticated_page_api.context.add_init_script("""
         window.atomMessageQueue = [];
 
         // Override send to queue messages during disconnect
@@ -280,7 +278,20 @@ def test_websocket_message_queue_during_reconnect(
                 return originalSend.apply(this, args);
             }
         };
-    }""")
+    """)
+
+    chat_page.navigate()
+
+    assert chat_page.is_loaded(), "Chat page should be loaded"
+
+    # Establish connection
+    unique_message = f"Establish connection {uuid.uuid4()}"
+    chat_page.send_message(unique_message)
+
+    try:
+        chat_page.wait_for_response(timeout=15000)
+    except TimeoutError:
+        pytest.skip("WebSocket not implemented - skipping message queue test")
 
     # Simulate disconnect
     simulate_websocket_disconnect(authenticated_page_api)
@@ -335,8 +346,13 @@ def test_websocket_reconnect_max_attempts(
     Coverage: AGNT-05 (Max reconnection attempts)
     """
     # Setup
-    user_data = setup_test_user()
+    user_data = setup_test_user
     chat_page = ChatPage(authenticated_page_api)
+
+    # Inject WebSocket tracker BEFORE navigation (page-load connects
+    # happen before the tracker could observe them otherwise)
+    inject_websocket_tracker(authenticated_page_api)
+
     chat_page.navigate()
 
     assert chat_page.is_loaded(), "Chat page should be loaded"
@@ -349,9 +365,6 @@ def test_websocket_reconnect_max_attempts(
         chat_page.wait_for_response(timeout=15000)
     except TimeoutError:
         pytest.skip("WebSocket not implemented - skipping max attempts test")
-
-    # Inject max attempts tracker
-    inject_websocket_tracker(authenticated_page_api)
 
     # Simulate multiple connection losses
     max_simulated_disconnects = 3

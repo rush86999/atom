@@ -46,11 +46,11 @@ def create_test_user(db_session: Session, email: str = None) -> User:
 
     user = User(
         email=email,
-        username=f"slow3g_{str(uuid.uuid4())[:8]}",
         hashed_password=get_password_hash("TestPassword123!"),
-        is_active=True,
-        status="active",
-        created_at=datetime.utcnow()
+        first_name="Test",
+        last_name="User",
+        role="member",
+        status="active"
     )
 
     db_session.add(user)

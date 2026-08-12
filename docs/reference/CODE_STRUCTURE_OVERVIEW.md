@@ -1,28 +1,232 @@
 # ATOM Platform - Complete Code Structure Overview
 
-## 🎯 Recent Project Structure Improvements
+> **Last Updated**: August 2026 · **Version**: v8.0.0
 
-### ✅ Completed Cleanup & Organization
-- **Backend Consolidation**: Reduced from 385+ files to clean, organized structure
-- **Shared Services Architecture**: Unified TypeScript services for web and desktop apps
-- **Desktop App Fixes**: Resolved build issues with shared service imports
-- **Gitignore Optimization**: Comprehensive exclusion of temporary and build files
-- **Directory Organization**: Proper separation of core, tests, scripts, and data
+## System Architecture
 
-### 🔧 Key Technical Improvements
-- **Tauri Desktop Build**: Fixed esbuild configuration with shared service externals
-- **TypeScript Path Mappings**: Proper `@shared-*` aliases for cross-platform development
-- **Service Integration**: Shared AI, integration, and workflow services
-- **LanceDB Integration**: Local vector database for desktop app performance
-- **Build Optimization**: 2.2MB bundle size with external package handling
+```
+ATOM Platform - AI-Powered Business Automation
+├── Frontend Web App (Next.js 16.2 + TypeScript 5.9)
+│   ├── Pages Router (frontend-nextjs/pages/)
+│   ├── React 18.3 + Chakra UI 3.3 + TailwindCSS 3.2
+│   └── Backend API integration (proxy → :8000)
+├── Backend API Service (Python 3.11 + FastAPI)
+│   ├── main_api_app.py (v8.0.0, 197 routers)
+│   ├── minimal_app.py (v6.0.0, ~125 routes, smoke)
+│   ├── main_api_app_safe.py (safe mode, mocks deps)
+│   ├── Core: governance, LLM routing, models, sandbox
+│   ├── 44+ integration services
+│   ├── LanceDB memory pipeline (vector database)
+│   └── Real-time webhooks
+├── AI & Orchestration Engine
+│   ├── Queen Agent (WORKFLOW intents → blueprints)
+│   ├── Fleet Admiral (TASK intents → specialist recruitment)
+│   ├── Agent Radio (lateral peer messaging)
+│   ├── Goal-Driven Loop (definition_of_done + stuck-detector)
+│   └── Memory Management (episodic, turn facts, GraphRAG)
+└── Storage & Memory
+    ├── SQLite (Personal Edition, default)
+    ├── PostgreSQL (Enterprise, optional)
+    ├── LanceDB (Vector Database, embedded)
+    └── Redis (WS pub-sub only, optional)
+```
 
-### 📁 Current Project Health
-- **Build Status**: ✅ Tauri desktop app builds successfully
-- **Service Integration**: ✅ Shared services accessible from both platforms
-- **Platform Parity**: ✅ Identical features across desktop and web
-- **Code Organization**: ✅ Clean, maintainable structure with proper separation
+## Backend Directory Structure
 
-> **File Organization System**: This project uses automated file organization rules defined in `.file-organization-rules.json`. Run `python scripts/organize-files.py --validate` to check structure or `--organize` to auto-organize files.
+```
+backend/
+├── main_api_app.py              # Main FastAPI app (v8.0.0, 197 routers)
+├── minimal_app.py               # Smoke subset (~125 routes, v6.0.0)
+├── main_api_app_safe.py         # Safe mode (mocks missing deps)
+├── requirements.txt             # Python dependencies (173 lines)
+├── requirements-personal.txt    # Minimal deps for Personal Edition
+├── requirements-testing.txt     # Test deps (pytest, coverage, fuzzing)
+├── pyproject.toml               # atom-os 0.1.0, requires-python >=3.11
+├── setup.py                     # Mirrors pyproject.toml
+├── mypy.ini                     # Python 3.11, disallow_untyped_defs=False
+├── pytest.ini                   # 333 lines, 80% coverage target
+├── gunicorn_conf.py             # Production process manager
+├── Dockerfile                   # Standalone backend (python:3.11-slim)
+├── Dockerfile.api               # AWS App Runner variant
+│
+├── core/                        # Core business logic
+│   ├── config.py                # Application configuration
+│   ├── models.py                # SQLAlchemy models (AgentRegistry, etc.)
+│   ├── auth.py                  # Authentication (JWT, OAuth)
+│   ├── agent_governance_service.py  # Maturity, permissions, lifecycle
+│   ├── agent_context_resolver.py    # Context resolution for agents
+│   ├── governance_cache.py          # <1ms cached governance checks
+│   ├── generic_agent.py         # ReAct agent loop
+│   ├── atom_meta_agent.py       # Meta-agent (Fleet Admiral)
+│   ├── agent_world_model.py     # Verified knowledge with citations
+│   ├── safe_evaluator.py        # AST-validated safe_eval (CWE-94)
+│   ├── sandbox_policy.py        # Execution sandbox (P9, default-on)
+│   ├── sandbox_gate.py          # Shared tool-call evaluation gate
+│   ├── action_registry.py       # Unified action registry (P1)
+│   ├── capability_resolver.py   # Per-agent zero-trust tool scoping (P2)
+│   ├── data_taint_tracker.py    # Sensitivity classification (P4)
+│   ├── blueprint_sanitizer.py   # Credential stripping (P5)
+│   ├── turn_fact_extractor.py   # Per-turn fact extraction (Mem0-style)
+│   ├── hybrid_search/           # BM25 + vector RRF fusion
+│   ├── vfs_base.py              # Knowledge VFS base
+│   ├── vfs_registry.py          # VFS action registry
+│   ├── llm/                     # LLM providers, BYOK, cognitive tiers
+│   │   ├── byok_handler.py      # Multi-provider LLM routing
+│   │   ├── cognitive_tier_system.py  # 5-tier LLM routing
+│   │   ├── learning_router_registry.py  # Learning-based routing
+│   │   ├── stage_router.py      # Turn-level model routing
+│   │   ├── self_consistency_voter.py  # N-sample majority vote
+│   │   └── gateway/             # OpenAI/Anthropic-compatible gateway
+│   ├── oracle/                  # Postcondition verification
+│   ├── agents/                  # Agent definitions (Queen, etc.)
+│   ├── orchestration/           # Conductor, state machine, event bus
+│   └── agent_radio/             # Lateral peer messaging
+│
+├── api/                         # FastAPI route handlers
+│   ├── auth_routes.py           # Mobile auth (biometric, device)
+│   ├── health_routes.py         # Health endpoints (7 total)
+│   ├── atom_agent_endpoints.py  # Agent chat, streaming
+│   ├── canvas_routes.py         # Canvas CRUD, governance
+│   ├── browser_routes.py        # Browser automation
+│   ├── device_routes.py         # Device capabilities
+│   ├── feedback_enhanced.py     # Ratings, corrections, A/B testing
+│   ├── office_routes.py         # Office automation
+│   ├── rpc_routes.py            # Unified RPC endpoint (P1)
+│   ├── openai_gateway_routes.py # LLM Gateway /v1/* surface
+│   └── stage_router_routes.py   # Stage router admin
+│
+├── tools/                       # Agent-callable tools
+│   ├── browser_tool.py          # Playwright CDP (INTERN+)
+│   ├── canvas_tool.py           # Canvas presentations
+│   ├── memory_tool.py           # memory_remember / memory_forget
+│   ├── device_tool.py           # Camera, screen, location, exec
+│   ├── office_tool.py           # read/write/render docx/xlsx/pptx
+│   ├── mini_app_tool.py         # 13 mini_app_* actions
+│   └── atom_cli_skill_wrapper.py  # Atom CLI skills
+│
+├── integrations/                # External service integrations
+│   ├── mcp_service.py           # MCP tool dispatch + sandbox gate
+│   ├── mcp_client.py            # Real MCP client (JSON-RPC 2.0)
+│   ├── external_integration_service.py  # OAuth, credentials
+│   ├── universal_integration_service.py  # Unified integration
+│   ├── slack_service.py         # Slack
+│   ├── gmail_service.py         # Gmail
+│   ├── salesforce_service.py    # Salesforce CRM
+│   ├── hubspot_service.py       # HubSpot
+│   ├── notion_service.py        # Notion
+│   ├── github_service.py        # GitHub
+│   └── 40+ more services
+│
+├── middleware/                   # Request/response middleware
+│   ├── governance_middleware.py  # Outbound gatekeeper (P3)
+│   └── security_headers.py      # XSS, CSP headers
+│
+├── tests/                       # Test suite (1250+ files)
+│   ├── unit/                    # Unit tests
+│   ├── integration/             # Integration tests
+│   ├── e2e_ui/                  # E2E UI tests (486 tests, POM)
+│   ├── e2e_api/                 # API-level E2E tests
+│   ├── security/                # Security edge cases
+│   ├── property_tests/          # Property-based testing
+│   ├── chaos/                   # Chaos testing
+│   └── stress/                  # Stress/load testing
+│
+├── alembic/                     # Database migrations (137 versions)
+│   ├── alembic.ini              # SQLite default, hybrid PG pattern
+│   └── versions/                # Migration files
+│
+├── scripts/                     # Operational scripts
+│   ├── build_miniapp_rootfs.sh  # Firecracker rootfs builder
+│   ├── backfill_lancedb_join_keys.py  # Join-key bridge backfill
+│   └── calibrate_stage_router.py  # Stage router calibration
+│
+├── cli/                         # CLI entry point
+│   ├── daemon.py                # Daemon mode
+│   └── main_cli.py              # atom-os CLI
+│
+└── data/                        # Runtime data
+    ├── atom_dev.db              # SQLite database
+    ├── lancedb/                 # Vector store
+    └── atom_memory/             # Memory store
+```
+
+## Frontend Directory Structure
+
+```
+frontend-nextjs/                 # Next.js 16.2.2 (Pages Router)
+├── pages/                       # Next.js Pages Router
+│   ├── _app.tsx                 # App wrapper
+│   ├── index.tsx                # Home page with chat interface
+│   ├── dashboard.tsx            # Main dashboard
+│   ├── integrations/            # Integration pages (25+)
+│   └── api/                     # Next.js API routes (proxy → backend)
+├── components/                  # React components
+│   ├── canvas/                  # Canvas components
+│   ├── integrations/            # Integration UI components
+│   └── shared/                  # Shared UI components
+├── hooks/                       # Custom React hooks
+├── lib/                         # Utilities (sanitize.ts, auth.ts)
+├── stores/                      # State management
+├── types/                       # TypeScript type definitions
+├── styles/                      # Global styles (TailwindCSS)
+├── public/                      # Static assets
+├── tests/                       # Frontend tests (Jest 30.x)
+├── next.config.js               # Standalone output, proxy rewrite
+├── tsconfig.json                # ES5 target, strict (no strictNullChecks)
+├── tailwind.config.js           # TailwindCSS configuration
+├── jest.config.js               # Jest 30.x configuration
+├── eslint.config.mjs            # ESLint 10.x flat config
+├── postcss.config.js            # PostCSS configuration
+└── package.json                 # Next.js 16.2.2, React 18.3.1
+```
+
+## Technology Stack
+
+### Frontend
+- **Next.js 16.2.2** (Pages Router, standalone output)
+- **React 18.3.1** + **TypeScript 5.9.2**
+- **Chakra UI 3.3.0** + **TailwindCSS 3.2.7**
+- **Jest 30.0.5** + **React Testing Library**
+- **Stryker** mutation testing
+
+### Backend
+- **Python 3.11+** + **FastAPI 0.104+**
+- **SQLAlchemy 2.0+** + **Pydantic 2.0+**
+- **Alembic** (137 migrations)
+- **LanceDB 0.5.3+** + **FastEmbed 0.2+**
+- **Playwright 1.58.0** (browser automation)
+- **Gunicorn 21.2.0** (production)
+
+### Infrastructure
+- **Docker** (multi-stage builds, dual-app image)
+- **GitHub Actions** CI/CD
+- **Fly.io** deployment
+- **mypy** (Python 3.11 type checking)
+- **Black 23.12.0** + **isort 5.13.0** + **Flake8 7.0.0**
+
+### Databases
+- **SQLite** (Personal Edition, default)
+- **PostgreSQL 15** (Enterprise, optional)
+- **Redis** (WS pub-sub only, optional)
+- **LanceDB** (embedded vector store)
+
+## Makefile Targets
+
+| Target | Description |
+|--------|-------------|
+| `make setup` | One-shot dev bootstrap (venv + deps + .env) |
+| `make backend` | Run full backend on :8001 |
+| `make frontend` | Run frontend dev server on :3001 |
+| `make dev` | Run both (tmux or two terminals) |
+| `make test` | Run backend unit tests |
+| `make test-e2e` | Run E2E journey suite |
+| `make docker-build` | Build dual-app image |
+| `make docker-run` | Run dual-app image |
+| `make migrate` | Run SQLite migration helper |
+
+---
+
+*Last Updated: August 2026*
 
 ## 🏗️ System Architecture
 

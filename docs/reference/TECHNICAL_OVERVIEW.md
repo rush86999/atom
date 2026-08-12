@@ -1,4 +1,6 @@
-# 🔧 Atom Technical Overview
+# Atom Technical Overview
+
+> **Last Updated**: August 2026 · **Version**: v8.0.0 (main_api_app)
 
 ## System Architecture
 
@@ -6,18 +8,16 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Frontend Layer                           │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │   Next.js 15.5  │  │   React 18.2    │  │   TypeScript    │ │
-│  │                 │  │                 │  │                 │ │
-│  │ • Pages Router  │  │ • Hooks & State │  │ • Type Safety   │ │
-│  │ • API Routes    │  │ • Context API   │  │ • Interfaces    │ │
-│  │ • SSR/SSG       │  │ • Performance   │  │ • Validation    │ │
+│  │   Next.js 16.2  │  │   React 18.3    │  │   TypeScript    │ │
+│  │  (Pages Router) │  │                 │  │    5.9.2        │ │
+│  │ • API Routes    │  │ • Hooks & State │  │ • Type Safety   │ │
+│  │ • SSR/SSG       │  │ • Context API   │  │ • Interfaces    │ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │   Chakra UI     │  │   TailwindCSS   │  │   Framer Motion │ │
-│  │                 │  │                 │  │                 │ │
-│  │ • Component Lib │  • Utility Classes │  • Animations     │ │
-│  │ • Theme System  │  • Responsive      │  • Transitions    │ │
-│  │ • Accessibility │  • Customization   │  • Interactions   │ │
+│  │   Chakra UI 3.3 │  │   TailwindCSS   │  │   Framer Motion │ │
+│  │ • Component Lib │  │    3.2.7        │  │ • Animations     │ │
+│  │ • Theme System  │  • Utility Classes │  • Transitions    │ │
+│  │ • Accessibility │  • Responsive      │  • Interactions   │ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
                                │
@@ -25,414 +25,223 @@
 │                      Backend Layer                              │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
 │  │   FastAPI       │  │   PostgreSQL    │  │   Redis         │ │
-│  │                 │  │                 │  │                 │ │
-│  │ • REST API      │  • Primary DB      │  • Caching        │ │
-│  │ • OAuth 2.0     │  • ORM (Prisma)    │  • Session Store  │ │
-│  │ • WebSockets    │  • Migrations      │  • Pub/Sub        │ │
+│  │   (Python 3.11) │  │   (optional)    │  │   (optional)    │ │
+│  │ • REST API      │  • Primary DB      │  • WS pub/sub     │ │
+│  │ • OAuth 2.0     │  • ORM (SQLAlchemy)│  • Caching        │ │
+│  │ • WebSockets    │  • 137 migrations  │  • (graceful off) │ │
+│  │ • 197 routers   │  • Alembic         │  │                 │ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │   Celery        │  │   Docker        │  │   Nginx         │ │
-│  │                 │  │                 │  │                 │ │
-│  • Task Queue      │  • Containerization│  • Reverse Proxy  │ │
-│  • Background Jobs │  • Orchestration   │  • Load Balancing  │ │
-│  • Scheduled Tasks │  • Deployment      │  • SSL/TLS        │ │
+│  │   LanceDB       │  │   Docker        │  │   Gunicorn      │ │
+│  │   (embedded)    │  │                 │  │   (prod)        │ │
+│  │ • Vector Store  │  • Containerization│  • Process Mgmt   │ │
+│  │ • FastEmbed     │  • Personal Ed.   │  • Worker Pools   │ │
+│  │ • Semantic Srch │  • E2E Testing    │  • Graceful Stop  │ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-┌─────────────────────────────────────────────────────────────────┐
-│                    Integration Layer                            │
-│  ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐  │
-│  │ Calendar│  Email  │   Task  │   File  │ Finance │   CRM   │  │
-│  │         │         │         │         │         │         │  │
-│  │• Google │• Gmail  │• Notion │• Drive  │• Plaid  │•Salesforce│ │
-│  │• Outlook│• Outlook│• Trello │• Dropbox│•QuickBooks│• HubSpot │ │
-│  │         │         │• Asana  │• OneDrive│• Xero   │         │ │
-│  │         │         │• Jira   │• Box    │• Stripe │         │ │
-│  └─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘  │
-│  ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐  │
-│  │  Social │  Chat   │  Voice  │   AI    │ Payment │  Other  │  │
-│  │         │         │         │         │         │         │  │
-│  │• Twitter│• Slack  │• STT/TTS│• OpenAI │• PayPal │• GitHub │ │
-│  │•LinkedIn│• Teams  │• Wake   │• Claude │         │• Zapier │ │
-│  │         │• Discord│  Word   │• Gemini │         │         │ │
-│  │         │         │         │         │         │         │ │
-│  └─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Core Components
 
-### Frontend Components
+### Frontend (Next.js 16.2.2 — Pages Router)
 
-#### Dashboard & Navigation
-- **Dashboard.tsx** - Main dashboard with overview tabs
-- **Baseof.tsx** - Root layout component
-- **Navigation** - Tab-based navigation system
+- **Pages Router** (not App Router) — `frontend-nextjs/pages/`
+- **Standalone output** for Docker deployments
+- **Proxy**: rewrites `/api/*` → `http://127.0.0.1:8000`
+- Config: `next.config.js`, `tsconfig.json`, `tailwind.config.js`, `jest.config.js`
 
-#### Core Feature Components
-- **CalendarManagement.tsx** - Calendar events and scheduling
-- **TaskManagement.tsx** - Task creation and organization
-- **CommunicationHub.tsx** - Unified messaging interface
-- **FinancialDashboard.tsx** - Financial tracking and insights
+### Backend (FastAPI, Python 3.11)
 
-#### Advanced Feature Components
-- **AgentManager.tsx** - Multi-agent system management
-- **RoleSettings.tsx** - Agent role configuration
-- **CoordinationView.tsx** - Agent task coordination
-- **WorkflowEditor.tsx** - Visual automation builder
-- **TriggerSettings.tsx** - Automation trigger configuration
-- **WorkflowMonitor.tsx** - Automation execution monitoring
-- **WakeWordDetector.tsx** - Voice activation system
-- **VoiceCommands.tsx** - Voice command processing
-- **ChatInterface.tsx** - AI-powered conversation interface
+- **Entry point**: `backend/main_api_app.py` (v8.0.0, 197 routers)
+- **Smoke entry**: `backend/minimal_app.py` (v6.0.0, ~125 routes)
+- **Safe mode**: `backend/main_api_app_safe.py` (mocks numpy/pandas/lancedb if missing)
+- **No `main.py`** — the canonical entry is `main_api_app:app`
 
-### Backend Services
+### Key Backend Directories
 
-#### Core API Services
-- **main_api_app.py** - FastAPI main application
-- **email_service.py** - Email integration and processing
-- **calendar_integration_service.py** - Calendar synchronization
-- **task_service.py** - Task management and coordination
-
-#### Integration Services
-- **notion_service.py** - Notion API integration
-- **trello_service.py** - Trello board management
-- **asana_service.py** - Asana project coordination
-- **jira_service.py** - Jira issue tracking
-- **file_storage_service.py** - Cloud storage integration
-- **salesforce_service.py** - CRM data synchronization
-- **hubspot_service.py** - Marketing automation
-- **finance_service.py** - Financial data processing
-- **social_media_service.py** - Social platform management
-
-#### Advanced Services
-- **universal_webhook_bridge.py** - Multi-platform message standardization
-- **agent_integration_gateway.py** - Centralized response routing hub
-- **messenger_service.py** - Facebook Messenger API interaction
-- **line_service.py** - Line Messaging API interaction
-- **signal_service.py** - signal-cli-rest-api interaction
-- **agent_service.py** - Multi-agent coordination
-- **workflow_service.py** - Automation execution
-- **voice_service.py** - Speech processing
-- **ai_service.py** - LLM integration and management
-- **self_evolution_service.py** - Agent learning and self-improvement coordinator
-- **agent_evolution_loop.py** - GEA (Group-Evolving Agents) full evolution cycle
-- **skill_builder_service.py** - Structured skill package generation
-- **skill_dynamic_loader.py** - Runtime module loading and hot-reload
-- **skill_registry_service.py** - Community and dynamic skill management
-- **skill_composition_engine.py** - DAG-based multi-skill workflow execution
-
-## Database Schema
-
-### Core Tables (NextAuth + Application)
-```sql
--- NextAuth Authentication (Nov 2025)
-users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  name VARCHAR(255),
-  email_verified TIMESTAMP,
-  image TEXT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-)
-
-password_reset_tokens (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  token VARCHAR(255) UNIQUE NOT NULL,
-  expires_at TIMESTAMP NOT NULL,
-  used BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT NOW()
-)
-
--- OAuth Integration Tokens
-oauth_tokens (
-  id UUID,
-  user_id UUID REFERENCES users(id),
-  service VARCHAR(255),
-  access_token TEXT ENCRYPTED,
-  refresh_token TEXT ENCRYPTED,
-  expires_at TIMESTAMP
-)
-
--- Calendar & Scheduling
-calendar_events (id, user_id, title, start_time, end_time, location, status)
-event_templates (id, user_id, name, settings, created_at)
-
--- Task Management
-tasks (id, user_id, title, description, status, priority, due_date, project_id)
-projects (id, user_id, name, description, status, created_at)
-
--- Communication
-messages (id, user_id, platform, from_user, subject, content, timestamp, unread)
-threads (id, user_id, platform, participants, last_message_at)
-
--- Financial
-transactions (id, user_id, account_id, amount, description, category, date)
-accounts (id, user_id, name, type, balance, currency)
-budgets (id, user_id, category, amount, period)
+```
+backend/
+├── core/                  # Agent governance, LLM routing, models, sandbox
+├── api/                   # Route handlers (auth, health, agents, canvas, etc.)
+├── tools/                 # Agent tools (browser, canvas, memory, device, etc.)
+├── integrations/          # 44+ external service integrations
+├── middleware/             # Governance, CORS, security headers
+├── llm/                   # LLM providers, BYOK, cognitive tiers, gateway
+├── intelligence/          # Episodic memory, GraphRAG, turn facts
+├── accounting/            # Financial exports, GL, CSV injection guard
+├── sales/                 # CRM, pipeline management
+├── finance/               # Stripe, QuickBooks, Xero, Plaid
+├── skills/                # Atom CLI skills, marketplace
+├── tests/                 # 1250+ test files, E2E UI (POM pattern)
+├── scripts/               # DB migration, miniapp rootfs, calibration
+├── alembic/               # 137 migration files
+├── cli/                   # Daemon mode, CLI entry point
+└── data/                  # SQLite DB, LanceDB, runtime data
 ```
 
-### Integration Tables
-```sql
--- Service Connections
-service_connections (id, user_id, service_type, config, sync_status, last_sync)
-external_ids (id, user_id, service_type, external_id, internal_id)
+## Database Architecture
 
--- Advanced Features
-agents (id, user_id, name, role, status, capabilities, config, performance)
-workflows (id, user_id, name, description, triggers, actions, enabled, version)
-voice_commands (id, user_id, phrase, action, parameters, enabled, usage_count)
-ai_sessions (id, user_id, title, messages, model, created_at, updated_at)
-```
+### SQLite (Personal Edition — default)
+- `DATABASE_URL=sqlite:///./atom_dev.db`
+- Schema via `Base.metadata.create_all` on first boot
+- Alembic for migrations (137 versions)
+
+### PostgreSQL (Enterprise/Production)
+- `DATABASE_URL=postgresql://user:pass@host:5432/db`
+- Full ACID compliance
+- `psycopg2-binary` driver
+
+### LanceDB (embedded vector store)
+- `LANCEDB_PATH=./data/lancedb`
+- FastEmbed (`BAAI/bge-small-en-v1.5`) — 384-dim, local
+- Episodic memory, document embeddings, semantic search
 
 ## Authentication & Security
 
-### NextAuth Production System (Nov 2025)
-
-**Authentication Flow:**
+### Auth Flow
 ```
-User → Email/Password or OAuth → NextAuth → bcrypt/OAuth verify → JWT Session → API Access
+User → Email/Password or OAuth → JWT Session → API Access
 ```
 
-**Supported Methods:**
-- Email/password with bcrypt hashing (10 rounds)
-- OAuth 2.0 (Google, GitHub)
-- Password reset with secure tokens (1-hour expiry)
+### Security Layers (Rounds 18–72)
+- **Execution Sandbox** (P9, default-on): filesystem scope, tool whitelist, tripwires, resource caps
+- **BYOK Encryption** (P0): Fernet encryption of OAuth tokens at rest
+- **Capability Resolver** (P2): per-agent zero-trust tool scoping
+- **Outbound Gatekeeper** (P3): per-service policy gate
+- **Data Taint Tracker** (P4): sensitivity classification, blocks restricted data outbound
+- **Blueprint Sanitizer** (P5): credential stripping on canvas fork/share
+- **Match Confidence** (R41): pre-action selector certainty scoring
+- **Self-Consistency Voter** (R42): N-sample majority vote for hallucination mitigation
+- **CSV Injection Guard** (R51): prefixes `= + - @` cells in financial exports
+- **Rate Limiting**: `AuthRateLimiter` (10/min login, 3/5min register)
+- **Webhook Verification**: HMAC signatures for Slack, Teams, Gmail, Shopify, etc.
 
-**Key Components:**
-- `frontend-nextjs/lib/auth.ts` - NextAuth configuration
-- `frontend-nextjs/lib/db.ts` - Direct PostgreSQL connection
-- `backend/migrations/` - Database schemas
+## Health Endpoints
 
-**API Endpoints:**
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/[...nextauth]` - NextAuth handlers
-- `POST /api/auth/forgot-password` - Request password reset
-- `POST /api/auth/reset-password` - Reset with token
-- `GET /api/auth/callback/{provider}` - OAuth callbacks
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /alive` | Fly.io liveness (`{"status":"alive","debug_id":"v8.0.0"}`) |
+| `GET /` | Root info (`{"name":"ATOM Platform API","version":"8.0.0"}`) |
+| `GET /health` | Consolidated (DB, Redis, vector_store, memory_mb) |
+| `GET /health/live` | K8s/ECS liveness probe |
+| `GET /health/ready` | Readiness probe (DB + disk check) |
+| `GET /health/db` | Database connectivity with pool status |
+| `GET /health/metrics` | Prometheus metrics endpoint |
+| `GET /health/stage-router` | Stage router phase guidance |
 
-### Security Features
-- **bcrypt Hashing** - Industry-standard password hashing
-- **JWT Sessions** - Stateless session management with secure secrets
-- **OAuth 2.0** - Secure third-party authentication
-- **Token Encryption** - Service tokens encrypted with AES
-- **Input Validation** - Comprehensive request validation
-- **XSS Prevention** - HTML sanitization and CSP headers
-- **CSRF Protection** - Token-based request verification
-- **Rate Limiting** - API request throttling
-- **Data Encryption** - Sensitive data encrypted at rest
+## Agent Governance & Maturity
 
-## Performance Architecture
+### Maturity Levels (confidence-based routing)
+| Level | Confidence | Capabilities |
+|-------|-----------|-------------|
+| STUDENT | <0.5 | Read-only (BLOCKED → training) |
+| INTERN | 0.5–0.7 | Streaming, forms (PROPOSAL → approval) |
+| SUPERVISED | 0.7–0.9 | State changes (under supervision) |
+| AUTONOMOUS | >0.9 | All actions |
 
-### Frontend Optimization
-- **Code Splitting** - Lazy-loaded components
-- **Virtual Scrolling** - Efficient large list rendering
-- **Caching Strategy** - SWR and React Query for data
-- **Bundle Optimization** - Tree shaking and minification
-- **Image Optimization** - Next.js image optimization
+### Action Complexity
+| Level | Description | Min Tier |
+|-------|-------------|----------|
+| 1 LOW | Presentations | STUDENT+ |
+| 2 MODERATE | Streaming | INTERN+ |
+| 3 HIGH | State changes | SUPERVISED+ |
+| 4 CRITICAL | Deletions | AUTONOMOUS only |
 
-### Backend Optimization
-- **Database Indexing** - Optimized query performance
-- **Connection Pooling** - Efficient database connections
-- **Caching Layer** - Redis for frequent data
-- **Background Processing** - Celery for long-running tasks
-- **API Rate Limiting** - Request throttling and queuing
+## Key Features
 
-### Monitoring & Metrics
-- **Response Times** - API latency tracking
-- **Error Rates** - Application error monitoring
-- **Resource Usage** - CPU, memory, and storage
-- **User Analytics** - Feature usage and engagement
-- **Integration Health** - External service status
+### LLM Providers
+- **OpenAI**, **Anthropic**, **DeepSeek**, **Google Gemini**, **Z.ai GLM**, **Moonshot/Kimi**
+- **Ollama** (local, free, no API key)
+- **OpenCode Go** (low-cost subscription gateway at opencode.ai/zen/v1)
+- **OpenRouter** (unified gateway, 300+ models)
+- **Cognitive Tier System**: 5-tier LLM routing, ~90% cost reduction via caching
+- **Learning Router**: per-model satisfaction predictors re-rank candidates
 
-## Deployment Architecture
+### Agent Systems
+- **Queen Agent**: WORKFLOW intents → structured blueprints
+- **Fleet Admiral**: TASK intents → multi-agent recruitment
+- **Agent Radio**: lateral peer messaging (mention-first delivery)
+- **Goal-Driven Loop**: definition_of_done early exit + stuck-detector
 
-### Development Environment
-```yaml
-# docker-compose.yml
-services:
-  frontend:
-    build: ./frontend-nextjs
-    ports: ["3000:3000"]
-    environment:
-      - NODE_ENV=development
-      - NEXTAUTH_URL=http://localhost:3000
-  
-  backend:
-    build: ./backend
-    ports: ["8000:8000"]
-    environment:
-      - DATABASE_URL=postgresql://...
-      - REDIS_URL=redis://...
-  
-  database:
-    image: postgres:15
-    environment:
-      - POSTGRES_DB=atom
-      - POSTGRES_USER=atom
-      - POSTGRES_PASSWORD=atom
-  
-  redis:
-    image: redis:7-alpine
-```
+### Canvas & Office
+- **Canvas**: charts, markdown, forms with governance
+- **Office Automation**: read/write/render docx/xlsx/pptx
+- **Workbook Runtime**: formula-evaluating Excel engine
+- **Mini-Apps**: stateful, resumable canvas-UI apps on Firecracker microVMs
 
-### Production Deployment
-```yaml
-# Kubernetes Deployment
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: atom-frontend
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: atom-frontend
-  template:
-    metadata:
-      labels:
-        app: atom-frontend
-    spec:
-      containers:
-      - name: frontend
-        image: atom/frontend:latest
-        ports:
-        - containerPort: 3000
-        env:
-        - name: NODE_ENV
-          value: production
-```
+### Intelligence
+- **Episodic Memory**: hybrid PG+LanceDB, 4 retrieval modes
+- **Per-Turn Fact Extraction**: Mem0's 5 durable-fact categories
+- **Hybrid Search**: BM25 + LanceDB vector fused by RRF
+- **Knowledge VFS**: agent-native `ls`/`cat`/`grep` over documents
+- **Oracle Verification**: postcondition re-derivation against system of record
 
-## Testing Strategy
+## Deployment
 
-### Unit Testing
-- **Jest** - JavaScript/TypeScript testing
-- **React Testing Library** - Component testing
-- **Pytest** - Python backend testing
-- **Test Coverage** - 95%+ coverage target
-
-### Integration Testing
-- **API Testing** - End-to-end API validation
-- **Database Testing** - Data integrity tests
-- **External Service Testing** - Integration verification
-- **Performance Testing** - Load and stress testing
-
-### Security Testing
-- **Penetration Testing** - Vulnerability assessment
-- **Input Validation** - Security boundary testing
-- **Authentication Testing** - Access control verification
-- **Data Protection** - Privacy compliance testing
-
-## Development Workflow
-
-### Local Development
+### Personal Edition (Docker)
 ```bash
-# Frontend Development
-cd frontend-nextjs
-npm install
-npm run dev
-
-# Backend Development  
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python main_api_app.py
-
-# Database Setup
-docker-compose up -d postgres redis
+cp .env.personal .env
+docker compose -f docker-compose-personal.yml up -d --build
+# Backend: http://localhost:8001  Frontend: http://localhost:3001
 ```
 
-### CI/CD Pipeline
-```yaml
-# GitHub Actions
-name: CI/CD Pipeline
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-      - name: Install dependencies
-        run: npm install
-      - name: Run tests
-        run: npm test
-      - name: Build application
-        run: npm run build
+### Development (Makefile)
+```bash
+make setup       # one-shot bootstrap
+make backend     # full backend on :8001
+make frontend    # frontend dev server on :3001
+make dev         # both together
+make test        # unit tests
 ```
 
-## Technology Stack
+### Production
+- Docker dual-app image (Node 22 + Python 3.11 + LibreOffice)
+- Fly.io deployment (`fly.toml`, app `atom-saas`, region `iad`)
+- GitHub Actions CI/CD (`.github/workflows/deploy.yml`)
+- PostgreSQL + Redis for multi-user
 
-### Frontend Technologies
-- **Next.js 15.5** - React framework with SSR
-- **TypeScript 5.9** - Type-safe JavaScript
-- **Chakra UI 2.5** - Component library
-- **TailwindCSS 3.2** - Utility-first CSS
-- **Framer Motion 10.2** - Animation library
-- **React Query** - Data fetching and caching
+## Testing
 
-### Backend Technologies
-- **Python 3.11** - Backend programming language
-- **FastAPI** - Modern Python web framework
-- **PostgreSQL 15** - Primary database
-- **Redis 7** - Caching and session storage (optional)
-- **Celery** - Distributed task queue (optional)
-- **SQLAlchemy** - Database ORM
+### Backend
+- **pytest** with 333-line config (`backend/pytest.ini`)
+- Unit, integration, property-based, chaos, stress, load, soak tests
+- Coverage target: 80% (`fail_under = 80`)
+- Pre-commit hooks: Black, isort, Flake8
 
-### Infrastructure & DevOps
-- **Docker** - Containerization
-- **Docker Compose** - Local development
-- **Kubernetes** - Production orchestration
-- **Nginx** - Reverse proxy and load balancer
-- **GitHub Actions** - CI/CD pipeline
-- **AWS/Azure/GCP** - Cloud deployment options
+### E2E UI (486 tests)
+- `backend/tests/e2e_ui/` — API-first auth, POM pattern, worker isolation
+- Playwright 1.58.0 for browser automation
+- `make test-e2e`
 
-## Future Architecture Roadmap
+### Frontend
+- Jest 30.x + React Testing Library
+- Stryker mutation testing
+- Bundle size tracking (bundlesize)
 
-### Phase 1: Scalability (Next 6 Months)
-- **Microservices** - Decompose monolith
-- **Event-Driven Architecture** - Message bus implementation
-- **Advanced Caching** - Distributed cache strategy
-- **Database Sharding** - Horizontal scaling
+## Technology Stack Summary
 
-### Phase 2: Intelligence (Next 12 Months)
-- **Machine Learning** - Predictive features
-- **Advanced NLP** - Enhanced language understanding
-- **Personalization Engine** - Adaptive user experiences
-- **Automated Optimization** - Self-improving system
-
-### Phase 3: Platform (Next 18 Months)
-- **Multi-Tenancy** - Enterprise support
-- **API Marketplace** - Third-party extensions
-- **Mobile Applications** - Native iOS/Android apps
-- **Internationalization** - Global deployment
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Frontend | Next.js (Pages Router) | 16.2.2 |
+| Frontend | React | 18.3.1 |
+| Frontend | TypeScript | 5.9.2 |
+| Frontend | Chakra UI | 3.3.0 |
+| Frontend | Tailwind CSS | 3.2.7 |
+| Frontend | Jest | 30.0.5 |
+| Backend | Python | 3.11+ |
+| Backend | FastAPI | 0.104+ |
+| Backend | SQLAlchemy | 2.0+ |
+| Backend | Pydantic | 2.0+ |
+| Database | SQLite (Personal) | — |
+| Database | PostgreSQL (Enterprise) | 15 |
+| Vector Store | LanceDB | 0.5.3+ |
+| Embeddings | FastEmbed | 0.2+ |
+| Browser | Playwright | 1.58.0 |
+| CI/CD | GitHub Actions | — |
+| Container | Docker | — |
+| Linter | mypy | Python 3.11 |
+| Formatter | Black | 23.12.0 |
 
 ---
 
-## Getting Started
-
-### Development Setup
-1. Clone the repository
-2. Install dependencies: `npm install` (frontend) and `pip install -r requirements.txt` (backend)
-3. Set up environment variables
-4. Run database migrations
-5. Start development servers
-
-### Production Deployment
-1. Build Docker images
-2. Configure environment variables
-3. Deploy to cloud platform
-4. Run database migrations
-5. Configure monitoring and logging
-
-For detailed setup instructions, see the individual component documentation and deployment guides.
+*Last Updated: August 2026*

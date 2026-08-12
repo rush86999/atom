@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 # Add backend to path for imports
 import os
 import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 from tests.e2e_ui.pages.page_objects import ChatPage
 from core.models import User, AgentRegistry
@@ -43,11 +43,11 @@ def create_test_user(db_session: Session, email: str, password: str) -> User:
     """
     user = User(
         email=email,
-        username=f"agentexec_{str(uuid.uuid4())[:8]}",
         hashed_password=get_password_hash(password),
-        is_active=True,
-        status="active",
-        created_at=datetime.utcnow()
+        first_name="Test",
+        last_name="User",
+        role="member",
+        status="active"
     )
 
     db_session.add(user)
@@ -72,10 +72,11 @@ def create_agent_via_api(db_session: Session, name: str, maturity: str = "INTERN
     agent = AgentRegistry(
         id=str(uuid.uuid4()),
         name=name,
-        maturity_level=maturity,
-        status="active",
+        status=maturity.lower(),
+        category="testing",
+        module_path="core.agents.generic_agent",
+        class_name="GenericAgent",
         user_id=user_id or str(uuid.uuid4()),
-        created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
 
@@ -289,9 +290,9 @@ def test_agent_governance_maturity(page: Page, db_session: Session):
             expect(maturity_badges).to_contain_text("AUTONOMOUS")
     except:
         # Governance UI might not be fully implemented, verify via API
-        assert student_agent.maturity_level == "STUDENT"
-        assert intern_agent.maturity_level == "INTERN"
-        assert autonomous_agent.maturity_level == "AUTONOMOUS"
+        assert student_agent.maturity_level == "student"
+        assert intern_agent.maturity_level == "intern"
+        assert autonomous_agent.maturity_level == "autonomous"
 
     # Test governance block: Try to execute action with STUDENT agent
     page.goto(f"http://localhost:3001/agents/{student_agent.id}")

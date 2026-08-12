@@ -13,6 +13,86 @@
 
 ---
 
+## Session 2026-08-12 (wave 62) — agent_social_layer 91% → 100% / llm.gateway.auth 91% → 100% / llm.gateway.request_logger 93% → 100%
+
+**Evidence**: 3 new files — `tests/test_covpush_w62_social_layer.py` (32), `tests/test_covpush_w62_gateway_auth.py` (32), `tests/test_covpush_w62_request_logger.py` (29) — **93 new tests, all GREEN standalone** (`32/32`, `32/32`, `29/29`). Combined probes: social `--cov=core.agent_social_layer` with `test_covpush_social.py` + `test_covpush_w29_social_layer.py` → **189 passed**, module **100%** (398 stmts, 0 missing); gateway `--cov=core.llm.gateway.auth --cov=core.llm.gateway.request_logger` with `w44_gateway_misc` + `w46_gateway_keys` (+ `w10b_gateway` for the logger) → **116 passed** (238 with w10b), both modules **100%** (102 + 74 stmts, 0 missing). `request_logger` had 4 genuinely uncovered lines (126-127, 142-143 — the rollback-failure fallbacks); the other two were already 100% in combined probes — wave 62 locks the full contract + regression tests. All deps mocked, zero LLM spend, no network/DB. mypy baseline unchanged (15 pre-existing errors on HEAD, identical before/after).
+
+### Backend source fixed (RED→GREEN)
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-12 | `core/agent_social_layer.py` (line 515) | FIXED | `add_reply` STUDENT gate was dead code: `if sender_maturity == "STUDENT":` compared against the literal uppercase string, but `AgentRegistry.status` stores lowercase `AgentStatus` values ("student") — the reply gate never fired and STUDENT replies fell through to `create_post`'s misleading "cannot post to social feed" error instead of the documented "cannot reply". Now `sender_maturity.lower() == "student"` (same normalization `create_post` already uses). Regression test `TestReplyEdges::test_student_reply_blocked_by_own_gate` failed RED (DID NOT RAISE) before the fix, GREEN after. |
+| 2026-08-12 | `core/llm/gateway/auth.py` (line 166) | FIXED | `rate_limit = row.rate_limit_per_minute or 60` silently coerced an **explicit 0** back to the 60 default — but `_check_rate_limit` documents `<= 0` = "no limit", so a legacy/manually-inserted row with 0 (unlimited) was throttled to 60/min. Now `row.rate_limit_per_minute if row.rate_limit_per_minute is not None else 60` (NULL → default, 0 → unlimited). Regression test `TestResolveApiKey::test_row_rate_limit_zero_means_unlimited` failed RED (`assert 60 == 0`) before the fix, GREEN after. |
+
+### Test suites added (all GREEN at stamp time)
+| Date | Test file(s) | Count | Coverage |
+|---|---|---|---|
+| 2026-08-12 | `tests/test_covpush_w62_social_layer.py` | 32 | `core/agent_social_layer.py` 91%→**100%** (398 stmts, 0 missing in combined probe) |
+| 2026-08-12 | `tests/test_covpush_w62_gateway_auth.py` | 32 | `core/llm/gateway/auth.py` 91%→**100%** (102 stmts, 0 missing) |
+| 2026-08-12 | `tests/test_covpush_w62_request_logger.py` | 29 | `core/llm/gateway/request_logger.py` 93%→**100%** (74 stmts, 0 missing) |
+
+**What was added** — `social_layer`: redaction no-secrets audit skip, human post without db, agent-without-`tenant_id` → default tenant, author_type enum `.value` mapping, no-filter feed + null-metadata feed entry, reaction-None post, trending non-dict/null metadata + attr-fallback mentions, reply agent-not-found + STUDENT-lowercase regression (bug), cursor all-filters + enum-typed post, private channel kwargs (display-name/description/channel-type fallbacks), empty channel list, episode segment creation success, feed-context disabled/no-mentions, episode summaries empty/nulls, str-enum author_type recognized as agent (track_positive_interaction), percentile/trend/helpful-reply exceptions, graduation-milestone error re-raise, rate-limit fail-open (check/hourly/info), STUDENT 0-limit info, unknown-maturity unlimited, hourly no-db, hook registration success/failure + singleton. — `gateway_auth`: sha256 hashing, prefix format + non-derived-from-secret, `to_audit` with/without key, rate-limit disabled/under/over/window-slide/stale-purge, secret extraction (x-api-key precedence, Bearer case-insensitive, missing), api-key resolution (unknown/inactive/revoked/expired-aware/expired-naive/user-missing/non-active, success + usage bump, bump-failure rollback, tenant/workspace scope fallback, per-key 429, **0-limit unlimited regression (bug)**), JWT identity, identity precedence (api_key > bearer-JWT, bearer api-key, JWT-shaped token, non-key-non-JWT 401, missing-secret 401). — `request_logger`: auth-header drop (case-insensitive, non-dict), fail-closed redaction (import + exception), truncation boundary, sanitize disabled/None/serialize/str-fallback, cost chain (fetcher, static fallback, non-positive → None, zero tokens, exception), full row write + bodies-enabled persistence, None-identity graceful None, add/commit failure + rollback, **rollback-failure fallbacks (lines 126-127, 142-143 — the last 4 uncovered lines)**, sweep delete count/None/failure/rollback-failure + retention cutoff.
+
+---
+
+## Session 2026-08-12 (wave 63) — workflow_ui_endpoints 88% → 100% / byok_endpoints 93% → 100% / student_training_service 92% → 100% / agent_graduation_service 91% → 100%
+
+**Evidence**: 4 new files — `tests/test_covpush_w63_workflow_ui_endpoints.py` (17), `tests/test_covpush_w63_byok_endpoints.py` (33), `tests/test_covpush_w63_student_training.py` (12), `tests/test_covpush_w63_graduation_service.py` (18) — **80 new tests, all GREEN standalone**. Combined probe with the 4 related suites (`w35_workflow_ui`, `w53_byok_manager`, `w59_student_training`, `w59_graduation_service`): `--cov=core.workflow_ui_endpoints --cov=core.byok_endpoints --cov=core.student_training_service --cov=core.agent_graduation_service` → **244 passed / 0 failed**, ALL FOUR modules **100%** (1536 stmts, 0 missing; deltas: 45→0, 42→0, 16→0, 34→0). All deps mocked, zero LLM spend, no network/DB.
+
+### Backend source fixed (RED→GREEN)
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-12 | `core/byok_endpoints.py` (line 1028) | FIXED | `POST /api/ai/providers/{provider_id}/keys` whitelist drift: `valid_providers` was a hardcoded list of 24 providers that predated the later default-provider additions — keys for `xai`, `cerebras`, `fireworks`, `huggingface`, `nvidia_nim`, `zai`, `ollama` were rejected 400 even though the providers exist in `BYOKManager.providers` (could only be keyed via the non-whitelisted `/api/ai/keys` path). Now validates against `byok_manager.providers` (the manager's own registry — single source of truth). Regression test `TestStoreKeyWhitelistDrift` (9 providers parametrized) failed RED (7× 400) before the fix, GREEN after. |
+
+### Test suites added (all GREEN at stamp time)
+| Date | Test file(s) | Count | Coverage |
+|---|---|---|---|
+| 2026-08-12 | `tests/test_covpush_w63_workflow_ui_endpoints.py` | 17 | `core/workflow_ui_endpoints.py` 88%→**100%** (377 stmts, 0 missing) |
+| 2026-08-12 | `tests/test_covpush_w63_byok_endpoints.py` | 33 | `core/byok_endpoints.py` 93%→**100%** (589 stmts, 0 missing) |
+| 2026-08-12 | `tests/test_covpush_w63_student_training.py` | 12 | `core/student_training_service.py` 92%→**100%** (198 stmts, 0 missing) |
+| 2026-08-12 | `tests/test_covpush_w63_graduation_service.py` | 18 | `core/agent_graduation_service.py` 91%→**100%** (372 stmts, 0 missing) |
+
+**What was added** — `workflow_ui_endpoints`: update icon payload, DB-mode delete 404, execute-by-id background-task run + schedule-failure tolerance, persisted-execution dedup (`_merge_persisted_executions`), dict-form orchestrator contexts (str/datetime/none/error fields), per-context parse-failure skip + orchestrator-failure empty fallback + merge-failure tolerance, tpl_o365_finance/project → real orchestrator-id mapping, email/delay bridge step types, execute background failure → context FAILED, found-mock step-count fallback, cancel dict-context / frozen-context setter / orchestrator-error→404. — `byok_endpoints`: `AIProviderConfig` __post_init__ defaults, keys-file `last_used` deserialization + corrupt-keys tolerance, atomic-write unlink failure, encryption-key read/write failure fallbacks, inactive-provider skip + OpenAI-only fallback + all-filtered→None in optimal provider, providers-list per-provider exception tolerance, store-key 400 (validation bypass via `model_construct`) / 500, usage-track background 500, PDF-optimize scenario exception paths, health active/with-keys counters, v1 health/status direct calls (+ per-provider error tolerance), pricing refresh/model/provider/estimate error paths, prompt-based token estimate, masked key without hash, whitelist-drift regression (bug). — `student_training_service`: real `TrainingOutcome` construction, approve modifications (duration override + hours-per-day limit + default 8h/day), complete missing-agent ValueError + full flow with real outcome, scenario-template category mapping + default, history no-duration/no-proposal branches, similar-agents without sessions, learning-rate clamping (0.5/2.0). — `agent_graduation_service`: module reload with POMDP import blocked (ImportError fallback), POMDP init failure, `EpisodeService` db-mismatch rebuild, readiness numeric-guard fallback + episode/intervention/no-episodes gap branches + min_episodes override, trajectory zero-historical + stable trends, consistency good/moderate/poor bands, promotion notification no-loop fallback + notification failure tolerance + POMDP consolidation success/failure, trend missing-ratings + neutral-stable, supervision score empty-sessions.
+
+---
+
+## Session 2026-08-12 (wave 60) — atom_meta_agent 95% → 100%
+
+**Evidence**: `tests/test_covpush_w60_meta_agent.py` (22 tests — 22 passed / 0 failed standalone). Combined probe with the 8 related suites (`test_covpush_meta.py`, `test_covpush_w30_meta_agent.py`, `test_covpush_w32_meta_agent.py`, `test_covpush_w41_meta_loop.py`, `test_covpush_w41b_meta_tools.py`, `test_covpush_w42_meta_toolgov.py`, `test_covpush_w44_meta_agent_governance.py`, `test_covpush_w44b_meta_agent_execute.py`): `--cov=core.atom_meta_agent` **95% → 100%** (55 missing stmts → 0, all 1022 statements covered), **348 passed / 0 failed** (pre-wave baseline: 325 passed + 1 stale failure — repaired). All deps mocked, zero LLM spend, no network/DB.
+
+### Backend source fixed (RED→GREEN)
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-12 | `core/atom_meta_agent.py` (~line 1855) | FIXED | `spawn_agent(persist=True)` without a `db`: the capability-reset block `with SessionLocal() as db:` **shadowed the `db` parameter**, dead-coding the `if db is None:` fresh-session persist branch — production persistence ran on the already-closed reset-block session (governance registered on a closed Session → runtime error). Reset block now uses `reset_db`. Regression test `TestSpawnAgentFreshSession::test_persist_without_db_opens_fresh_session` failed RED (governance built on the reset session) before the fix, GREEN after. |
+| 2026-08-12 | `core/atom_meta_agent.py` (~lines 1969-1975) | FIXED | `generate_mentorship_guidance` DB-failure fallback returned `("General", 1)` while its own trailing comment + unreachable `return ("General", 0)` document intent to assume **no** supervisors (Meta-Agent steps in as interim supervisor). Now returns 0 (dead code removed). Regression test `TestMentorshipDbFallback::test_db_failure_treats_as_no_supervisors` failed RED (no "Interim Supervisor" note) before the fix, GREEN after. |
+
+### Test suites added (all GREEN at stamp time)
+| Date | Test file(s) | Count | Coverage |
+|---|---|---|---|
+| 2026-08-12 | `tests/test_covpush_w60_meta_agent.py` | 22 | `core/atom_meta_agent.py` 95%→**100%** in combined probe (1022 stmts, 0 missing) |
+
+**What was added** — execute() edge branches: vector-recall prefetch failure, registry-hiccup tier fallback (`autonomous`), canvas episodic-recall failure, tool-description `json.dumps` TypeError → `[]` fallback, fleet-routing config-import failure (sys.modules None → lambda fallbacks), fleet governance failure fallback, shadow-mode fleet recruitment step_callback, AgentRadio inbox drain (+ exception tolerance); ReAct-loop critiques: parallel-batch `failed_verification` [CRITIQUE] + per-tool stream callback, single-tool `failed_verification` [CRITIQUE], `parse_tool_outcome` exception → `unverified`, session-end extraction dispatch failure; failure finalizers: body-exception finalize commit failure + close-failure swallow, execution-record update failure → rollback; stage router: model override + handoff-note append + exception keeps `reasoning`; ActionJudge consult exception → proceeds; fleet radio thread propagation onto `ChainLink.context_json`; parallel parse-outcome exception → `unverified`; plus the 2 bug-fix regressions above. **Stale-suite repair**: `tests/test_covpush_meta.py::TestManualTrigger` (both fake `ReasoningStepType` patches) lacked `CONCLUSION`, which the W44 fix (`42a3e89f7`) made the source map reference — `test_manual_trigger_callback_persists` failed with `type object 'T' has no attribute 'CONCLUSION'`; fake now mirrors the real enum.
+
+---
+
+## Session 2026-08-12 (wave 61) — office_service 61% → 99%+ / office_sync_service 93% → 100%
+
+**Evidence**: `tests/test_covpush_w61_office_service.py` (74 tests) + `tests/test_covpush_w61_office_sync.py` (24 tests) — 98 passed / 0 failed standalone; combined with the 6 related suites (`w58_office_service`, `w58_office_sync`, `w58_workbook_runtime`, `covpush_office`, `covpush_mail_office`, `w9b_office_sync`): 456 passed, 6 failed (pre-existing `test_covpush_mail_office.py` Outlook/Workspace hostname-URL failures, unrelated — fail identically on HEAD). Both targets **100%** in the combined `--cov=core.office_service --cov=core.office_sync_service` run; 99% standalone (3 remaining lines are the module-level `except ImportError` guards for pptx/mammoth/xlsx2html — structurally unreachable while the deps import).
+
+### Backend source fixed (RED→GREEN)
+| Date | File | Status | Bug fixed |
+|---|---|---|---|
+| 2026-08-12 | `core/office_sync_service.py` (lines 221-232) | FIXED | `_ingest_document_to_memory_sync` created a temp event loop via `asyncio.new_event_loop().run_until_complete(...)` and **never closed it** — one leaked open selector FD per sync-context office edit (every canvas→file sync that falls back to sync ingestion). Now wrapped in `try/finally: loop.close()`. Regression test `TestIngestSync::test_success_closes_temp_event_loop` failed RED before the fix (loop.closed False), GREEN after. |
+
+### Test suites added (all GREEN at stamp time)
+| Date | Test file(s) | Count | Coverage |
+|---|---|---|---|
+| 2026-08-12 | `tests/test_covpush_w61_office_service.py` | 74 | `core/office_service.py` 61%→**99%** (386 stmts; 3 unreachable import-guard lines) |
+| 2026-08-12 | `tests/test_covpush_w61_office_sync.py` | 24 | `core/office_sync_service.py` 93%→**100%** (115 stmts) |
+
+**What was added** — `office_service`: `_validate_office_path` (empty, symlink-escape, `Path.resolve` OSError → "Invalid file path", base-itself, nested); `parse_path` (empty/whitespace/double-slash); `read_range` (invalid-path, missing-file, overview, data_only range semantics, unknown-sheet fallback, corrupt → generic, single-cell no-formula); `write_cell` (new-file, default-sheet, create-missing-sheet, int/float cast, non-numeric string, formula `=` prefix, string-`=` → data_type "s", no-coordinate, save-failure generic, recalc success/failure/machinery-error/skip paths); all 6 runtime delegations (insert_rows/cols, get_evaluated_range single+range, recalculate engine, pivot, macro — success/missing-file/invalid-path); Word (blank-paragraph skip, tables incl. empty cells, replace in paragraph + table, replace-without-target, unknown action, new-file creation, corrupt, missing, invalid path); PPTX via deterministic fake module (text + table shapes, layout-index clamp, unknown action, library-unavailable, corrupt, missing/invalid path, add-slide title/content/placeholders); renderer (mammoth missing/error/warnings, xlsx running-loop/idle-loop/no-loop/exception, pptx unavailable/error/unsupported format); manager dispatch case-insensitivity + ValueError. — `office_sync_service`: sync_canvas_to_file (invalid-path containment, missing file, cell_path required, write-failure propagation, docx content rewrite, unsupported edit type, formula flag, None-content tolerance); broadcast (invalid-path, render-failure, render-exception + db-commit-exception swallowed, docx → docs/rich_editor mapping + audit payload); ingest sync (missing-file, exception, failed status, loop-close regression); ingest async (missing-file, ingested/skipped/failed statuses, exception); `_read_file_bytes` (empty file → None, read error → None).
+
+---
+
 ## Session 2026-08-06 — Round 79 (R79 test wave, backend 381 tests / FE 6104 / mobile 3307)
 
 ### Backend source fixed (RED→GREEN)
@@ -2936,3 +3016,28 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 | Date | File | Coverage change | What was added |
 |---|---|---|---|
 | 2026-08-12 | `core/agent_graduation_service.py` | 50%→**91%** | readiness score (missing/unknown/rich gaps contract), learning consistency (POMDP-gated/insufficient/full), score + recommendation helpers, graduation exam (skip-missing/full/executor), constitutional validation (missing/no-segments/validator), promote (missing/invalid/success/db-error/rollback + notification), audit trail, supervision metrics (empty/full/trend improving/declining/stable), supervision validation + scoring, skill usage + readiness-with-skills, exam execution, experience-driven readiness (fallback/missing/unknown/full) + intervention trajectory (unknown/insufficient/improving/declining) + experience recommendation |
+
+## Session 2026-08-12 (wave 41) — atom_meta_agent execute() loop 53→79% (test-only, mocked deps)
+
+**Evidence**: `tests/test_covpush_w41_meta_loop.py` (15 tests) + `tests/test_covpush_w41b_meta_tools.py` (24 tests) — 143 passed / 0 failed across the 5 meta-agent suites.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-12 | `core/atom_meta_agent.py` | 53%→**79%** (803 lines) | `execute()` full ReAct loop (final-answer, single-tool via mcp_tool_search/delegate_task/governed tool with verification envelope, parallel tools, no-action conversion, budget halt with failure_reason/mode, max-steps timeout, KillRun abort → killed_sandbox, body-exception finalization + re-raise, workspace 404, fleet force-enforce early return, canvas context + episodic recall, Queen planning + orchestrator fallback); `_execute_parallel_tools` (disabled sequential fallback, blocked batch, rejected approvals, approved gather with pre_approved, gather-exception tolerance, KillRun re-raise, serial mcp_tool_search + failure); `_wait_for_approval`/`_wait_for_all_approvals` (approved/rejected/pending-→-approved/timeout); `spawn_agent` (template/custom/unknown ValueError, ephemeral + persist with/without db); `query_memory` scopes; `generate_mentorship_guidance` (with supervisor, interim-supervisor mode, no-student, fallback); `_get_atom_registry` |
+
+## Session 2026-08-12 (wave 42) — atom_meta_agent tool-governance + fleet 79→87% (test-only)
+
+**Evidence**: `tests/test_covpush_w42_meta_toolgov.py` (22 new tests) — 165 passed / 0 failed across the 6 meta-agent suites.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-12 | `core/atom_meta_agent.py` | 79%→**87%** (894 lines) | `_trigger_workflow` (missing-id/success/exception); `_execute_tool_with_governance` (pre-approved governance skip, complexity>1 HITL gate approved/rejected, governance-blocked, special tools trigger_workflow/delegate_task/recruit_fleet, invoke_capability student-block + success + record-usage parse-failure fallback, sandbox enforced-block + shadow-proceed, ActionJudge BLOCK + ESCALATE-rejected, KillRun re-raise, generic error envelope); `_recruit_fleet` (full orchestration: initialize_fleet → optimizer params → recruit_member → radio bridge, no-specialist placeholder, exception → "Fleet recruitment failed") |
+
+## Session 2026-08-12 (websocket e2e listener ordering fix)
+
+**Evidence**: `pytest tests/test_agent_websocket.py tests/test_agent_websocket_reconnect.py` (single process, no xdist) — 6 passed / 4 failed. The 4 failures are infra-level ("Chat page should be loaded" — frontend `middleware.ts` requires an `auth_token` cookie; the `authenticated_page_api` fixture only sets localStorage, so `/chat` redirects to `/login`), pre-existing and unrelated to the ordering change (verified via browser diag: identical redirect with/without tracker).
+
+| Date | File | Fix |
+|---|---|---|
+| 2026-08-12 | `tests/e2e_ui/tests/test_agent_websocket.py` | moved `page.on("websocket")` listener + handlers + state dicts BEFORE `goto()` in streaming / disconnect / reconnect / message-format / workspace-routing tests (was: attached after load → page-load WS never observed); added HMR URL filter (`_next/webpack-hmr`) in reconnect + workspace-routing handlers; workspace-routing assertion aligned to the token-based `/ws?token=` frontend contract (backend keeps the `/ws/{workspace_id}` route too) |
+| 2026-08-12 | `tests/e2e_ui/tests/test_agent_websocket_reconnect.py` | moved tracker injection before `chat_page.navigate()` in all 4 tests AND switched `page.evaluate` → `context.add_init_script` so the WebSocket monkey-patch survives the full-page navigation (evaluate-only injection is wiped by `goto` and would still miss page-load connections); queue tracker in message-queue test converted the same way; skip logic on TimeoutError preserved |

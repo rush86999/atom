@@ -132,7 +132,7 @@ def test_session_allows_protected_access(authenticated_page: Page):
         authenticated_page: Playwright page with JWT token pre-set
     """
     # Test 1: Access dashboard
-    authenticated_page.goto("http://localhost:3000/dashboard")
+    authenticated_page.goto("http://localhost:3001/dashboard")
     dashboard = DashboardPage(authenticated_page)
 
     assert dashboard.is_loaded(), "Should access dashboard with valid token"
@@ -140,14 +140,17 @@ def test_session_allows_protected_access(authenticated_page: Page):
     assert dashboard_welcome is not None, "Dashboard should show welcome message"
 
     # Test 2: Access settings
-    authenticated_page.goto("http://localhost:3000/settings")
+    authenticated_page.goto("http://localhost:3001/settings")
     # Check that we're on settings page (not redirected to login)
     current_url = authenticated_page.url
     assert "settings" in current_url, "Should access settings with valid token"
     assert "login" not in current_url, "Should not be redirected to login"
 
     # Test 3: Access projects
-    authenticated_page.goto("http://localhost:3000/projects")
+    # NOTE: there is no /projects page — the real Projects UI lives at
+    # /dashboards/projects (Sidebar.tsx). A non-existent route would still
+    # pass the middleware but render a 404 page, so test the real one.
+    authenticated_page.goto("http://localhost:3001/dashboards/projects")
     current_url = authenticated_page.url
     assert "projects" in current_url, "Should access projects with valid token"
     assert "login" not in current_url, "Should not be redirected to login"
@@ -159,38 +162,45 @@ def test_session_allows_protected_access(authenticated_page: Page):
 
 
 def test_session_expires_on_token_clear(browser: Browser):
-    """Test that session expires when token is cleared from localStorage.
+    """Test that session expires when the auth state is cleared.
 
-    This test validates that:
-    1. User can access protected routes with valid token
-    2. Clearing localStorage invalidates the session
-    3. Page reload after clearing token redirects to login
+    This test validates:
+    1. User can access protected routes with a seeded session (cookie + storage)
+    2. Clearing the session (cookie + localStorage) invalidates it
+    3. Page reload after clearing redirects to login
 
     Args:
         browser: Playwright browser fixture
+
+    NOTE (2026-08-12): the frontend middleware (middleware.ts) gates routes on
+    the auth_token COOKIE, not localStorage — the original test only set
+    localStorage, so the first navigation was already redirected to login and
+    the assertions passed for the wrong reason. Seed the cookie (as the auth
+    fixtures do), then clear BOTH cookie and localStorage to model logout.
     """
-    # Setup: Create page and set JWT token manually
+    # Setup: Create page and set a token (any token string — the middleware
+    # only checks presence; real signature validation happens at the API)
     context = browser.new_context()
     page = context.new_page()
 
-    # Create a test token (this would normally come from authenticated_user fixture)
-    # For this test, we'll set a dummy token to simulate the scenario
     dummy_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItaWQiLCJleHAiOjk5OTk5OTk5OTl9.signature"
 
-    # Navigate to app and set token
-    page.goto("http://localhost:3000")
+    # Seed the session the same way the auth fixtures do: cookie + localStorage
+    context.add_cookies([{"name": "auth_token", "value": dummy_token, "url": "http://localhost:3001"}])
+    page.goto("http://localhost:3001")
     page.evaluate(f"""() => {{
         localStorage.setItem('auth_token', '{dummy_token}');
         localStorage.setItem('next-auth.session-token', '{dummy_token}');
     }}""")
 
-    # Verify: Can access dashboard with token
-    page.goto("http://localhost:3000/dashboard")
+    # Verify: Can access dashboard with seeded session
+    page.goto("http://localhost:3001/dashboard")
     current_url = page.url
-    # Note: Frontend might still redirect if backend validates token
-    # This test verifies the localStorage clearing mechanism
+    assert "dashboard" in current_url, \
+        f"Dashboard should be reachable with a seeded session, got URL: {current_url}"
 
-    # Action: Clear localStorage (simulate logout/token expiration)
+    # Action: Clear the session (simulate logout/token expiration)
+    context.clear_cookies()
     page.evaluate("""() => {
         localStorage.clear();
     }""")
@@ -204,14 +214,17 @@ def test_session_expires_on_token_clear(browser: Browser):
 
     # Verify: Redirected to login page (or shows login form)
     current_url = page.url
-    # Should be on login page or have login in URL
-    # Note: Actual redirect behavior depends on frontend implementation
+    # Note: the middleware appends ?callbackUrl=.../dashboard to the login URL,
+    # so assert we are actually ON the login page, not that the URL merely
+    # contains the word "dashboard" (a false positive from callbackUrl).
     login_page = LoginPage(page)
 
     # Check if we're on login page (either by URL or visible login form)
     is_login_page = "login" in current_url.lower() or login_page.is_loaded()
 
     assert is_login_page, "Should redirect to login page after token is cleared"
+    assert "dashboard" not in current_url.lower() or "login" in current_url.lower(), \
+        f"Should land on the login page, got URL: {current_url}"
 
     # Cleanup
     context.close()
@@ -221,45 +234,50 @@ def test_multiple_tabs_share_session(browser: Browser):
     """Test that multiple browser tabs can share the same authentication session.
 
     This test validates that:
-    1. First tab with JWT token can access protected routes
-    2. Second tab with same JWT token can also access protected routes
-    3. Clearing token in first tab doesn't affect second tab (isolated contexts)
+    1. First tab with seeded session can access protected routes
+    2. Second tab with same seeded session can also access protected routes
+    3. Clearing session in first tab doesn't affect second tab (isolated contexts)
 
     Args:
         browser: Playwright browser fixture
+
+    NOTE (2026-08-12): middleware.ts gates on the auth_token COOKIE, so each
+    context must be seeded with the cookie (not just localStorage) — otherwise
+    every navigation redirects to /login and the "dashboard in URL" assertions
+    pass only because the redirect URL contains callbackUrl=/dashboard.
     """
-    # Setup: Create JWT token for testing
+    # Setup: Create JWT token for testing (presence-checked by the middleware)
     dummy_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItaWQiLCJleHAiOjk5OTk5OTk5OTl9.signature"
 
-    # Create first browser context (tab 1)
+    # Create first browser context (tab 1) and seed cookie + localStorage
     context1 = browser.new_context()
+    context1.add_cookies([{"name": "auth_token", "value": dummy_token, "url": "http://localhost:3001"}])
     page1 = context1.new_page()
 
-    # Set token in first tab
-    page1.goto("http://localhost:3000")
+    page1.goto("http://localhost:3001")
     page1.evaluate(f"""() => {{
         localStorage.setItem('auth_token', '{dummy_token}');
         localStorage.setItem('next-auth.session-token', '{dummy_token}');
     }}""")
 
     # Verify: First tab can access protected routes
-    page1.goto("http://localhost:3000/dashboard")
+    page1.goto("http://localhost:3001/dashboard")
     url1 = page1.url
     assert "dashboard" in url1, "First tab should access dashboard"
 
-    # Create second browser context (tab 2) - separate context
+    # Create second browser context (tab 2) - separate context, same session
     context2 = browser.new_context()
+    context2.add_cookies([{"name": "auth_token", "value": dummy_token, "url": "http://localhost:3001"}])
     page2 = context2.new_page()
 
-    # Set same token in second tab
-    page2.goto("http://localhost:3000")
+    page2.goto("http://localhost:3001")
     page2.evaluate(f"""() => {{
         localStorage.setItem('auth_token', '{dummy_token}');
         localStorage.setItem('next-auth.session-token', '{dummy_token}');
     }}""")
 
     # Verify: Second tab can also access protected routes
-    page2.goto("http://localhost:3000/dashboard")
+    page2.goto("http://localhost:3001/dashboard")
     url2 = page2.url
     assert "dashboard" in url2, "Second tab should access dashboard with same token"
 
@@ -270,7 +288,8 @@ def test_multiple_tabs_share_session(browser: Browser):
     assert token2 == dummy_token, "Second tab should have token"
     assert token1 == token2, "Both tabs should have the same token"
 
-    # Action: Clear token in first tab
+    # Action: Clear session in first tab (cookie + localStorage, like logout)
+    context1.clear_cookies()
     page1.evaluate("""() => {
         localStorage.clear();
     }""")
@@ -284,7 +303,7 @@ def test_multiple_tabs_share_session(browser: Browser):
     assert token2_after == dummy_token, "Second tab should still have token"
 
     # Verify: Second tab can still access protected routes
-    page2.goto("http://localhost:3000/dashboard")
+    page2.goto("http://localhost:3001/dashboard")
     url2_after = page2.url
     assert "dashboard" in url2_after, "Second tab should still access dashboard"
 
@@ -364,21 +383,21 @@ def test_session_persists_across_navigation(authenticated_page_api: Page):
     assert initial_token is not None, "Initial token should exist in localStorage"
 
     # Navigate to multiple pages
-    authenticated_page_api.goto("http://localhost:3000/dashboard")
+    authenticated_page_api.goto("http://localhost:3001/dashboard")
     authenticated_page_api.wait_for_timeout(500)
 
     # Verify token after dashboard navigation
     token_after_dashboard = authenticated_page_api.evaluate("() => localStorage.getItem('access_token')")
     assert token_after_dashboard == initial_token, "Token should persist after navigating to dashboard"
 
-    authenticated_page_api.goto("http://localhost:3000/agents")
+    authenticated_page_api.goto("http://localhost:3001/agents")
     authenticated_page_api.wait_for_timeout(500)
 
     # Verify token after agents navigation
     token_after_agents = authenticated_page_api.evaluate("() => localStorage.getItem('access_token')")
     assert token_after_agents == initial_token, "Token should persist after navigating to agents"
 
-    authenticated_page_api.goto("http://localhost:3000/settings")
+    authenticated_page_api.goto("http://localhost:3001/settings")
     authenticated_page_api.wait_for_timeout(500)
 
     # Verify token after settings navigation
@@ -414,14 +433,19 @@ def test_session_persists_across_browser_restart(browser: Browser, setup_test_us
     context = browser.new_context()
     page = context.new_page()
 
+    # Seed the auth_token COOKIE too — the middleware gates every route on it,
+    # and storage_state only restores what the context actually holds. Without
+    # the cookie the "restarted" browser is bounced to /login.
+    context.add_cookies([{"name": "auth_token", "value": access_token, "url": "http://localhost:3001"}])
+
     # Set JWT token in localStorage
-    page.goto("http://localhost:3000")
+    page.goto("http://localhost:3001")
     page.evaluate(f"""() => {{
         localStorage.setItem('access_token', '{access_token}');
         localStorage.setItem('auth_token', '{access_token}');
     }}""")
 
-    # Save storage state to file
+    # Save storage state to file (cookies + localStorage)
     storage_state_path = "/tmp/test_state.json"
     context.storage_state(path=storage_state_path)
 
@@ -436,7 +460,7 @@ def test_session_persists_across_browser_restart(browser: Browser, setup_test_us
     new_page = new_context.new_page()
 
     # Navigate to dashboard - should load without redirect to login
-    new_page.goto("http://localhost:3000/dashboard")
+    new_page.goto("http://localhost:3001/dashboard")
     new_page.wait_for_timeout(1000)
 
     # Verify we're on dashboard (not redirected to login)
@@ -474,35 +498,37 @@ def test_multiple_tabs_same_session(browser: Browser, setup_test_user):
     user_data = setup_test_user
     access_token = user_data.get("access_token")
 
-    # Create first browser context (tab 1)
+    # Create first browser context (tab 1) and seed cookie + localStorage
     context1 = browser.new_context()
+    context1.add_cookies([{"name": "auth_token", "value": access_token, "url": "http://localhost:3001"}])
     page1 = context1.new_page()
 
     # Set token in first tab
-    page1.goto("http://localhost:3000")
+    page1.goto("http://localhost:3001")
     page1.evaluate(f"""() => {{
         localStorage.setItem('access_token', '{access_token}');
         localStorage.setItem('auth_token', '{access_token}');
     }}""")
 
     # Verify: First tab can access protected routes
-    page1.goto("http://localhost:3000/dashboard")
+    page1.goto("http://localhost:3001/dashboard")
     url1 = page1.url
     assert "dashboard" in url1, "First tab should access dashboard"
 
-    # Create second browser context (tab 2)
+    # Create second browser context (tab 2) and seed the same session
     context2 = browser.new_context()
+    context2.add_cookies([{"name": "auth_token", "value": access_token, "url": "http://localhost:3001"}])
     page2 = context2.new_page()
 
     # Set same token in second tab
-    page2.goto("http://localhost:3000")
+    page2.goto("http://localhost:3001")
     page2.evaluate(f"""() => {{
         localStorage.setItem('access_token', '{access_token}');
         localStorage.setItem('auth_token', '{access_token}');
     }}""")
 
     # Verify: Second tab can also access protected routes
-    page2.goto("http://localhost:3000/dashboard")
+    page2.goto("http://localhost:3001/dashboard")
     url2 = page2.url
     assert "dashboard" in url2, "Second tab should access dashboard with same token"
 
@@ -513,7 +539,8 @@ def test_multiple_tabs_same_session(browser: Browser, setup_test_user):
     assert token2 == access_token, "Second tab should have token"
     assert token1 == token2, "Both tabs should have the same token"
 
-    # Action: Clear token in first tab
+    # Action: Clear session in first tab (cookie + localStorage, like logout)
+    context1.clear_cookies()
     page1.evaluate("""() => {
         localStorage.clear();
     }""")
@@ -527,7 +554,7 @@ def test_multiple_tabs_same_session(browser: Browser, setup_test_user):
     assert token2_after == access_token, "Second tab should still have token"
 
     # Verify: Second tab can still access protected routes
-    page2.goto("http://localhost:3000/agents")
+    page2.goto("http://localhost:3001/agents")
     url2_after = page2.url
     assert "agents" in url2_after, "Second tab should still access protected routes"
 

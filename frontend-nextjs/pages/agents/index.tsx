@@ -26,6 +26,27 @@ import ReasoningChainViewer from "@/components/ReasoningChainViewer";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+// The backend list payload carries the maturity TIER in `status`
+// (student/intern/supervised/autonomous/paused/...). The card expects
+// `maturity_level` for the tier badge and an execution status for the
+// status badge — derive both here so both render correctly.
+const TIER_STATUSES = ['student', 'intern', 'supervised', 'autonomous'];
+
+const normalizeAgent = (a: any) => {
+    const tier = TIER_STATUSES.includes(a.status) ? a.status : undefined;
+    const executionStatus = TIER_STATUSES.includes(a.status) ? 'idle' : (a.status || 'idle');
+    return { ...a, maturity_level: a.maturity_level ?? tier, status: executionStatus };
+};
+
+// Backend error bodies arrive in two shapes: BaseAPIRouter wraps as
+// { success: false, error: { code, message } } and FastAPI validation
+// failures as { detail }. Surface whichever is present instead of
+// showing the raw "undefined".
+const extractErrorMessage = (json: any, fallback: string): string => {
+    if (!json) return fallback;
+    return json?.error?.message || json?.detail || json?.message || fallback;
+};
+
 const AgentsDashboard = () => {
     const router = useRouter();
     const [agents, setAgents] = useState<AgentInfo[]>([]);
@@ -35,6 +56,7 @@ const AgentsDashboard = () => {
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
 
     // Run Dialog State
     const [isRunDialogOpen, setIsRunDialogOpen] = useState(false);
@@ -112,7 +134,7 @@ const AgentsDashboard = () => {
                 // The backend wraps responses as { success, data, ... }.
                 // Accept either the wrapped shape or a bare array for safety.
                 const data = Array.isArray(json) ? json : (json.data ?? []);
-                setAgents(data);
+                setAgents(data.map(normalizeAgent));
             } else if (res.status === 401 || res.status === 403) {
                 setError("Unauthorized: Session expired. Redirecting...");
                 localStorage.removeItem('auth_token'); // Clear invalid token
@@ -182,8 +204,9 @@ const AgentsDashboard = () => {
                 setIsRunDialogOpen(false); // Close dialog on success
             } else {
                 const err = await res.json();
-                toast({ title: "Failed to start", description: err.detail, variant: "error" });
-                setLogs(prev => [...prev, `Error: ${err.detail || 'Unknown error'}`]);
+                const message = extractErrorMessage(err, 'Unknown error');
+                toast({ title: "Failed to start", description: message, variant: "error" });
+                setLogs(prev => [...prev, `Error: ${message}`]);
             }
         } catch (e) {
             toast({ title: "Error", description: "Network error", variant: "error" });
@@ -212,7 +235,7 @@ const AgentsDashboard = () => {
                 fetchAgents();
             } else {
                 const err = await res.json();
-                toast({ title: "Failed to stop", description: err.detail, variant: "error" });
+                toast({ title: "Failed to stop", description: extractErrorMessage(err, 'Unknown error'), variant: "error" });
             }
         } catch (e) {
             toast({ title: "Error", description: "Network error", variant: "error" });
@@ -302,7 +325,7 @@ const AgentsDashboard = () => {
                 fetchAgents();
             } else {
                 const err = await res.json();
-                toast({ title: "Failed to update", description: err.detail || "Unknown error", variant: "error" });
+                toast({ title: "Failed to update", description: extractErrorMessage(err, 'Unknown error'), variant: "error" });
             }
         } catch (e) {
             toast({ title: "Error", description: "Network error", variant: "error" });
@@ -334,8 +357,18 @@ const AgentsDashboard = () => {
 
                     {/* Agent Grid */}
                     <div className="lg:col-span-2 space-y-6">
-                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Available Agents</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex items-center justify-between gap-4">
+                            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Available Agents</h2>
+                            <Input
+                                type="text"
+                                placeholder="Search agents..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                data-testid="agent-search-input"
+                                className="max-w-xs"
+                            />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="agents-grid">
                             {isLoading && agents.length === 0 && (
                                 <div className="col-span-1 md:col-span-2 py-12 text-center text-gray-500 dark:text-gray-400">
                                     <p>Loading agents...</p>
@@ -360,7 +393,14 @@ const AgentsDashboard = () => {
                                 </div>
                             )}
 
-                            {Array.isArray(agents) && agents.map(agent => (
+                            {Array.isArray(agents) && agents
+                                .filter(a => {
+                                    const q = searchQuery.trim().toLowerCase();
+                                    if (!q) return true;
+                                    return (a.name || '').toLowerCase().includes(q)
+                                        || (a.category || '').toLowerCase().includes(q);
+                                })
+                                .map(agent => (
                                 <AgentCard
                                     key={agent.id}
                                     agent={agent}

@@ -46,21 +46,26 @@ def test_memory_leak_agent_execution(cdp_session, authenticated_page_api, db_ses
         db_session: Database session fixture
     """
     # Import here to avoid circular dependencies
-    from backend.tests.e2e_ui.fixtures.test_data_factory import AgentFactory
     from core.models import AgentRegistry
 
     # Create test agent
-    agent = AgentFactory.create_agent(
-        db_session,
+    agent = AgentRegistry(
         name="Memory Test Agent",
+        category="testing",
+        status="intern",
         description="Agent for memory leak testing",
-        maturity_level="INTERN",
-        config={
+        capabilities=["execute"],
+        module_path="core.agents.generic_agent",
+        class_name="GenericAgent",
+        configuration={
             "llm_provider": "openai",
             "model": "gpt-4",
             "temperature": 0.7,
         }
     )
+    db_session.add(agent)
+    db_session.commit()
+    db_session.refresh(agent)
 
     # Take initial heap snapshot
     before_snapshot = get_heap_snapshot(cdp_session)

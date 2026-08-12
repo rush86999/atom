@@ -115,13 +115,8 @@ def test_websocket_connection_established(browser, authenticated_page):
     token = extract_token_from_page(authenticated_page)
     assert token, "JWT token should be present in localStorage"
 
-    # Navigate to chat page (triggers WebSocket connection)
-    authenticated_page.goto("http://localhost:3001/agent/chat")
-
-    # Wait for page to load
-    authenticated_page.wait_for_load_state("networkidle", timeout=5000)
-
-    # Intercept WebSocket connections
+    # Intercept WebSocket connections BEFORE navigation (page-load connects
+    # happen before the listener could observe them otherwise)
     websocket_connected = {"value": False}
     websocket_url = {"value": None}
     ws_frames = []
@@ -142,6 +137,12 @@ def test_websocket_connection_established(browser, authenticated_page):
     # Attach WebSocket listener
     authenticated_page.on("websocket", handle_websocket)
 
+    # Navigate to chat page (triggers WebSocket connection)
+    authenticated_page.goto("http://localhost:3001/agent/chat")
+
+    # Wait for page to load
+    authenticated_page.wait_for_load_state("networkidle", timeout=5000)
+
     # Wait for WebSocket connection to be established
     authenticated_page.wait_for_timeout(1000)
 
@@ -151,7 +152,7 @@ def test_websocket_connection_established(browser, authenticated_page):
     # Verify WebSocket URL format
     ws_url = websocket_url["value"]
     assert ws_url is not None, "WebSocket URL should be captured"
-    assert ws_url.startswith("ws://localhost:8001/ws/"), f"WebSocket URL should start with ws://localhost:8001/ws/, got: {ws_url}"
+    assert ws_url.startswith("ws://localhost:8001/ws"), f"WebSocket URL should start with ws://localhost:8001/ws, got: {ws_url}"
 
     # Verify authentication token is in URL or sent via headers
     # The WebSocket implementation sends token via URL parameter
@@ -182,12 +183,6 @@ def test_websocket_receives_streaming_events(browser, authenticated_page):
         test_websocket_receives_streaming_events(browser, authenticated_page)
         # All streaming events verified
     """
-    # Navigate to agent chat page
-    authenticated_page.goto("http://localhost:3001/agent/chat")
-
-    # Wait for page load
-    authenticated_page.wait_for_load_state("networkidle", timeout=5000)
-
     # Track WebSocket messages
     received_events = []
 
@@ -209,8 +204,15 @@ def test_websocket_receives_streaming_events(browser, authenticated_page):
             # Parse error, ignore
             pass
 
-    # Attach WebSocket listener
+    # Attach WebSocket listener BEFORE navigation (page-load connects
+    # happen before the listener could observe them otherwise)
     authenticated_page.on("websocket", handle_websocket)
+
+    # Navigate to agent chat page
+    authenticated_page.goto("http://localhost:3001/agent/chat")
+
+    # Wait for page load
+    authenticated_page.wait_for_load_state("networkidle", timeout=5000)
 
     # Send a chat message via the UI
     # Generate unique message content using UUID v4
@@ -269,12 +271,6 @@ def test_websocket_disconnects_on_navigation(browser, authenticated_page):
         test_websocket_disconnects_on_navigation(browser, authenticated_page)
         # WebSocket closed after navigation
     """
-    # Navigate to agent chat page
-    authenticated_page.goto("http://localhost:3001/agent/chat")
-
-    # Wait for page load
-    authenticated_page.wait_for_load_state("networkidle", timeout=5000)
-
     # Track WebSocket state
     ws_state = {"connected": False, "closed": False}
 
@@ -287,8 +283,15 @@ def test_websocket_disconnects_on_navigation(browser, authenticated_page):
         """Handle WebSocket close event."""
         ws_state["closed"] = True
 
-    # Attach WebSocket listener
+    # Attach WebSocket listener BEFORE navigation (page-load connects
+    # happen before the listener could observe them otherwise)
     authenticated_page.on("websocket", handle_websocket)
+
+    # Navigate to agent chat page
+    authenticated_page.goto("http://localhost:3001/agent/chat")
+
+    # Wait for page load
+    authenticated_page.wait_for_load_state("networkidle", timeout=5000)
 
     # Wait for WebSocket connection
     authenticated_page.wait_for_timeout(1000)
@@ -332,24 +335,29 @@ def test_websocket_reconnects_after_disconnect(browser, authenticated_page):
         test_websocket_reconnects_after_disconnect(browser, authenticated_page)
         # WebSocket reconnected successfully
     """
-    # Navigate to agent chat page
-    authenticated_page.goto("http://localhost:3001/agent/chat")
-
-    # Wait for page load
-    authenticated_page.wait_for_load_state("networkidle", timeout=5000)
-
     # Track WebSocket connections
     connections = []
 
     def handle_websocket(ws: WebSocket):
         """Handle each WebSocket connection."""
+        # Only track agent WebSocket connections, not Next.js dev-server
+        # noise (e.g. _next/webpack-hmr) that also connects during page load
+        if not ws.url.startswith("ws://localhost:8001/ws"):
+            return
         connections.append({
             "url": ws.url,
             "timestamp": authenticated_page.evaluate("() => Date.now()")
         })
 
-    # Attach WebSocket listener for all connections
+    # Attach WebSocket listener for all connections BEFORE navigation
+    # (page-load connects happen before the listener could observe them otherwise)
     authenticated_page.on("websocket", handle_websocket)
+
+    # Navigate to agent chat page
+    authenticated_page.goto("http://localhost:3001/agent/chat")
+
+    # Wait for page load
+    authenticated_page.wait_for_load_state("networkidle", timeout=5000)
 
     # Wait for initial WebSocket connection
     authenticated_page.wait_for_timeout(1000)
@@ -387,7 +395,7 @@ def test_websocket_reconnects_after_disconnect(browser, authenticated_page):
 
     # Verify all connections have valid WebSocket URLs
     for conn in connections:
-        assert conn["url"].startswith("ws://localhost:8001/ws/"), \
+        assert conn["url"].startswith("ws://localhost:8001/ws"), \
             f"All connections should have valid WebSocket URL, got: {conn['url']}"
 
 
@@ -412,12 +420,6 @@ def test_websocket_message_format(browser, authenticated_page):
         test_websocket_message_format(browser, authenticated_page)
         # All messages validated for correct format
     """
-    # Navigate to agent chat page
-    authenticated_page.goto("http://localhost:3001/agent/chat")
-
-    # Wait for page load
-    authenticated_page.wait_for_load_state("networkidle", timeout=5000)
-
     # Collect WebSocket messages
     messages = []
 
@@ -435,8 +437,15 @@ def test_websocket_message_format(browser, authenticated_page):
             # Not JSON, skip
             pass
 
-    # Attach WebSocket listener
+    # Attach WebSocket listener BEFORE navigation (page-load connects
+    # happen before the listener could observe them otherwise)
     authenticated_page.on("websocket", handle_websocket)
+
+    # Navigate to agent chat page
+    authenticated_page.goto("http://localhost:3001/agent/chat")
+
+    # Wait for page load
+    authenticated_page.wait_for_load_state("networkidle", timeout=5000)
 
     # Wait for messages
     authenticated_page.wait_for_timeout(2000)
@@ -483,21 +492,25 @@ def test_websocket_workspace_routing(browser, authenticated_page):
         test_websocket_workspace_routing(browser, authenticated_page)
         # Workspace routing validated
     """
-    # Navigate to agent chat page
-    authenticated_page.goto("http://localhost:3001/agent/chat")
-
-    # Wait for page load
-    authenticated_page.wait_for_load_state("networkidle", timeout=5000)
-
     # Capture WebSocket URL
     ws_url = {"value": None}
 
     def handle_websocket(ws: WebSocket):
         """Handle WebSocket connection."""
-        ws_url["value"] = ws.url
+        # Only capture agent WebSocket connections, not Next.js dev-server
+        # noise (e.g. _next/webpack-hmr) that also connects during page load
+        if ws.url.startswith("ws://localhost:8001/ws"):
+            ws_url["value"] = ws.url
 
-    # Attach WebSocket listener
+    # Attach WebSocket listener BEFORE navigation (page-load connects
+    # happen before the listener could observe them otherwise)
     authenticated_page.on("websocket", handle_websocket)
+
+    # Navigate to agent chat page
+    authenticated_page.goto("http://localhost:3001/agent/chat")
+
+    # Wait for page load
+    authenticated_page.wait_for_load_state("networkidle", timeout=5000)
 
     # Wait for connection
     authenticated_page.wait_for_timeout(1000)
@@ -505,13 +518,20 @@ def test_websocket_workspace_routing(browser, authenticated_page):
     # Verify WebSocket URL includes workspace
     assert ws_url["value"] is not None, "WebSocket URL should be captured"
 
-    # Extract workspace_id from URL
-    # Format: ws://localhost:8001/ws/{workspace_id}
+    # Extract workspace_id from URL.
+    # The backend supports both ws://host/ws/{workspace_id}?token=<jwt> and
+    # ws://host/ws?token=<jwt>; the frontend connects with the token-based
+    # form and the backend derives the workspace from the authenticated token.
     url_parts = ws_url["value"].split("/ws/")
-    assert len(url_parts) >= 2, "WebSocket URL should contain /ws/ path"
+    if len(url_parts) >= 2:
+        # Path-segment workspace form
+        workspace_part = url_parts[1].split("?")[0]  # Remove query params
+        assert len(workspace_part) > 0, "Workspace ID should be present in URL"
 
-    workspace_part = url_parts[1].split("?")[0]  # Remove query params
-    assert len(workspace_part) > 0, "Workspace ID should be present in URL"
-
-    # Workspace ID should be non-empty
-    assert workspace_part, "Workspace ID should not be empty"
+        # Workspace ID should be non-empty
+        assert workspace_part, "Workspace ID should not be empty"
+    else:
+        # Token-based channel form (current frontend contract)
+        query = ws_url["value"].split("?", 1)[1] if "?" in ws_url["value"] else ""
+        assert "token=" in query, \
+            "Agent WebSocket URL should carry an auth token for workspace routing"

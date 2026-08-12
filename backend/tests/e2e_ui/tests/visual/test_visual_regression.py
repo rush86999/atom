@@ -21,7 +21,7 @@ Maintenance:
 - Update .percyrc.js percyCSS to hide dynamic content causing false positives
 """
 
-from tests.e2e_ui.pages.page_objects import DashboardPage, AgentChatPage, CanvasPage
+from tests.e2e_ui.pages.page_objects import DashboardPage, ChatPage, CanvasHostPage
 import pytest
 
 
@@ -57,7 +57,7 @@ class TestVisualRegression:
 
         VALIDATED_BUG: Catches chat UI breaking changes (e.g., message alignment, overflow)
         """
-        chat = AgentChatPage(browser.new_page())
+        chat = ChatPage(browser.new_page())
         chat.navigate()
         # Send a test message to capture populated chat state
         chat.send_message("Test message for visual snapshot")
@@ -75,7 +75,7 @@ class TestVisualRegression:
 
         VALIDATED_BUG: Catches table layout breaks (e.g., column width, cell overflow)
         """
-        canvas = CanvasPage(browser.new_page())
+        canvas = CanvasHostPage(browser.new_page())
         canvas.navigate()
         canvas.present_canvas(
             type="sheets",
@@ -102,7 +102,7 @@ class TestVisualRegression:
 
         VALIDATED_BUG: Catches chart library version breaks (e.g., D3, Chart.js updates)
         """
-        canvas = CanvasPage(browser.new_page())
+        canvas = CanvasHostPage(browser.new_page())
         canvas.navigate()
         canvas.present_canvas(
             type="charts",
@@ -129,7 +129,7 @@ class TestVisualRegression:
 
         VALIDATED_BUG: Catches form styling breaks (e.g., input border, focus states)
         """
-        canvas = CanvasPage(browser.new_page())
+        canvas = CanvasHostPage(browser.new_page())
         canvas.navigate()
         canvas.present_canvas(
             type="forms",

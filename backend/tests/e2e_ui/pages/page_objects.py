@@ -233,8 +233,13 @@ class DashboardPage(BasePage):
 
     @property
     def navigation_menu(self) -> Locator:
-        """Main navigation menu locator."""
-        return self.page.locator("[data-testid='dashboard-navigation-menu'], aside[aria-label='Sidebar'], nav[aria-label='Main Navigation']")
+        """Main navigation menu locator.
+
+        NOTE: the `nav[aria-label='Main Navigation']` fallback was removed —
+        it is nested INSIDE the sidebar `aside`, so the union selector matched
+        two elements and tripped Playwright strict mode.
+        """
+        return self.page.locator("[data-testid='dashboard-navigation-menu'], aside[aria-label='Sidebar']")
 
     @property
     def agent_cards(self) -> Locator:
@@ -253,13 +258,23 @@ class DashboardPage(BasePage):
 
     @property
     def user_profile_button(self) -> Locator:
-        """User profile menu button locator."""
-        return self.page.locator("[data-testid='dashboard-user-profile-button'], div.group.cursor-pointer")
+        """User profile menu button locator.
+
+        Uses the testid wired in Sidebar.tsx. NOTE: CSS-class fallbacks were
+        removed — every sidebar nav link carries `group cursor-pointer`, so
+        any class-based fallback (scoped or not) matches ~28 elements and
+        trips Playwright strict mode.
+        """
+        return self.page.get_by_test_id("dashboard-user-profile-button")
 
     @property
     def logout_button(self) -> Locator:
         """Logout button locator (in profile menu)."""
-        return self.page.locator("[data-testid='dashboard-logout-button'], button[title='Sign out'], button:has(svg.lucide-log-out)")
+        return self.page.locator(
+            "[data-testid='dashboard-logout-button'], "
+            "aside[aria-label='Sidebar'] button[title='Sign out'], "
+            "button:has(svg.lucide-log-out)"
+        )
 
     def is_loaded(self) -> bool:
         """Check if dashboard is loaded.
@@ -275,11 +290,25 @@ class DashboardPage(BasePage):
     def navigate(self) -> None:
         """Navigate to dashboard.
 
+        Waits for the welcome message (or a redirect to login) after goto —
+        on a dev frontend with webpack hot-reload the first page-load can take
+        5+ seconds to compile/hydrate, so an immediate is_loaded() right after
+        goto() is flaky.
+
         Example:
             dashboard.navigate()
             assert dashboard.is_loaded()
         """
         self.page.goto(f"{self.base_url}/dashboard")
+        try:
+            self.page.wait_for_selector(
+                "[data-testid='dashboard-welcome-message'], h1:has-text('ATOM Dashboard'), h1:has-text('Dashboard')",
+                timeout=20000
+            )
+        except Exception:
+            # Redirected to login (unauthenticated) — DashboardPage.is_loaded()
+            # will report False, which is what callers assert in that case.
+            pass
 
     def get_welcome_text(self) -> str:
         """Get welcome message text.
@@ -353,26 +382,38 @@ class DashboardPage(BasePage):
 
 
 class SettingsPage(BasePage):
-    """Page Object for Settings page.
+    """Page Object for Settings page (real UI: components/Settings/PreferencesTab.tsx).
 
-    Encapsulates settings interactions:
-    - Theme toggle (light/dark mode)
-    - Notification settings
-    - Account settings
-    - Security settings
+    The real settings UI is AUTO-SAVE: every preference change (theme select,
+    notifications switch, email-frequency select) POSTs to
+    /api/v1/preferences immediately — there is no Save button and no success
+    message. The old POM/tests (email/push checkboxes, save button, success
+    toast, account/security sections) described a settings UI that does not
+    exist in this codebase; this POM targets the real component.
 
-    Uses data-testid selectors for resilience.
+    Test IDs (wired in PreferencesTab.tsx, contract in src/lib/testIds.ts):
+    - settings-preferences          (preferences section container)
+    - settings-theme-toggle         (theme select trigger)
+    - settings-theme-label          (current theme: Light/Dark/System)
+    - settings-notifications-section
+    - settings-notifications-toggle (enable-notifications switch)
+    - settings-email-frequency-select
     """
 
     # Locators
     @property
+    def preferences_section(self) -> Locator:
+        """Preferences section container locator."""
+        return self.page.get_by_test_id("settings-preferences")
+
+    @property
     def theme_toggle(self) -> Locator:
-        """Theme toggle switch locator."""
+        """Theme select trigger locator (opens the theme dropdown)."""
         return self.page.get_by_test_id("settings-theme-toggle")
 
     @property
     def theme_label(self) -> Locator:
-        """Theme label text locator (shows current theme)."""
+        """Theme label text locator (shows current theme: Light/Dark/System)."""
         return self.page.get_by_test_id("settings-theme-label")
 
     @property
@@ -381,40 +422,20 @@ class SettingsPage(BasePage):
         return self.page.get_by_test_id("settings-notifications-section")
 
     @property
-    def email_notifications_checkbox(self) -> Locator:
-        """Email notifications checkbox locator."""
-        return self.page.get_by_test_id("settings-email-notifications-checkbox")
+    def notifications_toggle(self) -> Locator:
+        """Enable-notifications switch locator (role=switch, data-state=checked|unchecked)."""
+        return self.page.get_by_test_id("settings-notifications-toggle")
 
     @property
-    def push_notifications_checkbox(self) -> Locator:
-        """Push notifications checkbox locator."""
-        return self.page.get_by_test_id("settings-push-notifications-checkbox")
-
-    @property
-    def save_button(self) -> Locator:
-        """Save settings button locator."""
-        return self.page.get_by_test_id("settings-save-button")
-
-    @property
-    def success_message(self) -> Locator:
-        """Success message locator (shown after save)."""
-        return self.page.get_by_test_id("settings-success-message")
-
-    @property
-    def account_section(self) -> Locator:
-        """Account settings section locator."""
-        return self.page.get_by_test_id("settings-account-section")
-
-    @property
-    def security_section(self) -> Locator:
-        """Security settings section locator."""
-        return self.page.get_by_test_id("settings-security-section")
+    def email_frequency_select(self) -> Locator:
+        """Email digest frequency select trigger locator."""
+        return self.page.get_by_test_id("settings-email-frequency-select")
 
     def is_loaded(self) -> bool:
         """Check if settings page is loaded.
 
         Returns:
-            bool: True if theme toggle is visible
+            bool: True if the theme toggle is visible
 
         Example:
             assert settings.is_loaded() is True
@@ -424,26 +445,47 @@ class SettingsPage(BasePage):
     def navigate(self) -> None:
         """Navigate to settings page.
 
+        Waits for the preferences section (or a redirect to login) after
+        goto — on a dev frontend with webpack hot-reload the first page-load
+        can take 5+ seconds to compile/hydrate.
+
         Example:
             settings.navigate()
             assert settings.is_loaded()
         """
         self.page.goto(f"{self.base_url}/settings")
+        try:
+            self.page.wait_for_selector(
+                "[data-testid='settings-theme-toggle']",
+                timeout=20000
+            )
+        except Exception:
+            # Redirected to login (unauthenticated) — is_loaded() reports False.
+            pass
 
     def get_current_theme(self) -> str:
         """Get current theme from label text.
 
         Returns:
-            str: Current theme ("Light" or "Dark")
+            str: Current theme ("Light", "Dark" or "System")
 
         Example:
             theme = settings.get_current_theme()
-            assert theme in ["Light", "Dark"]
+            assert theme in ["Light", "Dark", "System"]
         """
         return self.theme_label.text_content()
 
+    def _select_theme_option(self, theme: str) -> None:
+        """Open the theme select and pick an option by its display name.
+
+        Args:
+            theme: Display name of the option ("Light" / "Dark" / "System")
+        """
+        self.theme_toggle.click()
+        self.page.get_by_role("option", name=theme, exact=True).click()
+
     def set_theme(self, theme: str) -> None:
-        """Set theme by clicking toggle if needed.
+        """Set theme via the select dropdown.
 
         Args:
             theme: "light" or "dark"
@@ -452,88 +494,83 @@ class SettingsPage(BasePage):
             settings.set_theme("dark")
             assert settings.get_current_theme() == "Dark"
         """
-        current = self.get_current_theme().lower()
-
-        # Only click toggle if theme is different
-        if (theme == "dark" and current == "light") or \
-           (theme == "light" and current == "dark"):
-            self.theme_toggle.click()
+        target = {"light": "Light", "dark": "Dark"}.get(theme.lower(), "Dark")
+        current = self.get_current_theme()
+        if current != target:
+            self._select_theme_option(target)
 
     def toggle_theme(self) -> None:
-        """Toggle theme (light to dark or vice versa).
+        """Toggle theme (Light -> Dark, Dark -> Light; System -> Dark).
 
         Example:
             current = settings.get_current_theme()
             settings.toggle_theme()
             assert settings.get_current_theme() != current
         """
-        self.theme_toggle.click()
+        target = "Dark" if self.get_current_theme() != "Dark" else "Light"
+        self._select_theme_option(target)
 
-    def set_email_notifications(self, enabled: bool) -> None:
-        """Enable or disable email notifications.
+    def is_notifications_enabled(self) -> bool:
+        """Check whether the notifications switch is checked.
+
+        Returns:
+            bool: True when the switch has data-state="checked"
+        """
+        return self.notifications_toggle.get_attribute("data-state") == "checked"
+
+    def set_notifications(self, enabled: bool) -> None:
+        """Enable or disable notifications via the switch.
 
         Args:
             enabled: True to enable, False to disable
 
         Example:
-            settings.set_email_notifications(True)
+            settings.set_notifications(True)
         """
-        if enabled:
-            self.email_notifications_checkbox.check()
-        else:
-            self.email_notifications_checkbox.uncheck()
+        if self.is_notifications_enabled() != enabled:
+            self.notifications_toggle.click()
 
-    def set_push_notifications(self, enabled: bool) -> None:
-        """Enable or disable push notifications.
+    def get_email_frequency(self) -> str:
+        """Get the current email digest frequency (Daily/Weekly/Never)."""
+        return self.email_frequency_select.inner_text()
+
+    def set_email_frequency(self, frequency: str) -> None:
+        """Set email digest frequency via the select dropdown.
 
         Args:
-            enabled: True to enable, False to disable
-
-        Example:
-            settings.set_push_notifications(False)
+            frequency: "Daily", "Weekly" or "Never"
         """
-        if enabled:
-            self.push_notifications_checkbox.check()
-        else:
-            self.push_notifications_checkbox.uncheck()
+        current = self.get_email_frequency()
+        if current != frequency:
+            self.email_frequency_select.click()
+            self.page.get_by_role("option", name=frequency, exact=True).click()
 
     def click_save(self) -> None:
-        """Click save button to save settings.
+        """Wait for the auto-save to complete.
+
+        The real PreferencesTab saves each change immediately (POST
+        /api/v1/preferences) — there is no Save button. Kept for API
+        compatibility with older journey tests: it just lets the save
+        round-trip finish before callers assert state.
 
         Example:
+            settings.set_theme("dark")
             settings.click_save()
-            assert settings.success_message.is_visible()
+            assert settings.get_current_theme() == "Dark"
         """
-        self.save_button.click()
+        self.page.wait_for_timeout(800)  # Auto-save POST round-trip
 
     def save_settings(self) -> None:
-        """Save current settings and wait for success message.
+        """Save current settings (auto-save UI — waits for the round-trip).
 
-        Convenience method that clicks save and waits for confirmation.
+        Convenience method kept for API compatibility with older tests.
 
         Example:
             settings.set_theme("dark")
             settings.save_settings()
-            assert settings.success_message.is_visible()
+            assert settings.get_current_theme() == "Dark"
         """
         self.click_save()
-        # Wait for success message
-        self.page.wait_for_selector('[data-testid="settings-success-message"]', timeout=3000)
-
-    def get_success_message(self) -> Optional[str]:
-        """Get success message text if present.
-
-        Returns:
-            Optional[str]: Success text or None
-
-        Example:
-            settings.save_settings()
-            msg = settings.get_success_message()
-            assert "saved" in msg.lower()
-        """
-        if self.success_message.is_visible():
-            return self.success_message.text_content()
-        return None
 
 
 class ChatPage(BasePage):
@@ -557,12 +594,12 @@ class ChatPage(BasePage):
     @property
     def chat_input(self) -> Locator:
         """Chat message input field locator."""
-        return self.page.get_by_test_id("chat-input")
+        return self.page.get_by_test_id("agent-chat-input")
 
     @property
     def send_button(self) -> Locator:
         """Send message button locator."""
-        return self.page.get_by_test_id("send-button")
+        return self.page.get_by_test_id("send-message-button")
 
     @property
     def message_list(self) -> Locator:
@@ -1331,26 +1368,26 @@ class CanvasHostPage(BasePage):
     Uses CSS selectors (canvas uses absolute positioning, no data-testid).
     """
 
-    # Locators using CSS selectors (canvas is absolute positioned)
+    # Locators using canonical data-testid selectors (src/lib/testIds.ts)
     @property
     def canvas_host(self) -> Locator:
-        """Main canvas container (absolute positioned div with z-50)."""
-        return self.page.locator("div.absolute.top-4.right-4.bottom-4.w-\\[600px\\].bg-white")
+        """Main canvas container (data-testid="canvas-container")."""
+        return self.page.locator('[data-testid="canvas-container"]')
 
     @property
     def canvas_close_button(self) -> Locator:
-        """X button to close canvas (top right of header)."""
-        return self.page.locator("button:has(svg.lucide-x)")
+        """X button to close canvas (data-testid="close-canvas-button")."""
+        return self.page.locator('[data-testid="close-canvas-button"]')
 
     @property
     def canvas_title(self) -> Locator:
-        """Canvas title display in header (truncated to max-w-[250px])."""
+        """Canvas title display in header (truncated to max-w-[200px])."""
         return self.page.locator("h3.font-semibold.text-sm.truncate")
 
     @property
     def canvas_component_badge(self) -> Locator:
-        """Component type badge (e.g., 'markdown', 'form', 'chart')."""
-        return self.page.locator("span.text-\\[8px\\].uppercase")
+        """Component type badge (data-testid="canvas-type-{component}")."""
+        return self.page.locator('[data-testid^="canvas-type-"]')
 
     @property
     def canvas_version(self) -> Locator:
@@ -1458,7 +1495,7 @@ class CanvasHostPage(BasePage):
         from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
         try:
             self.page.wait_for_selector(
-                "div.absolute.top-4.right-4.bottom-0.w-\\[600px\\].bg-white",
+                '[data-testid="canvas-container"]',
                 timeout=timeout
             )
         except PlaywrightTimeoutError:
@@ -1478,7 +1515,7 @@ class CanvasHostPage(BasePage):
         from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
         try:
             self.page.wait_for_selector(
-                "div.absolute.top-4.right-4.bottom-0.w-\\[600px\\].bg-white",
+                '[data-testid="canvas-container"]',
                 state="hidden",
                 timeout=timeout
             )
@@ -2296,7 +2333,7 @@ class CanvasFormPage(BasePage):
     - Success message shows with Check icon after submission
     """
 
-    # Locators using CSS selectors and name attributes
+    # Locators using canonical data-testid selectors (src/lib/testIds.ts)
     @property
     def form_container(self) -> Locator:
         """Form container div (within canvas content)."""
@@ -2309,8 +2346,8 @@ class CanvasFormPage(BasePage):
 
     @property
     def form_field(self) -> Locator:
-        """Generic form field locator (use with filter)."""
-        return self.page.locator("input, select")
+        """Generic form field locator (data-testid^="form-field-")."""
+        return self.page.locator('[data-testid^="form-field-"]')
 
     @property
     def form_input_text(self) -> Locator:
@@ -2339,8 +2376,8 @@ class CanvasFormPage(BasePage):
 
     @property
     def form_submit_button(self) -> Locator:
-        """Submit button locator."""
-        return self.page.locator("button[type=\"submit\"]")
+        """Submit button locator (data-testid="form-submit-button")."""
+        return self.page.locator('[data-testid="form-submit-button"]')
 
     @property
     def form_error_message(self) -> Locator:
@@ -2349,8 +2386,8 @@ class CanvasFormPage(BasePage):
 
     @property
     def form_success_message(self) -> Locator:
-        """Success message (with Check icon)."""
-        return self.page.locator("div.flex.items-center.justify-center.p-8.text-green-600")
+        """Success message (data-testid="form-success-message")."""
+        return self.page.locator('[data-testid="form-success-message"]')
 
     @property
     def form_label(self) -> Locator:
@@ -2400,78 +2437,78 @@ class CanvasFormPage(BasePage):
         return self.form_field.count()
 
     def fill_text_field(self, name: str, value: str) -> None:
-        """Fill a text input field by name attribute.
+        """Fill a text input field by field name (data-testid=form-field-{name}).
 
         Args:
-            name: Field name attribute value
+            name: Field name (testid suffix)
             value: Text value to enter
 
         Example:
             form_page.fill_text_field("full_name", "John Doe")
         """
-        field = self.page.locator(f"input[name=\"{name}\"][type=\"text\"]")
+        field = self.page.locator(f'[data-testid="form-field-{name}"][type="text"]')
         field.fill(value)
 
     def fill_email_field(self, name: str, value: str) -> None:
-        """Fill an email input field by name attribute.
+        """Fill an email input field by field name.
 
         Args:
-            name: Field name attribute value
+            name: Field name (testid suffix)
             value: Email address to enter
 
         Example:
             form_page.fill_email_field("email", "user@example.com")
         """
-        field = self.page.locator(f"input[name=\"{name}\"][type=\"email\"]")
+        field = self.page.locator(f'[data-testid="form-field-{name}"][type="email"]')
         field.fill(value)
 
     def fill_number_field(self, name: str, value: float) -> None:
-        """Fill a number input field by name attribute.
+        """Fill a number input field by field name.
 
         Args:
-            name: Field name attribute value
+            name: Field name (testid suffix)
             value: Numeric value to enter
 
         Example:
             form_page.fill_number_field("age", 25)
         """
-        field = self.page.locator(f"input[name=\"{name}\"][type=\"number\"]")
+        field = self.page.locator(f'[data-testid="form-field-{name}"][type="number"]')
         field.fill(str(value))
 
     def select_option(self, name: str, value: str) -> None:
-        """Select an option from dropdown by name attribute.
+        """Select an option from dropdown by field name.
 
         Args:
-            name: Field name attribute value
+            name: Field name (testid suffix)
             value: Option value to select
 
         Example:
             form_page.select_option("country", "US")
         """
-        dropdown = self.page.locator(f"select[name=\"{name}\"]")
+        dropdown = self.page.locator(f'[data-testid="form-field-{name}"]')
         dropdown.select_option(value)
 
     def set_checkbox(self, name: str, checked: bool) -> None:
-        """Set checkbox state by name attribute.
+        """Set checkbox state by field name.
 
         Args:
-            name: Field name attribute value
+            name: Field name (testid suffix)
             checked: True to check, False to uncheck
 
         Example:
             form_page.set_checkbox("agree_terms", True)
         """
-        checkbox = self.page.locator(f"input[name=\"{name}\"][type=\"checkbox\"]")
+        checkbox = self.page.locator(f'[data-testid="form-field-{name}"]')
         if checked:
             checkbox.check()
         else:
             checkbox.uncheck()
 
     def get_field_value(self, name: str) -> str:
-        """Get current value of a field by name attribute.
+        """Get current value of a field by field name.
 
         Args:
-            name: Field name attribute value
+            name: Field name (testid suffix)
 
         Returns:
             str: Current field value (empty string if not found)
@@ -2481,19 +2518,9 @@ class CanvasFormPage(BasePage):
             assert "@" in value
         """
         # Try input fields first
-        input_field = self.page.locator(f"input[name=\"{name}\"]")
-        if input_field.is_visible():
-            return input_field.input_value()
-
-        # Try select fields
-        select_field = self.page.locator(f"select[name=\"{name}\"]")
-        if select_field.is_visible():
-            return select_field.input_value()
-
-        # Try checkbox fields
-        checkbox = self.page.locator(f"input[name=\"{name}\"][type=\"checkbox\"]")
-        if checkbox.is_visible():
-            return "checked" if checkbox.is_checked() else "unchecked"
+        input_field = self.page.locator(f'[data-testid="form-field-{name}"]')
+        if input_field.count() > 0 and input_field.first.is_visible():
+            return input_field.first.input_value()
 
         return ""
 
@@ -2511,10 +2538,10 @@ class CanvasFormPage(BasePage):
             assert "invalid" in error.lower()
         """
         # Find the field's parent container
-        field = self.page.locator(f"input[name=\"{name}\"], select[name=\"{name}\"]")
-        if field.is_visible():
+        field = self.page.locator(f'[data-testid="form-field-{name}"]')
+        if field.count() > 0 and field.first.is_visible():
             # Look for error message in same container
-            container = field.locator("xpath=../..")
+            container = field.first.locator("xpath=../..")
             error_el = container.locator("div.flex.items-center.text-xs.text-red-500")
             if error_el.is_visible():
                 return error_el.text_content()

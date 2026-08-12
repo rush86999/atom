@@ -21,7 +21,7 @@ class TestSimplifiedUserJourney:
         page = authenticated_page
         
         # 1. Dashboard exploration
-        page.goto("/dashboard")
+        page.goto("http://localhost:3001/dashboard")
         dashboard = DashboardPage(page)
         expect(dashboard.is_loaded()).to_be_truthy()
         welcome_text = dashboard.get_welcome_text()
@@ -32,7 +32,7 @@ class TestSimplifiedUserJourney:
         assert agent_count >= 0
         
         # 2. Settings persistence
-        page.goto("/settings")
+        page.goto("http://localhost:3001/settings")
         settings = SettingsPage(page)
         expect(settings.is_loaded()).to_be_truthy()
         
@@ -52,14 +52,14 @@ class TestSimplifiedUserJourney:
         assert settings.get_current_theme() == new_theme
         
         # 3. Canvas access
-        page.goto("/canvas")
+        page.goto("http://localhost:3001/canvas")
         canvas_host = CanvasHostPage(page)
         expect(canvas_host.is_loaded()).to_be_truthy()
         canvas_host.create_new_canvas("Test Canvas", "chart")
         page.wait_for_timeout(1000)
         
         # 4. Logout
-        page.goto("/dashboard")
+        page.goto("http://localhost:3001/dashboard")
         dashboard.logout()
         expect(page).to_have_url("*/login", timeout=5000)
         
@@ -77,7 +77,7 @@ class TestChatFunctionality:
         page = authenticated_page
         chat_page = ChatPage(page)
         
-        page.goto("/chat")
+        page.goto("http://localhost:3001/chat")
         expect(chat_page.is_loaded()).to_be_truthy()
         
         test_message = f"Hello from simplified test {uuid.uuid4().hex[:8]}"
@@ -100,7 +100,7 @@ class TestCanvasFeatures:
         page = authenticated_page
         
         # Navigate to canvas
-        page.goto("/canvas")
+        page.goto("http://localhost:3001/canvas")
         canvas_host = CanvasHostPage(page)
         expect(canvas_host.is_loaded()).to_be_truthy()
         

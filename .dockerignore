@@ -12,6 +12,13 @@ node_modules
 .mypy_cache
 .ruff_cache
 # backend (Allowing for Docker build)
+backend/data
+backend/venv
+backend/logs
+backend/coverage_probe*.json
+backend/coverage.json
+backend/token.json
+backend/.coverage*
 # infra
 packages
 mobile

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AGENT_CHAT } from "@/src/lib/testIds";
 
 interface ChatSession {
     id: string;
@@ -100,7 +101,7 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
     return (
         <div className="flex flex-col h-full border-r border-slate-800 bg-[#0F172A]">
             <div className="p-4 border-b border-slate-800 space-y-4">
-                <Button className="w-full justify-start gap-2 bg-indigo-600 hover:bg-indigo-700" onClick={handleNewChat}>
+                <Button className="w-full justify-start gap-2 bg-indigo-600 hover:bg-indigo-700" onClick={handleNewChat} data-testid={AGENT_CHAT.HISTORY_BUTTON}>
                     <Plus className="h-4 w-4" /> New Chat
                 </Button>
                 <div className="relative">
@@ -115,7 +116,7 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
             </div>
 
             <ScrollArea className="flex-1">
-                <div className="p-2 space-y-2">
+                <div className="p-2 space-y-2" data-testid={AGENT_CHAT.HISTORY_LIST}>
                     {loading ? (
                         <div className="p-4 text-center text-slate-500 dark:text-slate-400 text-sm">
                             Loading history...
@@ -125,10 +126,11 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
                             {searchQuery ? "No matches found." : "No chat history."}
                         </div>
                     ) : (
-                        filteredHistory.map((session) => (
+                        filteredHistory.map((session, index) => (
                             <div
                                 key={session.id}
                                 onClick={() => onSelectSession(session.id)}
+                                data-testid={`${AGENT_CHAT.HISTORY_ITEM}-${index}`}
                                 className={cn(
                                     "flex flex-col gap-1 p-3 rounded-xl cursor-pointer transition-all hover:bg-slate-800/50",
                                     selectedSessionId === session.id ? "bg-slate-800 border border-indigo-500/30 shadow-lg shadow-indigo-500/5" : "border border-transparent"

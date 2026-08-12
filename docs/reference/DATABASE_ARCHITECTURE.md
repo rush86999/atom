@@ -1,13 +1,15 @@
-# 🗄️ Atom Database Architecture
+# Atom Database Architecture
 
-## 📋 Overview
+> **Last Updated**: August 2026
 
-This document defines the database architecture for the Atom personal assistant application, establishing clear single sources of truth for PostgreSQL and LanceDB.
+## Overview
+
+This document defines the database architecture for the Atom platform, establishing clear single sources of truth for SQLite/PostgreSQL and LanceDB.
 
 ## 🎯 Single Source of Truth Principles
 
-### **PostgreSQL: Relational Data Master**
-PostgreSQL serves as the single source of truth for all **relational, transactional, and application state data**:
+### **SQLite/PostgreSQL: Relational Data Master**
+SQLite (Personal Edition) or PostgreSQL (Enterprise) serves as the single source of truth for all **relational, transactional, and application state data**:
 - User profiles and authentication
 - OAuth tokens and credentials  
 - Tasks, messages, calendar events
@@ -39,11 +41,11 @@ LanceDB serves as the single source of truth for all **vector embeddings and sem
 └─────────────────┘    └─────────────────┘
          │                       │
          └───────────────────────┘
-                 │
-         ┌─────────────────┐
-         │   Atom Backend  │
-         │   (Flask API)   │
-         └─────────────────┘
+          │
+          ┌─────────────────┐
+          │   Atom Backend  │
+          │   (FastAPI API) │
+          └─────────────────┘
 ```
 
 ## 📊 Data Ownership Matrix

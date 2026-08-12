@@ -6,6 +6,11 @@ import { marked } from "marked";
 import { renderMarkdownSafe } from "@/lib/sanitize";
 import Editor from "@monaco-editor/react";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
+import { CANVAS } from "@/src/lib/testIds";
+import { LineChartCanvas } from "@/components/canvas/LineChart";
+import { BarChartCanvas } from "@/components/canvas/BarChart";
+import { PieChartCanvas } from "@/components/canvas/PieChart";
+import { InteractiveForm } from "@/components/canvas/InteractiveForm";
 
 interface CanvasState {
     id?: string;
@@ -34,7 +39,10 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
 
         // Check for canvas event type
         if (lastMessage.type === "canvas:update" || lastMessage.type === "canvas:present") {
-            const { action, component, data, title, id, version, metadata } = lastMessage.data || lastMessage;
+            // Backend broadcasts carry `canvas_id` (tools/canvas_tool.py); the
+            // chat flow may carry `id` — accept either so state registration
+            // and form submission always know the canvas id.
+            const { action, component, data, title, id, canvas_id, version, metadata } = lastMessage.data || lastMessage;
 
             if (action === "close") {
                 setState(null);
@@ -43,7 +51,7 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
                 localContentRef.current = content;
 
                 setState({
-                    id,
+                    id: id || canvas_id,
                     visible: true,
                     component: component === 'eval' ? 'code' : (component || "markdown"),
                     title,
@@ -173,7 +181,7 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
     if (!state || !state.visible) return null;
 
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-[#020617] relative animate-in fade-in duration-500 overflow-hidden">
+        <div data-testid={CANVAS.CONTAINER} className="flex flex-col h-full bg-white dark:bg-[#020617] relative animate-in fade-in duration-500 overflow-hidden">
             <div className="p-3 border-b flex items-center justify-between bg-zinc-50 dark:bg-slate-900/50 backdrop-blur-sm shrink-0">
                 <div className="flex items-center gap-2">
                     <CanvasIcon component={state.component} />
@@ -185,7 +193,7 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
                             {state.version && (
                                 <span className="text-[10px] text-zinc-500 font-mono">v{state.version}</span>
                             )}
-                            <span className="text-[8px] h-3.5 px-1 uppercase bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-zinc-500 flex items-center rounded">
+                            <span data-testid={`${CANVAS.TYPE_PREFIX}${state.component}`} className="text-[8px] h-3.5 px-1 uppercase bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-zinc-500 flex items-center rounded">
                                 {state.component}
                             </span>
                         </div>
@@ -212,6 +220,7 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
                     )}
                     <button
                         onClick={() => setState(null)}
+                        data-testid={CANVAS.CLOSE_BUTTON}
                         className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
                     >
                         <X className="h-4 w-4 text-zinc-500" />
@@ -223,6 +232,8 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
                 <CanvasContent
                     component={state.component}
                     data={state.data}
+                    canvasId={state.id}
+                    canvasTitle={state.title}
                     emailMetadata={emailMetadata}
                     setEmailMetadata={(m) => { setEmailMetadata(m); setHasUnsavedChanges(true); }}
                     sheetData={sheetData}
@@ -275,6 +286,8 @@ function CanvasIcon({ component }: { component: string }) {
 function CanvasContent({
     component,
     data,
+    canvasId,
+    canvasTitle,
     emailMetadata,
     setEmailMetadata,
     sheetData,
@@ -285,6 +298,8 @@ function CanvasContent({
 }: {
     component: string;
     data: any;
+    canvasId?: string;
+    canvasTitle?: string;
     emailMetadata: any;
     setEmailMetadata: (m: any) => void;
     sheetData: any[][];
@@ -293,11 +308,51 @@ function CanvasContent({
     setShowPreview: (s: boolean) => void;
     onContentChange: (val: string) => void
 }) {
-    if (!data && component !== "sheet") return <div className="text-zinc-500 p-4">No data to display</div>;
+    if (!data && component !== "sheet" && component !== "form") return <div className="text-zinc-500 p-4">No data to display</div>;
 
     const content = typeof data === 'string' ? data : (data.content || JSON.stringify(data, null, 2));
 
     switch (component) {
+        case "line_chart":
+            return <LineChartCanvas data={(Array.isArray(data) ? data : data?.data || []) as any} title={data?.title || canvasTitle || undefined} />;
+        case "bar_chart":
+            return <BarChartCanvas data={(Array.isArray(data) ? data : data?.data || []) as any} title={data?.title || canvasTitle || undefined} />;
+        case "pie_chart":
+            return <PieChartCanvas data={(Array.isArray(data) ? data : data?.data || []) as any} title={data?.title || canvasTitle || undefined} />;
+
+        case "form": {
+            const schema = data?.schema || data?.form_schema || {};
+            const fields = Array.isArray(data?.fields)
+                ? data.fields
+                : Array.isArray(schema?.fields)
+                    ? schema.fields
+                    : [];
+            const formTitle = data?.title || data?.form_title;
+            return (
+                <div className="h-full overflow-auto custom-scrollbar">
+                    <div className="p-4">
+                        <InteractiveForm
+                            fields={fields}
+                            canvasId={canvasId}
+                            title={formTitle}
+                            onSubmit={async (formData) => {
+                                try {
+                                    const { apiClient } = await import("@/lib/api");
+                                    await apiClient.post("/api/canvas/submit", {
+                                        canvas_id: canvasId,
+                                        form_data: formData,
+                                    });
+                                } catch (e) {
+                                    console.error("Form submission failed:", e);
+                                    throw e;
+                                }
+                            }}
+                        />
+                    </div>
+                </div>
+            );
+        }
+
         case "email":
             return (
                 <div className="flex flex-col h-full bg-white dark:bg-[#0F172A]">

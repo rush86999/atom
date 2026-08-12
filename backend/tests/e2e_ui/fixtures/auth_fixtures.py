@@ -22,6 +22,18 @@ from sqlalchemy.orm import Session
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
+# Mirror main_api_app.py's dotenv loading BEFORE importing core.auth: the
+# backend signs/verifies JWTs with SECRET_KEY from backend/.env (+ .env.local
+# override). Without this, core.auth falls back to a per-process random key and
+# every token minted here (create_access_token in the authenticated_user
+# fixture, create_expired_token in test_auth_protected_routes) is signed with a
+# key the live backend does not know — 401/404 regardless of validity.
+from dotenv import load_dotenv
+
+_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+load_dotenv(os.path.join(_BACKEND_DIR, ".env"))
+load_dotenv(os.path.join(_BACKEND_DIR, ".env.local"), override=True)
+
 from core.models import User
 from core.auth import get_password_hash, create_access_token
 
@@ -95,7 +107,7 @@ def authenticated_user(test_user: User) -> Tuple[User, str]:
 
 
 @pytest.fixture(scope="function")
-def authenticated_page(browser: Browser, authenticated_user: Tuple[User, str]) -> Page:
+def authenticated_page(browser: Browser, test_user: User) -> Page:
     """Create a Playwright page with JWT token pre-set in localStorage.
 
     This fixture bypasses the slow UI login flow by directly setting
@@ -106,22 +118,39 @@ def authenticated_page(browser: Browser, authenticated_user: Tuple[User, str]) -
 
     Args:
         browser: Playwright browser fixture
-        authenticated_user: Authenticated user fixture (user, token)
+        test_user: Test user fixture (created in the shared DB)
 
     Returns:
         Page: Playwright page with JWT token in localStorage
 
     Example:
         def test_authenticated_page(authenticated_page):
-            authenticated_page.goto("http://localhost:3000/dashboard")
+            authenticated_page.goto("http://localhost:3001/dashboard")
             # No redirect to login - token already set
             assert authenticated_page.locator("h1").contains("Dashboard")
     """
-    user, token = authenticated_user
+    # The backend's JWT secret is auto-generated at boot (dev mode), so a
+    # token minted in this process is REJECTED by the live backend (401 on
+    # every API call). Login through the backend's own endpoint instead so
+    # the token is signed with its real secret.
+    from tests.e2e_ui.utils.api_setup import APIClient, authenticate_user
+    api = APIClient(base_url=os.getenv("E2E_API_URL", "http://localhost:8001"))
+    auth_resp = authenticate_user(
+        api, email=test_user.email, password="TestPassword123!"
+    )
+    token = auth_resp["access_token"]
 
     # Create new browser context and page
     context = browser.new_context()
     page = context.new_page()
+
+    # The frontend middleware (middleware.ts) gates every route on the
+    # auth_token COOKIE (set by lib/auth.ts on login) — localStorage alone
+    # is not enough, otherwise the middleware redirects to /login. Pre-seed
+    # the cookie on the context so page-load requests carry it.
+    context.add_cookies([
+        {"name": "auth_token", "value": token, "url": "http://localhost:3001"},
+    ])
 
     # Set JWT token in localStorage before navigating
     # This bypasses the UI login flow
@@ -206,6 +235,8 @@ def admin_user(db_session: Session) -> Tuple[User, str]:
     admin = User(
         email=email,
         hashed_password=get_password_hash("AdminPassword123!"),
+        first_name="Test",
+        last_name="Admin",
         role="super_admin",
         status="active",
         created_at=datetime.utcnow()
@@ -255,6 +286,13 @@ def authenticated_page_api(browser: Browser, base_url: str, setup_test_user: dic
     # Create new browser context and page
     context = browser.new_context()
     page = context.new_page()
+
+    # Frontend middleware (middleware.ts) gates routes on the auth_token
+    # COOKIE — localStorage alone gets redirected to /login. Pre-seed the
+    # cookie so page-load requests pass the middleware gate.
+    context.add_cookies([
+        {"name": "auth_token", "value": access_token, "url": base_url},
+    ])
 
     # Inject JWT token to localStorage (bypass UI login)
     page.goto(base_url)

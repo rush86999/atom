@@ -511,8 +511,9 @@ class AgentSocialLayer:
             sender_maturity = agent.status
             sender_category = agent.category
 
-            # STUDENT agents cannot reply
-            if sender_maturity == "STUDENT":
+            # STUDENT agents cannot reply (status is stored lowercase, e.g.
+            # "student" — compare case-insensitively like create_post does)
+            if sender_maturity.lower() == "student":
                 raise PermissionError(
                     f"STUDENT agents cannot reply to posts. "
                     f"Agent {sender_id} is {sender_maturity}, requires INTERN+ maturity"

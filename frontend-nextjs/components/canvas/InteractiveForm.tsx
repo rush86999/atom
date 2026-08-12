@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Check, AlertCircle } from 'lucide-react';
+import { FORM, getFormFieldTestId } from "@/src/lib/testIds";
 import type { AnyCanvasState, FormCanvasState, CanvasStateAPI } from './types';
 
 interface FormField {
@@ -94,9 +95,10 @@ export function InteractiveForm({
             const api = (window as any).atom.canvas as CanvasStateAPI;
             const originalGetState = api.getState;
             api.getState = (id: string) => {
-                const originalResult = originalGetState(id);
-                if (originalResult) return originalResult;
-                return id === state.canvas_id ? state : null;
+                // The most specific registered state wins: the form's own state
+                // must shadow any host-level registration under the same id.
+                if (id === state.canvas_id) return state;
+                return originalGetState(id);
             };
 
             const originalGetAllStates = api.getAllStates;
@@ -196,7 +198,7 @@ export function InteractiveForm({
 
     if (submitted) {
         return (
-            <div className="flex items-center justify-center p-8 text-green-600">
+            <div data-testid={FORM.SUCCESS_MESSAGE} className="flex items-center justify-center p-8 text-green-600">
                 <Check className="mr-2 h-5 w-5" />
                 <span>Submitted successfully!</span>
             </div>
@@ -218,6 +220,7 @@ export function InteractiveForm({
                         <select
                             id={field.name}
                             name={field.name}
+                            data-testid={getFormFieldTestId(field.name)}
                             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                             value={formData[field.name] || ''}
                             onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
@@ -232,6 +235,7 @@ export function InteractiveForm({
                             id={field.name}
                             name={field.name}
                             type="checkbox"
+                            data-testid={getFormFieldTestId(field.name)}
                             checked={formData[field.name] || false}
                             onChange={(e) => setFormData({ ...formData, [field.name]: e.target.checked })}
                             className="h-4 w-4 rounded border-gray-300 dark:border-gray-600"
@@ -241,6 +245,7 @@ export function InteractiveForm({
                             id={field.name}
                             name={field.name}
                             type={field.type}
+                            data-testid={getFormFieldTestId(field.name)}
                             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
                             placeholder={field.placeholder}
                             value={formData[field.name] !== undefined && formData[field.name] !== null ? formData[field.name] : ''}
@@ -265,7 +270,7 @@ export function InteractiveForm({
                 </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" data-testid={FORM.SUBMIT_BUTTON} className="w-full" disabled={isSubmitting}>
                 {isSubmitting ? 'Submitting...' : submitLabel}
             </Button>
         </form>

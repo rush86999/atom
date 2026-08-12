@@ -499,6 +499,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         setActiveAttachments,
         isUploading,
         streamingContent,
+        currentStreamId,
         handleSend,
         handleStop,
         handleTitleSave,

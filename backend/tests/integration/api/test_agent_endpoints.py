@@ -351,6 +351,28 @@ class TestAgentCreationEndpoint:
         data = response.json()
         assert "agent_id" in data["data"]
 
+    def test_create_agent_without_configuration(self, client: TestClient, db_session: Session):
+        """Configuration is OPTIONAL per the endpoint contract.
+
+        Regression (2026-08-12, agents-UI e2e cluster): CustomAgentRequest
+        declared `configuration: Dict[str, Any]` with no default, so a plain
+        {name, category} create payload 422'd — the documented contract says
+        configuration/schedule_config are optional, and the agent list UI
+        never sends them.
+        """
+        import uuid as _uuid
+        agent_data = {
+            "name": f"MinimalAgent {_uuid.uuid4().hex[:8]}",
+            "category": "test",
+            "description": "No configuration provided",
+        }
+        response = client.post("/api/agents/custom", json=agent_data)
+        assert response.status_code == 201, response.text
+        created_id = response.json()["data"]["agent_id"]
+        get_response = client.get(f"/api/agents/{created_id}")
+        assert get_response.status_code == 200
+        assert get_response.json()["data"]["name"] == agent_data["name"]
+
     def test_create_agent_with_invalid_status(self, client: TestClient, db_session: Session):
         """Test status field is not settable via the custom-agent endpoint.
 
@@ -374,20 +396,24 @@ class TestAgentCreationEndpoint:
         """Test creating agent without required fields returns error."""
         agent_data = {
             "name": "IncompleteAgent"
-            # Missing category, configuration
+            # Missing category (required)
         }
         response = client.post("/api/agents/custom", json=agent_data)
         assert response.status_code in [400, 422]
 
-    def test_create_agent_confidence_out_of_range(self, client: TestClient, db_session: Session):
-        """Test creating agent without required configuration returns error."""
+    def test_create_agent_without_configuration_is_student(self, client: TestClient, db_session: Session):
+        """Configuration is optional; a minimal payload creates a STUDENT agent."""
+        import uuid as _uuid
         agent_data = {
-            "name": "OverconfidentAgent",
+            "name": f"MinimalConfigAgent {_uuid.uuid4().hex[:8]}",
             "category": "test",
-            # Missing configuration (required by CustomAgentRequest)
         }
         response = client.post("/api/agents/custom", json=agent_data)
-        assert response.status_code in [400, 422]
+        assert response.status_code == 201, response.text
+        created_id = response.json()["data"]["agent_id"]
+        get_response = client.get(f"/api/agents/{created_id}")
+        assert get_response.status_code == 200
+        assert get_response.json()["data"]["status"] == AgentStatus.STUDENT.value
 
 
 class TestAgentUpdateEndpoint:

@@ -297,7 +297,7 @@ async def get_document(
         doc = lancedb_handler.get_document_by_id("documents", doc_id)
         
         if not doc:
-            raise router.not_found(f"Document {doc_id} not found")
+            raise router.not_found_error("Document", doc_id)
 
         return router.success_response(data={
             "id": doc["id"],
@@ -308,6 +308,9 @@ async def get_document(
             "ingested_at": doc.get("created_at")
         })
     except Exception as e:
+        from fastapi import HTTPException as _FastAPIHTTPException
+        if isinstance(e, _FastAPIHTTPException):
+            raise
         logger.error(f"Failed to get document {doc_id}: {e}")
         raise router.internal_error(message="Internal error")
 

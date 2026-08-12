@@ -71,12 +71,13 @@ class TestJWTTokenValidation:
         assert header.get('typ') == 'JWT', f"Expected type JWT, got {header.get('typ')}"
 
     def test_jwt_token_expiration(self, authenticated_page_api: Page):
-        """Verify JWT token expiration is set correctly (default 15 minutes).
+        """Verify JWT token expiration is set correctly (default 24 hours).
 
         This test validates:
         1. JWT token has exp claim
         2. Expiration timestamp is in the future
-        3. Expiration is within expected time window (default 15 min from auth.py)
+        3. Expiration is within expected time window (ACCESS_TOKEN_EXPIRE_MINUTES
+           = 60 * 24 = 24 hours in core/auth.py)
 
         Args:
             authenticated_page_api: Authenticated page fixture with JWT token
@@ -101,8 +102,8 @@ class TestJWTTokenValidation:
 
         assert exp_datetime > now, f"Token should not be expired (exp: {exp_datetime}, now: {now})"
 
-        # Verify expiration is reasonable (default from auth.py is 15 minutes, but can be 24 hours)
-        # Check that token expires within 25 hours (allowing for 24-hour token + buffer)
+        # Verify expiration is reasonable (default from core/auth.py is 24 hours)
+        # Check that token expires within 25 hours (24-hour token + buffer)
         time_diff = (exp_datetime - now).total_seconds()
         max_seconds = 25 * 60 * 60  # 25 hours
         assert time_diff < max_seconds, f"Token expiration should be within 25 hours, got {time_diff}s"
@@ -164,30 +165,34 @@ class TestJWTTokenValidation:
         assert token is not None, "JWT token should exist in localStorage"
 
         # Make API request to protected endpoint with token
-        # Note: Using /api/v1/agents as a representative protected endpoint
+        # /api/agents is a real protected endpoint (the old /api/v1/agents
+        # prefix is a phantom route that returns 404 — auth never runs).
         response = requests.get(
-            "http://localhost:8000/api/v1/agents",
+            "http://localhost:8001/api/agents",
             headers={"Authorization": f"Bearer {token}"},
             timeout=5
         )
 
-        # Verify signature is valid (backend accepts token)
-        # We expect either 200 (valid token) or 401 (unauthorized but signature was checked)
-        # A malformed signature would cause 422 or other errors
-        assert response.status_code in [200, 401], \
-            f"Backend should validate signature, got status {response.status_code}"
+        # The fixture token comes from the live backend's login endpoint, so a
+        # valid signature must be accepted — 200 proves signature verification
+        # passed (a 401 would mean the signature was NOT accepted).
+        assert response.status_code == 200, \
+            f"Backend should accept a valid signature, got status {response.status_code}"
 
-        if response.status_code == 200:
-            print("✓ JWT signature validated successfully by backend")
-        else:
-            print("✓ Backend checked signature (401 response means signature was validated)")
+        print("✓ JWT signature validated successfully by backend")
 
 
 class TestJWTEncoding:
     """Additional JWT encoding/decoding validation tests."""
 
-    def test_jwt_payload_iat_claim(self, authenticated_page_api: Page):
-        """Verify JWT token contains issued-at claim.
+    def test_jwt_payload_has_token_id_claim(self, authenticated_page_api: Page):
+        """Verify JWT token contains a token-id (jti) issuance claim.
+
+        NOTE (2026-08-12 alignment): the original test asserted an 'iat'
+        (issued-at) claim, but the real create_access_token in core/auth.py
+        emits only sub/exp/jti (see core/auth.py:87) — it does not set 'iat'.
+        The issuance-related claim that DOES exist is jti (unique token id,
+        used for logout revocation), so the test asserts that instead.
 
         Args:
             authenticated_page_api: Authenticated page fixture with JWT token
@@ -200,17 +205,22 @@ class TestJWTEncoding:
         # Decode payload
         payload = decode_jwt_payload(token)
 
-        # Verify 'iat' (issued at) claim exists
-        assert 'iat' in payload, "JWT payload should contain 'iat' claim (issued at)"
+        # Verify 'jti' (token id) claim exists — create_access_token always
+        # adds it so individual tokens can be revoked on logout
+        assert 'jti' in payload, "JWT payload should contain 'jti' claim (token id)"
+        assert isinstance(payload['jti'], str), "jti should be a string"
+        assert len(payload['jti']) > 0, "jti should not be empty"
 
-        # Verify iat is in the past or now
-        iat_timestamp = payload['iat']
-        iat_datetime = datetime.utcfromtimestamp(iat_timestamp)
-        now = datetime.utcnow()
+        # If an iat claim is ever added in the future, keep validating it
+        # (optional claim — current backend does not emit it)
+        if 'iat' in payload:
+            iat_timestamp = payload['iat']
+            iat_datetime = datetime.utcfromtimestamp(iat_timestamp)
+            now = datetime.utcnow()
 
-        # Allow 1 minute buffer for clock skew
-        time_diff = (now - iat_datetime).total_seconds()
-        assert time_diff >= -60, f"Issued-at time should be in past, got {iat_datetime}"
+            # Allow 1 minute buffer for clock skew
+            time_diff = (now - iat_datetime).total_seconds()
+            assert time_diff >= -60, f"Issued-at time should be in past, got {iat_datetime}"
 
     def test_jwt_token_decodable(self, authenticated_page_api: Page):
         """Verify JWT token can be decoded without errors.

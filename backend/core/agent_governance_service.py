@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 import uuid
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from core.error_handlers import handle_not_found, handle_permission_denied
 from core.governance_cache import get_governance_cache
@@ -289,10 +289,28 @@ class AgentGovernanceService:
         self.activity_publisher = activity_publisher
         self.continuous_learning = ContinuousLearningService(db)
 
+    def _workspace_scope_condition(self):
+        """Return the workspace scope filter for registry queries.
+
+        ``workspace_id="default"`` is the single-tenant (Personal Edition)
+        scope. Agents registered WITHOUT a workspace (workspace_id IS NULL —
+        the API create path and direct seeding) and legacy rows stamped with
+        the literal ``"default"`` workspace must ALL be visible there; the
+        previous ``== "default"`` filter silently hid every NULL-workspace
+        agent from GET /api/agents/ (and thus the Agent Control Center UI).
+        Tenant-scoped callers keep strict equality.
+        """
+        if self.workspace_id in (None, "default"):
+            return or_(
+                AgentRegistry.workspace_id.is_(None),
+                AgentRegistry.workspace_id == "default",
+            )
+        return AgentRegistry.workspace_id == self.workspace_id
+
     def list_agents(self, category: Optional[str] = None) -> List[AgentRegistry]:
         """List all agents in the registry, optionally filtered by category"""
         query = self.db.query(AgentRegistry).filter(
-            AgentRegistry.workspace_id == self.workspace_id
+            self._workspace_scope_condition()
         )
 
         if category:
@@ -312,7 +330,7 @@ class AgentGovernanceService:
     ) -> AgentRegistry:
         """Register a new agent or update existing definition"""
         agent = self.db.query(AgentRegistry).filter(
-            AgentRegistry.workspace_id == self.workspace_id,
+            self._workspace_scope_condition(),
             AgentRegistry.module_path == module_path,
             AgentRegistry.class_name == class_name
         ).first()
@@ -357,7 +375,7 @@ class AgentGovernanceService:
         """Submit feedback and trigger continuous learning"""
         agent = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id,
-            AgentRegistry.workspace_id == self.workspace_id
+            self._workspace_scope_condition()
         ).first()
         if not agent:
             raise handle_not_found("Agent", agent_id)
@@ -381,7 +399,7 @@ class AgentGovernanceService:
         user = self.db.query(User).filter(User.id == feedback.user_id).first()
         agent = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == feedback.agent_id,
-            AgentRegistry.workspace_id == self.workspace_id
+            self._workspace_scope_condition()
         ).first()
         
         is_admin = user.role in [UserRole.WORKSPACE_ADMIN, UserRole.SUPER_ADMIN]
@@ -412,7 +430,7 @@ class AgentGovernanceService:
         """Update confidence and manage maturity transitions"""
         agent = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id,
-            AgentRegistry.workspace_id == self.workspace_id
+            self._workspace_scope_condition()
         ).first()
         if not agent: return
 
@@ -518,7 +536,7 @@ class AgentGovernanceService:
         """Hybrid maturity check with complexity-based enforcement"""
         agent = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id,
-            AgentRegistry.workspace_id == self.workspace_id
+            self._workspace_scope_condition()
         ).first()
         
         if not agent:
@@ -667,7 +685,7 @@ class AgentGovernanceService:
 
         agent = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id,
-            AgentRegistry.workspace_id == self.workspace_id,
+            self._workspace_scope_condition(),
         ).first()
 
         if not agent:

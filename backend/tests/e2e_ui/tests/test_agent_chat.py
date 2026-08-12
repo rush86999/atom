@@ -23,6 +23,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 from tests.e2e_ui.pages.page_objects import ChatPage
+from tests.e2e_ui.utils.api_setup import APIClient, authenticate_user
 from core.models import User
 from core.auth import get_password_hash
 from datetime import datetime
@@ -41,11 +42,11 @@ def create_test_user(db_session: Session, email: str, password: str) -> User:
     """
     user = User(
         email=email,
-        username=f"chatuser_{str(uuid.uuid4())[:8]}",
         hashed_password=get_password_hash(password),
-        is_active=True,
-        status="active",
-        created_at=datetime.utcnow()
+        first_name="Test",
+        last_name="User",
+        role="member",
+        status="active"
     )
 
     db_session.add(user)
@@ -55,23 +56,38 @@ def create_test_user(db_session: Session, email: str, password: str) -> User:
     return user
 
 
-def create_authenticated_page(browser, user: User, token: str) -> Page:
-    """Create a Playwright page with JWT token pre-set in localStorage.
+def create_authenticated_page(browser, user: User, password: str) -> Page:
+    """Create a Playwright page with a real JWT token pre-set.
+
+    The token is minted by the LIVE backend via the login API (the backend's
+    JWT secret is auto-generated at boot, so tokens forged in this process are
+    rejected). The auth_token COOKIE is required too — the frontend middleware
+    (middleware.ts) redirects to /login when only localStorage is set.
 
     Args:
         browser: Playwright browser fixture
         user: User instance
-        token: JWT token string
+        password: Plain-text password used to log in via the API
 
     Returns:
         Page: Authenticated Playwright page
     """
+    # Login through the live backend so the token is signed with its secret.
+    api = APIClient(base_url=os.getenv("E2E_API_URL", "http://localhost:8001"))
+    auth_resp = authenticate_user(api, email=user.email, password=password)
+    token = auth_resp["access_token"]
+
     # Create new browser context and page
     context = browser.new_context()
     page = context.new_page()
 
+    # Pre-seed the auth_token cookie so the frontend middleware passes.
+    context.add_cookies([
+        {"name": "auth_token", "value": token, "url": "http://localhost:3001"},
+    ])
+
     # Set JWT token in localStorage before navigating
-    page.goto("http://localhost:3000")  # Load app first
+    page.goto("http://localhost:3001")  # Load app first
     page.evaluate(f"() => localStorage.setItem('auth_token', '{token}')")
     page.evaluate(f"() => localStorage.setItem('user_id', '{user.id}')")
 
@@ -83,16 +99,17 @@ def test_send_chat_message(browser, db_session: Session):
 
     This test verifies the happy path:
     1. Create test user via API
-    2. Generate JWT token for authentication
+    2. Authenticate via the live backend login endpoint
     3. Navigate to chat page using ChatPage
     4. Type message "Hello agent" in chat input
     5. Click send button
     6. Verify message appears in chat history
-    7. Verify message has user role styling
+    7. Verify input clears after send
 
-    Args:
-        browser: Playwright browser fixture
-        db_session: Database session fixture
+    Note: on a stack without a valid LLM provider key the assistant cannot
+    reply, so the user-message assertions are the ground truth here; the
+    assistant-response assertion only applies when a response actually
+    arrives.
     """
     # Setup: Create test user with unique email
     unique_id = str(uuid.uuid4())[:8]
@@ -102,17 +119,13 @@ def test_send_chat_message(browser, db_session: Session):
     user = create_test_user(db_session, email, password)
     assert user.id is not None
 
-    # Generate JWT token (simplified - in real test would use auth endpoint)
-    import jwt
-    token = jwt.encode({"user_id": str(user.id), "email": email}, "test_secret", algorithm="HS256")
-
-    # Create authenticated page
-    page = create_authenticated_page(browser, user, token)
+    # Create authenticated page (real token via backend login API)
+    page = create_authenticated_page(browser, user, password)
 
     # Navigate to chat page
     chat_page = ChatPage(page)
     chat_page.navigate()
-    
+
     # Wait for page to load
     page.wait_for_timeout(500)
 
@@ -120,16 +133,22 @@ def test_send_chat_message(browser, db_session: Session):
     test_message = f"Hello agent {unique_id}"
     chat_page.send_message(test_message)
 
-    # Wait for message to appear
+    # Wait for the user message to render (optimistic append — no LLM needed)
     page.wait_for_timeout(1000)
 
-    # Verify message appears in history
-    last_message = chat_page.get_last_message()
-    assert test_message in last_message, f"Expected '{test_message}' in last message, got: {last_message}"
+    # Verify the user message appears in the message list
+    user_messages = chat_page.user_message.all()
+    user_texts = [m.text_content() for m in user_messages]
+    assert any(test_message in t for t in user_texts), \
+        f"Expected '{test_message}' in a user message, got: {user_texts}"
 
     # Verify message count increased
     message_count = chat_page.get_message_count()
     assert message_count >= 1, f"Expected at least 1 message, got: {message_count}"
+
+    # Verify input field cleared after send
+    input_value = chat_page.chat_input.input_value()
+    assert input_value == "" or input_value.isspace(), f"Expected empty input after send, got: '{input_value}'"
 
 
 def test_message_appears_in_history(browser, db_session: Session):
@@ -152,12 +171,8 @@ def test_message_appears_in_history(browser, db_session: Session):
 
     user = create_test_user(db_session, email, password)
 
-    # Generate JWT token
-    import jwt
-    token = jwt.encode({"user_id": str(user.id), "email": email}, "test_secret", algorithm="HS256")
-
-    # Create authenticated page
-    page = create_authenticated_page(browser, user, token)
+    # Create authenticated page (real token via backend login API)
+    page = create_authenticated_page(browser, user, password)
 
     # Navigate to chat page
     chat_page = ChatPage(page)
@@ -175,7 +190,7 @@ def test_message_appears_in_history(browser, db_session: Session):
         chat_page.send_message(msg)
         page.wait_for_timeout(500)  # Wait between messages
 
-    # Verify all messages appear in history
+    # Verify all messages appear in history (user bubbles render optimistically)
     all_messages = chat_page.get_all_messages()
     
     # Filter for our test messages (may include existing messages)
@@ -208,12 +223,8 @@ def test_empty_message_not_sent(browser, db_session: Session):
 
     user = create_test_user(db_session, email, password)
 
-    # Generate JWT token
-    import jwt
-    token = jwt.encode({"user_id": str(user.id), "email": email}, "test_secret", algorithm="HS256")
-
-    # Create authenticated page
-    page = create_authenticated_page(browser, user, token)
+    # Create authenticated page (real token via backend login API)
+    page = create_authenticated_page(browser, user, password)
 
     # Navigate to chat page
     chat_page = ChatPage(page)
@@ -251,12 +262,8 @@ def test_long_message_truncates_or_scrolls(browser, db_session: Session):
 
     user = create_test_user(db_session, email, password)
 
-    # Generate JWT token
-    import jwt
-    token = jwt.encode({"user_id": str(user.id), "email": email}, "test_secret", algorithm="HS256")
-
-    # Create authenticated page
-    page = create_authenticated_page(browser, user, token)
+    # Create authenticated page (real token via backend login API)
+    page = create_authenticated_page(browser, user, password)
 
     # Navigate to chat page
     chat_page = ChatPage(page)
@@ -270,9 +277,11 @@ def test_long_message_truncates_or_scrolls(browser, db_session: Session):
     chat_page.send_message(long_message)
     page.wait_for_timeout(1000)
 
-    # Verify message appears in history (at least partially)
-    last_message = chat_page.get_last_message()
-    assert unique_id in last_message, f"Expected unique_id '{unique_id}' in message, got: {last_message}"
+    # Verify the user message appears in history (at least partially)
+    user_messages = chat_page.user_message.all()
+    user_texts = [m.text_content() for m in user_messages]
+    assert any(unique_id in t for t in user_texts), \
+        f"Expected unique_id '{unique_id}' in a user message, got: {user_texts}"
 
     # Verify input field cleared (check if input value is empty)
     input_value = chat_page.chat_input.input_value()
@@ -288,9 +297,10 @@ def test_message_persistence_after_refresh(browser, db_session: Session):
     3. Verify message still in history
     4. Verify session_id persists
 
-    Args:
-        browser: Playwright browser fixture
-        db_session: Database session fixture
+    Note: on a keyless stack the backend persists the user message to the
+    session before the (missing) LLM call, and the frontend restores the last
+    session id from localStorage on reload, so the user message survives the
+    refresh even without an assistant reply.
     """
     # Setup: Create test user
     unique_id = str(uuid.uuid4())[:8]
@@ -299,12 +309,8 @@ def test_message_persistence_after_refresh(browser, db_session: Session):
 
     user = create_test_user(db_session, email, password)
 
-    # Generate JWT token
-    import jwt
-    token = jwt.encode({"user_id": str(user.id), "email": email}, "test_secret", algorithm="HS256")
-
-    # Create authenticated page
-    page = create_authenticated_page(browser, user, token)
+    # Create authenticated page (real token via backend login API)
+    page = create_authenticated_page(browser, user, password)
 
     # Navigate to chat page
     chat_page = ChatPage(page)
@@ -322,7 +328,7 @@ def test_message_persistence_after_refresh(browser, db_session: Session):
 
     # Refresh page
     page.reload()
-    page.wait_for_timeout(1000)
+    page.wait_for_timeout(1500)
 
     # Re-initialize ChatPage after refresh
     chat_page_after = ChatPage(page)

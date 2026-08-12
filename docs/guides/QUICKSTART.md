@@ -291,7 +291,7 @@ atom/
 │   ├── tools/                  # Agent tools (canvas, browser, office, integrations)
 │   ├── integrations/           # 46+ service integrations
 │   ├── models.py               # SQLAlchemy models
-│   └── main_api_app.py         # Full app entry point (80+ routers)
+│   └── main_api_app.py         # Full app entry point (v8.0.0, 197 routers)
 ├── frontend-nextjs/            # Next.js web UI
 ├── mobile/                     # React Native (Expo)
 ├── menubar/                    # Tauri macOS menubar
