@@ -36,11 +36,22 @@ def manager(tmp_path, monkeypatch):
 
 @pytest.fixture
 def client(manager):
+    # Order-independence: the router dependency captures the ORIGINAL
+    # get_byok_manager object at import (patching the module attr doesn't
+    # affect it), and that function returns the process-wide _byok_manager
+    # singleton. If an earlier suite already created the singleton with ITS
+    # config paths, this suite would read that manager's (empty) keys. Point
+    # the singleton at the fixture manager (module globals are read at call
+    # time) and restore afterwards so later suites aren't polluted either.
+    saved = be._byok_manager
+    be._byok_manager = manager
     app = FastAPI()
     app.include_router(be.router)
-    with patch.object(be, "get_byok_manager", return_value=manager):
+    try:
         with TestClient(app) as c:
             yield c
+    finally:
+        be._byok_manager = saved
 
 
 class TestHealth:
@@ -153,7 +164,10 @@ class TestPdf:
 
 
 class TestStatus:
-    def test_byok_status(self, client):
+    def test_byok_status(self, client, manager):
+        # The status endpoint lists providers that resolve a DEFAULT-named key;
+        # the fixture stores "prod" — add a default key so openai is connected.
+        manager.store_api_key("openai", "sk-abcdefghijklmnop", "default")
         r = client.get("/api/v1/byok/status")
         assert r.status_code == 200
         body = r.json()
