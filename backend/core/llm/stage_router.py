@@ -65,7 +65,7 @@ from contextvars import ContextVar
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum, IntEnum
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -265,6 +265,79 @@ class ToolHistoryEntry:
     observation: str
 
 
+@dataclass
+class AgentStagePolicy:
+    """Effective stage-routing policy for one agent (workload).
+
+    Resolved from the agent's ``configuration["stage_routing"]`` block on
+    top of the global env flags. Readiness is workload-specific — every
+    agent reaches a different phase at a different time — so enforcement
+    must be controllable per agent, not just globally:
+
+    .. code-block:: json
+
+        {"stage_routing": {"enforce": true, "confidence_threshold": 0.45,
+                           "picker": "capable_first"}}
+
+    Absent block = inherit the global policy. ``enforce`` is the only field
+    that *overrides*; the tuning knobs fall back per-field when unset.
+    """
+
+    enforce: bool = False
+    picker: StagePicker = StagePicker.EFFICIENT_FIRST
+    confidence_threshold: float = STAGE_ROUTING_CONFIDENCE_THRESHOLD
+    window: int = STAGE_ROUTING_WINDOW
+    source: str = "global"  # "global" | "agent-config" (which layer set enforce)
+
+
+def resolve_agent_policy(
+    agent_config: Optional[Dict[str, Any]],
+    global_enforce: bool = STAGE_ROUTING_FORCE_ENFORCE,
+    global_picker: StagePicker = StagePicker.EFFICIENT_FIRST,
+    global_threshold: float = STAGE_ROUTING_CONFIDENCE_THRESHOLD,
+    global_window: int = STAGE_ROUTING_WINDOW,
+) -> AgentStagePolicy:
+    """Resolve the effective stage-routing policy for one agent.
+
+    Per-agent overrides live in ``AgentRegistry.configuration["stage_routing"]``
+    (see ``AgentStagePolicy``). This is the workload-level control: after
+    ``scripts/calibrate_stage_router.py`` certifies ONE agent, that agent's
+    config flips ``enforce: true`` while every other workload keeps shadowing.
+    Never raises — invalid values fall back to the global defaults.
+    """
+    picker = global_picker
+    threshold = max(0.0, min(global_threshold, 1.0))
+    window = max(1, global_window)
+    enforce = global_enforce
+    source = "global"
+    try:
+        block = (agent_config or {}).get("stage_routing")
+        if isinstance(block, dict):
+            if isinstance(block.get("enforce"), bool):
+                enforce = block["enforce"]
+                source = "agent-config"
+            if block.get("picker") in (StagePicker.EFFICIENT_FIRST.value, StagePicker.CAPABLE_FIRST.value):
+                picker = StagePicker(block["picker"])
+            elif block.get("picker") is not None:
+                logger.warning(
+                    f"Invalid stage_routing.picker '{block.get('picker')}' in "
+                    "agent config; using global default"
+                )
+            if isinstance(block.get("confidence_threshold"), (int, float)):
+                threshold = max(0.0, min(float(block["confidence_threshold"]), 1.0))
+            if isinstance(block.get("window"), int) and block["window"] > 0:
+                window = block["window"]
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning(f"Agent stage_routing policy resolution failed: {e}")
+    return AgentStagePolicy(
+        enforce=enforce,
+        picker=picker,
+        confidence_threshold=threshold,
+        window=window,
+        source=source,
+    )
+
+
 class WeightedRandomSplit:
     """Fixed-ratio A/B split between the efficient and capable groups.
 
@@ -437,14 +510,23 @@ class StageRouter:
         outcomes: Sequence[ToolOutcome],
         previous_group: Optional[str] = None,
         use_split: bool = False,
+        policy: Optional[AgentStagePolicy] = None,
     ) -> StageDecision:
-        """Route one turn from its tool-outcome history."""
-        signals = self.extract_signals(outcomes)
+        """Route one turn from its tool-outcome history.
+
+        ``policy`` (per-agent override) wins over the router's own
+        picker/threshold/window when provided.
+        """
+        picker = policy.picker if policy else self.picker
+        threshold = policy.confidence_threshold if policy else self.confidence_threshold
+        window = policy.window if policy else self.window
+
+        signals = self.extract_signals(outcomes, window=window)
         split_group: Optional[str] = None
         if use_split and self.split is not None:
             split_group = self.split.pick()
 
-        default_group = CAPABLE if self.picker == StagePicker.CAPABLE_FIRST else EFFICIENT
+        default_group = CAPABLE if picker == StagePicker.CAPABLE_FIRST else EFFICIENT
 
         if signals.critical:
             selected_group = CAPABLE
@@ -453,7 +535,7 @@ class StageRouter:
         else:
             signed = self._score(signals)
             confidence = abs(signed)
-            if confidence >= self.confidence_threshold:
+            if confidence >= threshold:
                 selected_group = CAPABLE if signed > 0 else EFFICIENT
                 source = DecisionSource.DIMENSIONS
             else:
@@ -512,6 +594,7 @@ class StageRouter:
         tenant_id: Optional[str] = None,
         execution_id: Optional[str] = None,
         step_index: Optional[int] = None,
+        policy: Optional[AgentStagePolicy] = None,
     ) -> Optional[StageDecision]:
         """Parse the execution history, decide, and persist an audit row.
 
@@ -523,16 +606,29 @@ class StageRouter:
         try:
             entries = parse_tool_history(history)
             outcomes = [e.outcome for e in entries]
-            decision = self.decide(outcomes, previous_group=previous_group, use_split=use_split)
+            decision = self.decide(
+                outcomes,
+                previous_group=previous_group,
+                use_split=use_split,
+                policy=policy,
+            )
             if self.audit:
                 self.record_audit(
                     decision=decision,
-                    signals=self.extract_signals(outcomes),
+                    signals=self.extract_signals(
+                        outcomes, window=policy.window if policy else None
+                    ),
                     agent_id=agent_id,
                     workspace_id=workspace_id,
                     tenant_id=tenant_id,
                     execution_id=execution_id,
                     step_index=step_index,
+                    picker=(policy.picker.value if policy else self.picker.value),
+                    confidence_threshold=(
+                        policy.confidence_threshold if policy else self.confidence_threshold
+                    ),
+                    policy_source=(policy.source if policy else "global"),
+                    enforced=(policy.enforce if policy else self.enforce),
                 )
             return decision
         except Exception as e:  # pragma: no cover - defensive, never breaks loop
@@ -549,6 +645,10 @@ class StageRouter:
         execution_id: Optional[str] = None,
         step_index: Optional[int] = None,
         model_type: Optional[str] = None,
+        picker: Optional[str] = None,
+        confidence_threshold: Optional[float] = None,
+        policy_source: str = "global",
+        enforced: Optional[bool] = None,
     ) -> None:
         """Persist one routing decision (shadow or enforced) to the audit table.
 
@@ -568,8 +668,12 @@ class StageRouter:
                         agent_id=agent_id,
                         execution_id=execution_id,
                         step_index=step_index,
-                        picker=self.picker.value,
-                        confidence_threshold=self.confidence_threshold,
+                        picker=picker or self.picker.value,
+                        confidence_threshold=(
+                            confidence_threshold
+                            if confidence_threshold is not None
+                            else self.confidence_threshold
+                        ),
                         signals=signals.to_json() if signals else None,
                         selected_group=decision.selected_group,
                         applied_group=decision.applied_group,
@@ -577,10 +681,11 @@ class StageRouter:
                         default_group=decision.default_group,
                         confidence=decision.confidence,
                         decision_source=decision.source,
-                        enforced=self.enforce,
+                        enforced=self.enforce if enforced is None else enforced,
                         model_type=model_type,
                         handoff_note=decision.handoff_note,
                         rationale=decision.rationale,
+                        policy_source=policy_source,
                         created_at=datetime.now(timezone.utc),
                     )
                 )
@@ -680,6 +785,327 @@ def record_stage_outcome(
 
 _stage_router: Optional[StageRouter] = None
 
+# Guidance thresholds for operator-facing phase/readiness status. "Ready" is
+# NOT a fixed turn count — it is per-workload, per-arm, and effect-size-aware:
+# detecting a 10-point success-rate gap with 80% power needs ~200 outcome
+# rows per arm (two-proportion z-test, base rate ~0.8); a 20-point gap needs
+# ~50. MIN_OUTCOME_ROWS_PER_ARM is only the floor for an *attempt* at
+# calibration; the status endpoint reports the minimum detectable gap at the
+# current volume so operators can judge sufficiency for themselves.
+MIN_OUTCOME_ROWS_PER_ARM = 30
+DEFAULT_TARGET_EFFECT_SIZE = 0.10  # 10-point success-rate gap to detect
+_ALPHA = 0.05
+_POWER = 0.80
+_Z_ALPHA = 1.959964  # z(0.975)
+_Z_BETA = 0.841621  # z(0.80)
+
+
+def min_turns_per_arm(
+    effect_size: float = DEFAULT_TARGET_EFFECT_SIZE,
+    base_rate: float = 0.8,
+    alpha: float = _ALPHA,
+    power: float = _POWER,
+) -> int:
+    """Outcome rows needed per arm to detect ``effect_size`` with ``power``.
+
+    Standard two-proportion sample-size formula (pooled z-approximation,
+    continuity correction omitted):
+
+        n = (z_{1-α/2} + z_{1-β})^2 · 2·p̄(1-p̄) / Δ^2,  p̄ = base + Δ/2
+
+    Returns 0 when the inputs make the formula inapplicable (Δ ≤ 0 or p̄
+    outside (0, 1)).
+    """
+    if effect_size <= 0 or not (0.0 < base_rate < 1.0):
+        return 0
+    z_alpha = 1.959964 if alpha == 0.05 else _z_score(1.0 - alpha / 2)
+    z_beta = 0.841621 if power == 0.80 else _z_score(power)
+    p_bar = base_rate + effect_size / 2
+    if not (0.0 < p_bar < 1.0):
+        return 0
+    pooled = p_bar * (1.0 - p_bar)
+    n = (z_alpha + z_beta) ** 2 * 2.0 * pooled / (effect_size ** 2)
+    return math.ceil(n)
+
+
+def min_detectable_gap(
+    turns_per_arm: int,
+    base_rate: float = 0.8,
+    alpha: float = _ALPHA,
+    power: float = _POWER,
+) -> float:
+    """The smallest success-rate gap detectable with the given turns per arm.
+
+    Inverse of ``min_turns_per_arm`` (fixed-point solve — the forward formula
+    pools variance at ``base + Δ/2``, so Δ appears on both sides). At low
+    volumes only LARGE gaps are visible, which is exactly why a flat "50
+    turns" rule lies about sufficiency — a 5-point quality difference needs
+    ~800 turns/arm.
+    """
+    if turns_per_arm <= 0:
+        return 1.0
+    z_alpha = 1.959964 if alpha == 0.05 else _z_score(1.0 - alpha / 2)
+    z_beta = 0.841621 if power == 0.80 else _z_score(power)
+    z_sq = (z_alpha + z_beta) ** 2
+    gap = math.sqrt(z_sq * 2.0 * base_rate * (1.0 - base_rate) / turns_per_arm)
+    for _ in range(4):  # fixed point: p̄ = base + Δ/2
+        p_bar = base_rate + gap / 2
+        if not (0.0 < p_bar < 1.0):
+            break
+        gap = math.sqrt(z_sq * 2.0 * p_bar * (1.0 - p_bar) / turns_per_arm)
+    return gap
+
+
+def _z_score(p: float) -> float:
+    """Inverse normal CDF (Acklam's approximation) — tiny, dependency-free."""
+    if p <= 0.0:
+        return -6.0
+    if p >= 1.0:
+        return 6.0
+    a = (-39.69683028665376, 220.9460984245205, -275.9285104469687,
+         138.3577518672690, -30.66479806614716, 2.506628277459239)
+    b = (-54.47609879822406, 161.5858368580409, -155.6989798598866,
+         66.80131188771972, -13.28068155288572)
+    c = (-0.007784894002430293, -0.3223964580411365, -2.400758277161838,
+         -2.549732539343734, 4.374664141464968, 2.938163982698783)
+    d = (0.007784695709041462, 0.3224671290700398, 2.445134137142996,
+         3.754408661907416)
+    p_low = 0.02425
+    p_high = 1.0 - p_low
+    if p < p_low:
+        q = math.sqrt(-2.0 * math.log(p))
+        return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / (
+            ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0)
+        )
+    if p > p_high:
+        q = math.sqrt(-2.0 * math.log(1.0 - p))
+        return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / (
+            ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0)
+        )
+    q = p - 0.5
+    r = q * q
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (
+        ((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1.0
+    )
+
+
+def _read_arm_counts() -> Dict[str, Dict[str, int]]:
+    """Per-workload outcome-joined arm counts: {agent_id: {efficient: n, capable: n}}.
+
+    Only rows with a populated outcome (``success IS NOT NULL``) count — a
+    shadowed turn without an outcome join tells us nothing about what
+    happened. Raises on DB failure so the caller can distinguish "no data
+    yet" from "cannot read the audit table".
+    """
+    from collections import defaultdict
+
+    from sqlalchemy import func
+
+    from core.database import get_db_session
+    from core.models import StageRouterAudit
+
+    counts: Dict[str, Dict[str, int]] = defaultdict(
+        lambda: {EFFICIENT: 0, CAPABLE: 0}
+    )
+    with get_db_session() as db:
+        rows = (
+            db.query(
+                StageRouterAudit.agent_id,
+                StageRouterAudit.applied_group,
+                func.count(),
+            )
+            .filter(StageRouterAudit.success.isnot(None))
+            .group_by(StageRouterAudit.agent_id, StageRouterAudit.applied_group)
+            .all()
+        )
+        for agent_id, group, n in rows:
+            if group in (EFFICIENT, CAPABLE):
+                counts[agent_id or "unknown"][group] = int(n)
+    return dict(counts)
+
+
+def stage_router_status() -> Dict[str, Any]:
+    """Operator guidance: what phase the stage router is in and what to flip.
+
+    The stage router ships shadow-on (audit-only). This answers the question
+    "when do I turn on the next flag?":
+
+    - ``off``        → set ``ATOM_STAGE_ROUTING_ENABLED=true`` to start shadow.
+    - ``collecting`` → shadow scoring is active but no workload has enough
+                       outcome-joined turns in BOTH arms yet. ``sufficiency``
+                       reports per workload the arm counts and the minimum
+                       success-rate gap detectable at that volume — turns
+                       differ in task complexity, so a flat turn count can't
+                       certify anything; volume must be enough to *see* the
+                       quality difference you care about.
+    - ``ready``      → at least one workload has ≥ ``MIN_OUTCOME_ROWS_PER_ARM``
+                       in both arms; run ``scripts/calibrate_stage_router.py``,
+                       review the RESCUE/LOSS quadrants, then set
+                       ``ATOM_STAGE_ROUTING_FORCE_ENFORCE=true`` only if
+                       escalation is justified per workload.
+    - ``enforced``   → live routing is on; keep shadow logging for continuous
+                       re-certification (re-run calibration periodically).
+
+    Never raises — a DB failure returns an ``error`` phase with generic text.
+    """
+    config = {
+        "enabled": STAGE_ROUTING_ENABLED,
+        "force_enforce": STAGE_ROUTING_FORCE_ENFORCE,
+        "picker": STAGE_ROUTING_PICKER,
+        "confidence_threshold": STAGE_ROUTING_CONFIDENCE_THRESHOLD,
+        "traffic_split": bool(_STAGE_ROUTING_SPLIT_RAW),
+    }
+    try:
+        from core.llm.stage_router_automation import get_automation_status
+
+        config["automation"] = get_automation_status()
+    except Exception:  # pragma: no cover - defensive
+        config["automation"] = {}
+    try:
+        arms = _read_arm_counts()
+    except Exception as e:
+        logger.warning(f"Stage router status DB read failed: {e}")
+        return {
+            **config,
+            "phase": "error",
+            "next_action": "Status unavailable — check the audit table "
+            "(llm_stage_router_audit) exists; run the migration if not.",
+            "why": "The guidance surface reads audit-row counts; without the "
+            "table (or DB access) it cannot tell you what phase you are in.",
+            "counts": {"outcome_joined": 0},
+        }
+    total_rows = sum(sum(a.values()) for a in arms.values())
+    workloads = sorted(arms.keys())
+
+    if not config["enabled"]:
+        return {
+            **config,
+            "phase": "off",
+            "counts": {"outcome_joined": total_rows},
+            "next_action": (
+                "Set ATOM_STAGE_ROUTING_ENABLED=true to start shadow scoring "
+                "(audit-only; model selection is untouched)."
+            ),
+            "why": (
+                "Shadow mode is free: it scores every agent turn from "
+                "tool-result signals and writes an audit row, but never "
+                "changes which model runs. Turning it on now starts the "
+                "measurement pipeline nothing else can work without."
+            ),
+        }
+
+    harness_note = (
+        "The A/B harness is active (ATOM_TRAFFIC_SPLIT / ATOM_STAGE_ROUTING_SPLIT) "
+        "— audit rows carry forced applied_group arms for RESCUE/LOSS comparison."
+        if config["traffic_split"]
+        else "Enable the A/B harness (ATOM_TRAFFIC_SPLIT=true + "
+        "ATOM_STAGE_ROUTING_SPLIT JSON weights) to collect both-arm "
+        "RESCUE/LOSS comparison data."
+    )
+
+    if config["force_enforce"]:
+        return {
+            **config,
+            "phase": "enforced",
+            "counts": {"outcome_joined": total_rows},
+            "next_action": (
+                "Live routing is active. Keep shadow logging on and re-run "
+                "scripts/calibrate_stage_router.py periodically to re-certify "
+                f"thresholds. Kill switch: ATOM_STAGE_ROUTING_ENABLED=false. {harness_note}"
+            ),
+            "why": (
+                "Routing gains are workload-dependent (RouteGuard: gains "
+                "collapsed to 3 of 86 benchmark cells under resampling). "
+                "Continuous re-certification against your own outcome rows is "
+                "the guardrail — workloads drift as models and tasks change."
+            ),
+        }
+
+    # Per-workload sufficiency: both arms observed, and the volume is enough
+    # to see the target gap (or the biggest gap it *can* see is reported).
+    # Every agent reaches a different phase at a different pace — this is the
+    # per-workload view; enforcement is controlled per agent via
+    # configuration["stage_routing"] (see resolve_agent_policy).
+    sufficiency = {}
+    for workload in workloads:
+        n_efficient = arms[workload][EFFICIENT]
+        n_capable = arms[workload][CAPABLE]
+        turns = min(n_efficient, n_capable)
+        ready = turns >= MIN_OUTCOME_ROWS_PER_ARM
+        sufficiency[workload] = {
+            "phase": "ready" if ready else "collecting",
+            "efficient_turns": n_efficient,
+            "capable_turns": n_capable,
+            "min_detectable_gap": round(min_detectable_gap(turns), 3),
+            "turns_needed_for_10pt_gap": min_turns_per_arm(),
+            "calibration_ready": ready,
+        }
+    ready_workloads = [w for w, s in sufficiency.items() if s["calibration_ready"]]
+
+    if not ready_workloads:
+        best_note = ""
+        if sufficiency:
+            best_workload = max(
+                sufficiency,
+                key=lambda w: min(
+                    sufficiency[w]["efficient_turns"], sufficiency[w]["capable_turns"]
+                ),
+            )
+            best_gap = sufficiency[best_workload]["min_detectable_gap"]
+            best_note = (
+                f"Best workload '{best_workload}' can detect ~{best_gap:.0%} "
+                "success-rate gaps at current volume; detecting a 10-point "
+                f"gap needs ~{min_turns_per_arm()} turns/arm. "
+            )
+        return {
+            **config,
+            "phase": "collecting",
+            "counts": {"outcome_joined": total_rows},
+            "sufficiency": sufficiency,
+            "next_action": (
+                f"Shadow scoring active — {total_rows} outcome-joined turns "
+                f"across {len(workloads)} workload(s); none has "
+                f"{MIN_OUTCOME_ROWS_PER_ARM}+ outcome-joined turns in BOTH "
+                f"arms yet. {best_note}{harness_note}"
+            ),
+            "why": (
+                "Calibration needs both arms of the comparison (what the "
+                "router WOULD have picked vs. what ran and succeeded) AND "
+                "enough volume to see the quality difference — turns differ "
+                "in task complexity, so '50 turns' is not a magic number: a "
+                "10-point success-rate gap needs ~200 outcome rows per arm, "
+                "a 20-point gap ~50, a 5-point gap ~500 (two-proportion "
+                "z-test, 80% power). Enforcing with less means making "
+                "decisions on noise."
+            ),
+        }
+
+    return {
+        **config,
+        "phase": "ready",
+        "counts": {"outcome_joined": total_rows},
+        "sufficiency": sufficiency,
+        "ready_workloads": ready_workloads,
+        "next_action": (
+            f"Workloads ready for calibration: {', '.join(ready_workloads)}. "
+            "Run scripts/calibrate_stage_router.py, review the RESCUE/LOSS "
+            "quadrants, then enforce per workload — set "
+            'configuration["stage_routing"]["enforce"]=true on ONLY the '
+            "certified agent(s), or flip the global "
+            "ATOM_STAGE_ROUTING_FORCE_ENFORCE=true for all. "
+            f"{harness_note}"
+        ),
+        "why": (
+            "Ready means both arms are observed at sufficient volume for "
+            "at least one workload — enough to compute RESCUE (capable arm "
+            "rescued a turn efficient would have failed) vs LOSS (capable "
+            "arm wasted) and to see the gap you care about. Note the "
+            "min_detectable_gap per workload: if your workloads' quality "
+            "difference is smaller than that, keep collecting before "
+            "enforcing (RouteGuard-style certification — arXiv:2608.07583)."
+        ),
+    }
+
 
 def get_stage_router() -> StageRouter:
     """Process-wide singleton (config read from env at import time)."""
@@ -708,4 +1134,13 @@ def get_stage_router() -> StageRouter:
             enforce=STAGE_ROUTING_FORCE_ENFORCE,
             split=split,
         )
+    # Auto-certification (consent-gated): lazily start the background pass
+    # that certifies per-workload enforcement from calibration data. Never
+    # blocks the routing path.
+    try:
+        from core.llm.stage_router_automation import ensure_automation_task
+
+        ensure_automation_task()
+    except Exception:  # pragma: no cover - defensive
+        pass
     return _stage_router

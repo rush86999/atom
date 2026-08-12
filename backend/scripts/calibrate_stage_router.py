@@ -134,6 +134,11 @@ def main() -> int:
     for row in rows:
         by_workload[row["agent_id"]].append(row)
 
+    try:
+        from core.llm.stage_router import min_detectable_gap
+    except Exception:  # pragma: no cover - defensive
+        min_detectable_gap = lambda _n: None  # type: ignore[assignment]
+
     print(f"Calibrating {len(rows)} outcome-joined rows across {len(by_workload)} workload(s)\n")
     recommendations: Dict[str, Dict[str, Any]] = {}
     for workload, wrows in sorted(by_workload.items()):
@@ -144,9 +149,17 @@ def main() -> int:
         capable = _arm_stats(wrows, CAPABLE)
         rec = _recommend(efficient, capable, args.success_gap, args.max_cost_ratio)
         recommendations[workload] = rec
+        turns = min(efficient["n"], capable["n"])
+        gap = min_detectable_gap(turns) if turns else None
         print(f"[{workload}] n={len(wrows)}")
         print(f"  efficient arm: {efficient}")
         print(f"  capable  arm: {capable}")
+        if gap is not None:
+            print(
+                f"  data sufficiency: at {turns} turns/arm this workload can "
+                f"detect ~{gap:.0%} success-rate gaps (10-pt gaps need ~200 "
+                f"turns/arm) — {'enough' if gap <= 0.10 else 'collect more'}"
+            )
         print(f"  → {rec['verdict']}: {rec['reason']}\n")
 
     if not recommendations:
@@ -164,6 +177,18 @@ def main() -> int:
             indent=2,
         )
     )
+    print("\n=== Per-agent enforcement snippets (configuration[\"stage_routing\"]) ===")
+    print(
+        "Certified agents go live on their OWN schedule — paste the snippet "
+        "only onto the agent(s) whose verdict is 'escalate-more':\n"
+    )
+    for workload, rec in sorted(recommendations.items()):
+        snippet = {"stage_routing": {"enforce": True}}
+        if rec["verdict"] == "escalate-more":
+            snippet["stage_routing"]["picker"] = "capable_first"
+        print(f"[{workload}] {rec['verdict']}")
+        print(json.dumps(snippet, indent=2))
+        print()
     return 0
 
 

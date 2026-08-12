@@ -219,3 +219,34 @@ class TestOutcomeJoinHook:
             finish_reason=None, success=False, cost=None, latency_ms=10.0,
         )
         assert called == []
+
+
+class TestPerAgentPolicyWiring:
+    @pytest.mark.asyncio
+    async def test_agent_config_enforce_works_without_global_flag(self, llm_mock, monkeypatch) -> None:
+        decision = make_decision(CAPABLE, handoff="ROUTING HANDOFF: capable tier")
+        monkeypatch.setattr(
+            "core.llm.stage_router.get_stage_router",
+            lambda: FakeStageRouter(enabled=True, enforce=False, decision=decision),
+        )
+        agent = build_agent(llm_mock)
+        agent.config = {"stage_routing": {"enforce": True}}  # per-agent opt-in
+        agent._stage_group = EFFICIENT
+        await agent._react_step("do a thing", {}, "")
+        call_kwargs = llm_mock.generate_structured.call_args.kwargs
+        assert call_kwargs["model"] == "quality"  # per-agent override applied
+        assert "ROUTING HANDOFF" in call_kwargs["system_instruction"]
+
+    @pytest.mark.asyncio
+    async def test_agent_config_enforce_false_blocks_global(self, llm_mock, monkeypatch) -> None:
+        decision = make_decision(CAPABLE, handoff="ROUTING HANDOFF: capable tier")
+        monkeypatch.setattr(
+            "core.llm.stage_router.get_stage_router",
+            lambda: FakeStageRouter(enabled=True, enforce=True, decision=decision),
+        )
+        agent = build_agent(llm_mock)
+        agent.config = {"stage_routing": {"enforce": False}}  # per-agent opt-out
+        await agent._react_step("do a thing", {}, "")
+        call_kwargs = llm_mock.generate_structured.call_args.kwargs
+        assert call_kwargs["model"] == "auto"  # global enforcement blocked
+        assert "ROUTING HANDOFF" not in call_kwargs["system_instruction"]

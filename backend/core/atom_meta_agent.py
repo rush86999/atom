@@ -1338,15 +1338,22 @@ You are the Admiral of the Atom Fleet. For complex, multi-domain tasks, do NOT a
 
         # Stage router (Switchyard port): turn-level tier routing from
         # tool-result signals. Shadow by default — audited, never applied;
-        # ATOM_STAGE_ROUTING_FORCE_ENFORCE=true flips it live. Never raises.
+        # per-agent enforcement via configuration["stage_routing"] or the
+        # global ATOM_STAGE_ROUTING_FORCE_ENFORCE. Never raises.
         _stage_model = "reasoning"
         _stage_decision = None
+        _stage_policy = None
         stage_handoff_note = ""
         try:
-            from core.llm.stage_router import get_stage_router, map_decision_to_model_type
+            from core.llm.stage_router import (
+                get_stage_router,
+                map_decision_to_model_type,
+                resolve_agent_policy,
+            )
 
             _stage_router = get_stage_router()
             if _stage_router.enabled:
+                _stage_policy = resolve_agent_policy(None, _stage_router.enforce)
                 _stage_decision = await _stage_router.decide_for_history(
                     execution_history,
                     previous_group=self._stage_group,
@@ -1355,14 +1362,17 @@ You are the Admiral of the Atom Fleet. For complex, multi-domain tasks, do NOT a
                     workspace_id=self.workspace_id,
                     tenant_id=self.tenant_id,
                     step_index=turn_index,
+                    policy=_stage_policy,
                 )
                 self._stage_group = (
                     _stage_decision.applied_group if _stage_decision else self._stage_group
                 )
-                _model_override = map_decision_to_model_type(_stage_decision, _stage_router.enforce)
+                _model_override = map_decision_to_model_type(
+                    _stage_decision, _stage_policy.enforce
+                )
                 if _model_override:
                     _stage_model = _model_override
-                if _stage_router.enforce and _stage_decision and _stage_decision.handoff_note:
+                if _stage_policy.enforce and _stage_decision and _stage_decision.handoff_note:
                     stage_handoff_note = _stage_decision.handoff_note
         except Exception as _stage_err:
             logger.debug(f"Stage router unavailable, keeping model selection: {_stage_err}")

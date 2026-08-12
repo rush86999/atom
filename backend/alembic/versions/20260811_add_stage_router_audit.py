@@ -62,6 +62,9 @@ def upgrade() -> None:
         _ensure_column(
             "llm_stage_router_audit", "actual_provider", sa.Column("actual_provider", sa.String(), nullable=True)
         )
+        _ensure_column(
+            "llm_stage_router_audit", "policy_source", sa.Column("policy_source", sa.String(length=16), nullable=True)
+        )
         return
 
     op.create_table(
@@ -82,6 +85,7 @@ def upgrade() -> None:
         sa.Column("confidence", sa.Float(), nullable=True),
         sa.Column("decision_source", sa.String(length=24), nullable=True),
         sa.Column("enforced", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column("policy_source", sa.String(length=16), nullable=True),
         sa.Column("model_type", sa.String(length=24), nullable=True),
         sa.Column("handoff_note", sa.Text(), nullable=True),
         sa.Column("rationale", sa.Text(), nullable=True),

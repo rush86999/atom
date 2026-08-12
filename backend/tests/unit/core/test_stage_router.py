@@ -550,3 +550,260 @@ class TestSingleton:
     def test_get_stage_router_constructs(self) -> None:
         router = get_stage_router()
         assert isinstance(router, StageRouter)
+
+
+# ── Statistical sufficiency helpers ──────────────────────────────────────
+
+
+class TestSampleSizeHelpers:
+    def test_turns_needed_scales_with_effect_size(self) -> None:
+        from core.llm.stage_router import min_turns_per_arm
+
+        small_gap = min_turns_per_arm(effect_size=0.05)
+        mid_gap = min_turns_per_arm(effect_size=0.10)
+        big_gap = min_turns_per_arm(effect_size=0.20)
+        assert small_gap > mid_gap > big_gap
+        # ~200/arm for a 10-pt gap at base 0.8 (two-proportion z-test, 80% power)
+        assert 150 <= mid_gap <= 260
+        assert big_gap <= 60
+
+    def test_min_detectable_gap_inverse(self) -> None:
+        from core.llm.stage_router import min_detectable_gap, min_turns_per_arm
+
+        n = min_turns_per_arm(effect_size=0.10)
+        gap = min_detectable_gap(n)
+        assert gap == pytest.approx(0.10, abs=0.01)
+        # less data → only larger gaps visible
+        assert min_detectable_gap(30) > min_detectable_gap(200)
+
+    def test_invalid_inputs(self) -> None:
+        from core.llm.stage_router import min_detectable_gap, min_turns_per_arm
+
+        assert min_turns_per_arm(effect_size=0.0) == 0
+        assert min_turns_per_arm(effect_size=-0.1) == 0
+        assert min_turns_per_arm(base_rate=0.0) == 0
+        assert min_detectable_gap(0) == 1.0
+
+    def test_defaults_are_reasonable(self) -> None:
+        from core.llm.stage_router import (
+            DEFAULT_TARGET_EFFECT_SIZE,
+            min_detectable_gap,
+            min_turns_per_arm,
+        )
+
+        assert DEFAULT_TARGET_EFFECT_SIZE == 0.10
+        assert min_detectable_gap(30) < 0.40  # a 30-turn floor still sees big gaps
+        assert min_turns_per_arm() >= 1
+
+
+# ── Operator guidance (stage_router_status) ─────────────────────────────────
+
+
+class TestStageRouterStatus:
+    def _patch_arms(self, monkeypatch, arms: dict) -> None:
+        import core.llm.stage_router as sr
+
+        monkeypatch.setattr(sr, "_read_arm_counts", lambda: arms)
+
+    def test_off_phase_guides_enable(self, monkeypatch) -> None:
+        import core.llm.stage_router as sr
+
+        monkeypatch.setattr(sr, "STAGE_ROUTING_ENABLED", False)
+        monkeypatch.setattr(sr, "STAGE_ROUTING_FORCE_ENFORCE", False)
+        self._patch_arms(monkeypatch, {})
+        status = sr.stage_router_status()
+        assert status["phase"] == "off"
+        assert "ATOM_STAGE_ROUTING_ENABLED=true" in status["next_action"]
+        assert status["why"]  # every phase explains itself
+
+    def test_collecting_until_both_arms_observed(self, monkeypatch) -> None:
+        import core.llm.stage_router as sr
+
+        monkeypatch.setattr(sr, "STAGE_ROUTING_ENABLED", True)
+        monkeypatch.setattr(sr, "STAGE_ROUTING_FORCE_ENFORCE", False)
+        # one workload, but only the efficient arm has outcome rows
+        self._patch_arms(monkeypatch, {"agent-1": {"efficient": 200, "capable": 0}})
+        status = sr.stage_router_status()
+        assert status["phase"] == "collecting"
+        assert "BOTH" in status["next_action"]
+
+    def test_collecting_when_volume_too_low_for_target_gap(self, monkeypatch) -> None:
+        import core.llm.stage_router as sr
+
+        monkeypatch.setattr(sr, "STAGE_ROUTING_ENABLED", True)
+        monkeypatch.setattr(sr, "STAGE_ROUTING_FORCE_ENFORCE", False)
+        self._patch_arms(monkeypatch, {"agent-1": {"efficient": 5, "capable": 5}})
+        status = sr.stage_router_status()
+        assert status["phase"] == "collecting"
+        assert status["sufficiency"]["agent-1"]["min_detectable_gap"] > 0.10
+        assert "10-point" in status["next_action"]
+
+    def test_ready_when_workload_has_both_arms_above_floor(self, monkeypatch) -> None:
+        import core.llm.stage_router as sr
+
+        monkeypatch.setattr(sr, "STAGE_ROUTING_ENABLED", True)
+        monkeypatch.setattr(sr, "STAGE_ROUTING_FORCE_ENFORCE", False)
+        self._patch_arms(
+            monkeypatch,
+            {"agent-1": {"efficient": 40, "capable": 35}, "agent-2": {"efficient": 2, "capable": 2}},
+        )
+        status = sr.stage_router_status()
+        assert status["phase"] == "ready"
+        assert "agent-1" in status["ready_workloads"]
+        assert "agent-2" not in status["ready_workloads"]
+
+    def test_enforced_phase_mentions_recertification(self, monkeypatch) -> None:
+        import core.llm.stage_router as sr
+
+        monkeypatch.setattr(sr, "STAGE_ROUTING_ENABLED", True)
+        monkeypatch.setattr(sr, "STAGE_ROUTING_FORCE_ENFORCE", True)
+        self._patch_arms(monkeypatch, {"agent-1": {"efficient": 40, "capable": 35}})
+        status = sr.stage_router_status()
+        assert status["phase"] == "enforced"
+        assert "re-certify" in status["next_action"]
+
+    def test_error_phase_on_db_failure(self, monkeypatch) -> None:
+        import core.llm.stage_router as sr
+
+        monkeypatch.setattr(sr, "STAGE_ROUTING_ENABLED", True)
+        monkeypatch.setattr(sr, "STAGE_ROUTING_FORCE_ENFORCE", False)
+
+        def broken_read():
+            raise RuntimeError("db down")
+
+        monkeypatch.setattr(sr, "_read_arm_counts", broken_read)
+        status = sr.stage_router_status()
+        assert status["phase"] == "error"
+        assert status["why"]
+
+
+# ── Per-agent policy (workload-specific control) ────────────────────────────
+
+
+class TestAgentStagePolicy:
+    def test_inherits_global_without_config(self) -> None:
+        from core.llm.stage_router import resolve_agent_policy
+
+        policy = resolve_agent_policy(None, global_enforce=False)
+        assert policy.enforce is False
+        assert policy.picker == StagePicker.EFFICIENT_FIRST
+        assert policy.source == "global"
+
+    def test_agent_enforce_overrides_global_off(self) -> None:
+        from core.llm.stage_router import resolve_agent_policy
+
+        policy = resolve_agent_policy(
+            {"stage_routing": {"enforce": True}}, global_enforce=False
+        )
+        assert policy.enforce is True
+        assert policy.source == "agent-config"
+
+    def test_agent_enforce_off_overrides_global_on(self) -> None:
+        from core.llm.stage_router import resolve_agent_policy
+
+        policy = resolve_agent_policy(
+            {"stage_routing": {"enforce": False}}, global_enforce=True
+        )
+        assert policy.enforce is False
+
+    def test_agent_tuning_knobs_apply(self) -> None:
+        from core.llm.stage_router import resolve_agent_policy
+
+        policy = resolve_agent_policy(
+            {
+                "stage_routing": {
+                    "enforce": True,
+                    "confidence_threshold": 0.2,
+                    "picker": "capable_first",
+                    "window": 5,
+                }
+            },
+            global_enforce=False,
+        )
+        assert policy.confidence_threshold == 0.2
+        assert policy.picker == StagePicker.CAPABLE_FIRST
+        assert policy.window == 5
+
+    def test_invalid_values_fall_back_to_global(self) -> None:
+        from core.llm.stage_router import resolve_agent_policy
+
+        policy = resolve_agent_policy(
+            {
+                "stage_routing": {
+                    "enforce": "yes",  # not a bool → ignored
+                    "confidence_threshold": 7.0,  # clamped to 1.0
+                    "picker": "bogus",  # → global default
+                    "window": -3,  # → global default
+                }
+            },
+            global_enforce=True,
+        )
+        assert policy.enforce is True  # global default retained
+        assert policy.confidence_threshold == 1.0
+        assert policy.picker == StagePicker.EFFICIENT_FIRST
+        assert policy.window == default_router().window
+
+    def test_threshold_clamped_to_unit_interval(self) -> None:
+        from core.llm.stage_router import resolve_agent_policy
+
+        policy = resolve_agent_policy({"stage_routing": {"confidence_threshold": -0.5}})
+        assert policy.confidence_threshold == 0.0
+
+    def test_policy_drives_decision_threshold(self) -> None:
+        from core.llm.stage_router import resolve_agent_policy
+
+        router = default_router(confidence_threshold=0.5)
+        # policy threshold 0.0 → even a weak signal becomes decisive
+        policy = resolve_agent_policy({"stage_routing": {"confidence_threshold": 0.0}})
+        decision = router.decide(
+            [outcome("get_x", severity=SignalSeverity.MINOR, is_read=True)],
+            policy=policy,
+        )
+        assert decision.source == DecisionSource.DIMENSIONS.value
+
+    def test_policy_picker_sets_fall_open_default(self) -> None:
+        from core.llm.stage_router import resolve_agent_policy
+
+        router = default_router()
+        policy = resolve_agent_policy({"stage_routing": {"picker": "capable_first"}})
+        decision = router.decide([outcome("get_x", is_read=True)], policy=policy)
+        assert decision.default_group == CAPABLE
+        assert decision.selected_group == CAPABLE
+
+    def test_audit_row_records_policy_fields(self, monkeypatch) -> None:
+        import asyncio as _asyncio
+
+        from core.llm.stage_router import resolve_agent_policy
+
+        persisted: List[Dict] = []
+
+        class FakeSession:
+            def __enter__(self_inner):
+                return self_inner
+
+            def __exit__(self_inner, *exc):
+                return False
+
+            def add(self_inner, row):
+                persisted.append({c.name: getattr(row, c.name) for c in row.__table__.columns})
+
+            def commit(self_inner):
+                pass
+
+        monkeypatch.setattr("core.database.get_db_session", lambda: FakeSession())
+        router = default_router(enabled=True, enforce=False)
+        policy = resolve_agent_policy(
+            {"stage_routing": {"enforce": True, "confidence_threshold": 0.3}},
+            global_enforce=False,
+        )
+        _asyncio.run(
+            router.decide_for_history(
+                'Action: {"tool": "get_workflows", "params": {}}\nObservation: ok\n',
+                agent_id="agent-1",
+                policy=policy,
+            )
+        )
+        assert persisted[0]["policy_source"] == "agent-config"
+        assert persisted[0]["picker"] == StagePicker.EFFICIENT_FIRST.value
+        assert persisted[0]["confidence_threshold"] == pytest.approx(0.3)
+        assert persisted[0]["enforced"] is True

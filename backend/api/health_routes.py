@@ -412,6 +412,43 @@ async def _check_disk_space() -> Dict[str, Any]:
 
 
 @router.get(
+    "/health/stage-router",
+    summary="Stage Router Phase & Guidance",
+    description=(
+        "Operator guidance for the stage router (Switchyard port): what phase "
+        "it is in (off / collecting / ready / enforced) and exactly which flag "
+        "to flip next. Read-only; returns row counts only, no sensitive data. "
+        "See docs/architecture/SWITCHYARD_GAP_ANALYSIS.md for the rollout plan."
+    ),
+    tags=["Health", "Monitoring"],
+    responses={
+        200: {
+            "description": "Stage router phase, audit-row counts, and next-action guidance",
+        }
+    },
+    openapi_extra={"x-auth-required": False},
+)
+async def stage_router_status_route() -> Dict[str, Any]:
+    """
+    Stage router phase + operator guidance.
+
+    Answers "when do I turn on the next flag?" — shadow collection first,
+    calibration second, force-enforce only after per-workload certification.
+    """
+    try:
+        from core.llm.stage_router import stage_router_status
+
+        return stage_router_status()
+    except Exception as e:
+        logger.error(f"Stage router status failed: {e}")
+        return {
+            "phase": "error",
+            "next_action": "Status unavailable",
+            "error": "internal",
+        }
+
+
+@router.get(
     "/health/metrics",
     summary="Prometheus Metrics",
     description=(

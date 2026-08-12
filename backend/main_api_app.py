@@ -3451,6 +3451,15 @@ try:
     except (ImportError, NameError) as e:
         logger.warning(f"Learning routes failed to load: {e}")
 
+    # 39. Stage Router Management Routes (automation + approval queue)
+    try:
+        from api.stage_router_routes import router as stage_router_mgmt_router
+
+        app.include_router(stage_router_mgmt_router)
+        logger.info("✓ Stage Router Management Routes Loaded")
+    except (ImportError, NameError) as e:
+        logger.warning(f"Stage router management routes failed to load: {e}")
+
     logger.info("✓ Core Routes Loaded Successfully")
 
 except (ImportError, TypeError) as e:

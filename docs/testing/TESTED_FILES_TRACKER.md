@@ -2813,3 +2813,17 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 **Evidence**: full covpush family **4820 passed / 1 failed** (the 1 = pre-existing full-run ordering flake in `w9b_office_sync.py::test_no_running_loop_uses_sync_fallback` — R98-era, passes alone, unrelated to this session's files).
 
 **Root cause**: `test_covpush_w44_byok_routes.py`'s router dependency captures the ORIGINAL `get_byok_manager` at import (patching the module attr never affected the route). The function returns the process-wide `_byok_manager` singleton — if an earlier suite created it with its own config paths, this suite read empty keys → 3 failures. The suite previously passed only via a stale singleton accidentally created by its own first test. Fix: the `client` fixture now points `be._byok_manager` at the fixture manager (module globals read at call time) and restores the previous singleton afterwards; `test_byok_status` stores a default-named key (status lists only default-key providers).
+
+## Session 2026-08-11 — Stage router automation: consent-gated certification + management API
+
+**Evidence**: `tests/unit/core/test_stage_router_automation.py` (18 tests) + existing stage-router suites — **133/133 pass**. mypy clean on `stage_router_automation.py` + `stage_router_routes.py`.
+
+| Date | File | Status | What was added |
+|---|---|---|---|
+| 2026-08-11 | `core/llm/stage_router_automation.py` | TESTED | NEW — background certification pass: per-workload verdicts (certify/revoke/keep-shadow from arm stats), modes off/notify/approve/auto (`ATOM_STAGE_ROUTER_AUTO_ENFORCE`), approval queue (`stage_router_automation_actions`), admin notifications (NotificationService), always-automatic revocation, runtime config override, lazy background loop |
+| 2026-08-11 | `api/stage_router_routes.py` | TESTED | NEW — admin-gated `/api/v1/llm/stage-router/{status,automation,config,run-now,approve,reject}` |
+| 2026-08-11 | `core/models.py` | TESTED | `StageRouterAutomationAction` (approval queue + audit trail) |
+| 2026-08-11 | `alembic/versions/20260811_add_stage_router_automation.py` | TESTED | Guarded create_table for `stage_router_automation_actions` |
+| 2026-08-11 | `core/llm/stage_router.py` | TESTED | `stage_router_status` includes automation block; `get_stage_router` lazily starts the automation loop |
+| 2026-08-11 | `main_api_app.py` | TESTED | Stage router management router mounted |
+| 2026-08-11 | `backend/.env.example`, `CLAUDE.md`, `docs/architecture/SWITCHYARD_GAP_ANALYSIS.md` | TESTED | Automation flags + consent/notification/management docs |

@@ -798,10 +798,18 @@ class GenericAgent:
         stage_decision = None
         stage_handoff_note = ""
         try:
-            from core.llm.stage_router import get_stage_router, map_decision_to_model_type
+            from core.llm.stage_router import (
+                get_stage_router,
+                map_decision_to_model_type,
+                resolve_agent_policy,
+            )
 
             _stage_router = get_stage_router()
             if _stage_router.enabled:
+                # Per-workload control: each agent's configuration may carry a
+                # ``stage_routing`` block (enforce/threshold/picker) so
+                # workloads reach enforcement at their own calibrated pace.
+                _stage_policy = resolve_agent_policy(self.config, _stage_router.enforce)
                 stage_decision = await _stage_router.decide_for_history(
                     history,
                     previous_group=self._stage_group,
@@ -809,11 +817,14 @@ class GenericAgent:
                     agent_id=self.id,
                     workspace_id=self.workspace_id,
                     step_index=history.count("Action:"),
+                    policy=_stage_policy,
                 )
                 self._stage_group = (
                     stage_decision.applied_group if stage_decision else self._stage_group
                 )
-                _model_override = map_decision_to_model_type(stage_decision, _stage_router.enforce)
+                _model_override = map_decision_to_model_type(
+                    stage_decision, _stage_policy.enforce
+                )
                 # Explicit model pins (optimization.model = "gpt-4o", ...) are
                 # never overridden; the handoff note only fires when the
                 # override actually lands.

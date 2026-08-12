@@ -116,6 +116,91 @@ ATOM_STAGE_ROUTING_SPLIT=               # JSON weights, e.g. {"efficient": 0.7, 
 ATOM_STAGE_ROUTING_SPLIT_SEED=          # optional int for reproducible splits
 ```
 
+## 6b. When to flip each flag — and why
+
+Operator guidance is also live at `GET /health/stage-router` (phase +
+`next_action` + `why` per phase). The table is the same logic in prose:
+
+| Flag | Turn on when | Why |
+|---|---|---|
+| `ATOM_STAGE_ROUTING_ENABLED=true` | **Now** (already default) | Shadow scoring is free: it measures every turn but changes nothing. Without it there is no data, so no later decision is possible. |
+| `ATOM_TRAFFIC_SPLIT=true` + `ATOM_STAGE_ROUTING_SPLIT` weights | Anytime during shadow, **before** calibration | The harness forces known arms so the audit rows contain *both* sides of the comparison (would-have pick vs. what ran and its outcome). Calibration needs both arms; without the harness you only have the default arm's outcomes. |
+| `scripts/calibrate_stage_router.py` | When ≥ 1 workload has **both arms** observed at sufficient volume (`GET /health/stage-router` reports this per workload: arm counts + the **minimum detectable gap** at current volume) | Calibration is a statistics problem, not a fixed turn count. Turns differ in task complexity, so "50 turns" is meaningless on its own: detecting a **10-point** success-rate gap needs ~200 outcome rows per arm (two-proportion z-test, 80% power), a 20-point gap ~50, a 5-point gap ~800 (the status endpoint computes this per workload). Ready = both arms observed AND volume enough to *see* the quality difference you care about. |
+| `ATOM_STAGE_ROUTING_FORCE_ENFORCE=true` | Only after calibration **justifies it per workload** (RESCUE > LOSS at acceptable cost ratio) | Enforcing before calibration is the documented failure mode for rule/cascade routers: gains are workload-fragile, and the router is still far from Oracle (RouterBench, arXiv:2403.12031). Flipping it blind trades real quality for unmeasured savings. |
+| `ATOM_STAGE_ROUTING_ENABLED=false` | Any time routing misbehaves | The kill switch restores the exact pre-stage-router loop instantly. |
+
+**Why not everything-on from day one**: force-enforce before calibration means
+routing live traffic on thresholds that were never certified for *your*
+workloads — the exact scenario the shadow+calibration design exists to avoid
+(FrugalGPT/RouteLLM/Hybrid-LLM prove the *potential* win; RouteGuard proves
+the *per-workload* caveat). The traffic split is also deliberately off:
+it *forces* model-type arms, which by definition changes live model selection —
+it's a measurement instrument, not a default behavior.
+
+### Per-workload control (every agent is at a different phase)
+
+Readiness is per workload (`agent_id`), so enforcement must be too. The
+status endpoint reports each workload's own phase
+(`sufficiency.<agent_id>.phase`); control is two-layered:
+
+| Control | Scope | Mechanism |
+|---|---|---|
+| `ATOM_STAGE_ROUTING_ENABLED` | All workloads (kill switch) | Env; false = nothing runs |
+| `ATOM_STAGE_ROUTING_FORCE_ENFORCE` | Default policy for agents **without** their own config | Env; the "enforce everywhere" default |
+| `configuration["stage_routing"]` on an agent | **That agent only** | JSON in `AgentRegistry.configuration`; `enforce` (bool) **overrides** the global default; `confidence_threshold`/`picker`/`window` are optional per-agent tuning knobs |
+
+### Consent-gated automation (manages the "when to turn on" for you)
+
+`core/llm/stage_router_automation.py` runs the calibration math on a
+background cadence (`ATOM_STAGE_ROUTER_AUTO_INTERVAL_MIN`, default 60m) and
+acts per mode (`ATOM_STAGE_ROUTER_AUTO_ENFORCE`, default `approve`):
+
+| Mode | Certify verdict | Revoke verdict |
+|---|---|---|
+| `off` | nothing | nothing |
+| `notify` | admin notification only | notification only |
+| `approve` (default) | **queues an approval** + notification; config flips only after you approve via the API | applies immediately + notifies |
+| `auto` | applies immediately + notifies | applies immediately + notifies |
+
+**Safety rule: escalation requires consent, revocation does not.** A workload
+whose capable arm regresses by `ATOM_STAGE_ROUTER_AUTO_REVOKE_GAP` is
+automatically flipped back to shadow (fail-safe), then the admin is notified.
+
+Management API (admin-gated, `/api/v1/llm/stage-router/*`):
+- `GET /status` — full status incl. automation block (public read-only mirror at `/health/stage-router`)
+- `GET /automation` — mode, cadence, last run, pending approval queue
+- `POST /automation/run-now` — trigger a pass immediately
+- `POST /automation/approve` / `POST /automation/reject` — decide a pending certification (`{"agent_id": "..."}`)
+- `POST /automation/config` — runtime mode/interval override (env remains the durable source)
+
+Every action persists in `stage_router_automation_actions` (verdict, mode,
+state, arm-stats snapshot) and the admin gets an in-app notification
+(`stage_router_certified` / `approval_needed` / `stage_router_revoked` /
+`stage_router_ready`). The automation never touches `ATOM_STAGE_ROUTING_FORCE_ENFORCE`
+— it writes per-agent `configuration["stage_routing"]`, so each workload
+stays on its own certified schedule and the global flag remains the
+operator's blanket default.
+
+Manual per-agent override (when the automation is off or you want different
+tuning than the pass recommends) — certify ONE agent, leave the rest shadowing:
+
+```json
+{
+  "stage_routing": {
+    "enforce": true,
+    "confidence_threshold": 0.45,
+    "picker": "capable_first"
+  }
+}
+```
+
+Precedence: per-agent `enforce` always wins over the global flag — an agent
+with `"enforce": false` stays in shadow even when the global flag is on, and
+a calibrated agent can go live while every other workload keeps collecting.
+Audit rows record which layer made the call (`policy_source`:
+`global`/`agent-config`) and the effective parameters, so calibration output
+can be attributed to the exact policy that produced it.
+
 ## 7. Rollout plan
 
 1. ✅ Harness first: weighted-random split + outcome-joined audit logging.

@@ -11429,6 +11429,7 @@ class StageRouterAudit(Base):
     confidence = Column(Float, nullable=True)
     decision_source = Column(String(length=24), nullable=True)  # override|dimensions|fall_open
     enforced = Column(Boolean, nullable=False, default=False)  # shadow vs live
+    policy_source = Column(String(length=16), nullable=True)  # global | agent-config
     model_type = Column(String(length=24), nullable=True)  # fast|quality when enforced
 
     handoff_note = Column(Text, nullable=True)
@@ -11449,6 +11450,33 @@ class StageRouterAudit(Base):
     __table_args__ = (
         Index("ix_stage_router_audit_ws_created", "workspace_id", "created_at"),
         Index("ix_stage_router_audit_agent", "agent_id", "created_at"),
+    )
+
+
+class StageRouterAutomationAction(Base):
+    """One automated stage-router certification action (approval queue + audit).
+
+    Written by ``core/llm/stage_router_automation.py`` when the calibration
+    pass finds a workload ready to certify (or regressing so badly it must be
+    revoked). The row is both the *approval queue* (state ``approval`` waits
+    for the user to approve/reject via the management API) and the *audit
+    trail* (``applied``/``rejected``/``revoked`` states persist what happened
+    and why, with the exact arm stats the verdict was computed from).
+    """
+
+    __tablename__ = "stage_router_automation_actions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    agent_id = Column(String, nullable=False, index=True)
+    verdict = Column(String(length=16), nullable=False)  # certify | revoke
+    mode = Column(String(length=16), nullable=False)  # notify | approve | auto
+    state = Column(String(length=16), nullable=False, default="approval")  # approval|applied|rejected|revoked
+    stats_json = Column(JSONColumn, nullable=True)  # arm stats snapshot at decision time
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_stage_router_auto_agent_created", "agent_id", "created_at"),
     )
 
 
