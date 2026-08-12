@@ -2894,3 +2894,11 @@ Real API discoveries surfaced by tests (not bugs): `update_competence_level` ret
 |---|---|---|---|
 | 2026-08-12 | `core/office_service.py` | 22%→**61%** | path validation (valid/traversal/escape/empty), Excel parse-path + read (missing/overview/range/single-cell-formula/default-sheet/corrupt), write (new/existing/formula/invalid), Word read/modify (append/replace), PPTX read/modify (mocked module — not installed), renderer (docx w/ mammoth mock + missing, xlsx basic runtime, pptx mock, unsupported, invalid), manager dispatch |
 | 2026-08-12 | `core/office_sync_service.py` | 37%→**93%** | sync_canvas_to_file (containment/missing/xlsx-cell/docx-rewrite/unsupported/exception), broadcast (invalid path/render-fail/audit+WS/no-loop sync-fallback), ingest async/sync (success/missing/exception), read-file-bytes |
+
+## Session 2026-08-12 (wave 58b) — workbook_runtime 0% → 97%
+
+**Evidence**: `tests/test_covpush_w58_workbook_runtime.py` (36 tests). Combined: 36 passed.
+
+| Date | File | Coverage change | What was added |
+|---|---|---|---|
+| 2026-08-12 | `core/workbook_runtime.py` | 0%→**97%** | engine detection (libreoffice/formulas/openpyxl + soffice discovery + formulas availability), basic HTML render (success/error), insert rows/cols (success/missing-sheet), evaluated range reads (single/range/missing + alias), recalculate branches (missing-file raise, soffice dispatch, formulas dispatch, openpyxl fallback, soffice exec success/no-output/timeout, formulas lib real write-back), run_macro gates + sandbox success/failure, render dispatch + soffice success/fallback, pivot table (success/missing-sheet/empty-data/overwrite-existing), singleton |
