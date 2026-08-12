@@ -111,28 +111,14 @@ class _Query:
     def order_by(self, *args):
         return self
 
-    def first(self):
-        model_name = self.model.__name__
-        if model_name == "AgentRegistry":
-            target = self._target_id()
-            return self.db.agents.get(target) if target else None
-        if model_name == "StageRouterAutomationAction":
-            for action in self.db.actions:
-                if action.state == "approval" and (
-                    self._target_id() is None or action.agent_id == self._target_id()
-                ):
-                    return action
-            return None
-        return None
+    def _state_filter(self) -> Optional[str]:
+        import re
 
-    def all(self):
-        model_name = self.model.__name__
-        if model_name == "StageRouterAutomationAction":
-            return [
-                a for a in self.db.actions
-                if any("approval" in str(f) for f in self._filters) or not self._filters
-            ]
-        return list(self.db.actions)
+        for expr in self._filters:
+            m = re.search(r"state\s*==\s*['\"]([a-z]+)['\"]", str(expr))
+            if m:
+                return m.group(1)
+        return None
 
     def _target_id(self) -> Optional[str]:
         for expr in self._filters:
@@ -141,6 +127,32 @@ class _Query:
             except Exception:
                 continue
         return None
+
+    def first(self):
+        model_name = self.model.__name__
+        if model_name == "AgentRegistry":
+            target = self._target_id()
+            return self.db.agents.get(target) if target else None
+        if model_name == "StageRouterAutomationAction":
+            target = self._target_id()
+            state = self._state_filter()
+            matches = [
+                a for a in self.db.actions
+                if (target is None or a.agent_id == target)
+                and (state is None or getattr(a, "state", None) == state)
+            ]
+            return matches[-1] if matches else None
+        return None
+
+    def all(self):
+        model_name = self.model.__name__
+        if model_name == "StageRouterAutomationAction":
+            state = self._state_filter()
+            return [
+                a for a in self.db.actions
+                if state is None or getattr(a, "state", None) == state
+            ]
+        return list(self.db.actions)
 
 
 # ── Certification pass per mode ─────────────────────────────────────────────
@@ -325,3 +337,151 @@ class TestRunAndStatus:
         result = auto.set_automation_config(mode="bogus")  # ignored
         assert result["mode"] == "auto"
         auto.set_automation_config(mode="approve", interval_min=60)  # restore
+
+
+# ── Notification-overload guards (dedupe) ───────────────────────────────────
+
+
+class TestNotificationDedupe:
+    def _patch_db(self, monkeypatch, agents: Dict[str, FakeAgent], stats: Dict[str, Any]) -> FakeDb:
+        db = FakeDb(agents=agents)
+        monkeypatch.setattr(auto, "_workload_stats", lambda db_: stats)
+        monkeypatch.setattr(auto, "_spawn_notification", lambda *a, **k: None)
+        return db
+
+    def test_approve_mode_queues_once_across_passes(self, monkeypatch) -> None:
+        monkeypatch.setattr(auto, "_MODE", "approve")
+        agent = FakeAgent("agent-1")
+        db = self._patch_db(
+            monkeypatch,
+            {"agent-1": agent},
+            {"agent-1": workload(arm(40, 0.8), arm(35, 0.88))},
+        )
+        first = auto.certify_workloads(db)
+        second = auto.certify_workloads(db)  # same verdict, next pass
+        assert first["queued"] == ["agent-1"]
+        assert second["queued"] == []
+        assert second["kept"] == ["agent-1"]
+        assert len([a for a in db.actions if a.state == "approval"]) == 1
+
+    def test_auto_mode_applies_once_across_passes(self, monkeypatch) -> None:
+        monkeypatch.setattr(auto, "_MODE", "auto")
+        agent = FakeAgent("agent-1")
+        db = self._patch_db(
+            monkeypatch,
+            {"agent-1": agent},
+            {"agent-1": workload(arm(40, 0.8), arm(35, 0.88))},
+        )
+        first = auto.certify_workloads(db)
+        second = auto.certify_workloads(db)
+        assert first["certified"] == ["agent-1"]
+        assert second["certified"] == []
+        assert second["kept"] == ["agent-1"]
+        assert len([a for a in db.actions if a.state == "applied"]) == 1
+
+    def test_notify_mode_respects_cooldown(self, monkeypatch) -> None:
+        monkeypatch.setattr(auto, "_MODE", "notify")
+        monkeypatch.setattr(auto, "_NOTIFY_COOLDOWN_HOURS", 24.0)
+        monkeypatch.setattr(auto, "_last_notified", {})  # clear module state
+        agent = FakeAgent("agent-1")
+        db = self._patch_db(
+            monkeypatch,
+            {"agent-1": agent},
+            {"agent-1": workload(arm(40, 0.8), arm(35, 0.88))},
+        )
+        first = auto.certify_workloads(db)
+        second = auto.certify_workloads(db)  # within cooldown → no re-notify
+        assert first["notified"] == ["agent-1"]
+        assert second["notified"] == []
+        assert second["kept"] == ["agent-1"]
+
+        # cooldown expiry → the next pass may notify again
+        monkeypatch.setattr(auto, "_last_notified", {})
+        third = auto.certify_workloads(db)
+        assert third["notified"] == ["agent-1"]
+
+    def test_revoke_fires_once(self, monkeypatch) -> None:
+        monkeypatch.setattr(auto, "_MODE", "approve")
+        agent = FakeAgent("agent-1", {"stage_routing": {"enforce": True}})
+        db = self._patch_db(
+            monkeypatch,
+            {"agent-1": agent},
+            {"agent-1": workload(arm(40, 0.9), arm(35, 0.78))},
+        )
+        first = auto.certify_workloads(db)
+        second = auto.certify_workloads(db)
+        assert first["revoked"] == ["agent-1"]
+        assert second["revoked"] == []
+        assert second["kept"] == ["agent-1"]
+        assert len([a for a in db.actions if a.state == "revoked"]) == 1
+
+    def test_kept_revoke_audit_written_once(self, monkeypatch) -> None:
+        monkeypatch.setattr(auto, "_MODE", "approve")
+        agent = FakeAgent("agent-1")  # already shadowed (no enforce)
+        db = self._patch_db(
+            monkeypatch,
+            {"agent-1": agent},
+            {"agent-1": workload(arm(40, 0.9), arm(35, 0.78))},
+        )
+        auto.certify_workloads(db)
+        auto.certify_workloads(db)
+        assert len([a for a in db.actions if a.state == "revoked"]) == 1
+
+
+class TestIntentRespect:
+    def _patch_db(self, monkeypatch, agents: Dict[str, FakeAgent], stats: Dict[str, Any]) -> FakeDb:
+        db = FakeDb(agents=agents)
+        monkeypatch.setattr(auto, "_workload_stats", lambda db_: stats)
+        monkeypatch.setattr(auto, "_spawn_notification", lambda *a, **k: None)
+        return db
+
+    def test_auto_mode_never_overwrites_manual_opt_out(self, monkeypatch) -> None:
+        monkeypatch.setattr(auto, "_MODE", "auto")
+        agent = FakeAgent("agent-1", {"stage_routing": {"enforce": False}})  # manual opt-out
+        db = self._patch_db(
+            monkeypatch,
+            {"agent-1": agent},
+            {"agent-1": workload(arm(40, 0.8), arm(35, 0.88))},
+        )
+        result = auto.certify_workloads(db)
+        assert result["certified"] == []
+        assert result["kept"] == ["agent-1"]
+        assert agent.configuration["stage_routing"]["enforce"] is False  # untouched
+
+    def test_auto_mode_recertifies_after_auto_revoke_recovers(self, monkeypatch) -> None:
+        monkeypatch.setattr(auto, "_MODE", "auto")
+        # auto_revoked marker → not a manual opt-out → re-certification allowed
+        agent = FakeAgent(
+            "agent-1",
+            {"stage_routing": {"enforce": False, "auto_revoked": True}},
+        )
+        db = self._patch_db(
+            monkeypatch,
+            {"agent-1": agent},
+            {"agent-1": workload(arm(40, 0.8), arm(35, 0.88))},
+        )
+        result = auto.certify_workloads(db)
+        assert result["certified"] == ["agent-1"]
+        assert agent.configuration["stage_routing"]["enforce"] is True
+
+    def test_rejection_suppresses_requeue_until_stats_change(self, monkeypatch) -> None:
+        monkeypatch.setattr(auto, "_MODE", "approve")
+        agent = FakeAgent("agent-1")
+        db = FakeDb(
+            agents={"agent-1": agent},
+            actions=[FakeAction("agent-1", state="rejected")],
+        )
+        unchanged_stats = workload(arm(40, 0.8), arm(35, 0.88))
+        db.actions[0].stats_json = unchanged_stats  # same snapshot the pass re-computes
+        monkeypatch.setattr(auto, "_workload_stats", lambda db_: {"agent-1": unchanged_stats})
+        monkeypatch.setattr(auto, "_spawn_notification", lambda *a, **k: None)
+        result = auto.certify_workloads(db)
+        assert result["queued"] == []  # user's rejection stands
+        assert result["kept"] == ["agent-1"]
+
+        # stats changed materially → the pass may ask again
+        monkeypatch.setattr(auto, "_workload_stats", lambda db_: {
+            "agent-1": workload(arm(120, 0.8), arm(110, 0.92)),
+        })
+        result = auto.certify_workloads(db)
+        assert result["queued"] == ["agent-1"]

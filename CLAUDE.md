@@ -328,6 +328,7 @@ ATOM_STAGE_ROUTER_AUTO_INTERVAL_MIN=60        # certification cadence
 ATOM_STAGE_ROUTER_AUTO_SUCCESS_GAP=0.03       # capable-arm success advantage to certify
 ATOM_STAGE_ROUTER_AUTO_MAX_COST_RATIO=8.0     # max capable/efficient cost ratio
 ATOM_STAGE_ROUTER_AUTO_REVOKE_GAP=0.02        # capable-arm deficit that auto-revokes
+ATOM_STAGE_ROUTER_AUTO_NOTIFY_COOLDOWN_HOURS=24  # min hours between notifications per agent (dedupe)
 
 # Security (Rounds 18-69)
 MAX_UPLOAD_BYTES=52428800                # 50 MiB upload cap

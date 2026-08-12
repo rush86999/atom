@@ -55,9 +55,15 @@ _SUCCESS_GAP = float(os.getenv("ATOM_STAGE_ROUTER_AUTO_SUCCESS_GAP", "0.03"))
 _MAX_COST_RATIO = float(os.getenv("ATOM_STAGE_ROUTER_AUTO_MAX_COST_RATIO", "8.0"))
 _REVOKE_GAP = float(os.getenv("ATOM_STAGE_ROUTER_AUTO_REVOKE_GAP", "0.02"))
 _REVOKE_MIN_ROWS = 20
+_NOTIFY_COOLDOWN_HOURS = float(
+    os.getenv("ATOM_STAGE_ROUTER_AUTO_NOTIFY_COOLDOWN_HOURS", "24")
+)
 
 _last_run: Dict[str, Any] = {}
 _automation_task: Optional[asyncio.Task] = None
+# Per-agent last-notification timestamps (monotonic) — dedupes the ``notify``
+# mode so a workload that stays "ready" doesn't ping the admin every pass.
+_last_notified: Dict[str, float] = {}
 
 
 def automation_mode() -> str:
@@ -281,6 +287,47 @@ def _agent_query(db: Any, agent_id: str) -> Any:
     return db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
 
 
+def _latest_action(db: Any, agent_id: str) -> Any:
+    """Most recent automation action for an agent, or None."""
+    try:
+        from core.models import StageRouterAutomationAction
+
+        return (
+            db.query(StageRouterAutomationAction)
+            .filter(StageRouterAutomationAction.agent_id == agent_id)
+            .order_by(StageRouterAutomationAction.created_at.desc())
+            .first()
+        )
+    except Exception:  # pragma: no cover - defensive
+        return None
+
+
+def _stats_signature(stats: Dict[str, Any]) -> str:
+    """Deterministic snapshot hash of the arm stats — for change detection."""
+    import hashlib
+    import json as _json
+
+    return hashlib.sha1(
+        _json.dumps(stats, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()[:16]
+
+
+def _notify_cooldown_active(agent_id: str) -> bool:
+    """True when the admin was already notified for this agent recently."""
+    import time as _time
+
+    last = _last_notified.get(agent_id)
+    if last is None:
+        return False
+    return (_time.monotonic() - last) < _NOTIFY_COOLDOWN_HOURS * 3600
+
+
+def _mark_notified(agent_id: str) -> None:
+    import time as _time
+
+    _last_notified[agent_id] = _time.monotonic()
+
+
 # ── Certification pass ──────────────────────────────────────────────────────
 
 
@@ -353,22 +400,62 @@ def certify_workloads(db: Any) -> Dict[str, List[str]]:
             result["kept"].append(agent_id)
             continue
         block = dict((agent.configuration or {}).get("stage_routing") or {})
+        latest = _latest_action(db, agent_id)
+
+        # ── Notification overload + intent-respect guards ───────────────────
+        # Each verdict fires AT MOST ONCE per state transition:
+        #   approve: a pending-approval row IS the dedupe (queued once, waits);
+        #            a REJECTED row also suppresses re-queueing until the arm
+        #            stats actually change (the user's no is respected)
+        #   auto:    an "applied" certify action + live config is the dedupe;
+        #            a manual "enforce": false is NEVER overwritten (opt-out)
+        #   notify:  in-memory per-agent cooldown (default 24h)
+        #   revoke:  an existing "revoked" action is the dedupe
+        already_waiting = latest is not None and latest.verdict == "certify" and latest.state == "approval"
+        already_applied = (
+            latest is not None and latest.verdict == "certify" and latest.state == "applied"
+        )
+        already_revoked = latest is not None and latest.state == "revoked"
+        rejected_unchanged = (
+            latest is not None
+            and latest.state == "rejected"
+            and latest.stats_json is not None
+            and _stats_signature(latest.stats_json) == _stats_signature(stats)
+        )
+        manual_opt_out = (
+            block.get("enforce") is False and not block.get("auto_revoked")
+        )
+
         if verdict == "certify":
             if _MODE == "auto":
-                _apply_certify(db, agent, stats)
-                result["certified"].append(agent_id)
+                if manual_opt_out:
+                    result["kept"].append(agent_id)  # user said no — never override
+                elif already_applied and block.get("enforce"):
+                    result["kept"].append(agent_id)  # already live; no re-notify
+                else:
+                    _apply_certify(db, agent, stats)
+                    result["certified"].append(agent_id)
             elif _MODE == "approve":
-                _queue_approval(db, agent, stats)
-                result["queued"].append(agent_id)
+                if already_waiting or rejected_unchanged:
+                    result["kept"].append(agent_id)  # already queued / user said no
+                else:
+                    _queue_approval(db, agent, stats)
+                    result["queued"].append(agent_id)
             else:  # notify
-                _notify_ready(db, agent, stats)
-                result["notified"].append(agent_id)
+                if _notify_cooldown_active(agent_id):
+                    result["kept"].append(agent_id)  # already pinged recently
+                else:
+                    _notify_ready(db, agent, stats)
+                    _mark_notified(agent_id)
+                    result["notified"].append(agent_id)
         elif verdict == "revoke":
-            if block.get("enforce"):
+            if already_revoked:
+                result["kept"].append(agent_id)  # rollback already applied
+            elif block.get("enforce"):
                 _apply_revoke(db, agent, stats)
                 result["revoked"].append(agent_id)
-            elif _MODE in ("approve", "auto"):
-                # already shadowed → nothing to roll back; still audit it
+            else:
+                # already shadowed → nothing to roll back; audit once only
                 _record_action(db, agent_id, "revoke", "revoked", stats)
                 result["kept"].append(agent_id)
         else:
