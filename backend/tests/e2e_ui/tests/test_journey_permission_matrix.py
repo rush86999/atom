@@ -73,6 +73,11 @@ PERMISSION_ENDPOINTS = [
     (Permission.AGENT_RUN, "POST", "/api/agents/00000000-0000-0000-0000-000000000000/run", {"json": {"parameters": {}}}),
     # AGENT_MANAGE — DELETE agent (bogus id → 404 for permitted, 403 denied).
     (Permission.AGENT_MANAGE, "DELETE", "/api/agents/00000000-0000-0000-0000-000000000000", {}),
+    # SYSTEM_ADMIN — gatekeeper config + MCP server registry (bogus server id
+    # → 404 for permitted, 403 denied). Only super_admin carries SYSTEM_ADMIN.
+    (Permission.SYSTEM_ADMIN, "GET", "/api/gatekeeper/config", {}),
+    (Permission.SYSTEM_ADMIN, "GET", "/api/mcp/servers", {}),
+    (Permission.SYSTEM_ADMIN, "DELETE", "/api/mcp/servers/00000000-0000-0000-0000-000000000000", {}),
 ]
 
 
@@ -87,7 +92,6 @@ UNENFORCED_PERMISSIONS = [
     Permission.WORKFLOW_MANAGE,
     Permission.USER_VIEW,
     Permission.USER_MANAGE,
-    Permission.SYSTEM_ADMIN,
 ]
 
 
@@ -156,7 +160,7 @@ class TestRBACContract:
         import subprocess
         # Find require_permission call sites for this permission in api/ ROUTERS
         # only (exclude test files, which reference permissions without enforcing).
-        backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         result = subprocess.run(
             ["grep", "-rl", "--include=*.py", f"require_permission(Permission.{perm.name})", "api/"],
             cwd=backend_root,

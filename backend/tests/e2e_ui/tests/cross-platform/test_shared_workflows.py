@@ -21,7 +21,7 @@ from playwright.sync_api import Page, expect
 # Add backend to path for imports
 import os
 import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))))
 
 from tests.e2e_ui.pages.cross_platform_objects import SharedWorkflowPage
 

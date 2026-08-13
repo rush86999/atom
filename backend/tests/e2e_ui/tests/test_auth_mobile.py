@@ -44,7 +44,7 @@ class TestMobileAuth:
 
         # Make mobile login request
         response = requests.post(
-            "http://localhost:8000/api/auth/login",
+            "http://localhost:8001/api/auth/login",
             json={
                 "username": email,
                 "password": password,
@@ -69,7 +69,7 @@ class TestMobileAuth:
 
         This test validates:
         1. Mobile login returns valid access_token
-        2. Token can be used to access /api/v1/agents
+        2. Token can be used to access /api/agents/
         3. Protected endpoint returns 200 status
         4. Response contains valid data
 
@@ -94,7 +94,7 @@ class TestMobileAuth:
 
         # Use token to access protected endpoint
         protected_response = requests.get(
-            "http://localhost:8000/api/v1/agents",
+            "http://localhost:8001/api/agents/",
             headers={"Authorization": f"Bearer {token}"}
         )
 
@@ -124,7 +124,7 @@ class TestMobileAuth:
 
         # Test with android platform
         response = requests.post(
-            "http://localhost:8000/api/auth/login",
+            "http://localhost:8001/api/auth/login",
             json={
                 "username": user_data.get("email"),
                 "password": "TestPassword123!",
@@ -143,7 +143,7 @@ class TestMobileAuth:
 
         # Test with ios platform
         response = requests.post(
-            "http://localhost:8000/api/auth/login",
+            "http://localhost:8001/api/auth/login",
             json={
                 "username": user_data.get("email"),
                 "password": "TestPassword123!",
@@ -173,7 +173,7 @@ class TestMobileAuth:
 
         # Try to login with invalid password
         response = requests.post(
-            "http://localhost:8000/api/auth/login",
+            "http://localhost:8001/api/auth/login",
             json={
                 "username": user_data.get("email"),
                 "password": "WrongPassword123!",
@@ -193,7 +193,7 @@ class TestMobileAuth:
 
         This test validates:
         1. Mobile login returns valid token
-        2. Token works on /api/v1/agents
+        2. Token works on /api/agents/
         3. Token works on /api/v1/workflows
         4. Token works on /api/v1/skills
         5. All endpoints return valid JSON
@@ -212,14 +212,14 @@ class TestMobileAuth:
 
         # Test multiple protected endpoints
         endpoints = [
-            "/api/v1/agents",
-            "/api/v1/workflows",
-            "/api/v1/skills"
+            "/api/agents/",
+            "/api/mobile/workflows",
+            "/api/skills/list"
         ]
 
         for endpoint in endpoints:
             response = requests.get(
-                f"http://localhost:8000{endpoint}",
+                f"http://localhost:8001{endpoint}",
                 headers={"Authorization": f"Bearer {token}"}
             )
 
@@ -251,7 +251,7 @@ def mobile_login(email: str, password: str, platform: str = "ios") -> dict:
         dict: Login response with access_token or error
     """
     response = requests.post(
-        "http://localhost:8000/api/auth/login",
+        "http://localhost:8001/api/auth/login",
         json={
             "username": email,
             "password": password,

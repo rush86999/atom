@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 # Add backend to path for imports
 import os
 import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))))
 
 from core.models import CanvasAudit, User
 from tests.e2e_ui.tests.canvas_helpers import create_canvas, open_canvas
@@ -44,8 +44,8 @@ def open_code_canvas(page: Page, canvas_id: str, expect_content: bool = True) ->
     # Monaco loads from CDN on first use — allow generous time. Also wait
     # until the editor actually has rendered content (tokenization/layout
     # complete), so subsequent inner_text reads are race-free.
-    page.wait_for_selector(".monaco-editor .view-lines", timeout=30000)
     if expect_content:
+        page.wait_for_selector(".monaco-editor .view-lines", timeout=30000)
         page.wait_for_function(
             """() => {
                 const lines = document.querySelectorAll('.monaco-editor .view-lines .view-line');
@@ -53,6 +53,10 @@ def open_code_canvas(page: Page, canvas_id: str, expect_content: bool = True) ->
             }""",
             timeout=30000,
         )
+    else:
+        # Empty code renders no .view-line elements — wait for the editor
+        # shell itself instead.
+        page.wait_for_selector(".monaco-editor", timeout=30000)
 
 
 def create_code_canvas(db: Session, user: User, code: str, title: str = "Code Canvas") -> str:

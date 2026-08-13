@@ -323,7 +323,7 @@ function CanvasContent({
     setShowPreview: (s: boolean) => void;
     onContentChange: (val: string) => void
 }) {
-    if (!data && component !== "sheet" && component !== "form") return <div className="text-zinc-500 p-4">No data to display</div>;
+    if (data == null && component !== "sheet" && component !== "form") return <div className="text-zinc-500 p-4">No data to display</div>;
 
     const content = typeof data === 'string' ? data : (data.content || JSON.stringify(data, null, 2));
 

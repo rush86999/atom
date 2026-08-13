@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 # Add backend to path for imports
 import os
 import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))))
 
 from core.models import CanvasAudit, User
 from tests.e2e_ui.tests.canvas_helpers import create_markdown_canvas, open_canvas

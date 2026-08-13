@@ -16,7 +16,10 @@ from sqlalchemy import text
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Insert the BACKEND ROOT (4 dirname levels) — NOT backend/tests, which
+# would shadow the real `integrations` package with the unit-test
+# directory of the same name and break every later `import integrations.*`.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 from core.models import AgentRegistry
 
