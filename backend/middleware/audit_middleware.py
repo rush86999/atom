@@ -48,7 +48,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                     except ImportError:
                         try:
                             from core.auth import get_current_user
-                            user = await get_current_user(token, db)
+                            user = await get_current_user(request, token, db)
                             if user:
                                 user_id = str(user.id)
                         except Exception:

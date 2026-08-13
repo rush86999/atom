@@ -286,6 +286,15 @@ class CircuitBreakerMiddleware(BaseHTTPMiddleware):
 
             raise
 
+    def is_circuit_open(self, endpoint: str) -> bool:
+        """Check whether the circuit for an endpoint is currently open."""
+        if self.failure_count.get(endpoint, 0) < self.failure_threshold:
+            return False
+        last_failure = self.last_failure_time.get(endpoint)
+        if last_failure is None:
+            return False
+        return (datetime.now() - last_failure).total_seconds() < self.timeout
+
 
 def setup_error_middleware(app, debug: bool = False):
     """Setup all error handling middleware"""

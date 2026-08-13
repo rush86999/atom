@@ -242,6 +242,13 @@ class SkillCreationAgent:
                 logger.warning(f"SSRF blocked: localhost access denied: {hostname}")
                 return False
 
+            # Bare IPv6 like http://::1/ or http://::/ parses with a None
+            # hostname while the netloc still routes to the loopback
+            # interface — reject any URL with a netloc but no hostname.
+            if not hostname and parsed.netloc:
+                logger.warning(f"SSRF blocked: missing hostname: {parsed.netloc}")
+                return False
+
             # Block private IPv4 ranges
             ipv4_pattern = r'^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.)'
             if re.match(ipv4_pattern, hostname):
