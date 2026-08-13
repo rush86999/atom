@@ -93,8 +93,18 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     setMessages(chatMessages);
                 }
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to load history:", error);
+            if (error?.response?.status === 403) {
+                // 403 = this session id belongs to another account (a stale id
+                // persisted in localStorage from an earlier login/test run).
+                // Drop the stale pointer and switch to a fresh session so the
+                // error doesn't recur on every load.
+                if (typeof window !== "undefined") {
+                    window.localStorage.removeItem("atom_chat_session_id");
+                }
+                onSessionCreated?.("new");
+            }
             toast({
                 title: "Could not load history",
                 description: "Failed to load conversation history. Starting fresh.",
