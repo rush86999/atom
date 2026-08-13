@@ -254,6 +254,18 @@ class CrossPlatformCorrelationEngine:
                 for (p, t) in related_threads:
                     all_keywords.update(thread_metadata[(p, t)]["keywords"])
 
+                # Aggregate times across related threads (guarded — threads
+                # may lack parseable timestamps, which made min()/max() raise
+                # ValueError on an empty sequence)
+                related_starts = [
+                    m["start_time"] for (p, t), m in thread_metadata.items()
+                    if (p, t) in related_threads and m["start_time"]
+                ]
+                related_ends = [
+                    m["end_time"] for (p, t), m in thread_metadata.items()
+                    if (p, t) in related_threads and m["end_time"]
+                ]
+
                 conv = LinkedConversation(
                     conversation_id=f"conv_{len(conversations)}",
                     threads={p: t for (p, t) in related_threads},
@@ -261,8 +273,8 @@ class CrossPlatformCorrelationEngine:
                     participants=all_participants,
                     participant_emails=all_emails,
                     message_count=sum(m["message_count"] for (p, t), m in thread_metadata.items() if (p, t) in related_threads),
-                    start_time=min(m["start_time"] for (p, t), m in thread_metadata.items() if (p, t) in related_threads if m["start_time"]),
-                    end_time=max(m["end_time"] for (p, t), m in thread_metadata.items() if (p, t) in related_threads if m["end_time"]),
+                    start_time=min(related_starts) if related_starts else None,
+                    end_time=max(related_ends) if related_ends else None,
                     correlation_strength=CorrelationStrength.STRONG if len(related_threads) >= 3 else CorrelationStrength.MODERATE,
                     topic_keywords=all_keywords
                 )
@@ -474,17 +486,21 @@ class CrossPlatformCorrelationEngine:
                     used.add(j)
 
             # Create merged conversation
+            def _first_message(thread_key):
+                msgs = thread_messages.get(thread_key)
+                return msgs[0] if msgs else {}
+
             merged_conv = LinkedConversation(
                 conversation_id=f"conv_merged_{len(merged)}",
                 threads=merged_threads,
                 platforms=merged_platforms,
                 participants=merged_participants,
                 participant_emails=set().union(*[
-                    thread_messages[(p, t)][0].get("participant_emails", set()) if (p, t) in thread_messages else set()
+                    _first_message((p, t)).get("participant_emails", set())
                     for p, t in merged_threads.items()
                 ]),
                 message_count=sum(
-                    thread_messages[(p, t)][0].get("message_count", 0) if (p, t) in thread_messages else 0
+                    _first_message((p, t)).get("message_count", 0)
                     for p, t in merged_threads.items()
                 ),
                 correlation_strength=CorrelationStrength.STRONG if len(merged_platforms) > 2 else CorrelationStrength.MODERATE,

@@ -44,5 +44,7 @@ async def execute_external_action(payload: Dict[str, Any]):
             credentials=auth
         )
         return {"status": "success", "output": result}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal error")

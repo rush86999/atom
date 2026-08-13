@@ -24,13 +24,16 @@ from datetime import datetime, timezone
 
 
 # Import industry workflow router
+from core import industry_workflow_endpoints as iwe
 from core.industry_workflow_endpoints import router as industry_router
 from core.industry_workflow_templates import Industry, IndustryWorkflowEngine
 
 
 # Create minimal FastAPI app for testing industry workflow routes
+# (wave 71: router now requires auth — override for route tests)
 app = FastAPI()
 app.include_router(industry_router, tags=["industry"])
+app.dependency_overrides[iwe.get_current_user] = lambda: MagicMock(id="test-user")
 
 
 # ============================================================================

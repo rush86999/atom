@@ -199,26 +199,20 @@ class MessageAnalyticsEngine:
             # Sort by timestamp
             sorted_messages = sorted(
                 thread_messages,
-                key=lambda m: m.get("timestamp", datetime.min)
+                key=lambda m: self._parse_timestamp(m.get("timestamp"))
+                or datetime.min.replace(tzinfo=timezone.utc)
             )
 
             # Calculate time between consecutive messages
             for i in range(1, len(sorted_messages)):
-                prev_time = sorted_messages[i - 1].get("timestamp")
-                curr_time = sorted_messages[i].get("timestamp")
+                prev_time = self._parse_timestamp(sorted_messages[i - 1].get("timestamp"))
+                curr_time = self._parse_timestamp(sorted_messages[i].get("timestamp"))
 
                 if prev_time and curr_time:
-                    # Calculate time difference in seconds
-                    if isinstance(prev_time, str):
-                        prev_time = datetime.fromisoformat(prev_time)
-                    if isinstance(curr_time, str):
-                        curr_time = datetime.fromisoformat(curr_time)
-
-                    if isinstance(prev_time, datetime) and isinstance(curr_time, datetime):
-                        diff = (curr_time - prev_time).total_seconds()
-                        # Only count responses between 30 seconds and 24 hours
-                        if 30 <= diff <= 86400:
-                            response_times.append(diff)
+                    diff = (curr_time - prev_time).total_seconds()
+                    # Only count responses between 30 seconds and 24 hours
+                    if 30 <= diff <= 86400:
+                        response_times.append(diff)
 
         if not response_times:
             return ResponseTimeMetrics()
@@ -437,7 +431,8 @@ class MessageAnalyticsEngine:
         if cutoff:
             filtered_messages = [
                 m for m in messages
-                if self._parse_timestamp(m.get("timestamp")) >= cutoff
+                if (parsed := self._parse_timestamp(m.get("timestamp"))) is not None
+                and parsed >= cutoff
             ]
 
         # Calculate various analytics
@@ -491,18 +486,19 @@ class MessageAnalyticsEngine:
         }
 
     def _parse_timestamp(self, timestamp: Any) -> Optional[datetime]:
-        """Helper to parse timestamp to datetime"""
+        """Helper to parse timestamp to datetime (naive datetimes normalized to UTC)."""
         if timestamp is None:
             return None
 
         if isinstance(timestamp, datetime):
-            return timestamp
+            return timestamp.replace(tzinfo=timezone.utc) if timestamp.tzinfo is None else timestamp
 
         if isinstance(timestamp, str):
             try:
-                return datetime.fromisoformat(timestamp)
+                parsed = datetime.fromisoformat(timestamp)
             except (ValueError, TypeError):
                 return None
+            return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed
 
         return None
 

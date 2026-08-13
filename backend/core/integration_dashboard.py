@@ -194,7 +194,10 @@ class IntegrationDashboard:
         if integration not in self.health:
             self.health[integration] = IntegrationHealth()
         if integration not in self.fetch_times:
-            self.fetch_times[integration] = []
+            # FIX (wave 71): this used to assign a plain [] — an unbounded
+            # list that bypassed the deque(maxlen=1000) cap, so timing history
+            # grew forever. Keep the bounded deque.
+            self.fetch_times[integration] = deque(maxlen=1000)
 
         metrics = self.metrics[integration]
         health = self.health[integration]
@@ -262,7 +265,8 @@ class IntegrationDashboard:
         if integration not in self.metrics:
             self.metrics[integration] = IntegrationMetrics()
         if integration not in self.process_times:
-            self.process_times[integration] = []
+            # FIX (wave 71): bounded deque, not an unbounded plain list.
+            self.process_times[integration] = deque(maxlen=1000)
 
         metrics = self.metrics[integration]
 
@@ -501,9 +505,9 @@ class IntegrationDashboard:
             if integration in self.metrics:
                 self.metrics[integration] = IntegrationMetrics()
             if integration in self.fetch_times:
-                self.fetch_times[integration] = []
+                self.fetch_times[integration] = deque(maxlen=1000)
             if integration in self.process_times:
-                self.process_times[integration] = []
+                self.process_times[integration] = deque(maxlen=1000)
         else:
             for name in self.metrics:
                 self.metrics[name] = IntegrationMetrics()

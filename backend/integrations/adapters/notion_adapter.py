@@ -79,7 +79,8 @@ class NotionAdapter(IntegrationService):
                     return OperationResult(success=False, error=IntegrationErrorCode.INVALID_PARAMETERS, message="Missing database_id")
                 
                 result = await asyncio.to_thread(
-                    self.service.query_database, database_id, **parameters
+                    self.service.query_database, database_id,
+                    **{k: v for k, v in parameters.items() if k != "database_id"}
                 )
                 return OperationResult(
                     success=True, 
@@ -89,7 +90,8 @@ class NotionAdapter(IntegrationService):
             elif operation == "search":
                 query = parameters.get("query", "")
                 result = await asyncio.to_thread(
-                    self.service.search, query=query, **parameters
+                    self.service.search, query=query,
+                    **{k: v for k, v in parameters.items() if k != "query"}
                 )
                 return OperationResult(
                     success=True, 

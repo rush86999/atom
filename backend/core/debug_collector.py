@@ -298,7 +298,15 @@ class DebugCollector:
 
         collected_events = []
         for event_data in events:
-            event = await self.collect_event(**event_data)
+            try:
+                event = await self.collect_event(**event_data)
+            except Exception as e:
+                # Malformed event dicts must not abort the whole batch
+                self.logger.error(
+                    "Failed to collect batch event",
+                    error=str(e),
+                )
+                event = None
             collected_events.append(event)
 
         return collected_events

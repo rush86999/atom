@@ -6270,7 +6270,18 @@ class DebugInsight(Base):
     scope = Column(String(50), nullable=True)  # component, system, distributed
     affected_components = Column(JSONColumn, nullable=True)  # List of affected components
     resolved = Column(Boolean, default=False, index=True)
+    resolution_notes = Column(Text, nullable=True)  # Notes on how the insight was resolved
+    source_event_id = Column(String, index=True, nullable=True)  # DebugEvent that produced this insight
     generated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    expires_at = Column(DateTime(timezone=True), index=True, nullable=True)
+
+    # The debug event that produced this insight (restored with the
+    # source_event_id column — see alembic 20260813_restore_debug_schema)
+    event = relationship(
+        "DebugEvent",
+        foreign_keys=[source_event_id],
+        primaryjoin="DebugInsight.source_event_id == DebugEvent.id",
+    )
 
     def __repr__(self):
         return f"<DebugInsight {self.id}: {self.insight_type} (confidence: {self.confidence_score})>"
@@ -9516,10 +9527,13 @@ class DebugStateSnapshot(Base):
     # Snapshot metadata
     component_type = Column(String(50), nullable=False, index=True)  # agent, workflow, system
     component_id = Column(String(255), nullable=False, index=True)
+    operation_id = Column(String, index=True, nullable=True)  # Operation correlation ID
+    checkpoint_name = Column(String(100), nullable=True)  # Optional checkpoint label
     snapshot_type = Column(String(50), nullable=False, index=True)  # full, incremental, checkpoint
 
     # State data
     state_data = Column(JSONColumn, nullable=False)  # Complete state snapshot
+    diff_from_previous = Column(JSONColumn, nullable=True)  # Delta vs previous snapshot
     snapshot_metadata = Column(JSONColumn, nullable=True)  # Additional context
 
     # Timestamps
@@ -9542,7 +9556,7 @@ class DebugMetric(Base):
 
     # Metric identification
     metric_name = Column(String(100), nullable=False, index=True)
-    metric_type = Column(String(50), nullable=False)  # counter, gauge, histogram
+    metric_type = Column(String(50), default="gauge", nullable=True)  # counter, gauge, histogram
     component_type = Column(String(50), nullable=False, index=True)
     component_id = Column(String(255), nullable=True, index=True)
 
@@ -9552,6 +9566,7 @@ class DebugMetric(Base):
 
     # Labels/dimensions
     labels = Column(JSONColumn, nullable=True)  # Additional labels for grouping
+    dimensions = Column(JSONColumn, nullable=True)  # Additional dimensions for grouping
 
     # Timestamps
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)

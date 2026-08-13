@@ -3,6 +3,99 @@
 > **Purpose**: Persistent, date-stamped log of every file tested/fixed so future
 > bug-hunt sessions can skip already-verified work and start from the gaps.
 > **How to use**: BEFORE touching a file, grep this table (`rg "<filename>"`).
+
+---
+
+## Session 2026-08-13 (wave 70 — 7 never-tested debug/bulk core modules to ≥95%) — bulk_operations_processor.py, debug_ai_assistant.py, debug_alerting.py, debug_storage.py, debug_query.py, debug_collector.py, debug_insight_engine.py
+
+**Files**: new wave tests `tests/test_covpush_w70_{bulk_ops,debug_ai,debug_alerting,debug_storage,debug_query,debug_collector,debug_insight}.py` (**285 new tests**). Source fixes: `core/models.py` (schema-drift repair), `core/debug_alerting.py`, `core/debug_ai_assistant.py`, `core/debug_collector.py`, `alembic/versions/20260813_restore_debug_schema.py` (guarded additive migration).
+
+**Evidence** (`cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`):
+1. New-wave combined run (single process): `tests/test_covpush_w70_*.py` (7 files) → **285 passed / 0 failed** (~55s).
+2. Per-module 100% with existing partners: bulk_ops + `test_bulk_operations_processor.py` → 100% (306 stmts, 76 passed); debug_ai + `test_debug_ai_assistant.py` → 100% (189 stmts, 60 passed); debug_alerting + `test_debug_alerting.py` + `core/test_debug_alerting_coverage.py` → 100% (155 stmts, 79 passed); debug_collector + `test_debug_collector.py` → 100% (153 stmts, 51 passed); debug_storage → 99% (270 stmts); debug_insight_engine → 100% (168 stmts); debug_query → 100% (163 stmts).
+3. Schema-drift repair verified: `tests/test_debug_models.py` went **10 failed → 25/25 passed** (expiration/source-event-link/snapshot-operation/metric tests all failed on the lost columns).
+4. `py_compile` clean on all 7 sources + migration + test files; mypy re-checked on the 7 sources — zero errors on the changed regions (all reported errors are pre-existing debt in these never-type-checked modules + their deps: `bulk_operations_processor` `no-redef`, `debug_*` var-annotation/Column-vs-str — none on edited lines).
+
+### Coverage deltas (measured with `--cov=<module> --cov-report=term-missing`)
+
+| Module | Baseline | After | Missing after |
+|---|---|---|---|
+| `core/bulk_operations_processor.py` | 306 stmts / 70% (existing 34 tests) | **306 / 100%** (combined 76) | — |
+| `core/debug_ai_assistant.py` | 188 / 58% | **189 / 100%** (combined 60) | — |
+| `core/debug_alerting.py` | 155 / 89% | **155 / 100%** (combined 79) | — |
+| `core/debug_collector.py` | 149 / 68% | **153 / 100%** (combined 51) | — |
+| `core/debug_query.py` | 163 / 46% | **163 / 100%** | — |
+| `core/debug_storage.py` | 270 / 0% (no importers) | **270 / 99%** | 400–401 only: dead `except` in `migrate_hot_to_warm` (`try:` body is `pass` — nothing can raise) — 99.3% is the mathematical ceiling |
+| `core/debug_insight_engine.py` | 168 / 0% (no importers) | **168 / 100%** | — |
+
+### REAL bugs fixed (TDD red→green) — schema drift was the big one
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/models.py` | `DebugStateSnapshot` (~9504) | **Lost columns** `operation_id`/`checkpoint_name`/`diff_from_previous` (original def in `20260206_add_debug_system.py`) — `DebugStateSnapshot(operation_id=...)` raised TypeError, so `collect_state_snapshot` ALWAYS returned None and `analyze_state_consistency`/consistency generators ALWAYS failed (AttributeError on `DebugStateSnapshot.operation_id`) | Restored the three columns (nullable, indexed) |
+| `core/models.py` | `DebugInsight` (~6252) | **Lost columns** `source_event_id`/`resolution_notes`/`expires_at` — `explain_error` insight-backed explanations always fell into the error path; insight storage round-trips always failed (`_insight_to_dict` AttributeError) | Restored columns + `event` relationship (matches migration's FK intent) |
+| `core/models.py` | `DebugMetric` (~9532) | **Lost column** `dimensions` + `metric_type` NOT NULL with no default → `DebugMetric(dimensions=...)` TypeError / IntegrityError | Added `dimensions`, made `metric_type` nullable with `default="gauge"` |
+| `core/debug_alerting.py` | `_check_error_rates` (~244) | **`func.case(..., else_=0)`** — SQLAlchemy `Function` has no `else_` kwarg → the grouped error-rate query ALWAYS raised → high-error-rate alerts NEVER fired on any DB (whole sub-check dead) | `from sqlalchemy import case`; `case((cond, 1), else_=0)` |
+| `core/debug_ai_assistant.py` | `_handle_consistency_question` (~520) | **Component-only consistency question returned None** (fell through `if operation_match:` with no else) → `ask()` violated its dict contract | Added explicit answer asking for the operation ID |
+| `core/debug_ai_assistant.py` | `_handle_general_question` (~618) | **Double-percentage error rate**: `monitor.get_system_health()` already returns error_rate as 0–100, handler multiplied by 100 again → "Error rate is 5000.0%" | Use the value directly (comment added) |
+| `core/debug_collector.py` | `collect_batch_events` (~300) | **Malformed event dict aborted the whole batch** — `collect_event(**event_data)` TypeError escaped the loop (collect_event's try only wraps its own body) | Per-event try/except → `None` entry + log |
+
+### Stale test repair (side effect of the model fix)
+- `tests/test_debug_models.py`: 10 pre-existing FAILED → **25/25** (all were the schema-drift symptoms above).
+- `tests/test_debug_collector.py`: 2 pre-existing FAILED → **0** (state-snapshot collection works again).
+- `tests/core/services/test_debug_query.py`: 6 ERROR + 12 FAILED remain — their own fixture bugs, verified untouched: seeds `event_type=None` (NOT NULL), uses non-existent `DebugInsightSeverity.HIGH/MEDIUM` enums, `datetime.utcnow() - aware` TypeErrors. Not in this wave's scope.
+
+### Remaining uncovered lines
+- `core/debug_storage.py` 400–401 only — dead `except` on a `pass`-only `try` (migrate_hot_to_warm); unreachable.
+- All other six modules measure 100% (bulk_operations/debug_ai/debug_alerting/debug_collector/debug_query/debug_insight_engine).
+
+### Migration added
+- `alembic/versions/20260813_restore_debug_schema.py` — guarded additive restore of the 7 lost columns (SQLite-safe `batch_alter_table` + exists guards, mirrors `20260811_add_stage_router_audit.py` pattern; `down_revision = 20260811_stage_router_automation`).
+
+---
+
+## Session 2026-08-13 (wave 72) — core analytics/recording services to 100% (205 new tests, 9 bugs fixed)
+
+**Files**: `core/recording_review_service.py`, `core/canvas_recording_service.py`, `core/conflict_resolution_service.py`, `core/cross_platform_correlation.py`, `core/message_analytics_engine.py`, `core/predictive_insights.py`, `core/feedback_advanced_analytics.py` — new wave tests `tests/test_covpush_w72_{recording_review,canvas_recording,conflict_resolution,cross_platform,message_analytics,predictive_insights,feedback_analytics}.py` (205 tests).
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`):
+1. New-wave combined run (single process): `tests/test_covpush_w72_*.py` (7 files) → **205 passed / 0 failed** (38s).
+2. Per-module 100% with existing partners: `test_covpush_w72_recording_review.py tests/test_recording_review.py` → 100% (231 stmts, 0 miss); `test_covpush_w72_canvas_recording.py tests/test_canvas_recording.py` → 100% (168 stmts); `test_covpush_w72_conflict_resolution.py tests/test_conflict_resolution_service.py tests/core/test_conflict_resolution_service_bughunt.py` → 100% (186 stmts, 83 passed); `test_covpush_w72_cross_platform.py tests/unit/test_cross_platform_correlation.py` → 100% (270 stmts, 56 passed); `test_covpush_w72_message_analytics.py tests/test_message_analytics.py` → 100% (215 stmts, 45 passed); `test_covpush_w72_predictive_insights.py tests/test_predictive_insights.py` → 100% (233 stmts, 56 passed); `test_covpush_w72_feedback_analytics.py` → 100% (143 stmts, 19 passed; `test_feedback_phase2.py` has 16 pre-existing setup errors — no `create_all` in its fixtures — verified identical on a clean stash, unrelated).
+3. Cross-suite regression sweeps after source fixes: `test_workforce_intelligence.py + scenarios/test_business_intelligence_scenarios.py` 34 passed; `test_covpush_w10f_recording.py + api/test_canvas_recording_routes_coverage_w56.py` 78 passed; `test_covpush_w64g_canvas_routes.py + api/test_debug_routes_comprehensive.py` 192 passed. `test_round38/40` sweep: 1 pre-existing failure (`TestFeedbackBatchIdentity::test_approve_uses_authenticated_identity`, 403 vs 200) — verified failing on a clean stash of all `core/` changes.
+4. `py_compile` clean on all 7 sources + 7 test files; mypy error set unchanged vs baseline (69 pre-existing errors, line-shifted only — diff on stashed baseline confirms zero new errors).
+
+### Coverage deltas (coverage.py statement counts)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `recording_review_service.py` | 84% | **100%** | 231 | none |
+| `canvas_recording_service.py` | 76% | **100%** | 168 | none |
+| `conflict_resolution_service.py` | 88% | **100%** | 186 | none |
+| `cross_platform_correlation.py` | 97% | **100%** | 270 | none |
+| `message_analytics_engine.py` | 88% | **100%** | 215 | none |
+| `predictive_insights.py` | 95% | **100%** | 233 | none |
+| `feedback_advanced_analytics.py` | 11% | **100%** | 143 | none |
+
+(Task sheet quoted 457/425/423/412/365/382/322 statements — those counts don't match coverage.py's measured 231/168/186/270/215/233/143 in this environment; the coverage.py numbers are authoritative for `--cov-report=term-missing`.)
+
+### REAL bugs fixed (TDD red→green)
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/message_analytics_engine.py` | `calculate_response_times` (~201–215) | Raw `sorted()` key compared str vs datetime (mixed-format cross-platform timestamps in one thread → TypeError) and `fromisoformat` on malformed strings raised uncaught ValueError | Sort/parse via `_parse_timestamp`; skip unparseable pairs; `_parse_timestamp` now normalizes naive datetimes to UTC |
+| `core/message_analytics_engine.py` | `get_analytics_summary` (~440) | `None >= cutoff` TypeError when any message lacked a timestamp inside a windowed run | Filter drops timestamp-less messages (`parsed is not None and parsed >= cutoff`) |
+| `core/predictive_insights.py` | `detect_bottlenecks` + sort keys (~313, ~458) | Naive tz-less ISO timestamps crashed aware-now subtraction ("can't subtract offset-naive and offset-aware") | `_parse_timestamp` UTC-normalizes; sort fallbacks use `datetime.min.replace(tzinfo=timezone.utc)` |
+| `core/predictive_insights.py` | `get_insights_summary` (~370) | `statistics.mean([])` → StatisticsError when every user pattern had `avg_response_time == 0` | Guard the filtered list itself (`if positive_times else 0`) |
+| `core/recording_review_service.py` | `_update_world_model` (learnings arg) | `learnings=None` → pydantic ValidationError silently dropped the world-model update for reviews without feedback/lessons | Fallback `"No specific learnings recorded"` |
+| `core/recording_review_service.py` | `create_review` world-model gate (~133) | Rejected reviews marked `has_useful_patterns=True`/`training_value="high"` ("failures are valuable for learning") but never reached the world model — gate was `approved`-only | Gate now `("approved", "rejected")`; rejected reviews set `used_for_training` |
+| `core/canvas_recording_service.py` | `flag_for_review` (~484) | In-place `recording.tags` mutation on a plain JSON column is untracked by SQLAlchemy → `flagged_review` tag silently lost on commit (flags persisted, tags didn't) | `tags_list = list(recording.tags) if recording.tags else []` |
+| `core/cross_platform_correlation.py` | `_correlate_by_participants` (~264) | `min()/max()` ValueError on empty sequence when linked threads had no parseable timestamps → whole pipeline crash | Guarded `related_starts`/`related_ends` lists |
+| `core/cross_platform_correlation.py` | `_merge_correlations` (~483) | `thread_messages[(p,t)][0]` IndexError on empty message-list keys | `_first_message()` helper returns `{}` for absent/empty lists |
+
+### Remaining known gaps
+- `core/feedback_advanced_analytics.py` — none (100%).
+- `tests/test_feedback_phase2.py` — 16 pre-existing setup errors (fixture never calls `Base.metadata.create_all`), unrelated to this wave.
+- Note (not fixed): `canvas_recording_service._create_audit` hits `NOT NULL canvas_id` IntegrityError for recordings started without a canvas (`canvas_id=None`); the exception is swallowed by design — no audit row is written for manual recordings. Flagged for a future wave.
+
+
 > If a row exists with status `GREEN`, re-verify only if the file changed since
 > the date stamp. After any fix/test round, APPEND a row (never rewrite history).
 > Companion: `docs/testing/BUG_FIX_PROCESS.md` (TDD rules), `CLAUDE.md` bug-fix history.
@@ -12,6 +105,81 @@
 - **Evidence**: test files + command + pass counts at the time of the stamp
 
 ---
+
+## Session 2026-08-13 (wave 69 — 4 never-tested core modules to ≥95%) — workflow_marketplace.py, skill_adapter.py, skill_marketplace_service.py, social_post_generator.py
+
+**Evidence**: `cd backend && PYTHONPATH=/Users/rushiparikh/projects/atom/backend ./venv/bin/python -m pytest tests/test_covpush_w69_{marketplace,skill_adapter,skill_marketplace,social_post}.py -p no:cacheprovider -q` → **199 passed / 0 failed**. Combined per-module runs (new file + related pre-existing suites): workflow_marketplace 89P (new 61 + existing 28), skill_adapter 100P (51 + 45 + bug-hunt 4), skill_marketplace 100P (39 + 61), social_post 87P (48 + 39). `mypy` re-checked on the 3 touched source modules: no new errors vs HEAD baseline (HEAD had `no-redef` errors on the now-removed shadowed methods; remaining errors are pre-existing optional-import patterns). `tests/test_skill_registry_service.py` + `test_covpush_skill_registry.py` → 77P (skill_adapter is imported by skill_registry_service — no regression).
+
+### Coverage deltas (measured with `--cov=<module> --cov-report=term-missing`)
+
+| Module | Baseline | After | Missing after |
+|---|---|---|---|
+| `core/workflow_marketplace.py` | 381 stmts / 40% (28 pre-existing tests; 26 stmts were dead shadowed definitions) | **368 / 100%** | — |
+| `core/skill_adapter.py` | 235 / 82% (45 passing, 1 pre-existing FAILING) | **233 / 100%** | — |
+| `core/skill_marketplace_service.py` | 175 / 82% (91 passing, 9 pre-existing FAILING) | **175 / 98%** | 404–406: unreachable dead code (`try:` wraps only `logger.info` + `return`; nothing can raise) — 98.3% is the mathematical ceiling |
+| `core/social_post_generator.py` | 156 / 53% (32 passing, 7 pre-existing FAILING) | **158 / 100%** | — |
+
+New files: `tests/test_covpush_w69_marketplace.py` (61), `..._skill_adapter.py` (51), `..._skill_marketplace.py` (39), `..._social_post.py` (48) — 199 tests total; fully mocked (tmp-dir engine fixtures, in-memory SQLite full schema, TestClient with patched module marketplace, mocked LLMService/SaaS clients), zero LLM spend, no network.
+
+### REAL app bugs fixed (TDD red→green)
+| File | Change |
+|---|---|
+| `core/workflow_marketplace.py` | **404 swallowed into 500** in `import_template_by_id`: `raise HTTPException(404)` sat inside `try/except Exception` which re-raised 500 — importing a missing template reported Internal Server Error. Added `except HTTPException: raise` before the generic handler (line ~879). RED: POST `/api/marketplace/templates/missing/import` → 500; now 404. |
+| `core/workflow_marketplace.py` | **Route shadowing**: `GET /templates/statistics` was registered AFTER `GET /templates/{template_id}`, so every statistics request matched `template_id="statistics"` and the endpoint was unreachable (TestClient returned `ResponseValidationError`, never the stats payload). Moved the statistics route above the parameterized route. RED: stats request → ResponseValidationError; now 200 with aggregations. |
+| `core/workflow_marketplace.py` | **`get_template` always missed advanced/industry templates**: those branches did direct `WorkflowTemplate(**data)` on files whose real format (`input_schema`/`steps`) has no `workflow_data` field → ValidationError → logged, fell to SaaS → `None`, even though the file existed. Now converts via new `_to_workflow_template_data()` (same conversion the loaders use). RED: `get_template("advanced_etl_pipeline")` → None; now returns ADVANCED template with downloads incremented. |
+| `core/workflow_marketplace.py` | **Dead code removal** (required for ≥95%): shadowed first definitions of `list_templates` (lines 181–194) and `get_template` (196–207) were unreachable (the second definitions win in the class body) — removed, plus the duplicated `self.templates_dir = ...` line in `__init__`. Behavior-identical (verified by coverage: the shadowed bodies never executed). |
+| `core/skill_adapter.py` | **Double session close** in `NodeJsSkillAdapter.install_npm_dependencies`: `finally: db.close()` was redundant with `get_db_session()`'s own `finally: db.close()` (the pattern this repo mandates per CLAUDE.md) → `close()` ran twice. Removed the inner finally (dedented the body). RED: bug-hunt test asserted `close` called exactly once → saw 2 calls; now 1. |
+| `core/social_post_generator.py` | **`is_rate_limited` crashed on naive timestamps**: `datetime.now(timezone.utc) - last_post` raised `TypeError` (naive vs aware) if the tracker held a naive datetime, instead of returning False — could crash post generation. Now coerces naive timestamps to UTC-aware. RED: naive `datetime.now() - 30min` → TypeError; now False. |
+| `core/social_post_generator.py` | **`_format_episode_context` exceeded its own docstring "max 280 characters"**: truncated with `context[:280] + "..."` → 283 chars (the sibling truncations use `[:277]`). Now `[:277] + "..."`. RED: 3-episode context → 283 chars; now ≤280. |
+
+### Stale test repairs (test bugs, not source bugs — all pre-existing FAILING tests now pass)
+- `tests/test_bughunt_skill_adapter.py` (1 failing) — monkeypatched `sqlalchemy.create_engine`/`sessionmaker`, but `core.database.SessionLocal` is bound at import so the patch had no effect: the test silently opened a REAL session against the configured DATABASE_URL during the run. Now patches `core.database.SessionLocal` directly.
+- `tests/test_social_post_generator.py` (7 failing) — mocked `llm_service.generate_completion` but the module calls `generate_response`; `generator.llm_service = None` and `patch.object(generator, 'llm_service', create=True)` both break on the read-only property (no setter/deleter). Rewritten with class-level `patch.object(SocialPostGenerator, 'llm_service', <value>)`; `test_rate_limit_expiry`'s naive timestamp now tolerated by the module fix.
+- `tests/test_skill_marketplace_service.py` (9 failing) — phantom `SkillRating(comment=...)` → `review=`; phantom `SkillExecution(install_count=...)` removed + decrement assertion dropped (model has no such column; the service's `hasattr()` guard skips it for real rows); rows missing NOT NULL `agent_id`/`tenant_id`; `rate_skill` resolves skills by row `id` not the human-readable `skill_id` (rows use uuid ids); `test_get_average_rating` used duplicate user_ids violating `uq_skill_user_rating`.
+
+### Remaining uncovered lines
+`core/skill_marketplace_service.py` lines 404–406 only — unreachable dead code (`try:` body is `logger.info` + `return`; no exception source). All other three modules measure 100%.
+
+---
+
+## Session 2026-08-13 (wave 71 — 6 never-covered core modules to ≥95%) — custom_components_service.py, integration_dashboard.py, industry_workflow_endpoints.py, enterprise_user_management.py, enterprise_security.py, integration_enhancement_endpoints.py
+
+**Evidence**: `cd backend && PYTHONPATH=/Users/rushiparikh/projects/atom/backend ./venv/bin/python -m pytest tests/test_covpush_w71_{custom_components,integration_dashboard,industry_workflows,enterprise,enterprise_security,integration_enhancement}.py -p no:cacheprovider -q` → **228 passed / 0 failed**. Per-module combined runs (new file + pre-existing suites): custom_components 83P, integration_dashboard 103P, industry_workflows 154P (incl. enterprise_security 13+41), enterprise 151P, integration_enhancement 58+30P. `py_compile` clean on all touched source + test files.
+
+### Coverage deltas (measured with `--cov=<module> --cov-report=term-missing`)
+
+| Module | Baseline | After | Missing after |
+|---|---|---|---|
+| `core/custom_components_service.py` | 224 stmts / 0% (no suite imported it — 2 pre-existing stale tests FAILED) | **224 / 100%** | — |
+| `core/integration_dashboard.py` | 248 / 96% (8 lines) | **248 / 100%** | — |
+| `core/industry_workflow_endpoints.py` | 181 / 89% (20 lines) | **183 / 100%** | — |
+| `core/enterprise_user_management.py` | 218 / 93% (16 lines incl. EmailStr fallback) | **218 / 100%** | — |
+| `core/enterprise_security.py` | 233 / 99% (1 line: audit-cap trim) | **234 / 100%** | — |
+| `core/integration_enhancement_endpoints.py` | 192 / 81% (37 lines) | **194 / 100%** | — |
+
+New files: `tests/test_covpush_w71_custom_components.py` (46), `..._integration_dashboard.py` (35), `..._industry_workflows.py` (32), `..._enterprise.py` (31), `..._enterprise_security.py` (21), `..._integration_enhancement.py` (30) — 195 tests total; fully mocked (Mock db / dependency-override TestClient), zero LLM spend, no network.
+
+### REAL app bugs fixed (TDD red→green)
+| File | Change |
+|---|---|
+| `core/enterprise_security.py` | **Entire router was anonymous** — audit events/alerts/compliance/stats/scan readable by any unauthenticated caller (user emails, IPs, actions). Router now `APIRouter(dependencies=[Depends(get_current_user)])`, mirroring the sibling `enterprise_user_management.py` fix. RED: anonymous `GET /api/enterprise/security/audit` → 200; now 401 (5 endpoints verified). |
+| `core/industry_workflow_endpoints.py` | **Entire router was anonymous** (template catalog, ROI, recommendations, implementation guides). Added router-level `Depends(get_current_user)` per post-R38 auth posture. RED: anonymous `GET /api/v1/industries` → 200; now 401. |
+| `core/integration_enhancement_endpoints.py` | **Partial auth** — only 3 write endpoints had `get_current_user`; all 12 read endpoints (schemas, mappings, transform, validate, job status/cancel, stats, analytics, templates) were anonymous. Added router-level `Depends(get_current_user)`. RED: anonymous `GET /api/v1/integrations/schemas` → 200; now 401. |
+| `core/integration_enhancement_endpoints.py` | **Missing-mapping 404 swallowed into 500** in `transform_data`: `raise HTTPException(404)` was raised inside the `try` and caught by `except Exception` → re-raised 500. Added `except HTTPException: raise` before the generic handler (line ~260). RED: `POST /mappings/nonexistent/transform` → 500; now 404. |
+| `core/integration_enhancement_endpoints.py` | **Route shadowing**: `GET /api/v1/integrations/bulk/stats` was registered AFTER `GET /bulk/{job_id}`, so FastAPI matched job_id="stats" → always 404 "Job stats not found". Moved the stats route above the parameterized route. RED: `GET /api/v1/integrations/bulk/stats` → 404; now 200. |
+| `core/industry_workflow_endpoints.py` | **Dead scoring logic** in `get_template_recommendations`: savings scoring checked `"10+ hours" in ...` / `"5+" in ...` substrings that never occur in the engine's real data (`"10 hours/week"`) — branches never fired. Now parses hours via `_extract_hours_from_savings` (`>=10` → +25 "High time savings potential", `>=5` → +15 "Moderate time savings"). RED: a 10-hours/week template scored 10 < 30 → no recommendations; now scores with the savings reason. |
+| `core/integration_dashboard.py` | **Timing-history cap never applied**: `record_fetch`/`record_processing` assigned a plain `[]` (unbounded list) when an integration was first seen, bypassing the `deque(maxlen=1000)` — per-integration fetch/process history grew forever (pre-existing failing test `test_timing_history_limit` — failed even in isolation). Now assign `deque(maxlen=1000)` at init and in `reset_metrics(integration=...)`. RED→GREEN. |
+
+### Stale test repairs (test bugs, not source bugs)
+- `tests/test_custom_components_service.py` — 2 failing tests used `Mock(status="AUTONOMOUS")` but the service compares `agent.status != AgentStatus.AUTONOMOUS.value` (`"autonomous"` lowercase) → `ComponentSecurityError` on valid agents. 4 occurrences fixed to `"autonomous"`. (83P after.)
+- `tests/unit/test_industry_workflow_endpoints.py` + `tests/core/test_industry_workflow_coverage.py` — updated for the new router auth: `app.dependency_overrides[iwe.get_current_user] = lambda: MagicMock(id="test-user")`.
+- `tests/api/test_integration_enhancement_endpoints.py` — added auth override to the `client` fixture; `test_transform_data_mapping_not_found` re-asserted the OLD buggy 500 → now asserts the fixed 404.
+
+### Remaining uncovered lines
+None — all six modules measured 100% (statement+branch run). The import-time `EmailStr` fallback branch in `enterprise_user_management.py` (lines 17-19) is covered via a `sys.modules['pydantic']` swap + `importlib.reload` test (module restored in `finally`).
+
+---
+
 
 ## Session 2026-08-13 (network/isolation/concurrency e2e cluster repair) — test_database_isolation.py, test_network_api_timeout.py, test_network_slow_3g.py, test_network_offline.py, test_network_database_drop.py, test_agent_cross_platform.py, test_agent_concurrent.py, test_api_setup_example.py, test_settings_page.py + fixtures/network_fixtures.py, fixtures/api_fixtures.py, fixtures/conftest.py, conftest.py, utils/api_setup.py, frontend-nextjs/lib/backendAuth.ts
 

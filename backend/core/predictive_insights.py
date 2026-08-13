@@ -312,7 +312,8 @@ class PredictiveInsightsEngine:
             # Sort by timestamp
             sorted_msgs = sorted(
                 messages,
-                key=lambda m: self._parse_timestamp(m.get("timestamp")) or datetime.min
+                key=lambda m: self._parse_timestamp(m.get("timestamp"))
+                or datetime.min.replace(tzinfo=timezone.utc)
             )
 
             # Get last message
@@ -368,14 +369,15 @@ class PredictiveInsightsEngine:
 
     def get_insights_summary(self) -> Dict[str, Any]:
         """Get summary of all predictive insights"""
+        positive_times = [
+            p.avg_response_time for p in self.user_patterns.values() if p.avg_response_time > 0
+        ]
         return {
             "users_analyzed": len(self.user_patterns),
             "threads_tracked": len(self.thread_activity),
             "bottlenecks_detected": len(self.detect_bottlenecks()),
-            "active_patterns": sum(1 for p in self.user_patterns.values() if p.avg_response_time > 0),
-            "avg_response_time_all_users": statistics.mean(
-                [p.avg_response_time for p in self.user_patterns.values() if p.avg_response_time > 0]
-            ) if self.user_patterns else 0
+            "active_patterns": len(positive_times),
+            "avg_response_time_all_users": statistics.mean(positive_times) if positive_times else 0
         }
 
     def _analyze_user_patterns(
@@ -457,7 +459,8 @@ class PredictiveInsightsEngine:
             # Sort by timestamp
             sorted_msgs = sorted(
                 thread_msgs,
-                key=lambda m: self._parse_timestamp(m.get("timestamp")) or datetime.min
+                key=lambda m: self._parse_timestamp(m.get("timestamp"))
+                or datetime.min.replace(tzinfo=timezone.utc)
             )
 
             # Calculate differences
@@ -526,18 +529,19 @@ class PredictiveInsightsEngine:
         return actions.get(severity, "Monitor thread for response")
 
     def _parse_timestamp(self, timestamp: Any) -> Optional[datetime]:
-        """Parse timestamp to datetime"""
+        """Parse timestamp to datetime (naive datetimes normalized to UTC)."""
         if timestamp is None:
             return None
 
         if isinstance(timestamp, datetime):
-            return timestamp
+            return timestamp.replace(tzinfo=timezone.utc) if timestamp.tzinfo is None else timestamp
 
         if isinstance(timestamp, str):
             try:
-                return datetime.fromisoformat(timestamp)
+                parsed = datetime.fromisoformat(timestamp)
             except (ValueError, TypeError):
                 return None
+            return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed
 
         return None
 

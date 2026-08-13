@@ -70,7 +70,7 @@ class TestComponentRegistration:
         _chain_mock(db_session, "first", None)
 
         # AUTONOMOUS agent for JS governance check, then None for duplicate/slug checks
-        agent_mock = Mock(status="AUTONOMOUS")
+        agent_mock = Mock(status="autonomous")
         f = db_session.query.return_value.filter.return_value
         f.first.side_effect = [agent_mock, None, None]
 
@@ -202,7 +202,7 @@ class TestComponentValidation:
         """Test component creation with valid content"""
         _chain_mock(db_session, "first", None)
 
-        agent_mock = Mock(status="AUTONOMOUS")
+        agent_mock = Mock(status="autonomous")
         f = db_session.query.return_value.filter.return_value
         f.first.side_effect = [agent_mock, None, None]
 
@@ -223,7 +223,7 @@ class TestComponentValidation:
         """Test component creation with invalid JS type"""
         _chain_mock(db_session, "first", None)
 
-        agent_mock = Mock(status="AUTONOMOUS")
+        agent_mock = Mock(status="autonomous")
         db_session.query.return_value.filter.return_value.first.return_value = agent_mock
 
         with pytest.raises(ComponentSecurityError):
@@ -279,7 +279,7 @@ class TestComponentValidation:
         """Test that dangerous JavaScript is blocked"""
         _chain_mock(db_session, "first", None)
 
-        agent_mock = Mock(status="AUTONOMOUS")
+        agent_mock = Mock(status="autonomous")
         db_session.query.return_value.filter.return_value.first.return_value = agent_mock
 
         with pytest.raises(ComponentSecurityError):

@@ -105,6 +105,11 @@ class SocialPostGenerator:
             return False
 
         last_post = self._rate_limit_tracker[agent_id]
+        # Tolerate naive timestamps (assumed UTC): subtracting a naive
+        # datetime from an aware one raises TypeError, which would crash
+        # post generation instead of merely skipping it.
+        if last_post.tzinfo is None:
+            last_post = last_post.replace(tzinfo=timezone.utc)
         time_since_last = datetime.now(timezone.utc) - last_post
 
         if time_since_last < timedelta(minutes=self.rate_limit_minutes):
@@ -402,7 +407,7 @@ Make it engaging and team-focused. Keep it under 280 characters."""
 
         # Limit context length
         if len(context) > 280:
-            context = context[:280] + "..."
+            context = context[:277] + "..."
 
         return context
 

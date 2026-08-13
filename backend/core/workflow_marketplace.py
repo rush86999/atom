@@ -85,7 +85,6 @@ class MarketplaceEngine:
     def __init__(self, saas_client: Optional[AtomAgentOSMarketplaceClient] = None):
         self.saas_client = saas_client or AtomAgentOSMarketplaceClient()
         self.templates_dir = os.path.join(os.path.dirname(__file__), "..", "marketplace_templates")
-        self.templates_dir = os.path.join(os.path.dirname(__file__), "..", "marketplace_templates")
         os.makedirs(self.templates_dir, exist_ok=True)
         self.advanced_templates_dir = os.path.join(self.templates_dir, "advanced")
         os.makedirs(self.advanced_templates_dir, exist_ok=True)
@@ -177,34 +176,6 @@ class MarketplaceEngine:
                 tmpl["rating"] = 5.0
                 with open(path, "w") as f:
                     json.dump(tmpl, f, indent=2)
-
-    def list_templates(self, category: Optional[str] = None) -> List[WorkflowTemplate]:
-        """List available workflow templates"""
-        templates = []
-        for filename in os.listdir(self.templates_dir):
-            if filename.endswith(".json"):
-                try:
-                    with open(os.path.join(self.templates_dir, filename), "r") as f:
-                        data = json.load(f)
-                        if category and data.get("category") != category:
-                            continue
-                        templates.append(WorkflowTemplate(**data))
-                except Exception as e:
-                    logger.error(f"Error loading template {filename}: {e}")
-        return templates
-
-    def get_template(self, template_id: str) -> Optional[WorkflowTemplate]:
-        """Get a specific template by ID"""
-        path = os.path.join(self.templates_dir, f"{template_id}.json")
-        if os.path.exists(path):
-            with open(path, "r") as f:
-                data = json.load(f)
-                # Increment download count
-                data["downloads"] += 1
-                with open(path, "w") as fw:
-                    json.dump(data, fw, indent=2)
-                return WorkflowTemplate(**data)
-        return None
 
     def import_workflow(self, workflow_json: Dict[str, Any]) -> Dict[str, Any]:
         """Import a workflow into the user's workspace"""
@@ -672,6 +643,40 @@ class MarketplaceEngine:
                     logger.error(f"Error loading industry template {filename}: {e}")
         return templates
 
+    def _to_workflow_template_data(self, data: Dict[str, Any],
+                                   template_type: TemplateType,
+                                   industry: Optional[str] = None) -> Dict[str, Any]:
+        """Convert advanced/industry template JSON into WorkflowTemplate fields."""
+        workflow_data = {
+            "id": data.get("id"),
+            "name": data.get("name"),
+            "description": data.get("description"),
+            "category": data.get("category"),
+            "author": data.get("author"),
+            "version": data.get("version"),
+            "integrations": data.get("integrations", []),
+            "complexity": data.get("complexity"),
+            "workflow_data": {
+                "nodes": [{"id": step["step_id"], "type": "step", "config": step} for step in data.get("steps", [])],
+                "edges": [{"source": step["depends_on"][0], "target": step["step_id"]}
+                        for step in data.get("steps", []) if step.get("depends_on")]
+            },
+            "created_at": data.get("created_at"),
+            "downloads": data.get("downloads", 0),
+            "rating": data.get("rating", 0.0),
+            "template_type": template_type,
+            "tags": data.get("tags", []),
+            "estimated_duration": data.get("estimated_duration"),
+            "multi_input_support": data.get("multi_input_support", True),
+            "multi_step_support": data.get("multi_step_support", True),
+            "multi_output_support": data.get("multi_output_support", True),
+            "pause_resume_support": data.get("pause_resume_support", True),
+            "prerequisites": data.get("prerequisites", [])
+        }
+        if industry is not None:
+            workflow_data["industry"] = industry
+        return workflow_data
+
     def get_template(self, template_id: str) -> Optional[WorkflowTemplate]:
         """Get a specific template by ID"""
         # Try legacy templates first
@@ -697,6 +702,9 @@ class MarketplaceEngine:
                     data["downloads"] += 1
                     with open(path, "w") as fw:
                         json.dump(data, fw, indent=2)
+                    if "input_schema" in data and "steps" in data:
+                        return WorkflowTemplate(**self._to_workflow_template_data(
+                            data, TemplateType.ADVANCED))
                     data["template_type"] = TemplateType.ADVANCED
                     return WorkflowTemplate(**data)
             except Exception as e:
@@ -711,6 +719,9 @@ class MarketplaceEngine:
                     data["downloads"] += 1
                     with open(path, "w") as fw:
                         json.dump(data, fw, indent=2)
+                    if "input_schema" in data and "steps" in data:
+                        return WorkflowTemplate(**self._to_workflow_template_data(
+                            data, TemplateType.INDUSTRY, industry=data.get("industry")))
                     data["template_type"] = TemplateType.INDUSTRY
                     return WorkflowTemplate(**data)
             except Exception as e:
@@ -848,6 +859,44 @@ async def get_featured_templates(limit: int = Query(10, ge=1, le=50)):
     featured.sort(key=lambda t: (t.rating, t.downloads), reverse=True)
     return featured[:limit]
 
+@router.get("/templates/statistics")
+async def get_template_statistics():
+    """Get marketplace statistics"""
+    all_templates = marketplace.list_templates()
+
+    stats = {
+        "total_templates": len(all_templates),
+        "total_downloads": sum(t.downloads for t in all_templates),
+        "average_rating": sum(t.rating for t in all_templates) / max(len(all_templates), 1),
+        "categories": {},
+        "template_types": {},
+        "complexity_levels": {}
+    }
+
+    for template in all_templates:
+        # Category stats
+        cat = template.category
+        if cat not in stats["categories"]:
+            stats["categories"][cat] = {"count": 0, "downloads": 0}
+        stats["categories"][cat]["count"] += 1
+        stats["categories"][cat]["downloads"] += template.downloads
+
+        # Template type stats
+        ttype = getattr(template, 'template_type', TemplateType.LEGACY)
+        if ttype not in stats["template_types"]:
+            stats["template_types"][ttype] = {"count": 0, "downloads": 0}
+        stats["template_types"][ttype]["count"] += 1
+        stats["template_types"][ttype]["downloads"] += template.downloads
+
+        # Complexity stats
+        comp = template.complexity
+        if comp not in stats["complexity_levels"]:
+            stats["complexity_levels"][comp] = {"count": 0, "downloads": 0}
+        stats["complexity_levels"][comp]["count"] += 1
+        stats["complexity_levels"][comp]["downloads"] += template.downloads
+
+    return stats
+
 @router.get("/templates/{template_id}", response_model=WorkflowTemplate)
 async def get_template_details(template_id: str):
     template = marketplace.get_template(template_id)
@@ -865,6 +914,8 @@ async def import_template_by_id(template_id: str):
         
         # Call the engine's import logic (simulated for now)
         return marketplace.import_workflow(template.workflow_data)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Import failed: {e}")
         raise HTTPException(status_code=500, detail="Internal error")
@@ -926,42 +977,3 @@ async def export_workflow(workflow_data: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="Internal error")
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal error")
-
-# Template Statistics
-@router.get("/templates/statistics")
-async def get_template_statistics():
-    """Get marketplace statistics"""
-    all_templates = marketplace.list_templates()
-
-    stats = {
-        "total_templates": len(all_templates),
-        "total_downloads": sum(t.downloads for t in all_templates),
-        "average_rating": sum(t.rating for t in all_templates) / max(len(all_templates), 1),
-        "categories": {},
-        "template_types": {},
-        "complexity_levels": {}
-    }
-
-    for template in all_templates:
-        # Category stats
-        cat = template.category
-        if cat not in stats["categories"]:
-            stats["categories"][cat] = {"count": 0, "downloads": 0}
-        stats["categories"][cat]["count"] += 1
-        stats["categories"][cat]["downloads"] += template.downloads
-
-        # Template type stats
-        ttype = getattr(template, 'template_type', TemplateType.LEGACY)
-        if ttype not in stats["template_types"]:
-            stats["template_types"][ttype] = {"count": 0, "downloads": 0}
-        stats["template_types"][ttype]["count"] += 1
-        stats["template_types"][ttype]["downloads"] += template.downloads
-
-        # Complexity stats
-        comp = template.complexity
-        if comp not in stats["complexity_levels"]:
-            stats["complexity_levels"][comp] = {"count": 0, "downloads": 0}
-        stats["complexity_levels"][comp]["count"] += 1
-        stats["complexity_levels"][comp]["downloads"] += template.downloads
-
-    return stats

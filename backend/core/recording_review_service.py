@@ -129,8 +129,11 @@ class RecordingReviewService:
                 recording.agent_id, review, analysis
             )
 
-            # Integrate with world model if approved
-            if review_status == "approved" and analysis.get("has_useful_patterns"):
+            # Integrate with world model if the review carries learning value
+            # (approved high-value runs AND rejected runs — the analysis marks
+            # rejected reviews high training value / useful patterns, so they
+            # must not be silently dropped from the learning pipeline)
+            if review_status in ("approved", "rejected") and analysis.get("has_useful_patterns"):
                 await self._update_world_model(recording, review)
 
             # Create audit entry
@@ -475,7 +478,7 @@ class RecordingReviewService:
                     f"status: {recording.status}, duration: {recording.duration_seconds}s"
                 ),
                 outcome="Success" if review.review_status == "approved" else "Failure",
-                learnings=review.lessons_learned or review.feedback,
+                learnings=review.lessons_learned or review.feedback or "No specific learnings recorded",
                 agent_role=recording.recording_metadata.get("agent_name", "Unknown"),
                 specialty=None,
                 timestamp=datetime.now(timezone.utc)

@@ -13,9 +13,16 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, validator
 
+from core.auth import get_current_user
+
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+# SECURITY: every endpoint in this router exposes the audit trail — user
+# emails, IPs, actions, security alerts, compliance state. Previously the
+# entire router had zero auth dependencies, so any anonymous caller could
+# read the full audit log. Mirrors enterprise_user_management.py, which was
+# fixed for the same class of bug.
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 class SecurityLevel(Enum):

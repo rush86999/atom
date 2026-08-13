@@ -54,10 +54,11 @@ def test_analyze_package_scripts_called_with_single_arg(monkeypatch):
     monkeypatch.setattr(NpmScriptAnalyzer, "analyze_package_scripts", spy)
     engine = MagicMock()
     conn = MagicMock()
-    monkeypatch.setattr("sqlalchemy.create_engine", lambda url: engine)
-    monkeypatch.setattr(
-        "sqlalchemy.orm.sessionmaker", lambda bind: MagicMock(return_value=conn)
-    )
+    # get_db_session's SessionLocal is bound in core.database at import time,
+    # so patching sqlalchemy.create_engine/sessionmaker has no effect; patch
+    # the bound factory itself (the old approach silently opened a REAL
+    # session against the configured DATABASE_URL during tests).
+    monkeypatch.setattr("core.database.SessionLocal", lambda: conn)
 
     result = adapter.install_npm_dependencies()
 
@@ -88,10 +89,7 @@ def test_analyze_package_scripts_malicious_blocks_install(monkeypatch):
         }
 
     monkeypatch.setattr(NpmScriptAnalyzer, "analyze_package_scripts", spy)
-    monkeypatch.setattr("sqlalchemy.create_engine", lambda url: MagicMock())
-    monkeypatch.setattr(
-        "sqlalchemy.orm.sessionmaker", lambda bind: MagicMock(return_value=MagicMock())
-    )
+    monkeypatch.setattr("core.database.SessionLocal", lambda: MagicMock())
 
     result = adapter.install_npm_dependencies()
 

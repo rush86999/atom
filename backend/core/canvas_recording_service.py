@@ -480,8 +480,10 @@ class CanvasRecordingService:
                 recording.flagged_by = flagged_by
                 recording.flagged_at = datetime.now(timezone.utc)
 
-                # Update tags list
-                tags_list = recording.tags if recording.tags else []
+                # Update tags list (copy — in-place mutation of the JSON
+                # column's list is not tracked by SQLAlchemy and would be
+                # silently dropped on commit)
+                tags_list = list(recording.tags) if recording.tags else []
                 if "flagged_review" not in tags_list:
                     tags_list.append("flagged_review")
                 recording.tags = tags_list

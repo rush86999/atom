@@ -519,6 +519,17 @@ class DebugAIAssistant:
                     "suggestions": insight.suggestions if insight else [],
                 }
 
+            # A component was mentioned but no operation — ask for the
+            # operation to scope the consistency analysis (previously fell
+            # through and returned None, breaking the ask() contract).
+            return {
+                "answer": "I found a component reference, but consistency checks "
+                          "need an operation. Please provide the operation ID "
+                          "(e.g., 'op-123').",
+                "confidence": 0.5,
+                "clarification_needed": "operation_id",
+            }
+
         except Exception as e:
             self.logger.error("Failed to handle consistency question", error=str(e))
             return self._error_response(str(e))
@@ -615,10 +626,12 @@ class DebugAIAssistant:
             system_health = await self.monitor.get_system_health("last_1h")
 
             # Build status message
+            # NOTE: monitor.get_system_health() already returns error_rate as a
+            # percentage (0-100), so it must not be multiplied again.
             if system_health['error_rate'] < 0.1:
                 status_msg = "No critical issues"
             else:
-                status_msg = f"Error rate is {system_health['error_rate']*100:.1f}%"
+                status_msg = f"Error rate is {system_health['error_rate']:.1f}%"
 
             return {
                 "answer": f"System is {system_health['status']} with a health score of "

@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, AsyncMock
 from fastapi.testclient import TestClient
 from datetime import datetime, timezone
 
+from core import integration_enhancement_endpoints as iee
 from core.integration_enhancement_endpoints import router, get_data_mapper, get_bulk_processor
 from core.integration_data_mapper import (
     IntegrationSchema,
@@ -75,6 +76,7 @@ def client(mock_data_mapper, mock_bulk_processor):
     app.include_router(router)
     app.dependency_overrides[get_data_mapper] = override_get_data_mapper
     app.dependency_overrides[get_bulk_processor] = override_get_bulk_processor
+    app.dependency_overrides[iee.get_current_user] = lambda: MagicMock(id="test-user")
 
     with TestClient(app) as test_client:
         yield test_client
@@ -488,8 +490,10 @@ def test_transform_data_mapping_not_found(client, mock_data_mapper):
 
     response = client.post(f"/api/v1/integrations/mappings/nonexistent/transform", json=transform_request)
 
-    # Endpoint returns 500 when mapping not found
-    assert response.status_code == 500
+    # Wave 71 fix: the intentional 404 was previously swallowed by the
+    # generic handler and re-raised as a 500; now the missing mapping
+    # correctly returns 404.
+    assert response.status_code == 404
 
 
 def test_transform_data_service_error(client, mock_data_mapper):

@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from core import industry_workflow_endpoints as iwe
 from core.industry_workflow_endpoints import router
 from core.industry_workflow_templates import (
     Industry,
@@ -19,9 +20,11 @@ from core.industry_workflow_templates import (
 )
 
 
-# Create test app
+# Create test app (wave 71: router now requires auth — override the
+# dependency so route tests exercise the endpoint logic, not the gate)
 app = FastAPI()
 app.include_router(router)
+app.dependency_overrides[iwe.get_current_user] = lambda: MagicMock(id="test-user")
 
 
 @pytest.fixture

@@ -22,7 +22,11 @@ from .integration_data_mapper import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+# SECURITY: previously only 3 write endpoints required auth (register_schema
+# / create_mapping / submit_bulk_operation); all read endpoints (schemas,
+# mappings, transform, validate, job status, analytics, templates) were
+# anonymous. Router-level auth now gates the whole surface.
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 # Pydantic models for requests/responses
 
@@ -257,6 +261,10 @@ async def transform_data(
             "transformed_data": transformed_data,
             "items_transformed": len(request.data)
         }
+    except HTTPException:
+        # FIX (wave 71): the intentional 404 for a missing mapping was being
+        # swallowed by the generic handler below and re-raised as a 500.
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -322,6 +330,22 @@ async def submit_bulk_operation(
             detail="Internal error"
         )
 
+@router.get("/api/v1/integrations/bulk/stats")
+async def get_bulk_processing_stats(
+    bulk_processor: IntegrationBulkProcessor = Depends(get_bulk_processor)
+):
+    """Get bulk processing performance statistics.
+
+    NOTE: registered BEFORE /bulk/{job_id} (FIX wave 71) — FastAPI matches
+    routes in order, so this static path was previously shadowed by the
+    {job_id} parameter route and always 404'd as "job 'stats' not found".
+    """
+    stats = bulk_processor.get_performance_stats()
+    return {
+        "success": True,
+        "stats": stats
+    }
+
 @router.get("/api/v1/integrations/bulk/{job_id}")
 async def get_bulk_job_status(
     job_id: str,
@@ -364,17 +388,6 @@ async def cancel_bulk_job(
     return {
         "success": True,
         "message": f"Job {job_id} cancelled successfully"
-    }
-
-@router.get("/api/v1/integrations/bulk/stats")
-async def get_bulk_processing_stats(
-    bulk_processor: IntegrationBulkProcessor = Depends(get_bulk_processor)
-):
-    """Get bulk processing performance statistics"""
-    stats = bulk_processor.get_performance_stats()
-    return {
-        "success": True,
-        "stats": stats
     }
 
 # Integration Analytics Endpoints

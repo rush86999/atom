@@ -8,13 +8,19 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from core.auth import get_current_user
+
 from .industry_workflow_templates import (
     Industry,
     IndustryWorkflowEngine,
     get_industry_workflow_engine,
 )
 
-router = APIRouter()
+# SECURITY: previously the entire router was anonymous (template catalog,
+# ROI, recommendations, implementation guides). Per the post-R38 platform
+# auth posture (marketing/skill-read routes are auth'd), all routes now
+# require an authenticated user.
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 # Pydantic models for requests/responses
 
@@ -270,11 +276,15 @@ async def get_template_recommendations(
                     score += 20
                     reasons.append("Scalable for enterprise")
 
-            # Time savings impact
-            if "10+ hours" in template.estimated_time_savings:
+            # Time savings impact — FIX (wave 71): scoring previously checked
+            # for "10+ hours"/"5+" substrings that never occur in the real
+            # template data ("10 hours/week"), so these branches never fired.
+            # Now the hours are parsed out of the savings text.
+            savings_hours = _extract_hours_from_savings(template.estimated_time_savings)
+            if savings_hours is not None and savings_hours >= 10:
                 score += 25
                 reasons.append("High time savings potential")
-            elif "5+" in template.estimated_time_savings:
+            elif savings_hours is not None and savings_hours >= 5:
                 score += 15
                 reasons.append("Moderate time savings")
 
