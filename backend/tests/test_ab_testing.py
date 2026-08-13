@@ -24,13 +24,28 @@ from core.models import ABTest, ABTestParticipant, AgentRegistry, User
 
 @pytest.fixture
 def db():
-    """Create a test database session."""
-    from core.database import SessionLocal
-    db = SessionLocal()
+    """Create an in-memory test database session.
+
+    R76 stale-suite repair: previously used core.database.SessionLocal which
+    points at the real dev DB (atom_dev.db) and errored with
+    "no such table: agent_registry" on fresh machines. In-memory SQLite with
+    full schema instead.
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from core.database import Base
+
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    # expire_on_commit=False: the test_agent/test_user fixtures expunge their
+    # rows and the tests read attributes after create_test() commits —
+    # with expiry, a detached instance raises DetachedInstanceError.
+    db = sessionmaker(bind=engine, expire_on_commit=False)()
     try:
         yield db
     finally:
         db.close()
+        engine.dispose()
 
 
 @pytest.fixture

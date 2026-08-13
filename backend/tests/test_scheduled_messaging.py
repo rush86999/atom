@@ -9,6 +9,7 @@ import os
 
 import pytest
 from datetime import datetime, timezone, timedelta
+from unittest.mock import AsyncMock, patch
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -98,7 +99,8 @@ class TestScheduledMessageCreation:
         )
 
         assert message.schedule_type == "one_time"
-        assert message.next_run == scheduled_time
+        # SQLite read-back strips tzinfo; normalize before comparing
+        assert message.next_run.replace(tzinfo=timezone.utc) == scheduled_time
         assert message.status == ScheduledMessageStatus.ACTIVE.value
         assert message.cron_expression is None
 
@@ -171,7 +173,7 @@ class TestScheduledMessageCreation:
         )
 
         assert message.max_runs == 10
-        assert message.end_date == end_date
+        assert message.end_date.replace(tzinfo=timezone.utc) == end_date
 
 
 class TestScheduledMessageManagement:
@@ -419,7 +421,7 @@ class TestScheduledMessageQueries:
         assert len(active_messages) == 0
         assert len(paused_messages) == 1
 
-    def test_get_execution_history(self, db, autonomous_agent):
+    async def test_get_execution_history(self, db, autonomous_agent):
         """Test getting execution history."""
         service = ScheduledMessagingService(db)
 
@@ -430,13 +432,18 @@ class TestScheduledMessageQueries:
             recipient_id="C12345",
             template="History test",
             schedule_type="one_time",
-            scheduled_for=datetime.now(timezone.utc) + timedelta(hours=1),
+            scheduled_for=datetime.now(timezone.utc) - timedelta(minutes=5),
         )
+
+        # Execute it so it has a last_run
+        with patch("core.scheduled_messaging_service.agent_integration_gateway") as gw:
+            gw.execute_action = AsyncMock(return_value={"status": "success"})
+            await service.execute_due_messages()
 
         # Get history
         history = service.get_execution_history(agent_id=autonomous_agent.id)
 
-        # Should include the message even though it hasn't run yet
+        # Should include the executed message
         assert len(history) >= 1
         assert any(h["id"] == message.id for h in history)
 

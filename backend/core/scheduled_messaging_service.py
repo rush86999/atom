@@ -26,6 +26,18 @@ from core.models import AgentRegistry, ScheduledMessage, ScheduledMessageStatus
 logger = logging.getLogger(__name__)
 
 
+def _as_aware_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    """Normalize a possibly offset-naive datetime to aware UTC.
+
+    SQLite/SQLAlchemy strip tzinfo on read-back, so ``end_date``/``next_run``
+    loaded from the DB are naive while ``now`` is aware — comparing them
+    directly raises TypeError and sent the message to FAILED (wave 75 bug).
+    """
+    if dt is not None and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 class ScheduledMessagingService:
     """
     Service for creating and managing scheduled and recurring messages.
@@ -313,7 +325,8 @@ class ScheduledMessagingService:
         for message in messages:
             try:
                 # Check if should still run (end_date, max_runs)
-                if message.end_date and message.end_date < now:
+                end_date = _as_aware_utc(message.end_date)
+                if end_date and end_date < now:
                     message.status = ScheduledMessageStatus.COMPLETED.value
                     self.db.commit()
                     completed_count += 1
@@ -361,7 +374,7 @@ class ScheduledMessagingService:
                         )
 
                         # Check if next run is past end_date
-                        if message.end_date and next_run > message.end_date:
+                        if end_date and next_run > end_date:
                             message.status = ScheduledMessageStatus.COMPLETED.value
                             completed_count += 1
                         else:

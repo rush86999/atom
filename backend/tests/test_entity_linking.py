@@ -135,9 +135,11 @@ class TestEntityLinking:
         assert node1.workspace_id == "workspace-001"
 
     @pytest.mark.asyncio
-    async def test_link_entities_with_confidence_filtering(self, linking_service, sample_purchase_order_entities):
+    async def test_link_entities_with_confidence_filtering(self, linking_service, sample_purchase_order_entities, sample_entity_type):
         """Test linking only high-confidence entities."""
         # Arrange
+        # R76 stale-suite repair: the signature was missing sample_entity_type,
+        # so with auto_create_types=False no type existed and 0 nodes linked.
         # Add a low-confidence entity
         low_confidence_entity = DiscoveredEntity(
             id="entity-003",

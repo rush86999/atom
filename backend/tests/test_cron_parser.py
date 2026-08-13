@@ -194,23 +194,22 @@ class TestNextRunCalculation:
         assert next_run.hour == 15
         assert next_run.minute == 0
 
-    def test_get_next_run_weekly_monday(self):
-        """Calculate next run for weekly on Monday (actual behavior)."""
+    def test_get_next_run_weekly_sunday(self):
+        """Calculate next run for weekly on Sunday (cron convention 0=Sunday)."""
         parser = CronParser()
-        # NOTE: Production code has bug - cron "0" maps to Python weekday 0 (Monday)
-        # Standard cron: "0" = Sunday, "1" = Monday
-        # This implementation: "0" = Monday, "1" = Tuesday, etc.
-        cron_expr = "0 9 * * 0"  # Every Monday at 9 AM (buggy implementation)
+        # Standard cron: "0" = Sunday, "1" = Monday (Bug 9 fix: weekday is
+        # converted to cron convention before matching).
+        cron_expr = "0 9 * * 0"  # Every Sunday at 9 AM
 
-        # Start on Tuesday May 5, 2026, next should be next Monday
+        # Start on Tuesday May 5, 2026, next should be next Sunday
         after = datetime(2026, 5, 5, 10, 0, tzinfo=timezone.utc)  # Tuesday
         next_run = parser.get_next_run(cron_expr, after=after)
 
         assert next_run.hour == 9
         assert next_run.minute == 0
-        # May 5, 2026 is Tuesday, next Monday is May 11, 2026
-        assert next_run.day == 11
-        assert next_run.weekday() == 0  # Monday in Python (0=Monday)
+        # May 5, 2026 is Tuesday, next Sunday is May 10, 2026
+        assert next_run.day == 10
+        assert next_run.weekday() == 6  # Sunday in Python (6=Sunday)
 
     def test_get_next_run_monthly_first_day(self):
         """Calculate next run for monthly on first day."""
@@ -442,11 +441,10 @@ class TestCronParserIntegration:
         assert next_run.minute == 0
 
     def test_complete_workflow_weekly_schedule(self):
-        """Test full workflow for weekly schedule (actual behavior)."""
-        # Parse natural language - note: "monday" maps to cron "1" in WEEKDAY_MAP
-        # But implementation uses Python weekday() where Monday=0, so cron "1" = Tuesday
+        """Test full workflow for weekly schedule (cron convention 0=Sunday)."""
+        # "monday" maps to cron "1" via WEEKDAY_MAP (Sunday=0 convention)
         cron_expr = natural_language_to_cron("every monday at 2:30pm")
-        assert cron_expr == "30 14 * * 1"  # Monday in WEEKDAY_MAP, actually Tuesday in practice
+        assert cron_expr == "30 14 * * 1"  # Monday in WEEKDAY_MAP
 
         # Validate expression
         assert validate_cron_expression(cron_expr) is True
@@ -456,8 +454,8 @@ class TestCronParserIntegration:
         after = datetime(2026, 5, 6, 10, 0, tzinfo=timezone.utc)  # Wednesday May 6
         next_run = parser.get_next_run(cron_expr, after=after)
 
-        # Next Tuesday is May 12, 2026 (cron "1" matches Python weekday 1)
-        assert next_run.weekday() == 1  # Tuesday in Python (1=Tuesday)
+        # Next Monday is May 11, 2026 (cron "1" = Monday)
+        assert next_run.weekday() == 0  # Monday in Python (0=Monday)
         assert next_run.hour == 14
         assert next_run.minute == 30
-        assert next_run.day == 12  # May 12
+        assert next_run.day == 11  # May 11

@@ -8,7 +8,7 @@ Each checker evaluates a specific business condition and returns the result.
 from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, Optional
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from core.models import AgentExecution, ConditionMonitor, TeamMessage
@@ -174,13 +174,17 @@ class ConditionCheckers:
         window_start = datetime.now(timezone.utc) - timedelta(minutes=window_mins_float)
 
         if metric == "error_rate":
-            # Count failed vs total executions
+            # Count failed vs total executions. NOTE: AgentExecution has no
+            # ``created_at`` column — the time anchor is ``started_at`` (the
+            # model's server_default-now column). The old code referenced
+            # ``AgentExecution.created_at``, which raised AttributeError and
+            # made every api_metrics check fail silently.
             total_count = self.db.query(func.count(AgentExecution.id)).filter(
-                AgentExecution.created_at >= window_start
+                AgentExecution.started_at >= window_start
             ).scalar()
 
             failed_count = self.db.query(func.count(AgentExecution.id)).filter(
-                AgentExecution.created_at >= window_start,
+                AgentExecution.started_at >= window_start,
                 AgentExecution.status == "failed",
             ).scalar()
 
@@ -196,7 +200,7 @@ class ConditionCheckers:
             # For simplicity, return average response time
             # In production, you'd use actual p95 calculation
             executions = self.db.query(AgentExecution).filter(
-                AgentExecution.created_at >= window_start
+                AgentExecution.started_at >= window_start
             ).all()
 
             if executions:
@@ -219,7 +223,7 @@ class ConditionCheckers:
         elif metric == "request_count":
             # Count total executions
             current_value = self.db.query(func.count(AgentExecution.id)).filter(
-                AgentExecution.created_at >= window_start
+                AgentExecution.started_at >= window_start
             ).scalar()
 
             metric_name = f"API request count (last {window_minutes})"
@@ -255,9 +259,12 @@ class ConditionCheckers:
         threshold_value = threshold.get("value", 100)
 
         try:
-            # Execute custom query
-            # WARNING: In production, validate and sanitize SQL to prevent injection
-            result = self.db.execute(query).scalar()
+            # Execute custom query. The query string MUST be wrapped in
+            # ``text()`` — SQLAlchemy 2.0 rejects raw strings in
+            # ``Session.execute`` with ArgumentError. The old code passed the
+            # raw string, so every database_query monitor caught that
+            # ArgumentError and silently reported triggered=False.
+            result = self.db.execute(text(query)).scalar()
 
             if result is None:
                 current_value = 0
@@ -307,14 +314,22 @@ class ConditionCheckers:
         any_triggered = False
 
         for i, condition_config in enumerate(conditions):
-            # Create a temporary monitor for the sub-condition
+            # Create a temporary monitor for the sub-condition. The
+            # ConditionMonitor stub has no agent_id/agent_name/threshold_config
+            # columns, so those kwargs must NOT be passed to the constructor
+            # (TypeError); set them as plain attributes afterwards — mirroring
+            # ConditionMonitoringService._hydrate_config.
             temp_monitor = ConditionMonitor(
-                agent_id=monitor.agent_id,
-                agent_name=monitor.agent_name,
+                user_id=getattr(monitor, "user_id", "default"),
                 name=f"{monitor.name}_sub_{i}",
                 condition_type=condition_config.get("condition_type", "inbox_volume"),
-                threshold_config=condition_config.get("threshold_config", {}),
+                condition_config={
+                    "threshold_config": condition_config.get("threshold_config", {})
+                },
             )
+            temp_monitor.agent_id = getattr(monitor, "agent_id", None)
+            temp_monitor.agent_name = getattr(monitor, "agent_name", None)
+            temp_monitor.threshold_config = condition_config.get("threshold_config", {})
 
             # Check the sub-condition
             result = self.check_condition(temp_monitor)

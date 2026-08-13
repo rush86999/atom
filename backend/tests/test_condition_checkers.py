@@ -76,15 +76,14 @@ class TestConditionCheckers:
         """Check composite condition type."""
         monitor = Mock()
         monitor.condition_type = "composite"
-        monitor.threshold_config = {
-            "logic": "AND",
-            "conditions": []
-        }
+        monitor.name = "comp"
+        monitor.composite_logic = "AND"
+        monitor.composite_conditions = []
 
         result = condition_checkers.check_condition(monitor)
 
-        # Composite conditions should return result dict
-        assert "triggered" in result
+        # Empty composite conditions should return result dict
+        assert result["triggered"] is False
 
 
 # ==============================================================================
@@ -187,8 +186,8 @@ class TestTaskBacklogMonitoring:
             "value": 50
         }
 
-        # Mock database query to return 75 pending
-        condition_checkers.db.query.return_value.scalar.return_value = 75
+        # Mock the filtered query (code filters AgentExecution.status == "pending")
+        condition_checkers.db.query.return_value.filter.return_value.scalar.return_value = 75
 
         result = condition_checkers._check_task_backlog(monitor)
 
@@ -205,7 +204,7 @@ class TestTaskBacklogMonitoring:
             "value": 0
         }
 
-        condition_checkers.db.query.return_value.scalar.return_value = 0
+        condition_checkers.db.query.return_value.filter.return_value.scalar.return_value = 0
 
         result = condition_checkers._check_task_backlog(monitor)
 
@@ -241,8 +240,9 @@ class TestAPIMetricsChecking:
             "value": 0.05
         }
 
-        # Mock database query to return 0.08 (8% error rate)
-        condition_checkers.db.query.return_value.scalar.return_value = 0.08
+        # Mock database queries: total query then failed query both go through
+        # query().filter(...).scalar() (single filter, two conditions each)
+        condition_checkers.db.query.return_value.filter.return_value.scalar.side_effect = [100, 8]
 
         result = condition_checkers._check_api_metrics(monitor)
 
@@ -254,12 +254,18 @@ class TestAPIMetricsChecking:
         monitor = Mock()
         monitor.condition_type = "api_metrics"
         monitor.threshold_config = {
-            "metric": "response_time",
+            "metric": "response_time_p95",
             "operator": ">",
             "value": 1000
         }
 
-        condition_checkers.db.query.return_value.scalar.return_value = 1500
+        # Mock executions with timing info → avg response time 1500
+        from types import SimpleNamespace
+        from datetime import datetime, timedelta, timezone
+        started = datetime.now(timezone.utc) - timedelta(seconds=2000)
+        ex1 = SimpleNamespace(started_at=started, completed_at=started + timedelta(seconds=1000))
+        ex2 = SimpleNamespace(started_at=started, completed_at=started + timedelta(seconds=2000))
+        condition_checkers.db.query.return_value.filter.return_value.all.return_value = [ex1, ex2]
 
         result = condition_checkers._check_api_metrics(monitor)
 
@@ -289,52 +295,74 @@ class TestCompositeConditions:
         """Check composite AND logic when all conditions true."""
         monitor = Mock()
         monitor.condition_type = "composite"
-        monitor.threshold_config = {
-            "logic": "AND",
-            "conditions": [
-                {"metric": "error_rate", "operator": ">", "value": 0.05},
-                {"metric": "response_time", "operator": ">", "value": 1000}
-            ]
-        }
+        monitor.name = "comp"
+        monitor.composite_logic = "AND"
+        monitor.composite_conditions = [
+            {
+                "condition_type": "inbox_volume",
+                "threshold_config": {"metric": "unread_count", "operator": ">", "value": 3},
+            },
+            {
+                "condition_type": "task_backlog",
+                "threshold_config": {"metric": "pending_count", "operator": ">", "value": 3},
+            },
+        ]
+        # Both sub-condition queries return 5 → both triggered
+        condition_checkers.db.query.return_value.scalar.return_value = 5
+        condition_checkers.db.query.return_value.filter.return_value.scalar.return_value = 5
 
         result = condition_checkers._check_composite(monitor)
 
         # AND logic: all must be true
-        assert "triggered" in result
+        assert result["triggered"] is True
 
     def test_check_composite_and_one_false(self, condition_checkers):
         """Check composite AND logic when one condition false."""
         monitor = Mock()
         monitor.condition_type = "composite"
-        monitor.threshold_config = {
-            "logic": "AND",
-            "conditions": [
-                {"metric": "error_rate", "operator": "<", "value": 0.05},
-                {"metric": "response_time", "operator": ">", "value": 1000}
-            ]
-        }
+        monitor.name = "comp"
+        monitor.composite_logic = "AND"
+        monitor.composite_conditions = [
+            {
+                "condition_type": "inbox_volume",
+                "threshold_config": {"metric": "unread_count", "operator": ">", "value": 10},
+            },
+            {
+                "condition_type": "task_backlog",
+                "threshold_config": {"metric": "pending_count", "operator": ">", "value": 3},
+            },
+        ]
+        condition_checkers.db.query.return_value.scalar.return_value = 5  # inbox below 10
+        condition_checkers.db.query.return_value.filter.return_value.scalar.return_value = 5  # backlog above 3
 
         result = condition_checkers._check_composite(monitor)
 
-        # AND logic with mixed conditions
-        assert "triggered" in result
+        # AND logic with mixed conditions → one false → not triggered
+        assert result["triggered"] is False
 
     def test_check_composite_or_any_true(self, condition_checkers):
         """Check composite OR logic when any condition true."""
         monitor = Mock()
         monitor.condition_type = "composite"
-        monitor.threshold_config = {
-            "logic": "OR",
-            "conditions": [
-                {"metric": "error_rate", "operator": ">", "value": 0.05},
-                {"metric": "response_time", "operator": ">", "value": 1000}
-            ]
-        }
+        monitor.name = "comp"
+        monitor.composite_logic = "OR"
+        monitor.composite_conditions = [
+            {
+                "condition_type": "inbox_volume",
+                "threshold_config": {"metric": "unread_count", "operator": ">", "value": 10},
+            },
+            {
+                "condition_type": "task_backlog",
+                "threshold_config": {"metric": "pending_count", "operator": ">", "value": 3},
+            },
+        ]
+        condition_checkers.db.query.return_value.scalar.return_value = 5  # inbox below 10
+        condition_checkers.db.query.return_value.filter.return_value.scalar.return_value = 5  # backlog above 3
 
         result = condition_checkers._check_composite(monitor)
 
         # OR logic: any true means triggered
-        assert "triggered" in result
+        assert result["triggered"] is True
 
 
 # ==============================================================================

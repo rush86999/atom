@@ -280,8 +280,12 @@ def _check_governance(
                 if cached_result:
                     return cached_result
 
-                # Perform full governance check
-                governance_service = AgentGovernanceService()
+                # Perform full governance check. BUG FIX: AgentGovernanceService
+                # requires a db session (positional arg); the former
+                # `AgentGovernanceService()` call TypeError'd on every cold-cache
+                # check, so the fail-closed handler rejected ALL governed
+                # service calls with a "Governance check error" reason.
+                governance_service = AgentGovernanceService(db)
                 governance_result = governance_service.check_agent_permission(
                     agent_id=agent_id,
                     action_type=action_type,

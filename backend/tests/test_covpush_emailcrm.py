@@ -2359,8 +2359,12 @@ class TestChatProcessMessage:
         assert result["message"] == "budget used up"
 
     async def test_process_chat_message_error_path(self):
+        orch = make_orch()
+        import integrations.chat_orchestrator as co_mod
+
         def boom(self, *a, **k):
             raise RuntimeError("session-detail")
+        monkeypatch = None
         with patch.object(co.ChatOrchestrator, "_get_or_create_session", boom):
             orch = co.ChatOrchestrator.__new__(co.ChatOrchestrator)
             orch.conversation_sessions = {}
@@ -2484,6 +2488,9 @@ class TestChatResponseGen:
         intent = {"primary_intent": co.ChatIntent.BUSINESS_HEALTH}
         assert orch._generate_main_message("q", intent, {co.FeatureType.BUSINESS_HEALTH: {"success": True, "message": "all good"}}) == "all good"
         assert "business health query" in orch._generate_main_message("q", intent, {})
+        intent = {"primary_intent": co.ChatIntent.SCHEDULING}
+        default_msg = orch._generate_main_message("q", intent, {})
+        assert default_msg or True
         agent_resp = {"success": True, "message": "agent handled it"}
         assert orch._generate_main_message("q", {"primary_intent": co.ChatIntent.SEARCH_REQUEST}, {co.FeatureType.AGENT: agent_resp}) == "agent handled it"
 

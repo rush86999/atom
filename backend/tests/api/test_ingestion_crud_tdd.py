@@ -117,7 +117,7 @@ def test_list_entities_api(client: TestClient, db_session: Session, test_setup: 
 
     # Add dummy entities
     e1 = DiscoveredEntity(
-        id=uuid.uuid4(),
+        id=str(uuid.uuid4()),
         tenant_id=tenant_id,
         source_record_type="hubspot",
         source_record_id="h1",
@@ -125,9 +125,10 @@ def test_list_entities_api(client: TestClient, db_session: Session, test_setup: 
         status="pending",
         confidence_score=0.85,
         properties={"email": "alice@hubspot.com"},
+        workspace_id=test_setup["workspace_id"],
     )
     e2 = DiscoveredEntity(
-        id=uuid.uuid4(),
+        id=str(uuid.uuid4()),
         tenant_id=tenant_id,
         source_record_type="hubspot",
         source_record_id="h2",
@@ -135,6 +136,7 @@ def test_list_entities_api(client: TestClient, db_session: Session, test_setup: 
         status="linked",
         confidence_score=0.92,
         properties={"domain": "acme.com"},
+        workspace_id=test_setup["workspace_id"],
     )
     db_session.add_all([e1, e2])
     db_session.commit()
@@ -164,7 +166,7 @@ def test_list_entities_api(client: TestClient, db_session: Session, test_setup: 
 def test_get_single_entity_api(client: TestClient, db_session: Session, test_setup: Dict[str, Any]):
     """Test fetching details of a single discovered entity."""
     tenant_id = test_setup["tenant_id"]
-    entity_id = uuid.uuid4()
+    entity_id = str(uuid.uuid4())
 
     ent = DiscoveredEntity(
         id=entity_id,
@@ -175,7 +177,10 @@ def test_get_single_entity_api(client: TestClient, db_session: Session, test_set
         status="pending",
         confidence_score=0.90,
         properties={"summary": "Fix login crash"},
-    )
+
+    workspace_id=test_setup["workspace_id"],
+
+)
     db_session.add(ent)
     db_session.commit()
 
@@ -201,7 +206,7 @@ def test_list_sync_jobs_api(client: TestClient, db_session: Session, test_setup:
     workspace_id = test_setup["workspace_id"]
 
     job1 = IngestionJob(
-        id=uuid.uuid4(),
+        id=str(uuid.uuid4()),
         tenant_id=workspace_id,  # maps to workspace_id in database schema
         integration_id="hubspot",
         trigger_type="scheduled",
@@ -212,7 +217,7 @@ def test_list_sync_jobs_api(client: TestClient, db_session: Session, test_setup:
         relationships_extracted=1,
     )
     job2 = IngestionJob(
-        id=uuid.uuid4(),
+        id=str(uuid.uuid4()),
         tenant_id=workspace_id,
         integration_id="hubspot",
         trigger_type="manual",
@@ -254,7 +259,7 @@ def test_tenant_scoped_vs_personal_scoped_jobs_api(
 
     # 2. Add an IngestionJob under the primary workspace (HubSpot - Tenant Scoped)
     job_tenant_scoped1 = IngestionJob(
-        id=uuid.uuid4(),
+        id=str(uuid.uuid4()),
         tenant_id=workspace_id,
         integration_id="hubspot",
         trigger_type="manual",
@@ -262,7 +267,7 @@ def test_tenant_scoped_vs_personal_scoped_jobs_api(
     )
     # 3. Add an IngestionJob under the secondary workspace (HubSpot - Tenant Scoped)
     job_tenant_scoped2 = IngestionJob(
-        id=uuid.uuid4(),
+        id=str(uuid.uuid4()),
         tenant_id=other_workspace_id,
         integration_id="hubspot",
         trigger_type="scheduled",
@@ -270,7 +275,7 @@ def test_tenant_scoped_vs_personal_scoped_jobs_api(
     )
     # 4. Add an IngestionJob under the secondary workspace (Gmail - Personal Scoped)
     job_personal_scoped = IngestionJob(
-        id=uuid.uuid4(),
+        id=str(uuid.uuid4()),
         tenant_id=other_workspace_id,
         integration_id="gmail",
         trigger_type="webhook",
@@ -303,35 +308,37 @@ def test_get_status_metrics_api(client: TestClient, db_session: Session, test_se
 
     # Entities with different statuses
     e1 = DiscoveredEntity(
-        id=uuid.uuid4(),
+        id=str(uuid.uuid4()),
         tenant_id=tenant_id,
         source_record_type="slack",
         source_record_id="s1",
         _discovered_type="message",
         status="pending",
         confidence_score=0.9,
+        workspace_id=test_setup["workspace_id"],
     )
     e2 = DiscoveredEntity(
-        id=uuid.uuid4(),
+        id=str(uuid.uuid4()),
         tenant_id=tenant_id,
         source_record_type="slack",
         source_record_id="s2",
         _discovered_type="message",
         status="linked",
         confidence_score=0.95,
+        workspace_id=test_setup["workspace_id"],
     )
     db_session.add_all([e1, e2])
 
     # Add sync jobs for metrics (one success, one failure)
     job1 = IngestionJob(
-        id=uuid.uuid4(),
+        id=str(uuid.uuid4()),
         tenant_id=workspace_id,
         integration_id="slack",
         trigger_type="manual",
         status="completed",
     )
     job2 = IngestionJob(
-        id=uuid.uuid4(),
+        id=str(uuid.uuid4()),
         tenant_id=workspace_id,
         integration_id="slack",
         trigger_type="manual",
@@ -358,8 +365,8 @@ def test_get_status_metrics_api(client: TestClient, db_session: Session, test_se
 def test_cascading_delete_single_source_node(client: TestClient, db_session: Session, test_setup: Dict[str, Any]):
     """Test that deleting a DiscoveredEntity linked to a single-source GraphNode purges both node & edges."""
     tenant_id = test_setup["tenant_id"]
-    entity_id = uuid.uuid4()
-    node_id = uuid.uuid4()
+    entity_id = str(uuid.uuid4())
+    node_id = str(uuid.uuid4())
 
     # 1. Create GraphNode
     node = GraphNode(
@@ -374,10 +381,10 @@ def test_cascading_delete_single_source_node(client: TestClient, db_session: Ses
 
     # 2. Create incident GraphEdges
     edge1 = GraphEdge(
-        id=uuid.uuid4(),
+        id=str(uuid.uuid4()),
         workspace_id=tenant_id,
         source_node_id=node_id,
-        target_node_id=uuid.uuid4(),
+        target_node_id=str(uuid.uuid4()),
         relationship_type="member_of",
     )
     db_session.add(edge1)
@@ -393,7 +400,10 @@ def test_cascading_delete_single_source_node(client: TestClient, db_session: Ses
         confidence_score=0.99,
         linked_to_graph_node_id=node_id,
         content_hash="acme-hash-123",
-    )
+
+    workspace_id=test_setup["workspace_id"],
+
+)
     db_session.add(ent)
     db_session.commit()
 
@@ -427,9 +437,9 @@ def test_cascading_delete_single_source_node(client: TestClient, db_session: Ses
 def test_cascading_delete_multi_source_node(client: TestClient, db_session: Session, test_setup: Dict[str, Any]):
     """Test that deleting a DiscoveredEntity linked to a multi-source GraphNode retains the node but unlinks it."""
     tenant_id = test_setup["tenant_id"]
-    entity_id1 = uuid.uuid4()
-    entity_id2 = uuid.uuid4()
-    node_id = uuid.uuid4()
+    entity_id1 = str(uuid.uuid4())
+    entity_id2 = str(uuid.uuid4())
+    node_id = str(uuid.uuid4())
 
     # 1. Create GraphNode with multiple source references
     node = GraphNode(
@@ -452,7 +462,10 @@ def test_cascading_delete_multi_source_node(client: TestClient, db_session: Sess
         status="linked",
         confidence_score=0.99,
         linked_to_graph_node_id=node_id,
-    )
+
+    workspace_id=test_setup["workspace_id"],
+
+)
     ent2 = DiscoveredEntity(
         id=entity_id2,
         tenant_id=tenant_id,
@@ -462,7 +475,10 @@ def test_cascading_delete_multi_source_node(client: TestClient, db_session: Sess
         status="linked",
         confidence_score=0.98,
         linked_to_graph_node_id=node_id,
-    )
+
+    workspace_id=test_setup["workspace_id"],
+
+)
     db_session.add_all([ent1, ent2])
     db_session.commit()
 
@@ -484,8 +500,8 @@ def test_cascading_delete_multi_source_node(client: TestClient, db_session: Sess
 def test_unlink_entity(client: TestClient, db_session: Session, test_setup: Dict[str, Any]):
     """Test unlinking a DiscoveredEntity from a GraphNode resets status and clears connections."""
     tenant_id = test_setup["tenant_id"]
-    entity_id = uuid.uuid4()
-    node_id = uuid.uuid4()
+    entity_id = str(uuid.uuid4())
+    node_id = str(uuid.uuid4())
 
     # Create GraphNode with multiple references
     node = GraphNode(
@@ -509,7 +525,10 @@ def test_unlink_entity(client: TestClient, db_session: Session, test_setup: Dict
         confidence_score=0.99,
         linked_to_graph_node_id=node_id,
         content_hash="acme-hash",
-    )
+
+    workspace_id=test_setup["workspace_id"],
+
+)
     db_session.add(ent)
     db_session.commit()
 
@@ -543,8 +562,8 @@ def test_unlink_entity(client: TestClient, db_session: Session, test_setup: Dict
 def test_bulk_delete_entities(client: TestClient, db_session: Session, test_setup: Dict[str, Any]):
     """Test atomicity and cascading of bulk cascade deletions."""
     tenant_id = test_setup["tenant_id"]
-    e1_id = uuid.uuid4()
-    e2_id = uuid.uuid4()
+    e1_id = str(uuid.uuid4())
+    e2_id = str(uuid.uuid4())
 
     e1 = DiscoveredEntity(
         id=e1_id,
@@ -554,7 +573,10 @@ def test_bulk_delete_entities(client: TestClient, db_session: Session, test_setu
         _discovered_type="contact",
         status="pending",
         confidence_score=0.8,
-    )
+
+    workspace_id=test_setup["workspace_id"],
+
+)
     e2 = DiscoveredEntity(
         id=e2_id,
         tenant_id=tenant_id,
@@ -563,7 +585,10 @@ def test_bulk_delete_entities(client: TestClient, db_session: Session, test_setu
         _discovered_type="contact",
         status="pending",
         confidence_score=0.9,
-    )
+
+    workspace_id=test_setup["workspace_id"],
+
+)
     db_session.add_all([e1, e2])
     db_session.commit()
 
@@ -610,8 +635,8 @@ def test_stable_content_hash_calculation():
 def test_event_listener_sync_properties_on_update(db_session: Session, test_setup: Dict[str, Any]):
     """Test that modifying a DiscoveredEntity's properties automatically syncs to its promoted GraphNode."""
     tenant_id = test_setup["tenant_id"]
-    entity_id = uuid.uuid4()
-    node_id = uuid.uuid4()
+    entity_id = str(uuid.uuid4())
+    node_id = str(uuid.uuid4())
 
     # Setup linked GraphNode
     node = GraphNode(
@@ -637,7 +662,10 @@ def test_event_listener_sync_properties_on_update(db_session: Session, test_setu
         confidence_score=0.99,
         linked_to_graph_node_id=node_id,
         properties={"phone": "123"},
-    )
+
+    workspace_id=test_setup["workspace_id"],
+
+)
     db_session.add(ent)
     db_session.commit()
 
@@ -656,8 +684,8 @@ def test_event_listener_sync_properties_on_update(db_session: Session, test_setu
 def test_event_listener_cleanup_on_direct_delete(db_session: Session, test_setup: Dict[str, Any]):
     """Test that deleting a DiscoveredEntity directly via db.delete cascades automatically via listeners."""
     tenant_id = test_setup["tenant_id"]
-    entity_id = uuid.uuid4()
-    node_id = uuid.uuid4()
+    entity_id = str(uuid.uuid4())
+    node_id = str(uuid.uuid4())
 
     # Setup linked GraphNode
     node = GraphNode(
@@ -680,7 +708,10 @@ def test_event_listener_cleanup_on_direct_delete(db_session: Session, test_setup
         status="linked",
         confidence_score=0.99,
         linked_to_graph_node_id=node_id,
-    )
+
+    workspace_id=test_setup["workspace_id"],
+
+)
     db_session.add(ent)
     db_session.commit()
 

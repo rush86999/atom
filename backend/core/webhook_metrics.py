@@ -469,6 +469,17 @@ class WebhookMetrics(IntegrationMetrics):
             labels = f'connector_id="{connector_id}",tenant_id="{tenant_id}",status="{status}"'
             lines.append(f"webhook_processing_count{{{labels}}} {count}")
 
+        # Webhook processing error counts — previously only the success side
+        # was exported, so processing errors were invisible to Prometheus
+        # unless they happened to be typed "transformation_error" (violates the
+        # documented webhook_processing_count{status=...} contract).
+        for key, count in self._processing_error_counts.items():
+            parts = key.split(":")
+            connector_id, tenant_id, _, status = parts[:4]
+
+            labels = f'connector_id="{connector_id}",tenant_id="{tenant_id}",status="{status}"'
+            lines.append(f"webhook_processing_count{{{labels}}} {count}")
+
         # Webhook processing duration percentiles
         for key, samples in self._processing_duration_samples.items():
             if not samples:

@@ -2650,6 +2650,12 @@ class GraphNode(Base):
     type = Column(String, nullable=False) # e.g., 'person', 'task', 'document'
     description = Column(Text, nullable=True)
     properties = Column(JSONColumn, default={}) # Flexible metadata
+
+    # R76: restored — core/ingestion_crud_service's delete/unlink cascade and
+    # cleanup_graph_node_reference read/write source_ids, and the API layer
+    # constructs GraphNode(source_ids=...), but the column was never declared
+    # (nor present in alembic/dev DB), so every linked-entity delete crashed.
+    source_ids = Column(JSONColumn, default=list)  # DiscoveredEntity refs
     embedding = Column(
         Vector(EMBEDDING_DIM) if (PGVECTOR_AVAILABLE and Vector is not None) else JSON,
         nullable=True
@@ -6467,44 +6473,47 @@ class MessageTemplate(Base):
 class ScheduledMessage(Base):
     """
     Scheduled and recurring messages for proactive communication.
+
+    Schema restored (wave 75) to match alembic 6463674076ea — the previous
+    definition had drifted (tenant_id/target_id/recurrence_rule columns),
+    so core/scheduled_messaging_service.py raised TypeError on every insert.
     """
     __tablename__ = "scheduled_messages"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Agent
+    agent_id = Column(String(255), ForeignKey("agent_registry.id"), nullable=False, index=True)
+    agent_name = Column(String(255), nullable=True)
 
     # Target
-    platform = Column(String(50), nullable=False)  # Target platform
-    target_id = Column(String, nullable=False)  # Target user/channel ID
+    platform = Column(String(50), nullable=False)
+    recipient_id = Column(String(255), nullable=False)
 
     # Content
-    content = Column(Text, nullable=False)  # Message content (or rendered template)
-    template_id = Column(String, ForeignKey("message_templates.id"), nullable=True)
-    template_variables = Column(JSONColumn, nullable=True)  # Variables for template rendering
+    template = Column(Text, nullable=False)
+    template_variables = Column(JSONColumn, nullable=True, default=dict)
 
     # Scheduling
-    scheduled_at = Column(DateTime(timezone=True), nullable=False)  # Next scheduled delivery
-    timezone = Column(String(50), default="UTC")  # Recipient timezone
-    recurrence_rule = Column(String(255), nullable=True)  # Cron expression or simple pattern: "daily", "weekly", etc.
-    recurrence_end_at = Column(DateTime(timezone=True), nullable=True)  # End date for recurring messages
+    schedule_type = Column(String(50), nullable=False)  # one_time, recurring
+    cron_expression = Column(String(255), nullable=True)
+    natural_language_schedule = Column(String(255), nullable=True)
+    next_run = Column(DateTime(timezone=True), nullable=False)
+    last_run = Column(DateTime(timezone=True), nullable=True)
+    run_count = Column(Integer, default=0, nullable=False)
+    max_runs = Column(Integer, nullable=True)
+    end_date = Column(DateTime(timezone=True), nullable=True)
 
     # Delivery
-    status = Column(String(50), default="pending")  # pending, sent, failed, cancelled
-    sent_at = Column(DateTime(timezone=True), nullable=True)
-    delivery_count = Column(Integer, default=0)  # For recurring messages
-    error_message = Column(Text, nullable=True)
+    status = Column(String(50), default="active", nullable=False)
+    timezone = Column(String(50), default="UTC", nullable=False)
+    governance_metadata = Column(JSONColumn, nullable=True)
 
-    # Context
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True)
-    metadata_json = Column(JSONColumn, nullable=True)
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
-    tenant = relationship("Tenant", backref="scheduled_messages")
     agent = relationship("AgentRegistry", backref="scheduled_messages")
-    template = relationship("MessageTemplate", backref="scheduled_messages")
 
 
 class MessageDeliveryReport(Base):
@@ -10630,6 +10639,10 @@ class ConditionMonitor(Base):
     condition_config = Column(JSONColumn, default={}, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
 
+    # Real column so the alert-spam throttle survives commit/expiry and
+    # re-fetch (previously a plain attribute that was wiped on commit).
+    last_alert_sent_at = Column(DateTime(timezone=True), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -10649,27 +10662,29 @@ class ConditionAlert(Base):
     message = Column(Text, nullable=False)
     is_resolved = Column(Boolean, default=False, nullable=False)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    resolved_at = Column(DateTime(timezone=True), nullable=True)
-
-
-class ScheduledMessageStatus(Base):
-    """
-    Scheduled message status tracking.
-
-    Stub model for Phase 265 to unblock tests.
-    TODO: Implement full schema for scheduled messaging.
-    """
-    __tablename__ = "scheduled_message_status"
-
-    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
-    message_id = Column(String(255), nullable=False, unique=True, index=True)
-    status = Column(String(50), nullable=False)  # scheduled, sent, failed, cancelled
-    scheduled_for = Column(DateTime(timezone=True), nullable=False)
+    # Delivery/trigger state — real columns so a re-fetch after commit does not
+    # lose the outcome (previously carried as plain attributes, which are wiped
+    # by expire-on-commit: an alert whose delivery failed would still serialize
+    # as "sent").
+    status = Column(String(50), default="sent", nullable=True)  # pending, sent, failed
+    condition_value = Column(JSONColumn, default={}, nullable=True)
+    threshold_value = Column(JSONColumn, default={}, nullable=True)
+    platforms_sent = Column(JSONColumn, default=[], nullable=True)
+    triggered_at = Column(DateTime(timezone=True), nullable=True)
     sent_at = Column(DateTime(timezone=True), nullable=True)
     error_message = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class ScheduledMessageStatus(str, enum.Enum):
+    """Lifecycle status of a scheduled message."""
+    ACTIVE = "active"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class ProactiveMessageStatus(str, enum.Enum):
@@ -10771,8 +10786,24 @@ class DiscoveredEntity(Base):
     # Entity data (JSON schema inferred from properties)
     properties = Column(JSONColumn, nullable=False)
 
+    # R76: restored — the Hive feature parity port (36ed0f548) dropped
+    # entity_name/sync_job_id/updated_at from the ORM model while the API
+    # serializer (api/routes/ingestion_crud_routes.py::serialize_entity) and
+    # core/ingestion_crud_service (sync_properties_to_graph_node) still read
+    # them; without these every entity serialization raised AttributeError.
+    entity_name = Column(String, nullable=True)
+    sync_job_id = Column(String, nullable=True, index=True)
+
     # Quality metrics
     confidence_score = Column(Float, default=0.0)
+
+    # Stable content hash for duplicate/idempotency checks. R76: restored —
+    # the ORM model dropped this column while core/ingestion_crud_service
+    # (delete_entity/unlink audit `idempotency_key=entity.content_hash`) and
+    # tests/api/test_ingestion_crud_tdd.py still use it; without it every
+    # entity delete raised AttributeError. (Column absent from alembic + dev
+    # DB; guarded migration pending.)
+    content_hash = Column(String, nullable=True, index=True)
 
     # Source tracking
     source_record_id = Column(String, nullable=False)  # Email ID, message ID, etc.
@@ -10786,6 +10817,7 @@ class DiscoveredEntity(Base):
     # Metadata
     extraction_metadata = Column(JSONColumn, default={})
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), onupdate=lambda: datetime.now(timezone.utc), nullable=True)
 
     __table_args__ = (
         Index("ix_discovered_entities_tenant_workspace", "tenant_id", "workspace_id"),

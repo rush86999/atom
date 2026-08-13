@@ -26,7 +26,7 @@ class TestRevokedTokenModel:
             jti="test-jti-123",
             expires_at=datetime.now() + timedelta(hours=24),
             user_id="test-user-123",
-            revocation_reason="logout"
+            reason="logout"
         )
 
         db_session.add(revoked)
@@ -37,7 +37,7 @@ class TestRevokedTokenModel:
         assert retrieved is not None
         assert retrieved.jti == "test-jti-123"
         assert retrieved.user_id == "test-user-123"
-        assert retrieved.revocation_reason == "logout"
+        assert retrieved.reason == "logout"
         assert retrieved.revoked_at is not None
 
     def test_unique_jti_constraint(self, db_session: Session):
@@ -87,7 +87,7 @@ class TestRevokeToken:
         was_revoked = revoke_token(
             jti="test-revoke-123",
             expires_at=datetime.now() + timedelta(hours=24),
-            db=db,
+            db=db_session,
             user_id="user-123",
             revocation_reason="logout"
         )
@@ -98,7 +98,7 @@ class TestRevokeToken:
         revoked = db_session.query(RevokedToken).filter_by(jti="test-revoke-123").first()
         assert revoked is not None
         assert revoked.user_id == "user-123"
-        assert revoked.revocation_reason == "logout"
+        assert revoked.reason == "logout"
 
     def test_revoke_already_revoked_token(self, db_session: Session):
         """Test revoking a token that's already revoked"""
@@ -106,7 +106,7 @@ class TestRevokeToken:
         revoke_token(
             jti="test-double-revoke",
             expires_at=datetime.now() + timedelta(hours=24),
-            db=db,
+            db=db_session,
             user_id="user-123"
         )
 
@@ -114,7 +114,7 @@ class TestRevokeToken:
         was_revoked = revoke_token(
             jti="test-double-revoke",
             expires_at=datetime.now() + timedelta(hours=24),
-            db=db,
+            db=db_session,
             user_id="user-123"
         )
 
@@ -125,7 +125,7 @@ class TestRevokeToken:
         was_revoked = revoke_token(
             jti="test-optional-123",
             expires_at=datetime.now() + timedelta(hours=24),
-            db=db,
+            db=db_session,
             user_id="user-456",
             revocation_reason="security_breach"
         )
@@ -133,7 +133,7 @@ class TestRevokeToken:
         assert was_revoked is True
 
         revoked = db_session.query(RevokedToken).filter_by(jti="test-optional-123").first()
-        assert revoked.revocation_reason == "security_breach"
+        assert revoked.reason == "security_breach"
 
 
 class TestCleanupExpiredTokens:
@@ -168,7 +168,7 @@ class TestCleanupExpiredTokens:
         db_session.commit()
 
         # Cleanup tokens older than 24 hours
-        deleted_count = cleanup_expired_revoked_tokens(db, older_than_hours=24)
+        deleted_count = cleanup_expired_revoked_tokens(db_session, older_than_hours=24)
 
         assert deleted_count == 1  # Only old_token deleted
 
@@ -191,7 +191,7 @@ class TestCleanupExpiredTokens:
         db_session.commit()
 
         # Cleanup
-        deleted = cleanup_expired_revoked_tokens(db, older_than_hours=1)
+        deleted = cleanup_expired_revoked_tokens(db_session, older_than_hours=1)
         assert deleted == 5
 
         # All gone
@@ -206,7 +206,7 @@ class TestJWTVerifierRevocation:
 
     def test_verify_non_revoked_token(self, db_session: Session):
         """Test that non-revoked tokens pass validation"""
-        verifier = JWTVerifier(secret_key="test-secret")
+        verifier = JWTVerifier(secret_key="test-secret", debug_mode=True)
 
         payload = {
             "sub": "user-123",
@@ -220,13 +220,13 @@ class TestJWTVerifierRevocation:
 
     def test_verify_revoked_token(self, db_session: Session):
         """Test that revoked tokens are detected"""
-        verifier = JWTVerifier(secret_key="test-secret")
+        verifier = JWTVerifier(secret_key="test-secret", debug_mode=True)
 
         # First, revoke a token
         revoke_token(
             jti="revoked-jti-456",
             expires_at=datetime.now() + timedelta(hours=1),
-            db=db,
+            db=db_session,
             user_id="user-456",
             revocation_reason="logout"
         )
@@ -243,7 +243,7 @@ class TestJWTVerifierRevocation:
 
     def test_verify_token_without_db(self, db_session: Session):
         """Test that verification works without db session (graceful degradation)"""
-        verifier = JWTVerifier(secret_key="test-secret")
+        verifier = JWTVerifier(secret_key="test-secret", debug_mode=True)
 
         payload = {
             "sub": "user-789",
@@ -257,7 +257,7 @@ class TestJWTVerifierRevocation:
 
     def test_verify_token_without_jti(self, db_session: Session):
         """Test that tokens without JTI cannot be checked for revocation"""
-        verifier = JWTVerifier(secret_key="test-secret")
+        verifier = JWTVerifier(secret_key="test-secret", debug_mode=True)
 
         payload = {
             "sub": "user-999",
@@ -275,7 +275,7 @@ class TestCreateTokenWithJTI:
 
     def test_create_token_has_jti(self):
         """Test that created tokens include JTI claim"""
-        verifier = JWTVerifier(secret_key="test-secret")
+        verifier = JWTVerifier(secret_key="test-secret", debug_mode=True)
 
         token = verifier.create_token(
             subject="user-123",
@@ -292,7 +292,7 @@ class TestCreateTokenWithJTI:
 
     def test_create_token_with_custom_jti(self):
         """Test creating token with custom JTI"""
-        verifier = JWTVerifier(secret_key="test-secret")
+        verifier = JWTVerifier(secret_key="test-secret", debug_mode=True)
 
         custom_jti = "my-custom-jti-123"
         token = verifier.create_token(

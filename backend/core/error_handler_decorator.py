@@ -187,7 +187,7 @@ def handle_database_errors(
                         details={"original_error": error_msg},
                         status_code=400
                     )
-                elif "connection" in error_msg.lower() or "timeout" in error_msg.lower():
+                elif "connection" in error_msg.lower() or "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
                     logger.error(f"Database connection error in {func.__name__}: {error_msg}")
                     raise api_error(
                         ErrorCode.DATABASE_ERROR,
@@ -233,7 +233,7 @@ def handle_database_errors(
                         details={"original_error": error_msg},
                         status_code=400
                     )
-                elif "connection" in error_msg.lower() or "timeout" in error_msg.lower():
+                elif "connection" in error_msg.lower() or "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
                     logger.error(f"Database connection error in {func.__name__}: {error_msg}")
                     raise api_error(
                         ErrorCode.DATABASE_ERROR,

@@ -250,12 +250,19 @@ async def perform_governance_check(
         resolver = AgentContextResolver(db)
         governance = AgentGovernanceService(db)
 
-        # Get current user from request
-        from core.auth import get_current_user_from_request
+        # Resolve the acting user id (best-effort). The former
+        # `from core.auth import get_current_user_from_request` was a phantom
+        # import — that name has never existed in core.auth — so every
+        # agent-gated request raised ImportError here and surfaced as a 500
+        # "Internal error" instead of enforcing governance. Prefer the
+        # request.state.user_id stamped by auth middleware; degrade to None
+        # (the resolver fallback chain handles anonymous callers).
+        user_id = None
         try:
-            current_user = await get_current_user_from_request(request)
-            user_id = current_user.id if current_user else None
+            user_id = request.state.user_id
         except Exception:
+            user_id = None
+        if not user_id:
             user_id = None
 
         # Resolve agent
@@ -350,6 +357,14 @@ async def perform_governance_check(
             f"action={action_name}, complexity={action_complexity}"
         )
 
+    except HTTPException:
+        # Intentional governance outcomes (404 agent missing, 202 proposal
+        # created, 403 denied) must propagate as-is. Previously the broad
+        # `except Exception` below swallowed them and re-raised every
+        # governance decision as a 500 "Internal error", so INTERN proposals
+        # and STUDENT/SUPERVISED denials never reached the client in their
+        # intended form.
+        raise
     except Exception as e:
         logger.error(f"Governance check failed: {e}")
         raise HTTPException(

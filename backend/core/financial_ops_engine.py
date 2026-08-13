@@ -238,6 +238,10 @@ class BudgetGuardrails:
         # R49: reject non-positive limits at the engine boundary — a negative
         # monthly limit inverts every guardrail comparison (any positive spend
         # exceeds it, pausing/blocking the category entirely).
+        # R76: normalize str/float limits to Decimal BEFORE validating — a
+        # string limit previously crashed at `<= 0` (TypeError) and a float
+        # limit crashed later in check_spend's division (`Decimal / float`).
+        limit.monthly_limit = to_decimal(limit.monthly_limit)
         if limit.monthly_limit <= 0:
             raise ValueError(
                 f"Monthly limit must be positive, got {limit.monthly_limit}"
@@ -262,6 +266,9 @@ class BudgetGuardrails:
 
         # Convert amount to Decimal
         amount_decimal = to_decimal(amount)
+        # R76: current_spend may arrive as str/float (JSON config) — normalize
+        # before arithmetic; previously `"950" + Decimal` raised TypeError.
+        current_spend_decimal = to_decimal(limit.current_spend)
 
         # Check deal stage requirement
         if limit.deal_stage_required:
@@ -281,7 +288,7 @@ class BudgetGuardrails:
 
         # Calculate utilization percentage
         if limit.monthly_limit > 0:
-            utilization_pct = (limit.current_spend + amount_decimal) / limit.monthly_limit * Decimal('100')
+            utilization_pct = (current_spend_decimal + amount_decimal) / limit.monthly_limit * Decimal('100')
         else:
             utilization_pct = Decimal('0')
 
@@ -292,7 +299,7 @@ class BudgetGuardrails:
                 "status": SpendStatus.REJECTED.value,
                 "reason": f"Would exceed block threshold ({limit.block_threshold_pct}%): ${limit.monthly_limit}",
                 "utilization_pct": float(utilization_pct),
-                "remaining": float(limit.monthly_limit - limit.current_spend)
+                "remaining": float(limit.monthly_limit - current_spend_decimal)
             }
 
         # Check pause threshold (90% by default)
@@ -301,7 +308,7 @@ class BudgetGuardrails:
                 "status": SpendStatus.PAUSED.value,
                 "reason": f"Pause threshold reached ({limit.pause_threshold_pct}%)",
                 "utilization_pct": float(utilization_pct),
-                "remaining": float(limit.monthly_limit - limit.current_spend)
+                "remaining": float(limit.monthly_limit - current_spend_decimal)
             }
 
         # Check warn threshold (80% by default)
@@ -310,14 +317,14 @@ class BudgetGuardrails:
                 "status": SpendStatus.PENDING.value,
                 "reason": f"Warn threshold reached ({limit.warn_threshold_pct}%)",
                 "utilization_pct": float(utilization_pct),
-                "remaining": float(limit.monthly_limit - limit.current_spend - amount_decimal)
+                "remaining": float(limit.monthly_limit - current_spend_decimal - amount_decimal)
             }
 
         # Below warn threshold - approved
         return {
             "status": SpendStatus.APPROVED.value,
             "utilization_pct": float(utilization_pct),
-            "remaining": float(limit.monthly_limit - limit.current_spend - amount_decimal)
+            "remaining": float(limit.monthly_limit - current_spend_decimal - amount_decimal)
         }
     
     def record_spend(self, category: str, amount: Union[Decimal, str, float]):
@@ -339,8 +346,13 @@ class BudgetGuardrails:
             - next_threshold: str (next threshold to cross)
             - remaining_until_threshold: Decimal (amount until next threshold)
         """
-        if limit.monthly_limit > 0:
-            usage_pct = limit.current_spend / limit.monthly_limit * Decimal('100')
+        # R76: normalize str/float fields (JSON config) before arithmetic —
+        # `"100" > 0` and `"100" / "1000"` previously raised TypeError.
+        monthly_limit = to_decimal(limit.monthly_limit)
+        current_spend = to_decimal(limit.current_spend)
+
+        if monthly_limit > 0:
+            usage_pct = current_spend / monthly_limit * Decimal('100')
         else:
             usage_pct = Decimal('0')
 
@@ -353,20 +365,20 @@ class BudgetGuardrails:
             status = SpendStatus.PAUSED.value
             next_threshold = f"Block at {limit.block_threshold_pct}%"
             # Amount until block threshold
-            block_amount = limit.monthly_limit * to_decimal(limit.block_threshold_pct) / Decimal('100')
-            remaining_until_threshold = block_amount - limit.current_spend
+            block_amount = monthly_limit * to_decimal(limit.block_threshold_pct) / Decimal('100')
+            remaining_until_threshold = block_amount - current_spend
         elif usage_pct >= to_decimal(limit.warn_threshold_pct):
             status = SpendStatus.PENDING.value
             next_threshold = f"Pause at {limit.pause_threshold_pct}%"
             # Amount until pause threshold
-            pause_amount = limit.monthly_limit * to_decimal(limit.pause_threshold_pct) / Decimal('100')
-            remaining_until_threshold = pause_amount - limit.current_spend
+            pause_amount = monthly_limit * to_decimal(limit.pause_threshold_pct) / Decimal('100')
+            remaining_until_threshold = pause_amount - current_spend
         else:
             status = SpendStatus.APPROVED.value
             next_threshold = f"Warn at {limit.warn_threshold_pct}%"
             # Amount until warn threshold
-            warn_amount = limit.monthly_limit * to_decimal(limit.warn_threshold_pct) / Decimal('100')
-            remaining_until_threshold = warn_amount - limit.current_spend
+            warn_amount = monthly_limit * to_decimal(limit.warn_threshold_pct) / Decimal('100')
+            remaining_until_threshold = warn_amount - current_spend
 
         return {
             "status": status,

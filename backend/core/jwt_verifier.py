@@ -337,9 +337,13 @@ class JWTVerifier:
             is_revoked = revoked_token is not None
 
             if is_revoked:
+                # NOTE: model column is `reason` (not `revocation_reason`); the
+                # old attribute name raised AttributeError here which was
+                # swallowed by the fail-open except → revoked tokens were
+                # ACCEPTED (wave 75 security bug).
                 logger.warning(
                     f"JWT_VERIFICATION: Token revoked (jti={payload['jti']}, "
-                    f"reason={revoked_token.revocation_reason}, "
+                    f"reason={revoked_token.reason}, "
                     f"revoked_at={revoked_token.revoked_at})"
                 )
 

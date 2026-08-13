@@ -20,7 +20,7 @@ Usage:
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set
 from dataclasses import dataclass, field
 from collections import defaultdict
@@ -189,7 +189,11 @@ class JITVerificationWorker:
         - Verification status (unverified > verified > outdated)
         """
         jobs = []
-        now = datetime.now()
+        # NOTE: must be timezone-aware — facts hydrated by WorldModelService
+        # carry aware datetimes (datetime.fromisoformat). The old naive
+        # datetime.now() made ``now - fact.last_verified`` raise TypeError,
+        # crashing the whole cycle (and the loop retried every 60s forever).
+        now = datetime.now(timezone.utc)
 
         for fact in facts:
             # Skip deleted facts
@@ -199,7 +203,17 @@ class JITVerificationWorker:
             for citation in fact.citations:
                 # Calculate priority
                 access_count = self._citation_access_count.get(citation, 0)
-                age_hours = (now - fact.last_verified).total_seconds() / 3600
+                last_checked = fact.last_verified
+                if last_checked is None:
+                    # Defensive: never crash the cycle over a missing stamp
+                    age_hours = 0.0
+                else:
+                    if last_checked.tzinfo is None:
+                        # Facts may arrive naive (direct construction) or aware
+                        # (WorldModelService.fromisoformat) — normalize before
+                        # subtracting from the aware ``now``.
+                        last_checked = last_checked.replace(tzinfo=timezone.utc)
+                    age_hours = (now - last_checked).total_seconds() / 3600
 
                 # Base priority from access count
                 priority = access_count * 10

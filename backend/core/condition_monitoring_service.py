@@ -557,7 +557,7 @@ class ConditionMonitoringService:
                 })
 
         # Update alert with platforms_sent
-        alert.platforms_sent = platforms_sent
+        alert.platforms_sent = platforms_sent  # type: ignore[assignment]  # JSON column
         self.db.commit()
 
         return sent_count
@@ -664,7 +664,7 @@ class ConditionMonitoringService:
 
         total_monitors = self.db.query(func.count(ConditionMonitor.id)).scalar()
         active_monitors = self.db.query(func.count(ConditionMonitor.id)).filter(
-            ConditionMonitor.status == "active"
+            ConditionMonitor.is_active == True  # noqa: E712 — stub model has no ``status`` column
         ).scalar()
 
         total_alerts = self.db.query(func.count(ConditionAlert.id)).scalar()

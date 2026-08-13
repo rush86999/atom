@@ -4,7 +4,7 @@ import hashlib
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from sqlalchemy import delete, func, or_
@@ -69,11 +69,14 @@ class IngestionCRUDService:
         entity_id: Union[str, uuid.UUID],
     ) -> Optional[DiscoveredEntity]:
         """Retrieve a single DiscoveredEntity record with strict tenant isolation."""
+        # R76: the API layer passes uuid.UUID path params; the PK column is a
+        # String — comparing String == uuid.UUID silently no-matches on SQLite
+        # and raises on PostgreSQL. Normalize at the service boundary.
         return (
             db.query(DiscoveredEntity)
             .filter(
-                DiscoveredEntity.id == entity_id,
-                DiscoveredEntity.tenant_id == tenant_id,
+                DiscoveredEntity.id == str(entity_id),
+                DiscoveredEntity.tenant_id == str(tenant_id),
             )
             .first()
         )
@@ -210,6 +213,7 @@ class IngestionCRUDService:
         5. If GraphNode is deleted, remove all orphaned incident GraphEdges.
         6. Append IngestionAuditLog record of 'delete' mutation.
         """
+        entity_id = str(entity_id)  # R76: normalize UUID path params for audit/compare
         entity = cls.get_entity(db, tenant_id, entity_id)
         if not entity:
             return False
@@ -320,6 +324,7 @@ class IngestionCRUDService:
         3. Remove references from GraphNode.source_ids.
         4. Log 'unlink' operation to IngestionAuditLog.
         """
+        entity_id = str(entity_id)  # R76: normalize UUID path params for audit/compare
         entity = cls.get_entity(db, tenant_id, entity_id)
         if not entity:
             return False
@@ -375,7 +380,7 @@ class IngestionCRUDService:
         max_age_days: int = 30,
     ) -> int:
         """Purge pending or rejected DiscoveredEntity records older than standard threshold (defaults to 30 days)."""
-        cutoff_date = datetime.now(timezone.utc) - datetime.timedelta(days=max_age_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=max_age_days)
         deleted_count = (
             db.query(DiscoveredEntity)
             .filter(
@@ -399,6 +404,9 @@ class IngestionCRUDService:
 
         try:
             # SQLAlchemy connection execution for listeners
+            # R76: target.entity_name (a real DiscoveredEntity column) was
+            # missing from the ORM model — every sync raised AttributeError
+            # and was silently swallowed; the column is restored in models.py.
             stmt = (
                 GraphNode.__table__.update()
                 .where(GraphNode.__table__.c.id == target.linked_to_graph_node_id)
@@ -477,3 +485,33 @@ class IngestionCRUDService:
                     logger.info(f"[Listener] Automatically updated GraphNode source references to {updated_sources}")
         except Exception as e:
             logger.error(f"Failed to auto-clean GraphNode reference on delete event: {e}")
+
+
+# ============================================================================
+# SQLAlchemy event wiring (R76)
+#
+# The Hive feature parity port shipped the two listener helpers above but
+# never registered them, so promoted-graph consistency on direct
+# DiscoveredEntity update/delete was silently dead code (tests/
+# api/test_ingestion_crud_tdd.py asserted the wiring). Registered here at
+# import (the module is imported by api/routes/ingestion_crud_routes.py, so
+# every app process gets the listeners).
+# ============================================================================
+
+from sqlalchemy import event  # noqa: E402  (module-level wiring after defs)
+
+
+def _discovered_entity_after_update(mapper, connection, target):
+    IngestionCRUDService.sync_properties_to_graph_node(connection, target)
+
+
+def _discovered_entity_after_delete(mapper, connection, target):
+    IngestionCRUDService.cleanup_graph_node_reference(connection, target)
+
+
+event.listen(
+    DiscoveredEntity, "after_update", _discovered_entity_after_update
+)
+event.listen(
+    DiscoveredEntity, "after_delete", _discovered_entity_after_delete
+)

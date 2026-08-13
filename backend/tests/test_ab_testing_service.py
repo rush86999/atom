@@ -17,6 +17,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from core.ab_testing_service import ABTestingService
+from core.models import ABTest, ABTestParticipant  # noqa: F401 (mock dispatch)
 
 
 class TestABTestingServiceInit:
@@ -201,11 +202,15 @@ class TestVariantAssignment:
         # Mock no existing participant
         db.query.return_value.filter.return_value.first.return_value = None
 
-        # Return mock test when queried
+        # Return mock test when queried; R76 stale-suite repair: dispatch on
+        # the REAL model classes (the old `model == Mock` never matched, so
+        # .first() leaked fresh Mocks and the test failed).
         def query_side_effect(model):
             mock_query = Mock()
-            if model == Mock:  # ABTest query
+            if model is ABTest:
                 mock_query.filter.return_value.first.return_value = mock_test
+            elif model is ABTestParticipant:
+                mock_query.filter.return_value.first.return_value = None
             return mock_query
 
         db.query.side_effect = query_side_effect
@@ -417,7 +422,15 @@ class TestResultsAndAnalysis:
 
         def query_side_effect(model):
             mock_query = Mock()
-            mock_query.order_by.return_value.limit.return_value.all.return_value = mock_tests
+            # R76 stale-suite repair: chain filter/order_by/limit back to the
+            # same query mock so `query.filter(...).order_by(...).limit(...)
+            # .all()` returns the injected rows (the old setup only wired
+            # order_by on the root mock, so .filter() respawned a fresh Mock
+            # and len() blew up).
+            mock_query.filter.return_value = mock_query
+            mock_query.order_by.return_value = mock_query
+            mock_query.limit.return_value = mock_query
+            mock_query.all.return_value = mock_tests
             return mock_query
 
         mock_db.query.side_effect = query_side_effect

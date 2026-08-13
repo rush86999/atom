@@ -64,9 +64,11 @@ class TestPhase37FinancialOps(unittest.TestCase):
         result = guardrails.check_spend("marketing", 500, deal_stage="closed_won")
         self.assertEqual(result["status"], "approved")
         
-        # Should pause - exceeds limit
+        # Should reject - exceeds limit (6000 > 100% of 5000 -> block
+        # threshold; R49 changed over-block from 'paused' to 'rejected'
+        # + auto-pause of the category)
         result = guardrails.check_spend("marketing", 6000, deal_stage="closed_won")
-        self.assertEqual(result["status"], "paused")
+        self.assertEqual(result["status"], "rejected")
         
         print("✅ Budget guardrails work correctly")
 

@@ -133,9 +133,14 @@ class EntityLinkingService:
                     # Link entities to newly created type
                     for entity_type in entity_types:
                         if entity_type.slug == self._discovered_type_to_slug(discovered_type):
-                            # Now link the entities
+                            # Now link the entities. R76: do NOT gate on
+                            # `entity.status == "pending"` — schema discovery
+                            # already flips status to "linked" when it creates
+                            # the type, so the recheck skipped every entity and
+                            # left them "linked" with NO GraphNode (broken
+                            # state, link_entities_to_graph returned []).
                             for entity in entities_of_type:
-                                if entity.status == "pending":  # Not yet linked
+                                if entity.linked_to_graph_node_id is None:
                                     graph_node = entity.to_graph_node(entity_type.slug)
                                     self.db.add(graph_node)
                                     self.db.flush()
@@ -205,10 +210,13 @@ class EntityLinkingService:
                 slug=slug,
                 display_name=discovered_type,
                 json_schema=self._infer_schema_from_single_entity(entity),
-                source="llm_discovery",
                 description=f"Auto-created from single {discovered_type} entity",
                 is_active=True,
                 metadata_json={
+                    # R76: `source` is not a model field (moved to
+                    # metadata_json in d82fed788) — passing it raised
+                    # TypeError and crashed novel-type auto-creation.
+                    "source": "llm_discovery",
                     "discovered_type": discovered_type,
                     "sample_count": 1,
                     "auto_created": True

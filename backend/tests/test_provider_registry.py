@@ -1,21 +1,28 @@
 import pytest
 from unittest.mock import Mock, patch, AsyncMock
 import asyncio
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from core.database import Base
 from core.provider_registry import ProviderRegistryService, get_provider_registry
 from core.provider_auto_discovery import ProviderAutoDiscovery, get_auto_discovery
 from core.models import ProviderRegistry, ModelCatalog
-from core.database import get_db_session
 
 
 @pytest.fixture
 def db_session():
-    """Provide a test database session with cleanup"""
-    with get_db_session() as db:
-        yield db
-        # Cleanup: Delete all test data after each test
-        db.query(ModelCatalog).delete()
-        db.query(ProviderRegistry).delete()
-        db.commit()
+    """Provide an in-memory test database session with cleanup.
+
+    (Previously bound to the environment DATABASE_URL dev DB, which lacks the
+    provider_registry/model_catalog tables — the suite errored everywhere.
+    Wave-74 repair: full schema on an in-memory SQLite engine.)
+    """
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    db = sessionmaker(bind=engine)()
+    yield db
+    db.close()
+    engine.dispose()
 
 
 class TestProviderRegistryService:

@@ -6,6 +6,181 @@
 
 ---
 
+## Session 2026-08-13 (wave 76 — never-wave-tested core services to ≥95%; 256 new tests, 9 real bugs fixed)
+
+**Files**: `core/ab_testing_service.py`, `core/financial_ops_engine.py`, `core/integration_entity_extractor.py`, `core/ingestion_crud_service.py`, `core/rating_sync_service.py`, `core/feedback_export_service.py`, `core/skill_parser.py` — new wave tests `tests/test_covpush_w76_{ab_testing,financial_ops,entity_extractor,ingestion_crud,rating_sync,feedback_export,skill_parser}.py` (**256 new tests**). Source fixes: `core/financial_ops_engine.py`, `core/ingestion_crud_service.py`, `core/models.py` (3 dropped columns restored), `core/entity_linking_service.py`.
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time):
+1. New-wave combined run (single process, 7 files, `--cov` on all 7 modules) → **255 passed / 0 failed**; TOTAL **1119 stmts / 100%**.
+2. Per-module combined with existing partners: ab_testing + `test_ab_testing.py` + `test_ab_testing_service.py` → **80 passed**; financial_ops + `test_financial_ops_engine.py` + `test_phase37_financial_ops.py` + `test_round49_financial_amount_validation.py` → **102 passed**; rating_sync + `test_rating_sync_service.py` → **60 passed**; skill_parser + `test_skill_parser.py` → **49 passed**; feedback_export + `test_round51_csv_injection_exports.py` + `test_covpush_w72_feedback_analytics.py` → **51 passed**; ingestion_crud + `tests/api/test_ingestion_crud_tdd.py` + `test_covpush_w70c_runners.py` → **215 passed**; entity_extractor (wave file alone, 38 tests).
+3. Adjacent regression sweep: `test_entity_linking.py` + `test_covpush_w22_entity_type.py` + `test_round54_workspace_identity.py` → **52 passed** (see repairs below).
+4. `mypy --config-file mypy.ini` on the 3 changed sources → **42 errors, identical to baseline** (all pre-existing; zero new).
+
+### Coverage deltas (coverage.py statement counts)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/ab_testing_service.py` | 150 / 65% | **150 / 100%** | 150 | — |
+| `core/financial_ops_engine.py` | 242 / 95% | **246 / 100%** | 246 | — |
+| `core/integration_entity_extractor.py` | 0% (never tested) | **183 / 100%** | 183 | — |
+| `core/ingestion_crud_service.py` | 172 / 30% | **181 / 100%** | 181 | — |
+| `core/rating_sync_service.py` | 143 / 84% | **143 / 100%** | 143 | — |
+| `core/feedback_export_service.py` | 72 / 46% | **72 / 100%** | 72 | — |
+| `core/skill_parser.py` | 144 / 78% | **144 / 100%** | 144 | — |
+
+### REAL bugs fixed (TDD red→green)
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/financial_ops_engine.py` | `set_limit` ~241 | **str/float `monthly_limit` crash** — `BudgetLimit(monthly_limit="5000")` raised `TypeError: '<=' not supported` at validation, and float limits crashed `check_spend` division (`Decimal / float`); also `current_spend` str crashed at `"950" + Decimal` | `set_limit` normalizes `to_decimal(monthly_limit)` before validating; `check_spend`/`get_threshold_status` normalize `current_spend` defensively |
+| `core/ingestion_crud_service.py` | `stale_entities_cleanup` ~378 | **always-crash** — `datetime.timedelta(...)` (class attr, no such member) → AttributeError on every purge | `from datetime import timedelta` + `timedelta(days=…)` |
+| `core/ingestion_crud_service.py` | `sync_properties_to_graph_node` ~407 | **always-swallowed failure** — `target.entity_name` didn't exist on the ORM model → AttributeError → caught → node properties NEVER synced | Restored `DiscoveredEntity.entity_name` column in `core/models.py` |
+| `core/models.py` | `DiscoveredEntity` (~10780) | **Schema drift (Hive port)** — `content_hash` column dropped while `delete_entity`/`unlink_entity` audit (`idempotency_key=entity.content_hash`) and API tests use it → every entity delete raised AttributeError | Restored `content_hash = Column(String, nullable=True, index=True)` |
+| `core/models.py` | `GraphNode` (~2652) | **Schema drift (Hive port)** — `source_ids` column never declared while delete/unlink cascade + `cleanup_graph_node_reference` + API layer read/write it → every linked-entity delete/unlink raised TypeError/AttributeError | Restored `source_ids = Column(JSONColumn, default=list)` |
+| `core/models.py` | `DiscoveredEntity` (~10790) | **Schema drift (Hive port)** — `sync_job_id`/`updated_at` dropped while `serialize_entity` (api/routes/ingestion_crud_routes.py) reads them | Restored `sync_job_id` + `updated_at` columns |
+| `core/ingestion_crud_service.py` | `get_entity`/`delete_entity`/`unlink_entity` (~65/216/326) | **UUID-vs-String PK mismatch** — API layer passes `uuid.UUID` path params; comparing String PK with UUID silently no-matches on SQLite (404s) and raises on PostgreSQL (500s) → GET/DELETE/UNLINK/bulk-delete all broken | `str(entity_id)`/`str(tenant_id)` normalization at the service boundary |
+| `core/ingestion_crud_service.py` | module bottom | **Dead-code seam (Hive port)** — `sync_properties_to_graph_node`/`cleanup_graph_node_reference` were defined but NEVER registered as SQLAlchemy listeners; direct DiscoveredEntity update/delete left GraphNodes stale (API tests asserted the wiring) | `event.listen(DiscoveredEntity, "after_update"/"after_delete", …)` wrappers at module import |
+| `core/entity_linking_service.py` | novel-type link ~208 | **`source=` kwarg on EntityTypeDefinition** (not a model field since d82fed788) → TypeError on every auto-created novel type; plus phase-2 gate `entity.status == "pending"` skipped all entities after schema discovery flipped status → entities left `linked` with NO GraphNode | `source` moved into `metadata_json`; phase-2 gate now `linked_to_graph_node_id is None` |
+
+### Stale suite repair (side effects of the fixes)
+- `tests/api/test_ingestion_crud_tdd.py`: 10 pre-existing FAILED → **12/12**. Infra: `id=uuid.uuid4()` bound to String PK columns (SQLite sentinel/binding errors) → `str(uuid.uuid4())`; entities constructed without NOT-NULL `workspace_id`; rest unblocked by the model/service fixes above.
+- `tests/test_ab_testing_service.py`: 2 pre-existing FAILED → **51/51**. Fixture dispatched on `model == Mock` (never matched real classes) → dispatch on `ABTest`/`ABTestParticipant`; `list_tests` mock lacked filter chain → made filter/order_by/limit chainable.
+- `tests/test_ab_testing.py`: 3 FAILED + 18 ERROR → **21/21**. Fixture hit the real dev DB (no tables on fresh machines) → in-memory SQLite + `create_all` + `expire_on_commit=False` (fixtures expunge their rows and read them after service commits).
+- `tests/test_phase37_financial_ops.py`: 1 pre-existing FAILED (float-limit TypeError) → green via the `set_limit` fix; assertion updated: over-block is `rejected` (R49 semantics), not `paused`.
+- `tests/test_entity_linking.py`: 3 pre-existing FAILED → **12/12**. Confidence-filter test was missing the `sample_entity_type` fixture (with `auto_create_types=False` nothing linked); novel-type tests unblocked by the `source=`/phase-2-gate fixes.
+
+### Remaining uncovered lines
+- None — all seven modules measure 100% with their wave+partner files.
+
+### Caveats
+- `ab_testing`/`rating_sync` async paths run via `asyncio.run` with a fake SaaS client (no network, no LLM spend).
+- The 3 restored `DiscoveredEntity` columns (`content_hash`, `entity_name`, `sync_job_id`, `updated_at` + `GraphNode.source_ids`) exist in the ORM only — a guarded Alembic migration for existing deployments is still pending (dev DBs reconcile via `create_all`/batch DDL).
+
+---
+
+## Session 2026-08-13 (wave 75 — auth/JWT/database/messaging core modules to ≥95%; 254 new tests, 4 real bugs fixed)
+
+**Files**: `core/auth_helpers.py`, `core/auth_endpoints.py`, `core/jwt_verifier.py`, `core/database_helper.py`, `core/database_manager.py`, `core/proactive_messaging_service.py`, `core/scheduled_messaging_service.py` — new wave tests `tests/test_covpush_w75_{auth_helpers,auth_endpoints,jwt_verifier,database_helper,database_manager,proactive_messaging,scheduled_messaging}.py` (**254 new tests**). Source fixes: `core/models.py`, `core/scheduled_messaging_service.py`, `core/jwt_verifier.py`, `core/auth_endpoints.py`.
+
+**Evidence** (`cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider`):
+1. New-wave combined run (single process): `tests/test_covpush_w75_*.py` (7 files) → **254 passed / 0 failed** (~50s).
+2. Per-module with existing partners: auth_helpers + `test_auth_helpers.py` → **100%** (144 stmts); jwt_verifier + `test_jwt_verifier.py` → **100%** (174); database_helper + `test_database_helper.py` → **100%** (102); database_manager + `test_database_manager.py` → **100%** (194); proactive_messaging_service + `test_proactive_messaging.py` → **100%** (196); scheduled_messaging_service + `test_scheduled_messaging.py` + minimal → **100%** (164); auth_endpoints (wave file alone) → **100%** (198).
+3. Partner regression sweep (10 files: auth_routes_coverage, round14, round56, jwt_revocation, auth_fixes, database helper/manager, proactive/scheduled/minimal messaging) → **197 passed / 0 failed**; `test_covpush_messaging.py` → 143 passed. **All pre-existing failures in `test_scheduled_messaging.py` (12) and `test_jwt_revocation.py` (7) now pass** (see repair rows below).
+4. `py_compile` clean on all 4 fixed sources + 2 repaired suites + 7 wave files.
+
+### Coverage deltas (coverage.py statement counts)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/auth_helpers.py` | 144 / 63% | **144 / 100%** | 144 | — |
+| `core/auth_endpoints.py` | 198 / 43% | **198 / 100%** | 198 | — |
+| `core/jwt_verifier.py` | 174 / 76% | **174 / 100%** | 174 | — |
+| `core/database_helper.py` | 102 / 97% | **102 / 100%** | 102 | — |
+| `core/database_manager.py` | 194 / 29% | **194 / 100%** | 194 | — |
+| `core/proactive_messaging_service.py` | 196 / 67% | **196 / 100%** | 196 | — |
+| `core/scheduled_messaging_service.py` | 159 / 26% | **164 / 100%** | 164 | — |
+
+### REAL bugs fixed (TDD red→green)
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/models.py` | `ScheduledMessageStatus` (~10656) | **Stub Base model in place of the status enum** — every `ScheduledMessageStatus.ACTIVE/.PAUSED/.COMPLETED/.FAILED/.CANCELLED` reference in the service raised AttributeError; the ENTIRE `scheduled_messaging_service.py` was broken (12 pre-existing test failures) | Restored proper `(str, enum.Enum)` with active/paused/completed/failed/cancelled |
+| `core/models.py` | `ScheduledMessage` (~6467) | **Schema drift** — model columns (`tenant_id`/`target_id`/`recurrence_rule`/…) diverged from alembic `6463674076ea`; `ScheduledMessage(agent_name=..., recipient_id=..., template=…)` raised TypeError on every insert | Restored the migration's schema (agent_id/agent_name/platform/recipient_id/template/template_variables/schedule_type/cron_expression/natural_language_schedule/next_run/last_run/run_count/max_runs/end_date/status/timezone/governance_metadata) |
+| `core/scheduled_messaging_service.py` | `execute_due_messages` ~316 | **Naive-vs-aware datetime TypeError** on SQLite read-back — `message.end_date < now` raised, caught → message marked **FAILED instead of COMPLETED** for every end_date-capped message | `_as_aware_utc()` helper; both end_date comparison sites normalize |
+| `core/jwt_verifier.py` | `_is_token_revoked` ~342 | **SECURITY: revocation check silently fail-open** — log line read `revoked_token.revocation_reason` (model column is `reason`) → AttributeError → caught by the fail-open except → **revoked tokens were ACCEPTED**; the revocation path never worked | Use `revoked_token.reason` |
+| `core/auth_endpoints.py` | `logout` ~434 | **SECURITY: logout never revoked the JWT** — `oauth2_scheme(request)` is async; the missing `await` made `raw_token` a truthy coroutine → decode always failed → swallowed by `except: pass` → logged-out tokens stayed valid 24h | `await oauth2_scheme(request)` |
+
+### Stale suite repair (side effect of the model fixes)
+- `tests/test_scheduled_messaging.py`: 12 pre-existing FAILED → **52/52**. 9 were the enum/schema bug; 3 were stale assertions (naive-vs-aware datetime compares + `get_execution_history` expecting never-run messages — service filters to executed runs by design; now awaits `execute_due_messages` and asserts executed history).
+- `tests/test_jwt_revocation.py`: 7 pre-existing FAILED → **14/14**. Stale-suite bugs: undefined `db` (fixture is `db_session`), `revoked.revocation_reason` (model column is `reason`), `JWTVerifier(secret_key="test-secret")` without `debug_mode=True` (rejected as default secret).
+
+### Remaining uncovered lines
+- None — all seven modules measure 100% with their wave+partner files (auth_helpers 99% wave-alone → 100% with `test_auth_helpers.py`; jwt_verifier needed the import-fallback reload test to cover the `except ImportError` branch).
+
+### Caveat
+- `core/database_manager.py` async ops are tested against fully mocked engines/sessions (zero real DB I/O); `proactive_messaging_service._send_message`'s `agent.context` lookup is dead-but-graceful — `AgentRegistry` has no `context` column, so workspace_id always falls back to "default" (exercised in tests; safe).
+
+---
+
+## Session 2026-08-13 (wave 74 — condition monitoring/webhook/cron/jit/provider core modules to ≥95%; 223 new tests, 6 real bugs fixed)
+
+**Files**: `core/condition_monitoring_service.py`, `core/webhook_metrics.py`, `core/condition_checkers.py`, `core/cron_parser.py`, `core/webhook_ingestion_triggers.py`, `core/jit_verification_worker.py`, `core/provider_registry.py` — new wave tests `tests/test_covpush_w74_{condition_monitoring,webhook_metrics,condition_checkers,cron_parser,webhook_triggers,jit_worker,provider_registry}.py` (**223 new tests**: 41 condition_checkers + 40 condition_monitoring + 28 webhook_metrics + 33 cron_parser + 17 webhook_triggers + 25 jit_worker + 39 provider_registry).
+
+**Stale-suite repairs** (pre-existing failures, now GREEN): `test_condition_checkers.py` (8 FAILED → 22 passed — old composite-in-threshold_config API + pre-filter mocks), `test_cron_parser.py` (2 FAILED → 54 passed — tests encoded the pre-Bug-9 weekday off-by-one), `test_provider_registry.py` (15 FAILED/16 ERROR → 23 passed — fixture used env `get_db_session()` dev DB lacking `provider_registry`/`model_catalog` tables; now in-memory SQLite).
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`):
+1. Condition pair: `w74_condition_monitoring` + `w74_condition_checkers` + `test_condition_checkers` + `test_condition_monitoring_minimal` + `test_phase36_conditional_logic` → **123 passed / 1 skipped**; `--cov` → condition_monitoring **254/254 = 100%**, condition_checkers **155/156 = 99%** (line 171 unreachable: `str(window)` guarantees int/float|str, final else dead).
+2. Cron: `w74_cron_parser` + `test_cron_parser` → **87 passed**, `--cov` → **180/180 = 100%**.
+3. Webhook metrics: `w74_webhook_metrics` + `test_covpush_w8_webhooks` + `test_covpush_w71c_webhooks2` → **198 passed**; combined with triggers files → **150 passed**, `--cov` → webhook_metrics **204/204 = 100%**, webhook_ingestion_triggers **145/145 = 100%**.
+4. Triggers: `w74_webhook_triggers` + `test_r79_gap_webhook_ingestion` → **38 passed**.
+5. JIT worker: `w74_jit_worker` + `test_jit_verification_worker` → **44 passed**, `--cov` → **187/188 = 99%** (line 209 = defensive `last_verified is None` guard, unreachable via Pydantic `BusinessFact` validation).
+6. Provider registry: `w74_provider_registry` + `test_provider_registry` + `test_provider_registry_api` → **73 passed**, `--cov` → **169/169 = 100%**.
+7. Regression: `test_covpush_w65f_api_monitoring` + `test_round70_latent_nameerrors` → **90 passed**; `test_covpush_ingestion_webhooks` + `test_round45_webhook_fail_open` + `test_webhook_bridge` → **100 passed**.
+
+### Coverage deltas (measured with `--cov=<module> --cov-report=term-missing`)
+
+| Module | Baseline | After | Missing after |
+|---|---|---|---|
+| `core/condition_monitoring_service.py` | 254 stmts / 48% (existing minimal tests) | **254 / 100%** (combined 123) | — |
+| `core/webhook_metrics.py` | 199 / 24% (existing w8/w71c) | **204 / 100%** (combined 198) | — |
+| `core/condition_checkers.py` | 153 / 63% (existing; 8 FAILED) | **155 / 99%** (combined 123) | 171 (unreachable else) |
+| `core/cron_parser.py` | 180 / 86% (existing; 2 FAILED) | **180 / 100%** (combined 87) | — |
+| `core/webhook_ingestion_triggers.py` | 145 / 80% (existing r79) | **145 / 100%** (combined 150) | — |
+| `core/jit_verification_worker.py` | 183 / 87% (existing) | **187 / 99%** (combined 44) | 209 (defensive guard) |
+| `core/provider_registry.py` | 169 / 28% (existing suite broken) | **169 / 100%** (combined 73) | — |
+
+### REAL bugs fixed (TDD red→green)
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/condition_checkers.py` | 179/183/199/222 | **`AgentExecution.created_at` does not exist** (model has `started_at`; confirmed `'created_at' in dir(AgentExecution) == False`) → every api_metrics monitor check raised AttributeError, silently swallowed by `check_and_alert_monitors`' broad except → **monitoring silently disabled for api_metrics** | Filter on `AgentExecution.started_at` (matches every other call site: promotion/episode/supervision services) |
+| `core/condition_checkers.py` | ~311 (temp monitor) | **`ConditionMonitor(agent_id=…, threshold_config=…)` non-column kwargs → TypeError on EVERY composite monitor check** (stub model has only name/user_id/condition_type/condition_config/is_active) → composite monitoring fully broken | Construct with persisted columns only; set `agent_id`/`agent_name`/`threshold_config` as plain attrs (mirrors `_hydrate_config`) |
+| `core/condition_checkers.py` | ~260 | **Raw SQL string passed to `Session.execute` → SQLAlchemy 2.0 `ArgumentError` on every database_query check** → caught by except → always `triggered=False` with "Query error" — database_query monitors never fired | Wrap query in `sqlalchemy.text(query)` |
+| `core/condition_monitoring_service.py` | 667 (`get_metrics`) | **Filter on nonexistent `ConditionMonitor.status` column → AttributeError → 500 on the metrics endpoint** (stub model has only `is_active`) | Filter `ConditionMonitor.is_active == True` |
+| `core/webhook_metrics.py` | ~472 | **`export_prometheus` never exported `_processing_error_counts`** → processing errors invisible to Prometheus unless typed "transformation_error" (violates documented `webhook_processing_count{status=…}` contract / WEBHOOK-02) | Export error counts as `webhook_processing_count{status="error"}` |
+| `core/jit_verification_worker.py` | ~202 (`_prioritize_citations`) | **Naive `datetime.now()` minus timezone-AWARE `last_verified` (WorldModelService hydrates via `fromisoformat`) → TypeError → whole verification cycle crashed and the 60s-retry loop crash-looped forever** | Aware `datetime.now(timezone.utc)` + naive-normalization + defensive None guard |
+
+**Also fixed** (data loss, same wave): `core/models.py` `ConditionAlert` gained real columns (`status`, `condition_value`, `threshold_value`, `platforms_sent`, `triggered_at`, `sent_at`, `error_message`) and `ConditionMonitor.last_alert_sent_at` — previously plain attributes wiped by expire-on-commit: delivery failures serialized as "sent", condition value lost, throttle never persisted. `create_all`-only schema (stub Phase 265 table), no migration needed.
+
+---
+
+
+**Files**: `core/openie_schema_discovery.py`, `core/governance_config.py`, `core/api_governance.py`, `core/governance_wrapper.py`, `core/command_whitelist.py`, `core/error_handler_decorator.py`, `core/error_middleware.py` — new wave tests `tests/test_covpush_w73_{openie,governance_config,api_governance,governance_wrapper,command_whitelist,error_decorator,error_middleware}.py` (**266 new tests**; 31 openie + 40 gov_config + 35 api_gov + 22 gov_wrapper + 28 whitelist + 37 error_decorator + 46 error_middleware + 27 w73-whitelist network = see counts below).
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`):
+1. All 7 new files in ONE process (RAM-safe): → **266 passed / 0 failed**, combined `--cov` → **907/907 stmts = 100%** across the 7 modules.
+2. Combined with pre-existing partners: `test_covpush_w73_command_whitelist.py` + `test_command_whitelist.py` → **105 passed** (incl. 2 previously-FAILING stale tests now GREEN); error trio + `test_error_handler_decorators.py` + `test_error_handling_fixes.py` → **99 passed**; governance trio + `test_governance_config.py` → **140 passed**; openie + `test_openie_schema_discovery.py` → **117 passed**.
+3. mypy on the 5 edited sources: real errors **18 → 17** (command_whitelist baseline error eliminated by new `COMMAND_WHITELIST: Dict[CommandCategory, Dict[str, Any]]` annotation; remaining = pre-existing error_middleware attr/assignment debt).
+4. `tests/test_host_shell_service.py` + `test_host_shell_error_handling.py` (12 FAILED) verified **pre-existing on unmodified HEAD** (stash check) — stale maturity-gate/error-handling expectations in tests of a non-wave module; untouched.
+
+### Coverage deltas (measured with `--cov=<module> --cov-report=term-missing`)
+
+| Module | Baseline | After | Missing after |
+|---|---|---|---|
+| `core/openie_schema_discovery.py` | 168 stmts / 98% (existing 57 tests) | **168 / 100%** (combined 117) | — |
+| `core/governance_config.py` | 149 / 96% (existing 50) | **149 / 100%** (combined 83) | — |
+| `core/api_governance.py` | 109 / **0%** (never imported by any test) | **109 / 100%** (35) | — |
+| `core/governance_wrapper.py` | 112 / **0%** (never imported) | **112 / 100%** (22) | — |
+| `core/command_whitelist.py` | 100 / 56% (existing 77; 2 FAILED) | **100 / 100%** (combined 105) | — |
+| `core/error_handler_decorator.py` | 132 / 47% (existing 10) | **132 / 100%** (combined 99) | — |
+| `core/error_middleware.py` | 137 / **0%** (never imported) | **137 / 100%** (46) | — |
+
+### REAL bugs fixed (TDD red→green)
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/api_governance.py` | ~254 | **Phantom import `from core.auth import get_current_user_from_request`** — the name has NEVER existed in `core.auth` (only in archived dead routes). ImportError → outer `except Exception` → **every agent-gated request through `require_governance` returned 500 "Internal error"** instead of enforcing governance | Read `request.state.user_id` (auth-middleware pattern) with best-effort degradation to None; user_id threaded into `resolve_agent_for_request` |
+| `core/api_governance.py` | ~353 | **Broad `except Exception` swallowed the intended HTTPException outcomes** — agent-not-found 404, INTERN proposal 202, STUDENT/SUPERVISED 403 all re-raised as 500, so proposals/denials never reached clients in their intended form | `except HTTPException: raise` before the generic handler |
+| `core/governance_wrapper.py` | ~284 | **`AgentGovernanceService()` called without required positional `db`** — TypeError on every cold-cache full check → fail-closed handler rejected ALL governed service calls (`require_governance` decorator denied everything with "Governance check error: … missing 1 required positional argument: 'db'") | `AgentGovernanceService(db)` (session in scope) |
+| `core/command_whitelist.py` | NETWORK cfg (~68) | **Documented Bug #10 intent violated**: comment says "Moved curl/wget to SUPERVISED+ only" but the commands were dropped from `COMMAND_WHITELIST` entirely → `curl`/`wget` rejected for ALL tiers incl. AUTONOMOUS (2 stale tests were RED). Restoring them with category-level maturity would have leaked curl to INTERN (per-category list), so added a **per-command maturity override** (`command_maturity` key) — curl/wget SUPERVISED+, diagnostics ping/nslookup/dig/netstat stay INTERN+; enforced in `validate_command`, `get_allowed_commands`, and the decorator's min-maturity message | Per-command override map + consumers updated |
+| `core/error_handler_decorator.py` | ~190 (both wrappers) | **"timed out" (Python's canonical wording) not matched** — connection/timeout classifier only checked substring "timeout", so `TimeoutError("… timed out")` fell through to generic 500 instead of 503 | Added `"timed out"` to the classifier |
+| `core/error_middleware.py` | status/error-code maps | **`"NotFoundError"` is not a builtin exception name** — `FileNotFoundError` (the real one) fell through both maps to 500/INTERNAL_ERROR instead of 404/NOT_FOUND | Added `"FileNotFoundError"` to both maps |
+
+### Stale test repair (side effect of fixes)
+- `tests/test_command_whitelist.py`: 2 pre-existing FAILED (`test_network_commands`, `test_autonomous_allowed_commands`) → **0** (curl/wget restored per documented Bug #10 intent).
+- `tests/test_error_handlers.py::TestNotFoundHandler::test_handle_not_found_includes_resource_details` — pre-existing failure in `core/error_handlers.py` (NOT a wave module): test expects `details["resource_type"]` key the handler never emitted; untouched, out of scope.
+
+### Remaining uncovered lines
+- None — all seven modules measure **100%** (907/907 statements).
+
+---
+
 ## Session 2026-08-13 (wave 70 — 7 never-tested debug/bulk core modules to ≥95%) — bulk_operations_processor.py, debug_ai_assistant.py, debug_alerting.py, debug_storage.py, debug_query.py, debug_collector.py, debug_insight_engine.py
 
 **Files**: new wave tests `tests/test_covpush_w70_{bulk_ops,debug_ai,debug_alerting,debug_storage,debug_query,debug_collector,debug_insight}.py` (**285 new tests**). Source fixes: `core/models.py` (schema-drift repair), `core/debug_alerting.py`, `core/debug_ai_assistant.py`, `core/debug_collector.py`, `alembic/versions/20260813_restore_debug_schema.py` (guarded additive migration).

@@ -262,6 +262,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             "AttributeError": status.HTTP_400_BAD_REQUEST,
             "PermissionError": status.HTTP_403_FORBIDDEN,
             "NotFoundError": status.HTTP_404_NOT_FOUND,
+            "FileNotFoundError": status.HTTP_404_NOT_FOUND,
             "HTTPException": getattr(exc, "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR),
         }
 
@@ -388,6 +389,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             "AttributeError": "ATTRIBUTE_ERROR",
             "PermissionError": "PERMISSION_DENIED",
             "NotFoundError": "NOT_FOUND",
+            "FileNotFoundError": "NOT_FOUND",
         }
 
         return error_code_map.get(

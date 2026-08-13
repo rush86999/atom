@@ -431,7 +431,11 @@ async def logout(
     import jwt as _jwt
     from core.auth import SECRET_KEY, ALGORITHM
     try:
-        raw_token = oauth2_scheme(request)
+        # NOTE: oauth2_scheme is async (OAuth2PasswordBearer.__call__) — the
+        # missing `await` made `raw_token` a truthy coroutine, so decode always
+        # failed and the bare except swallowed it: logout NEVER revoked the
+        # token (24h reuse window). Wave-75 security bug.
+        raw_token = await oauth2_scheme(request)
         if raw_token:
             payload = _jwt.decode(raw_token, SECRET_KEY, algorithms=[ALGORITHM])
             jti = payload.get("jti")

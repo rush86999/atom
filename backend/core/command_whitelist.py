@@ -43,8 +43,8 @@ class CommandCategory(str, Enum):
 
 
 # Command whitelist by category and maturity level
-# Format: {category: {commands: [...], maturity_levels: [...]}}
-COMMAND_WHITELIST = {
+# Format: {category: {commands: [...], maturity_levels: [...], command_maturity?: {...}}}
+COMMAND_WHITELIST: Dict[CommandCategory, Dict[str, Any]] = {
     CommandCategory.FILE_READ: {
         "commands": ["ls", "pwd", "cat", "head", "tail", "grep", "find", "wc"],
         "maturity_levels": ["STUDENT", "INTERN", "SUPERVISED", "AUTONOMOUS"]
@@ -70,8 +70,15 @@ COMMAND_WHITELIST = {
         # (lowest trust), contradicting sandbox_policy which gives STUDENT
         # zero egress. Moved curl/wget to SUPERVISED+ only; kept diagnostic
         # commands (ping/nslookup/dig/netstat) available to INTERN+.
-        "commands": ["ping", "nslookup", "dig", "netstat"],
-        "maturity_levels": ["INTERN", "SUPERVISED", "AUTONOMOUS"]
+        # Category-level maturity is the INTERN floor; per-command overrides
+        # tighten curl/wget to SUPERVISED+ (the category config alone cannot
+        # express a per-command split).
+        "commands": ["curl", "wget", "ping", "nslookup", "dig", "netstat"],
+        "maturity_levels": ["INTERN", "SUPERVISED", "AUTONOMOUS"],
+        "command_maturity": {
+            "curl": ["SUPERVISED", "AUTONOMOUS"],
+            "wget": ["SUPERVISED", "AUTONOMOUS"],
+        },
     },
     CommandCategory.BLOCKED: {
         "commands": [
@@ -178,7 +185,9 @@ def whitelisted_command(
             # Check if maturity level is permitted
             if agent_maturity not in maturity_level_enums:
                 # Get minimum required maturity
-                allowed_maturities = category_config["maturity_levels"]
+                allowed_maturities = category_config.get("command_maturity", {}).get(
+                    base_command, category_config["maturity_levels"]
+                )
                 min_maturity = allowed_maturities[0] if allowed_maturities else "BLOCKED"
 
                 raise PermissionError(
@@ -269,7 +278,7 @@ def validate_command(
             category_config = config
             break
 
-    if not command_category:
+    if not command_category or category_config is None:
         return {
             "valid": False,
             "command": base_command,
@@ -294,6 +303,9 @@ def validate_command(
 
     # Check maturity level (case-insensitive comparison)
     allowed_maturities = category_config["maturity_levels"]
+    command_maturity = category_config.get("command_maturity") or {}
+    if base_command in command_maturity:
+        allowed_maturities = command_maturity[base_command]
     maturity_level_upper = maturity_level.upper() if maturity_level else maturity_level
 
     if maturity_level_upper not in allowed_maturities:
@@ -360,7 +372,10 @@ def get_allowed_commands(maturity_level: str) -> List[str]:
     allowed_commands = []
 
     for category, config in COMMAND_WHITELIST.items():
-        if maturity_level in config["maturity_levels"]:
-            allowed_commands.extend(config["commands"])
+        command_maturity = config.get("command_maturity", {})
+        for command in config["commands"]:
+            cmd_levels = command_maturity.get(command, config["maturity_levels"])
+            if maturity_level in cmd_levels:
+                allowed_commands.append(command)
 
     return sorted(set(allowed_commands))
