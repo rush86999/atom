@@ -427,9 +427,9 @@ async def home_assistant_call_service(
         raise ValueError("ha_url, ha_token, domain, and service are required")
 
     try:
-        service = HomeAssistantService(ha_url, ha_token)
-        result = await service.call_service(domain, service, entity_id, data)
-        await service.close()
+        ha_service = HomeAssistantService(ha_url, ha_token)
+        result = await ha_service.call_service(domain, service, entity_id, data)
+        await ha_service.close()
 
         logger.info("Home Assistant call_service successful", agent_id=agent_id, domain=domain, service=service)
 

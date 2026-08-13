@@ -97,7 +97,7 @@ class MarginCalculatorService:
             from ecommerce.models import EcommerceOrder, EcommerceOrderItem
             order_items = db.query(EcommerceOrderItem).join(EcommerceOrder).filter(
                 EcommerceOrderItem.product_id == product.id,
-                EcommerceOrder.workspace_id == workspace_id
+                EcommerceOrder.tenant_id == workspace_id
             ).all()
 
             for item in order_items:

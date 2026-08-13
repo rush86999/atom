@@ -89,7 +89,7 @@ class AccountingSyncManager:
 
                 # Ingest into semantic memory (LanceDB + Knowledge Graph)
                 try:
-                    ingestion_pipeline.ingest_message(
+                    await ingestion_pipeline.ingest_message(
                         app_type=platform if platform != "quickbooks" else "quickbooks",
                         message_data={
                             "id": f"tx_{tx.id}",

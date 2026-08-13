@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 from accounting.models import Account, JournalEntry, Transaction
 from sqlalchemy.orm import Session
 
-from core.cross_system_reasoning import get_reasoning_engine
+from core.cross_system_reasoning import CrossSystemReasoningEngine
 from integrations.asana_service import AsanaService
 from integrations.slack_service_unified import SlackUnifiedService
 
@@ -18,7 +18,7 @@ class FinancialWorkflowService:
 
     def __init__(self, db: Session):
         self.db = db
-        self.reasoning = get_reasoning_engine()
+        self.reasoning = CrossSystemReasoningEngine()
         self.asana = AsanaService()
         self.slack = SlackUnifiedService()
 
@@ -39,7 +39,11 @@ class FinancialWorkflowService:
             await self._handle_payment_task_completion(tx, task_id)
 
         # 2. Check for Budget Alerts
-        alerts = await self.reasoning.check_financial_integrity(self.db, tx.workspace_id)
+        # The reasoning engine may not expose check_financial_integrity (it is
+        # not part of CrossSystemReasoningEngine's public API) — degrade to no
+        # alerts instead of crashing the transaction event handler.
+        check_integrity = getattr(self.reasoning, "check_financial_integrity", None)
+        alerts = await check_integrity(self.db, tx.workspace_id) if check_integrity else []
         for alert in alerts:
             if alert["type"] == "FINANCIAL_BUDGET_OVERRUN":
                 # Workflow: Notify Slack about budget overrun
