@@ -22,6 +22,8 @@ Error classification:
 """
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
 import logging
 import os
@@ -343,6 +345,12 @@ class RequestHealer:
         if self._llm_healer is not None and os.getenv("ATOM_LLM_HEALER_ENABLED", "false").lower() == "true":
             try:
                 llm_result = self._llm_healer(error, kwargs, provider, model)
+                # The documented contract is an async callable (see
+                # make_default_llm_healer); bridge it here so injecting the
+                # module's own factory actually works instead of silently
+                # failing on the coroutine unpack.
+                if inspect.isawaitable(llm_result):
+                    llm_result = asyncio.run(llm_result)  # type: ignore[arg-type]
                 if llm_result is not None:
                     patched, keys = llm_result
                     logger.info(

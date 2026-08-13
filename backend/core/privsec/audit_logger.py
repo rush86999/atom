@@ -437,8 +437,11 @@ class AuditLogger:
         log_pattern = self._log_path.stem + ".*.log*"
         for log_file in self._log_path.parent.glob(log_pattern):
             try:
-                # Check file modification time
-                mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
+                # BUG (W71C): mtime was naive while cutoff_date is aware
+                # (UTC) → `mtime < cutoff_date` raised TypeError, caught by
+                # the except → old audit logs were NEVER removed and every
+                # removal attempt logged a spurious error. Make mtime aware.
+                mtime = datetime.fromtimestamp(log_file.stat().st_mtime, tz=timezone.utc)
 
                 if mtime < cutoff_date:
                     log_file.unlink()

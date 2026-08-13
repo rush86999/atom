@@ -11,6 +11,7 @@ Implements:
 - Model evaluation and A/B testing
 - Model persistence and loading
 """
+from __future__ import annotations
 
 import hashlib
 import json
