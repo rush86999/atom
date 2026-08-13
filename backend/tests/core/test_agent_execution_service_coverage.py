@@ -995,3 +995,250 @@ class TestSynchronousExecution:
                         )
 
                         assert result["success"] is True
+
+
+# =========================================================================
+# TestCoverageGaps: error/edge branches not exercised by the suites above
+# (budget paths, marketplace tracking, db-close exceptions, ChatMessage)
+# =========================================================================
+
+
+class TestCoverageGaps:
+    """Targeted tests for branches left uncovered by the main suites."""
+
+    def test_chat_message_model_stores_role_and_content(self):
+        """ChatMessage is a trivial value object; cover its __init__."""
+        from core.agent_execution_service import ChatMessage
+        msg = ChatMessage(role="user", content="hello")
+        assert msg.role == "user"
+        assert msg.content == "hello"
+
+    @pytest.mark.asyncio
+    async def test_budget_exceeded_continues_and_alerts(
+        self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service
+    ):
+        """When the budget is exceeded, execution continues and a 100% alert fires."""
+        mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+        mock_governance.can_perform_action.return_value = {"allowed": True}
+
+        with patch('core.agent_execution_service.personal_budget_service') as mock_budget:
+            mock_budget.is_budget_exceeded.return_value = True
+            with patch('core.agent_execution_service.SessionLocal') as mock_db:
+                mock_db.return_value = MagicMock()
+                with patch('core.agent_execution_service.get_chat_history_manager'), \
+                     patch('core.agent_execution_service.get_chat_session_manager'), \
+                     patch('core.agent_execution_service.trigger_episode_creation'):
+                    result = await execute_agent_chat(
+                        agent_id=mock_agent.id, message="Hi", user_id=mock_user.id
+                    )
+            assert result["success"] is True
+            # 100% alert is sent on the exceeded branch (80/90 are NOT).
+            mock_budget.send_budget_alert.assert_any_call(100.0)
+
+    @pytest.mark.asyncio
+    async def test_budget_check_exception_does_not_block(
+        self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service
+    ):
+        """A budget-check failure is logged and swallowed; execution proceeds."""
+        mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+        mock_governance.can_perform_action.return_value = {"allowed": True}
+
+        with patch('core.agent_execution_service.personal_budget_service') as mock_budget:
+            mock_budget.is_budget_exceeded.side_effect = RuntimeError("budget svc down")
+            with patch('core.agent_execution_service.SessionLocal') as mock_db:
+                mock_db.return_value = MagicMock()
+                with patch('core.agent_execution_service.get_chat_history_manager'), \
+                     patch('core.agent_execution_service.get_chat_session_manager'), \
+                     patch('core.agent_execution_service.trigger_episode_creation'):
+                    result = await execute_agent_chat(
+                        agent_id=mock_agent.id, message="Hi", user_id=mock_user.id
+                    )
+            assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_record_spend_exception_is_non_fatal(
+        self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service
+    ):
+        """A spend-recording failure must not fail the (already-successful) execution."""
+        mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+        mock_governance.can_perform_action.return_value = {"allowed": True}
+
+        with patch('core.agent_execution_service.personal_budget_service') as mock_budget:
+            mock_budget.record_spend.side_effect = RuntimeError("spend failed")
+            with patch('core.agent_execution_service.SessionLocal') as mock_db:
+                mock_db.return_value = MagicMock()
+                with patch('core.agent_execution_service.get_chat_history_manager'), \
+                     patch('core.agent_execution_service.get_chat_session_manager'), \
+                     patch('core.agent_execution_service.trigger_episode_creation'):
+                    result = await execute_agent_chat(
+                        agent_id=mock_agent.id, message="Hi", user_id=mock_user.id
+                    )
+            assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_marketplace_agent_usage_tracked_on_success(
+        self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service
+    ):
+        """A marketplace-type agent records MarketplaceUsageTracker on success."""
+        mock_agent.type = "marketplace"
+        mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+        mock_governance.can_perform_action.return_value = {"allowed": True}
+
+        installation = MagicMock(template_id="tpl-1")
+        with patch('core.agent_execution_service.SessionLocal') as mock_db:
+            mock_session = MagicMock()
+            mock_db.return_value = mock_session
+            # The finalize session re-fetches the execution row AND the
+            # AgentInstallation row; both flow through query().filter().first().
+            mock_session.query.return_value.filter.return_value.first.return_value = installation
+            with patch('core.agent_execution_service.MarketplaceUsageTracker') as mock_tracker, \
+                 patch('core.agent_execution_service.get_chat_history_manager'), \
+                 patch('core.agent_execution_service.get_chat_session_manager'), \
+                 patch('core.agent_execution_service.trigger_episode_creation'):
+                result = await execute_agent_chat(
+                    agent_id=mock_agent.id, message="Hi", user_id=mock_user.id
+                )
+            assert result["success"] is True
+            mock_tracker.track_usage.assert_called_once()
+            assert mock_tracker.track_usage.call_args.kwargs["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_marketplace_agent_usage_tracked_on_failure(
+        self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service
+    ):
+        """A marketplace-type agent records a FAILURE usage when streaming errors."""
+        mock_agent.type = "marketplace"
+        mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+        mock_governance.can_perform_action.return_value = {"allowed": True}
+
+        installation = MagicMock(template_id="tpl-1")
+        with patch('core.agent_execution_service.SessionLocal') as mock_db:
+            mock_session = MagicMock()
+            mock_db.return_value = mock_session
+            mock_session.query.return_value.filter.return_value.first.return_value = installation
+            # Replace the streaming token generator with one that raises.
+            async def failing_stream():
+                raise Exception("LLM API error")
+                yield  # pragma: no cover
+            mock_llm_service.stream_completion = failing_stream
+            with patch('core.agent_execution_service.MarketplaceUsageTracker') as mock_tracker, \
+                 patch('core.agent_execution_service.get_chat_history_manager'), \
+                 patch('core.agent_execution_service.get_chat_session_manager'), \
+                 patch('core.agent_execution_service.trigger_episode_creation'):
+                result = await execute_agent_chat(
+                    agent_id=mock_agent.id, message="Hi", user_id=mock_user.id
+                )
+            assert result["success"] is False
+            mock_tracker.track_usage.assert_called_once()
+            assert mock_tracker.track_usage.call_args.kwargs["success"] is False
+
+    @pytest.mark.asyncio
+    async def test_db_session_close_exception_is_swallowed(
+        self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service
+    ):
+        """A pre-stream db_session.close() failure is swallowed (try/except pass)."""
+        mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+        mock_governance.can_perform_action.return_value = {"allowed": True}
+
+        with patch('core.agent_execution_service.SessionLocal') as mock_db:
+            mock_session = MagicMock()
+            mock_db.return_value = mock_session
+            # First SessionLocal() (governance) closes with an error; the
+            # finalize SessionLocal() must still work.
+            close_calls = {"n": 0}
+            real_close = mock_session.close
+
+            def flaky_close():
+                close_calls["n"] += 1
+                if close_calls["n"] == 1:
+                    raise RuntimeError("close failed")
+            mock_session.close = flaky_close
+            with patch('core.agent_execution_service.get_chat_history_manager'), \
+                 patch('core.agent_execution_service.get_chat_session_manager'), \
+                 patch('core.agent_execution_service.trigger_episode_creation'):
+                result = await execute_agent_chat(
+                    agent_id=mock_agent.id, message="Hi", user_id=mock_user.id
+                )
+            assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_episode_trigger_raises_synchronously_is_swallowed(
+        self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service
+    ):
+        """A synchronous exception from trigger_episode_creation is logged, not fatal."""
+        mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+        mock_governance.can_perform_action.return_value = {"allowed": True}
+
+        with patch('core.agent_execution_service.SessionLocal') as mock_db:
+            mock_db.return_value = MagicMock()
+            with patch('core.agent_execution_service.get_chat_history_manager'), \
+                 patch('core.agent_execution_service.get_chat_session_manager'), \
+                 patch('core.agent_execution_service.trigger_episode_creation',
+                       side_effect=RuntimeError("trigger boom")):
+                result = await execute_agent_chat(
+                    agent_id=mock_agent.id, message="Hi", user_id=mock_user.id
+                )
+            assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_marketplace_track_exception_swallowed(
+        self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service
+    ):
+        """A MarketplaceUsageTracker failure on the success path is logged, not fatal."""
+        mock_agent.type = "marketplace"
+        mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+        mock_governance.can_perform_action.return_value = {"allowed": True}
+
+        installation = MagicMock(template_id="tpl-1")
+        with patch('core.agent_execution_service.SessionLocal') as mock_db:
+            mock_session = MagicMock()
+            mock_db.return_value = mock_session
+            mock_session.query.return_value.filter.return_value.first.return_value = installation
+            with patch('core.agent_execution_service.MarketplaceUsageTracker') as mock_tracker:
+                mock_tracker.track_usage.side_effect = RuntimeError("tracker down")
+                with patch('core.agent_execution_service.get_chat_history_manager'), \
+                     patch('core.agent_execution_service.get_chat_session_manager'), \
+                     patch('core.agent_execution_service.trigger_episode_creation'):
+                    result = await execute_agent_chat(
+                        agent_id=mock_agent.id, message="Hi", user_id=mock_user.id
+                    )
+            assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_finalize_commit_failure_rolls_back(
+        self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service
+    ):
+        """If the finalize-session commit fails, the update_error path rolls back."""
+        mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+        mock_governance.can_perform_action.return_value = {"allowed": True}
+
+        with patch('core.agent_execution_service.SessionLocal') as mock_db:
+            mock_session = MagicMock()
+            mock_db.return_value = mock_session
+            # query().first() returns a row so the update path is entered, then
+            # commit() raises to drive the update_error except branch.
+            mock_session.query.return_value.filter.return_value.first.return_value = MagicMock()
+            mock_session.commit.side_effect = RuntimeError("commit failed")
+            with patch('core.agent_execution_service.get_chat_history_manager'), \
+                 patch('core.agent_execution_service.get_chat_session_manager'), \
+                 patch('core.agent_execution_service.trigger_episode_creation'):
+                result = await execute_agent_chat(
+                    agent_id=mock_agent.id, message="Hi", user_id=mock_user.id
+                )
+            assert result["success"] is True
+            mock_session.rollback.assert_called()
+
+    def test_sync_wrapper_creates_new_loop_when_none_running(self):
+        """execute_agent_chat_sync falls back to a new event loop when none exists."""
+        fake_loop = MagicMock()
+        fake_loop.run_until_complete.return_value = {"success": True}
+        with patch('asyncio.get_event_loop', side_effect=RuntimeError("no running loop")), \
+             patch('asyncio.new_event_loop', return_value=fake_loop) as mock_new, \
+             patch('asyncio.set_event_loop') as mock_set, \
+             patch('core.agent_execution_service.execute_agent_chat',
+                   new=AsyncMock(return_value={"success": True})):
+            result = execute_agent_chat_sync(agent_id="a1", message="Hi", user_id="u1")
+        assert result["success"] is True
+        mock_new.assert_called_once()
+        mock_set.assert_called_once_with(fake_loop)
+

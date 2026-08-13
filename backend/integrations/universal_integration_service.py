@@ -692,21 +692,63 @@ class UniversalIntegrationService:
 
         elif service == "asana":
             if action == "list":
-                return {"status": "success", "data": await pm_service.get_tasks(token)}
+                # asana_service.get_tasks never raises — it returns
+                # {"ok": False, "error": ...} on failure. Propagate the
+                # failure instead of wrapping it in a lying "success".
+                asana_list = await pm_service.get_tasks(token)
+                if isinstance(asana_list, dict) and asana_list.get("ok") is False:
+                    return {"status": "error", "error": asana_list.get("error") or "Asana get_tasks failed"}
+                return {"status": "success", "data": asana_list.get("tasks", [])}
             elif action == "create":
-                return {"status": "success", "data": await pm_service.create_task(token, params.get("data", params))}
+                # asana_service.create_task requires task_data["name"] — the
+                # unified tools send "title"/"summary" (frontend Quick Create
+                # sends {title, platform, status}), so map them before the
+                # call or every asana create fails with "Missing required
+                # field: name".
+                asana_params = dict(params.get("data", params) or {})
+                asana_params.setdefault("name", asana_params.get("title") or asana_params.get("summary"))
+                # asana_service.create_task never raises — it returns
+                # {"ok": False, "error": ...} on failure. Propagate that as a
+                # service-level error instead of wrapping it in a lying
+                # "success" (the UI would show "Task created successfully"
+                # although nothing was created).
+                asana_result = await pm_service.create_task(token, asana_params)
+                if isinstance(asana_result, dict) and asana_result.get("ok") is False:
+                    return {"status": "error", "error": asana_result.get("error") or "Asana create_task failed"}
+                return {"status": "success", "data": asana_result}
                 
         elif service == "jira":
             if action == "list":
-                return {"status": "success", "data": await pm_service.get_issues(params.get("project_key") or params.get("project"), token=token)}
+                # JiraService is fully synchronous (requests-based) — its
+                # issue-list method is search_issues, NOT get_issues (the
+                # former get_issues call raised AttributeError, surfacing as
+                # "'JiraService' object has no attribute 'get_issues'" in
+                # every unified-tasks response). search_issues already
+                # degrades gracefully to {"issues": []} on failure.
+                jira_result = pm_service.search_issues(
+                    jql=params.get("jql") or "order by created DESC",
+                    max_results=int(params.get("limit") or 50),
+                    token=token,
+                )
+                return {"status": "success", "data": jira_result.get("issues", [])}
             elif action == "create":
-                return {"status": "success", "data": await pm_service.create_issue(
-                    params.get("project") or params.get("project_key"),
-                    params.get("title") or params.get("summary"),
-                    params.get("issue_type", "Task"),
-                    params.get("description", ""),
-                    token=token
-                )}
+                # create_issue is synchronous and returns None on failure —
+                # awaiting it raised "object NoneType can't be used in
+                # 'await' expression" whenever Jira was not configured.
+                try:
+                    issue = pm_service.create_issue(
+                        params.get("project") or params.get("project_key"),
+                        params.get("title") or params.get("summary"),
+                        params.get("issue_type", "Task"),
+                        params.get("description", ""),
+                        token=token,
+                    )
+                except Exception as e:
+                    logger.warning(f"Jira create_issue failed: {e}")
+                    issue = None
+                if not issue:
+                    return {"status": "error", "error": "Jira create_issue failed (is JIRA configured?)"}
+                return {"status": "success", "data": issue}
                 
         elif service == "trello":
             if action == "list":
@@ -737,7 +779,9 @@ class UniversalIntegrationService:
              tasks = await pm_service.get_tasks(token)
              return [t for t in tasks if query.lower() in t.get("name", "").lower()]
         elif service == "jira":
-             return await pm_service.search_issues(f"text ~ '{query}'", token=token)
+             # search_issues is synchronous (requests-based) — do NOT await
+             # (awaiting a plain dict raised TypeError).
+             return pm_service.search_issues(f"text ~ '{query}'", token=token).get("issues", [])
         return []
 
     # The following methods have been refactored to use the Registry pattern:

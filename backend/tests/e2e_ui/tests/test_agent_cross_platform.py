@@ -61,7 +61,7 @@ def make_platform_request(
         headers["X-Platform"] = platform
 
     # Make request
-    url = f"http://localhost:8000{endpoint}"
+    url = f"http://localhost:8001{endpoint}"
 
     if method == "GET":
         response = requests.get(url, headers=headers)
@@ -79,6 +79,11 @@ def make_platform_request(
         response_data = response.json() if response.status_code == 200 else None
     except Exception:
         response_data = None
+
+    # Unwrap the standard Atom success envelope ({success, data, message})
+    # so tests operate on the payload directly.
+    if isinstance(response_data, dict) and "success" in response_data and "data" in response_data:
+        response_data = response_data["data"]
 
     return {
         "status_code": response.status_code,
@@ -161,7 +166,7 @@ class TestAgentSchemaConsistency:
         """
         # Create test agent
         agent_result = create_test_agent_direct(
-            db,
+            db_session,
             name=f"Schema Test Agent {str(uuid.uuid4())[:8]}",
             status="STUDENT",
             category="testing"
@@ -257,7 +262,7 @@ class TestAgentSchemaConsistency:
         agent_ids = []
         for i in range(3):
             agent_result = create_test_agent_direct(
-                db,
+                db_session,
                 name=f"List Test Agent {i} {str(uuid.uuid4())[:4]}",
                 status="STUDENT",
                 category="testing"
@@ -353,7 +358,7 @@ class TestAgentStreamingFormat:
         """
         # Create test agent
         agent_result = create_test_agent_direct(
-            db,
+            db_session,
             name=f"Streaming Test Agent {str(uuid.uuid4())[:8]}",
             status="INTERN",
             category="testing"
@@ -552,7 +557,7 @@ class TestAgentGovernanceConsistency:
         """
         # Create STUDENT agent
         agent_result = create_test_agent_direct(
-            db,
+            db_session,
             name=f"Student Agent {str(uuid.uuid4())[:8]}",
             status="STUDENT",
             category="testing"
@@ -652,7 +657,7 @@ class TestCrossPlatformAgentExecution:
         """
         # Create INTERN agent
         agent_result = create_test_agent_direct(
-            db,
+            db_session,
             name=f"Intern Agent {str(uuid.uuid4())[:8]}",
             status="INTERN",
             category="testing"

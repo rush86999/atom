@@ -89,13 +89,17 @@ def setup_test_user(api_client: APIClient, test_user_data: Dict[str, str]) -> Di
             user = setup_test_user["user"]
             token = setup_test_user["access_token"]
     """
-    # Create user via API
+    # Create user via API. recover_already_registered=True: the fixture always
+    # mints a fresh email, so a 400 "Email already registered" can only mean
+    # a previous retry committed the user before the response failed — the
+    # right recovery is to authenticate the existing user.
     user_response = create_test_user(
         client=api_client,
         email=test_user_data["email"],
         password=test_user_data["password"],
         first_name=test_user_data["first_name"],
-        last_name=test_user_data["last_name"]
+        last_name=test_user_data["last_name"],
+        recover_already_registered=True,
     )
 
     # Authenticate and get token
@@ -105,8 +109,17 @@ def setup_test_user(api_client: APIClient, test_user_data: Dict[str, str]) -> Di
         password=test_user_data["password"]
     )
 
+    # POST /api/auth/register only returns {"access_token", "token_type"} —
+    # it does NOT echo the user object. Fetch the user profile via
+    # /api/auth/me so consumers get a real user dict (id/email/role/...).
+    api_client.set_token(token)
+    try:
+        user_profile = api_client.get("/api/auth/me")
+    finally:
+        api_client.clear_token()
+
     return {
-        "user": user_response.get("user", user_response),
+        "user": user_profile,
         "access_token": token,
         "email": test_user_data["email"],
         "password": test_user_data["password"]

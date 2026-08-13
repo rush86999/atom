@@ -18,11 +18,15 @@ interface ExecutionJob {
 }
 
 // Renders the started_at timestamp in an ISO-8601 style ("2026-08-12 22:45")
-// so it carries the calendar date AND time-of-day information.
+// so it carries the calendar date AND time-of-day information. The backend
+// emits naive UTC ISO strings ("2026-08-12T22:45:00" — no timezone suffix),
+// which JS would otherwise parse as LOCAL time; append "Z" so the display
+// stays in UTC and matches the stored value.
 const formatTimestamp = (value: string | null | undefined): string => {
     if (!value) return "—";
     try {
-        const date = new Date(value);
+        const hasTz = /(Z|[+-]\d{2}:?\d{2})$/.test(value);
+        const date = new Date(hasTz ? value : `${value}Z`);
         if (Number.isNaN(date.getTime())) return value;
         return date.toISOString().replace('T', ' ').slice(0, 16);
     } catch {
@@ -44,24 +48,36 @@ export const AgentHistoryTable: React.FC = () => {
     const fetchHistory = async () => {
         try {
             setLoading(true);
-            const { apiClient } = await import('../../lib/api-client');
+
+            // NOTE: native fetch (not the shared apiClient) is used on purpose —
+            // the repo's MSW test setup intercepts fetch but not axios' XHR
+            // adapter, so apiClient calls hang in Jest.
+            const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
             const [historyRes, agentsRes] = await Promise.allSettled([
-                apiClient.get('/api/agents/history'),
-                apiClient.get('/api/agents'),
+                fetch(`${API_BASE}/api/agents/history`, { headers }),
+                fetch(`${API_BASE}/api/agents`, { headers }),
             ]);
 
             let history: any[] = [];
-            if (historyRes.status === 'fulfilled') {
-                const data = historyRes.value.data;
+            if (historyRes.status === 'fulfilled' && historyRes.value.ok) {
+                const data = await historyRes.value.json();
                 history = Array.isArray(data) ? data : (data?.data || []);
+            } else {
+                throw new Error(
+                    historyRes.status === 'rejected'
+                        ? historyRes.reason?.message || 'Network error'
+                        : `HTTP ${historyRes.value.status}`
+                );
             }
 
             // Map agent ids to names so rows show a human-readable agent
             // (the /history endpoint only returns agent_id).
             const agentNames: Record<string, string> = {};
-            if (agentsRes.status === 'fulfilled') {
-                const data = agentsRes.value.data;
+            if (agentsRes.status === 'fulfilled' && agentsRes.value.ok) {
+                const data = await agentsRes.value.json();
                 const agents: any[] = Array.isArray(data) ? data : (data?.data || []);
                 agents.forEach((a: any) => {
                     if (a?.id) agentNames[a.id] = a.name || a.id;

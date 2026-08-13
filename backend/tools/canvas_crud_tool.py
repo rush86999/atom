@@ -70,11 +70,19 @@ async def read_canvas(
                 return {"success": False, "error": "Canvas has been deleted", "deleted": True}
 
             details = audit.details_json or {}
+            # Preserve falsy-but-valid content ("" / [] / 0): the old `or`
+            # chain replaced empty content with the whole details dict, so an
+            # empty doc/email body came back as {"title": ..., "content": ...}
+            # instead of the empty string.
+            raw_content = details.get("content")
+            if raw_content is None:
+                raw_content = details.get("data")
+            content = raw_content if raw_content is not None else details
             return {
                 "success": True,
                 "canvas_id": canvas_id,
                 "canvas_type": audit.canvas_type,
-                "content": details.get("content") or details.get("data") or details,
+                "content": content,
                 "title": details.get("title"),
                 "action_type": audit.action_type,
                 "created_at": audit.created_at.isoformat() if audit.created_at else None,

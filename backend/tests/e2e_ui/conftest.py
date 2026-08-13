@@ -13,6 +13,15 @@ from datetime import datetime
 import pytest
 from playwright.sync_api import BrowserContext as SyncBrowserContext
 
+# Package-rooted artifact directories: paths are computed from THIS file so
+# they work regardless of pytest's cwd (the old "backend/tests/e2e_ui/..."
+# relative paths resolved against the caller's cwd and created a nested junk
+# tree e2e_ui/backend/tests/e2e_ui/... when pytest ran from e2e_ui/).
+E2E_UI_DIR = os.path.dirname(os.path.abspath(__file__))
+SCREENSHOT_DIR = os.path.join(E2E_UI_DIR, "artifacts", "screenshots")
+VIDEO_DIR = os.path.join(E2E_UI_DIR, "artifacts", "videos")
+REPORT_DIR = os.path.join(E2E_UI_DIR, "reports")
+
 # Make allure optional - only import if available
 try:
     import allure
@@ -34,7 +43,8 @@ from .fixtures import journey_fixtures  # Realistic user-journey suite fixtures
 # Re-export commonly used fixtures for backward compatibility
 from .fixtures.auth_fixtures import authenticated_page, authenticated_page_api, test_user, authenticated_user, admin_user
 from .fixtures.database_fixtures import db_session, worker_schema, create_worker_schema, get_engine, drop_worker_schema, is_sqlite, init_db
-from .fixtures.api_fixtures import setup_test_user, setup_test_project, api_client, api_base_url, test_user_data
+from .fixtures.api_fixtures import setup_test_user, setup_test_project, api_client, api_base_url, test_user_data, test_project_data, test_skill_data, authenticated_api_client, setup_test_skill
+from .fixtures.memory_fixtures import cdp_session
 # Journey-suite fixtures must be re-exported here so pytest registers them as
 # session-level fixtures (importing the module alone is not enough).
 from .fixtures.journey_fixtures import (
@@ -46,6 +56,16 @@ from .fixtures.journey_fixtures import (
     role_credentials,
     role_authed_page,
     all_role_headers,
+)
+# Network-simulation fixtures (slow 3G, offline, API timeout, DB drop) — same
+# rule: importing the module alone does NOT register its fixtures with pytest.
+from .fixtures.network_fixtures import (
+    slow_3g_context,
+    offline_mode_context,
+    timeout_api_context,
+    database_drop_simulation,
+    verify_network_error,
+    wait_for_network_error,
 )
 
 
@@ -121,9 +141,8 @@ def browser_context_args(browser_context_args):
 
     # Enable video recording only in CI
     if is_ci_environment():
-        video_dir = "backend/tests/e2e_ui/artifacts/videos"
-        os.makedirs(video_dir, exist_ok=True)
-        context_args["record_video_dir"] = video_dir
+        os.makedirs(VIDEO_DIR, exist_ok=True)
+        context_args["record_video_dir"] = VIDEO_DIR
 
     return context_args
 
@@ -295,15 +314,14 @@ def pytest_runtest_makereport(item, call):
 
         if page is not None:
             # Create screenshots directory if not exists
-            screenshot_dir = "backend/tests/e2e_ui/artifacts/screenshots"
-            os.makedirs(screenshot_dir, exist_ok=True)
+            os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
             # Generate descriptive filename. Strip bracket chars (e.g. the
             # "[chromium]" suffix Playwright adds) so the path doesn't break
             # glob-based tooling like actions/upload-artifact.
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             test_name = item.name.replace("::", "_").replace("/", "_").replace("[", "").replace("]", "")[:100]
-            screenshot_path = f"{screenshot_dir}/{timestamp}_{test_name}.png"
+            screenshot_path = f"{SCREENSHOT_DIR}/{timestamp}_{test_name}.png"
 
             # Capture full page screenshot
             page.screenshot(path=screenshot_path, full_page=True)
@@ -332,7 +350,7 @@ def pytest_runtest_makereport(item, call):
                     # Rename video with test name and timestamp
                     video_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     video_test_name = item.name.replace("::", "_").replace("/", "_")[:100]
-                    named_video_path = f"backend/tests/e2e_ui/artifacts/videos/{video_timestamp}_{video_test_name}.webm"
+                    named_video_path = f"{VIDEO_DIR}/{video_timestamp}_{video_test_name}.webm"
                     os.rename(video_path, named_video_path)
                     print(f"\nVideo saved: {named_video_path}")
 
@@ -389,14 +407,13 @@ if PYTEST_HTML_AVAILABLE:
         """
         if report.failed:
             # Check if screenshot exists
-            screenshot_dir = "backend/tests/e2e_ui/artifacts/screenshots"
             test_name = report.nodeid.replace("::", "_").replace("/", "_")[:100]
 
             # Look for matching screenshot files
-            if os.path.exists(screenshot_dir):
-                for filename in sorted(os.listdir(screenshot_dir), reverse=True):
+            if os.path.exists(SCREENSHOT_DIR):
+                for filename in sorted(os.listdir(SCREENSHOT_DIR), reverse=True):
                     if test_name in filename and filename.endswith(".png"):
-                        screenshot_path = os.path.join(screenshot_dir, filename)
+                        screenshot_path = os.path.join(SCREENSHOT_DIR, filename)
                         # Add screenshot cell
                         cells.append(
                             f'<td><a href="{screenshot_path}">Screenshot</a></td>'

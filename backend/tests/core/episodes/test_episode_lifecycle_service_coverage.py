@@ -65,7 +65,9 @@ class TestEpisodeLifecycleServiceCoverage:
         db_session.refresh(ep)
         # Decay score should be reduced (100 days old -> 1 - 100/180 = 0.444)
         assert ep.decay_score < 1.0
-        assert ep.access_count == 6  # Incremented
+        # decay_old_episodes is a read-only background maintenance job; it must
+        # NOT bump access_count (that field tracks retrieval/usage, not decay).
+        assert ep.access_count == 5  # Unchanged
 
     @pytest.mark.asyncio
     async def test_decay_old_episodes_auto_archive(self, db_session):
@@ -416,8 +418,8 @@ class TestEpisodeLifecycleServiceCoverage:
         assert result is True
 
         db_session.refresh(ep)
-        # 45 days old -> decay = 45/90 = 0.5
-        assert ep.decay_score == pytest.approx(0.5, rel=0.01)
+        # 45 days old -> freshness = 1 - 45/180 = 0.75
+        assert ep.decay_score == pytest.approx(0.75, rel=0.01)
 
     def test_update_lifecycle_no_started_at(self, db_session):
         """Cover missing started_at (lines 293-295)"""
@@ -493,8 +495,8 @@ class TestEpisodeLifecycleServiceCoverage:
         assert result is True
 
         db_session.refresh(ep)
-        # 30 days old -> decay = 30/90 = 0.333
-        assert ep.decay_score == pytest.approx(0.333, rel=0.01)
+        # 30 days old -> freshness = 1 - 30/180 = 0.833
+        assert ep.decay_score == pytest.approx(0.833, rel=0.01)
 
     def test_apply_decay_list_of_episodes(self, db_session):
         """Cover apply_decay list of episodes (lines 344-350)"""
@@ -512,9 +514,9 @@ class TestEpisodeLifecycleServiceCoverage:
 
         db_session.refresh(ep1)
         db_session.refresh(ep2)
-        # 20 days -> 0.222, 40 days -> 0.444
-        assert ep1.decay_score == pytest.approx(0.222, rel=0.01)
-        assert ep2.decay_score == pytest.approx(0.444, rel=0.01)
+        # 20 days -> 1-20/180 = 0.889, 40 days -> 1-40/180 = 0.778 (freshness)
+        assert ep1.decay_score == pytest.approx(0.889, rel=0.01)
+        assert ep2.decay_score == pytest.approx(0.778, rel=0.01)
 
     def test_consolidate_episodes_with_agent_object(self, db_session):
         """Cover consolidate_episodes with Agent object (lines 368-372)"""

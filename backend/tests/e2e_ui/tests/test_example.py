@@ -14,24 +14,35 @@ def test_homepage_loads(page: Page, base_url: str):
     """
     Test that the homepage loads successfully.
 
-    This is a minimal smoke test to verify Playwright setup.
-    It will fail if the frontend is not running, but that's expected.
+    The index route (`/`) 307-redirects to /dashboard, which the auth
+    middleware further redirects to /login when the browser is
+    unauthenticated (as the plain `page` fixture is). A bare `page.title()`
+    is empty on that login page, so this smoke test asserts on the final
+    URL (proves the redirect chain resolved) and on page body content
+    instead of the title.
 
     Args:
         page: Playwright page fixture
         base_url: Base URL fixture
     """
-    # Navigate to base URL
+    # Navigate to base URL (follows redirects to /login when unauthenticated)
     page.goto(base_url)
+    page.wait_for_load_state("networkidle")
 
-    # Check that the page loaded (title should exist)
-    title = page.title()
-    assert title is not None
-    assert len(title) > 0
+    # The redirect chain must resolve to a real page, never stay on `about:blank`
+    final_url = page.url
+    assert final_url and final_url != "about:blank", "Page should have navigated to a real URL"
+
+    # Any of these is a valid landing state for an unauthenticated browser
+    assert any(
+        final_url.rstrip("/").endswith(path)
+        for path in ("/login", "/dashboard", "")
+    ), f"Unexpected final URL: {final_url}"
 
     # Check that the page has content
     body_text = page.inner_text("body")
     assert body_text is not None
+    assert len(body_text) > 0, "Page body should contain content"
 
 
 @pytest.mark.e2e

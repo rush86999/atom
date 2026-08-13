@@ -284,6 +284,20 @@ function CanvasIcon({ component }: { component: string }) {
     }
 }
 
+function resolveChartData(data: any): any[] {
+    // Accept: raw array (present flow / DB content), {data: [...]} (WS
+    // present message), {content: [...]} (PUT update flow).
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.content)) return data.content;
+    return data?.data || [];
+}
+
+function resolveChartTitle(data: any, canvasTitle?: string): string | undefined {
+    if (typeof data?.title === "string") return data.title;
+    if (typeof data?.content?.title === "string") return data.content.title;
+    return canvasTitle || undefined;
+}
+
 function CanvasContent({
     component,
     data,
@@ -315,20 +329,26 @@ function CanvasContent({
 
     switch (component) {
         case "line_chart":
-            return <LineChartCanvas data={(Array.isArray(data) ? data : data?.data || []) as any} title={data?.title || canvasTitle || undefined} />;
+            return <LineChartCanvas data={resolveChartData(data)} title={resolveChartTitle(data, canvasTitle)} />;
         case "bar_chart":
-            return <BarChartCanvas data={(Array.isArray(data) ? data : data?.data || []) as any} title={data?.title || canvasTitle || undefined} />;
+            return <BarChartCanvas data={resolveChartData(data)} title={resolveChartTitle(data, canvasTitle)} />;
         case "pie_chart":
-            return <PieChartCanvas data={(Array.isArray(data) ? data : data?.data || []) as any} title={data?.title || canvasTitle || undefined} />;
+            return <PieChartCanvas data={resolveChartData(data)} title={resolveChartTitle(data, canvasTitle)} />;
 
         case "form": {
-            const schema = data?.schema || data?.form_schema || {};
-            const fields = Array.isArray(data?.fields)
-                ? data.fields
+            // content may arrive unwrapped (WS present), as {content: {...}}
+            // (PUT /api/canvas/{id} stores the body under details.content),
+            // or as {schema: ...} — accept all three shapes.
+            const payload = data?.content && typeof data.content === "object" && !Array.isArray(data.content)
+                ? data.content
+                : data;
+            const schema = payload?.schema || payload?.form_schema || {};
+            const fields = Array.isArray(payload?.fields)
+                ? payload.fields
                 : Array.isArray(schema?.fields)
                     ? schema.fields
                     : [];
-            const formTitle = data?.title || data?.form_title;
+            const formTitle = payload?.title || payload?.form_title || canvasTitle;
             return (
                 <div className="h-full overflow-auto custom-scrollbar">
                     <div className="p-4">
@@ -384,7 +404,7 @@ function CanvasContent({
                             height="100%"
                             defaultLanguage="markdown"
                             theme="vs-dark"
-                            value={content}
+                            value={typeof data === "string" ? data : (data.body || data.content || JSON.stringify(data, null, 2))}
                             onChange={(val) => onContentChange(val || "")}
                             options={{
                                 minimap: { enabled: false },

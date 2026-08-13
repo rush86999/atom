@@ -89,8 +89,15 @@ def open_chat_page(page: Page) -> None:
     page.wait_for_load_state("networkidle")
     artifacts_tab = page.locator("button:has-text('Artifacts')")
     if artifacts_tab.count() > 0:
-        artifacts_tab.first.click()
-        page.wait_for_timeout(500)
+        # The Next.js dev-mode <nextjs-portal> overlay intercepts pointer
+        # events over the workspace pane, so dispatch the click directly on
+        # the DOM node (React's onClick handler fires without hit-testing).
+        artifacts_tab.first.evaluate("(el) => el.click()")
+        # Wait for CanvasHost to mount and create window.atom.canvas
+        page.wait_for_function(
+            "() => typeof window.atom?.canvas === 'object'",
+            timeout=10000,
+        )
 
 
 def open_canvas_detail(page: Page, canvas_id: str) -> None:
@@ -437,10 +444,11 @@ def test_get_state_filters_by_id(authenticated_page: Page, authenticated_user: T
     assert line_state is not None
     line_state_id = line_state["canvas_id"]
 
-    # The host also registers under the canvas UUID
+    # The host also registers under the canvas UUID (registry entry; the
+    # registry state has no canvas_id key — the id is the map key)
     host_state = get_canvas_state(authenticated_page, line_id)
     assert host_state is not None, "Host state should be registered under the canvas UUID"
-    assert host_state["canvas_id"] == line_id
+    assert host_state.get("component") == "line_chart"
 
     # Navigating to the bar canvas swaps the registrations
     open_canvas_detail(authenticated_page, bar_id)
@@ -450,7 +458,7 @@ def test_get_state_filters_by_id(authenticated_page: Page, authenticated_user: T
 
     bar_host_state = get_canvas_state(authenticated_page, bar_id)
     assert bar_host_state is not None
-    assert bar_host_state["canvas_id"] == bar_id
+    assert bar_host_state.get("component") == "bar_chart"
 
 
 # =============================================================================

@@ -1,425 +1,254 @@
 """
 Canvas State API E2E Tests.
 
-Tests canvas state API accessibility via window.atom.canvas.getState(),
-getAllStates(), and subscribe() methods. Validates state structure and
-updates for all canvas types.
+Tests the real canvas state API surface — `window.atom.canvas` backed by
+`useCanvasStateRegistration` (frontend-nextjs/hooks/useCanvasStateRegistration.ts)
+and the InteractiveForm shadowing patch. No phantom state injection:
+
+1. A canvas is created as real `Canvas` + `CanvasAudit` rows (canvas_helpers).
+2. Tests navigate to `http://localhost:3001/canvas/{id}` — the route mounts
+   CanvasPanel (and the page-level registration), so the registry is real.
+3. State is read back via `window.atom.canvas.getState(id)` /
+   `getAllStates()` / `subscribe(id, cb)`.
+
+Real state shapes:
+- chart canvases:  {type: 'generic', component: 'line_chart'|..., title, data}
+- form canvases:   FormCanvasState {canvas_id, component: 'form', form_schema,
+  form_data, validation_errors, submit_enabled, submitted} (shadow-patch)
+- markdown canvases: {type: 'generic', component: 'markdown', title, text, html}
+- sheet canvases:  {type: 'sheets', cells, sheetName, activeCell}
 
 Coverage: CANV-09 (canvas state API)
 """
 
 import uuid
-from datetime import datetime
-import pytest
+from typing import Tuple
+
 from playwright.sync_api import Page
+from sqlalchemy.orm import Session
 
 # Add backend to path for imports
 import os
 import sys
-backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
+
+from core.models import User
+from tests.e2e_ui.tests.canvas_helpers import (
+    create_chart_canvas, create_form_canvas, create_markdown_canvas, create_canvas, open_canvas,
+)
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
 
-def trigger_canvas_chart(page: Page, chart_type: str, data: dict, title: str = "Test Chart") -> str:
-    """Simulate WebSocket canvas:update event for chart canvas.
-
-    Args:
-        page: Playwright page object
-        chart_type: Chart type (line, bar, pie)
-        data: Chart data
-        title: Chart title
-
-    Returns:
-        canvas_id: Generated canvas ID
-    """
-    canvas_id = f"chart-{str(uuid.uuid4())[:8]}"
-
-    canvas_message = {
-        "type": "canvas:update",
-        "canvas_id": canvas_id,
-        "data": {
-            "component": "chart",
-            "chart_type": chart_type,
-            "title": title,
-            "data": data
-        }
-    }
-
-    page.evaluate(f"(msg) => window.lastCanvasMessage = msg", canvas_message)
-    page.evaluate("""
-        () => {
-            const event = new CustomEvent('canvas:update', {
-                detail: { type: 'canvas:update' }
-            });
-            window.dispatchEvent(event);
-        }
-    """)
-
-    return canvas_id
-
-
-def trigger_canvas_form(page: Page, schema: dict, title: str = "Test Form") -> str:
-    """Simulate WebSocket canvas:update event for form canvas.
-
-    Args:
-        page: Playwright page object
-        schema: Form schema
-        title: Form title
-
-    Returns:
-        canvas_id: Generated canvas ID
-    """
-    canvas_id = f"form-{str(uuid.uuid4())[:8]}"
-
-    canvas_message = {
-        "type": "canvas:update",
-        "canvas_id": canvas_id,
-        "data": {
-            "component": "form",
-            "title": title,
-            "schema": schema
-        }
-    }
-
-    page.evaluate(f"(msg) => window.lastCanvasMessage = msg", canvas_message)
-    page.evaluate("""
-        () => {
-            const event = new CustomEvent('canvas:update', {
-                detail: { type: 'canvas:update' }
-            });
-            window.dispatchEvent(event);
-        }
-    """)
-
-    return canvas_id
-
-
-def trigger_canvas_docs(page: Page, markdown: str, title: str = "Test Docs") -> str:
-    """Simulate WebSocket canvas:update event for docs canvas.
-
-    Args:
-        page: Playwright page object
-        markdown: Markdown content
-        title: Docs title
-
-    Returns:
-        canvas_id: Generated canvas ID
-    """
-    canvas_id = f"docs-{str(uuid.uuid4())[:8]}"
-
-    canvas_message = {
-        "type": "canvas:update",
-        "canvas_id": canvas_id,
-        "data": {
-            "component": "docs",
-            "title": title,
-            "content": markdown
-        }
-    }
-
-    page.evaluate(f"(msg) => window.lastCanvasMessage = msg", canvas_message)
-    page.evaluate("""
-        () => {
-            const event = new CustomEvent('canvas:update', {
-                detail: { type: 'canvas:update' }
-            });
-            window.dispatchEvent(event);
-        }
-    """)
-
-    return canvas_id
-
-
 def get_canvas_state(page: Page, canvas_id: str) -> dict:
-    """Get canvas state via JavaScript API.
-
-    Args:
-        page: Playwright page object
-        canvas_id: Canvas ID to query
-
-    Returns:
-        Canvas state dictionary
-    """
+    """Get canvas state via the real window.atom.canvas.getState API."""
     return page.evaluate(f"() => window.atom.canvas.getState('{canvas_id}')")
 
 
 def get_all_canvas_states(page: Page) -> list:
-    """Get all canvas states via JavaScript API.
-
-    Args:
-        page: Playwright page object
-
-    Returns:
-        List of all canvas states
-    """
+    """Get all registered canvas states via window.atom.canvas.getAllStates."""
     return page.evaluate("() => window.atom.canvas.getAllStates()")
 
 
-def verify_canvas_state_structure(state: dict, expected_type: str) -> bool:
-    """Verify canvas state has required keys.
+def open_stateful_canvas(page: Page, canvas_id: str, component: str) -> None:
+    """Navigate to /canvas/{id} and wait for the state registry to populate."""
+    open_canvas(page, canvas_id, component)
+    page.wait_for_function(
+        "() => window.atom && window.atom.canvas && typeof window.atom.canvas.getState === 'function'",
+        timeout=10000,
+    )
 
-    Args:
-        state: Canvas state dictionary
-        expected_type: Expected canvas type (chart, form, docs, etc.)
 
-    Returns:
-        True if state has required structure, False otherwise
-    """
-    required_keys = ['canvas_id', 'type', 'data']
-    has_required_keys = all(key in state for key in required_keys)
-    correct_type = state.get('type') == expected_type
-    return has_required_keys and correct_type
+def line_chart_data(point_count: int = 3) -> list:
+    return [
+        {"timestamp": f"2024-03-0{i + 1} 12:00", "value": 10 + i * 5}
+        for i in range(point_count)
+    ]
 
 
 # ============================================================================
 # Tests
 # ============================================================================
 
-class TestCanvasStateAPI:
-    """Test canvas state API accessibility (CANV-09)."""
+def test_canvas_state_api_exists(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that window.atom.canvas exists with getState/getAllStates/subscribe.
 
-    def test_canvas_state_api_exists(self, authenticated_page_api: Page):
-        """Test canvas state API is accessible.
+    The API is created by useCanvasStateRegistration when a canvas mounts on
+    the real /canvas/{id} route.
+    """
+    user, _ = authenticated_user
+    canvas_id = create_chart_canvas(db_session, user, "line_chart", line_chart_data(2), "API Existence Test")
+    open_stateful_canvas(authenticated_page, canvas_id, "line_chart")
 
-        Verify window.atom.canvas object exists with getState, getAllStates,
-        and subscribe methods.
-        """
-        # Trigger any canvas presentation
-        data = {"labels": ["A", "B"], "datasets": [{"data": [1, 2]}]}
-        trigger_canvas_chart(authenticated_page_api, "line", data, "API Existence Test")
+    assert authenticated_page.evaluate("() => typeof window.atom !== 'undefined'"), "window.atom should exist"
+    assert authenticated_page.evaluate("() => typeof window.atom?.canvas !== 'undefined'"), "window.atom.canvas should exist"
+    assert authenticated_page.evaluate("() => typeof window.atom.canvas.getState") == "function"
+    assert authenticated_page.evaluate("() => typeof window.atom.canvas.getAllStates") == "function"
+    assert authenticated_page.evaluate("() => typeof window.atom.canvas.subscribe") == "function"
 
-        # Verify window.atom object exists
-        atom_exists = authenticated_page_api.evaluate("() => typeof window.atom !== 'undefined'")
-        assert atom_exists, "window.atom object should exist"
 
-        # Verify window.atom.canvas object exists
-        canvas_exists = authenticated_page_api.evaluate("() => typeof window.atom?.canvas !== 'undefined'")
-        assert canvas_exists, "window.atom.canvas object should exist"
+def test_canvas_state_contains_correct_data(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that getState returns the registered canvas state with its data."""
+    user, _ = authenticated_user
+    data = line_chart_data(3)
+    canvas_id = create_chart_canvas(db_session, user, "line_chart", data, "Correct Data Test")
+    open_stateful_canvas(authenticated_page, canvas_id, "line_chart")
 
-        # Verify getState is a function
-        get_state_type = authenticated_page_api.evaluate("() => typeof window.atom.canvas.getState")
-        assert get_state_type == "function", "window.atom.canvas.getState should be a function"
+    state = get_canvas_state(authenticated_page, canvas_id)
+    assert state is not None, "getState should return the registered state"
 
-        # Verify getAllStates is a function
-        get_all_type = authenticated_page_api.evaluate("() => typeof window.atom.canvas.getAllStates")
-        assert get_all_type == "function", "window.atom.canvas.getAllStates should be a function"
+    # CanvasPanel registers {type, component, title, data} for chart types.
+    assert state["component"] == "line_chart", f"component should be 'line_chart', got {state.get('component')}"
+    assert state["title"] == "Correct Data Test", "title should match the canvas title"
+    assert state["data"] == data, "State data should be the chart data array"
 
-        # Verify subscribe is a function
-        subscribe_type = authenticated_page_api.evaluate("() => typeof window.atom.canvas.subscribe")
-        assert subscribe_type == "function", "window.atom.canvas.subscribe should be a function"
 
-    def test_canvas_state_contains_correct_data(self, authenticated_page_api: Page):
-        """Test canvas state contains correct data structure.
+def test_canvas_state_updates_on_interaction(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that state reflects form field changes after user input.
 
-        Verify state has required keys (canvas_id, type, data) and correct values.
-        """
-        # Create chart canvas with known data
-        data = {
-            "labels": ["A", "B", "C"],
-            "datasets": [{"label": "Test", "data": [1, 2, 3]}]
-        }
-        canvas_id = trigger_canvas_chart(authenticated_page_api, "line", data, "Correct Data Test")
+    InteractiveForm registers a FormCanvasState and shadows getState for its
+    canvas id, so form_data is observable live.
+    """
+    user, _ = authenticated_user
+    fields = [{"name": "name", "type": "text", "label": "Name", "required": True}]
+    canvas_id = create_form_canvas(db_session, user, fields, "State Update Test")
+    open_stateful_canvas(authenticated_page, canvas_id, "form")
+    authenticated_page.wait_for_selector('[data-testid="form-field-name"]', timeout=10000)
 
-        # Wait for canvas to render
-        authenticated_page_api.wait_for_selector(f'[data-canvas-id="{canvas_id}"]', timeout=5000)
+    initial_state = get_canvas_state(authenticated_page, canvas_id)
+    assert initial_state is not None and initial_state.get("component") == "form", (
+        "Form should register a form state"
+    )
+    assert initial_state["form_data"].get("name") == "", "Initial form_data should be empty"
 
-        # Get canvas state
-        state = get_canvas_state(authenticated_page_api, canvas_id)
+    test_value = "Test Value"
+    authenticated_page.locator('[data-testid="form-field-name"]').fill(test_value)
 
-        # Verify state has required keys
-        assert 'canvas_id' in state, "State should have canvas_id key"
-        assert 'type' in state, "State should have type key"
-        assert 'data' in state, "State should have data key"
+    # Wait for the form's state effect to re-patch getState with new form_data.
+    authenticated_page.wait_for_function(
+        """(id) => {
+            const s = window.atom.canvas.getState(id);
+            return s && s.form_data && s.form_data.name === 'Test Value';
+        }""",
+        arg=canvas_id,
+        timeout=5000,
+    )
 
-        # Verify state.canvas_id matches triggered canvas_id
-        assert state['canvas_id'] == canvas_id, f"canvas_id should match: expected {canvas_id}, got {state.get('canvas_id')}"
+    updated_state = get_canvas_state(authenticated_page, canvas_id)
+    assert updated_state["form_data"]["name"] == test_value, (
+        f"State should reflect the filled value, got {updated_state['form_data'].get('name')}"
+    )
 
-        # Verify state.type == 'chart'
-        assert state['type'] == 'chart', f"type should be 'chart', got {state.get('type')}"
 
-        # Verify state.data contains chart data
-        assert 'data' in state['data'] or 'labels' in state['data'], \
-            "State data should contain chart information"
+def test_canvas_state_for_all_canvas_types(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that the state API serves the correct shape per canvas type."""
+    user, _ = authenticated_user
 
-        # Verify data integrity (labels match)
-        if 'labels' in state['data']:
-            assert state['data']['labels'] == ["A", "B", "C"], "Labels should match input data"
+    # Chart canvas → generic state with component + data.
+    chart_id = create_chart_canvas(db_session, user, "pie_chart", [{"name": "A", "value": 1}], "Chart State Test")
+    open_stateful_canvas(authenticated_page, chart_id, "pie_chart")
+    chart_state = get_canvas_state(authenticated_page, chart_id)
+    assert chart_state is not None and chart_state["component"] == "pie_chart", "Chart state shape wrong"
 
-    def test_canvas_state_updates_on_interaction(self, authenticated_page_api: Page):
-        """Test canvas state updates on user interaction.
+    # Form canvas → FormCanvasState with form_schema.
+    form_id = create_form_canvas(db_session, user, [{"name": "test", "type": "text", "label": "Test"}], "Form State Test")
+    open_stateful_canvas(authenticated_page, form_id, "form")
+    authenticated_page.wait_for_selector('[data-testid="form-field-test"]', timeout=10000)
+    form_state = get_canvas_state(authenticated_page, form_id)
+    assert form_state is not None and form_state["component"] == "form", "Form state shape wrong"
+    assert form_state["form_schema"]["fields"][0]["name"] == "test", "Form schema should carry fields"
 
-        Verify state reflects form field changes after user input.
-        """
-        # Create form canvas with field
-        schema = {
-            "canvas_id": f"form-{str(uuid.uuid4())[:8]}",
-            "fields": [
-                {
-                    "name": "name",
-                    "type": "text",
-                    "label": "Name",
-                    "required": True
-                }
-            ]
-        }
-        canvas_id = trigger_canvas_form(authenticated_page_api, schema, "State Update Test")
+    # Markdown canvas → generic state with text content.
+    docs_id = create_markdown_canvas(db_session, user, "Docs State Test", "# Header\n\nTest content")
+    open_stateful_canvas(authenticated_page, docs_id, "markdown")
+    docs_state = get_canvas_state(authenticated_page, docs_id)
+    assert docs_state is not None and docs_state["component"] == "markdown", "Docs state shape wrong"
+    assert "Test content" in docs_state.get("text", ""), "Docs state should carry the markdown text"
 
-        # Wait for form to render
-        authenticated_page_api.wait_for_selector('[data-testid="canvas-form-field-name"]', timeout=5000)
 
-        # Get initial state
-        initial_state = get_canvas_state(authenticated_page_api, canvas_id)
+def test_canvas_state_getAllStates_method(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that getAllStates returns the currently registered canvas states.
 
-        # Fill form field
-        test_value = "Test Value"
-        authenticated_page_api.locator('[data-testid="canvas-form-field-name"]').fill(test_value)
+    The registry is per-page: navigating to a new /canvas/{id} replaces the
+    previous registration (useCanvasStateRegistration cleans up on id change),
+    so each visit must observe its own canvas in getAllStates.
+    """
+    user, _ = authenticated_user
+    ids = [
+        create_chart_canvas(db_session, user, "line_chart", line_chart_data(1), "GetAll Test 1"),
+        create_form_canvas(db_session, user, [{"name": "test", "type": "text", "label": "Test"}], "GetAll Test 2"),
+        create_markdown_canvas(db_session, user, "GetAll Test 3", "# Test"),
+    ]
 
-        # Wait for state to update
-        authenticated_page_api.wait_for_timeout(500)  # Brief wait for state update
+    for canvas_id in ids:
+        component = "line_chart" if "line" in canvas_id else ("form" if "form" in canvas_id else "markdown")
+        open_stateful_canvas(authenticated_page, canvas_id, component)
+        if component == "form":
+            authenticated_page.wait_for_selector('[data-testid="form-field-test"]', timeout=10000)
 
-        # Get updated state
-        updated_state = get_canvas_state(authenticated_page_api, canvas_id)
+        all_states = get_all_canvas_states(authenticated_page)
+        assert isinstance(all_states, list), "getAllStates should return a list"
+        current_ids = [s.get("canvas_id") for s in all_states if isinstance(s, dict)]
+        assert canvas_id in current_ids, f"getAllStates should include the current canvas {canvas_id}, got {current_ids}"
+        # Note: a form canvas legitimately appears twice (its own shadow entry
+        # plus the host registration) — check presence, not count.
+        assert len(set(current_ids)) >= 1, "Canvas ids in getAllStates should be present"
 
-        # Verify updated_state differs from initial_state
-        assert updated_state is not None, "Updated state should not be None"
 
-        # Verify form field value reflected in state.data
-        # (State structure may vary, but should contain the filled value)
-        state_data = updated_state.get('data', {})
-        if isinstance(state_data, dict):
-            # Check if values are in state
-            values = state_data.get('values', {})
-            if values:
-                name_value = values.get('name', '')
-                # Value should be present (may be empty initially, then filled)
-                assert test_value in str(name_value) or name_value == test_value, \
-                    f"State should reflect form field value: expected '{test_value}', got '{name_value}'"
+def test_canvas_state_subscribe_method(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that subscribe(id, cb) fires when the canvas state changes.
 
-    def test_canvas_state_for_all_canvas_types(self, authenticated_page_api: Page):
-        """Test canvas state API for all canvas types.
+    Uses a sheet canvas: editing a cell input updates the registered state
+    (cells), which notifies subscribers with (canvasId, state).
+    """
+    user, _ = authenticated_user
+    canvas_id = f"e2e-sheet-{uuid.uuid4()}"
+    create_canvas(db_session, user, canvas_id, "sheet", "Subscribe Test", [["A1", "B1"], ["A2", "B2"]])
+    open_stateful_canvas(authenticated_page, canvas_id, "sheet")
+    authenticated_page.wait_for_selector('[data-testid="canvas-container"] tbody td input', timeout=10000)
 
-        Verify state structure matches TypeScript types for chart, form, docs, email,
-        sheets, terminal, and coding canvases.
-        """
-        # Test chart canvas
-        chart_data = {"labels": ["A", "B"], "datasets": [{"data": [1, 2]}]}
-        chart_id = trigger_canvas_chart(authenticated_page_api, "line", chart_data, "Chart State Test")
-        authenticated_page_api.wait_for_timeout(500)
-        chart_state = get_canvas_state(authenticated_page_api, chart_id)
-        assert verify_canvas_state_structure(chart_state, 'chart'), "Chart state should have correct structure"
-        assert 'chart_type' in chart_state.get('data', {}) or 'labels' in chart_state.get('data', {}), \
-            "Chart state should contain chart-specific data"
+    # Attach a subscriber that records (canvasId, cells) updates.
+    authenticated_page.evaluate(
+        """(id) => {
+            window.__canvasSubUpdates = [];
+            window.atom.canvas.subscribe(id, (cid, state) => {
+                window.__canvasSubUpdates.push({
+                    canvas_id: cid,
+                    cells: state && state.cells ? JSON.parse(JSON.stringify(state.cells)) : null,
+                });
+            });
+        }""",
+        canvas_id,
+    )
 
-        # Test form canvas
-        form_schema = {
-            "canvas_id": f"form-{str(uuid.uuid4())[:8]}",
-            "fields": [{"name": "test", "type": "text", "label": "Test"}]
-        }
-        form_id = trigger_canvas_form(authenticated_page_api, form_schema, "Form State Test")
-        authenticated_page_api.wait_for_timeout(500)
-        form_state = get_canvas_state(authenticated_page_api, form_id)
-        assert verify_canvas_state_structure(form_state, 'form'), "Form state should have correct structure"
-        assert 'schema' in form_state.get('data', {}) or 'fields' in form_state.get('data', {}), \
-            "Form state should contain schema or fields"
+    # Edit the first cell — must trigger a registry update.
+    authenticated_page.locator('[data-testid="canvas-container"] tbody td input').first.fill("42")
 
-        # Test docs canvas
-        docs_content = "# Header\n\nTest content"
-        docs_id = trigger_canvas_docs(authenticated_page_api, docs_content, "Docs State Test")
-        authenticated_page_api.wait_for_timeout(500)
-        docs_state = get_canvas_state(authenticated_page_api, docs_id)
-        assert verify_canvas_state_structure(docs_state, 'docs'), "Docs state should have correct structure"
-        assert 'content' in docs_state.get('data', {}), "Docs state should contain content"
+    authenticated_page.wait_for_function(
+        """(id) => {
+            const updates = window.__canvasSubUpdates || [];
+            const last = updates[updates.length - 1];
+            return last && last.canvas_id === id && last.cells && last.cells[0][0] === '42';
+        }""",
+        arg=canvas_id,
+        timeout=5000,
+    )
 
-    def test_canvas_state_getAllStates_method(self, authenticated_page_api: Page):
-        """Test getAllStates returns all canvas states.
-
-        Verify getAllStates() returns array with all currently displayed canvases.
-        """
-        # Trigger 3 different canvas presentations
-        chart_id = trigger_canvas_chart(
-            authenticated_page_api,
-            "line",
-            {"labels": ["A"], "datasets": [{"data": [1]}]},
-            "GetAll Test 1"
-        )
-        form_schema = {
-            "canvas_id": f"form-{str(uuid.uuid4())[:8]}",
-            "fields": [{"name": "test", "type": "text", "label": "Test"}]
-        }
-        form_id = trigger_canvas_form(authenticated_page_api, form_schema, "GetAll Test 2")
-        docs_id = trigger_canvas_docs(authenticated_page_api, "# Test", "GetAll Test 3")
-
-        # Wait for canvases to render
-        authenticated_page_api.wait_for_timeout(1000)
-
-        # Call getAllStates
-        all_states = get_all_canvas_states(authenticated_page_api)
-
-        # Verify return type is array/object
-        assert isinstance(all_states, (list, dict)), "getAllStates should return array or object"
-
-        # Convert to list if dict
-        if isinstance(all_states, dict):
-            states_list = list(all_states.values())
-        else:
-            states_list = all_states
-
-        # Verify at least 3 canvases returned
-        assert len(states_list) >= 3, f"Expected at least 3 states, got {len(states_list)}"
-
-        # Verify each state has unique canvas_id
-        canvas_ids = [s.get('canvas_id') for s in states_list if isinstance(s, dict)]
-        unique_ids = set(canvas_ids)
-        assert len(unique_ids) == len(canvas_ids), "Each canvas should have unique canvas_id"
-
-        # Verify state types are correct
-        types = [s.get('type') for s in states_list if isinstance(s, dict)]
-        assert 'chart' in types, "Should have at least one chart canvas"
-        assert 'form' in types, "Should have at least one form canvas"
-        assert 'docs' in types, "Should have at least one docs canvas"
-
-    def test_canvas_state_subscribe_method(self, authenticated_page_api: Page):
-        """Test canvas state subscribe method.
-
-        Verify subscription callback fires when canvas state changes.
-        """
-        # Trigger canvas presentation
-        schema = {
-            "canvas_id": f"form-{str(uuid.uuid4())[:8]}",
-            "fields": [{"name": "test", "type": "text", "label": "Test"}]
-        }
-        canvas_id = trigger_canvas_form(authenticated_page_api, schema, "Subscribe Test")
-
-        # Wait for form to render
-        authenticated_page_api.wait_for_selector('[data-testid="canvas-form-field-test"]', timeout=5000)
-
-        # Inject subscription listener
-        authenticated_page_api.evaluate(f"""
-            () => {{
-                window.atomCanvasStateUpdates = [];
-                window.atom.canvas.subscribe('{canvas_id}', (state) => {{
-                    window.atomCanvasStateUpdates.push(state);
-                }});
-            }}
-        """)
-
-        # Trigger state change by filling form field
-        authenticated_page_api.locator('[data-testid="canvas-form-field-test"]').fill("Updated Value")
-
-        # Wait for subscription callback to fire
-        authenticated_page_api.wait_for_timeout(1000)
-
-        # Verify subscription callback fired
-        update_count = authenticated_page_api.evaluate("() => window.atomCanvasStateUpdates.length")
-        assert update_count > 0, f"Subscription callback should fire at least once, got {update_count} updates"
-
-        # Verify updates contain correct canvas_id
-        first_update = authenticated_page_api.evaluate("() => window.atomCanvasStateUpdates[0]")
-        assert isinstance(first_update, dict), "Update should be a dictionary"
-        assert first_update.get('canvas_id') == canvas_id, \
-            f"Update should have correct canvas_id: expected {canvas_id}, got {first_update.get('canvas_id')}"
+    update_count = authenticated_page.evaluate("() => (window.__canvasSubUpdates || []).length")
+    assert update_count > 0, f"Subscription callback should fire at least once, got {update_count}"

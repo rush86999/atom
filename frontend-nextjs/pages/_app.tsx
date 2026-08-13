@@ -3,6 +3,7 @@ import { SessionProvider, useSession } from "next-auth/react";
 import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AppProps } from "next/app";
+import { Toaster } from "sonner";
 
 import { ToastProvider } from "../components/ui/use-toast";
 import { GlobalChatWidget } from "../components/GlobalChatWidget";
@@ -100,6 +101,10 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
         <ChakraProvider value={defaultSystem}>
           <ToastProvider>
             <WakeWordProvider>
+              {/* Sonner toasts (ProjectCommandCenter, PipelineSettingsPanel, ...)
+                  call the `toast` helper from "sonner" — without a mounted
+                  <Toaster /> every one of those calls silently no-ops. */}
+              <Toaster richColors position="top-right" />
               {isStandalonePage ? (
                 <Component {...pageProps} />
               ) : (

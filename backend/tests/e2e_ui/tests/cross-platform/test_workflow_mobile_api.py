@@ -4,6 +4,18 @@ Workflow Mobile API-level E2E Tests
 Tests workflow API endpoints for mobile platform (React Native).
 Uses API-level testing to bypass mobile UI limitations.
 
+Real API surface:
+- POST /api/v1/workflows/workflows — create (node-based WorkflowDefinition,
+  stored in backend/workflows.json; requires workflow:manage)
+- GET /api/mobile/workflows — mobile-optimized list (MobileWorkflowSummary)
+- GET /api/mobile/workflows/{workflow_id} — mobile details
+- POST /api/mobile/workflows/trigger?user_id=<id> — mobile trigger (async or
+  synchronous; persists a WorkflowExecution row)
+- GET /api/mobile/workflows/executions/{execution_id} — mobile execution details
+- POST /api/v1/workflows/workflows/{workflow_id}/schedule — schedule a trigger
+  (cron/interval/date via APScheduler)
+- GET /api/v1/workflows/scheduler/jobs — list scheduled trigger jobs
+
 Requirements:
 - MOBILE-02: Workflow API works for mobile (React Native) via API-level testing
 - CROSS-02: Cross-platform workflow execution is consistent
@@ -25,24 +37,53 @@ from typing import Dict, Any
 import pytest
 import requests
 
-# Add backend to path
-backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Add backend to path (5 dirnames: tests/e2e_ui/tests/cross-platform → backend)
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-from core.models import Workflow, WorkflowExecution
+from core.models import WorkflowExecution
 from sqlalchemy.orm import Session
+
+
+BASE_URL = "http://localhost:8001"
+WORKFLOWS_API = f"{BASE_URL}/api/v1/workflows/workflows"
+MOBILE_API = f"{BASE_URL}/api/mobile/workflows"
+
+# Workflows created during a test run (the store is a shared JSON file) —
+# cleaned up after every test so runs stay idempotent.
+_CREATED_WORKFLOW_IDS: list = []
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_created_workflows(test_user):
+    """Delete every workflow the test created (shared workflows.json store)."""
+    yield
+    token = create_mobile_token(test_user)
+    for wf_id in list(_CREATED_WORKFLOW_IDS):
+        try:
+            requests.delete(
+                f"{WORKFLOWS_API}/{wf_id}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        except Exception:
+            pass
+    _CREATED_WORKFLOW_IDS.clear()
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
 
-def create_mobile_token(user_data: dict, base_url: str = "http://localhost:8001") -> str:
+def create_mobile_token(user: Any, password: str = "TestPassword123!", base_url: str = BASE_URL) -> str:
     """Create access token for mobile platform via API login.
 
+    The real login endpoint accepts ``username`` (not ``email``) — see
+    utils/api_setup.authenticate_user.
+
     Args:
-        user_data: User data dictionary with email and password
+        user: User ORM instance (must have ``email``)
+        password: User password
         base_url: Base URL for API requests
 
     Returns:
@@ -54,8 +95,8 @@ def create_mobile_token(user_data: dict, base_url: str = "http://localhost:8001"
     response = requests.post(
         f"{base_url}/api/auth/login",
         json={
-            "email": user_data['email'],
-            "password": user_data['password']
+            "username": user.email,
+            "password": password
         }
     )
 
@@ -66,22 +107,22 @@ def create_mobile_token(user_data: dict, base_url: str = "http://localhost:8001"
     return data['access_token']
 
 
-def create_workflow_via_mobile_api(token: str, workflow_data: dict, base_url: str = "http://localhost:8001") -> dict:
-    """Create workflow via mobile API with X-Platform header.
+def create_workflow_via_api(token: str, workflow_data: dict, base_url: str = WORKFLOWS_API) -> dict:
+    """Create workflow via the core workflow API (X-Platform header).
 
     Args:
         token: JWT access token
-        workflow_data: Workflow data (name, skills, connections)
+        workflow_data: Workflow data (name, nodes, connections)
         base_url: Base URL for API requests
 
     Returns:
-        API response dict with workflow_id
+        API response dict with workflow id
 
     Raises:
         AssertionError: If workflow creation fails
     """
     response = requests.post(
-        f"{base_url}/api/workflows",
+        base_url,
         json=workflow_data,
         headers={
             "Authorization": f"Bearer {token}",
@@ -89,20 +130,25 @@ def create_workflow_via_mobile_api(token: str, workflow_data: dict, base_url: st
         }
     )
 
-    # Accept 201 or 200 status codes
-    assert response.status_code in [200, 201], f"Workflow creation failed: {response.text}"
+    assert response.status_code == 200, f"Workflow creation failed: {response.text}"
     data = response.json()
-    assert 'id' in data or 'workflow_id' in data or 'data' in data, "No workflow_id in response"
+    assert 'id' in data, f"No workflow id in response: {data}"
+    if data.get("id"):
+        _CREATED_WORKFLOW_IDS.append(data["id"])
 
     return data
 
 
-def execute_workflow_via_mobile_api(token: str, workflow_id: str, base_url: str = "http://localhost:8001") -> str:
-    """Execute workflow via mobile API.
+def trigger_workflow_via_mobile_api(token: str, workflow_id: str, user_id: str,
+                                    parameters: Dict[str, Any] = None,
+                                    base_url: str = MOBILE_API) -> str:
+    """Trigger workflow via mobile API.
 
     Args:
         token: JWT access token
         workflow_id: Workflow ID to execute
+        user_id: User ID (required query param of the real endpoint)
+        parameters: Optional input parameters
         base_url: Base URL for API requests
 
     Returns:
@@ -112,7 +158,12 @@ def execute_workflow_via_mobile_api(token: str, workflow_id: str, base_url: str 
         AssertionError: If execution fails
     """
     response = requests.post(
-        f"{base_url}/api/workflows/{workflow_id}/execute",
+        f"{base_url}/trigger?user_id={user_id}",
+        json={
+            "workflow_id": workflow_id,
+            "parameters": parameters or {},
+            "synchronous": False,
+        },
         headers={
             "Authorization": f"Bearer {token}",
             "X-Platform": "mobile"
@@ -121,13 +172,14 @@ def execute_workflow_via_mobile_api(token: str, workflow_id: str, base_url: str 
 
     assert response.status_code == 200, f"Workflow execution failed: {response.text}"
     data = response.json()
-    assert 'execution_id' in data or 'id' in data, "No execution_id in response"
+    assert 'execution_id' in data, f"No execution_id in response: {data}"
 
-    return data.get('execution_id') or data.get('id')
+    return data['execution_id']
 
 
-def poll_workflow_execution(token: str, execution_id: str, timeout: int = 30, base_url: str = "http://localhost:8001") -> dict:
-    """Poll workflow execution until complete.
+def poll_workflow_execution(token: str, execution_id: str, timeout: int = 30,
+                            base_url: str = MOBILE_API) -> dict:
+    """Poll workflow execution until terminal.
 
     Args:
         token: JWT access token
@@ -145,7 +197,7 @@ def poll_workflow_execution(token: str, execution_id: str, timeout: int = 30, ba
 
     while time.time() - start_time < timeout:
         response = requests.get(
-            f"{base_url}/api/workflows/executions/{execution_id}",
+            f"{base_url}/executions/{execution_id}",
             headers={
                 "Authorization": f"Bearer {token}",
                 "X-Platform": "mobile"
@@ -154,7 +206,9 @@ def poll_workflow_execution(token: str, execution_id: str, timeout: int = 30, ba
 
         if response.status_code == 200:
             execution = response.json()
-            status = execution.get('status') or execution.get('data', {}).get('status')
+            # The mobile execution details endpoint keys on `id` (not
+            # `execution_id` — see api/mobile_workflows.py).
+            status = (execution.get('status') or '').lower()
 
             if status in ['complete', 'completed', 'failed', 'cancelled']:
                 return execution
@@ -164,7 +218,7 @@ def poll_workflow_execution(token: str, execution_id: str, timeout: int = 30, ba
     raise TimeoutError(f"Workflow execution {execution_id} did not complete within {timeout}s")
 
 
-def list_workflows_via_mobile_api(token: str, base_url: str = "http://localhost:8001") -> list:
+def list_workflows_via_mobile_api(token: str, base_url: str = MOBILE_API) -> list:
     """List workflows via mobile API.
 
     Args:
@@ -178,7 +232,7 @@ def list_workflows_via_mobile_api(token: str, base_url: str = "http://localhost:
         AssertionError: If list request fails
     """
     response = requests.get(
-        f"{base_url}/api/workflows",
+        base_url,
         headers={
             "Authorization": f"Bearer {token}",
             "X-Platform": "mobile"
@@ -187,59 +241,97 @@ def list_workflows_via_mobile_api(token: str, base_url: str = "http://localhost:
 
     assert response.status_code == 200, f"List workflows failed: {response.text}"
     data = response.json()
-    assert isinstance(data, list) or 'data' in data, "Invalid response format"
+    assert isinstance(data, list), f"Invalid response format: {data}"
 
-    return data if isinstance(data, list) else data.get('data', [])
+    return data
 
 
 def create_test_workflow_data() -> dict:
-    """Create test workflow data with skills.
+    """Create test workflow data with nodes and connections.
+
+    The real WorkflowDefinition contract: nodes (id/type/title/description/
+    position/config/connections) + connections (id/source/target) — see
+    core/workflow_endpoints.py::WorkflowDefinition.
 
     Returns:
         Workflow data dict
     """
     unique_id = str(uuid.uuid4())[:8]
 
+    def node(nid: str, title: str, x: float) -> dict:
+        return {
+            "id": nid,
+            "type": "action",
+            "title": title,
+            "description": "",
+            "position": {"x": x, "y": 100},
+            "config": {
+                "service": "default",
+                "action": "default",
+                "parameters": {"skill_id": nid}
+            },
+            "connections": []
+        }
+
     return {
         "name": f"Mobile Test Workflow {unique_id}",
         "description": "Test workflow for mobile API",
-        "skills": [
-            {
-                "skill_id": "test-skill-1",
-                "order": 1,
-                "position": {"x": 100, "y": 100}
-            }
-        ],
-        "connections": []
+        "version": "1",
+        "nodes": [node(f"node-{unique_id}-1", "Step 1", 100)],
+        "connections": [],
+        "triggers": [],
+        "enabled": True
     }
 
 
-def create_trigger_via_mobile_api(token: str, workflow_id: str, trigger_data: dict, base_url: str = "http://localhost:8001") -> dict:
-    """Create trigger via mobile API.
+def schedule_workflow_trigger(token: str, workflow_id: str, trigger_type: str,
+                              trigger_config: dict, base_url: str = WORKFLOWS_API) -> dict:
+    """Schedule a workflow trigger via the core API.
 
     Args:
         token: JWT access token
         workflow_id: Workflow ID
-        trigger_data: Trigger configuration (type, config)
+        trigger_type: 'cron', 'interval', or 'date'
+        trigger_config: APScheduler trigger kwargs (e.g. {'minutes': 60})
         base_url: Base URL for API requests
 
     Returns:
-        Trigger response dict
-
-    Raises:
-        AssertionError: If trigger creation fails
+        Schedule response dict with job_id
     """
     response = requests.post(
-        f"{base_url}/api/workflows/{workflow_id}/triggers",
-        json=trigger_data,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "X-Platform": "mobile"
-        }
+        f"{base_url}/{workflow_id}/schedule",
+        json={
+            "trigger_type": trigger_type,
+            "trigger_config": trigger_config,
+            "input_data": {},
+        },
+        headers={"Authorization": f"Bearer {token}"}
     )
 
-    # Accept 201 or 200 status codes
-    assert response.status_code in [200, 201], f"Trigger creation failed: {response.text}"
+    assert response.status_code == 200, f"Trigger scheduling failed: {response.text}"
+    data = response.json()
+    assert data.get("success") is True, f"Schedule not successful: {data}"
+    assert data.get("job_id"), f"No job_id in response: {data}"
+
+    return data
+
+
+def list_scheduler_jobs(token: str, base_url: str = BASE_URL) -> list:
+    """List scheduled trigger jobs via the core API.
+
+    Args:
+        token: JWT access token
+        base_url: Base URL for API requests
+
+    Returns:
+        List of job dicts
+    """
+    response = requests.get(
+        f"{base_url}/api/v1/workflows/scheduler/jobs",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+
+    assert response.status_code == 200, f"List scheduler jobs failed: {response.text}"
     return response.json()
 
 
@@ -247,176 +339,158 @@ def create_trigger_via_mobile_api(token: str, workflow_id: str, trigger_data: di
 # Tests
 # ============================================================================
 
-def test_mobile_workflow_create_api(setup_test_user: Dict[str, Any], db_session: Session):
+def test_mobile_workflow_create_api(test_user, db_session: Session):
     """Test workflow creation API works for mobile platform (MOBILE-02).
 
     Scenario:
     1. Get mobile access token
-    2. Send POST request to /api/workflows with X-Platform: mobile header
-    3. Verify response status: 201 or 200
-    4. Verify response contains workflow_id
-    5. Verify Workflow record created in database
+    2. Send POST request to /api/v1/workflows/workflows with X-Platform: mobile header
+    3. Verify response status: 200
+    4. Verify response contains workflow id
+    5. Verify workflow is retrievable via the mobile list API
     """
     # Get access token
-    token = create_mobile_token(setup_test_user)
+    token = create_mobile_token(test_user)
 
     # Create workflow
     workflow_data = create_test_workflow_data()
-    response = create_workflow_via_mobile_api(token, workflow_data)
+    response = create_workflow_via_api(token, workflow_data)
 
     # Extract workflow_id
-    workflow_id = response.get('id') or response.get('workflow_id') or response.get('data', {}).get('id')
+    workflow_id = response.get('id')
     assert workflow_id is not None, "Could not extract workflow_id from response"
+    assert response.get('name') == workflow_data['name'], "Workflow name mismatch"
 
-    # Verify Workflow record created in database
-    # Note: Workflow model might not exist or use different schema
-    try:
-        workflow = db_session.query(Workflow).filter(
-            Workflow.id == workflow_id
-        ).first()
-
-        # If Workflow model exists, verify it was created
-        if workflow:
-            assert workflow.name == workflow_data['name'], "Workflow name mismatch"
-    except Exception:
-        # Workflow model might not be implemented yet - that's okay
-        pytest.skip("Workflow model not implemented yet")
+    # Verify workflow visible via the mobile list API
+    workflows = list_workflows_via_mobile_api(token)
+    listed_names = {w.get("name") for w in workflows}
+    assert workflow_data['name'] in listed_names, \
+        f"Workflow '{workflow_data['name']}' not listed via mobile API"
 
 
-def test_mobile_workflow_execute_api(setup_test_user: Dict[str, Any], db_session: Session):
+def test_mobile_workflow_execute_api(test_user, db_session: Session):
     """Test workflow execution API works for mobile platform (MOBILE-02).
 
     Scenario:
     1. Create workflow via mobile API
-    2. Send POST request to /api/workflows/{workflow_id}/execute
+    2. Send POST request to /api/mobile/workflows/trigger
     3. Verify response status: 200
     4. Verify execution_id returned
     5. Verify WorkflowExecution record created
-    6. Poll /api/workflows/executions/{execution_id} until status="complete"
+    6. Poll /api/mobile/workflows/executions/{execution_id} until terminal
     """
     # Get access token
-    token = create_mobile_token(setup_test_user)
+    token = create_mobile_token(test_user)
 
     # Create workflow
     workflow_data = create_test_workflow_data()
-    create_response = create_workflow_via_mobile_api(token, workflow_data)
-    workflow_id = create_response.get('id') or create_response.get('workflow_id') or create_response.get('data', {}).get('id')
+    create_response = create_workflow_via_api(token, workflow_data)
+    workflow_id = create_response.get('id')
 
     # Execute workflow
-    try:
-        execution_id = execute_workflow_via_mobile_api(token, workflow_id)
+    execution_id = trigger_workflow_via_mobile_api(token, workflow_id, str(test_user.id))
 
-        # Verify WorkflowExecution record created
-        execution = db_session.query(WorkflowExecution).filter(
-            WorkflowExecution.execution_id == execution_id
-        ).first()
+    # Verify WorkflowExecution record created
+    execution = db_session.query(WorkflowExecution).filter(
+        WorkflowExecution.execution_id == execution_id
+    ).first()
 
-        if execution:
-            assert execution.workflow_id == workflow_id, "workflow_id mismatch"
-        else:
-            # WorkflowExecution might not be implemented yet
-            pytest.skip("WorkflowExecution model not implemented yet")
+    assert execution is not None, "WorkflowExecution record not created"
+    assert execution.workflow_id == workflow_id, "workflow_id mismatch"
 
-    except AssertionError as e:
-        if "404" in str(e) or "not found" in str(e).lower():
-            pytest.skip("Workflow execution endpoint not implemented yet")
-        raise
+    # Poll until terminal status (engine may complete or fail a default-service
+    # step — both prove the mobile trigger path executed the workflow)
+    final = poll_workflow_execution(token, execution_id, timeout=30)
+    assert final.get('id') == execution_id, "Execution id mismatch in poll result"
+    assert final.get('status') in ('COMPLETED', 'FAILED', 'complete', 'completed', 'failed'), \
+        f"Unexpected terminal status: {final.get('status')}"
 
 
-def test_mobile_workflow_list_api(setup_test_user: Dict[str, Any]):
+def test_mobile_workflow_list_api(test_user):
     """Test workflow list API works for mobile platform (MOBILE-02).
 
     Scenario:
     1. Create 3 workflows via API
-    2. Send GET request to /api/workflows with X-Platform: mobile header
+    2. Send GET request to /api/mobile/workflows with X-Platform: mobile header
     3. Verify response status: 200
     4. Verify response contains array of workflows
-    5. Verify count >= 3 (may include existing workflows)
-    6. Verify each workflow has required fields
+    5. Verify each created workflow is listed with its name
     """
     # Get access token
-    token = create_mobile_token(setup_test_user)
+    token = create_mobile_token(test_user)
 
     # Create 3 workflows
-    workflow_ids = []
+    created_names = []
     for i in range(3):
         workflow_data = create_test_workflow_data()
-        response = create_workflow_via_mobile_api(token, workflow_data)
-        workflow_id = response.get('id') or response.get('workflow_id') or response.get('data', {}).get('id')
-        if workflow_id:
-            workflow_ids.append(workflow_id)
+        response = create_workflow_via_api(token, workflow_data)
+        created_names.append(response.get('name'))
 
     # List workflows
     workflows = list_workflows_via_mobile_api(token)
 
     # Verify list response
     assert isinstance(workflows, list), "Workflows response is not a list"
-    assert len(workflows) >= len(workflow_ids), f"Expected at least {len(workflow_ids)} workflows, got {len(workflows)}"
+    listed_names = {w.get("name") for w in workflows}
+    for name in created_names:
+        assert name in listed_names, f"Workflow '{name}' not listed via mobile API"
 
     # Verify each workflow has required fields
     for workflow in workflows[:3]:  # Check first 3
-        assert 'id' in workflow or 'name' in workflow, "Workflow missing required fields"
+        assert 'id' in workflow and 'name' in workflow, \
+            f"Workflow missing required fields: {workflow}"
 
 
-def test_mobile_workflow_triggers_api(setup_test_user: Dict[str, Any], db_session: Session):
+def test_mobile_workflow_triggers_api(test_user):
     """Test workflow triggers API works for mobile platform (MOBILE-02).
 
     Scenario:
     1. Create workflow via mobile API
-    2. Add trigger via POST /api/workflows/{workflow_id}/triggers
-    3. Verify response status: 201 or 200
-    4. Verify trigger stored in database
-    5. Verify trigger returned in workflow details
+    2. Schedule a trigger via POST /api/v1/workflows/workflows/{id}/schedule
+    3. Verify response status: 200 + job_id returned
+    4. Verify trigger job listed in /api/v1/workflows/scheduler/jobs
     """
     # Get access token
-    token = create_mobile_token(setup_test_user)
+    token = create_mobile_token(test_user)
 
     # Create workflow
     workflow_data = create_test_workflow_data()
-    create_response = create_workflow_via_mobile_api(token, workflow_data)
-    workflow_id = create_response.get('id') or create_response.get('workflow_id') or create_response.get('data', {}).get('id')
+    create_response = create_workflow_via_api(token, workflow_data)
+    workflow_id = create_response.get('id')
 
-    # Create scheduled trigger
-    trigger_data = {
-        "type": "scheduled",
-        "config": {"cron": "0 9 * * *"}
-    }
+    # Schedule an interval trigger (the real trigger surface — APScheduler)
+    schedule_response = schedule_workflow_trigger(
+        token, workflow_id, "interval", {"minutes": 60}
+    )
+    job_id = schedule_response.get("job_id")
 
-    try:
-        trigger_response = create_trigger_via_mobile_api(token, workflow_id, trigger_data)
-
-        # Verify trigger response
-        assert 'id' in trigger_response or 'trigger_id' in trigger_response, "No trigger_id in response"
-
-    except AssertionError as e:
-        if "404" in str(e) or "not found" in str(e).lower():
-            pytest.skip("Workflow triggers endpoint not implemented yet")
-        raise
+    # Verify trigger job listed
+    jobs = list_scheduler_jobs(token)
+    job_ids = {j.get("id") for j in jobs}
+    assert job_id in job_ids, f"Trigger job {job_id} not found in scheduler jobs"
 
 
-def test_mobile_workflow_cross_platform_consistency(setup_test_user: Dict[str, Any]):
+def test_mobile_workflow_cross_platform_consistency(test_user):
     """Test workflow API is consistent across mobile and web platforms (CROSS-02).
 
     Scenario:
-    1. Create workflow via mobile API
+    1. Create workflow via web API
     2. Get workflow details via mobile API
     3. Compare with web API response:
-       - Same keys present
-       - Same skill structure
-       - Same connection format
-    4. Verify execution results consistent across platforms
+       - Same id
+       - Same name/description
     """
     # Get access token
-    token = create_mobile_token(setup_test_user)
+    token = create_mobile_token(test_user)
 
-    # Create workflow via mobile API
+    # Create workflow via web API
     workflow_data = create_test_workflow_data()
-    mobile_response = create_workflow_via_mobile_api(token, workflow_data)
-    workflow_id = mobile_response.get('id') or mobile_response.get('workflow_id') or mobile_response.get('data', {}).get('id')
+    mobile_response = create_workflow_via_api(token, workflow_data)
+    workflow_id = mobile_response.get('id')
 
     # Get workflow details via mobile API
     mobile_details = requests.get(
-        f"http://localhost:8001/api/workflows/{workflow_id}",
+        f"{MOBILE_API}/{workflow_id}",
         headers={
             "Authorization": f"Bearer {token}",
             "X-Platform": "mobile"
@@ -425,7 +499,7 @@ def test_mobile_workflow_cross_platform_consistency(setup_test_user: Dict[str, A
 
     # Get workflow details via web API
     web_details = requests.get(
-        f"http://localhost:8001/api/workflows/{workflow_id}",
+        f"{WORKFLOWS_API}/{workflow_id}",
         headers={
             "Authorization": f"Bearer {token}",
             "X-Platform": "web"
@@ -433,20 +507,18 @@ def test_mobile_workflow_cross_platform_consistency(setup_test_user: Dict[str, A
     )
 
     # Verify both return successfully
-    if mobile_details.status_code == 200 and web_details.status_code == 200:
-        mobile_workflow = mobile_details.json()
-        web_workflow = web_details.json()
+    assert mobile_details.status_code == 200, f"Mobile details failed: {mobile_details.text}"
+    assert web_details.status_code == 200, f"Web details failed: {web_details.text}"
 
-        # Verify both have workflow_id
-        assert 'id' in mobile_workflow or 'workflow_id' in mobile_workflow, "Mobile response missing ID"
-        assert 'id' in web_workflow or 'workflow_id' in web_workflow, "Web response missing ID"
+    mobile_workflow = mobile_details.json()
+    web_workflow = web_details.json()
 
-        # Extract IDs
-        mobile_id = mobile_workflow.get('id') or mobile_workflow.get('workflow_id')
-        web_id = web_workflow.get('id') or web_workflow.get('workflow_id')
+    # Verify IDs match
+    assert mobile_workflow.get('id') == workflow_id, "Mobile response ID mismatch"
+    assert web_workflow.get('id') == workflow_id, "Web response ID mismatch"
 
-        # Verify IDs match
-        assert mobile_id == web_id == workflow_id, "Workflow ID mismatch between mobile and web"
-    else:
-        # Endpoint might not be implemented yet
-        pytest.skip("Workflow details endpoint not implemented yet")
+    # Verify names match across platforms
+    assert mobile_workflow.get('name') == workflow_data['name'], \
+        f"Mobile name mismatch: {mobile_workflow.get('name')}"
+    assert web_workflow.get('name') == workflow_data['name'], \
+        f"Web name mismatch: {web_workflow.get('name')}"

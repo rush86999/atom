@@ -1,602 +1,327 @@
 """
-E2E tests for Skills Marketplace browsing functionality.
+E2E tests for Skills Marketplace browsing — API-first (SKILL-01).
 
-These tests verify the complete marketplace workflow including:
-- Marketplace page loading and skill display
-- Search functionality (by name, description)
-- Category filtering (data_processing, automation, integration, etc.)
-- Skill type filtering (prompt_only, python_code, nodejs)
-- Combined filters (search + category + type)
-- Pagination (next/prev navigation, page indicator)
-- Empty state handling (no results found)
-- Skill card display (name, description, category, rating, author)
-- Sorting options (relevance, name, created_at)
+The frontend ships no skills-marketplace page (verified 2026-08-12: no
+pages/skills/* pages, no SKILLS testid consumers; pages/marketplace.tsx is the
+workflow-templates marketplace). The marketplace surface that exists is the
+backend community-skills registry:
+
+    GET /api/skills/list              — browsing (status/skill_type/limit)
+    GET /api/skills/{skill_id}        — card detail
+
+These tests seed community skills (SkillExecution rows — the same table the
+registry reads) via db_session, then verify listing, detail, filtering,
+pagination and ordering against the LIVE backend on :8001.
 
 Run with: pytest backend/tests/e2e_ui/tests/test_skills_marketplace.py -v
-
-Reference: Phase 79 Plan 01 - Skills Marketplace Browsing E2E Tests
 """
 
-import pytest
 import uuid
-from playwright.sync_api import Page, expect
+from datetime import datetime, timedelta, timezone
+
+import requests
 from sqlalchemy.orm import Session
-from typing import Dict, Any
-from datetime import datetime
 
-# Add backend to path for imports
-import os
-import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+from core.models import SkillExecution
 
-from tests.e2e_ui.pages.page_objects import SkillsMarketplacePage
-from core.models import User, SkillExecution
-from core.auth import get_password_hash, create_access_token
+API = "http://localhost:8001"
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
 
-def create_test_user(db_session: Session, email: str, password: str = "TestPassword123!") -> User:
-    """Create a test user in the database.
-
-    Args:
-        db_session: Database session
-        email: User email
-        password: Plain text password (will be hashed)
-
-    Returns:
-        User: Created user instance
-    """
-    user = User(
-        email=email,
-        hashed_password=get_password_hash(password),
-        first_name="Test",
-        last_name="User",
-        role="member",
-        status="active"
-    )
-
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-
-    return user
-
-
-def create_test_skills_marketplace(
+def seed_marketplace_skill(
     db_session: Session,
-    count: int = 10,
-    categories: list = None,
-    skill_types: list = None
-) -> list[str]:
-    """Create test skill records in SkillExecution table for marketplace.
+    name: str,
+    skill_type: str = "prompt_only",
+    category: str = "data_processing",
+    description: str = None,
+    status: str = "Active",
+    created_at: datetime = None,
+) -> str:
+    """Seed a community skill row exactly as the registry reads it.
 
-    Creates community skills with diverse metadata for testing search,
-    filtering, and pagination. Skills use UUID v4 in names for uniqueness.
+    Mirrors SkillRegistryService.import_skill's stored shape
+    (skill_source='community', metadata under input_params).
 
     Args:
         db_session: Database session
-        count: Number of skills to create
-        categories: List of categories (default: all categories)
-        skill_types: List of skill types (default: prompt_only, python_code)
+        name: Skill name (stored in input_params.skill_name)
+        skill_type: "prompt_only" or "python_code"
+        category: Skill category (metadata)
+        description: Skill description (metadata)
+        status: Registry status ("Active"/"Untrusted")
+        created_at: Optional explicit creation time (ordering tests)
 
     Returns:
-        list[str]: List of created skill IDs
+        str: SkillExecution PK (the registry's skill_id)
     """
-    if categories is None:
-        categories = [
-            "data_processing",
-            "automation",
-            "integration",
-            "productivity",
-            "utilities",
-            "developer_tools"
-        ]
+    description = description or f"Test skill {name} for {category.replace('_', ' ')}"
+    unique = uuid.uuid4().hex[:8]
 
-    if skill_types is None:
-        skill_types = ["prompt_only", "python_code"]
-
-    skill_ids = []
-
-    for i in range(count):
-        # Generate unique skill ID using UUID
-        unique_id = str(uuid.uuid4())[:8]
-        category = categories[i % len(categories)]
-        skill_type = skill_types[i % len(skill_types)]
-
-        # Create skill with diverse metadata
-        skill_metadata = {
-            "description": f"Test skill {unique_id} for {category.replace('_', ' ')}",
-            "category": category,
-            "tags": [category, "test", "e2e"],
-            "author": f"TestAuthor{i % 3}",  # Rotate between 3 authors
-            "version": f"1.{i % 10}.0"
-        }
-
-        skill = SkillExecution(
-            skill_id=f"test-skill-{unique_id}",
-            skill_source="community",
-            status="Active",
-            agent_id=f"test-agent-{unique_id}",
-            skill_type=skill_type,
-            input_params={
-                "skill_name": f"Test Skill {unique_id}",
-                "skill_type": skill_type,
-                "skill_metadata": skill_metadata
+    skill = SkillExecution(
+        id=str(uuid.uuid4()),
+        agent_id="system",
+        tenant_id="system",
+        workspace_id="default",
+        skill_id=f"community_{name}_{unique}",
+        status=status,
+        skill_source="community",
+        sandbox_enabled=(skill_type == "python_code"),
+        input_params={
+            "skill_name": name,
+            "skill_type": skill_type,
+            "skill_body": f"Body for {name}",
+            "skill_metadata": {
+                "name": name,
+                "description": description,
+                "category": category,
+                "tags": [category, "test", "e2e"],
+                "author": f"TestAuthor-{unique[:4]}",
+                "version": "1.0.0",
             },
-            sandbox_enabled=True,
-            security_scan_result={
-                "status": "passed",
-                "scan_date": datetime.utcnow().isoformat()
-            },
-            created_at=datetime.utcnow()
-        )
-
-        db_session.add(skill)
-        skill_ids.append(skill.id)
-
+        },
+        security_scan_result={
+            "safe": True,
+            "risk_level": "LOW",
+            "findings": [],
+        },
+        created_at=created_at or datetime.now(timezone.utc),
+    )
+    db_session.add(skill)
     db_session.commit()
+    db_session.refresh(skill)
+    return skill.id
 
-    return skill_ids
+
+def seed_marketplace_skills(db_session: Session, count: int = 10, **kwargs) -> list[str]:
+    """Seed `count` community skills with distinct names."""
+    return [
+        seed_marketplace_skill(db_session, f"Marketplace Skill {i} {uuid.uuid4().hex[:4]}", **kwargs)
+        for i in range(count)
+    ]
 
 
-def setup_marketplace_page(browser, user: User, token: str) -> SkillsMarketplacePage:
-    """Navigate to marketplace and return initialized page object.
+def list_skills(token: str, params: dict = None) -> list:
+    """GET /api/skills/list with optional query params; returns skills list."""
+    response = requests.get(
+        f"{API}/api/skills/list",
+        params=params or {},
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=15,
+    )
+    assert response.status_code == 200, f"got {response.status_code}: {response.text[:300]}"
+    data = response.json()
+    assert data["success"] is True, data
+    return data["data"]["skills"]
 
-    Args:
-        browser: Playwright browser fixture
-        user: User instance
-        token: JWT token string
 
-    Returns:
-        SkillsMarketplacePage: Initialized marketplace page
-    """
-    # Create new browser context and page
-    context = browser.new_context()
-    page = context.new_page()
-
-    # Set JWT token in localStorage before navigating
-    page.goto("http://localhost:3001")  # Load app first
-    page.evaluate(f"() => localStorage.setItem('auth_token', '{token}')")
-    page.evaluate(f"() => localStorage.setItem('user_id', '{user.id}')")
-
-    # Create and return page object
-    marketplace = SkillsMarketplacePage(page)
-    marketplace.navigate()
-    marketplace.wait_for_skills_load(timeout=5000)
-
-    return marketplace
+def get_skill_detail(token: str, skill_id: str) -> dict:
+    """GET /api/skills/{skill_id}; returns detail dict."""
+    response = requests.get(
+        f"{API}/api/skills/{skill_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=15,
+    )
+    assert response.status_code == 200, f"got {response.status_code}: {response.text[:300]}"
+    data = response.json()
+    assert data["success"] is True, data
+    return data["data"]
 
 
 # ============================================================================
 # Test Cases
 # ============================================================================
 
-def test_marketplace_loads(browser, db_session: Session):
-    """Test marketplace page loads and displays skills or empty state.
+def test_marketplace_loads(setup_test_user, db_session: Session):
+    """Test marketplace (registry list) loads and displays seeded skills.
 
     Verifies:
-    1. Navigate to marketplace URL
-    2. Marketplace container is visible
-    3. Either skill cards are displayed OR empty state is shown
-    4. Search input is available
-
-    Args:
-        browser: Playwright browser fixture
-        db_session: Database session fixture
+    1. List endpoint returns 200
+    2. Seeded community skills appear as cards (list items)
+    3. Each card carries the expected fields
     """
-    # Setup: Create authenticated user
-    unique_id = str(uuid.uuid4())[:8]
-    email = f"marketplace_load_{unique_id}@example.com"
-    user = create_test_user(db_session, email)
+    token = setup_test_user["access_token"]
+    seeded = seed_marketplace_skills(db_session, count=3)
 
-    # Create JWT token
-    token = create_access_token(data={"sub": str(user.id)})
+    skills = list_skills(token)
+    assert len(skills) >= 3, f"Expected at least 3 skills, got {len(skills)}"
 
-    # Navigate to marketplace
-    marketplace = setup_marketplace_page(browser, user, token)
+    seeded_names = {f"Marketplace Skill {i}"[:20] for i in range(3)}
+    # Names are unique via uuid suffix; verify our seeds are present by id
+    listed_ids = {s["skill_id"] for s in skills}
+    assert set(seeded) <= listed_ids, "All seeded skills should be listed"
 
-    # Verify page loaded
-    assert marketplace.is_loaded() is True, "Marketplace page should be loaded"
-
-    # Verify either skills displayed or empty state shown
-    if marketplace.get_skill_count() > 0:
-        # Skills are displayed
-        assert marketplace.skill_cards.count() > 0, "Should see skill cards"
-    else:
-        # Empty state shown
-        assert marketplace.is_empty_state_visible() is True, "Should show empty state"
-
-    # Verify search input is available
-    assert marketplace.search_input.is_visible(), "Search input should be visible"
+    for item in skills:
+        assert item["skill_name"], item
+        assert item["skill_type"] in ("prompt_only", "python_code", "unknown"), item
+        assert item["status"], item
+        assert item["created_at"], item
 
 
-def test_marketplace_search_by_name(browser, db_session: Session):
-    """Test searching skills by name.
+def test_marketplace_search_by_name(setup_test_user, db_session: Session):
+    """Test finding skills by name through the list + detail surface.
 
-    Verifies:
-    1. Create skills with specific names
-    2. Search for partial name match
-    3. Results contain only matching skills
-    4. Non-matching skills are not shown
-
-    Args:
-        browser: Playwright browser fixture
-        db_session: Database session fixture
+    The list API has no text-search param; name search is done by fetching
+    the full detail for a listed skill and matching the stored name.
     """
-    # Setup: Create user and skills
-    unique_id = str(uuid.uuid4())[:8]
-    email = f"search_name_{unique_id}@example.com"
-    user = create_test_user(db_session, email)
+    token = setup_test_user["access_token"]
+    target_name = f"ZetaSearchOne-{uuid.uuid4().hex[:6]}"
+    seed_marketplace_skill(db_session, target_name)
+    seed_marketplace_skills(db_session, count=5)
 
-    # Create skills with specific naming pattern
-    skill_ids = create_test_skills_marketplace(
+    skills = list_skills(token)
+    found = [s for s in skills if s["skill_name"] == target_name]
+    assert len(found) == 1, f"Name search should find exactly 1, got {len(found)}"
+    detail = get_skill_detail(token, found[0]["skill_id"])
+    assert detail["skill_name"] == target_name
+
+
+def test_marketplace_search_by_description(setup_test_user, db_session: Session):
+    """Test searching skills by description keyword.
+
+    Description lives in skill_metadata; verify it is retrievable via the
+    detail surface for a listed skill.
+    """
+    token = setup_test_user["access_token"]
+    keyword = f"uniquedesc-{uuid.uuid4().hex[:6]}"
+    seed_marketplace_skill(db_session, f"DescSkill-{uuid.uuid4().hex[:4]}", description=f"about {keyword} processing")
+
+    skills = list_skills(token)
+    listed_ids = [s["skill_id"] for s in skills]
+    for skill_id in listed_ids:
+        detail = get_skill_detail(token, skill_id)
+        if keyword in detail["skill_metadata"].get("description", ""):
+            return
+    pytest.fail(f"No listed skill matched description keyword {keyword}")
+
+
+def test_marketplace_category_filter(setup_test_user, db_session: Session):
+    """Test category coverage in the marketplace.
+
+    The registry API has no category filter param; verify skills from
+    different categories are all browsable and the category is present on the
+    detail (the filter UI would narrow this client-side).
+    """
+    token = setup_test_user["access_token"]
+    seed_marketplace_skill(db_session, f"CatAutomation-{uuid.uuid4().hex[:4]}", category="automation")
+    seed_marketplace_skill(db_session, f"CatData-{uuid.uuid4().hex[:4]}", category="data_processing")
+
+    skills = list_skills(token)
+    assert len(skills) >= 2
+
+    categories = set()
+    for item in skills:
+        detail = get_skill_detail(token, item["skill_id"])
+        categories.add(detail["skill_metadata"].get("category"))
+    assert "automation" in categories
+    assert "data_processing" in categories
+
+
+def test_marketplace_skill_type_filter(setup_test_user, db_session: Session):
+    """Test filtering by skill_type returns only matching skills."""
+    token = setup_test_user["access_token"]
+    seed_marketplace_skill(db_session, f"TypePrompt-{uuid.uuid4().hex[:4]}", skill_type="prompt_only")
+    seed_marketplace_skill(db_session, f"TypePython-{uuid.uuid4().hex[:4]}", skill_type="python_code")
+
+    python_only = list_skills(token, {"skill_type": "python_code"})
+    assert len(python_only) >= 1
+    assert all(s["skill_type"] == "python_code" for s in python_only), python_only
+
+    prompt_only = list_skills(token, {"skill_type": "prompt_only"})
+    assert len(prompt_only) >= 1
+    assert all(s["skill_type"] == "prompt_only" for s in prompt_only), prompt_only
+
+
+def test_marketplace_combined_filters(setup_test_user, db_session: Session):
+    """Test combining status + skill_type filters."""
+    token = setup_test_user["access_token"]
+    seed_marketplace_skill(db_session, f"Combined-{uuid.uuid4().hex[:4]}", skill_type="prompt_only", status="Active")
+    seed_marketplace_skill(db_session, f"CombinedUntrusted-{uuid.uuid4().hex[:4]}", skill_type="python_code", status="Untrusted")
+
+    filtered = list_skills(token, {"skill_status": "Active", "skill_type": "prompt_only"})
+    assert len(filtered) >= 1
+    assert all(s["status"] == "Active" and s["skill_type"] == "prompt_only" for s in filtered), filtered
+
+
+def test_marketplace_pagination(setup_test_user, db_session: Session):
+    """Test pagination via the limit param.
+
+    The registry API paginates with `limit` (no page param); verify the limit
+    is honored and results are newest-first.
+    """
+    token = setup_test_user["access_token"]
+    seed_marketplace_skills(db_session, count=5)
+
+    page1 = list_skills(token, {"limit": 2})
+    assert len(page1) <= 2, f"limit=2 should cap results, got {len(page1)}"
+
+    page1_only = list_skills(token, {"limit": 1})
+    assert len(page1_only) == 1
+
+    # Limit 0/negative falls back to the default cap — must not error
+    empty = list_skills(token, {"limit": 0})
+    assert isinstance(empty, list)
+
+
+def test_marketplace_empty_state(setup_test_user, db_session: Session):
+    """Test the empty state: a filter with no matches returns an empty list."""
+    token = setup_test_user["access_token"]
+    seed_marketplace_skills(db_session, count=3)
+
+    skills = list_skills(token, {"skill_status": "NoSuchStatus"})
+    assert skills == [], f"Expected empty list for unknown status, got {len(skills)}"
+
+
+def test_marketplace_skill_card_display(setup_test_user, db_session: Session):
+    """Test the skill detail (card) displays complete information.
+
+    Verifies name, description, type, category, author, version, status,
+    scan info and sandbox flag are all retrievable.
+    """
+    token = setup_test_user["access_token"]
+    skill_id = seed_marketplace_skill(
         db_session,
-        count=10,
-        categories=["data_processing", "automation"]
+        f"CardDisplay-{uuid.uuid4().hex[:4]}",
+        skill_type="python_code",
+        category="automation",
+        description="Card display description",
     )
 
-    # Create JWT token
-    token = create_access_token(data={"sub": str(user.id)})
-
-    # Navigate to marketplace
-    marketplace = setup_marketplace_page(browser, user, token)
-
-    # Search for "data" (should match data_processing skills)
-    marketplace.search("data")
-
-    # Wait for search results to load
-    marketplace.wait_for_skills_load(timeout=5000)
-
-    # Verify search results
-    skill_count = marketplace.get_skill_count()
-    if skill_count > 0:
-        # At least some skills should match
-        skill_names = marketplace.get_skill_names()
-        # Check that names contain search term or related words
-        assert len(skill_names) > 0, "Search should return results"
+    detail = get_skill_detail(token, skill_id)
+    assert detail["skill_id"] == skill_id
+    assert detail["skill_name"]
+    assert detail["skill_type"] == "python_code"
+    assert detail["status"] == "Active"
+    assert detail["sandbox_enabled"] is True
+    assert detail["security_scan_result"]["risk_level"] == "LOW"
+    meta = detail["skill_metadata"]
+    assert meta["description"] == "Card display description"
+    assert meta["category"] == "automation"
+    assert meta["author"]
+    assert meta["version"] == "1.0.0"
+    assert detail["created_at"]
 
 
-def test_marketplace_search_by_description(browser, db_session: Session):
-    """Test searching skills by description keywords.
+def test_marketplace_sort_options(setup_test_user, db_session: Session):
+    """Test sort order: registry lists newest-first (created_at desc).
 
-    Verifies:
-    1. Create skills with specific descriptions
-    2. Search for description keyword
-    3. Results match description content
-    4. Non-matching skills are filtered out
-
-    Args:
-        browser: Playwright browser fixture
-        db_session: Database session fixture
+    The API exposes no sort param; verify the deterministic default ordering
+    with explicitly staggered creation timestamps.
     """
-    # Setup: Create user and skills
-    unique_id = str(uuid.uuid4())[:8]
-    email = f"search_desc_{unique_id}@example.com"
-    user = create_test_user(db_session, email)
-
-    # Create skills
-    skill_ids = create_test_skills_marketplace(db_session, count=15)
-
-    # Create JWT token
-    token = create_access_token(data={"sub": str(user.id)})
-
-    # Navigate to marketplace
-    marketplace = setup_marketplace_page(browser, user, token)
-
-    # Search for "processing" (should match data_processing category/description)
-    marketplace.search("processing")
-
-    # Wait for search results
-    marketplace.wait_for_skills_load(timeout=5000)
-
-    # Verify results
-    skill_count = marketplace.get_skill_count()
-    # Search may return 0 results if no match, that's okay
-    assert skill_count >= 0, "Search should complete without errors"
-
-
-def test_marketplace_category_filter(browser, db_session: Session):
-    """Test filtering skills by category.
-
-    Verifies:
-    1. Create skills across multiple categories
-    2. Select category from filter
-    3. Only skills in that category are shown
-    4. Skill count updates correctly
-
-    Args:
-        browser: Playwright browser fixture
-        db_session: Database session fixture
-    """
-    # Setup: Create user and skills
-    unique_id = str(uuid.uuid4())[:8]
-    email = f"category_filter_{unique_id}@example.com"
-    user = create_test_user(db_session, email)
-
-    # Create skills across all categories
-    skill_ids = create_test_skills_marketplace(
-        db_session,
-        count=20,
-        categories=["data_processing", "automation", "integration"]
+    token = setup_test_user["access_token"]
+    now = datetime.now(timezone.utc)
+    seed_marketplace_skill(
+        db_session, f"OldestSkill-{uuid.uuid4().hex[:4]}", created_at=now - timedelta(days=5)
+    )
+    newest_id = seed_marketplace_skill(
+        db_session, f"NewestSkill-{uuid.uuid4().hex[:4]}", created_at=now - timedelta(minutes=1)
     )
 
-    # Create JWT token
-    token = create_access_token(data={"sub": str(user.id)})
-
-    # Navigate to marketplace
-    marketplace = setup_marketplace_page(browser, user, token)
-
-    # Select category filter (if available)
-    if marketplace.category_filter.is_visible():
-        marketplace.select_category("data_processing")
-        marketplace.wait_for_skills_load(timeout=5000)
-
-        # Verify filter applied
-        skill_count = marketplace.get_skill_count()
-        # Should only show data_processing skills
-        # (Exact count depends on created skills)
-        assert skill_count >= 0, "Filter should apply"
-
-
-def test_marketplace_skill_type_filter(browser, db_session: Session):
-    """Test filtering skills by skill type.
-
-    Verifies:
-    1. Create prompt_only and python_code skills
-    2. Filter by skill_type
-    3. Only matching type shown
-
-    Args:
-        browser: Playwright browser fixture
-        db_session: Database session fixture
-    """
-    # Setup: Create user and skills
-    unique_id = str(uuid.uuid4())[:8]
-    email = f"type_filter_{unique_id}@example.com"
-    user = create_test_user(db_session, email)
-
-    # Create skills of different types
-    skill_ids = create_test_skills_marketplace(
-        db_session,
-        count=12,
-        skill_types=["prompt_only", "python_code"]
-    )
-
-    # Create JWT token
-    token = create_access_token(data={"sub": str(user.id)})
-
-    # Navigate to marketplace
-    marketplace = setup_marketplace_page(browser, user, token)
-
-    # Apply skill type filter (if available)
-    if marketplace.skill_type_filter.is_visible():
-        marketplace.select_skill_type("python_code")
-        marketplace.wait_for_skills_load(timeout=5000)
-
-        # Verify filter applied
-        skill_count = marketplace.get_skill_count()
-        assert skill_count >= 0, "Type filter should apply"
-
-
-def test_marketplace_combined_filters(browser, db_session: Session):
-    """Test combining search + category + type filters.
-
-    Verifies:
-    1. Apply search query
-    2. Apply category filter
-    3. Apply skill type filter
-    4. Results match all criteria
-
-    Args:
-        browser: Playwright browser fixture
-        db_session: Database session fixture
-    """
-    # Setup: Create user and skills
-    unique_id = str(uuid.uuid4())[:8]
-    email = f"combined_filter_{unique_id}@example.com"
-    user = create_test_user(db_session, email)
-
-    # Create diverse skills
-    skill_ids = create_test_skills_marketplace(
-        db_session,
-        count=25,
-        categories=["data_processing", "automation", "integration", "productivity"],
-        skill_types=["prompt_only", "python_code"]
-    )
-
-    # Create JWT token
-    token = create_access_token(data={"sub": str(user.id)})
-
-    # Navigate to marketplace
-    marketplace = setup_marketplace_page(browser, user, token)
-
-    # Apply combined filters (if filters are available)
-    if marketplace.category_filter.is_visible() and marketplace.skill_type_filter.is_visible():
-        marketplace.search("data")
-        marketplace.select_category("data_processing")
-        marketplace.select_skill_type("python_code")
-        marketplace.wait_for_skills_load(timeout=5000)
-
-        # Verify combined filters
-        skill_count = marketplace.get_skill_count()
-        assert skill_count >= 0, "Combined filters should work"
-
-
-def test_marketplace_pagination(browser, db_session: Session):
-    """Test pagination controls for large skill listings.
-
-    Verifies:
-    1. Create 25+ skills (page_size=20)
-    2. First page shows up to 20 skills
-    3. Next page button is enabled
-    4. Click next page
-    5. Second page loads
-    6. Page indicator updates
-
-    Args:
-        browser: Playwright browser fixture
-        db_session: Database session fixture
-    """
-    # Setup: Create user and many skills
-    unique_id = str(uuid.uuid4())[:8]
-    email = f"pagination_{unique_id}@example.com"
-    user = create_test_user(db_session, email)
-
-    # Create 25 skills to test pagination (default page_size=20)
-    skill_ids = create_test_skills_marketplace(db_session, count=25)
-
-    # Create JWT token
-    token = create_access_token(data={"sub": str(user.id)})
-
-    # Navigate to marketplace
-    marketplace = setup_marketplace_page(browser, user, token)
-
-    # Check first page
-    first_page_count = marketplace.get_skill_count()
-
-    # If pagination controls are visible, test them
-    if marketplace.next_page_button.is_visible():
-        # Try to navigate to next page
-        if not marketplace.next_page_button.is_disabled():
-            initial_page = marketplace.get_current_page()
-
-            marketplace.click_next_page()
-            marketplace.wait_for_skills_load(timeout=5000)
-
-            # Verify page changed or stayed the same (if only 1 page)
-            new_page = marketplace.get_current_page()
-
-            # Either we moved to next page or stayed on page 1 (no more pages)
-            assert new_page >= initial_page, "Page navigation should work"
-
-
-def test_marketplace_empty_state(browser, db_session: Session):
-    """Test empty state when no skills match filters.
-
-    Verifies:
-    1. Search for non-existent skill
-    2. Empty state message is visible
-    3. Helpful message shown
-
-    Args:
-        browser: Playwright browser fixture
-        db_session: Database session fixture
-    """
-    # Setup: Create user
-    unique_id = str(uuid.uuid4())[:8]
-    email = f"empty_state_{unique_id}@example.com"
-    user = create_test_user(db_session, email)
-
-    # Create JWT token
-    token = create_access_token(data={"sub": str(user.id)})
-
-    # Navigate to marketplace
-    marketplace = setup_marketplace_page(browser, user, token)
-
-    # Search for guaranteed non-existent skill
-    marketplace.search(f"nonexistent-skill-{str(uuid.uuid4())}")
-
-    # Wait for search to complete
-    marketplace.wait_for_skills_load(timeout=5000)
-
-    # Verify empty state
-    skill_count = marketplace.get_skill_count()
-    if skill_count == 0:
-        assert marketplace.is_empty_state_visible() is True, "Empty state should be shown"
-
-
-def test_marketplace_skill_card_display(browser, db_session: Session):
-    """Test skill card displays correct information.
-
-    Verifies:
-    1. Skill card shows name
-    2. Skill card shows description
-    3. Skill card shows category badge
-    4. Skill card shows author
-    5. Rating stars display (if rated)
-    6. Install button is present
-
-    Args:
-        browser: Playwright browser fixture
-        db_session: Database session fixture
-    """
-    # Setup: Create user and skills
-    unique_id = str(uuid.uuid4())[:8]
-    email = f"card_display_{unique_id}@example.com"
-    user = create_test_user(db_session, email)
-
-    # Create skills with full metadata
-    skill_ids = create_test_skills_marketplace(
-        db_session,
-        count=5,
-        categories=["automation"],
-        skill_types=["python_code"]
-    )
-
-    # Create JWT token
-    token = create_access_token(data={"sub": str(user.id)})
-
-    # Navigate to marketplace
-    marketplace = setup_marketplace_page(browser, user, token)
-
-    # Get skill count
-    skill_count = marketplace.get_skill_count()
-
-    if skill_count > 0:
-        # Get first skill card info
-        skill_info = marketplace.get_skill_card_info(0)
-
-        # Verify card displays key information
-        assert "name" in skill_info or skill_count > 0, "Should have skill info"
-
-        # Verify install button exists
-        if skill_count > 0:
-            # Check if install button is visible on first card
-            cards = marketplace.skill_cards.all()
-            if len(cards) > 0:
-                first_card = cards[0]
-                install_btn = first_card.locator("button:has-text(\"Install\")").first
-                # Install button may or may not be visible depending on UI state
-                assert True, "Card structure verified"
-
-
-def test_marketplace_sort_options(browser, db_session: Session):
-    """Test sorting skills by relevance, name, created_at.
-
-    Verifies:
-    1. Test sorting by relevance
-    2. Test sorting by name (alphabetical)
-    3. Test sorting by created_at (newest first)
-    4. Order changes correctly
-
-    Args:
-        browser: Playwright browser fixture
-        db_session: Database session fixture
-    """
-    # Setup: Create user and skills
-    unique_id = str(uuid.uuid4())[:8]
-    email = f"sort_options_{unique_id}@example.com"
-    user = create_test_user(db_session, email)
-
-    # Create skills with varied names and dates
-    skill_ids = create_test_skills_marketplace(
-        db_session,
-        count=15,
-        categories=["productivity", "utilities"]
-    )
-
-    # Create JWT token
-    token = create_access_token(data={"sub": str(user.id)})
-
-    # Navigate to marketplace
-    marketplace = setup_marketplace_page(browser, user, token)
-
-    # Get initial skill order
-    initial_names = marketplace.get_skill_names()
-
-    # Note: Sorting UI may not be implemented yet
-    # This test verifies the page doesn't break when attempting to sort
-    assert True, "Sorting test structure verified"
+    skills = list_skills(token)
+    assert skills, "Should list skills"
+    # Newest-first ordering: the most recently created seed must be first among
+    # skills with the same-style prefix (older seeds may pre-exist in the DB).
+    newest_ids = [s["skill_id"] for s in skills if s["skill_name"].startswith(("OldestSkill", "NewestSkill"))]
+    assert newest_ids[0] == newest_id, f"Newest seed should sort first, got {newest_ids}"

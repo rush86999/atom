@@ -27,10 +27,10 @@ Supporting code:
 
 1. **Full backend** on `http://localhost:8001`:
    ```bash
-   PYTHONPATH=$PWD:$PWD/backend DISABLE_AUTH_RATE_LIMIT=1 \
+   PYTHONPATH=$PWD:$PWD/backend BYPASS_RATE_LIMIT=1 \
      backend/venv/bin/python -m uvicorn main_api_app:app --port 8001 --host 127.0.0.1
    ```
-   `DISABLE_AUTH_RATE_LIMIT=1` lifts the 3-registrations/5-min limit so the
+   `BYPASS_RATE_LIMIT=1` lifts the 3-registrations/5-min limit so the
    suite can create its per-test users. (Do **not** use `TESTING=1` for this —
    that env var also switches `core/database.py` to a schema-incompatible
    test database.)

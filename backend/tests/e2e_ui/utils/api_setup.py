@@ -142,7 +142,80 @@ class APIClient:
 # User Setup Functions
 # ============================================================================
 
-def create_test_user(client: APIClient, email: str, password: str, first_name: str = "Test", last_name: str = "User") -> Dict[str, Any]:
+def _post_with_retry(
+    client: APIClient,
+    path: str,
+    json: Dict[str, Any],
+    retries: int = 4,
+    on_conflict: Optional[callable] = None,
+) -> Dict[str, Any]:
+    """
+    POST with bounded retries on transient server-side failures.
+
+    The dev backend's SQLite QueuePool can briefly serve failures (e.g. pooled
+    connections opened while a test chmod'ed the DB read-only serve write
+    errors for up to the pool_recycle window). The backend maps those to
+    500 OR to a 400 envelope with error_code="DATABASE_ERROR" — both are
+    retried. Validation errors (real 400s, 401/403/404/409) are never retried.
+
+    A register POST can also 500 AFTER committing the user row (the default
+    tenant/workspace creation step fails on a broken connection) — the retry
+    then hits 400 "Email already registered". on_conflict is invoked in that
+    case so callers can recover (e.g. authenticate instead of re-register).
+
+    Args:
+        client: APIClient instance
+        path: API endpoint path
+        json: JSON payload
+        retries: Number of retries after the first attempt (default: 4)
+        on_conflict: Optional zero-arg callable invoked when the server
+            reports the resource already exists (400 "already registered")
+
+    Returns:
+        JSON response data
+
+    Raises:
+        requests.HTTPError: If the request fails after all retries
+    """
+    import time
+
+    last_error = None
+    for attempt in range(retries + 1):
+        try:
+            return client.post(path, json=json)
+        except requests.HTTPError as e:
+            last_error = e
+            response = e.response
+            status = response.status_code if response is not None else None
+            # Retry transient failures: 5xx, or the backend's DB-error
+            # envelope (400 + error_code=DATABASE_ERROR).
+            transient = status is None or status >= 500
+            if status == 400:
+                try:
+                    body = response.json()
+                except Exception:
+                    body = {}
+                if body.get("error_code") == "DATABASE_ERROR":
+                    transient = True
+                elif body.get("detail") == "Email already registered" and on_conflict is not None:
+                    # Our own previous attempt committed the user but the
+                    # response 500'd — recover via the conflict handler.
+                    return on_conflict()
+            if not transient:
+                raise
+            if attempt < retries:
+                time.sleep(0.5 * (attempt + 1))
+    raise last_error  # pragma: no cover - defensive
+
+
+def create_test_user(
+    client: APIClient,
+    email: str,
+    password: str,
+    first_name: str = "Test",
+    last_name: str = "User",
+    recover_already_registered: bool = False,
+) -> Dict[str, Any]:
     """
     Create a test user via API.
 
@@ -152,21 +225,50 @@ def create_test_user(client: APIClient, email: str, password: str, first_name: s
         password: User password
         first_name: User first name (default: "Test")
         last_name: User last name (default: "User")
+        recover_already_registered: If True, a 400 "Email already
+            registered" is treated as a previous retry's committed user and
+            recovered by authenticating instead of raising. Only safe for
+            callers that always generate fresh emails (a fixture); tests
+            that deliberately probe duplicate handling must keep this False.
 
     Returns:
         User data response from API
 
     Raises:
         requests.HTTPError: If user creation fails
+
+    Note:
+        If a retried POST 500s after committing the user (default
+        tenant/workspace creation can fail on a broken pooled connection),
+        the follow-up "Email already registered" is recovered by
+        authenticating the existing user instead of re-registering.
     """
-    return client.post(
+    if not recover_already_registered:
+        return _post_with_retry(
+            client,
+            "/api/auth/register",
+            {
+                "email": email,
+                "password": password,
+                "first_name": first_name,
+                "last_name": last_name
+            },
+        )
+
+    def on_already_registered() -> Dict[str, Any]:
+        token = get_test_user_token(client, email, password)
+        return {"access_token": token, "token_type": "bearer"}
+
+    return _post_with_retry(
+        client,
         "/api/auth/register",
-        json={
+        {
             "email": email,
             "password": password,
             "first_name": first_name,
             "last_name": last_name
-        }
+        },
+        on_conflict=on_already_registered,
     )
 
 
@@ -185,9 +287,10 @@ def authenticate_user(client: APIClient, email: str, password: str) -> Dict[str,
     Raises:
         requests.HTTPError: If authentication fails
     """
-    return client.post(
+    return _post_with_retry(
+        client,
         "/api/auth/login",
-        json={
+        {
             "username": email,
             "password": password
         }

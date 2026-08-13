@@ -49,9 +49,11 @@ class TestTokenRefresh:
         # Create a new token (simulating refresh)
         # In production this would call the /api/auth/refresh endpoint
         from core.auth import create_access_token
+        import time as _time
+        _time.sleep(1)  # JWT exp is second-granularity; ensure a fresh second
         new_token = create_access_token(
             data={"sub": str(user.id)},
-            expires_delta=None  # Uses default 15 minutes
+            expires_delta=None  # Uses default 24h
         )
 
         # Verify new token is valid JWT

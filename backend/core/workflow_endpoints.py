@@ -186,6 +186,13 @@ def _enrich_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
     workflow.setdefault("connections", [])
     workflow.setdefault("triggers", [])
     workflow.setdefault("enabled", True)
+    # R81: the response models require `description`/`version` — a stored row
+    # missing either (e.g. an agent-driven "Dynamic Workflow" row written
+    # without the node dialect, or a hand-edited file entry) 500s the whole
+    # list with ResponseValidationError. Normalize defaults so one malformed
+    # row can't break every consumer of the workflow list.
+    workflow.setdefault("description", "")
+    workflow.setdefault("version", "1")
     steps = _resolve_workflow_steps(workflow)
     workflow["steps"] = steps
     workflow["steps_count"] = len(steps)
@@ -229,6 +236,24 @@ def _load_template_definition(workflow_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _validate_workflow_dag(workflow: Dict[str, Any]) -> None:
+    """Reject cyclic node graphs using the engine's authoritative linearization.
+
+    R81: the lenient read-path linearization (``_linearize_nodes``) falls back
+    to insertion order when a graph contains a cycle, so cyclic workflows
+    previously CREATED and EXECUTED in an arbitrary order instead of being
+    rejected. Create + execute now validate the graph up front and return 400
+    with the engine's circular-dependency message.
+    """
+    if not workflow.get("nodes"):
+        return
+    from core.workflow_engine import WorkflowEngine
+    try:
+        WorkflowEngine()._convert_nodes_to_steps(workflow)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.get("/workflows", response_model=List[WorkflowDefinition])
 async def get_workflows(user: User = Depends(require_permission(Permission.WORKFLOW_VIEW))):
     workflows = load_workflows()
@@ -247,6 +272,10 @@ async def get_workflow(workflow_id: str, user: User = Depends(require_permission
 @router.post("/workflows", response_model=WorkflowDefinition)
 async def create_workflow(workflow: WorkflowDefinition, user: User = Depends(require_permission(Permission.WORKFLOW_MANAGE))):
     workflows = load_workflows()
+
+    # R81: reject cyclic graphs at composition time (the engine would otherwise
+    # execute them in arbitrary insertion order).
+    _validate_workflow_dag(workflow.dict())
 
     # Generate ID if new
     if not workflow.id:
@@ -614,6 +643,10 @@ async def execute_workflow(
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
+    # R81: reject cyclic graphs at execution time (read-path linearization
+    # falls back to insertion order, so cycles used to execute anyway).
+    _validate_workflow_dag(workflow)
+
     # R67: critical MCP steps (terminal, browser, messaging) execute local
     # machine actions — the same tool set agent governance gates. Members
     # may run ordinary workflows only. Node-based definitions have no
@@ -874,7 +907,10 @@ async def schedule_workflow(
         # R79: the missing-config 400 must not be masked as a 500 by the
         # broad handler below.
         raise
-    except ValueError as e:
+    except (ValueError, TypeError) as e:
+        # R81: invalid trigger configs (e.g. CronTrigger kwargs with an
+        # unknown key) raise TypeError from APScheduler — previously only
+        # ValueError was mapped to 400, so bad user input surfaced as a 500.
         raise HTTPException(status_code=400, detail="Internal error")
     except Exception as e:
         logger.error(f"Scheduling failed: {e}")

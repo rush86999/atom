@@ -35,6 +35,8 @@ class TelegramAdapter(PlatformAdapter):
              return True
 
         header_token = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+        if not header_token:
+            return False
         return hmac.compare_digest(header_token, self.secret_token)
 
     def normalize_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:

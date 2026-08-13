@@ -177,11 +177,12 @@ class EscalationManager:
         Determine if a query should be escalated to a higher tier.
 
         Evaluates escalation conditions in priority order:
-        1. Check cooldown period (if on cooldown, don't escalate)
-        2. Rate limit errors (highest priority, immediate escalation)
-        3. Error responses (automatic escalation)
-        4. Low quality score (<80)
-        5. Low confidence (<0.7)
+        1. Max-escalation cap per request (runaway-cost guard)
+        2. Rate limit errors (highest priority, IMMEDIATE — bypasses cooldown)
+        3. Cooldown period (if on cooldown, skip the remaining triggers)
+        4. Error responses (automatic escalation)
+        5. Low quality score (<80)
+        6. Low confidence (<0.7)
 
         Args:
             current_tier: The cognitive tier that was just used
@@ -224,24 +225,30 @@ class EscalationManager:
                 )
                 return False, None, None
 
-        # Check cooldown first (prevents rapid cycling)
-        if self._is_on_cooldown(current_tier):
-            logger.debug(f"Tier {current_tier.value} is on cooldown, skipping escalation")
-            return False, None, None
-
-        # Priority 1: Rate limit errors (immediate escalation)
+        # Priority 1: Rate limit errors — IMMEDIATE escalation. This bypasses
+        # the cooldown by design: a hard rate-limit wall is not the "rapid
+        # quality/error cycling" the cooldown exists to damp, and the spec
+        # calls rate-limit the highest-priority trigger. The runaway-cost cap
+        # above still applies. (Previously cooldown was checked first, so a
+        # rate-limited request that landed inside a prior escalation's window
+        # was silently stranded on the rate-limited tier.)
         if rate_limited:
             return self._escalate_for_reason(
-                current_tier, 
+                current_tier,
                 EscalationReason.RATE_LIMITED,
                 request_id=request_id,
                 error_message=error
             )
 
+        # Check cooldown for the non-rate-limit triggers (prevents rapid cycling)
+        if self._is_on_cooldown(current_tier):
+            logger.debug(f"Tier {current_tier.value} is on cooldown, skipping escalation")
+            return False, None, None
+
         # Priority 2: Error responses
         if error:
             return self._escalate_for_reason(
-                current_tier, 
+                current_tier,
                 EscalationReason.ERROR_RESPONSE,
                 request_id=request_id,
                 error_message=error

@@ -1,144 +1,176 @@
 """
-Visual regression tests for critical pages using Percy.
+Visual regression tests for critical pages.
 
-These tests capture screenshots of key pages and compare them against baselines
-to detect unintended UI changes. Tests run automatically on every PR via Percy.
-
-Percy Requirements:
-- PERCY_TOKEN environment variable (set in GitHub Actions secrets)
-- Percy project setup at https://percy.io
-- Baseline screenshots (captured on first run)
+These tests are structural visual-regression checks: they drive the REAL
+pages with real data and assert the rendered structure of the critical
+surfaces (layout anchors, chat wiring, canvas component rendering). They do
+not use a snapshot service (no PERCY_TOKEN in local runs) — a snapshot tool
+can be layered on top of the same page interactions.
 
 Critical Pages Tested:
 - Dashboard: Main user interface with navigation and overview
-- Agent Chat: Core agent interaction interface
-- Canvas Presentations: Dynamic canvas components (sheets, charts, forms)
+- Agent Chat: Core agent interaction interface (real testids:
+  chat-container / agent-chat-input / send-message-button / message-list)
+- Canvas Presentations: CanvasPanel on /canvas/{id} (real testids:
+  canvas-container / canvas-type-{component}) for sheets, charts and forms
 
 Maintenance:
-- Review Percy diffs after each PR
-- Approve intentional design changes
-- Reject and fix unintended regressions
-- Update .percyrc.js percyCSS to hide dynamic content causing false positives
+- Selectors are the canonical frontend testids (frontend-nextjs/src/lib/testIds.ts)
+- Canvas fixtures mirror tools/canvas_tool present rows (Canvas + CanvasAudit)
 """
 
-from tests.e2e_ui.pages.page_objects import DashboardPage, ChatPage, CanvasHostPage
+from typing import Tuple
 import pytest
+from sqlalchemy.orm import Session
+
+from core.models import User
+from tests.e2e_ui.pages.page_objects import DashboardPage, ChatPage
+from tests.e2e_ui.tests.canvas_helpers import (
+    create_canvas,
+    open_canvas,
+    CANVAS_CONTAINER,
+    canvas_type_badge,
+)
 
 
 class TestVisualRegression:
     """Visual regression tests for critical pages."""
 
-    def test_dashboard_visual(self, browser, authenticated_user):
+    def test_dashboard_visual(self, authenticated_page, authenticated_user):
         """
         Verify dashboard page has no visual regressions.
 
         Validates:
-        - Navigation layout
-        - Dashboard cards and widgets
-        - Typography and spacing
-        - Color scheme and branding
-
-        VALIDATED_BUG: Catches CSS changes that break layout (e.g., flexbox direction changes)
+        - Navigation layout (sidebar)
+        - Dashboard welcome heading (real testid: dashboard-welcome-message)
         """
-        dashboard = DashboardPage(browser.new_page())
+        dashboard = DashboardPage(authenticated_page)
         dashboard.navigate()
-        # Percy snapshot will be captured automatically
-        # Snapshot name: "Dashboard Page"
 
-    def test_agent_chat_visual(self, browser, authenticated_user):
+        # Navigation layout
+        assert dashboard.welcome_message.is_visible(), \
+            "Dashboard welcome message not rendered"
+        assert dashboard.navigation_menu.is_visible(), \
+            "Dashboard navigation menu not rendered"
+
+    def test_agent_chat_visual(self, authenticated_page, authenticated_user):
         """
         Verify agent chat page has no visual regressions.
 
         Validates:
-        - Chat message bubbles (user vs agent)
-        - Input field and send button
-        - Message history scrolling
-        - Agent avatar and status indicators
-
-        VALIDATED_BUG: Catches chat UI breaking changes (e.g., message alignment, overflow)
+        - Chat container + input + send button wiring (real testids)
+        - Message history renders a sent message (optimistic append — no
+          LLM provider required for the user bubble)
         """
-        chat = ChatPage(browser.new_page())
+        chat = ChatPage(authenticated_page)
         chat.navigate()
-        # Send a test message to capture populated chat state
-        chat.send_message("Test message for visual snapshot")
-        # Snapshot name: "Agent Chat Page"
 
-    def test_canvas_sheets_visual(self, browser, authenticated_user):
+        # Core chat wiring
+        assert chat.chat_container.is_visible(), "Chat container not rendered"
+        assert chat.chat_input.is_visible(), "Chat input not rendered"
+        assert chat.send_button.is_visible(), "Send button not rendered"
+
+        # Send a test message and verify the user bubble renders in history
+        test_message = f"Visual snapshot message {__import__('uuid').uuid4()}"
+        chat.send_message(test_message)
+        authenticated_page.wait_for_timeout(1000)
+
+        user_texts = [m.text_content() for m in chat.user_message.all()]
+        assert any(test_message in t for t in user_texts), \
+            f"Sent message not rendered in chat history: {user_texts}"
+
+    def test_canvas_sheets_visual(self, authenticated_page, authenticated_user, db_session):
         """
         Verify canvas sheets presentation has no visual regressions.
 
         Validates:
-        - Data grid layout
-        - Column headers and row formatting
-        - Pagination controls
-        - Responsive table behavior
-
-        VALIDATED_BUG: Catches table layout breaks (e.g., column width, cell overflow)
+        - Canvas container (canvas-container)
+        - Sheets type badge (canvas-type-sheet)
+        - Data grid (table) with the presented rows
         """
-        canvas = CanvasHostPage(browser.new_page())
-        canvas.navigate()
-        canvas.present_canvas(
-            type="sheets",
-            data={
-                "rows": [
-                    {"id": 1, "name": "Item 1", "value": 100},
-                    {"id": 2, "name": "Item 2", "value": 200},
-                    {"id": 3, "name": "Item 3", "value": 300},
-                ],
-                "columns": ["id", "name", "value"]
-            }
-        )
-        # Snapshot name: "Canvas Presentation - Sheets"
+        user, _ = authenticated_user
+        content = {
+            "rows": [
+                ["Item 1", "100"],
+                ["Item 2", "200"],
+                ["Item 3", "300"],
+            ],
+            "columns": ["id", "name", "value"],
+        }
+        canvas_id = f"e2e-visual-sheets-{__import__('uuid').uuid4()}"
+        create_canvas(db_session, user, canvas_id, "sheet", "Visual Sheets", content)
 
-    def test_canvas_charts_visual(self, browser, authenticated_user):
+        open_canvas(authenticated_page, canvas_id, component="sheet")
+
+        # Canvas container + type badge rendered
+        assert authenticated_page.locator(CANVAS_CONTAINER).is_visible()
+        assert authenticated_page.locator(canvas_type_badge("sheet")).is_visible()
+
+        # Data grid rendered with rows
+        table = authenticated_page.locator("table")
+        assert table.is_visible(), "Sheets data grid not rendered"
+        assert table.locator("tbody tr").count() >= 3, "Sheets grid missing presented rows"
+
+    def test_canvas_charts_visual(self, authenticated_page, authenticated_user, db_session):
         """
         Verify canvas charts presentation has no visual regressions.
 
         Validates:
-        - Chart rendering (line, bar, pie)
-        - Axis labels and legends
-        - Color palette consistency
-        - Tooltip positioning
-
-        VALIDATED_BUG: Catches chart library version breaks (e.g., D3, Chart.js updates)
+        - Canvas container (canvas-container)
+        - Bar chart type badge (canvas-type-bar_chart)
+        - Recharts chart SVG rendered with bars
         """
-        canvas = CanvasHostPage(browser.new_page())
-        canvas.navigate()
-        canvas.present_canvas(
-            type="charts",
-            data={
-                "chartType": "bar",
-                "title": "Sample Bar Chart",
-                "data": {
-                    "labels": ["A", "B", "C"],
-                    "datasets": [{"data": [10, 20, 30]}]
-                }
-            }
-        )
-        # Snapshot name: "Canvas Presentation - Charts"
+        user, _ = authenticated_user
+        data = [
+            {"name": "A", "value": 10},
+            {"name": "B", "value": 20},
+            {"name": "C", "value": 30},
+        ]
+        canvas_id = f"e2e-visual-charts-{__import__('uuid').uuid4()}"
+        create_canvas(db_session, user, canvas_id, "bar_chart", "Visual Bar Chart", data)
 
-    def test_canvas_forms_visual(self, browser, authenticated_user):
+        open_canvas(authenticated_page, canvas_id, component="bar_chart")
+
+        # Canvas container + type badge rendered
+        assert authenticated_page.locator(CANVAS_CONTAINER).is_visible()
+        assert authenticated_page.locator(canvas_type_badge("bar_chart")).is_visible()
+
+        # Recharts chart rendered with bars
+        assert authenticated_page.locator(".recharts-wrapper").is_visible(), \
+            "Chart SVG not rendered"
+        assert authenticated_page.locator(".recharts-bar-rectangle").count() >= 3, \
+            "Chart missing bars"
+
+    def test_canvas_forms_visual(self, authenticated_page, authenticated_user, db_session):
         """
         Verify canvas forms presentation has no visual regressions.
 
         Validates:
-        - Form field layout
-        - Input validation states
-        - Submit button positioning
-        - Error message display
-
-        VALIDATED_BUG: Catches form styling breaks (e.g., input border, focus states)
+        - Canvas container (canvas-container)
+        - Form type badge (canvas-type-form)
+        - Form fields rendered with labels and submit button
         """
-        canvas = CanvasHostPage(browser.new_page())
-        canvas.navigate()
-        canvas.present_canvas(
-            type="forms",
-            data={
-                "fields": [
-                    {"name": "email", "type": "email", "label": "Email"},
-                    {"name": "message", "type": "textarea", "label": "Message"},
-                ],
-                "submitUrl": "/api/v1/submit"
-            }
+        user, _ = authenticated_user
+        fields = [
+            {"name": "email", "type": "email", "label": "Email", "required": True},
+            {"name": "message", "type": "textarea", "label": "Message"},
+        ]
+        canvas_id = f"e2e-visual-forms-{__import__('uuid').uuid4()}"
+        create_canvas(
+            db_session, user, canvas_id, "form", "Visual Form",
+            {"schema": {"fields": fields}, "title": "Visual Form"},
         )
-        # Snapshot name: "Canvas Presentation - Forms"
+
+        open_canvas(authenticated_page, canvas_id, component="form")
+
+        # Canvas container + type badge rendered
+        assert authenticated_page.locator(CANVAS_CONTAINER).is_visible()
+        assert authenticated_page.locator(canvas_type_badge("form")).is_visible()
+
+        # Form fields rendered with labels
+        assert authenticated_page.locator("label", has_text="Email").first.is_visible(), \
+            "Email field not rendered"
+        assert authenticated_page.locator("label", has_text="Message").first.is_visible(), \
+            "Message field not rendered"
+        assert authenticated_page.locator("button[type='submit']").is_visible(), \
+            "Form submit button not rendered"

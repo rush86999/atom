@@ -92,20 +92,21 @@ class TestGLMWiring:
         assert mgr.providers["glm"].api_key_env_var == "GLM_API_KEY"
 
     def test_glm_in_valid_providers(self):
-        """GLM is in the valid_providers allowlist."""
-        from core import byok_endpoints
-        import ast
+        """GLM is in the valid_providers allowlist.
 
-        source = inspect.getsource(byok_endpoints.store_api_key)
-        tree = ast.parse(source)
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign):
-                for target in node.targets:
-                    if isinstance(target, ast.Name) and target.id == "valid_providers":
-                        found = ast.literal_eval(node.value)
-                        assert "glm" in found
-                        return
-        pytest.fail("valid_providers not found")
+        store_api_key builds valid_providers at runtime via
+        ``list(byok_manager.providers.keys())`` — a call, not a literal — so we
+        verify the live provider set the endpoint Depends on, using the same
+        ``BYOKManager.__new__`` + ``_initialize_default_providers`` pattern as
+        ``test_glm_in_byok_endpoints_defaults`` above.
+        """
+        from core.byok_endpoints import BYOKManager
+
+        mgr = BYOKManager.__new__(BYOKManager)
+        mgr.providers = {}
+        mgr._initialize_default_providers()
+        valid_providers = list(mgr.providers.keys())
+        assert "glm" in valid_providers
 
     def test_glm_quality_above_bpc_floor(self):
         """get_quality_score returns a non-default score for GLM models."""

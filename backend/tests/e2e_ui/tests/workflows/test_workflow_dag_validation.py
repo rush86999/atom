@@ -1,13 +1,16 @@
 """
 E2E tests for workflow DAG validation (WORK-05).
 
-Tests workflow DAG validation including:
-- Acyclic workflow validation passes
-- Circular dependency detection
-- Self-loop prevention
-- Complex DAG validation
-- DAG validation via API
-- NetworkX DAG verification
+Tests workflow DAG validation against the REAL engine + API contract:
+
+- The workflow engine (core/workflow_engine.py::WorkflowEngine) linearizes
+  node/connection graphs with Kahn's topological sort and raises ValueError
+  ("Workflow contains circular dependencies") when a cycle is present.
+- The API accepts any WorkflowDefinition at create time; cycle rejection
+  happens at execution time (POST /api/v1/workflows/workflows/{id}/execute
+  → 500 when the engine detects the cycle).
+- NetworkX is the test-side oracle: rebuild the graph from the real API
+  response and verify it is a DAG with a topological ordering.
 
 Requirements covered:
 - WORK-05: Workflow DAG validation detects cycles and prevents circular dependencies
@@ -20,519 +23,353 @@ Run with: pytest backend/tests/e2e_ui/tests/workflows/test_workflow_dag_validati
 import pytest
 import uuid
 import requests
-from playwright.sync_api import Page, expect
 from typing import Dict, Any, List
-from datetime import datetime, timezone
 
-# Add backend to path for imports
+# Add backend to path for imports (5 dirnames: tests/e2e_ui/tests/workflows → backend)
 import sys
 import os
-backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-from core.models import Workflow, WorkflowStep, SkillExecution
-from sqlalchemy.orm import Session
-
 import networkx as nx
+
+from core.workflow_engine import WorkflowEngine
+
+
+BASE_URL = "http://localhost:8001"
+WORKFLOWS_API = f"{BASE_URL}/api/v1/workflows/workflows"
+
+# Workflows created during a test run (the store is a shared JSON file) —
+# cleaned up after every test so runs stay idempotent.
+_CREATED_WORKFLOW_IDS: List[str] = []
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_created_workflows(test_user):
+    """Delete every workflow the test created (shared workflows.json store)."""
+    yield
+    token = get_token(test_user)
+    for wf_id in list(_CREATED_WORKFLOW_IDS):
+        try:
+            requests.delete(
+                f"{WORKFLOWS_API}/{wf_id}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        except Exception:
+            pass
+    _CREATED_WORKFLOW_IDS.clear()
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
 
-def navigate_to_workflow_composer(page: Page) -> None:
-    """Navigate to workflow composer page.
-
-    Args:
-        page: Playwright page object
-
-    Raises:
-        AssertionError: If workflow composer doesn't load
-    """
-    page.goto("http://localhost:3001/workflows/create")
-    page.wait_for_load_state("networkidle")
-
-    # Verify workflow composer loaded
-    composer = page.locator('[data-testid="workflow-composer"]')
-    expect(composer).to_be_visible(timeout=10000)
+def get_token(test_user) -> str:
+    """Login via the live backend and return a JWT (workflow:manage required)."""
+    response = requests.post(
+        f"{BASE_URL}/api/auth/login",
+        json={"username": test_user.email, "password": "TestPassword123!"},
+    )
+    assert response.status_code == 200, f"Login failed: {response.text}"
+    return response.json()["access_token"]
 
 
-def add_skill_to_workflow(page: Page, skill_id: str) -> None:
-    """Add skill to workflow composer.
-
-    Args:
-        page: Playwright page object
-        skill_id: Skill identifier to add
-
-    Raises:
-        AssertionError: If skill addition fails
-    """
-    # Click add skill button
-    add_button = page.locator('[data-testid="workflow-add-skill"]')
-    expect(add_button).to_be_visible(timeout=5000)
-    add_button.click()
-
-    # Wait for skill dropdown
-    dropdown = page.locator('[data-testid="skill-select-dropdown"]')
-    expect(dropdown).to_be_visible(timeout=5000)
-
-    # Select skill from dropdown
-    page.select_option('[data-testid="skill-select-dropdown"]', skill_id)
-
-    # Confirm skill addition
-    confirm_button = page.locator('[data-testid="skill-add-confirm"]')
-    expect(confirm_button).to_be_visible()
-    confirm_button.click()
-
-    # Wait for skill to appear in composer
-    skill_node = page.locator(f'[data-testid="workflow-skill-{skill_id}"]')
-    expect(skill_node).to_be_visible(timeout=5000)
-
-
-def connect_skills(page: Page, from_skill: str, to_skill: str) -> None:
-    """Connect two skills in workflow composer.
-
-    Args:
-        page: Playwright page object
-        from_skill: Source skill ID
-        to_skill: Target skill ID
-
-    Raises:
-        AssertionError: If connection fails
-    """
-    from_element = page.locator(f'[data-testid="workflow-skill-{from_skill}"] [data-testid="output-port"]')
-    to_element = page.locator(f'[data-testid="workflow-skill-{to_skill}"] [data-testid="input-port"]')
-
-    # Drag from output port to input port
-    from_element.drag_to(to_element)
-
-    # Wait for connection line to appear
-    connection = page.locator('[data-testid^="workflow-connection-"]')
-    expect(connection).to_be_visible(timeout=3000)
-
-
-def save_workflow(page: Page, name: str, description: str = "") -> None:
-    """Save workflow.
-
-    Args:
-        page: Playwright page object
-        name: Workflow name
-        description: Optional workflow description
-
-    Raises:
-        AssertionError: If save fails
-    """
-    # Fill workflow name
-    name_input = page.locator('[data-testid="workflow-name-input"]')
-    expect(name_input).to_be_visible()
-    name_input.fill(name)
-
-    # Fill description if provided
-    if description:
-        desc_input = page.locator('[data-testid="workflow-description-input"]')
-        expect(desc_input).to_be_visible()
-        desc_input.fill(description)
-
-    # Click save button
-    save_button = page.locator('[data-testid="workflow-save-button"]')
-    expect(save_button).to_be_visible()
-    save_button.click()
-
-    # Wait for success message or error
-    page.wait_for_timeout(2000)
-
-
-def create_test_skills(db_session, count: int = 3) -> List[str]:
-    """Create test skills for workflow composition.
-
-    Args:
-        db_session: Database session
-        count: Number of skills to create
-
-    Returns:
-        List[str]: List of created skill IDs
-    """
-    skill_ids = []
-    for i in range(count):
-        skill_id = f"test-workflow-skill-{i}-{str(uuid.uuid4())[:8]}"
-        skill = SkillExecution(
-            id=str(uuid.uuid4()),
-            skill_id=skill_id,
-            agent_id="system",
-            status="Active",
-            capability=f"Test skill {i}",
-            skill_body="# Test skill\nExecute test function.",
-            started_at=datetime.now(timezone.utc),
-            completed_at=None
-        )
-        db_session.add(skill)
-        skill_ids.append(skill_id)
-
-    db_session.commit()
-    return skill_ids
-
-
-def create_workflow_with_connections(
-    page: Page,
-    skills: List[str],
-    connections: List[Dict[str, str]],
-    workflow_name: str = None
-) -> str:
-    """Create workflow with specific skill connections.
-
-    Args:
-        page: Playwright page object
-        skills: List of skill IDs to add
-        connections: List of connection dicts with 'from' and 'to' keys
-        workflow_name: Optional workflow name
-
-    Returns:
-        str: Created workflow name
-    """
-    if not workflow_name:
-        workflow_name = f"Test Workflow {str(uuid.uuid4())[:8]}"
-
-    # Add all skills
-    for skill_id in skills:
-        add_skill_to_workflow(page, skill_id)
-
-    # Create connections
-    for conn in connections:
-        connect_skills(page, conn['from'], conn['to'])
-
-    # Save workflow
-    save_workflow(page, workflow_name)
-
-    return workflow_name
-
-
-def create_cyclic_workflow_graph() -> Dict[str, Any]:
-    """Create workflow definition with cycle for API testing.
-
-    Returns:
-        Dict: Workflow definition with circular dependency
-    """
+def make_node(node_id: str, title: str, x: float = 100) -> Dict[str, Any]:
     return {
-        "name": "Cyclic Workflow",
-        "description": "Workflow with circular dependency for testing",
-        "skills": [
-            {"skill_id": "skill_1", "position": {"x": 100, "y": 100}},
-            {"skill_id": "skill_2", "position": {"x": 300, "y": 100}},
-            {"skill_id": "skill_3", "position": {"x": 200, "y": 250}}
-        ],
-        "connections": [
-            {"from": "skill_1", "to": "skill_2"},
-            {"from": "skill_2", "to": "skill_3"},
-            {"from": "skill_3", "to": "skill_1"}  # Creates cycle
-        ]
+        "id": node_id,
+        "type": "action",
+        "title": title,
+        "description": "",
+        "position": {"x": x, "y": 100},
+        "config": {"service": "default", "action": "default", "parameters": {}},
+        "connections": [],
     }
 
 
-def verify_dag_in_database(db_session: Session, workflow_id: str) -> bool:
-    """Verify workflow DAG stored correctly in database.
-
-    Args:
-        db_session: Database session
-        workflow_id: Workflow ID to verify
-
-    Returns:
-        bool: True if workflow is a valid DAG
-    """
-    workflow = db_session.query(Workflow).filter_by(id=workflow_id).first()
-    if not workflow:
-        return False
-
-    # Build NetworkX graph from workflow steps
-    G = nx.DiGraph()
-
-    # Add nodes (skills)
-    for step in workflow.steps:
-        G.add_node(step.skill_id)
-
-    # Note: WorkflowStep model may have different structure
-    # This is a simplified verification
-
-    return nx.is_directed_acyclic_graph(G)
+def make_connection(conn_id: str, source: str, target: str) -> Dict[str, Any]:
+    return {"id": conn_id, "source": source, "target": target}
 
 
-def create_workflow_via_api(workflow_def: Dict[str, Any], token: str) -> requests.Response:
-    """Create workflow via API endpoint.
+def build_workflow_payload(name: str, node_ids: List[str], connections: List[Dict[str, Any]]) -> Dict[str, Any]:
+    return {
+        "name": name,
+        "description": f"E2E DAG workflow {name}",
+        "version": "1",
+        "nodes": [make_node(nid, f"Step {i + 1}", 100 * (i + 1)) for i, nid in enumerate(node_ids)],
+        "connections": connections,
+        "triggers": [],
+        "enabled": True,
+    }
 
-    Args:
-        workflow_def: Workflow definition dict
-        token: JWT access token
 
-    Returns:
-        requests.Response: API response
-    """
-    return requests.post(
-        "http://localhost:8000/api/v1/workflows",
-        json=workflow_def,
-        headers={"Authorization": f"Bearer {token}"}
+def create_workflow(token: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    response = requests.post(
+        WORKFLOWS_API,
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"},
     )
+    assert response.status_code == 200, f"Workflow creation failed: {response.text}"
+    created = response.json()
+    if created.get("id"):
+        _CREATED_WORKFLOW_IDS.append(created["id"])
+    return created
+
+
+def get_workflow(token: str, workflow_id: str) -> Dict[str, Any]:
+    """GET a workflow (the enriched view — carries linearized steps)."""
+    response = requests.get(
+        f"{WORKFLOWS_API}/{workflow_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200, f"Workflow fetch failed: {response.text}"
+    return response.json()
+
+
+def execute_workflow(token: str, workflow_id: str) -> requests.Response:
+    """POST the real execute endpoint — returns the raw response (the cycle
+    rejection surfaces as an HTTP 500 from the engine's ValueError)."""
+    return requests.post(
+        f"{WORKFLOWS_API}/{workflow_id}/execute",
+        json={},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+
+def unique_name(prefix: str) -> str:
+    return f"{prefix} {str(uuid.uuid4())[:8]}"
+
+
+def assert_engine_rejects_cycle(workflow_payload: Dict[str, Any]) -> None:
+    """Drive the REAL engine (core.workflow_engine.py) directly: converting a
+    cyclic node graph must raise ValueError mentioning circular dependencies —
+    this is the authoritative validation the execute path relies on."""
+    engine = WorkflowEngine()
+    with pytest.raises(ValueError) as excinfo:
+        engine._convert_nodes_to_steps(workflow_payload)
+    assert "circular" in str(excinfo.value).lower(), \
+        f"Engine error should mention circular dependencies, got: {excinfo.value}"
 
 
 # ============================================================================
 # Tests
 # ============================================================================
 
-def test_acyclic_workflow_validation_passes(authenticated_page_api, db_session):
+def test_acyclic_workflow_validation_passes(test_user):
     """Test acyclic workflow validation passes (WORK-05).
 
-    Requirements:
-    - Create workflow with 3 skills in linear chain: skill_1 -> skill_2 -> skill_3
-    - Save workflow
-    - Verify validation passes with success message
-    - Verify workflow saved with valid status
-    - Verify DAG structure in database
+    A linear chain (n1 -> n2 -> n3) must create successfully, linearize to
+    3 steps in topological order, and execute (execution starts — the API
+    returns an execution id).
     """
-    # Create test skills
-    skill_ids = create_test_skills(db_session, count=3)
+    token = get_token(test_user)
 
-    # Navigate to workflow composer
-    navigate_to_workflow_composer(authenticated_page_api)
+    name = unique_name("Acyclic WF")
+    payload = build_workflow_payload(
+        name,
+        ["node-a1", "node-a2", "node-a3"],
+        [
+            make_connection("c1", "node-a1", "node-a2"),
+            make_connection("c2", "node-a2", "node-a3"),
+        ],
+    )
 
-    # Create acyclic workflow: skill_1 -> skill_2 -> skill_3
-    workflow_name = f"Acyclic Workflow {str(uuid.uuid4())[:8]}"
-    connections = [
-        {"from": skill_ids[0], "to": skill_ids[1]},
-        {"from": skill_ids[1], "to": skill_ids[2]}
-    ]
-    create_workflow_with_connections(authenticated_page_api, skill_ids, connections, workflow_name)
+    # Engine-level: acyclic graph converts without error
+    engine = WorkflowEngine()
+    steps = engine._convert_nodes_to_steps(payload)
+    assert len(steps) == 3, f"Expected 3 linearized steps, got {len(steps)}"
+    assert [s["id"] for s in steps] == ["node-a1", "node-a2", "node-a3"], \
+        f"Topological order wrong: {steps}"
 
-    # Verify success message displayed
-    success = authenticated_page_api.locator('[data-testid="workflow-saved"]')
-    expect(success).to_be_visible(timeout=10000)
+    # API-level: create + execute both succeed (the enriched GET carries the
+    # linearized steps — the create response leaves them null)
+    created = create_workflow(token, payload)
+    created = get_workflow(token, created["id"])
+    assert created.get("steps_count") == 3, f"Expected steps_count=3, got {created.get('steps_count')}"
 
-    # Verify workflow saved in database
-    workflow = db_session.query(Workflow).filter_by(name=workflow_name).first()
-    assert workflow is not None, f"Workflow '{workflow_name}' not found in database"
-    assert workflow.status == "active" or workflow.status == "valid", \
-        f"Expected valid status, got {workflow.status}"
-
-    # Verify DAG structure (3 nodes, 2 edges)
-    assert len(workflow.steps) == 3, f"Expected 3 workflow steps, found {len(workflow.steps)}"
+    exec_response = execute_workflow(token, created["id"])
+    assert exec_response.status_code == 200, f"Execution should start: {exec_response.text}"
+    assert exec_response.json().get("execution_id"), "No execution_id in execute response"
 
 
-def test_circular_dependency_detected(authenticated_page_api, db_session):
+def test_circular_dependency_detected(test_user):
     """Test circular dependency detection (WORK-05).
 
-    Requirements:
-    - Create workflow with 3 skills
-    - Connect skills to create cycle: skill_1 -> skill_2 -> skill_3 -> skill_1
-    - Try to save workflow
-    - Verify error message about circular dependency
-    - Verify workflow NOT saved
-    - Verify error highlights problematic connections
+    A cycle n1 -> n2 -> n3 -> n1 must be rejected by the engine (ValueError)
+    AND by the create API (HTTP 400 with a circular-dependency message) —
+    cyclic definitions never enter the workflow store.
     """
-    # Create test skills
-    skill_ids = create_test_skills(db_session, count=3)
+    token = get_token(test_user)
 
-    # Navigate to workflow composer
-    navigate_to_workflow_composer(authenticated_page_api)
+    name = unique_name("Cyclic WF")
+    payload = build_workflow_payload(
+        name,
+        ["node-c1", "node-c2", "node-c3"],
+        [
+            make_connection("c1", "node-c1", "node-c2"),
+            make_connection("c2", "node-c2", "node-c3"),
+            make_connection("c3", "node-c3", "node-c1"),  # Creates cycle
+        ],
+    )
 
-    # Add all skills
-    for skill_id in skill_ids:
-        add_skill_to_workflow(authenticated_page_api, skill_id)
+    # Engine-level rejection (the authoritative validation)
+    assert_engine_rejects_cycle(payload)
 
-    # Create circular dependency: skill_1 -> skill_2 -> skill_3 -> skill_1
-    connect_skills(authenticated_page_api, skill_ids[0], skill_ids[1])
-    connect_skills(authenticated_page_api, skill_ids[1], skill_ids[2])
-    connect_skills(authenticated_page_api, skill_ids[2], skill_ids[0])
-
-    # Try to save workflow
-    workflow_name = f"Cyclic Workflow {str(uuid.uuid4())[:8]}"
-    save_workflow(authenticated_page_api, workflow_name)
-
-    # Verify error message displayed
-    error_message = authenticated_page_api.locator('[data-testid="workflow-validation-error"]')
-    expect(error_message).to_be_visible(timeout=5000)
-
-    # Verify error mentions cycle or circular dependency
-    error_text = error_message.text_content()
-    assert "cycle" in error_text.lower() or "circular" in error_text.lower(), \
-        f"Error message should mention cycle/circular dependency, got: {error_text}"
-
-    # Verify workflow NOT saved in database
-    workflow = db_session.query(Workflow).filter_by(name=workflow_name).first()
-    assert workflow is None, "Cyclic workflow should not be saved in database"
+    # API-level: create rejects the cyclic definition with a 400 + message
+    response = requests.post(
+        WORKFLOWS_API,
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 400, \
+        f"Expected 400 on cyclic creation, got {response.status_code}: {response.text}"
+    assert "circular" in response.text.lower(), \
+        f"Error should mention circular dependencies: {response.text}"
 
 
-def test_self_loop_prevented(authenticated_page_api, db_session):
+def test_self_loop_prevented(test_user):
     """Test self-loop prevention (WORK-05).
 
-    Requirements:
-    - Create workflow with single skill
-    - Try to connect skill to itself (skill_1 -> skill_1)
-    - Verify validation error about self-loop
-    - Verify connection rejected
+    A self-loop (n1 -> n1) is a cycle: the engine must reject it and the
+    create API must reject the definition with a 400.
     """
-    # Create test skill
-    skill_ids = create_test_skills(db_session, count=1)
-    skill_id = skill_ids[0]
+    token = get_token(test_user)
 
-    # Navigate to workflow composer
-    navigate_to_workflow_composer(authenticated_page_api)
-
-    # Add skill
-    add_skill_to_workflow(authenticated_page_api, skill_id)
-
-    # Try to connect skill to itself
-    # Note: This may be prevented at UI level (drag to self not allowed)
-    # or at validation level
-    from_element = authenticated_page_api.locator(
-        f'[data-testid="workflow-skill-{skill_id}"] [data-testid="output-port"]'
-    )
-    to_element = authenticated_page_api.locator(
-        f'[data-testid="workflow-skill-{skill_id}"] [data-testid="input-port"]'
+    name = unique_name("Self Loop WF")
+    payload = build_workflow_payload(
+        name,
+        ["node-s1"],
+        [make_connection("c1", "node-s1", "node-s1")],  # Self-loop
     )
 
-    # Attempt self-connection
-    from_element.drag_to(to_element)
+    assert_engine_rejects_cycle(payload)
 
-    # Verify error message or connection rejection
-    # UI should prevent self-loop or show error
-    error_message = authenticated_page_api.locator('[data-testid="workflow-validation-error"]')
-
-    # Either error appears immediately or on save
-    if error_message.is_visible(timeout=2000):
-        error_text = error_message.text_content()
-        assert "self-loop" in error_text.lower() or "self loop" in error_text.lower() or "circular" in error_text.lower(), \
-            f"Error should mention self-loop, got: {error_text}"
-    else:
-        # Connection should not be visible
-        connection = authenticated_page_api.locator('[data-testid^="workflow-connection-"]')
-        expect(connection).to_have_count(0)
+    response = requests.post(
+        WORKFLOWS_API,
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 400, \
+        f"Expected 400 on self-loop creation, got {response.status_code}: {response.text}"
 
 
-def test_complex_dag_validation(authenticated_page_api, db_session):
+def test_complex_dag_validation(test_user):
     """Test complex DAG validation (WORK-05).
 
-    Requirements:
-    - Create complex workflow with multiple branches:
-      skill_1 -> skill_2 -> skill_4
-              ↓
-      skill_3 -> skill_5
-    - Save workflow
-    - Verify validation passes (DAG is acyclic)
-    - Verify all 5 nodes and 4 edges stored correctly
+    Branching DAG: n1 -> n2 -> n4 and n1 -> n3 -> n5. Must linearize to all
+    5 nodes (topological order), 4 edges, and execute.
     """
-    # Create test skills
-    skill_ids = create_test_skills(db_session, count=5)
+    token = get_token(test_user)
 
-    # Navigate to workflow composer
-    navigate_to_workflow_composer(authenticated_page_api)
+    name = unique_name("Complex DAG WF")
+    payload = build_workflow_payload(
+        name,
+        ["node-x1", "node-x2", "node-x3", "node-x4", "node-x5"],
+        [
+            make_connection("c1", "node-x1", "node-x2"),
+            make_connection("c2", "node-x1", "node-x3"),
+            make_connection("c3", "node-x2", "node-x4"),
+            make_connection("c4", "node-x3", "node-x5"),
+        ],
+    )
 
-    # Add all skills
-    for skill_id in skill_ids:
-        add_skill_to_workflow(authenticated_page_api, skill_id)
+    # Engine-level: 5 steps, valid topological order
+    engine = WorkflowEngine()
+    steps = engine._convert_nodes_to_steps(payload)
+    assert len(steps) == 5, f"Expected 5 steps, found {len(steps)}"
+    assert steps[0]["id"] == "node-x1", f"Root node should linearize first: {steps}"
 
-    # Create complex DAG with branches
-    # skill_1 -> skill_2 -> skill_4
-    # skill_1 -> skill_3 -> skill_5
-    connections = [
-        {"from": skill_ids[0], "to": skill_ids[1]},  # skill_1 -> skill_2
-        {"from": skill_ids[0], "to": skill_ids[2]},  # skill_1 -> skill_3
-        {"from": skill_ids[1], "to": skill_ids[3]},  # skill_2 -> skill_4
-        {"from": skill_ids[2], "to": skill_ids[4]}   # skill_3 -> skill_5
-    ]
+    # API-level: create succeeds with all 5 nodes + 4 connections; the
+    # enriched GET linearizes all 5 steps
+    created = create_workflow(token, payload)
+    assert len(created.get("nodes", [])) == 5, "Expected 5 nodes in response"
+    assert len(created.get("connections", [])) == 4, "Expected 4 connections in response"
+    enriched = get_workflow(token, created["id"])
+    assert enriched.get("steps_count") == 5, f"Expected steps_count=5, got {enriched.get('steps_count')}"
 
-    for conn in connections:
-        connect_skills(authenticated_page_api, conn['from'], conn['to'])
-
-    # Save workflow
-    workflow_name = f"Complex DAG {str(uuid.uuid4())[:8]}"
-    save_workflow(authenticated_page_api, workflow_name)
-
-    # Verify validation passes
-    success = authenticated_page_api.locator('[data-testid="workflow-saved"]')
-    expect(success).to_be_visible(timeout=10000)
-
-    # Verify workflow saved with all 5 skills
-    workflow = db_session.query(Workflow).filter_by(name=workflow_name).first()
-    assert workflow is not None, f"Workflow '{workflow_name}' not found"
-    assert len(workflow.steps) == 5, f"Expected 5 steps, found {len(workflow.steps)}"
+    exec_response = execute_workflow(token, created["id"])
+    assert exec_response.status_code == 200, f"Execution should start: {exec_response.text}"
 
 
-def test_dag_validation_via_api(setup_test_user, db_session):
+def test_dag_validation_via_api(test_user):
     """Test DAG validation via API endpoint (WORK-05).
 
-    Requirements:
-    - Create workflow definition with cycle via API
-    - POST to /api/v1/workflows
-    - Verify response status indicates validation error (400 or 422)
-    - Verify error message mentions cycle or circular dependency
+    A cyclic definition POSTed to /api/v1/workflows/workflows must be rejected
+    with a 400 whose message names the circular dependency (the engine's
+    authoritative cycle detection surfaced by the create endpoint).
     """
-    # Create cyclic workflow definition
-    workflow_def = create_cyclic_workflow_graph()
+    token = get_token(test_user)
 
-    # Get auth token
-    token = setup_test_user.get("access_token")
+    name = unique_name("API Cycle WF")
+    payload = build_workflow_payload(
+        name,
+        ["node-p1", "node-p2", "node-p3"],
+        [
+            make_connection("c1", "node-p1", "node-p2"),
+            make_connection("c2", "node-p2", "node-p3"),
+            make_connection("c3", "node-p3", "node-p1"),
+        ],
+    )
 
-    # Try to create workflow via API
-    response = create_workflow_via_api(workflow_def, token)
+    response = requests.post(
+        WORKFLOWS_API,
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
 
-    # Verify validation error response
-    assert response.status_code in [400, 422], \
-        f"Expected 400 or 422 status, got {response.status_code}"
+    # The API refuses to create a cyclic workflow
+    assert response.status_code == 400, \
+        f"Expected 400 on cyclic creation, got {response.status_code}: {response.text}"
 
-    # Verify error message
+    # Verify error message mentions the cycle
     error_data = response.json()
-    error_message = error_data.get("error", "") or error_data.get("message", "") or str(error_data)
-    assert "cycle" in error_message.lower() or "circular" in error_message.lower(), \
-        f"Error should mention cycle/circular dependency, got: {error_message}"
+    error_message = error_data.get("detail", "") or str(error_data)
+    assert "circular" in error_message.lower(), \
+        f"Error should mention circular dependencies, got: {error_message}"
 
 
-def test_networkx_dag_verification(authenticated_page_api, db_session):
+def test_networkx_dag_verification(test_user):
     """Test NetworkX DAG verification (WORK-05).
 
-    Requirements:
-    - Create workflow via UI with valid DAG structure
-    - Get workflow ID from response
-    - Fetch workflow from database
-    - Build NetworkX graph from workflow edges
-    - Verify graph is DAG using nx.is_directed_acyclic_graph()
-    - Verify topological sort possible
+    Create a valid DAG via the API, rebuild the graph with NetworkX from the
+    REAL API response (nodes + connections), verify:
+    - nx.is_directed_acyclic_graph() is True
+    - a topological sort covering all 3 nodes exists
     """
-    # Create test skills
-    skill_ids = create_test_skills(db_session, count=3)
+    token = get_token(test_user)
 
-    # Navigate to workflow composer
-    navigate_to_workflow_composer(authenticated_page_api)
+    name = unique_name("NetworkX DAG WF")
+    payload = build_workflow_payload(
+        name,
+        ["node-n1", "node-n2", "node-n3"],
+        [
+            make_connection("c1", "node-n1", "node-n2"),
+            make_connection("c2", "node-n2", "node-n3"),
+        ],
+    )
+    created = create_workflow(token, payload)
 
-    # Create valid DAG: skill_1 -> skill_2 -> skill_3
-    workflow_name = f"NetworkX DAG {str(uuid.uuid4())[:8]}"
-    connections = [
-        {"from": skill_ids[0], "to": skill_ids[1]},
-        {"from": skill_ids[1], "to": skill_ids[2]}
-    ]
-    create_workflow_with_connections(authenticated_page_api, skill_ids, connections, workflow_name)
-
-    # Get workflow from database
-    workflow = db_session.query(Workflow).filter_by(name=workflow_name).first()
-    assert workflow is not None, f"Workflow '{workflow_name}' not found"
-    workflow_id = workflow.id
-
-    # Build NetworkX graph from workflow
+    # Rebuild the graph from the real response payload
     G = nx.DiGraph()
+    for node in created["nodes"]:
+        G.add_node(node["id"])
+    for conn in created["connections"]:
+        G.add_edge(conn["source"], conn["target"])
 
-    # Add nodes (skills)
-    for step in workflow.steps:
-        G.add_node(step.skill_id)
-
-    # Add edges (connections)
-    # Note: WorkflowStep connections may be stored differently
-    # This is a simplified version - adjust based on actual model
-    for i in range(len(skill_ids) - 1):
-        G.add_edge(skill_ids[i], skill_ids[i + 1])
-
-    # Verify graph is DAG
+    # Verify graph is a DAG
     assert nx.is_directed_acyclic_graph(G), "Workflow graph should be a DAG"
 
-    # Verify topological sort possible
+    # Verify topological sort possible (covers all 3 nodes)
     try:
         topological_order = list(nx.topological_sort(G))
         assert len(topological_order) == 3, "Topological sort should include all 3 nodes"
+        assert topological_order == ["node-n1", "node-n2", "node-n3"], \
+            f"Topological order wrong: {topological_order}"
     except nx.NetworkXUnfeasible:
         pytest.fail("Topological sort should be feasible for DAG")
+
+    # Negative control: the same graph WITH a cycle must fail the oracle
+    G_cyclic = G.copy()
+    G_cyclic.add_edge("node-n3", "node-n1")
+    assert not nx.is_directed_acyclic_graph(G_cyclic), \
+        "Cyclic graph must fail the NetworkX DAG oracle"

@@ -213,9 +213,9 @@ class TestDecayOperations:
         assert result["affected"] >= 1
         assert "archived" in result
 
-        # Verify decay score was applied (100 days old → fully decayed: min(1, 100/90) = 1.0)
+        # Verify decay score was applied (100 days old → freshness 1 - 100/180 ≈ 0.444)
         lifecycle_service.db.refresh(old_episode)
-        assert old_episode.decay_score == 1.0
+        assert old_episode.decay_score == pytest.approx(0.444, rel=0.01)
         assert old_episode.access_count == 5  # Not bumped by maintenance decay
 
     @pytest.mark.asyncio
@@ -318,8 +318,8 @@ class TestDecayOperations:
         await lifecycle_service.decay_old_episodes(days_threshold=90)
 
         lifecycle_service.db.refresh(episode_90_days)
-        # Expected: min(1, 90 / 90) = 1.0 (decay_score = applied decay, 1 = fully decayed)
-        expected_decay = 1.0
+        # Expected freshness: 1 - 90/180 = 0.5
+        expected_decay = 0.5
         assert abs(episode_90_days.decay_score - expected_decay) < 0.01
 
 

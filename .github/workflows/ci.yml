@@ -32,7 +32,7 @@ jobs:
           DATABASE_URL: "sqlite:///test_ci.db"
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
-          DISABLE_AUTH_RATE_LIMIT: "1"
+          BYPASS_RATE_LIMIT: "1"
         run: |
           # Import first — surfaces any router/middleware error loudly.
           python -c "import main_api_app; print('import OK')"
@@ -121,11 +121,9 @@ jobs:
           DATABASE_URL: "sqlite:////tmp/atom_e2e.db"
           SECRET_KEY: "ci-e2e-secret-key"
           ENVIRONMENT: "development"
-          DISABLE_AUTH_RATE_LIMIT: "1"
-          # MUST match the env var the AuthRateLimiter checks (line 68 of
-          # core/security/auth_rate_limit.py). DISABLE_AUTH_RATE_LIMIT is an
-          # older name that the limiter does NOT read — without this, the
-          # e2e journey tests hit 429 on /api/auth/register.
+          # MUST match the env var the AuthRateLimiter checks
+          # (core/security/auth_rate_limit.py). Without this, the e2e journey
+          # tests hit 429 on /api/auth/register.
           BYPASS_RATE_LIMIT: "1"
           ALLOWED_ORIGINS: "http://localhost:3001,http://127.0.0.1:3001"
         run: |

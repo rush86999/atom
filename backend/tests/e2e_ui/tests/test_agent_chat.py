@@ -234,8 +234,13 @@ def test_empty_message_not_sent(browser, db_session: Session):
     # Get initial message count
     initial_count = chat_page.get_message_count()
 
-    # Try to send empty message (just whitespace)
-    chat_page.send_message("   ")
+    # Try to send empty message (just whitespace) — the send button is
+    # disabled for blank input (disabled={!input.trim()}), so Playwright
+    # cannot click it; assert the disabled state instead (which is exactly
+    # the intended guard: no empty messages can be sent).
+    chat_page.chat_input.fill("   ")
+    assert chat_page.send_button.is_disabled(), \
+        "Send button should be disabled for whitespace-only input"
     page.wait_for_timeout(500)
 
     # Verify message count unchanged
@@ -328,10 +333,15 @@ def test_message_persistence_after_refresh(browser, db_session: Session):
 
     # Refresh page
     page.reload()
-    page.wait_for_timeout(1500)
+    page.wait_for_timeout(500)
 
     # Re-initialize ChatPage after refresh
     chat_page_after = ChatPage(page)
+    chat_page_after.hide_dev_overlays()
+
+    # Wait for the restored session history to load (async fetch) and the
+    # user message to re-render.
+    page.wait_for_selector('[data-testid="user-message"]', timeout=8000)
 
     # Verify message still in history
     all_messages = chat_page_after.get_all_messages()

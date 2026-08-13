@@ -2341,12 +2341,12 @@ class MCPService(IntegrationService):
                     if conn:
                         from integrations.shopify_service import ShopifyService
                         shopify_service = ShopifyService(tenant_id=context.get("tenant_id", "default"))
-                        results.extend(await shopify_service.get_inventory_levels(access_token=conn.credentials.get("access_token"), shop=conn.metadata.get("shop_url")))
+                        results.extend(await shopify_service.get_inventory_levels(access_token=conn.credentials.get("access_token"), shop=conn.connection_metadata.get("shop_url")))
                 if platform == "zoho" or not platform:
                     conn = next((c for c in connections if c.piece_name == "zoho_inventory"), None)
                     if conn:
                         from integrations.zoho_inventory_service import zoho_inventory_service
-                        results.extend(await zoho_inventory_service.get_inventory_levels(token=conn.credentials.get("access_token"), organization_id=conn.metadata.get("organization_id")))
+                        results.extend(await zoho_inventory_service.get_inventory_levels(token=conn.credentials.get("access_token"), organization_id=conn.connection_metadata.get("organization_id")))
                 return results
 
             elif tool_name == "search_dashboards":

@@ -192,6 +192,14 @@ export default function CanvasDetailPage() {
         }
     };
 
+    // Email canvases persist {to, subject, body} in the audit trail; the
+    // CanvasPanel email composer reads `metadata` from the message payload,
+    // so derive it here or the To/Subject fields render empty on /canvas/{id}.
+    const emailMetadata =
+        canvasData?.canvas_type === "email" && canvasData.content && typeof canvasData.content === "object"
+            ? { to: canvasData.content.to || "", subject: canvasData.content.subject || "" }
+            : undefined;
+
     const canvasLastMessage = canvasData ? {
         type: "canvas:update",
         data: {
@@ -201,6 +209,7 @@ export default function CanvasDetailPage() {
             data: canvasData.content,
             title: canvasData.title,
             version: canvasData.version,
+            ...(emailMetadata ? { metadata: emailMetadata } : {}),
         },
     } : lastMessage;
 

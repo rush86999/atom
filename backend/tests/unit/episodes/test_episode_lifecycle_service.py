@@ -10,7 +10,7 @@ Tests cover:
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 from sqlalchemy.orm import Session
 
@@ -140,7 +140,12 @@ class TestDecayOperations:
 
     @pytest.mark.asyncio
     async def test_decay_access_count_increment(self, lifecycle_service):
-        """Test access count incremented during decay."""
+        """Decay must NOT touch access_count (popularity/recall signal).
+
+        access_count is bumped by the dedicated ``update_access_counts`` path
+        on real recall; a background decay job inflating it would corrupt the
+        popularity signal, so decay_old_episodes leaves it unchanged.
+        """
         now = datetime.now()
         episode = Mock(id="ep-access", started_at=now - timedelta(days=100), status="completed", decay_score=1.0, access_count=5, archived_at=None)
 
@@ -148,8 +153,8 @@ class TestDecayOperations:
 
         await lifecycle_service.decay_old_episodes(days_threshold=90)
 
-        # Access count should be incremented
-        assert episode.access_count == 6
+        # Access count is left unchanged by the decay maintenance op.
+        assert episode.access_count == 5
 
     @pytest.mark.asyncio
     async def test_decay_archival_trigger(self, lifecycle_service):
@@ -576,14 +581,14 @@ class TestArchivalAndImportance:
 
     @pytest.mark.asyncio
     async def test_archive_to_cold_storage_timestamp(self, lifecycle_service):
-        """Test archived_at set correctly."""
+        """Test archived_at set correctly (aware UTC, per R13 convention)."""
         episode = Mock(id="ep1", agent_id="agent1", status="completed")
 
         lifecycle_service.db.query.return_value.filter.return_value.first.return_value = episode
 
-        before = datetime.now()
+        before = datetime.now(timezone.utc)
         result = await lifecycle_service.archive_to_cold_storage("ep1")
-        after = datetime.now()
+        after = datetime.now(timezone.utc)
 
         assert result is True
         assert episode.archived_at is not None
@@ -1163,7 +1168,7 @@ class TestEdgeCases:
 
     @pytest.mark.asyncio
     async def test_decay_updates_access_count(self, lifecycle_service):
-        """Test decay operation increments access count."""
+        """Decay must NOT inflate access_count (see update_access_counts)."""
         now = datetime.now()
         episode = Mock()
         episode.id = "episode-123"
@@ -1177,8 +1182,8 @@ class TestEdgeCases:
 
         await lifecycle_service.decay_old_episodes(days_threshold=90)
 
-        # Access count should be incremented
-        assert episode.access_count == 11
+        # Access count is left unchanged by the decay maintenance op.
+        assert episode.access_count == 10
 
     @pytest.mark.asyncio
     async def test_consolidate_rollback_on_error(self, lifecycle_service):
@@ -1203,16 +1208,16 @@ class TestEdgeCases:
 
     @pytest.mark.asyncio
     async def test_archive_updates_timestamp(self, lifecycle_service):
-        """Test archival sets archived_at timestamp."""
+        """Test archival sets archived_at timestamp (aware UTC, per R13)."""
         episode = Mock()
         episode.id = "episode-123"
         episode.status = "completed"
 
         lifecycle_service.db.query.return_value.filter.return_value.first.return_value = episode
 
-        before_archival = datetime.now()
+        before_archival = datetime.now(timezone.utc)
         result = await lifecycle_service.archive_to_cold_storage(episode_id="episode-123")
-        after_archival = datetime.now()
+        after_archival = datetime.now(timezone.utc)
 
         assert result is True
         assert episode.archived_at is not None

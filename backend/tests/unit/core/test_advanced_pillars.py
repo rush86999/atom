@@ -15,7 +15,13 @@ from core.models import CanvasAudit
 @pytest.mark.asyncio
 async def test_conductor_parallel_consensus():
     agent = ConductorAgent(config=ConductorConfig())
-    
+    # _execute_parallel_consensus only fans out 3 branches when
+    # _is_stochastic_executor() is True, which requires a truthy
+    # _step_executor (None → deterministic single-run path). Inject one so
+    # the consensus/voting path actually runs; the _execute_step override
+    # below still drives the per-branch results.
+    agent._step_executor = lambda *a, **k: None
+
     step = WorkflowStep(
         step_id="step1",
         step_type=StepType.AGENT,

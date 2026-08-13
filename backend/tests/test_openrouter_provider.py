@@ -18,24 +18,22 @@ class TestProviderAllowlist:
     """OpenRouter is accepted by the key-store endpoints."""
 
     def test_openrouter_in_byok_endpoints_allowlist(self):
-        """The valid_providers list in byok_endpoints.store_api_key accepts openrouter."""
-        import ast
-        import inspect
+        """The valid_providers list in byok_endpoints.store_api_key accepts openrouter.
 
-        from core import byok_endpoints
+        store_api_key builds valid_providers at runtime via
+        ``list(byok_manager.providers.keys())`` — a call, not a literal — so we
+        verify the live provider set the endpoint Depends on. Mirrors the
+        ``BYOKManager.__new__`` + ``_initialize_default_providers`` pattern used
+        by the sibling tests below (avoids the disk side effects of full
+        ``__init__`` while exercising the real registration logic).
+        """
+        from core.byok_endpoints import BYOKManager
 
-        # Extract the valid_providers list literal from the source of store_api_key
-        source = inspect.getsource(byok_endpoints.store_api_key)
-        tree = ast.parse(source)
-        found = None
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign):
-                for target in node.targets:
-                    if isinstance(target, ast.Name) and target.id == "valid_providers":
-                        found = ast.literal_eval(node.value)
-                        break
-        assert found is not None, "valid_providers list not found in store_api_key"
-        assert "openrouter" in found, (
+        mgr = BYOKManager.__new__(BYOKManager)
+        mgr.providers = {}
+        mgr._initialize_default_providers()
+        valid_providers = list(mgr.providers.keys())
+        assert "openrouter" in valid_providers, (
             "openrouter missing from valid_providers — keys cannot be stored"
         )
 

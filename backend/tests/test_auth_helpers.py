@@ -166,46 +166,51 @@ class TestUserContextValidation:
 class TestTokenRevocation:
     """Test token revocation functionality."""
 
-    @patch('core.auth_helpers.SessionLocal')
-    def test_revoke_token_adds_to_revoked_table(self, mock_session):
+    def test_revoke_token_adds_to_revoked_table(self):
         """Revoking token adds entry to RevokedToken table."""
         mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
+        # revoke_token checks for an already-revoked entry first; return None so
+        # the insert path (add + commit) actually runs.
+        mock_db.query.return_value.filter_by.return_value.first.return_value = None
 
-        revoke_token("token123", db=mock_db)
+        revoke_token("token123", expires_at=datetime.now(), db=mock_db)
 
         # Verify add was called
         mock_db.add.assert_called_once()
         mock_db.commit.assert_called_once()
 
-    @patch('core.auth_helpers.SessionLocal')
-    def test_revoke_all_user_tokens_revokes_multiple(self, mock_session):
+    def test_revoke_all_user_tokens_revokes_multiple(self):
         """Revoking all tokens for user revokes all their tokens."""
         mock_db = Mock()
-        mock_query = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
-        mock_db.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
+        # Two active tokens for the user; revoke_all_user_tokens iterates the
+        # ActiveToken query result and inserts a RevokedToken per token.
+        token_a = Mock(jti="t1", expires_at=datetime.now())
+        token_b = Mock(jti="t2", expires_at=datetime.now())
+        mock_db.query.return_value.filter.return_value.all.return_value = [token_a, token_b]
+        # Per-token "already revoked" lookup must return None so each is revoked.
+        mock_db.query.return_value.filter_by.return_value.first.return_value = None
 
-        revoke_all_user_tokens("user123", db=mock_db)
+        count = revoke_all_user_tokens("user123", db=mock_db)
 
-        # Verify query and update were called
-        mock_db.query.assert_called_once()
-        mock_query.filter.assert_called_once()
+        # Verify both tokens were revoked in a single commit.
+        assert count == 2
+        assert mock_db.add.call_count == 2
+        mock_db.commit.assert_called_once()
 
-    @patch('core.auth_helpers.SessionLocal')
-    def test_revoke_token_handles_database_errors(self, mock_session):
-        """Database errors during revocation are handled gracefully."""
+    def test_revoke_token_handles_database_errors(self):
+        """Database errors during revocation raise HTTPException(500) and roll back."""
         mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
+        # Not already revoked, so the function proceeds to add + commit.
+        mock_db.query.return_value.filter_by.return_value.first.return_value = None
         mock_db.commit.side_effect = Exception("Database error")
 
-        # Should not raise exception (handled gracefully)
-        try:
-            revoke_token("token123", db=mock_db)
-        except Exception:
-            # If it raises, that's also acceptable behavior
-            pass
+        # Per its contract, revoke_token raises HTTPException(500) on DB failure
+        # (after rolling back). The old version of this test swallowed a
+        # TypeError from a missing `expires_at` arg and asserted nothing.
+        with pytest.raises(HTTPException) as exc_info:
+            revoke_token("token123", expires_at=datetime.now(), db=mock_db)
+        assert exc_info.value.status_code == 500
+        mock_db.rollback.assert_called_once()
 
 
 # ==============================================================================
@@ -215,11 +220,12 @@ class TestTokenRevocation:
 class TestActiveTokenTracking:
     """Test active token tracking functionality."""
 
-    @patch('core.auth_helpers.SessionLocal')
-    def test_track_active_token_stores_token(self, mock_session):
+    def test_track_active_token_stores_token(self):
         """Tracking active token stores in ActiveToken table."""
         mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
+        # track_active_token checks for an already-tracked token first; return
+        # None so the insert path (add + commit) actually runs.
+        mock_db.query.return_value.filter_by.return_value.first.return_value = None
 
         track_active_token("user123", "token123", expires_at=datetime.now(), db=mock_db)
 
@@ -227,11 +233,12 @@ class TestActiveTokenTracking:
         mock_db.add.assert_called_once()
         mock_db.commit.assert_called_once()
 
-    @patch('core.auth_helpers.SessionLocal')
-    def test_track_active_token_with_expiration(self, mock_session):
+    def test_track_active_token_with_expiration(self):
         """Tracking token includes expiration time."""
         mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
+        # track_active_token checks for an already-tracked token first; return
+        # None so the insert path actually runs.
+        mock_db.query.return_value.filter_by.return_value.first.return_value = None
 
         expires_at = datetime.now() + timedelta(hours=24)
         track_active_token("user123", "token123", expires_at=expires_at, db=mock_db)
@@ -247,12 +254,10 @@ class TestActiveTokenTracking:
 class TestTokenCleanup:
     """Test token cleanup functionality."""
 
-    @patch('core.auth_helpers.SessionLocal')
-    def test_cleanup_expired_revoked_tokens(self, mock_session):
+    def test_cleanup_expired_revoked_tokens(self):
         """Cleanup removes expired revoked tokens."""
         mock_db = Mock()
         mock_query = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
         mock_db.query.return_value = mock_query
         mock_query.filter.return_value = mock_query
         mock_query.delete.return_value = 5  # 5 tokens deleted
@@ -262,12 +267,10 @@ class TestTokenCleanup:
         assert count == 5
         mock_db.commit.assert_called_once()
 
-    @patch('core.auth_helpers.SessionLocal')
-    def test_cleanup_expired_active_tokens(self, mock_session):
+    def test_cleanup_expired_active_tokens(self):
         """Cleanup removes expired active tokens."""
         mock_db = Mock()
         mock_query = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
         mock_db.query.return_value = mock_query
         mock_query.filter.return_value = mock_query
         mock_query.delete.return_value = 10  # 10 tokens deleted
@@ -277,12 +280,10 @@ class TestTokenCleanup:
         assert count == 10
         mock_db.commit.assert_called_once()
 
-    @patch('core.auth_helpers.SessionLocal')
-    def test_cleanup_with_custom_older_than(self, mock_session):
+    def test_cleanup_with_custom_older_than(self):
         """Cleanup respects custom older_than parameter."""
         mock_db = Mock()
         mock_query = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
         mock_db.query.return_value = mock_query
         mock_query.filter.return_value = mock_query
         mock_query.delete.return_value = 3

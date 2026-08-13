@@ -13,7 +13,7 @@ Target Branch Coverage: 60%+
 """
 
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import Mock, MagicMock, patch, AsyncMock
 from typing import List, Dict
 
 from core.llm_service import LLMService
@@ -483,3 +483,304 @@ class TestLLMServiceSeams:
 
         call_kwargs = mock_handler.generate_embedding.call_args.kwargs
         assert call_kwargs["provider"] == "cohere"
+
+
+def _make_vote(winner="winner-obj"):
+    """Build a VoteResult-like object for consensus tests."""
+    from types import SimpleNamespace
+    return SimpleNamespace(
+        winner=winner, prompt_hash="hash-abc", sample_count=3, valid_count=3,
+        winner_count=2, distinct_hashes=2, agreement_ratio=0.67,
+        level="high", winner_hash="wh-1", temperatures=[0.2, 0.3, 0.4],
+    )
+
+
+@pytest.fixture
+def personalized_service(mock_handler):
+    """LLMService with continuous_learning enabled so personalization runs.
+
+    The db arg makes ``continuous_learning`` non-None; we replace it with a
+    Mock whose ``get_personalized_parameters`` returns a tuned temperature.
+    """
+    cl = Mock()
+    cl.get_personalized_parameters.return_value = {"temperature": 0.5}
+    with patch("core.llm_service.BYOKHandler", return_value=mock_handler), \
+         patch("core.llm_service.ContinuousLearningService", return_value=cl):
+        service = LLMService(db=Mock(), workspace_id="ws")
+    service.handler = mock_handler
+    service.continuous_learning = cl
+    return service
+
+
+
+class TestUtilitiesAndConsensus:
+    """Cover estimate_tokens / estimate_cost / generate_speech and the
+    self-consensus dispatch + audit machinery."""
+
+    # --- personalization (the staged-fix region) -------------------------
+
+    @pytest.mark.asyncio
+    async def test_generate_applies_personalized_temperature_at_default(
+        self, personalized_service, mock_handler
+    ):
+        """Default temperature (0.7) is overridden by the personalized value."""
+        await personalized_service.generate("hi", agent_id="a1", user_id="u1")
+        assert mock_handler.generate_response.call_args.kwargs["temperature"] == 0.5
+
+    @pytest.mark.asyncio
+    async def test_generate_keeps_caller_explicit_temperature(
+        self, personalized_service, mock_handler
+    ):
+        """An explicit non-default temperature is NOT overridden by personalization."""
+        await personalized_service.generate("hi", temperature=0.9, agent_id="a1")
+        assert mock_handler.generate_response.call_args.kwargs["temperature"] == 0.9
+
+    @pytest.mark.asyncio
+    async def test_generate_pops_turn_index_avoiding_duplicate_kwarg(
+        self, personalized_service, mock_handler
+    ):
+        """turn_index is popped from kwargs and passed positionally (no dup-key TypeError)."""
+        await personalized_service.generate("hi", turn_index=3)
+        kwargs = mock_handler.generate_response.call_args.kwargs
+        assert kwargs["turn_index"] == 3
+        # It must have been consumed from **kwargs (no duplicate).
+        assert list(kwargs).count("turn_index") == 1
+
+    @pytest.mark.asyncio
+    async def test_structured_response_applies_personalized_temperature(
+        self, personalized_service, mock_handler
+    ):
+        await personalized_service.generate_structured_response(
+            "hi", response_model=Mock(), agent_id="a1"
+        )
+        assert mock_handler.generate_structured_response.call_args.kwargs["temperature"] == 0.5
+
+    @pytest.mark.asyncio
+    async def test_structured_response_forwards_explicit_temperature(
+        self, personalized_service, mock_handler
+    ):
+        await personalized_service.generate_structured_response(
+            "hi", response_model=Mock(), agent_id="a1", temperature=0.9
+        )
+        assert mock_handler.generate_structured_response.call_args.kwargs["temperature"] == 0.9
+
+    # --- generate_structured (self-consistency dispatch + error paths) ---
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_unavailable_returns_none(self, llm_service):
+        with patch.object(llm_service, "is_available", return_value=False):
+            assert await llm_service.generate_structured("p", response_model=Mock()) is None
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_self_consistency_dispatch(self, llm_service):
+        with patch.object(llm_service, "is_available", return_value=True), \
+             patch("core.hallucination_config.is_self_consistency_enabled", return_value=True), \
+             patch("core.hallucination_config.is_cascade_routing_enabled", return_value=False), \
+             patch.object(llm_service, "_run_self_consistency_vote",
+                          AsyncMock(return_value=("WIN", _make_vote()))) as m:
+            result = await llm_service.generate_structured(
+                "p", response_model=Mock(), enable_self_consistency=True
+            )
+        assert result == "WIN"
+        m.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_handler_exception_returns_none(self, llm_service, mock_handler):
+        mock_handler.generate_structured_response = AsyncMock(side_effect=RuntimeError("boom"))
+        with patch.object(llm_service, "is_available", return_value=True), \
+             patch("core.hallucination_config.is_self_consistency_enabled", return_value=False), \
+             patch("core.hallucination_config.is_cascade_routing_enabled", return_value=False):
+            assert await llm_service.generate_structured("p", response_model=Mock()) is None
+
+    # --- estimate_tokens -------------------------------------------------
+
+    def test_estimate_tokens_string(self, llm_service):
+        with patch.object(llm_service._token_counter, "count_tokens", return_value=42):
+            assert llm_service.estimate_tokens("hello") == 42
+
+    def test_estimate_tokens_message_list(self, llm_service):
+        msgs = [{"role": "user", "content": "hi"}]
+        with patch.object(llm_service._context_validator, "estimate_request_tokens", return_value=7):
+            assert llm_service.estimate_tokens(msgs) == 7
+
+    def test_estimate_tokens_unknown_type_returns_zero(self, llm_service):
+        assert llm_service.estimate_tokens(12345) == 0
+
+    # --- estimate_cost ---------------------------------------------------
+
+    def test_estimate_cost_delegates_to_cost_config(self, llm_service):
+        with patch("core.cost_config.get_llm_cost", return_value=0.0123) as mocked:
+            assert llm_service.estimate_cost(100, 50, "gpt-4o-mini") == 0.0123
+            mocked.assert_called_once_with("gpt-4o-mini", 100, 50)
+
+    def test_estimate_cost_fallback_when_cost_config_missing(self, llm_service, monkeypatch):
+        """When get_llm_cost can't be imported, the hardcoded fallback runs."""
+        import core.cost_config as cc
+        # Removing the attribute makes `from core.cost_config import get_llm_cost`
+        # raise ImportError, exercising the fallback pricing branch.
+        if hasattr(cc, "get_llm_cost"):
+            monkeypatch.delattr(cc, "get_llm_cost")
+        cost = llm_service.estimate_cost(1_000_000, 1_000_000, "gpt-4o-mini")
+        # gpt-4o-mini fallback: (1e6*0.15 + 1e6*0.6)/1e6 = 0.75
+        assert cost == 0.75
+
+    def test_estimate_cost_fallback_unknown_model(self, llm_service, monkeypatch):
+        import core.cost_config as cc
+        if hasattr(cc, "get_llm_cost"):
+            monkeypatch.delattr(cc, "get_llm_cost")
+        cost = llm_service.estimate_cost(1_000_000, 1_000_000, "mystery-model")
+        # Unknown model fallback: (1e6*1.0 + 1e6*2.0)/1e6 = 3.0
+        assert cost == 3.0
+
+    # --- generate_speech -------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_generate_speech_success(self, llm_service, mock_handler):
+        fake_response = Mock()
+        fake_response.read.return_value = b"audio-bytes"
+        fake_client = Mock()
+        fake_client.audio.speech.create = AsyncMock(return_value=fake_response)
+        mock_handler.async_clients = {"openai": fake_client}
+        mock_handler.clients = {}
+
+        with patch.object(llm_service, "get_provider", return_value=Mock(value="openai")):
+            result = await llm_service.generate_speech("hello world", voice="alloy")
+
+        assert result == b"audio-bytes"
+        fake_client.audio.speech.create.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_generate_speech_no_client_raises(self, llm_service, mock_handler):
+        mock_handler.async_clients = {}
+        mock_handler.clients = {}
+        with patch.object(llm_service, "get_provider", return_value=Mock(value="openai")):
+            with pytest.raises(ValueError, match="No client"):
+                await llm_service.generate_speech("hello")
+
+    @pytest.mark.asyncio
+    async def test_generate_speech_uses_sync_client_fallback(self, llm_service, mock_handler):
+        """When no async client exists, the sync client is used."""
+        fake_response = Mock()
+        fake_response.read.return_value = b"sync-audio"
+        sync_client = Mock()
+        sync_client.audio.speech.create = AsyncMock(return_value=fake_response)
+        mock_handler.async_clients = {}
+        mock_handler.clients = {"openai": sync_client}
+
+        with patch.object(llm_service, "get_provider", return_value=Mock(value="openai")):
+            result = await llm_service.generate_speech("hi")
+        assert result == b"sync-audio"
+
+    # --- generate_structured_with_consensus ------------------------------
+
+    @pytest.mark.asyncio
+    async def test_consensus_returns_none_none_when_unavailable(self, llm_service):
+        with patch.object(llm_service, "is_available", return_value=False):
+            winner, vote = await llm_service.generate_structured_with_consensus(
+                prompt="p", response_model=Mock()
+            )
+        assert winner is None and vote is None
+
+    @pytest.mark.asyncio
+    async def test_consensus_self_consistency_disabled_single_sample(self, llm_service, mock_handler):
+        """When the flag is off, a single structured sample is returned with no vote."""
+        sentinel = Mock()
+        mock_handler.generate_structured_response = AsyncMock(return_value=sentinel)
+        with patch.object(llm_service, "is_available", return_value=True), \
+             patch("core.hallucination_config.is_self_consistency_enabled", return_value=False), \
+             patch("core.hallucination_config.is_cascade_routing_enabled", return_value=False):
+            result, vote = await llm_service.generate_structured_with_consensus(
+                prompt="p", response_model=Mock()
+            )
+        assert result is sentinel
+        assert vote is None
+
+    @pytest.mark.asyncio
+    async def test_consensus_dispatches_to_voter_when_enabled(self, llm_service):
+        """When the flag is on, the vote path runs and returns (winner, vote)."""
+        vote = _make_vote(winner="WIN")
+        with patch.object(llm_service, "is_available", return_value=True), \
+             patch("core.hallucination_config.is_self_consistency_enabled", return_value=True), \
+             patch("core.hallucination_config.is_cascade_routing_enabled", return_value=True), \
+             patch.object(llm_service, "_run_self_consistency_vote", AsyncMock(return_value=(vote.winner, vote))) as m:
+            winner, returned_vote = await llm_service.generate_structured_with_consensus(
+                prompt="p", response_model=Mock()
+            )
+        assert winner == "WIN"
+        assert returned_vote is vote
+        m.assert_awaited_once()
+
+    # --- _run_self_consistency_vote --------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_run_vote_success_persists_audit(self, llm_service):
+        vote = _make_vote(winner="WIN")
+        voter = Mock()
+        voter.vote_with_consensus = AsyncMock(return_value=vote)
+        with patch("core.llm.self_consistency_voter.SelfConsistencyVoter", return_value=voter), \
+             patch.object(llm_service, "_write_self_consistency_audit") as mock_audit:
+            winner, returned_vote = await llm_service._run_self_consistency_vote(
+                prompt="p", response_model=Mock(), system_instruction="s", temperature=0.2,
+                task_type=None, agent_id="a1", image_payload=None,
+                cascade=True, session_id="s1", user_id="u1",
+            )
+        assert winner == "WIN"
+        assert returned_vote is vote
+        mock_audit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_run_vote_voter_failure_returns_none(self, llm_service):
+        with patch("core.llm.self_consistency_voter.SelfConsistencyVoter",
+                   side_effect=RuntimeError("voter boom")):
+            winner, vote = await llm_service._run_self_consistency_vote(
+                prompt="p", response_model=Mock(), system_instruction="s", temperature=0.2,
+                task_type=None, agent_id=None, image_payload=None,
+                cascade=False, session_id=None, user_id=None,
+            )
+        assert winner is None and vote is None
+
+    # --- _write_self_consistency_audit -----------------------------------
+
+    def test_audit_write_uses_caller_db_when_provided(self, mock_handler):
+        """When self._db is provided, the row is add+committed on it (not closed)."""
+        db = Mock()
+        with patch("core.llm_service.BYOKHandler", return_value=mock_handler):
+            from core.llm_service import LLMService
+            svc = LLMService(db=db, workspace_id="ws", tenant_id="tenant-1")
+        svc._write_self_consistency_audit(
+            vote=_make_vote(), agent_id="a1", session_id="s1", user_id="u1",
+            response_model=Mock(__name__="MyModel"),
+        )
+        db.add.assert_called_once()
+        db.commit.assert_called_once()
+
+    def test_audit_write_caller_db_commit_failure_rolls_back(self, mock_handler):
+        db = Mock()
+        db.commit.side_effect = RuntimeError("commit failed")
+        with patch("core.llm_service.BYOKHandler", return_value=mock_handler):
+            from core.llm_service import LLMService
+            svc = LLMService(db=db)
+        svc._write_self_consistency_audit(
+            vote=_make_vote(), agent_id=None, session_id=None, user_id=None,
+            response_model=Mock(__name__="MyModel"),
+        )
+        db.rollback.assert_called_once()
+
+    def test_audit_write_opens_own_session_when_no_caller_db(self, mock_handler):
+        """With no caller db, get_db_session() is used."""
+        own_db = Mock()
+        ctx = MagicMock()
+        ctx.__enter__.return_value = own_db
+        ctx.__exit__.return_value = False
+        with patch("core.llm_service.BYOKHandler", return_value=mock_handler):
+            from core.llm_service import LLMService
+            svc = LLMService(db=None)  # no caller session
+        with patch("core.database.get_db_session", return_value=ctx) as mock_get:
+            svc._write_self_consistency_audit(
+                vote=_make_vote(), agent_id=None, session_id=None, user_id=None,
+                response_model=Mock(__name__="MyModel"),
+            )
+        mock_get.assert_called_once()
+        own_db.add.assert_called_once()
+        own_db.commit.assert_called_once()
+

@@ -12,6 +12,7 @@ Uses pathlib for cross-platform path resolution.
 """
 
 import logging
+import os
 from pathlib import Path
 from typing import Dict, Any
 
@@ -203,10 +204,13 @@ class DirectoryPermissionService:
                 self.logger.debug(f"Could not resolve blocked path {blocked}: {e}")
                 blocked_resolved = blocked
 
-            # Check if directory starts with blocked path
-            if directory_str.startswith(blocked) or directory_str.startswith(blocked_resolved):
-                self.logger.warning(f"Blocked directory access attempt: {directory_str}")
-                return True
+            # Check if directory is the blocked path itself or a true
+            # subdirectory (boundary-aware: prevents sibling-prefix false
+            # positives like /etc2 being treated as /etc)
+            for candidate in (blocked, blocked_resolved):
+                if directory_str == candidate or directory_str.startswith(candidate.rstrip(os.sep) + os.sep):
+                    self.logger.warning(f"Blocked directory access attempt: {directory_str}")
+                    return True
 
         return False
 
@@ -226,9 +230,11 @@ class DirectoryPermissionService:
         for allowed_dir in allowed_dirs:
             allowed_str = str(allowed_dir)
 
-            # Check if directory is within allowed path
-            # Use startswith for prefix matching (cross-platform compatible)
-            if directory_str.startswith(allowed_str):
+            # Check if directory is within allowed path (boundary-aware:
+            # the allowed path itself or a true subdirectory, never a
+            # sibling with a shared prefix like /tmp2 vs /tmp)
+            allowed_str = str(allowed_dir).rstrip(os.sep)
+            if directory_str == allowed_str or directory_str.startswith(allowed_str + os.sep):
                 return True
 
         return False
