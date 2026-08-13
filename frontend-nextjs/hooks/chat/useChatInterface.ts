@@ -90,7 +90,16 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                         }
                     });
 
-                    setMessages(chatMessages);
+                    // MERGE, don't replace: history is fetched asynchronously —
+                    // if the user already sent a message while it was loading,
+                    // that optimistic message (ids are Date.now() strings,
+                    // never `msg_*_${idx}`) must survive the history landing,
+                    // otherwise sends during history load silently vanish.
+                    const historyIds = new Set(chatMessages.map((m) => m.id));
+                    setMessages((prev) => [
+                        ...chatMessages,
+                        ...prev.filter((m) => !historyIds.has(m.id)),
+                    ]);
                 }
             }
         } catch (error: any) {
@@ -201,6 +210,13 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     recovery_url: data.recovery_url || "/settings/ai",
                     error_code: data.error_code,
                 });
+                // The backend still created/persisted a session for this turn
+                // (the user message is stored before the LLM call is attempted),
+                // so propagate the real session id — otherwise a reload loses
+                // the conversation entirely.
+                if (data.session_id && data.session_id !== "unknown") {
+                    onSessionCreated?.(data.session_id);
+                }
                 setMessages(prev => [...prev, {
                     id: "no-provider",
                     type: "system",
@@ -214,6 +230,9 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
             // UI renders a budget-halted alert (not a normal assistant bubble).
             // Mirrors the no_llm_provider structured-error pattern above.
             if (data && data.error_code === "budget_exceeded") {
+                if (data.session_id && data.session_id !== "unknown") {
+                    onSessionCreated?.(data.session_id);
+                }
                 setMessages(prev => [...prev, {
                     id: "budget-exceeded",
                     type: "error",

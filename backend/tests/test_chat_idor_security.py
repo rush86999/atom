@@ -95,7 +95,7 @@ class TestChatIDORSecurity:
         assert response.status_code == 401
         assert "detail" in response.json()
 
-    @patch('backend.integrations.chat_routes.chat_orchestrator')
+    @patch('integrations.chat_routes.chat_orchestrator')
     def test_cross_user_access_blocked(self, mock_orchestrator, client, victim_user, attacker_user, victim_session_id):
         """Test that authenticated users cannot access other users' data (IDOR prevention)"""
         # Mock the orchestrator to return victim's session
@@ -108,18 +108,25 @@ class TestChatIDORSecurity:
         mock_orchestrator.conversation_sessions = {victim_session_id: mock_session}
         mock_orchestrator.session_manager.get_session.return_value = mock_session
 
-        # Mock authentication as attacker
-        with patch('backend.integrations.chat_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = MagicMock(id=attacker_user["id"])
-
+        # Mock authentication as attacker. The routes wire
+        # `Depends(get_current_user)` with the function object captured at
+        # module import, so patching the module attribute (`...chat_routes.
+        # get_current_user`) rebinds a name nobody consults and the REAL auth
+        # runs (401 instead of the asserted 403). Overriding the dependency on
+        # the app is the only override FastAPI honors.
+        from core.security_dependencies import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: MagicMock(id=attacker_user["id"])
+        try:
             # Try to access victim's session as attacker
             response = client.get(f"/api/chat/sessions/{victim_session_id}?user_id={victim_user['id']}")
 
             # Should return 403 Forbidden (user mismatch)
             assert response.status_code == 403
             assert "Access denied" in response.json()["detail"]
+        finally:
+            app.dependency_overrides.pop(get_current_user, None)
 
-    @patch('backend.integrations.chat_routes.chat_orchestrator')
+    @patch('integrations.chat_routes.chat_orchestrator')
     def test_same_user_access_allowed(self, mock_orchestrator, client, victim_user, victim_session_id):
         """Test that authenticated users CAN access their own data"""
         # Mock the orchestrator to return victim's session
@@ -133,18 +140,63 @@ class TestChatIDORSecurity:
         mock_orchestrator.conversation_sessions = {victim_session_id: mock_session}
         mock_orchestrator.session_manager.get_session.return_value = mock_session
 
-        # Mock authentication as victim
-        with patch('backend.integrations.chat_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = MagicMock(id=victim_user["id"])
-
+        # Mock authentication as victim (dependency override, see
+        # test_cross_user_access_blocked for why the patch() approach fails).
+        from core.security_dependencies import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: MagicMock(id=victim_user["id"])
+        try:
             # Access own session - should succeed
             response = client.get(f"/api/chat/sessions/{victim_session_id}?user_id={victim_user['id']}")
 
             # Should return 200 OK
             assert response.status_code == 200
             assert response.json()["success"] is True
+        finally:
+            app.dependency_overrides.pop(get_current_user, None)
             assert response.json()["user_id"] == victim_user["id"]
 
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestLegacySessionOwnershipMigration:
+    """PR #582 regression: legacy placeholder-owned sessions are reclaimed by
+    the authenticated caller (the migration feature shipped with a broken test
+    setup — phantom ``backend.integrations`` double-import made the auth patch
+    dead code, so the IDOR tests 401'd instead of exercising the ownership
+    logic)."""
+
+    def test_placeholder_owner_detection(self):
+        from integrations.chat_routes import _is_legacy_placeholder_owner
+        assert _is_legacy_placeholder_owner("") is True
+        assert _is_legacy_placeholder_owner(None) is True
+        assert _is_legacy_placeholder_owner("anonymous") is True
+        assert _is_legacy_placeholder_owner("default_user") is True
+        assert _is_legacy_placeholder_owner("test_user_e2e") is True
+        assert _is_legacy_placeholder_owner("real-user-123") is False
+
+    def test_placeholder_session_reclaimed_for_authenticated_caller(
+        self, client, victim_session_id
+    ):
+        from unittest.mock import patch as _patch
+        from unittest.mock import MagicMock as _MM
+        from core.security_dependencies import get_current_user as _gcu
+
+        legacy_session = {
+            "id": victim_session_id,
+            "user_id": "anonymous",
+            "title": "legacy chat",
+            "history": [],
+        }
+        with _patch('integrations.chat_routes.chat_orchestrator') as orch:
+            orch.conversation_sessions = {victim_session_id: legacy_session}
+            app.dependency_overrides[_gcu] = lambda: _MM(id="real-user-123")
+            try:
+                response = client.get(
+                    f"/api/chat/sessions/{victim_session_id}?user_id=whatever"
+                )
+                assert response.status_code == 200
+                assert response.json()["user_id"] == "real-user-123"
+            finally:
+                app.dependency_overrides.pop(_gcu, None)
