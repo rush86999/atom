@@ -9,6 +9,9 @@ from core.auth import get_current_user
 from core.database import get_db
 from core.models import TeamMessage, User
 from core.websockets import manager
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/teams", tags=["Team Messaging"])
 
@@ -64,11 +67,15 @@ async def send_message(
         created_at=new_message.created_at
     )
     
-    # Broadcast to team channel
-    await manager.broadcast(f"team:{team_id}", {
-        "type": "message.received",
-        "data": response.dict(by_alias=True) # Pydantic v1/v2 compat
-    })
+    # Broadcast to team channel (post-commit fan-out: a WS failure must not
+    # turn a persisted message into a client-visible 500)
+    try:
+        await manager.broadcast(f"team:{team_id}", {
+            "type": "message.received",
+            "data": response.dict(by_alias=True) # Pydantic v1/v2 compat
+        })
+    except Exception as e:
+        logger.error(f"Broadcast failed for team {team_id}: {e}")
     
     return response
 

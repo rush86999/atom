@@ -50,8 +50,8 @@ IMPORTANT:
 
 Return JSON array:
 [
-  {"fact": "All invoices over $500 require VP approval", "domain": "finance", "confidence": 0.95},
-  {"fact": "PTO requests must be submitted 2 weeks in advance", "domain": "hr", "confidence": 0.9}
+  {{"fact": "All invoices over $500 require VP approval", "domain": "finance", "confidence": 0.95}},
+  {{"fact": "PTO requests must be submitted 2 weeks in advance", "domain": "hr", "confidence": 0.9}}
 ]
 
 If no clear business facts are found, return an empty array: []

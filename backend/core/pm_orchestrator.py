@@ -33,7 +33,7 @@ class PMOrchestrator:
             # 2. Create Contract
             contract = Contract(
                 id=f"cnt_{uuid.uuid4().hex[:8]}",
-                workspace_id="default",
+                workspace_id=workspace_id,
                 deal_id=deal_id,
                 name=f"Contract for {deal.name}",
                 total_amount=deal.value,
@@ -51,7 +51,7 @@ class PMOrchestrator:
             pm_result = await pm_engine.generate_project_from_nl(
                 prompt=prompt,
                 user_id=user_id,
-                workspace_id="default",
+                workspace_id=workspace_id,
                 contract_id=contract.id
             )
             
@@ -70,7 +70,7 @@ class PMOrchestrator:
                 sync_details = await external_pm_sync.sync_project_to_external(
                     project_id=project_id,
                     platform=external_platform,
-                    workspace_id="default"
+                    workspace_id=workspace_id
                 )
 
             db.commit()

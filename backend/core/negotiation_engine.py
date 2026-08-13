@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List, Optional
 from sales.models import Deal, NegotiationState
@@ -42,7 +42,7 @@ class NegotiationStateMachine:
             if next_state and next_state != current_state:
                 logger.info(f"Advancing Deal {deal_id} from {current_state} to {next_state}")
                 deal.negotiation_state = next_state
-                deal.last_engagement_at = datetime.now()
+                deal.last_engagement_at = datetime.now(timezone.utc)
                 db.commit()
                 return next_state
             

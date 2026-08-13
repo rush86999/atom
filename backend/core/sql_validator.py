@@ -75,6 +75,7 @@ class SQLValidator:
             column_str = ' '.join(str(t) for t in select_tokens)
             columns.update(self._parse_column_list(column_str))
         columns.update(self._extract_where_columns(parsed_sql))
+        columns.update(self._extract_order_group_columns(parsed_sql))
         return columns
 
     def _parse_column_list(self, column_str: str) -> Set[str]:
@@ -85,7 +86,11 @@ class SQLValidator:
             col = col.strip()
             if '.' in col: col = col.split('.')[-1]
             if '(' in col:
-                arg_match = re.search(r'\((\w+)', col)
+                # W88: sqlparse joins tokens with spaces, so `COUNT(bogus)`
+                # arrives as "COUNT ( bogus )" — the regex must tolerate
+                # whitespace after the paren or the argument is silently
+                # dropped and unknown columns are approved.
+                arg_match = re.search(r'\(\s*(\w+)', col)
                 if arg_match: col = arg_match.group(1)
                 else: continue
             col = col.strip().strip('"').strip("'").strip('`')
@@ -95,7 +100,8 @@ class SQLValidator:
     def _extract_where_columns(self, parsed_sql: sqlparse.sql.Statement) -> Set[str]:
         columns = set()
         in_where = False
-        for token in parsed_sql.flatten():
+        tokens = list(parsed_sql.flatten())
+        for i, token in enumerate(tokens):
             token_str = str(token).strip()
             if token.ttype is sqlparse.tokens.Keyword and token_str.upper() == 'WHERE':
                 in_where = True
@@ -104,8 +110,51 @@ class SQLValidator:
                 in_where = False
                 continue
             if in_where and token.ttype is sqlparse.tokens.Name:
+                # W88: table-qualified columns (`WHERE u.status = 'x'`) emit
+                # the alias `u` as a Name token — previously treated as a
+                # column and rejected as non-existent. Skip aliases (Name
+                # directly followed by a `.` punctuation token).
+                if i + 1 < len(tokens) and str(tokens[i + 1]).strip() == '.':
+                    continue
                 col = token_str.strip().strip('"').strip("'").strip('`')
                 if col and col.isidentifier(): columns.add(col)
+        return columns
+
+    def _extract_order_group_columns(self, parsed_sql: sqlparse.sql.Statement) -> Set[str]:
+        # W88: ORDER BY / GROUP BY column references were never validated —
+        # queries referencing non-existent fields in those clauses were
+        # silently approved (same bug class as the SELECT-list gap fixed in
+        # BUG-080). Collect Name tokens inside ORDER BY / GROUP BY clauses.
+        columns = set()
+        tokens = list(parsed_sql.flatten())
+        for i, token in enumerate(tokens):
+            tok_str = str(token).strip().upper()
+            # sqlparse emits ORDER BY / GROUP BY as a single Keyword token
+            # ("ORDER BY") — accept both that combined form and the split
+            # form (ORDER + BY) for robustness.
+            is_clause_start = (tok_str in ('ORDER BY', 'GROUP BY')
+                               or (tok_str in ('ORDER', 'GROUP')
+                                   and i + 1 < len(tokens)
+                                   and str(tokens[i + 1]).strip().upper() == 'BY'))
+            if token.ttype in sqlparse.tokens.Keyword and is_clause_start:
+                for j in range(i + 2, len(tokens)):
+                    nt = tokens[j]
+                    nt_str = str(nt).strip()
+                    if nt.ttype in sqlparse.tokens.Keyword:
+                        # ASC/DESC sort directions (and the `,` separators
+                        # below) keep the clause open so multi-column ORDER BY
+                        # (e.g. `ORDER BY name ASC, ghost DESC`) is fully
+                        # validated; any other keyword closes it.
+                        if nt_str.upper() in ('ASC', 'DESC'):
+                            continue
+                        break
+                    if nt.ttype is sqlparse.tokens.Name:
+                        col = nt_str.strip().strip('"').strip("'").strip('`')
+                        if col and col.isidentifier():
+                            columns.add(col)
+                    elif nt.ttype is sqlparse.tokens.Punctuation:
+                        if nt_str != ',':
+                            break
         return columns
 
 
@@ -131,6 +180,17 @@ class SQLSanitizer:
         'sql_comment_hash': re.compile(r'#.*', re.M),
         'sql_comment_block': re.compile(r'/\*.*?\*/', re.S),
         'union_based_injection': re.compile(r'\bUNION\s+(?:ALL\s+)?SELECT\b', re.I),
+        # W88: server-side file write/read exfiltration sinks. SELECT ... INTO
+        # OUTFILE/DUMPFILE writes query results to a web-reachable file
+        # (attacker fetches them later); LOAD_FILE() reads server files into
+        # query results. Both previously passed sanitization.
+        'into_outfile': re.compile(r'\bINTO\s+(?:OUTFILE|DUMPFILE)\b', re.I),
+        'load_file': re.compile(r'\bLOAD_FILE\s*\(', re.I),
+        # W88: metadata-schema probing (sqlite_master / information_schema /
+        # pg_catalog). Table enumeration feeds column discovery, which turns a
+        # schema-valid SELECT into a broad exfiltration campaign.
+        'sqlite_meta_table': re.compile(r'\b(?:sqlite_(?:master|temp_master|schema|sequence))\b', re.I),
+        'sql_meta_schema': re.compile(r'\b(?:information_schema|pg_catalog|mysql)\b', re.I),
     }
 
     def sanitize_sql(self, sql_query: str) -> bool:

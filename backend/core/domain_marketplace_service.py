@@ -55,12 +55,12 @@ class DomainMarketplaceService:
         """
         Install a domain template from the marketplace.
         """
-        # 1. Fetch template from SaaS
-        template = self.saas_client.get_domain_template_sync(template_domain_id)
-        if not template:
-            return {"success": False, "error": "Domain template not found in marketplace"}
-
         try:
+            # 1. Fetch template from SaaS
+            template = self.saas_client.get_domain_template_sync(template_domain_id)
+            if not template:
+                return {"success": False, "error": "Domain template not found in marketplace"}
+
             # 2. Create local Domain record
             new_domain = SpecialistDomain(
                 tenant_id=tenant_id,

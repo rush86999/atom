@@ -3,6 +3,22 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
+# ai_enhanced_service is an optional dependency. When absent, the AI branches
+# below degrade to the static fallback instead of raising ModuleNotFoundError
+# (BUG-87-4: the module-level guarded import, per business_health_service).
+try:
+    from integrations.ai_enhanced_service import (
+        AIModelType,
+        AIRequest,
+        AIServiceType,
+        AITaskType,
+    )
+except ImportError:
+    AIModelType = None
+    AIRequest = None
+    AIServiceType = None
+    AITaskType = None
+
 logger = logging.getLogger(__name__)
 
 class ReputationManager:
@@ -30,12 +46,15 @@ class ReputationManager:
         """
         
         if self.ai:
-            from integrations.ai_enhanced_service import (
-                AIModelType,
-                AIRequest,
-                AIServiceType,
-                AITaskType,
-            )
+            if AIRequest is None:
+                logger.warning(
+                    "ai_enhanced_service unavailable; using static feedback strategy"
+                )
+                return {
+                    "action": "PUBLIC_REVIEW",
+                    "draft": "We'd love to hear your feedback!",
+                    "sentiment": "POSITIVE",
+                }
             request = AIRequest(
                 request_id=f"rep_{datetime.now().timestamp()}",
                 task_type=AITaskType.CONVERSATION_ANALYSIS,
@@ -72,12 +91,15 @@ class ReputationManager:
         """
         
         if self.ai:
-            from integrations.ai_enhanced_service import (
-                AIModelType,
-                AIRequest,
-                AIServiceType,
-                AITaskType,
-            )
+            if AIRequest is None:
+                logger.warning(
+                    "ai_enhanced_service unavailable; returning default insights"
+                )
+                return [{
+                    "category": "General",
+                    "sentiment": "PRO",
+                    "detail": "Customers seem happy overall.",
+                }]
             request = AIRequest(
                 request_id=f"insights_{datetime.now().timestamp()}",
                 task_type=AITaskType.TOPIC_EXTRACTION,

@@ -25,6 +25,7 @@ class CustomerResolutionEngine:
             EcommerceCustomer.email == email
         ).first()
 
+        created = False
         if not customer:
             customer = EcommerceCustomer(
                 tenant_id=workspace_id,
@@ -34,6 +35,7 @@ class CustomerResolutionEngine:
             )
             self.db.add(customer)
             self.db.flush() # Get ID
+            created = True
             logger.info(f"Created new EcommerceCustomer: {email}")
 
         # 2. Attempt Cross-System Linking if missing
@@ -42,7 +44,7 @@ class CustomerResolutionEngine:
         # Link to CRM (Lead/Contact)
         if not customer.crm_contact_id:
             lead = self.db.query(Lead).filter(
-                Lead.tenant_id == workspace_id,
+                Lead.workspace_id == workspace_id,
                 Lead.email == email
             ).first()
             if lead:
@@ -58,10 +60,13 @@ class CustomerResolutionEngine:
             # In Phase 12 we added Lead/Deal, Phase 10 we added Entity.
             
             # Simple heuristic: Match by first+last name if provided
+            # (fall back to the stored customer name so resolving an existing
+            # customer by email alone still links correctly)
+            match_name = f"{first_name or customer.first_name} {last_name or customer.last_name}"
             entity = self.db.query(Entity).filter(
                 Entity.workspace_id == workspace_id,
                 Entity.type == EntityType.CUSTOMER,
-                Entity.name.ilike(f"{first_name} {last_name}")
+                Entity.name.ilike(match_name)
             ).first()
             
             if entity:
@@ -69,7 +74,7 @@ class CustomerResolutionEngine:
                 changed = True
                 logger.info(f"Linked EcommerceCustomer {email} to Accounting Entity {entity.id}")
 
-        if changed:
+        if changed or created:
             self.db.commit()
             
         return customer

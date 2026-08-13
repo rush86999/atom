@@ -94,6 +94,31 @@ class TenantDiscoveryService:
                 .first()
             )
 
+            cache_key_new = f"discovery:{connector_id}:{external_id}"
+
+            # Cross-tenant guard (BUG-87-1): refuse to link an external_id
+            # that is already owned by a DIFFERENT tenant. Two live mappings
+            # for the same (connector, external_id) make the reverse-lookup's
+            # `.first()` non-deterministic — webhook events can be routed to
+            # the wrong tenant (tenant isolation breach). The query excludes
+            # the caller's own row, so updating one's own mapping is fine.
+            owner = (
+                self.db.query(TenantIntegration)
+                .filter(
+                    TenantIntegration.connector_id == connector_id,
+                    TenantIntegration.external_id == external_id,
+                    TenantIntegration.tenant_id != tenant_id,
+                )
+                .first()
+            )
+            if owner is not None:
+                logger.warning(
+                    f"Refusing to register external_id {external_id} for tenant "
+                    f"{tenant_id} ({connector_id}): already owned by tenant "
+                    f"{owner.tenant_id}"
+                )
+                return False
+
             if integration:
                 # BUG-083: Capture the OLD external_id before overwriting so
                 # its cache entry can be invalidated too. Previously only the
@@ -104,7 +129,6 @@ class TenantDiscoveryService:
                 self.db.commit()
 
                 # Invalidate cache for both old and new external_ids
-                cache_key_new = f"discovery:{connector_id}:{external_id}"
                 await self.cache.delete_async(cache_key_new)
                 if old_external_id and old_external_id != external_id:
                     cache_key_old = f"discovery:{connector_id}:{old_external_id}"
@@ -114,6 +138,22 @@ class TenantDiscoveryService:
                     f"Registered external_id {external_id} for tenant {tenant_id} ({connector_id})"
                 )
                 return True
+
+            # BUG-87-2: a brand-new (tenant, connector) pair previously fell
+            # through to `return False` — the mapping was NEVER created, so
+            # OAuth pre-population was a silent no-op. Create the row.
+            new_integration = TenantIntegration(
+                tenant_id=tenant_id,
+                connector_id=connector_id,
+                external_id=external_id,
+            )
+            self.db.add(new_integration)
+            self.db.commit()
+            await self.cache.delete_async(cache_key_new)
+            logger.info(
+                f"Created external_id {external_id} for tenant {tenant_id} ({connector_id})"
+            )
+            return True
         except Exception as e:
             logger.error(f"Failed to register external_id: {e}")
             self.db.rollback()

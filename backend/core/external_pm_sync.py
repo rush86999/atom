@@ -62,8 +62,9 @@ class ExternalPMSyncService:
             
             return {"status": "success", "external_id": asana_project_gid, "platform": "asana"}
         except Exception as e:
+            # Never leak str(e) to the caller (project error-handling standard)
             logger.error(f"Asana sync failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Failed to sync project to Asana"}
 
     async def _sync_to_linear(self, project: Project, db: Session) -> Dict[str, Any]:
         """Specific logic for Linear sync"""
@@ -102,8 +103,9 @@ class ExternalPMSyncService:
             
             return {"status": "success", "external_id": linear_project_id, "platform": "linear"}
         except Exception as e:
+            # Never leak str(e) to the caller (project error-handling standard)
             logger.error(f"Linear sync failed: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Failed to sync project to Linear"}
 
 # Global Instance
 external_pm_sync = ExternalPMSyncService()

@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Any, Dict, Optional
 import httpx
 
@@ -25,8 +26,22 @@ class GoogleChatAdapter(PlatformAdapter):
         """
         Verify Google Chat token. 
         Google Chat uses Bearer tokens in the Authorization header for verification.
+
+        FAIL-CLOSED: the expected token comes from GOOGLE_CHAT_WEBHOOK_SECRET.
+        If the secret is not configured, or the Authorization header does not
+        carry `Bearer <secret>`, the request is rejected.
         """
-        # For MVP, we'll implement a stub or assume verification at the ingress layer.
+        expected = os.getenv("GOOGLE_CHAT_WEBHOOK_SECRET")
+        if not expected:
+            logger.error("GOOGLE_CHAT_WEBHOOK_SECRET not configured; rejecting Google Chat request")
+            return False
+
+        auth = headers.get("Authorization") or ""
+        token = auth[7:] if auth.startswith("Bearer ") else ""
+        if not token or token != expected:
+            logger.warning("Google Chat webhook request rejected: invalid Bearer token")
+            return False
+
         return True
 
     def normalize_payload(self, payload: Dict) -> Optional[Dict[str, Any]]:

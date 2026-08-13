@@ -96,7 +96,10 @@ class GraduationService:
 
         # Update Agent configuration to "lock" this skill path
         config = dict(agent.configuration or {})
-        promoted_skills = config.get("promoted_skills", {})
+        # Copy the nested dict too — mutating the loaded object in place and
+        # reassigning makes the JSON equal to the DB value, which defeats
+        # SQLAlchemy dirty tracking and silently LOSES the promotion.
+        promoted_skills = dict(config.get("promoted_skills") or {})
         
         # Lock the successful prompt additives or tool sequence
         # In a real scenario, we'd extract the "learned prompt" from the trace

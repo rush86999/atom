@@ -6,6 +6,165 @@
 
 ---
 
+## Session 2026-08-13 (wave 87 — 8 never-wave-tested core ops/marketing modules to 100%; 118 new tests, 6 real bugs fixed)
+
+**Files**: `core/satellite_service.py`, `core/tenant_discovery.py`, `core/external_pm_sync.py`, `core/staffing_advisor.py`, `core/negotiation_engine.py`, `core/reputation_service.py`, `core/resource_manager.py`, `core/marketing_analytics.py` — new wave tests `tests/test_covpush_w87_{satellite,tenant_discovery,external_pm,staffing,negotiation,reputation,resource_manager,marketing_analytics}.py` (**118 new tests**). Source fixes: `core/tenant_discovery.py`, `core/external_pm_sync.py`, `core/negotiation_engine.py`, `core/reputation_service.py`, `core/marketing_analytics.py`.
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time):
+1. RED proof (before source fixes): `TenantDiscoveryService.register_external_id` **never created new mappings** (docstring promises OAuth pre-population; no existing row → silent `False`, no insert) AND **allowed tenant B to claim tenant A's external_id** → two live rows for one (connector, external_id) → `.first()` reverse-lookup became non-deterministic → cross-tenant webhook misrouting (tenant isolation); `NegotiationStateMachine.update_deal_state` **wrote a naive `datetime.now()`** into `DateTime(timezone=True)` (`sales_deals.last_engagement_at`) → PostgreSQL timestamptz TypeError (R13 bug class — test asserts `datetime.now` is called with a tz, RED on original code); `ExternalPMSyncService._sync_to_asana/_sync_to_linear` **leaked `str(e)`** into client-facing error messages; `ReputationManager` + `PlainEnglishReporter` **crashed with `ModuleNotFoundError: No module named 'integrations.ai_enhanced_service'`** whenever an AI service was injected (module absent in this repo; `api/marketing_routes.py` always injects one — every call 500'd).
+2. New-wave combined run (single process, 8 files, `--cov` on all 8 modules) → **118 passed / 0 failed**; **TOTAL 416 stmts / 0 missing / 100%** on all eight modules.
+3. Partner-suite regression: `tests/test_resource_intelligence.py` + `tests/core/test_negotiation_engine_bughunt.py` → 4 passed / 0 failed. `tests/test_pm_external_sync.py` → 2 failed, **both pre-existing** (identical before this wave): its `asyncSetUp` patches `core.pm_orchestrator.SessionLocal` which doesn't exist (stale test; module imports `get_db_session` from `core.database`). All consumers (`api/marketing_routes.py`, `api/satellite_routes.py`, `core/pm_orchestrator.py`, `core/communication_intelligence.py`, webhook routers) import cleanly.
+
+### Coverage deltas (coverage.py statement counts; before = baseline with pre-existing suites)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/satellite_service.py` | 0/70 / 0% | **70 / 100%** | 70 | — |
+| `core/tenant_discovery.py` | 0/63 / 0% | **63 / 100%** | 63 | — |
+| `core/external_pm_sync.py` | 11/57 / 19% | **57 / 100%** | 57 | — |
+| `core/staffing_advisor.py` | 41/53 / 77% | **53 / 100%** | 53 | — |
+| `core/negotiation_engine.py` | 24/50 / 48% | **50 / 100%** | 50 | — |
+| `core/reputation_service.py` | 0/37 / 0% | **37 / 100%** | 37 | — |
+| `core/resource_manager.py` | 28/45 / 62% | **45 / 100%** | 45 | — |
+| `core/marketing_analytics.py` | 0/41 / 0% | **41 / 100%** | 41 | — |
+
+### Bugs fixed (all TDD RED→GREEN)
+
+| # | File:line | Bug | Fix |
+|---|---|---|---|
+| 1 | `core/tenant_discovery.py:80-121` (`register_external_id`) | **New mapping never created** — no existing (tenant, connector) row fell through to `return False` with no insert; OAuth-callback pre-population silently did nothing | Insert a new `TenantIntegration` row + commit + invalidate the new cache key |
+| 2 | `core/tenant_discovery.py:80-121` (`register_external_id`) | **Cross-tenant claim allowed (isolation breach)** — tenant B could register an external_id owned by tenant A → duplicate (connector, external_id) rows → `.first()` reverse-lookup non-deterministic → webhooks routed to the wrong tenant | Pre-query for an owner with `tenant_id != caller`; refuse (log warning, return False); the caller's own row is excluded so same-tenant updates still work |
+| 3 | `core/negotiation_engine.py:45` (`update_deal_state`) | **Naive datetime into timestamptz** — `datetime.now()` → `last_engagement_at` naive; PostgreSQL `DateTime(timezone=True)` raises TypeError (R13 class) | `datetime.now(timezone.utc)` |
+| 4 | `core/external_pm_sync.py:66, 106` (`_sync_to_asana` / `_sync_to_linear`) | **str(e) leaked to clients** — exception detail (incl. tokens in errors) returned verbatim in the API response | Generic messages ("Failed to sync project to Asana/Linear"), detail kept in server logs |
+| 5 | `core/reputation_service.py:32-53, 74-97` | **ModuleNotFoundError crash** — function-level `from integrations.ai_enhanced_service import ...` raised when the optional module is absent (this repo), so every call with an injected AI service 500'd | Module-level guarded import (`business_health_service` pattern); `AIRequest is None` → log warning + static fallback |
+| 6 | `core/marketing_analytics.py:32-50, 66-84` | Same **ModuleNotFoundError crash** for `generate_narrative_report` / `get_budget_advice` | Same guarded-import + fallback fix |
+
+### Remaining uncovered lines
+None — all eight modules 100% (416 stmts / 0 missing) in the wave-87 combined run.
+
+### Caveats
+- `satellite_service.handle_message` imports `ai.device_node_service` / `core.database.get_db_session` inside the function — tests patch those source modules (function-level imports aren't module attributes).
+- `reputation_service` / `marketing_analytics` AI-branch tests simulate the optional module being present by patching the guarded module attrs (`AIRequest`/`AIModelType`/`AIServiceType`/`AITaskType`); the "absent" path asserts the static fallback and that the injected AI is never called.
+- The negotiation tz regression is asserted at the call site (module `datetime` patched): SQLite's dialect strips tzinfo at serialization, so a DB round-trip cannot discriminate aware vs naive.
+- `test_pm_external_sync.py` remains pre-broken (stale `pm_orchestrator.SessionLocal` patch); wave-87's own 13 external-pm tests cover the module at 100%.
+
+---
+
+## Session 2026-08-13 (wave 86 — 8 never-wave-tested core comms/ops modules to 100%; 109 new tests, 5 real bugs fixed)
+
+**Files**: `core/team_messaging.py`, `core/google_chat.py`, `core/lifecycle_comm_generator.py`, `core/identity_resolver.py`, `core/structured_logger.py`, `core/health_monitor.py`, `core/policy_fact_extractor.py`, `core/canvas_presentation_summary.py` — new wave tests `tests/test_covpush_w86_{team_messaging,google_chat,lifecycle_comm,identity_resolver,structured_logger,health_monitor,policy_facts,canvas_summary}.py` (**109 new tests**). Source fixes: `core/google_chat.py`, `core/identity_resolver.py`, `core/team_messaging.py`, `core/policy_fact_extractor.py`.
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time):
+1. RED proof (before source fixes): `GoogleChatAdapter.verify_request` **accepted every webhook** (fail-open stub returning `True` unconditionally); `CustomerResolutionEngine` **silently lost newly-created customers** with no cross-system link (commit only ran when a link was found) and **crashed with `AttributeError: type object 'Lead' has no attribute 'tenant_id'`** on every unlinked-customer CRM lookup; entity name linking **never matched when resolving by email alone** (`ilike("None None")` — method params used instead of stored customer name); `PolicyFactExtractor` **failed every extraction** with `KeyError: '"fact"'` (un-escaped example-JSON braces in `EXTRACTION_PROMPT` were parsed as `.format()` fields); `send_message` **500'd the client after the row was committed** when the WS broadcast failed (post-commit fan-out not isolated).
+2. New-wave combined run (single process, 8 files, `--cov` on all 8 modules) → **109 passed / 0 failed**; **TOTAL 528 stmts / 0 missing / 100%** on all eight modules.
+3. Partner-suite regression: `tests/test_policy_fact_extractor.py` + `tests/test_structured_logger.py` + wave-86 policy suite → 88 passed, 2 failed — **both pre-existing** (fail identically without wave-86 files): `TestExtractorRegistry::test_get_extractor_creates_new_instance_on_first_call` asserts `"new_workspace" in _extractors` but registry keys are `"{workspace}:{tenant}"`; `TestLoggerContextFunctions::test_bind_context_thread_safe` is a thread-contextvar flake (`req-1` vs `req-0`). mypy: 23 pre-existing errors on the 4 fixed files (same set as HEAD's 24 — module written against a different `PlatformAdapter` contract; line-shift merge only).
+
+### Coverage deltas (coverage.py statement counts; before = import-only baseline run)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/team_messaging.py` | 28/42 / 67% | **47 / 100%** | 47 | — |
+| `core/google_chat.py` | 10/35 / 29% | **45 / 100%** | 45 | — |
+| `core/lifecycle_comm_generator.py` | 11/40 / 28% | **40 / 100%** | 40 | — |
+| `core/identity_resolver.py` | 12/39 / 31% | **42 / 100%** | 42 | — |
+| `core/structured_logger.py` | 30/92 / 33% | **92 / 100%** | 92 | — |
+| `core/health_monitor.py` | 44/113 / 39% | **113 / 100%** | 113 | — |
+| `core/policy_fact_extractor.py` | 26/94 / 28% | **94 / 100%** | 94 | — |
+| `core/canvas_presentation_summary.py` | 12/55 / 22% | **55 / 100%** | 55 | — |
+
+### Bugs fixed (all TDD RED→GREEN)
+
+| # | File:line | Bug | Fix |
+|---|---|---|---|
+| 1 | `core/google_chat.py:25-43` (`verify_request`) | **Webhook auth fail-open** — stub returned `True` unconditionally, so any unauthenticated POST was accepted and normalized | Fail-closed: `Authorization: Bearer <token>` must equal `GOOGLE_CHAT_WEBHOOK_SECRET`; unconfigured secret → reject (platform R69 fail-closed pattern) |
+| 2 | `core/identity_resolver.py:28-36, 77-78` | **Newly-created customer silently lost** — `db.commit()` only ran when a cross-system link was found, so an unmatched new customer was rolled back on session close | Track `created` and commit when `changed or created` |
+| 3 | `core/identity_resolver.py:44-47` | **CRM lookup crashed** — filtered `Lead.tenant_id`, but the `Lead` model has no such column (only `workspace_id`) → `AttributeError`/500 on every unlinked customer | Filter by `Lead.workspace_id` |
+| 4 | `core/identity_resolver.py:61-69` | **Accounting link never matched for existing customers** — entity lookup used the method params (`ilike("None None")` when resolving by email alone) instead of the customer's stored name | `match_name = f"{first_name or customer.first_name} {last_name or customer.last_name}"` |
+| 5 | `core/policy_fact_extractor.py:37-61` (`EXTRACTION_PROMPT`) | **Extractor dead-on-arrival** — example JSON braces (`{"fact": ...}`) parsed as `.format()` fields → `KeyError: '"fact"'` on every chunk; zero facts ever extracted | Doubled the braces in the example array so `.format(document_text=...)` works |
+| 6 | `core/team_messaging.py:67-79` (`send_message`) | **Post-commit WS broadcast failure → client-visible 500** — message was committed, then `await manager.broadcast()` raised through the route | Wrap the fan-out broadcast in try/except (log + degrade), return the persisted response |
+
+### Remaining uncovered lines
+None — all eight modules 100% (528 stmts / 0 missing) in the wave-86 combined run.
+
+### Caveats
+- `health_monitor` loop tests run with `asyncio.sleep` selectively patched (brief real yields) to avoid real 5-min/60-s waits; degraded-status branch driven by a faked `time.time` sequence.
+- `canvas_summary` cache paths tested by swapping `sys.modules["core.cache"]` for a fake module (async + sync `get`/`set`, failure paths) and the LLM via `ServiceFactory.get_llm_service` patch — zero LLM spend.
+- `google_chat.verify_request` now depends on `GOOGLE_CHAT_WEBHOOK_SECRET`; no existing suite imports `core.google_chat` (the `GoogleChatEnhancedService` suites are the separate `integrations/` module, unaffected).
+
+---
+
+## Session 2026-08-13 (wave 88 — 8 never-wave-tested core modules to 100%; 179 new tests, 4 real bugs fixed)
+
+**Files**: `core/sql_validator.py`, `core/decimal_utils.py`, `core/model_factory.py`, `core/error_handler.py`, `core/meta_automation.py`, `core/marketing_manager.py`, `core/lancedb_service.py`, `core/signal.py` — new wave tests `tests/test_covpush_w88_{sql_validator,decimal_utils,model_factory,error_handler,meta_automation,marketing_manager,lancedb_service,signal}.py` (**179 new tests**). Source fix: `core/sql_validator.py`.
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q -o addopts=""`, ONE process at a time):
+1. RED proof (before source fixes, 14 failing): `SQLSanitizer.sanitize_sql` **allowed** `SELECT ... INTO OUTFILE '/tmp/evil'` (server-side file write → exfiltration sink), `INTO DUMPFILE`, `SELECT LOAD_FILE('/etc/passwd')` (server-side file read), and metadata-schema probing `FROM sqlite_master` / `information_schema.tables` / `pg_catalog.pg_tables` (table enumeration → column discovery → targeted exfiltration); `SQLValidator.validate_sql_against_schema` **silently approved** non-existent fields in `ORDER BY`/`GROUP BY` (same bug class as the BUG-080 SELECT-list fix); **approved** `SELECT COUNT(bogus) ...` (sqlparse joins tokens with spaces → `COUNT ( bogus )` → old regex `\((\w+)` dropped the argument); and **rejected valid** table-qualified WHERE columns (`WHERE u.status = 'x'` → alias `u` treated as a non-existent field).
+2. New-wave combined run (single process, 8 files, `--cov` on all 8 modules) → **179 passed / 0 failed**; **TOTAL 368 stmts / 0 missing / 100%** on all eight modules.
+3. Partner-suite regression: `tests/core/test_sql_validator_coverage.py` + `tests/test_error_handlers.py` + `tests/unit/test_lancedb_handler.py` → 147 passed, 1 failed (`TestNotFoundHandler.test_handle_not_found_includes_resource_details` in `core/error_handlers.py` — **pre-existing**, file untouched by this wave; details dict built by `handle_not_found` lacks `resource_type`). mypy: unchanged (pre-existing env-wide "Source file found twice").
+
+### Coverage deltas (coverage.py statement counts; before = 0% — modules never imported by any existing suite)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/sql_validator.py` | 0% | **116 / 100%** | 116 | — |
+| `core/decimal_utils.py` | 0% | **38 / 100%** | 38 | — |
+| `core/model_factory.py` | 0% | **42 / 100%** | 42 | — |
+| `core/error_handler.py` | 0% | **41 / 100%** | 41 | — |
+| `core/meta_automation.py` | 0% | **51 / 100%** | 51 | — |
+| `core/marketing_manager.py` | 0% | **26 / 100%** | 26 | — |
+| `core/lancedb_service.py` | 0% | **26 / 100%** | 26 | — |
+| `core/signal.py` | 0% | **28 / 100%** | 28 | — |
+
+### Bugs fixed (all TDD RED→GREEN, source = `core/sql_validator.py`)
+
+| # | File:line | Bug | Fix |
+|---|---|---|---|
+| 1 | `core/sql_validator.py:133-138` (new `into_outfile`/`load_file` patterns) | Sanitizer allowed `SELECT ... INTO OUTFILE/DUMPFILE` (file write) and `LOAD_FILE(...)` (file read) exfiltration sinks | Added fail-closed patterns `\bINTO\s+(?:OUTFILE\|DUMPFILE)\b` and `\bLOAD_FILE\s*\(` |
+| 2 | `core/sql_validator.py:139-140` (new `sqlite_meta_table`/`sql_meta_schema` patterns) | Sanitizer allowed metadata-schema probing (`sqlite_master`/`sqlite_schema`/`information_schema`/`pg_catalog`/`mysql`) feeding column discovery → exfiltration | Added fail-closed meta-table patterns |
+| 3 | `core/sql_validator.py:77-93, 110-158` (`_extract_order_group_columns` + `\b` alias-skip + `\(\s*(\w+)` regex) | Validator silently approved non-existent fields in ORDER BY/GROUP BY; `COUNT(bogus)` args dropped after sqlparse space-joining; valid `WHERE u.status` rejected (alias `u` treated as column) | Added ORDER BY/GROUP BY clause extraction (handles combined `ORDER BY` keyword token + multi-column ASC/DESC lists, closed by LIMIT/HAVING/etc.), skip alias tokens before `.`, tolerant fn-arg regex |
+
+---
+
+## Session 2026-08-13 (wave 85 — 8 never-wave-tested strategy/orchestration core modules to 100%; 90 new tests, 4 real bugs fixed)
+
+**Files**: `core/coordinated_strategy_service.py`, `core/domain_marketplace_service.py`, `core/reflection_service.py`, `core/pm_orchestrator.py`, `core/graduation_service.py`, `core/blueprint_healer.py`, `core/multi_entity_validator.py`, `core/entity_schema_suggestion_service.py` — new wave tests `tests/test_covpush_w85_{strategy,domain_marketplace,reflection,pm_orchestrator,graduation,blueprint_healer,multi_entity_validator,entity_schema}.py` (**90 new tests**). Source fixes: `core/coordinated_strategy_service.py`, `core/domain_marketplace_service.py`, `core/pm_orchestrator.py`, `core/graduation_service.py`.
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time; `rm -f .coverage` first — stale coverage data merges and corrupts reports):
+1. RED proof (before source fixes): `recruit_diverse_partner` fallback returned the **strategy's own initiator as its "diverse partner"**; `install_domain` with a raising template fetch → **uncaught RuntimeError 500** (fetch sat outside the try/except, unlike every other failure path); `provision_from_deal(..., workspace_id="ws-custom")` → **contract + PM engine + external sync all silently got hardcoded "default"**; `_promote_skill_path` on an agent with existing promoted skills → **promotion silently LOST** (shallow-copied nested JSON dict equal to the DB value defeats SQLAlchemy dirty tracking → no UPDATE).
+2. New-wave combined run (single process, 8 files, `--cov` on all 8 modules) → **90 passed / 0 failed**; **TOTAL 349 stmts / 0 missing / 100%** on all eight modules.
+3. Partner-suite regression: `tests/test_graduation_success_filter.py` (2) + `tests/test_marketplace_satellite.py` (21 passed / 1 skipped) green; `tests/test_pm_external_sync.py` (2) + `tests/test_crm_to_delivery.py` (1) fail — **pre-existing** (stale suites patch `core.pm_orchestrator.SessionLocal`, an attribute that never existed — module imports `get_db_session` — so `asyncSetUp` raises AttributeError before any orchestrator code runs). mypy: environment-wide pre-existing "Source file found twice" (backend.core vs core) — fails identically on untouched `core/models.py`.
+
+### Coverage deltas (coverage.py statement counts; before = baseline placeholder run importing the modules)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/coordinated_strategy_service.py` | 13/60 / 22% | **60 / 100%** | 60 | — |
+| `core/domain_marketplace_service.py` | 13/48 / 27% | **48 / 100%** | 48 | — |
+| `core/reflection_service.py` | 20/53 / 38% | **53 / 100%** | 53 | — |
+| `core/pm_orchestrator.py` | 17/49 / 35% | **49 / 100%** | 49 | — |
+| `core/graduation_service.py` | 12/38 / 32% | **38 / 100%** | 38 | — |
+| `core/blueprint_healer.py` | 10/38 / 26% | **38 / 100%** | 38 | — |
+| `core/multi_entity_validator.py` | 10/33 / 30% | **33 / 100%** | 33 | — |
+| `core/entity_schema_suggestion_service.py` | 12/30 / 40% | **30 / 100%** | 30 | — |
+
+### REAL bugs fixed (TDD red→green)
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/coordinated_strategy_service.py` | `recruit_diverse_partner` ~72 | **Strategy could recruit its own participant as "diverse partner"** — no exclusion of existing contributors; the fallback `query.first()` returned the strategy's own initiator whenever it shared the trait (or had no profile), logging "Recruited diverse partner" for an agent already in the room | `contributor_ids` derived from `strategy.contributions` and excluded via `~AgentRegistry.id.in_(contributor_ids)` before both the trait scan and the fallback |
+| `core/domain_marketplace_service.py` | `install_domain` ~59 | **Template-fetch failure escaped as an uncaught 500** — `saas_client.get_domain_template_sync()` sat outside the try/except, so a SaaS outage raised instead of returning the `{"success": False, "error": ...}` envelope every other failure path returns (and no rollback ran) | Moved the fetch (and the not-found early return) inside the existing try block |
+| `core/pm_orchestrator.py` | `provision_from_deal` ~34-74 | **`workspace_id` parameter silently ignored** — Contract, `pm_engine.generate_project_from_nl` and `external_pm_sync.sync_project_to_external` all received hardcoded `"default"`, so non-default-workspace calls created contracts/projects/syncs in the wrong workspace (misattribution) | Thread the passed `workspace_id` through all three call sites |
+| `core/graduation_service.py` | `_promote_skill_path` ~98 | **Skill promotions silently lost when the agent already had promoted skills** — `dict(config.get("promoted_skills") or {})` was a shallow copy; mutating the loaded nested dict in place kept the reassigned config `==` the DB value, so SQLAlchemy never marked the attribute dirty and the UPDATE never fired (same class of bug as wave-84's registry dirty-tracking fix) | Deep-copy the nested dict (`promoted_skills = dict(...)`) so assignment differs and dirty tracking triggers |
+
+### Remaining uncovered lines
+None — all eight modules 100% (349 stmts / 0 missing) in the wave-85 combined run.
+
+### Caveats
+- SQLite does not round-trip tz-aware datetimes; `CoordinatedStrategy.approved_at` correctness is verified by presence/type, not tzinfo (PG round-trips fine).
+- `pm_orchestrator` verified with `get_db_session`/`pm_engine`/`graphrag_engine`/`external_pm_sync` all patched; real `Contract`/`Deal` rows in in-memory SQLite.
+- `blueprint_healer`'s `queen` property verified via `core.service_factory.ServiceFactory.get_queen_agent` patch; the real QueenAgent construction is not exercised.
+
+---
+
 ## Session 2026-08-13 (wave 84 — 8 never-wave-tested integration/messaging core modules to 100%; 241 new tests, 6 real bugs fixed)
 
 **Files**: `core/package_feature_service.py`, `core/integration_catalog_service.py`, `core/universal_communication_bridge.py`, `core/integration_loader.py`, `core/messaging_action_dispatcher.py`, `core/activity_publisher.py`, `core/policy_search_service.py`, `core/integration_registry_v2.py` — new wave tests `tests/test_covpush_w84_{package_features,integration_catalog,comm_bridge,integration_loader,messaging_dispatcher,activity_publisher,policy_search,integration_registry}.py` (**241 new tests**). Source fixes: `core/integration_registry.py` (3 new methods), `core/integration_catalog_service.py`, `core/messaging_action_dispatcher.py`, `core/policy_search_service.py`, `core/universal_communication_bridge.py`.

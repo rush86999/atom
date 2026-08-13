@@ -68,8 +68,14 @@ class CoordinatedStrategyService:
                 if val:
                     existing_traits.append(val)
 
-        # Search for an agent with target specialty who has a NEW trait value
+        # Search for an agent with target specialty who has a NEW trait value.
+        # Exclude agents who already contributed (including the initiator) —
+        # recruiting a strategy's own participant as its "diverse partner"
+        # defeats the purpose (and the fallback used to return the initiator).
+        contributor_ids = [c.agent_id for c in strategy.contributions]
         query = self.db.query(AgentRegistry).filter(AgentRegistry.category == target_specialty)
+        if contributor_ids:
+            query = query.filter(~AgentRegistry.id.in_(contributor_ids))
         
         potential_agents = query.all()
         for agent in potential_agents:
