@@ -87,11 +87,10 @@ def _recover_agent_executions(session: Session) -> int:
         meta = {}
         if row.metadata_json:
             try:
-                meta = (
-                    row.metadata_json
-                    if isinstance(row.metadata_json, dict)
-                    else dict(row.metadata_json)
-                )
+                # dict(...) copies so the stamped dict is a NEW object; mutating
+                # and re-assigning the ORM's own JSON dict in place does not
+                # register a change, so the recovery marker would never persist.
+                meta = dict(row.metadata_json)
             except (ValueError, TypeError):
                 meta = {}
         meta.setdefault("recovery", {})

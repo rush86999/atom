@@ -117,7 +117,11 @@ A:"""
         except Exception:
             return f"{sql} AND workspace_id = '{safe_ws}'"
 
-        has_where = any(t.ttype is sqlparse.tokens.Keyword and t.value.upper() == 'WHERE' for t in parsed.tokens)
+        # sqlparse 0.5.x lumps "WHERE ..." into a single Other token instead
+        # of a Keyword, so a Keyword-only check never matches real queries —
+        # the filter would be appended AFTER the existing WHERE clause,
+        # producing invalid double-WHERE SQL. Match on the raw text instead.
+        has_where = bool(re.search(r"\bWHERE\b", sql, re.I))
 
         if has_where:
             sql_with_workspace = re.sub(r'\bWHERE\b', f"WHERE workspace_id = '{safe_ws}' AND", sql, count=1, flags=re.I)

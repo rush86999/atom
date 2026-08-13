@@ -9,11 +9,15 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from .linear_service import linear_service
+from .linear_service import LinearService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/linear", tags=["linear"])
+
+# Module-level singleton (legacy linear_service instance removed from the
+# service module — construct the default instance here so the router loads).
+linear_service = LinearService()
 
 
 # Pydantic models
@@ -44,7 +48,8 @@ async def handle_oauth_callback(code: str, redirect_uri: str = "http://localhost
         tokens = await linear_service.exchange_token(code, redirect_uri)
         return {"ok": True, "status": "success", **tokens, "timestamp": datetime.now().isoformat()}
     except Exception as e:
-        return {"ok": False, "status": "error", "message": str(e), "timestamp": datetime.now().isoformat()}
+        logger.error(f"Linear OAuth callback failed: {e}")
+        return {"ok": False, "status": "error", "message": "Token exchange failed", "timestamp": datetime.now().isoformat()}
 
 
 @router.get("/viewer")

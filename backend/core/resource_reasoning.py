@@ -41,7 +41,12 @@ class ResourceReasoningEngine:
                 
                 # Semantic Skill Match
                 skill_score = 0.5
-                user_skills = set(s.strip().lower() for s in user.skills.split(",")) if user.skills else set()
+                # The User model's `skills` column is currently commented out
+                # (core/models.py) — degrade gracefully to "no skills recorded"
+                # instead of crashing on the missing attribute (mirrors
+                # workforce_analytics.map_skill_gaps).
+                raw_skills = getattr(user, "skills", None)
+                user_skills = set(s.strip().lower() for s in raw_skills.split(",")) if raw_skills else set()
                 
                 # 1. Check for explicit required_skills in metadata
                 match_content = f"{task_name} {task_description or ''}".lower()
