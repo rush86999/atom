@@ -14,9 +14,13 @@ from core.integration_service import IntegrationService
 
 try:
     from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
-    from ai_enhanced_service import ai_enhanced_service
 except ImportError:
     logging.warning("Core services not available for Meta Business Service")
+
+try:
+    from ai_enhanced_service import ai_enhanced_service  # noqa: F401 - optional legacy module
+except ImportError:
+    pass
 
 logger = logging.getLogger(__name__)
 
