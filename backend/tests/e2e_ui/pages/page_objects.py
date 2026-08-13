@@ -716,8 +716,13 @@ class ChatPage(BasePage):
             text: Message text to send
 
         Example:
-            chat_page.send_message("Hello, how can you help me?")
+            chat_page.send_message("Hello, how can you help you?")
         """
+        # Under long-suite load the dev-overlay can steal the first click and
+        # a cold webpack compile can remount the input — wait for the input to
+        # be actually interactive before typing.
+        self.chat_input.wait_for(state="visible", timeout=15000)
+        self.hide_dev_overlays()
         self.chat_input.fill(text)
         self.send_button.click()
 
