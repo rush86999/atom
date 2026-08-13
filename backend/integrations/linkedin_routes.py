@@ -1,13 +1,22 @@
 from datetime import datetime
+import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 try:
-    from .linkedin_service import get_linkedin_service
+    from .linkedin_service import LinkedInService
+
     LINKEDIN_AVAILABLE = True
-except ImportError:
+except ImportError:  # pragma: no cover - service is always present
     LINKEDIN_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
+
+
+def get_linkedin_service():
+    """Construct the LinkedIn service (legacy factory — service is stateless)."""
+    return LinkedInService(tenant_id="system")
 
 # Auth Type: OAuth2
 router = APIRouter(prefix="/api/linkedin", tags=["linkedin"])
@@ -162,5 +171,5 @@ async def linkedin_health():
     """Health check for LinkedIn integration"""
     if LINKEDIN_AVAILABLE:
         service = get_linkedin_service()
-        return await service.health_check()
+        return service.health_check()
     return await linkedin_status()

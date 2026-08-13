@@ -9,9 +9,19 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from .tableau_service import get_tableau_service
+try:
+    from .tableau_service import TableauService
+
+    TABLEAU_AVAILABLE = True
+except ImportError:  # pragma: no cover - service is always present
+    TABLEAU_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+
+def get_tableau_service():
+    """Construct the Tableau service (legacy factory — service is stateless)."""
+    return TableauService(tenant_id="system")
 
 router = APIRouter(prefix="/api/tableau", tags=["tableau"])
 
@@ -122,7 +132,7 @@ async def tableau_health():
     """Health check for Tableau integration"""
     try:
         service = get_tableau_service()
-        health = await service.health_check()
+        health = service.health_check()
         return health
     except Exception as e:
         return {"ok": False, "status": "unhealthy", "error": str(e), "timestamp": datetime.now().isoformat()}
