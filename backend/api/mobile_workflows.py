@@ -114,11 +114,20 @@ async def get_mobile_workflows(
                    search_lower in w.get("description", "").lower()
             ]
 
-        # Apply sorting
+        # Apply sorting. R81: the durable store writes camelCase `createdAt`
+        # while the mobile contract keys on snake_case `created_at` — sorting
+        # by the always-missing key kept insertion order and dropped the
+        # NEWEST workflows past the 50-row page. Fall back to `createdAt`.
+        def _sort_key(wf: dict):
+            value = wf.get(sort_by)
+            if not value and sort_by == "created_at":
+                value = wf.get("createdAt", "")
+            return value or ""
+
         if sort_order == "desc":
-            workflows.sort(key=lambda x: x.get(sort_by, ""), reverse=True)
+            workflows.sort(key=_sort_key, reverse=True)
         else:
-            workflows.sort(key=lambda x: x.get(sort_by, ""))
+            workflows.sort(key=_sort_key)
 
         # Apply pagination
         workflows = workflows[offset:offset + limit]
@@ -138,7 +147,10 @@ async def get_mobile_workflows(
 
             # Get last execution
             last_exec = max(executions, key=lambda e: e.created_at, default=None)
-            last_execution = last_exec.started_at.isoformat() if last_exec else None
+            # R81: WorkflowExecution has no `started_at` column (created_at is
+            # the start timestamp) — this AttributeError 500'd the whole mobile
+            # list whenever any workflow had executions.
+            last_execution = last_exec.created_at.isoformat() if last_exec else None
 
             mobile_workflows.append(MobileWorkflowSummary(
                 id=workflow_id,

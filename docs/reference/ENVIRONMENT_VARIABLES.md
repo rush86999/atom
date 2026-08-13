@@ -48,7 +48,7 @@ disabled until you configure a provider (see §6).
 | `APP_URL` | `http://localhost:3000` | — | App's public URL (password-reset links, OAuth redirects). |
 | `CORS_ORIGINS` | `http://localhost:3000,...:3001` | — | Comma-separated allowed browser origins. |
 | `ALLOWED_ORIGINS` | (same as CORS_ORIGINS) | — | Read by `main_api_app.py` CORSMiddleware. |
-| `DISABLE_AUTH_RATE_LIMIT` | unset | — | Set to `1` to lift register/login rate limits (dev/E2E only). |
+| `BYPASS_RATE_LIMIT` | unset | — | Set to `1` to lift register/login rate limits (dev/E2E only). |
 
 ---
 

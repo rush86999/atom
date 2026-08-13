@@ -122,7 +122,7 @@ def test_line_chart_renders(authenticated_page: Page, authenticated_user: Tuple[
     # Verify line chart SVG is visible
     assert chart_page.is_loaded(), "Line chart should be loaded"
     assert chart_page.get_chart_type() == "line", "Chart type should be 'line'"
-    assert chart_page.line_chart_svg.is_visible(), "Line chart SVG should be visible"
+    assert chart_page.line_chart_svg.first.is_visible(), "Line chart SVG should be visible"
 
 
 def test_line_chart_data_points(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
@@ -191,7 +191,7 @@ def test_bar_chart_renders(authenticated_page: Page, authenticated_user: Tuple[U
     # Verify bar chart is visible
     assert chart_page.is_loaded(), "Bar chart should be loaded"
     assert chart_page.get_chart_type() == "bar", "Chart type should be 'bar'"
-    assert chart_page.bar_chart_svg.is_visible(), "Bar chart SVG should be visible"
+    assert chart_page.bar_chart_svg.first.is_visible(), "Bar chart SVG should be visible"
 
 
 def test_bar_chart_categories(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):
@@ -261,7 +261,7 @@ def test_pie_chart_renders(authenticated_page: Page, authenticated_user: Tuple[U
     # Verify pie chart is visible
     assert chart_page.is_loaded(), "Pie chart should be loaded"
     assert chart_page.get_chart_type() == "pie", "Chart type should be 'pie'"
-    assert chart_page.pie_chart_svg.is_visible(), "Pie chart SVG should be visible"
+    assert chart_page.pie_chart_svg.first.is_visible(), "Pie chart SVG should be visible"
 
 
 def test_pie_chart_labels(authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session):

@@ -83,6 +83,10 @@ def create_authenticated_page_timeout(timeout_api_context, user: User, base_url:
         localStorage.setItem('auth_token', '{token}');
     }}""")
 
+    # middleware.ts gates routes on the auth_token COOKIE, not localStorage
+    from tests.e2e_ui.fixtures.network_fixtures import set_auth_cookie
+    set_auth_cookie(timeout_api_context, base_url, token)
+
     return page
 
 
@@ -195,7 +199,7 @@ def test_api_timeout_during_canvas_presentation(timeout_api_context, db_session:
     page.wait_for_timeout(1000)
 
     # Try to present canvas (will timeout after 30s)
-    present_button = page.locator("button:has-text('Present'), button:has_text('Show Chart')").first
+    present_button = page.locator("button:has-text('Present'), button:has-text('Show Chart')").first
     if present_button.count() > 0:
         # Record start time
         start_time = time.time()

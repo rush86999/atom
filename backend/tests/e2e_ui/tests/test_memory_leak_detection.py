@@ -12,6 +12,9 @@ Test Coverage:
 - Event listener memory leaks (repeated add/remove)
 """
 
+import uuid
+from datetime import datetime
+
 import pytest
 from typing import Dict, Any
 
@@ -82,7 +85,7 @@ def test_memory_leak_agent_execution(cdp_session, authenticated_page_api, db_ses
 
             # Execute agent via API
             response = authenticated_page_api.request.post(
-                f"http://localhost:8000/api/v1/agents/{agent.id}/execute",
+                f"http://localhost:8001/api/v1/agents/{agent.id}/execute",
                 headers={"Content-Type": "application/json"},
                 data={"query": f"Test query {i}"}
             )
@@ -129,7 +132,7 @@ def test_memory_leak_agent_execution(cdp_session, authenticated_page_api, db_ses
 
 @pytest.mark.e2e
 @pytest.mark.memory
-def test_memory_leak_canvas_cycles(cdp_session, authenticated_page_api, db_session):
+def test_memory_leak_canvas_cycles(cdp_session, authenticated_page_api, db_session, setup_test_user):
     """Test for memory leaks during rapid canvas present/close cycles.
 
     This test presents and closes canvas 20 times using different canvas types
@@ -143,28 +146,51 @@ def test_memory_leak_canvas_cycles(cdp_session, authenticated_page_api, db_sessi
         cdp_session: CDP session fixture for heap snapshots
         authenticated_page_api: Authenticated page fixture
         db_session: Database session fixture
+        setup_test_user: API-created user the page is authenticated as
     """
     # Import here to avoid circular dependencies
-    from backend.tests.e2e_ui.fixtures.test_data_factory import CanvasFactory
-    from core.models import Canvas
+    from tests.e2e_ui.tests.canvas_helpers import create_canvas
+    from core.models import User
 
-    # Create test canvases of different types
+    # The /canvas/{id} route enforces ownership — the canvas must be owned by
+    # the SAME user the authenticated page acts as.
+    owner = db_session.query(User).filter(
+        User.email == setup_test_user["email"]
+    ).first()
+    if owner is None:
+        owner = User(
+            id=str(uuid.uuid4()),
+            email=setup_test_user["email"],
+            hashed_password="x",
+            first_name="Memory",
+            last_name="Tester",
+            role="member",
+            status="active",
+            created_at=datetime.utcnow(),
+        )
+        db_session.add(owner)
+        db_session.commit()
+        db_session.refresh(owner)
+
     canvas_types = [
-        ("chart", {"type": "line", "title": "Test Chart"}),
-        ("sheet", {"rows": 10, "cols": 5, "data": [[1, 2, 3, 4, 5]]}),
-        ("form", {"fields": [{"name": "test", "type": "text"}]}),
-        ("docs", {"content": "# Test Document\n\nTest content here."}),
+        ("line_chart", {"title": "Test Chart", "data": [{"timestamp": 1, "value": 10}]}),
+        ("markdown", {"content": "# Test Document\n\nTest content here."}),
+        ("form", {"schema": {"fields": [{"name": "test", "type": "text"}]}, "title": "Test Form"}),
+        ("markdown", {"content": "# Second Document\n\nMore content."}),
     ]
 
     canvases = []
     for canvas_type, config in canvas_types:
-        canvas = CanvasFactory.create_canvas(
+        canvas_id = f"memory-test-{uuid.uuid4()}"
+        create_canvas(
             db_session,
-            type=canvas_type,
-            title=f"Memory Test {canvas_type.title()}",
-            config=config
+            owner,
+            canvas_id,
+            canvas_type,
+            f"Memory Test {canvas_type.title()}",
+            config,
         )
-        canvases.append(canvas)
+        canvases.append(canvas_id)
 
     # Take initial heap snapshot
     before_snapshot = get_heap_snapshot(cdp_session)
@@ -174,14 +200,15 @@ def test_memory_leak_canvas_cycles(cdp_session, authenticated_page_api, db_sessi
 
     # Present and close canvas 20 times (rapid cycling)
     for i in range(20):
-        for canvas in canvases:
+        for canvas_id in canvases:
             try:
                 # Navigate to canvas page
-                authenticated_page_api.goto(f"http://localhost:3001/canvas/{canvas.id}")
+                authenticated_page_api.goto(f"http://localhost:3001/canvas/{canvas_id}")
+                authenticated_page_api.wait_for_load_state("domcontentloaded")
 
                 # Present canvas via API
                 response = authenticated_page_api.request.post(
-                    f"http://localhost:8000/api/v1/canvas/{canvas.id}/present",
+                    f"http://localhost:8001/api/v1/canvas/{canvas_id}/present",
                     headers={"Content-Type": "application/json"}
                 )
 

@@ -129,45 +129,37 @@ def offline_mode_context(browser: Browser) -> Tuple[BrowserContext, Callable, Ca
 
     def go_offline() -> None:
         """Enable offline mode (simulate network disconnection)."""
+        # BUG-FIX (2026-08-13): the old code called
+        # context._impl_obj._set_offline(True) FIRST and nested the CDP
+        # fallback INSIDE the same try. _set_offline doesn't exist in the
+        # current Playwright version and raised AttributeError, which jumped
+        # straight to the outer except and skipped the CDP emulation — so
+        # "offline" never actually applied and the tests ran fully online.
+        # CDP Network.emulateNetworkConditions is the reliable mechanism
+        # (verified: fetch() rejects with "Failed to fetch" while offline).
         try:
-            # Method 1: Set context offline flag (Playwright native)
-            context._impl_obj._set_offline(True)
-
-            # Method 2: Use CDP to block network (Chrome-specific)
-            try:
-                page = context.pages[0] if context.pages else context.new_page()
-                cdpsession = context.new_cdp_session(page)
-                cdpsession.send("Network.emulateNetworkConditions", {
-                    "offline": True,
-                    "downloadThroughput": 0,
-                    "uploadThroughput": 0,
-                    "latency": 0
-                })
-            except Exception:
-                pass  # CDP not available, rely on context offline flag
-
+            page = context.pages[0] if context.pages else context.new_page()
+            cdpsession = context.new_cdp_session(page)
+            cdpsession.send("Network.emulateNetworkConditions", {
+                "offline": True,
+                "downloadThroughput": 0,
+                "uploadThroughput": 0,
+                "latency": 0
+            })
         except Exception as e:
             print(f"Warning: Could not enable offline mode: {e}")
 
     def come_online() -> None:
         """Disable offline mode (simulate network reconnection)."""
         try:
-            # Method 1: Unset context offline flag
-            context._impl_obj._set_offline(False)
-
-            # Method 2: Use CDP to restore network (Chrome-specific)
-            try:
-                page = context.pages[0] if context.pages else context.new_page()
-                cdpsession = context.new_cdp_session(page)
-                cdpsession.send("Network.emulateNetworkConditions", {
-                    "offline": False,
-                    "downloadThroughput": -1,  # -1 = no throttling
-                    "uploadThroughput": -1,
-                    "latency": 0
-                })
-            except Exception:
-                pass  # CDP not available, rely on context offline flag
-
+            page = context.pages[0] if context.pages else context.new_page()
+            cdpsession = context.new_cdp_session(page)
+            cdpsession.send("Network.emulateNetworkConditions", {
+                "offline": False,
+                "downloadThroughput": -1,  # -1 = no throttling
+                "uploadThroughput": -1,
+                "latency": 0
+            })
         except Exception as e:
             print(f"Warning: Could not disable offline mode: {e}")
 
@@ -306,8 +298,16 @@ def database_drop_simulation(browser: Browser, base_url: str) -> Tuple[Page, Cal
     sqlite_db_path = None
     original_db_perms = None
 
-    def simulate_db_drop() -> None:
-        """Simulate database connection drop."""
+    def simulate_db_drop() -> bool:
+        """Simulate database connection drop.
+
+        Returns:
+            bool: True if the drop simulation actually took effect (verified
+            by probing a fresh connection's write path), False otherwise —
+            e.g. chmod'ing a SQLite file read-only does NOT break a live
+            backend whose connection pool already holds open file
+            descriptors; macOS also lets existing FDs keep writing.
+        """
         nonlocal sqlite_db_path, original_db_perms
 
         if is_sqlite:
@@ -315,6 +315,24 @@ def database_drop_simulation(browser: Browser, base_url: str) -> Tuple[Page, Cal
             # Extract database path from DATABASE_URL
             if "sqlite:///" in database_url:
                 sqlite_db_path = database_url.replace("sqlite:///", "")
+
+                # BUG-FIX (2026-08-13): never chmod the SQLite file when a
+                # LIVE backend shares it (ATOM_E2E_PRESERVE_DB=1). SQLite
+                # decides read-only at connection OPEN time, so connections
+                # the backend opens during the chmod window stay read-only
+                # FOREVER (even after restore) — poisoning its QueuePool
+                # (pool_recycle=3600s) and 500ing every subsequent
+                # register/login until the pool recycles. The failure-path
+                # assertions are simply not testable against a live shared
+                # backend; tests skip via the return value instead.
+                if os.getenv("ATOM_E2E_PRESERVE_DB", "0") == "1":
+                    print(
+                        "Skipping SQLite chmod: ATOM_E2E_PRESERVE_DB=1 "
+                        "(live backend shares this DB — chmod would poison "
+                        "its connection pool)"
+                    )
+                    return False
+
                 if not os.path.isabs(sqlite_db_path):
                     # Relative path, resolve from backend directory
                     backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -326,6 +344,22 @@ def database_drop_simulation(browser: Browser, base_url: str) -> Tuple[Page, Cal
                     os.chmod(sqlite_db_path, 0o444)  # Read-only
                     print(f"Locked SQLite database: {sqlite_db_path}")
 
+                # Verify the drop took effect for NEW connections: a fresh
+                # engine opening the chmod'ed file must NOT be able to write.
+                try:
+                    import sqlalchemy as _sa
+                    from sqlalchemy import text as _text
+                    probe_engine = _sa.create_engine(database_url)
+                    with probe_engine.connect() as conn:
+                        conn.execute(_text("CREATE TABLE _db_drop_probe (x INTEGER)"))
+                        conn.execute(_text("DROP TABLE _db_drop_probe"))
+                        conn.commit()
+                    # Writes still work -> the drop simulation did not apply.
+                    return False
+                except Exception:
+                    return True
+            return False
+
         elif is_postgresql:
             # Strategy 2: Stop PostgreSQL service (requires systemd/sudo)
             # This will only work in CI/CD with proper permissions
@@ -336,6 +370,7 @@ def database_drop_simulation(browser: Browser, base_url: str) -> Tuple[Page, Cal
                     timeout=10
                 )
                 print("Stopped PostgreSQL service")
+                return True
             except FileNotFoundError:
                 # pg_ctl not found, try systemctl (Linux)
                 try:
@@ -345,14 +380,18 @@ def database_drop_simulation(browser: Browser, base_url: str) -> Tuple[Page, Cal
                         timeout=10
                     )
                     print("Stopped PostgreSQL service via systemctl")
+                    return True
                 except Exception as e:
                     print(f"Warning: Could not stop PostgreSQL: {e}")
+                    return False
             except Exception as e:
                 print(f"Warning: Could not stop PostgreSQL: {e}")
+                return False
         else:
             # Fallback: No database-specific action
             # Tests should skip if database type not supported
             pytest.skip(f"Database drop simulation not implemented for: {database_url}")
+            return False
 
     def restore_db() -> None:
         """Restore database connection."""
@@ -407,6 +446,71 @@ def database_drop_simulation(browser: Browser, base_url: str) -> Tuple[Page, Cal
 # =============================================================================
 # Network Condition Helper Functions
 # =============================================================================
+
+def set_auth_cookie(context: BrowserContext, base_url: str, token: str) -> None:
+    """Set the auth_token cookie required by the Next.js auth middleware.
+
+    frontend-nextjs/middleware.ts gates every non-public route on the
+    auth_token cookie (set by lib/auth.ts on real login). localStorage alone
+    is NOT enough — without the cookie, navigating to /dashboard or /agents
+    bounces to /login?callbackUrl=... This helper must be called after a JWT
+    is injected into localStorage by the network test helpers.
+
+    Args:
+        context: Playwright browser context
+        base_url: Frontend base URL (e.g. http://localhost:3001)
+        token: JWT access token
+    """
+    context.add_cookies([
+        {"name": "auth_token", "value": token, "url": f"{base_url}/"},
+    ])
+
+
+def hide_nextjs_overlays(page: Page) -> None:
+    """Hide Next.js dev-mode overlays that intercept pointer events.
+
+    The Next.js 16 dev-tools floating button (``<nextjs-portal>``) is an
+    absolutely-positioned full-viewport element that swallows clicks in dev
+    mode. CSS-hiding it keeps form clicks deterministic without touching app
+    code.
+
+    Two mechanisms, because the overlay can mount at any time (hydration,
+    HMR websocket drops, webpack recompiles):
+    1. context.add_init_script — the kill-CSS + a MutationObserver run on
+       EVERY new document, so portals are removed at birth after
+       navigations.
+    2. An immediate evaluate on the CURRENT document — add_init_script does
+       NOT run on documents that are already loaded, so the current page
+       gets the same style + observer injected directly.
+    """
+    # IMPORTANT: hide via CSS (display:none), never el.remove(). Next.js's
+    # dev overlay re-mounts the portal when its HMR websocket drops (go
+    # offline!) and retries — remove() fights the remount and can spin a
+    # mount→remove→mount loop that pegs the page's JS thread and hangs
+    # context.close() in teardown forever. display:none is idempotent and
+    # does not mutate the DOM tree, so the observer settles immediately.
+    KILL_JS = """
+        const style = document.createElement('style');
+        style.textContent = 'nextjs-portal, .nextjs-portal { display: none !important; }';
+        (document.head || document.documentElement).appendChild(style);
+        const hide = () => {
+            document.querySelectorAll('nextjs-portal, .nextjs-portal')
+                .forEach(el => { el.style.display = 'none'; });
+        };
+        hide();
+        new MutationObserver(hide).observe(
+            document.documentElement, {childList: true, subtree: true});
+    """
+    try:
+        context = page.context
+        context.add_init_script(KILL_JS)
+    except Exception:
+        pass
+    try:
+        page.evaluate(KILL_JS)
+    except Exception:
+        pass
+
 
 def verify_network_error(page: Page) -> bool:
     """Verify that a network error message is visible on the page.

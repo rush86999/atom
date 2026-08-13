@@ -38,6 +38,15 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
     Middleware to block common malicious patterns (XSS, SQLi, etc.) in request parameters and body.
     """
 
+    # Paths exempt from body-content validation. Skill import accepts CODE by
+    # design (SKILL.md bodies; canonical python skills declare
+    # ``def execute(inputs)``, which matches the generic ``exec\(`` pattern) —
+    # blocking it would reject every python skill at the web layer. Skill
+    # content is instead governed by the dedicated pipeline downstream:
+    # SkillSecurityScanner (static + LLM scan, fail-open), sandbox execution
+    # and maturity gating in SkillRegistryService.
+    SKIP_CONTENT_VALIDATION_PATHS = ("/api/skills/import",)
+
     def __init__(self, app):
         super().__init__(app)
         # R55: hard cap on request bodies — request.body() allocates the
@@ -97,7 +106,10 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
                 )
 
         # Validate POST/PUT/PATCH bodies
-        if request.method in ["POST", "PUT", "PATCH"]:
+        if (
+            request.method in ["POST", "PUT", "PATCH"]
+            and request.url.path not in self.SKIP_CONTENT_VALIDATION_PATHS
+        ):
             try:
                 body = await self._read_body_with_limit(request)
                 body_str = body.decode("utf-8", errors="ignore")

@@ -76,6 +76,23 @@ class BasePage:
         except TimeoutError:
             raise
 
+    def hide_dev_overlays(self) -> None:
+        """Hide Next.js dev-mode overlays that intercept pointer events.
+
+        The Next.js 16 dev-tools floating button (``<nextjs-portal>``) is an
+        absolutely-positioned full-viewport element that sits on top of the
+        page in dev mode and swallows clicks (e.g. on the chat send button in
+        the bottom-right corner). It only exists in the dev server; hiding it
+        via CSS keeps E2E selectors deterministic without touching app code.
+        """
+        try:
+            self.page.add_style_tag(
+                content="nextjs-portal, .nextjs-portal { display: none !important; }"
+            )
+        except Exception:
+            # Non-fatal: only affects dev overlays, not the app under test.
+            pass
+
 
 class LoginPage(BasePage):
     """Page Object for Login page.
@@ -546,19 +563,49 @@ class SettingsPage(BasePage):
             self.page.get_by_role("option", name=frequency, exact=True).click()
 
     def click_save(self) -> None:
-        """Wait for the auto-save to complete.
+        """Wait for the auto-save to persist to the backend.
 
         The real PreferencesTab saves each change immediately (POST
-        /api/v1/preferences) — there is no Save button. Kept for API
-        compatibility with older journey tests: it just lets the save
-        round-trip finish before callers assert state.
+        /api/v1/preferences, proxied via the Next.js /api rewrite) — there is
+        no Save button. Kept for API compatibility with older journey tests.
+
+        Polls the backend until the saved preference is actually persisted
+        (fresh users start with empty prefs, so any non-empty GET response
+        proves the auto-save POST round-tripped) instead of sleeping a fixed
+        amount — a fixed sleep is flaky under load when backend contention
+        delays the POST, which then makes reload-based persistence assertions
+        fail.
 
         Example:
             settings.set_theme("dark")
             settings.click_save()
             assert settings.get_current_theme() == "Dark"
         """
-        self.page.wait_for_timeout(800)  # Auto-save POST round-trip
+        import os
+        import time as _time
+
+        import requests as _requests
+
+        token = self.page.evaluate("() => localStorage.getItem('auth_token')")
+        api_url = os.getenv("API_BASE_URL") or "http://localhost:8001"
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+
+        deadline = _time.time() + 10
+        while _time.time() < deadline:
+            try:
+                resp = _requests.get(
+                    f"{api_url}/api/v1/preferences?workspace_id=default",
+                    headers=headers,
+                    timeout=3
+                )
+                if resp.status_code == 200 and resp.json():
+                    return
+            except Exception:
+                pass
+            self.page.wait_for_timeout(500)
+        # Fall back: give the UI its own round-trip a bit longer when the
+        # backend is unreachable from the test process (unusual env).
+        self.page.wait_for_timeout(1500)
 
     def save_settings(self) -> None:
         """Save current settings (auto-save UI — waits for the round-trip).
@@ -660,6 +707,7 @@ class ChatPage(BasePage):
             assert chat_page.is_loaded()
         """
         self.page.goto(f"{self.base_url}/chat")
+        self.hide_dev_overlays()
 
     def send_message(self, text: str) -> None:
         """Type and send a chat message.
@@ -702,10 +750,10 @@ class ChatPage(BasePage):
         all_messages = []
         # Get user messages
         for msg in self.user_message.all():
-            all_messages.append(("user", msg.text_content()))
+            all_messages.append(msg.text_content() or "")
         # Get assistant messages
         for msg in self.assistant_message.all():
-            all_messages.append(("assistant", msg.text_content()))
+            all_messages.append(msg.text_content() or "")
         return all_messages
 
     def get_message_count(self) -> int:
@@ -850,231 +898,194 @@ class ChatPage(BasePage):
 
 
 class ProjectsPage(BasePage):
-    """Page Object for Projects dashboard page.
+    """Page Object for the Project Command Center (dashboards/projects).
 
-    Encapsulates project list, create, edit, and delete interactions.
+    Real UI: `components/dashboards/ProjectCommandCenter.tsx` — a unified
+    task board over CONNECTED project-management platforms (Jira/Asana/etc.),
+    not a local CRUD app. There is no edit/delete UI and no local project
+    store: tasks are fetched live from /api/atom/projects/live/board and
+    created via the Quick Create modal (POST /api/intelligence/execute ->
+    create_task tool). In a sandboxed env with no connected platforms the
+    table renders an empty state and creation fails gracefully.
 
-    Uses data-testid selectors for resilience.
+    Test IDs (wired in ProjectCommandCenter.tsx, contract in
+    frontend-nextjs/src/lib/testIds.ts): projects-page, quick-create-button,
+    create-project-modal, project-name-input, project-platform-jira,
+    project-platform-asana, modal-save-button, modal-cancel-button,
+    projects-table, project-task-row, project-task-name, projects-empty-state,
+    project-search-input, projects-stats-total-tasks, projects-sync-settings-button.
     """
 
     # Locators
     @property
-    def projects_list(self) -> Locator:
-        """Project list/grid locator."""
-        return self.page.get_by_test_id("projects-list")
-
-    @property
-    def project_cards(self) -> Locator:
-        """Individual project card locators."""
-        return self.page.get_by_test_id("project-card")
-
-    @property
-    def create_project_button(self) -> Locator:
-        """Create project button locator."""
-        return self.page.get_by_test_id("create-project-button")
+    def page_root(self) -> Locator:
+        """Root container of the Project Command Center."""
+        return self.page.get_by_test_id("projects-page")
 
     @property
     def quick_create_button(self) -> Locator:
-        """Quick Create button in ProjectCommandCenter."""
+        """Quick Create button (opens the create-task modal)."""
         return self.page.get_by_test_id("quick-create-button")
 
     @property
+    def sync_settings_button(self) -> Locator:
+        """Sync Settings toggle button."""
+        return self.page.get_by_test_id("projects-sync-settings-button")
+
+    @property
+    def search_input(self) -> Locator:
+        """Task search input."""
+        return self.page.get_by_test_id("project-search-input")
+
+    @property
     def create_modal(self) -> Locator:
-        """Create project modal dialog."""
+        """Create-task modal dialog."""
         return self.page.get_by_test_id("create-project-modal")
 
     @property
     def project_name_input(self) -> Locator:
-        """Project name input in create modal."""
+        """Task title input inside the create modal."""
         return self.page.get_by_test_id("project-name-input")
 
     @property
-    def project_description_input(self) -> Locator:
-        """Project description textarea."""
-        return self.page.get_by_test_id("project-description-input")
+    def platform_jira_button(self) -> Locator:
+        """Jira platform picker inside the create modal."""
+        return self.page.get_by_test_id("project-platform-jira")
+
+    @property
+    def platform_asana_button(self) -> Locator:
+        """Asana platform picker inside the create modal."""
+        return self.page.get_by_test_id("project-platform-asana")
 
     @property
     def modal_save_button(self) -> Locator:
-        """Save button in create/edit modal."""
+        """Create Task submit button inside the modal."""
         return self.page.get_by_test_id("modal-save-button")
 
     @property
     def modal_cancel_button(self) -> Locator:
-        """Cancel button in create/edit modal."""
+        """Cancel button inside the modal."""
         return self.page.get_by_test_id("modal-cancel-button")
 
     @property
-    def delete_confirmation_dialog(self) -> Locator:
-        """Delete confirmation dialog."""
-        return self.page.get_by_test_id("delete-confirmation-dialog")
+    def projects_table(self) -> Locator:
+        """Tasks table."""
+        return self.page.get_by_test_id("projects-table")
 
     @property
-    def confirm_delete_button(self) -> Locator:
-        """Confirm delete button."""
-        return self.page.get_by_test_id("confirm-delete-button")
+    def task_rows(self) -> Locator:
+        """Individual task rows in the table."""
+        return self.page.get_by_test_id("project-task-row")
 
     @property
-    def cancel_delete_button(self) -> Locator:
-        """Cancel delete button."""
-        return self.page.get_by_test_id("cancel-delete-button")
+    def task_names(self) -> Locator:
+        """Task name cells in the table."""
+        return self.page.get_by_test_id("project-task-name")
+
+    @property
+    def empty_state(self) -> Locator:
+        """Empty state row (no connected-platform tasks)."""
+        return self.page.get_by_test_id("projects-empty-state")
+
+    @property
+    def stat_total_tasks(self) -> Locator:
+        """Total Tasks stat value."""
+        return self.page.get_by_test_id("projects-stats-total-tasks")
 
     def is_loaded(self) -> bool:
-        """Check if projects page is loaded.
+        """Check if the Project Command Center is loaded.
 
         Returns:
-            bool: True if projects list is visible
-
-        Example:
-            assert projects_page.is_loaded() is True
+            bool: True if the Quick Create button is visible
         """
-        # Check for Quick Create button as indicator of page load
         return self.quick_create_button.is_visible()
 
     def navigate(self) -> None:
-        """Navigate to projects dashboard.
+        """Navigate to the Project Command Center.
 
         Example:
             projects_page.navigate()
             assert projects_page.is_loaded()
         """
         self.page.goto(f"{self.base_url}/dashboards/projects")
+        try:
+            self.page.wait_for_selector(
+                "[data-testid='quick-create-button']",
+                timeout=20000
+            )
+        except Exception:
+            # Redirected to login (unauthenticated) — is_loaded() reports False.
+            pass
 
     def get_project_count(self) -> int:
-        """Get number of projects displayed.
+        """Get number of task rows displayed.
 
         Returns:
-            int: Number of project cards visible
-
-        Example:
-            count = projects_page.get_project_count()
-            assert count > 0
+            int: Number of task rows (0 when the empty state is shown)
         """
-        return self.project_cards.count()
+        if self.empty_state.is_visible():
+            return 0
+        return self.task_rows.count()
 
     def get_project_names(self) -> list[str]:
-        """Get list of project names displayed.
+        """Get the list of task names displayed.
 
         Returns:
-            list[str]: List of project names
-
-        Example:
-            names = projects_page.get_project_names()
-            assert "My Project" in names
+            list[str]: Task names (empty when no tasks are displayed)
         """
         names = []
-        cards = self.project_cards.all()
-        for card in cards:
-            name_el = card.get_by_test_id("project-name")
+        for name_el in self.task_names.all():
             if name_el.is_visible():
-                names.append(name_el.text_content())
+                names.append(name_el.text_content() or "")
         return names
 
     def open_create_modal(self) -> None:
-        """Open create project modal.
+        """Open the Quick Create modal.
 
         Example:
             projects_page.open_create_modal()
             assert projects_page.create_modal.is_visible()
         """
         self.quick_create_button.click()
-        # Wait for modal animation
-        self.page.wait_for_timeout(300)
+        self.create_modal.wait_for(state="visible", timeout=5000)
 
-    def fill_project_form(self, name: str, description: str = "") -> None:
-        """Fill project creation form.
+    def fill_project_form(self, name: str, platform: str = "jira") -> None:
+        """Fill the Quick Create form.
 
         Args:
-            name: Project name
-            description: Optional project description
+            name: Task title
+            platform: Target platform ("jira" or "asana")
 
         Example:
-            projects_page.fill_project_form("My Project", "Description")
+            projects_page.fill_project_form("My Task", "jira")
         """
         self.project_name_input.fill(name)
-        if description:
-            self.project_description_input.fill(description)
+        if platform == "asana":
+            self.platform_asana_button.click()
+        else:
+            self.platform_jira_button.click()
 
     def submit_create_form(self) -> None:
-        """Submit create project form.
-
-        Example:
-            projects_page.submit_create_form()
-            # Project created, modal closes
-        """
+        """Submit the Quick Create form (Create Task)."""
         self.modal_save_button.click()
 
-    def create_project(self, name: str, description: str = "") -> None:
-        """Complete project creation flow.
-
-        Convenience method that combines opening modal,
-        filling form, and submitting.
+    def create_project(self, name: str, platform: str = "jira") -> None:
+        """Complete the Quick Create flow (modal -> fill -> submit).
 
         Args:
-            name: Project name
-            description: Optional project description
+            name: Task title
+            platform: Target platform ("jira" or "asana")
 
         Example:
-            projects_page.create_project("My Project", "Description")
-            # Project created and visible in list
+            projects_page.create_project("My Task", "jira")
         """
         self.open_create_modal()
-        self.fill_project_form(name, description)
+        self.fill_project_form(name, platform)
         self.submit_create_form()
 
-    def click_project_action(self, project_name: str, action: str) -> None:
-        """Click action button on project card.
-
-        Args:
-            project_name: Name of project
-            action: Action to click (edit, delete, etc.)
-
-        Example:
-            projects_page.click_project_action("My Project", "edit")
-        """
-        # Generate test-id from project name (lowercase, hyphens)
-        project_id = f"project-{project_name.lower().replace(' ', '-')}"
-        card = self.page.get_by_test_id(project_id)
-        card.get_by_test_id(f"{action}-button").click()
-
-    def edit_project(self, project_name: str, new_name: str, new_description: str = "") -> None:
-        """Edit existing project.
-
-        Args:
-            project_name: Current project name
-            new_name: New project name
-            new_description: Optional new description
-
-        Example:
-            projects_page.edit_project("Old Name", "New Name", "New desc")
-        """
-        self.click_project_action(project_name, "edit")
-        # Wait for edit modal
-        self.page.wait_for_timeout(300)
-        # Fill edit form and save
-        self.project_name_input.fill(new_name)
-        if new_description:
-            self.project_description_input.fill(new_description)
-        self.modal_save_button.click()
-
-    def delete_project(self, project_name: str, confirm: bool = True) -> None:
-        """Delete project with confirmation.
-
-        Args:
-            project_name: Name of project to delete
-            confirm: True to confirm deletion, False to cancel
-
-        Example:
-            projects_page.delete_project("My Project", confirm=True)
-        """
-        self.click_project_action(project_name, "delete")
-        # Wait for confirmation dialog
-        self.page.wait_for_timeout(300)
-
-        if self.delete_confirmation_dialog.is_visible():
-            if confirm:
-                self.confirm_delete_button.click()
-            else:
-                self.cancel_delete_button.click()
+    def cancel_create(self) -> None:
+        """Cancel the Quick Create modal."""
+        self.modal_cancel_button.click()
 
 
 class ExecutionHistoryPage(BasePage):
@@ -1162,6 +1173,7 @@ class ExecutionHistoryPage(BasePage):
         self.page.goto(f"{self.base_url}/execution-history")
         # Wait for loading to complete
         self.page.wait_for_load_state("networkidle", timeout=5000)
+        self.hide_dev_overlays()
 
     def get_history_count(self) -> int:
         """Count number of history entries visible.
@@ -1540,30 +1552,22 @@ class CanvasChartPage(BasePage):
     @property
     def chart_container(self) -> Locator:
         """Recharts ResponsiveContainer wrapper locator."""
-        return self.page.locator(".recharts-wrapper").or_(
-            self.page.locator("[class*=\"recharts\"]")
-        )
+        return self.page.locator(".recharts-wrapper")
 
     @property
     def line_chart_svg(self) -> Locator:
-        """SVG element for line charts locator."""
-        return self.page.locator("svg.recharts-line-chart").or_(
-            self.page.locator(".recharts-line")
-        )
+        """Line series element locator (current Recharts renders class recharts-line)."""
+        return self.page.locator(".recharts-line")
 
     @property
     def bar_chart_svg(self) -> Locator:
-        """SVG element for bar charts locator."""
-        return self.page.locator("svg.recharts-bar-chart").or_(
-            self.page.locator(".recharts-bar")
-        )
+        """Bar rectangle element locator (current Recharts: recharts-bar-rectangle)."""
+        return self.page.locator(".recharts-bar-rectangle")
 
     @property
     def pie_chart_svg(self) -> Locator:
-        """SVG element for pie charts locator."""
-        return self.page.locator("svg.recharts-pie-chart").or_(
-            self.page.locator(".recharts-pie")
-        )
+        """Pie sector element locator (current Recharts: recharts-pie-sector)."""
+        return self.page.locator(".recharts-pie-sector")
 
     @property
     def chart_title(self) -> Locator:
@@ -1580,9 +1584,7 @@ class CanvasChartPage(BasePage):
     @property
     def chart_legend(self) -> Locator:
         """Legend container locator."""
-        return self.page.locator(".recharts-legend-wrapper").or_(
-            self.page.locator(".recharts-legend-item")
-        )
+        return self.page.locator(".recharts-legend-wrapper")
 
     @property
     def chart_x_axis(self) -> Locator:
@@ -1604,23 +1606,17 @@ class CanvasChartPage(BasePage):
     @property
     def line_dots(self) -> Locator:
         """Line chart dot elements locator."""
-        return self.page.locator(".recharts-dot").or_(
-            self.page.locator("circle.recharts-dot")
-        )
+        return self.page.locator(".recharts-dot")
 
     @property
     def bar_rectangles(self) -> Locator:
         """Bar chart rectangle elements locator."""
-        return self.page.locator(".recharts-bar-rectangle").or_(
-            self.page.locator("path.recharts-bar")
-        )
+        return self.page.locator(".recharts-bar-rectangle")
 
     @property
     def pie_sectors(self) -> Locator:
         """Pie chart sector elements locator."""
-        return self.page.locator(".recharts-pie-sector").or_(
-            self.page.locator("path.recharts-pie")
-        )
+        return self.page.locator(".recharts-pie-sector")
 
     @property
     def grid_lines(self) -> Locator:
@@ -1640,17 +1636,20 @@ class CanvasChartPage(BasePage):
         """Check if any chart is visible.
 
         Returns:
-            bool: True if any chart SVG is visible
+            bool: True if any chart series element is rendered
 
         Example:
             assert chart_page.is_loaded() is True
         """
-        return (self.line_chart_svg.is_visible() or
-                self.bar_chart_svg.is_visible() or
-                self.pie_chart_svg.is_visible())
+        return self.page.locator(
+            ".recharts-line, .recharts-bar-rectangle, .recharts-pie-sector"
+        ).count() > 0
 
     def get_chart_type(self) -> str:
         """Detect chart type (line, bar, pie).
+
+        Count-based (series elements can be multiple, so is_visible would
+        raise a strict-mode violation).
 
         Returns:
             str: Chart type ("line", "bar", "pie", or "unknown")
@@ -1659,11 +1658,11 @@ class CanvasChartPage(BasePage):
             chart_type = chart_page.get_chart_type()
             assert chart_type == "line"
         """
-        if self.line_chart_svg.is_visible():
+        if self.page.locator(".recharts-line").count() > 0:
             return "line"
-        elif self.bar_chart_svg.is_visible():
+        elif self.page.locator(".recharts-bar-rectangle").count() > 0:
             return "bar"
-        elif self.pie_chart_svg.is_visible():
+        elif self.page.locator(".recharts-pie-sector").count() > 0:
             return "pie"
         return "unknown"
 
@@ -1813,22 +1812,25 @@ class CanvasChartPage(BasePage):
         chart_type = self.get_chart_type()
 
         if chart_type == "line":
-            # Line charts use stroke
-            lines = self.page.locator(".recharts-line").all()
+            # Line charts use stroke on the curve path (the .recharts-line
+            # group itself carries no stroke — match children with one)
+            lines = self.page.locator(".recharts-line [stroke]").all()
             for line in lines:
                 stroke = line.get_attribute("stroke")
                 if stroke:
                     colors.append(stroke)
         elif chart_type == "bar":
-            # Bar charts use fill
-            bars = self.bar_rectangles.all()
+            # Bar charts use fill on the rects (the .recharts-bar-rectangle
+            # group carries no fill — match children with one)
+            bars = self.page.locator(".recharts-bar-rectangle [fill]").all()
             for bar in bars:
                 fill = bar.get_attribute("fill")
                 if fill:
                     colors.append(fill)
         elif chart_type == "pie":
-            # Pie charts use fill on sectors
-            sectors = self.pie_sectors.all()
+            # Pie charts use fill on sectors (the .recharts-pie-sector group
+            # carries no fill — match children with one)
+            sectors = self.page.locator(".recharts-pie-sector [fill]").all()
             for sector in sectors:
                 fill = sector.get_attribute("fill")
                 if fill:
@@ -2341,8 +2343,8 @@ class CanvasFormPage(BasePage):
 
     @property
     def form_title(self) -> Locator:
-        """Form title element (h3 tag)."""
-        return self.page.locator("h3.text-sm.font-semibold")
+        """Form title element (h3 tag inside the form)."""
+        return self.page.locator("form.space-y-4 h3.text-sm.font-semibold")
 
     @property
     def form_field(self) -> Locator:
@@ -2541,7 +2543,7 @@ class CanvasFormPage(BasePage):
         field = self.page.locator(f'[data-testid="form-field-{name}"]')
         if field.count() > 0 and field.first.is_visible():
             # Look for error message in same container
-            container = field.first.locator("xpath=../..")
+            container = field.first.locator("xpath=..")
             error_el = container.locator("div.flex.items-center.text-xs.text-red-500")
             if error_el.is_visible():
                 return error_el.text_content()
@@ -2685,7 +2687,7 @@ class CanvasFormPage(BasePage):
         field = self.page.locator(f"input[name=\"{name}\"], select[name=\"{name}\"]")
         if field.is_visible():
             # Look for required asterisk in label container
-            container = field.locator("xpath=../..")
+            container = field.locator("xpath=..")
             asterisk = container.locator("span.text-red-500.ml-1")
             return asterisk.is_visible()
         return False
@@ -2706,7 +2708,7 @@ class CanvasFormPage(BasePage):
         field = self.page.locator(f"input[name=\"{name}\"], select[name=\"{name}\"]")
         if field.is_visible():
             # Get label text from parent container
-            container = field.locator("xpath=../..")
+            container = field.locator("xpath=..")
             label_el = container.locator("label.text-xs.font-medium")
             if label_el.is_visible():
                 label_text = label_el.text_content()

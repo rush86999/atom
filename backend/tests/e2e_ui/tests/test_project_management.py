@@ -1,309 +1,234 @@
 """
-E2E UI tests for Project management functionality.
+E2E UI tests for the Project Command Center (dashboards/projects).
 
-This test suite validates project CRUD operations:
-- Creating new projects via Quick Create modal
-- Editing existing project names and descriptions
-- Deleting projects with confirmation dialog
-- Canceling project deletion
-- Project list displays all user projects
+The REAL projects UI is `components/dashboards/ProjectCommandCenter.tsx` — a
+unified task board over CONNECTED project-management platforms (Jira, Asana,
+...). It is NOT a local CRUD app: there is no edit/delete UI and no local
+project store.
 
-Tests use authenticated_page fixture for API-first authentication (10-100x faster than UI login).
-Tests use setup_test_project fixture for API-first project creation.
+- Tasks are listed live from GET /api/atom/projects/live/board (external
+  platforms only — in a sandboxed env with no connected platforms the table
+  renders the empty state).
+- Creation goes through the Quick Create modal -> POST
+  /api/intelligence/execute (create_task tool) -> POST
+  /api/projects/unified-tasks on the backend, which fails GRACEFULLY with
+  "No project management platform connected." when nothing is connected.
+
+This suite therefore asserts:
+1. The page renders (header, stats, table, empty state, search).
+2. The Quick Create modal flow works end-to-end (open/fill/cancel/submit),
+   including the graceful unconnected-platform failure path.
+3. The backend unified-tasks endpoints (list + create) return a clean success
+   envelope with a human-readable, non-exception result.
+4. The live-board endpoint serves the board contract (ok/stats/tasks).
+
+Tests use authenticated_page (API-first auth) and authenticated_api_client
+(direct backend API calls).
 """
 
-import pytest
-from typing import Dict, Any
+import uuid
+
 from playwright.sync_api import Page
-from tests.e2e_ui.pages.page_objects import ProjectsPage
 
 
-class TestCreateProject:
-    """Tests for creating new projects."""
+class TestProjectCommandCenter:
+    """Tests for the Project Command Center page rendering."""
 
-    def test_create_new_project(self, authenticated_page):
-        """Test that user can create a new project and see it in the project list.
+    def test_projects_page_renders(self, authenticated_page: Page):
+        """Test that the Project Command Center page loads with all sections.
 
         Verifies:
-        1. Projects page loads successfully
-        2. Initial project count can be retrieved
-        3. Quick Create button opens create modal
-        4. Project form can be filled with name and description
-        5. Submitting form creates project
-        6. Project count increases by 1
-        7. New project name appears in list
+        1. Page navigates to /dashboards/projects
+        2. Header ("Project Command Center") is visible
+        3. Quick Create + Sync Settings buttons are visible
+        4. Stats cards render (Total Tasks / Active Platforms / Overdue)
+        5. Tasks table renders with column headers
+        6. Without connected platforms the table shows the empty state
+        7. Search input accepts input and filters (no rows -> still empty state)
 
         Args:
             authenticated_page: Page with JWT token pre-set in localStorage
         """
-        # Navigate to projects page
+        from tests.e2e_ui.pages.page_objects import ProjectsPage
+
         projects = ProjectsPage(authenticated_page)
         projects.navigate()
 
-        # Wait for page to load
-        assert projects.is_loaded(), "Projects page should be loaded"
+        assert projects.is_loaded(), "Project Command Center should be loaded"
+        assert projects.page_root.is_visible()
 
-        # Get initial project count
-        initial_count = projects.get_project_count()
+        header = authenticated_page.get_by_role("heading", name="Project Command Center")
+        assert header.is_visible(), "Header 'Project Command Center' should be visible"
 
-        # Generate unique project name
-        import uuid
-        project_name = f"Test Project {str(uuid.uuid4())[:8]}"
-        project_description = f"Test project description {str(uuid.uuid4())[:8]}"
+        assert projects.sync_settings_button.is_visible()
+        assert projects.projects_table.is_visible(), "Tasks table should be visible"
 
-        # Create project via Quick Create
-        projects.create_project(project_name, project_description)
+        stat_total = projects.stat_total_tasks.text_content() or ""
+        assert stat_total.isdigit(), f"Total Tasks stat should be numeric, got: {stat_total!r}"
 
-        # Wait for creation to complete
-        authenticated_page.wait_for_timeout(1000)
+        # No PM platforms connected in the sandbox -> empty state, not an error
+        projects.empty_state.wait_for(state="visible", timeout=15000)
+        assert projects.empty_state.is_visible(), (
+            "Empty state should render when no platforms are connected. "
+            "Got task names: %r" % projects.get_project_names()
+        )
+        assert projects.get_project_count() == 0
 
-        # Refresh to see updated list
-        authenticated_page.reload()
-        projects.wait_for_load(timeout=5000)
+        # Search input is functional: typing 3+ chars switches to the memory
+        # search results view (the page's unified search), which shows the
+        # no-records state for an empty memory.
+        projects.search_input.fill("no-such-task")
+        search_heading = authenticated_page.locator(
+            "h2:has-text('Search Results for')"
+        )
+        assert search_heading.is_visible(), \
+            "Typing in the search box should open the search results view"
+        no_records = authenticated_page.get_by_text("No historical records found")
+        no_records.wait_for(state="visible", timeout=10000)
+        assert no_records.is_visible(), \
+            "Empty memory should show the no-records search state"
 
-        # Verify project count increased by 1
-        new_count = projects.get_project_count()
-        assert new_count == initial_count + 1, \
-            f"Project count should increase from {initial_count} to {initial_count + 1}, got: {new_count}"
-
-        # Verify new project name appears in list
-        project_names = projects.get_project_names()
-        assert project_name in project_names, \
-            f"New project '{project_name}' should appear in list. Got: {project_names}"
-
-
-class TestEditProject:
-    """Tests for editing existing projects."""
-
-    def test_edit_existing_project(self, authenticated_page, setup_test_project):
-        """Test that user can edit an existing project.
-
-        Verifies:
-        1. Project created via API appears in list
-        2. Edit button can be clicked on project card
-        3. Edit modal opens with current values
-        4. Project name and description can be changed
-        5. Saving changes updates project
-        6. Updated project name appears in list
-
-        Args:
-            authenticated_page: Page with JWT token pre-set in localStorage
-            setup_test_project: Project created via API fixture
-        """
-        # Get project data from fixture
-        original_name = setup_test_project["name"]
-        original_description = setup_test_project["description"]
-
-        # Navigate to projects page
-        projects = ProjectsPage(authenticated_page)
-        projects.navigate()
-
-        # Wait for page to load
-        assert projects.is_loaded(), "Projects page should be loaded"
-
-        # Wait for project to appear in list
-        authenticated_page.wait_for_timeout(1000)
-
-        # Verify original project is in list
-        project_names = projects.get_project_names()
-        assert original_name in project_names, \
-            f"Original project '{original_name}' should appear in list. Got: {project_names}"
-
-        # Generate new unique name
-        import uuid
-        new_name = f"Edited Project {str(uuid.uuid4())[:8]}"
-        new_description = f"Edited description {str(uuid.uuid4())[:8]}"
-
-        # Edit the project
-        projects.edit_project(original_name, new_name, new_description)
-
-        # Wait for edit to complete
-        authenticated_page.wait_for_timeout(1000)
-
-        # Refresh to see updated list
-        authenticated_page.reload()
-        projects.wait_for_load(timeout=5000)
-
-        # Verify updated name appears in list
-        project_names = projects.get_project_names()
-        assert new_name in project_names, \
-            f"Updated project '{new_name}' should appear in list. Got: {project_names}"
-
-        # Verify original name no longer in list
-        assert original_name not in project_names, \
-            f"Original name '{original_name}' should not appear in list after edit"
-
-
-class TestDeleteProject:
-    """Tests for deleting projects."""
-
-    def test_delete_project_with_confirmation(self, authenticated_page, setup_test_project):
-        """Test that user can delete a project with confirmation dialog.
+    def test_quick_create_modal_flow(self, authenticated_page: Page):
+        """Test the Quick Create modal: open, fill, cancel, submit.
 
         Verifies:
-        1. Project created via API appears in list
-        2. Delete button can be clicked on project card
-        3. Confirmation dialog appears
-        4. Confirming deletion removes project
-        5. Project count decreases by 1
-        6. Deleted project no longer appears in list
-
-        Args:
-            authenticated_page: Page with JWT token pre-set in localStorage
-            setup_test_project: Project created via API fixture
-        """
-        # Get project data from fixture
-        project_name = setup_test_project["name"]
-
-        # Navigate to projects page
-        projects = ProjectsPage(authenticated_page)
-        projects.navigate()
-
-        # Wait for page to load
-        assert projects.is_loaded(), "Projects page should be loaded"
-
-        # Wait for project to appear in list
-        authenticated_page.wait_for_timeout(1000)
-
-        # Get initial project count
-        initial_count = projects.get_project_count()
-
-        # Verify project is in list before deletion
-        project_names = projects.get_project_names()
-        assert project_name in project_names, \
-            f"Project '{project_name}' should appear in list before deletion. Got: {project_names}"
-
-        # Delete the project with confirmation
-        projects.delete_project(project_name, confirm=True)
-
-        # Wait for deletion to complete
-        authenticated_page.wait_for_timeout(1000)
-
-        # Refresh to see updated list
-        authenticated_page.reload()
-        projects.wait_for_load(timeout=5000)
-
-        # Verify project count decreased by 1
-        new_count = projects.get_project_count()
-        assert new_count == initial_count - 1, \
-            f"Project count should decrease from {initial_count} to {initial_count - 1}, got: {new_count}"
-
-        # Verify project removed from list
-        project_names = projects.get_project_names()
-        assert project_name not in project_names, \
-            f"Deleted project '{project_name}' should not appear in list. Got: {project_names}"
-
-    def test_delete_project_cancellation(self, authenticated_page, setup_test_project):
-        """Test that canceling project deletion keeps the project.
-
-        Verifies:
-        1. Project created via API appears in list
-        2. Delete button can be clicked on project card
-        3. Confirmation dialog appears
-        4. Canceling deletion keeps project
-        5. Project count remains unchanged
-        6. Project still appears in list
-
-        Args:
-            authenticated_page: Page with JWT token pre-set in localStorage
-            setup_test_project: Project created via API fixture
-        """
-        # Get project data from fixture
-        project_name = setup_test_project["name"]
-
-        # Navigate to projects page
-        projects = ProjectsPage(authenticated_page)
-        projects.navigate()
-
-        # Wait for page to load
-        assert projects.is_loaded(), "Projects page should be loaded"
-
-        # Wait for project to appear in list
-        authenticated_page.wait_for_timeout(1000)
-
-        # Get initial project count
-        initial_count = projects.get_project_count()
-
-        # Verify project is in list
-        project_names = projects.get_project_names()
-        assert project_name in project_names, \
-            f"Project '{project_name}' should appear in list. Got: {project_names}"
-
-        # Attempt to delete but cancel
-        projects.delete_project(project_name, confirm=False)
-
-        # Wait for dialog to close
-        authenticated_page.wait_for_timeout(1000)
-
-        # Refresh to verify state
-        authenticated_page.reload()
-        projects.wait_for_load(timeout=5000)
-
-        # Verify project count unchanged
-        new_count = projects.get_project_count()
-        assert new_count == initial_count, \
-            f"Project count should remain {initial_count} after cancel, got: {new_count}"
-
-        # Verify project still in list
-        project_names = projects.get_project_names()
-        assert project_name in project_names, \
-            f"Project '{project_name}' should still appear in list after cancel. Got: {project_names}"
-
-
-class TestProjectList:
-    """Tests for project list display."""
-
-    def test_project_list_displays_all(self, authenticated_page):
-        """Test that project list displays all user projects accurately.
-
-        Verifies:
-        1. Multiple projects can be created via API
-        2. All projects appear in list
-        3. Project names match created ones
-        4. Project count matches number of projects created
+        1. Quick Create opens the create modal
+        2. Title input accepts text and platform pickers work
+        3. Cancel closes the modal without side effects
+        4. Re-opening and submitting attempts creation and is handled
+           gracefully (modal closes or an error toast appears) — a sandbox
+           with no connected PM platform cannot create real tasks
 
         Args:
             authenticated_page: Page with JWT token pre-set in localStorage
         """
-        # Import API client for setup
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-        from tests.e2e_ui.utils.api_setup import APIClient, create_test_project, get_test_user_token
+        from tests.e2e_ui.pages.page_objects import ProjectsPage
 
-        # Create API client and authenticate
-        from tests.e2e_ui.fixtures.auth_fixtures import authenticated_user
-        # We need to get the user's token from the page's localStorage
-        token = authenticated_page.evaluate("localStorage.getItem('auth_token')")
-
-        api_client = APIClient(base_url="http://localhost:8001", token=token)
-
-        # Create 3 test projects
-        import uuid
-        created_projects = []
-        for i in range(3):
-            project_name = f"List Test Project {i} {str(uuid.uuid4())[:8]}"
-            description = f"Description {i}"
-            response = create_test_project(api_client, project_name, description)
-            created_projects.append(project_name)
-
-        # Navigate to projects page
         projects = ProjectsPage(authenticated_page)
         projects.navigate()
+        assert projects.is_loaded()
 
-        # Wait for page to load and projects to appear
-        assert projects.is_loaded(), "Projects page should be loaded"
-        authenticated_page.wait_for_timeout(1500)
+        # Open modal
+        projects.open_create_modal()
+        assert projects.create_modal.is_visible(), "Create modal should open"
 
-        # Verify all projects displayed
-        project_names = projects.get_project_names()
+        # Fill the form
+        project_name = f"Quick Create Task {str(uuid.uuid4())[:8]}"
+        projects.fill_project_form(project_name, platform="jira")
+        assert projects.modal_save_button.is_enabled(), \
+            "Create Task should be enabled once a title is entered"
 
-        # Check that each created project appears in list
-        for project_name in created_projects:
-            assert project_name in project_names, \
-                f"Created project '{project_name}' should appear in list. Got: {project_names}"
+        # Cancel closes the modal without submitting
+        projects.cancel_create()
+        projects.create_modal.wait_for(state="hidden", timeout=5000)
+        assert projects.get_project_count() == 0, \
+            "Cancelling the modal must not create anything"
 
-        # Verify project count is at least 3 (may have other projects)
-        project_count = projects.get_project_count()
-        assert project_count >= 3, \
-            f"Project count should be at least 3, got: {project_count}"
+        # Re-open and submit: with no PM platform connected, the create task
+        # tool fails gracefully and the UI surfaces the real result as an
+        # error toast (the modal stays open — nothing was created).
+        projects.open_create_modal()
+        projects.fill_project_form(project_name, platform="asana")
+        projects.submit_create_form()
+
+        # Sonner toasts auto-dismiss after a few seconds — wait for the toast
+        # immediately after submitting.
+        toast = authenticated_page.locator("li[data-sonner-toast]").first
+        toast.wait_for(state="visible", timeout=10000)
+        toast_text = toast.text_content() or ""
+        assert "created successfully" not in toast_text.lower(), \
+            f"Unconnected-platform create must not show a success toast: {toast_text!r}"
+        assert projects.create_modal.is_visible(), \
+            "Modal should stay open after a failed creation"
+
+        # Cancel the modal; page still functional afterwards
+        projects.cancel_create()
+        projects.quick_create_button.wait_for(state="visible", timeout=5000)
+        projects.empty_state.wait_for(state="visible", timeout=15000)
+        assert projects.empty_state.is_visible()
+
+
+class TestUnifiedTasksApi:
+    """Tests for the backend unified-tasks API used by the projects page.
+
+    NOTE: `authenticated_api_client` is the e2e APIClient — its .get()/.post()
+    return the parsed JSON body and raise requests.HTTPError on non-2xx, so
+    a 200 status is implied by a successful return.
+    """
+
+    def test_unified_tasks_list_endpoint(self, authenticated_api_client):
+        """GET /api/projects/unified-tasks returns a clean success envelope.
+
+        Verifies:
+        1. 200 with the standard success envelope (APIClient raises on non-2xx)
+        2. Data is a dict of per-platform results
+        3. No per-platform result leaks a raw Python exception artifact
+           (e.g. "has no attribute" from a broken service adapter)
+
+        Args:
+            authenticated_api_client: Authenticated API client fixture
+        """
+        payload = authenticated_api_client.get("/api/projects/unified-tasks")
+        assert payload.get("success") is True, f"Unexpected payload: {payload}"
+
+        data = payload.get("data", {})
+        assert isinstance(data, dict), \
+            f"data should be a per-platform result dict, got: {type(data)}"
+
+        for platform, result in data.items():
+            if isinstance(result, dict):
+                error = result.get("error") or ""
+                assert "has no attribute" not in error, \
+                    f"Platform '{platform}' leaked an AttributeError: {error}"
+                assert "can't be used in 'await'" not in error, \
+                    f"Platform '{platform}' leaked an await TypeError: {error}"
+
+    def test_unified_tasks_create_endpoint_no_platform(self, authenticated_api_client):
+        """POST /api/projects/unified-tasks without a connected platform fails gracefully.
+
+        The create_task tool resolves the platform from the user's connected
+        integrations (ConnectionService.list_connections). With no PM
+        platform connected it must return a clean, human-readable error —
+        never a 500 or a raw exception string.
+
+        Args:
+            authenticated_api_client: Authenticated API client fixture
+        """
+        name = f"Unified Task {str(uuid.uuid4())[:8]}"
+        payload = authenticated_api_client.post(
+            "/api/projects/unified-tasks",
+            json={"summary": name, "status": "To Do"},
+        )
+        assert payload.get("success") is True, f"Unexpected payload: {payload}"
+
+        data = payload.get("data", {})
+        error = data.get("error") if isinstance(data, dict) else str(data)
+        assert error, f"Expected a graceful error when no platform is connected: {payload}"
+        assert "No project management platform connected" in error, (
+            f"Expected the 'no platform connected' message, got: {error}"
+        )
+
+
+class TestLiveBoardApi:
+    """Tests for the live board endpoint backing the page's task list."""
+
+    def test_live_board_endpoint(self, authenticated_api_client):
+        """GET /api/atom/projects/live/board serves the board contract.
+
+        Verifies:
+        1. 200 with ok=true (APIClient raises on non-2xx)
+        2. stats contains the required fields (total_active_tasks,
+           completed_today, overdue_count, tasks_by_platform)
+        3. tasks is a list and providers is a dict
+
+        Args:
+            authenticated_api_client: Authenticated API client fixture
+        """
+        payload = authenticated_api_client.get("/api/atom/projects/live/board")
+
+        assert payload.get("ok") is True, f"Unexpected payload: {payload}"
+        stats = payload.get("stats", {})
+        for key in ("total_active_tasks", "completed_today", "overdue_count", "tasks_by_platform"):
+            assert key in stats, f"stats should contain '{key}': {stats}"
+        assert isinstance(payload.get("tasks"), list), "tasks should be a list"
+        assert isinstance(payload.get("providers"), dict), "providers should be a dict"

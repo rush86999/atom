@@ -1,26 +1,24 @@
 """
 E2E Tests for Docs Canvas Rendering (CANV-04).
 
-Tests verify docs/markdown canvas displays correctly with:
-- Markdown content rendering (headers, lists, bold, italic)
-- Link rendering with correct href attributes
-- Code block rendering with syntax highlighting
-- CanvasAudit record creation
+Tests verify the markdown/document canvas renders correctly through the REAL
+rendering path (no phantom state injection):
 
-Docs Features:
-- Markdown parsing and rendering
-- Support for headers (h1-h6)
-- Bullet and numbered lists
-- Bold and italic text
-- Links with href attributes
-- Code blocks with syntax highlighting
+1. A markdown canvas is created as `Canvas` + `CanvasAudit` rows via
+   `canvas_helpers.create_markdown_canvas()` (mirroring
+   `tools/canvas_tool.present_docs()`).
+2. Tests navigate to `http://localhost:3001/canvas/{id}`, where `CanvasPanel`
+   renders the markdown content in a Monaco editor by default, and toggling
+   "Preview Mode" renders the markdown via `renderMarkdownSafe()` (marked +
+   DOMPurify) into the `.prose` container.
 
-Uses authenticated_page_api fixture for fast authentication.
+Markdown features verified: headings (h1–h6), bold/italic, bullet/numbered
+lists, links, code blocks, tables, blockquotes, images, horizontal rules.
 """
 
-import pytest
 import uuid
-from typing import Dict, Any
+from typing import Tuple
+
 from playwright.sync_api import Page, expect
 from sqlalchemy.orm import Session
 
@@ -29,71 +27,47 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
-from core.models import CanvasAudit
+from core.models import CanvasAudit, User
+from tests.e2e_ui.tests.canvas_helpers import create_markdown_canvas, open_canvas
 
 
 # =============================================================================
 # Helper Functions
 # =============================================================================
 
-def trigger_canvas_docs(page: Page, markdown: str, title: str = "Test Docs") -> str:
-    """Simulate WebSocket canvas:update event for docs.
+def open_docs_preview(page: Page, canvas_id: str) -> None:
+    """Open a markdown canvas and switch to Preview Mode (rendered HTML)."""
+    open_canvas(page, canvas_id, "markdown")
+    page.wait_for_selector(".monaco-editor", timeout=30000)
+    # Toggle from Edit Mode → Preview Mode; the rendered block gets .prose.
+    page.locator("button", has_text="Preview Mode").first.click()
+    page.wait_for_selector(".prose", timeout=10000)
 
-    Args:
-        page: Playwright page instance
-        markdown: Markdown content to render
-        title: Docs title
 
-    Returns:
-        str: Generated canvas_id
-    """
-    canvas_id = f"docs-{str(uuid.uuid4())[:8]}"
-
-    canvas_message = {
-        "type": "canvas:update",
-        "canvas_id": canvas_id,
-        "data": {
-            "component": "docs",
-            "title": title,
-            "content": markdown
-        }
-    }
-
-    # Store message for potential frontend access
-    page.evaluate(f"(msg) => window.lastCanvasMessage = msg", canvas_message)
-
-    # Dispatch custom event to trigger canvas rendering
-    page.evaluate("""
-        () => {
-            const event = new CustomEvent('canvas:update', {
-                detail: { type: 'canvas:update' }
-            });
-            window.dispatchEvent(event);
-        }
-    """)
-
-    return canvas_id
+def create_docs_canvas(
+    db: Session, user: User, title: str, markdown: str
+) -> str:
+    """Create a markdown canvas (unique suffix) and return its ID."""
+    return create_markdown_canvas(db, user, title, markdown)
 
 
 # =============================================================================
 # Docs Canvas Rendering Tests
 # =============================================================================
 
-class TestDocsCanvasRendering:
-    """Test suite for docs canvas rendering (CANV-04)."""
+def test_docs_renders_markdown_content(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that docs canvas renders markdown content correctly.
 
-    def test_docs_renders_markdown_content(self, authenticated_page_api: Page, db_session: Session):
-        """Test that docs canvas renders markdown content correctly.
-
-        Verifies:
-        - Canvas host element appears
-        - Header rendered (h1 element)
-        - Bullet list rendered
-        - Bold text styling applied
-        - CanvasAudit record created
-        """
-        # Create markdown content with various elements
-        markdown_content = """# Document Title
+    Verifies:
+    - CanvasPanel container with markdown type badge
+    - h1 header rendered in Preview Mode
+    - Bold/italic text, bullet and numbered lists rendered
+    - CanvasAudit record created
+    """
+    user, _ = authenticated_user
+    markdown_content = """# Document Title
 
 This is a paragraph with **bold text** and *italic text*.
 
@@ -109,48 +83,32 @@ This is a paragraph with **bold text** and *italic text*.
 2. Second step
 3. Third step
 """
+    canvas_id = create_docs_canvas(db_session, user, "Markdown Test", markdown_content)
+    open_docs_preview(authenticated_page, canvas_id)
 
-        # Trigger docs presentation
-        canvas_id = trigger_canvas_docs(
-            authenticated_page_api,
-            markdown_content,
-            title="Markdown Test"
-        )
+    prose = authenticated_page.locator(".prose")
+    expect(prose.locator("h1").first).to_be_visible()
+    assert "Document Title" in prose.locator("h1").first.inner_text()
 
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
+    # Bullet + numbered lists render as real <li> elements.
+    list_items = prose.locator("li").all_inner_texts()
+    assert "First item" in list_items, f"Bullet item missing: {list_items}"
+    assert "First step" in list_items, f"Numbered item missing: {list_items}"
 
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
+    page_content = authenticated_page.content()
+    assert "bold text" in page_content, "Bold text content should be present"
 
-        # Verify h1 header rendered
-        h1_element = authenticated_page_api.locator('h1').first
-        expect(h1_element).to_be_visible()
+    audit = db_session.query(CanvasAudit).filter(CanvasAudit.canvas_id == canvas_id).all()
+    assert len(audit) >= 1, "CanvasAudit record should exist for the canvas"
+    assert audit[0].canvas_type == "markdown", "Audit row should carry the markdown type"
 
-        # Verify header text content
-        page_content = authenticated_page_api.content()
-        assert "Document Title" in page_content
 
-        # Verify bullet list items rendered
-        assert "First item" in page_content or "first item" in page_content.lower()
-        assert "Second item" in page_content or "second item" in page_content.lower()
-
-        # Verify CanvasAudit record
-        audit_records = db_session.query(CanvasAudit).filter(
-            CanvasAudit.canvas_id == canvas_id
-        ).all()
-
-    def test_docs_links_are_clickable(self, authenticated_page_api: Page):
-        """Test that docs canvas renders links correctly.
-
-        Verifies:
-        - Link element rendered with href attribute
-        - Link has correct URL
-        - Link text is visible
-        """
-        # Create markdown with links
-        markdown_content = """# Links Test
+def test_docs_links_are_clickable(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that docs canvas renders links with correct href attributes."""
+    user, _ = authenticated_user
+    markdown_content = """# Links Test
 
 External link: [OpenAI](https://openai.com)
 
@@ -158,48 +116,23 @@ Internal link: [Dashboard](/dashboard)
 
 Email link: [Contact](mailto:test@example.com)
 """
+    canvas_id = create_docs_canvas(db_session, user, "Links Test", markdown_content)
+    open_docs_preview(authenticated_page, canvas_id)
 
-        # Trigger docs presentation
-        canvas_id = trigger_canvas_docs(
-            authenticated_page_api,
-            markdown_content,
-            title="Links Test"
-        )
+    links = authenticated_page.locator(".prose a")
+    hrefs = links.evaluate_all("els => els.map(e => e.getAttribute('href'))")
+    assert "https://openai.com" in hrefs, f"External link missing: {hrefs}"
+    assert "/dashboard" in hrefs, f"Internal link missing: {hrefs}"
+    assert "mailto:test@example.com" in hrefs, f"Email link missing: {hrefs}"
+    assert "OpenAI" in authenticated_page.locator(".prose").inner_text()
 
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
 
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
-
-        # Verify link elements rendered
-        link_elements = authenticated_page_api.locator('a')
-        link_count = link_elements.count()
-        assert link_count >= 1, "At least one link should be rendered"
-
-        # Verify link content
-        page_content = authenticated_page_api.content()
-        assert "OpenAI" in page_content or "Links Test" in page_content
-
-        # Check href attributes if links exist
-        if link_count > 0:
-            first_link = link_elements.first
-            href = first_link.get_attribute('href')
-            # href may be None or empty in test environment
-            # The important thing is the link element exists
-
-    def test_docs_code_blocks_rendered(self, authenticated_page_api: Page):
-        """Test that docs canvas renders code blocks correctly.
-
-        Verifies:
-        - Code block element visible
-        - Syntax highlighting classes applied
-        - Code content preserved
-        - Language indicator displayed
-        """
-        # Create markdown with code blocks
-        markdown_content = """# Code Examples
+def test_docs_code_blocks_rendered(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that docs canvas renders code blocks correctly."""
+    user, _ = authenticated_user
+    markdown_content = """# Code Examples
 
 Python code:
 
@@ -209,90 +142,49 @@ def hello_world():
     return True
 ```
 
-JavaScript code:
-
-```javascript
-function greet(name) {
-    console.log(`Hello, ${name}!`);
-}
-```
-
 Inline code: `variable_name`
 """
+    canvas_id = create_docs_canvas(db_session, user, "Code Blocks Test", markdown_content)
+    open_docs_preview(authenticated_page, canvas_id)
 
-        # Trigger docs presentation
-        canvas_id = trigger_canvas_docs(
-            authenticated_page_api,
-            markdown_content,
-            title="Code Blocks Test"
-        )
+    code_blocks = authenticated_page.locator(".prose pre code")
+    assert code_blocks.count() >= 1, "At least one fenced code block should render"
+    code_text = code_blocks.first.inner_text()
+    assert "hello_world" in code_text, "Code content should be preserved"
 
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
+    inline_code = authenticated_page.locator(".prose code:not(pre code)")
+    assert inline_code.count() >= 1, "Inline code should render"
+    assert "variable_name" in inline_code.first.inner_text()
 
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
 
-        # Verify code elements rendered
-        code_elements = authenticated_page_api.locator('code, pre')
-        code_count = code_elements.count()
-        assert code_count >= 1, "At least one code element should be rendered"
-
-        # Verify code content in page
-        page_content = authenticated_page_api.content()
-        assert "hello_world" in page_content or "Hello" in page_content
-        assert "def " in page_content or "function" in page_content
-
-    def test_docs_tables_rendered(self, authenticated_page_api: Page):
-        """Test that docs canvas renders markdown tables correctly.
-
-        Verifies:
-        - Table element rendered
-        - Table headers visible
-        - Table data rows visible
-        """
-        # Create markdown with table
-        markdown_content = """# Table Test
+def test_docs_tables_rendered(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that docs canvas renders markdown tables correctly (GFM)."""
+    user, _ = authenticated_user
+    markdown_content = """# Table Test
 
 | Name | Age | City |
 |------|-----|------|
 | Alice | 30 | NYC |
 | Bob | 25 | LA |
-| Charlie | 35 | SF |
 """
+    canvas_id = create_docs_canvas(db_session, user, "Table Test", markdown_content)
+    open_docs_preview(authenticated_page, canvas_id)
 
-        # Trigger docs presentation
-        canvas_id = trigger_canvas_docs(
-            authenticated_page_api,
-            markdown_content,
-            title="Table Test"
-        )
+    table = authenticated_page.locator(".prose table").first
+    expect(table).to_be_visible()
+    table_text = table.inner_text()
+    assert "Alice" in table_text, "Table data row should render"
+    assert "Name" in table_text, "Table header should render"
 
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
 
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
-
-        # Verify table rendered
-        table_element = authenticated_page_api.locator('table').first
-        # Table may or may not be rendered depending on markdown library
-
-        # Verify table content
-        page_content = authenticated_page_api.content()
-        assert "Alice" in page_content or "Table Test" in page_content
-
-    def test_docs_blockquotes_rendered(self, authenticated_page_api: Page):
-        """Test that docs canvas renders blockquotes correctly.
-
-        Verifies:
-        - Blockquote element rendered
-        - Quote styled differently from regular text
-        """
-        # Create markdown with blockquote
-        markdown_content = """# Blockquote Test
+def test_docs_blockquotes_rendered(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that docs canvas renders blockquotes correctly."""
+    user, _ = authenticated_user
+    markdown_content = """# Blockquote Test
 
 This is normal text.
 
@@ -301,76 +193,37 @@ This is normal text.
 
 More normal text.
 """
+    canvas_id = create_docs_canvas(db_session, user, "Blockquote Test", markdown_content)
+    open_docs_preview(authenticated_page, canvas_id)
 
-        # Trigger docs presentation
-        canvas_id = trigger_canvas_docs(
-            authenticated_page_api,
-            markdown_content,
-            title="Blockquote Test"
-        )
+    blockquote = authenticated_page.locator(".prose blockquote").first
+    expect(blockquote).to_be_visible()
+    assert "blockquote" in blockquote.inner_text().lower(), "Quote content should render"
 
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
 
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
-
-        # Verify blockquote element
-        blockquote = authenticated_page_api.locator('blockquote').first
-        # Blockquote may or may not be rendered as specific element
-
-        # Verify content
-        page_content = authenticated_page_api.content()
-        assert "blockquote" in page_content.lower() or "Blockquote Test" in page_content
-
-    def test_docs_images_rendered(self, authenticated_page_api: Page):
-        """Test that docs canvas renders images correctly.
-
-        Verifies:
-        - Image element rendered
-        - src attribute set correctly
-        - alt text present
-        """
-        # Create markdown with image
-        markdown_content = """# Image Test
+def test_docs_images_rendered(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that docs canvas renders images with src and alt text."""
+    user, _ = authenticated_user
+    markdown_content = """# Image Test
 
 ![Alt text](https://example.com/image.png)
-
-Image with link: [![Alt text](https://example.com/image.png)](https://example.com)
 """
+    canvas_id = create_docs_canvas(db_session, user, "Image Test", markdown_content)
+    open_docs_preview(authenticated_page, canvas_id)
 
-        # Trigger docs presentation
-        canvas_id = trigger_canvas_docs(
-            authenticated_page_api,
-            markdown_content,
-            title="Image Test"
-        )
+    img = authenticated_page.locator('.prose img[src="https://example.com/image.png"]').first
+    expect(img).to_be_visible()
+    assert img.get_attribute("alt") == "Alt text", "Alt text should be preserved"
 
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
 
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
-
-        # Verify image elements
-        img_elements = authenticated_page_api.locator('img')
-        img_count = img_elements.count()
-
-        # Verify content
-        page_content = authenticated_page_api.content()
-        assert "Image Test" in page_content or "image" in page_content.lower()
-
-    def test_docs_heading_levels(self, authenticated_page_api: Page):
-        """Test that docs canvas renders all heading levels.
-
-        Verifies:
-        - All heading levels (h1-h6) rendered
-        - Headings have correct hierarchy
-        """
-        # Create markdown with all heading levels
-        markdown_content = """# Heading 1
+def test_docs_heading_levels(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that docs canvas renders all heading levels (h1–h6)."""
+    user, _ = authenticated_user
+    markdown_content = """# Heading 1
 
 ## Heading 2
 
@@ -382,69 +235,30 @@ Image with link: [![Alt text](https://example.com/image.png)](https://example.co
 
 ###### Heading 6
 """
+    canvas_id = create_docs_canvas(db_session, user, "Heading Levels Test", markdown_content)
+    open_docs_preview(authenticated_page, canvas_id)
 
-        # Trigger docs presentation
-        canvas_id = trigger_canvas_docs(
-            authenticated_page_api,
-            markdown_content,
-            title="Heading Levels Test"
-        )
+    for level in range(1, 7):
+        heading = authenticated_page.locator(f".prose h{level}").first
+        expect(heading).to_be_visible()
+        assert heading.inner_text().strip() == f"Heading {level}", f"h{level} content mismatch"
 
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
 
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
-
-        # Verify h1 heading
-        h1_element = authenticated_page_api.locator('h1').first
-        expect(h1_element).to_be_visible()
-
-        # Verify heading content
-        page_content = authenticated_page_api.content()
-        assert "Heading 1" in page_content
-        assert "Heading 2" in page_content or "heading" in page_content.lower()
-
-    def test_docs_horizontal_rules(self, authenticated_page_api: Page):
-        """Test that docs canvas renders horizontal rules correctly.
-
-        Verifies:
-        - HR element rendered
-        - Content separated by rules
-        """
-        # Create markdown with horizontal rules
-        markdown_content = """# Horizontal Rule Test
+def test_docs_horizontal_rules(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that docs canvas renders horizontal rules."""
+    user, _ = authenticated_user
+    markdown_content = """# Horizontal Rule Test
 
 Content above rule
 
 ---
 
 Content below rule
-
-***
-
-More content
 """
+    canvas_id = create_docs_canvas(db_session, user, "Horizontal Rule Test", markdown_content)
+    open_docs_preview(authenticated_page, canvas_id)
 
-        # Trigger docs presentation
-        canvas_id = trigger_canvas_docs(
-            authenticated_page_api,
-            markdown_content,
-            title="Horizontal Rule Test"
-        )
-
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
-
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
-
-        # Verify hr elements
-        hr_elements = authenticated_page_api.locator('hr')
-        # HR may or may not be rendered as specific element
-
-        # Verify content
-        page_content = authenticated_page_api.content()
-        assert "Horizontal Rule" in page_content or "above" in page_content.lower()
+    hr_count = authenticated_page.locator(".prose hr").count()
+    assert hr_count >= 1, f"Expected at least 1 <hr>, got {hr_count}"

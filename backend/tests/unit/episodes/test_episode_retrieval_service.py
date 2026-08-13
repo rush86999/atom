@@ -1651,11 +1651,14 @@ class TestPerformanceTrend:
 
     def test_filter_improvement_trend_insufficient_data(self, retrieval_service):
         """Test trend calculation with insufficient data."""
-        episodes = [Mock() for _ in range(3)]  # Less than 5
+        # _filter_improvement_trend sorts by started_at up front, so the
+        # mocks need a comparable value (bare Mock() makes e.started_at a
+        # Mock and `Mock < Mock` raises TypeError). None → datetime.min key.
+        episodes = [Mock(started_at=None) for _ in range(3)]  # Less than 5
 
         result = retrieval_service._filter_improvement_trend(episodes)
 
-        # Should return original episodes when insufficient data
+        # Should return the same episodes when insufficient data
         assert result == episodes
 
     def test_filter_improvement_trend_improving(self, retrieval_service):

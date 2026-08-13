@@ -37,6 +37,11 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   output: 'standalone',
+  // The Next.js 16 dev-tools floating button (rendered as <nextjs-portal> in
+  // the bottom-right corner) intercepts pointer events over the chat input's
+  // send button in dev, which breaks both real users and E2E tests. Disabled
+  // in dev; the production build has no dev indicators anyway.
+  devIndicators: false,
   images: {
     unoptimized: true,
   },

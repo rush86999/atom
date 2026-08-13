@@ -83,6 +83,10 @@ def create_authenticated_page_slow_3g(slow_3g_context, user: User, base_url: str
         localStorage.setItem('auth_token', '{token}');
     }}""")
 
+    # middleware.ts gates routes on the auth_token COOKIE, not localStorage
+    from tests.e2e_ui.fixtures.network_fixtures import set_auth_cookie
+    set_auth_cookie(slow_3g_context, base_url, token)
+
     return page
 
 
@@ -112,9 +116,12 @@ def test_slow_3g_login_success(slow_3g_context, db_session: Session, base_url: s
     page = slow_3g_context.new_page()
     page.goto(f"{base_url}/login")
 
-    # Fill login form (this will take longer due to throttling)
-    page.fill("input[name='email']", user.email)
-    page.fill("input[name='password']", "TestPassword123!")
+    # Fill login form (this will take longer due to throttling).
+    # Real login form (frontend-nextjs/pages/login.tsx) exposes
+    # data-testid="login-email-input" / login-password-input — there is no
+    # name="email"/name="password" attribute.
+    page.fill("[data-testid='login-email-input']", user.email)
+    page.fill("[data-testid='login-password-input']", "TestPassword123!")
 
     # Submit login form
     page.click("button[type='submit']")
@@ -130,12 +137,16 @@ def test_slow_3g_login_success(slow_3g_context, db_session: Session, base_url: s
         page.screenshot(path=screenshot_path)
         pytest.fail(f"Login redirect failed under slow 3G. Current URL: {current_url}. Screenshot: {screenshot_path}")
 
-    # Verify error message NOT shown
+    # Verify error message NOT shown. Use the login page's own error testid
+    # (data-testid="login-error-message") instead of a blanket [role='alert']
+    # — the dashboard mounts several benign role=alert widgets (GlobalChat
+    # error bubbles, canvas operation guides), so a generic alert selector
+    # would flag irrelevant UI.
     error_locators = [
+        "[data-testid='login-error-message']",
         "text=Invalid email or password",
         "text=Network error",
         "text=Connection failed",
-        "[role='alert']",
     ]
 
     for locator in error_locators:
@@ -296,8 +307,11 @@ def test_slow_3g_error_handling(slow_3g_context, base_url: str):
         # Network may never be truly idle with slow 3G, continue anyway
         pass
 
-    # Verify 404 error indicator
-    # Check for common 404 patterns
+    # Real behavior: the Next.js auth middleware 307-redirects unknown routes
+    # to /login?callbackUrl=... for unauthenticated users, so a bare 404 page
+    # is never rendered. Accept EITHER a 404 page OR the redirect-to-login —
+    # the invariant under test is graceful handling (no crash, no technical
+    # stack trace) under throttled bandwidth.
     error_indicators = [
         "text=404",
         "text=Not Found",
@@ -311,7 +325,10 @@ def test_slow_3g_error_handling(slow_3g_context, base_url: str):
             found_error = True
             break
 
-    assert found_error, "404 error page not shown under slow 3G"
+    redirected_to_login = "login" in page.url.lower()
+
+    assert found_error or redirected_to_login, \
+        f"Expected 404 page or login redirect, got URL: {page.url}"
 
     # Verify error message is user-friendly (not technical stack trace)
     technical_indicators = [

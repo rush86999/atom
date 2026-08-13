@@ -28,7 +28,7 @@ setup: ## One-shot dev bootstrap: venv, backend deps, frontend deps, .env
 # -------------------------------------------------------------------
 .PHONY: backend frontend dev
 backend: ## Run the full backend (main_api_app) on :$(PORT)
-	PYTHONPATH=$(PYTHONPATH) DISABLE_AUTH_RATE_LIMIT=1 \
+	PYTHONPATH=$(PYTHONPATH) BYPASS_RATE_LIMIT=1 \
 	  $(PY) -m uvicorn main_api_app:app --reload --port $(PORT)
 
 frontend: ## Run the frontend dev server on :$(FE_PORT)

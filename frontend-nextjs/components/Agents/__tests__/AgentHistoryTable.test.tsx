@@ -17,6 +17,8 @@ import { AgentHistoryTable } from '../AgentHistoryTable';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
 
+// The component fetches with native fetch against NEXT_PUBLIC_API_URL
+// (http://localhost:8000 in the jest env) — MSW must intercept that origin.
 const historyUrl = 'http://localhost:8000/api/agents/history';
 
 const jobs = [
@@ -66,7 +68,7 @@ describe('AgentHistoryTable', () => {
     });
   });
 
-  it('renders job rows with agent id, uppercase status, date and summary', async () => {
+  it('renders job rows with agent id, status, date and summary', async () => {
     server.use(
       rest.get(historyUrl, (req, res, ctx) => res(ctx.status(200), ctx.json(jobs)))
     );
@@ -76,14 +78,14 @@ describe('AgentHistoryTable', () => {
       expect(screen.getByText('agent-1')).toBeInTheDocument();
     });
 
-    // Statuses rendered uppercased in badges
-    expect(screen.getByText('SUCCESS')).toBeInTheDocument();
-    expect(screen.getByText('FAILED')).toBeInTheDocument();
-    expect(screen.getByText('RUNNING')).toBeInTheDocument();
+    // Statuses rendered (lowercase — matches the backend AgentExecution values)
+    expect(screen.getByText('success')).toBeInTheDocument();
+    expect(screen.getByText('failed')).toBeInTheDocument();
+    expect(screen.getByText('running')).toBeInTheDocument();
 
-    // Formatted start times
-    expect(screen.getByText(new Date('2024-01-15T10:00:00Z').toLocaleString())).toBeInTheDocument();
-    expect(screen.getByText(new Date('2024-01-16T08:00:00Z').toLocaleString())).toBeInTheDocument();
+    // Formatted start times (ISO-8601 style "YYYY-MM-DD HH:MM" in UTC)
+    expect(screen.getByText('2024-01-15 10:00')).toBeInTheDocument();
+    expect(screen.getByText('2024-01-16 08:00')).toBeInTheDocument();
 
     // Result summary preferred over logs
     expect(screen.getByText('Completed 3 tasks')).toBeInTheDocument();
@@ -136,8 +138,9 @@ describe('AgentHistoryTable', () => {
     );
     render(<AgentHistoryTable />);
 
+    // A server error surfaces the error message (distinct from the empty state)
     await waitFor(() => {
-      expect(screen.getByText('No history available.')).toBeInTheDocument();
+      expect(screen.getByTestId('execution-error-message')).toBeInTheDocument();
     });
   });
 
@@ -149,7 +152,7 @@ describe('AgentHistoryTable', () => {
     render(<AgentHistoryTable />);
 
     await waitFor(() => {
-      expect(screen.getByText('No history available.')).toBeInTheDocument();
+      expect(screen.getByTestId('execution-error-message')).toBeInTheDocument();
     });
     expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to fetch history', expect.anything());
     consoleErrorSpy.mockRestore();

@@ -60,13 +60,14 @@ class EpisodeLifecycleService:
                 started_at = started_at.replace(tzinfo=timezone.utc)
             days_old = (now - started_at).days
 
-            # Use the SAME decay formula as update_lifecycle (decay_score =
-            # min(1, days_old/90) — "how much decay has been applied", 0=fresh,
-            # 1=fully decayed). Previously this batch path used
-            # max(0, 1 - days_old/180) (a freshness score going 1->0), so the
-            # same field held opposite meanings depending on which job ran
-            # last, and retrieval serialized the non-deterministic value.
-            new_decay = min(1.0, max(0.0, days_old / 90.0))
+            # decay_score is a FRESHNESS score matching its column contract
+            # (models.py: `default=1.0`, "decays over time") and the retrieval
+            # default (`else 1.0`): 1.0 = fresh, decaying linearly to 0.0 at
+            # 180 days, then archived. An earlier change flipped this to
+            # min(1, days_old/90) (0=fresh→1=decayed), which inverted the
+            # field's documented meaning and contradicted the column default,
+            # the docstring, and the retrieval default (all treat 1.0=fresh).
+            new_decay = max(0.0, 1.0 - (days_old / 180.0))
 
             episode.decay_score = new_decay
             # Do NOT bump access_count here: this is a background maintenance
@@ -342,12 +343,14 @@ class EpisodeLifecycleService:
             age_timedelta = now - started_at
             days_old = age_timedelta.total_seconds() / 86400.0  # Convert to days
 
-            # Apply decay formula: decay_score = min(1, days_old / 90)
-            # This represents "how much decay has been applied" (0 = none, 1 = fully decayed)
-            # 1-day-old episodes: ~0.01 decay
-            # 90-day-old episodes: 1.0 decay (fully decayed at 90 days)
-            # Clamp to [0, 1] range
-            new_decay = min(1.0, max(0.0, days_old / 90.0))
+            # Apply decay formula: decay_score = max(0, 1 - days_old/180).
+            # This is a FRESHNESS score (1.0 = fresh → 0.0 = fully decayed at
+            # 180 days), matching the column default (`models.py`: default=1.0,
+            # "decays over time"), the retrieval default (`else 1.0`), and the
+            # batch path decay_old_episodes. An earlier change used
+            # min(1, days_old/90) here, which inverted the field's meaning
+            # (0=fresh→1=decayed) and contradicted the column default.
+            new_decay = max(0.0, 1.0 - (days_old / 180.0))
 
             # Update episode
             episode.decay_score = new_decay

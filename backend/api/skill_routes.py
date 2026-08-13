@@ -156,6 +156,7 @@ async def import_skill(
 
 @router.get("/list")
 async def list_skills(
+    status: Optional[str] = None,
     skill_status: Optional[str] = None,
     skill_type: Optional[str] = None,
     limit: int = 100,
@@ -180,8 +181,12 @@ async def list_skills(
         GET /api/skills/list?status=Active&skill_type=prompt_only&limit=10
     """
     try:
+        # 'skill_status' is a deprecated alias kept for backwards compat;
+        # 'status' is the documented contract (see docstring + example above).
+        status_filter = status or skill_status
+
         skills = service.list_skills(
-            status=skill_status,
+            status=status_filter,
             skill_type=skill_type,
             limit=limit
         )
@@ -191,7 +196,7 @@ async def list_skills(
                 "skills": skills,
                 "total": len(skills),
                 "filters": {
-                    "status": skill_status,
+                    "status": status_filter,
                     "skill_type": skill_type,
                     "limit": limit
                 }
@@ -293,7 +298,7 @@ async def execute_skill(
         }
     """
     try:
-        result = service.execute_skill(
+        result = await service.execute_skill(
             skill_id=request.skill_id,
             inputs=request.inputs,
             agent_id=request.agent_id

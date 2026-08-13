@@ -85,6 +85,10 @@ def create_authenticated_page_offline(offline_mode_context, user: User, base_url
         localStorage.setItem('auth_token', '{token}');
     }}""")
 
+    # middleware.ts gates routes on the auth_token COOKIE, not localStorage
+    from tests.e2e_ui.fixtures.network_fixtures import set_auth_cookie
+    set_auth_cookie(context, base_url, token)
+
     return page, go_offline, come_online
 
 
@@ -116,12 +120,22 @@ def test_offline_mode_during_login(offline_mode_context, db_session: Session, ba
     page = context.new_page()
     page.goto(f"{base_url}/login")
 
+    # Hide Next.js dev overlays (nextjs-portal swallows clicks in dev mode —
+    # mounting happens after go_offline drops the HMR websocket, so the
+    # init-script + MutationObserver hide must be armed BEFORE that).
+    from tests.e2e_ui.fixtures.network_fixtures import hide_nextjs_overlays
+    hide_nextjs_overlays(page)
+
     # Fill login form
-    page.fill("input[name='email']", user.email)
-    page.fill("input[name='password']", "TestPassword123!")
+    page.fill("[data-testid='login-email-input']", user.email)
+    page.fill("[data-testid='login-password-input']", "TestPassword123!")
 
     # Go offline before submitting
     go_offline()
+
+    # Hide again: the offline transition can mount a fresh overlay AFTER the
+    # first hide armed (HMR disconnect overlay renders on websocket drop).
+    hide_nextjs_overlays(page)
 
     # Try to submit login form
     page.click("button[type='submit']")
@@ -146,7 +160,8 @@ def test_offline_mode_during_login(offline_mode_context, db_session: Session, ba
 
     assert found_error, "Network error message not shown when offline"
 
-    # Verify NOT redirected to dashboard
+    # Verify NOT redirected to dashboard — checked BEFORE restoring the
+    # network: the retry below legitimately logs in and lands on /dashboard.
     assert "dashboard" not in page.url.lower(), f"Should not be on dashboard when offline, got: {page.url}"
 
     # Verify error message is user-friendly (not technical)
@@ -295,6 +310,11 @@ def test_network_reconnect_after_offline(offline_mode_context, db_session: Sessi
         localStorage.setItem('auth_token', '{token}');
     }}""")
 
+    # middleware.ts gates routes on the auth_token COOKIE, not localStorage
+    from tests.e2e_ui.fixtures.network_fixtures import set_auth_cookie, hide_nextjs_overlays
+    set_auth_cookie(context, base_url, token)
+    hide_nextjs_overlays(page)
+
     # Navigate to dashboard (online)
     page.goto(f"{base_url}/dashboard")
     page.wait_for_timeout(1000)
@@ -305,9 +325,14 @@ def test_network_reconnect_after_offline(offline_mode_context, db_session: Sessi
     # Go offline
     go_offline()
 
-    # Try to navigate to different page (verify cached content or error)
-    page.goto(f"{base_url}/agents")
-    page.wait_for_timeout(1000)
+    # Try to navigate to different page — while offline, page.goto itself
+    # rejects with net::ERR_INTERNET_DISCONNECTED (that rejection IS the
+    # graceful failure: the app never hangs). Both outcomes are acceptable.
+    try:
+        page.goto(f"{base_url}/agents", timeout=15000)
+        page.wait_for_timeout(1000)
+    except Exception:
+        pass
 
     # Page may show cached content or network error - both are acceptable
     # Just verify no crash

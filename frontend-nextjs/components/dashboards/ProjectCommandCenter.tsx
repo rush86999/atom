@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, Circle, Clock, Layout, ListTodo, Plus, Search, X, RefreshCw } from 'lucide-react';
-import axios from 'axios';
 import { useRouter } from 'next/router';
 import { toast } from 'sonner';
 import { CommentSection } from '@/components/shared/CommentSection';
@@ -10,6 +9,8 @@ import { useLiveProjects } from '@/hooks/useLiveProjects';
 import { useMemorySearch } from '@/hooks/useMemorySearch';
 import { PipelineSettingsPanel } from '@/components/shared/PipelineSettingsPanel';
 import { Button } from '@/components/ui/button';
+import { PROJECTS } from '@/src/lib/testIds';
+import { apiClient } from '@/lib/api-client';
 
 interface Task {
     id: string;
@@ -91,7 +92,10 @@ export const ProjectCommandCenter: React.FC = () => {
         if (!newTask.title) return;
         try {
             setCreating(true);
-            await axios.post('/api/intelligence/execute', {
+            // Use the app's authenticated apiClient (attaches the Bearer
+            // token from localStorage) — a raw axios.post relied on cookie
+            // auth, which the backend rejects with 403 csrf_token_invalid.
+            const response = await apiClient.post('/api/intelligence/execute', {
                 action_type: 'tool',
                 action_payload: {
                     tool_name: 'create_task',
@@ -102,10 +106,18 @@ export const ProjectCommandCenter: React.FC = () => {
                     }
                 }
             });
-            toast.success(`Task created successfully in ${newTask.platform}`);
-            setShowCreateModal(false);
-            setNewTask({ title: '', platform: 'jira' });
-            refresh();
+            // The backend returns a 200 success envelope even when the
+            // connected-platform create failed (e.g. no platform connected) —
+            // surface the actual result instead of a false success toast.
+            const result = response?.data?.data?.result;
+            if (result && result.status === 'error') {
+                toast.error(result.error || 'Failed to create task across systems.');
+            } else {
+                toast.success(`Task created successfully in ${newTask.platform}`);
+                setShowCreateModal(false);
+                setNewTask({ title: '', platform: 'jira' });
+                refresh();
+            }
         } catch (error) {
             console.error('Failed to create task:', error);
             toast.error('Failed to create task across systems.');
@@ -115,7 +127,7 @@ export const ProjectCommandCenter: React.FC = () => {
     };
 
     return (
-        <div className="p-6 space-y-6 max-w-7xl mx-auto animate-in fade-in duration-700">
+        <div className="p-6 space-y-6 max-w-7xl mx-auto animate-in fade-in duration-700" data-testid={PROJECTS.PAGE}>
             <div className="flex justify-between items-end">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">
@@ -130,6 +142,7 @@ export const ProjectCommandCenter: React.FC = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => setShowSettings(!showSettings)}
+                        data-testid={PROJECTS.SYNC_SETTINGS_BUTTON}
                     >
                         <RefreshCw className="w-4 h-4 mr-2" />
                         Sync Settings
@@ -137,6 +150,7 @@ export const ProjectCommandCenter: React.FC = () => {
                     <Button
                         onClick={() => setShowCreateModal(true)}
                         className="flex items-center gap-2"
+                        data-testid={PROJECTS.QUICK_CREATE_BUTTON}
                     >
                         <Plus className="w-4 h-4" />
                         Quick Create
@@ -149,6 +163,7 @@ export const ProjectCommandCenter: React.FC = () => {
                             className="pl-10 pr-10 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring text-sm w-64 text-foreground"
                             value={searchQuery}
                             onChange={handleSearch}
+                            data-testid={PROJECTS.SEARCH_INPUT}
                         />
                         {searchQuery && (
                             <button
@@ -163,7 +178,7 @@ export const ProjectCommandCenter: React.FC = () => {
             </div>
 
             {showCreateModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-300" data-testid={PROJECTS.CREATE_MODAL}>
                     <div className="bg-card border border-border rounded-xl p-6 w-[400px] shadow-2xl animate-in zoom-in-95 duration-300">
                         <h2 className="text-xl font-bold mb-4 text-card-foreground">Quick Create Task</h2>
                         <div className="space-y-4">
@@ -175,6 +190,7 @@ export const ProjectCommandCenter: React.FC = () => {
                                     placeholder="Enter task summary..."
                                     value={newTask.title}
                                     onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                                    data-testid={PROJECTS.NAME_INPUT}
                                 />
                             </div>
                             <div>
@@ -188,6 +204,7 @@ export const ProjectCommandCenter: React.FC = () => {
                                                 ? 'bg-primary/20 border-primary text-primary'
                                                 : 'bg-muted border-border text-muted-foreground hover:bg-muted/80'
                                                 }`}
+                                            data-testid={`${PROJECTS.PLATFORM_PREFIX}${p}`}
                                         >
                                             {p}
                                         </button>
@@ -199,6 +216,7 @@ export const ProjectCommandCenter: React.FC = () => {
                                     disabled={creating}
                                     onClick={() => setShowCreateModal(false)}
                                     className="flex-1 py-2 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground transition-all text-sm"
+                                    data-testid={PROJECTS.CANCEL_BUTTON}
                                 >
                                     Cancel
                                 </button>
@@ -206,6 +224,7 @@ export const ProjectCommandCenter: React.FC = () => {
                                     disabled={creating || !newTask.title}
                                     onClick={handleCreateTask}
                                     className="flex-1"
+                                    data-testid={PROJECTS.SAVE_BUTTON}
                                 >
                                     {creating && <div className="w-3 h-3 border-2 border-primary-foreground/20 border-t-primary-foreground rounded-full animate-spin mr-2" />}
                                     {creating ? 'Creating...' : 'Create Task'}
@@ -257,7 +276,7 @@ export const ProjectCommandCenter: React.FC = () => {
                                     <Layout className="w-4 h-4 text-primary" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold text-card-foreground">{tasks.length}</div>
+                                    <div className="text-2xl font-bold text-card-foreground" data-testid={PROJECTS.STAT_TOTAL}>{tasks.length}</div>
                                     <p className="text-xs text-muted-foreground mt-1">+2 from yesterday</p>
                                 </CardContent>
                             </Card>
@@ -267,7 +286,7 @@ export const ProjectCommandCenter: React.FC = () => {
                                     <Clock className="w-4 h-4 text-blue-500" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold text-card-foreground">
+                                    <div className="text-2xl font-bold text-card-foreground" data-testid={PROJECTS.STAT_PLATFORMS}>
                                         {Object.keys(stats.tasks_by_platform || {}).length || 0}
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1 font-mono">
@@ -281,7 +300,7 @@ export const ProjectCommandCenter: React.FC = () => {
                                     <CheckCircle2 className="w-4 h-4 text-green-500" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold text-card-foreground">
+                                    <div className="text-2xl font-bold text-card-foreground" data-testid={PROJECTS.STAT_OVERDUE}>
                                         {stats.overdue_count}
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1">High Priority</p>
@@ -291,7 +310,7 @@ export const ProjectCommandCenter: React.FC = () => {
 
                         <Card className="overflow-hidden">
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left">
+                                <table className="w-full text-sm text-left" data-testid={PROJECTS.TABLE}>
                                     <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
                                         <tr>
                                             <th className="px-6 py-4 font-semibold">ID</th>
@@ -308,9 +327,16 @@ export const ProjectCommandCenter: React.FC = () => {
                                                     <td colSpan={5} className="px-6 py-8 h-16 bg-muted/20" />
                                                 </tr>
                                             ))
+                                        ) : tasks.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? (
+                                            <tr data-testid={PROJECTS.EMPTY_STATE}>
+                                                <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                                                    No connected project tasks yet. Connect a project management platform or use Quick Create.
+                                                </td>
+                                            </tr>
                                         ) : tasks.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase())).map((task) => (
                                             <tr
                                                 key={task.id}
+                                                data-testid={PROJECTS.TASK_ROW}
                                                 className={`hover:bg-muted/50 transition-all duration-500 group ${highlightTaskId === task.id ? 'bg-primary/10 border-l-2 border-l-primary ring-1 ring-primary/20' : ''
                                                     }`}
                                             >
@@ -318,17 +344,17 @@ export const ProjectCommandCenter: React.FC = () => {
                                                     {task.id}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="font-medium text-foreground group-hover:text-primary transition-colors">
+                                                    <div className="font-medium text-foreground group-hover:text-primary transition-colors" data-testid={PROJECTS.TASK_NAME}>
                                                         {task.title}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <Badge variant="outline" className={`capitalize font-medium ${getPlatformColor(task.platform)}`}>
+                                                    <Badge variant="outline" className={`capitalize font-medium ${getPlatformColor(task.platform)}`} data-testid="project-task-platform">
                                                         {task.platform}
                                                     </Badge>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <span className="flex items-center gap-2 text-muted-foreground">
+                                                    <span className="flex items-center gap-2 text-muted-foreground" data-testid="project-task-status">
                                                         {task.status === 'Done' || task.status === 'Completed' ? (
                                                             <CheckCircle2 className="w-4 h-4 text-green-500" />
                                                         ) : (
@@ -343,6 +369,7 @@ export const ProjectCommandCenter: React.FC = () => {
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="text-primary hover:underline font-medium"
+                                                        data-testid="project-task-link"
                                                     >
                                                         View details
                                                     </a>

@@ -54,7 +54,15 @@ def cdp_session(page: Page):
             after = cdp_session.send("HeapProfiler.takeHeapSnapshot")
     """
     # Check if browser is Chromium (CDP is Chromium-only)
-    browser_name = page.context.browser._impl_obj._browser_name.lower()
+    browser = page.context.browser
+    browser_name = (
+        getattr(getattr(browser, "_impl_obj", None), "_browser_name", None)
+        or getattr(browser, "browser_type", None)
+    )
+    if browser_name is None or not hasattr(browser_name, "lower"):
+        browser_name = "chromium"
+    else:
+        browser_name = str(browser_name).lower()
 
     if "chromium" not in browser_name:
         pytest.skip(f"CDP session requires Chromium browser (got: {browser_name})")
@@ -116,20 +124,7 @@ def heap_snapshot(cdp_session):
 
         # The result contains chunked data, we need to collect it
         # For simplicity, we'll use Performance.getMetrics instead for quick stats
-        metrics = cdp_session.send("Performance.getMetrics")
-
-        # Extract memory metrics
-        memory_stats = {}
-        for metric in metrics.get("metrics", []):
-            name = metric.get("name", "")
-            value = metric.get("value", 0)
-
-            if name == "JSHeapUsedSize":
-                memory_stats["js_heap_used_size"] = value
-            elif name == "JSHeapTotalSize":
-                memory_stats["js_heap_total_size"] = value
-            elif name == "JSHeapSizeLimit":
-                memory_stats["js_heap_size_limit"] = value
+        memory_stats = _get_memory_metrics(cdp_session)
 
         # Calculate total size
         total_size = memory_stats.get("js_heap_used_size", 0)
@@ -211,6 +206,53 @@ def compare_heap_snapshots(before_snapshot: Dict[str, Any], after_snapshot: Dict
     }
 
 
+def _get_memory_metrics(cdp_session) -> Dict[str, float]:
+    """Retrieve JS heap metrics from the browser via CDP.
+
+    Tries `Performance.getMetrics` first; newer Chromium builds return an
+    empty metrics list, so falls back to `Runtime.evaluate` on
+    `performance.memory` (the Chrome-specific MemoryInfo API), which reports
+    usedJSHeapSize / totalJSHeapSize / jsHeapSizeLimit.
+
+    Returns:
+        dict: Normalized metrics with keys js_heap_used_size,
+            js_heap_total_size, js_heap_size_limit
+    """
+    metrics = cdp_session.send("Performance.getMetrics")
+    memory_stats = {}
+    for metric in metrics.get("metrics", []):
+        name = metric.get("name", "")
+        value = metric.get("value", 0)
+        if name == "JSHeapUsedSize":
+            memory_stats["js_heap_used_size"] = value
+        elif name == "JSHeapTotalSize":
+            memory_stats["js_heap_total_size"] = value
+        elif name == "JSHeapSizeLimit":
+            memory_stats["js_heap_size_limit"] = value
+
+    if not memory_stats:
+        # Fallback: Runtime.evaluate on performance.memory (MemoryInfo)
+        result = cdp_session.send(
+            "Runtime.evaluate",
+            {
+                "expression": (
+                    "performance.memory ? "
+                    "{used: performance.memory.usedJSHeapSize, "
+                    "total: performance.memory.totalJSHeapSize, "
+                    "limit: performance.memory.jsHeapSizeLimit} : null"
+                ),
+                "returnByValue": True,
+            },
+        )
+        value = (result.get("result") or {}).get("value") or {}
+        if value:
+            memory_stats["js_heap_used_size"] = value.get("used", 0)
+            memory_stats["js_heap_total_size"] = value.get("total", 0)
+            memory_stats["js_heap_size_limit"] = value.get("limit", 0)
+
+    return memory_stats
+
+
 def memory_stats(cdp_session) -> Dict[str, Any]:
     """Get current memory usage statistics via CDP.
 
@@ -232,20 +274,7 @@ def memory_stats(cdp_session) -> Dict[str, Any]:
         stats = memory_stats(cdp_session)
         assert stats['percentage_used'] < 90  # Don't exceed 90% heap usage
     """
-    # Get performance metrics from CDP
-    metrics = cdp_session.send("Performance.getMetrics")
-
-    memory_stats = {}
-    for metric in metrics.get("metrics", []):
-        name = metric.get("name", "")
-        value = metric.get("value", 0)
-
-        if name == "JSHeapUsedSize":
-            memory_stats["js_heap_used_size"] = value
-        elif name == "JSHeapTotalSize":
-            memory_stats["js_heap_total_size"] = value
-        elif name == "JSHeapSizeLimit":
-            memory_stats["js_heap_size_limit"] = value
+    memory_stats = _get_memory_metrics(cdp_session)
 
     # Calculate derived metrics
     used = memory_stats.get("js_heap_used_size", 0)
@@ -282,20 +311,7 @@ def get_heap_snapshot(cdp_session) -> Dict[str, Any]:
             # Execute more operations
             after = get_heap_snapshot(cdp_session)
     """
-    # Get performance metrics
-    metrics = cdp_session.send("Performance.getMetrics")
-
-    memory_stats = {}
-    for metric in metrics.get("metrics", []):
-        name = metric.get("name", "")
-        value = metric.get("value", 0)
-
-        if name == "JSHeapUsedSize":
-            memory_stats["js_heap_used_size"] = value
-        elif name == "JSHeapTotalSize":
-            memory_stats["js_heap_total_size"] = value
-        elif name == "JSHeapSizeLimit":
-            memory_stats["js_heap_size_limit"] = value
+    memory_stats = _get_memory_metrics(cdp_session)
 
     total_size = memory_stats.get("js_heap_used_size", 0)
 

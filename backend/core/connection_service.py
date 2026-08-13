@@ -61,6 +61,25 @@ class ConnectionService:
             logger.error(f"Failed to decrypt credentials: {e}")
             return {}
     
+    async def list_connections(self, user_id: str, integration_id: Optional[str] = None) -> List["UserConnection"]:
+        """List connections for a user as ORM rows (used by MCP tool dispatch).
+
+        The MCP tool handlers (``integrations/mcp_service.py``) await
+        ``conn_service.list_connections(...)`` and then access attributes
+        like ``conn.piece_name`` / ``conn.credentials`` / ``conn.metadata``
+        on the rows. ``get_connections`` returns plain dicts, which does not
+        satisfy that contract — this method returns the ORM rows instead.
+        """
+        with get_db_session() as db:
+            try:
+                query = db.query(UserConnection).filter(UserConnection.user_id == user_id)
+                if integration_id:
+                    query = query.filter(UserConnection.integration_id == integration_id)
+                return query.all()
+            except Exception as e:
+                logger.error(f"Error retrieving connection rows: {e}")
+                return []
+
     def get_connections(self, user_id: str, integration_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         List connections for a user, optionally filtered by integration.

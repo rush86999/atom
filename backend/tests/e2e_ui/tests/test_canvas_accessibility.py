@@ -46,7 +46,7 @@ from core.models import User
 def open_canvas_detail(page: Page, canvas_id: str) -> None:
     """Navigate to the real /canvas/{id} route."""
     page.goto(f"http://localhost:3001/canvas/{canvas_id}")
-    authenticated_page.wait_for_load_state("networkidle")
+    page.wait_for_load_state("networkidle")
     page.wait_for_selector('[data-testid="canvas-container"]', timeout=10000)
 
 
@@ -98,7 +98,15 @@ def test_state_api_available_for_agents(authenticated_page: Page):
     authenticated_page.wait_for_load_state("networkidle")
     artifacts_tab = authenticated_page.locator("button:has-text('Artifacts')")
     if artifacts_tab.count() > 0:
-        artifacts_tab.first.click()
+        # The Next.js dev-mode <nextjs-portal> overlay intercepts pointer
+        # events over the workspace pane, so dispatch the click directly on
+        # the DOM node (React's onClick handler fires without hit-testing).
+        artifacts_tab.first.evaluate("(el) => el.click()")
+        # Wait for CanvasHost to mount and create window.atom.canvas
+        authenticated_page.wait_for_function(
+            "() => typeof window.atom?.canvas === 'object'",
+            timeout=10000,
+        )
         authenticated_page.wait_for_timeout(500)
 
     api = authenticated_page.evaluate("() => typeof window.atom?.canvas")
@@ -178,12 +186,12 @@ def test_state_registered_for_all_mounted_types(authenticated_page: Page, authen
         "Form",
     )
 
-    open_canvas_detail(page, chart_id)
+    open_canvas_detail(authenticated_page, chart_id)
     pie_state = find_state(authenticated_page, "pie_chart", "pie")
     assert pie_state is not None, "Pie chart should register state"
     assert pie_state["data_points"][0]["x"] == "A"
 
-    open_canvas_detail(page, form_id)
+    open_canvas_detail(authenticated_page, form_id)
     form_state = find_state(authenticated_page, "form", require="form_schema")
     assert form_state is not None, "Form should register state"
     assert form_state["form_schema"]["fields"][0]["name"] == "email"
@@ -239,7 +247,15 @@ def test_state_api_returns_null_for_unknown_id(authenticated_page: Page):
     authenticated_page.wait_for_load_state("networkidle")
     artifacts_tab = authenticated_page.locator("button:has-text('Artifacts')")
     if artifacts_tab.count() > 0:
-        artifacts_tab.first.click()
+        # The Next.js dev-mode <nextjs-portal> overlay intercepts pointer
+        # events over the workspace pane, so dispatch the click directly on
+        # the DOM node (React's onClick handler fires without hit-testing).
+        artifacts_tab.first.evaluate("(el) => el.click()")
+        # Wait for CanvasHost to mount and create window.atom.canvas
+        authenticated_page.wait_for_function(
+            "() => typeof window.atom?.canvas === 'object'",
+            timeout=10000,
+        )
         authenticated_page.wait_for_timeout(500)
 
     result = authenticated_page.evaluate("() => window.atom.canvas.getState('does-not-exist')")

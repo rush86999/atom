@@ -6,6 +6,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship, sessionmaker, Session, declared_attr, DeclarativeBase, validates
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
+from typing import Any, Dict, Optional
 import uuid
 from decimal import Decimal
 
@@ -2474,6 +2475,31 @@ class UserConnection(Base):
     refresh_failure_count = Column(Integer, server_default="0", default=0)
     last_refresh_at = Column(DateTime(timezone=True), nullable=True)
     last_refresh_error = Column(Text, nullable=True)
+
+    @property
+    def piece_name(self) -> str:
+        """Compatibility accessor used by MCP tool dispatch.
+
+        integration_id matches the piece name, e.g. ``@activepieces/piece-slack``
+        or native ``slack`` — strip any ``@activepieces/piece-`` prefix so
+        handlers can compare against bare names (``c.piece_name == "slack"``).
+        """
+        if not self.integration_id:
+            return ""
+        return self.integration_id.rsplit("/", 1)[-1].replace("piece-", "", 1)
+
+    @property
+    def connection_metadata(self) -> Dict[str, Any]:
+        """Compatibility accessor used by MCP tool dispatch.
+
+        Returns the stored connection metadata if present, else an empty
+        dict (call sites use ``conn.metadata.get("shop_url")`` etc. and
+        must not crash on legacy rows). Named ``connection_metadata``
+        because ``metadata`` is reserved by SQLAlchemy declarative.
+        """
+        creds = self.credentials if isinstance(self.credentials, dict) else {}
+        metadata = creds.get("metadata")
+        return metadata if isinstance(metadata, dict) else {}
 
     # Relationships
     user = relationship("User", backref="connections")

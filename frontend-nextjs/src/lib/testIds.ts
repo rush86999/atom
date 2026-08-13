@@ -141,6 +141,60 @@ export const SETTINGS = {
 } as const;
 
 // ===========================================================================
+// Projects (Project Command Center) Test IDs
+// ===========================================================================
+
+export const PROJECTS = {
+  /** Root container of the Project Command Center page */
+  PAGE: 'projects-page',
+
+  /** Quick Create button (opens the create-task modal) */
+  QUICK_CREATE_BUTTON: 'quick-create-button',
+
+  /** Sync Settings toggle button */
+  SYNC_SETTINGS_BUTTON: 'projects-sync-settings-button',
+
+  /** Task search input */
+  SEARCH_INPUT: 'project-search-input',
+
+  /** Create-task modal dialog */
+  CREATE_MODAL: 'create-project-modal',
+
+  /** Task title input inside the create modal */
+  NAME_INPUT: 'project-name-input',
+
+  /** Platform picker buttons inside the modal (append: -jira, -asana) */
+  PLATFORM_PREFIX: 'project-platform-',
+
+  /** Submit button inside the create modal */
+  SAVE_BUTTON: 'modal-save-button',
+
+  /** Cancel button inside the create modal */
+  CANCEL_BUTTON: 'modal-cancel-button',
+
+  /** Tasks table */
+  TABLE: 'projects-table',
+
+  /** Individual task row inside the table */
+  TASK_ROW: 'project-task-row',
+
+  /** Task name cell inside a row */
+  TASK_NAME: 'project-task-name',
+
+  /** Empty state row shown when no connected-platform tasks exist */
+  EMPTY_STATE: 'projects-empty-state',
+
+  /** Stat card value: total tasks */
+  STAT_TOTAL: 'projects-stats-total-tasks',
+
+  /** Stat card value: active platforms */
+  STAT_PLATFORMS: 'projects-stats-active-platforms',
+
+  /** Stat card value: critical overdue */
+  STAT_OVERDUE: 'projects-stats-critical-overdue',
+} as const;
+
+// ===========================================================================
 // Type Definitions
 // ===========================================================================
 
@@ -149,7 +203,8 @@ type TestIds = typeof AGENT_CHAT &
   typeof AUTH &
   typeof FORM &
   typeof SKILLS &
-  typeof SETTINGS;
+  typeof SETTINGS &
+  typeof PROJECTS;
 
 // Export all test IDs as a single object for convenience
 export const TEST_IDS = {
@@ -159,6 +214,7 @@ export const TEST_IDS = {
   FORM,
   SKILLS,
   SETTINGS,
+  PROJECTS,
 } as const;
 
 // Default export for quick access

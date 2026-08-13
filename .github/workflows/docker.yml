@@ -36,7 +36,7 @@ jobs:
             -e DATABASE_URL="sqlite:///smoke.db" \
             -e SECRET_KEY="smoke-secret" \
             -e ENVIRONMENT="development" \
-            -e DISABLE_AUTH_RATE_LIMIT="1" \
+            -e BYPASS_RATE_LIMIT="1" \
             atom:test
 
           for i in $(seq 1 45); do

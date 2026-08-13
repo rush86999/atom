@@ -35,7 +35,7 @@ cp backend/.env.example backend/.env
 
 # Launch backend (FROM REPO ROOT — main_api_app.py uses backend.* imports;
 # main_api_app:app is the FULL app, 197 routers)
-PYTHONPATH=$PWD:$PWD/backend DISABLE_AUTH_RATE_LIMIT=1 \
+PYTHONPATH=$PWD:$PWD/backend BYPASS_RATE_LIMIT=1 \
   ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
 
 # In a second terminal: frontend

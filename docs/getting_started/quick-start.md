@@ -87,7 +87,7 @@ root** (not from `backend/`):
 
 ```bash
 cd /path/to/atom
-PYTHONPATH=$PWD:$PWD/backend DISABLE_AUTH_RATE_LIMIT=1 \
+PYTHONPATH=$PWD:$PWD/backend BYPASS_RATE_LIMIT=1 \
   ./backend/venv/bin/python -m uvicorn main_api_app:app --reload --port 8001
 ```
 
@@ -102,7 +102,7 @@ INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
 ```
 
-`DISABLE_AUTH_RATE_LIMIT=1` only lifts the registration rate-limit so you can
+`BYPASS_RATE_LIMIT=1` only lifts the registration rate-limit so you can
 create test users freely; remove it for any shared/production deployment.
 
 > **Minimal app (smoke only):** `minimal_app.py` boots a ~125-route subset for

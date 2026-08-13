@@ -4,6 +4,15 @@ Canvas Mobile API-level E2E Tests
 Tests canvas API endpoints for mobile platform (React Native).
 Uses API-level testing to bypass mobile UI limitations.
 
+Real canvas API surface (backend/api/canvas_routes.py + tools/canvas_crud_tool.py):
+- POST /api/canvas/{canvas_id}/context — create/seed canvas context (the
+  HTTP-visible "present" path; the agent present tool writes Canvas+CanvasAudit
+  rows + a WS broadcast, the context endpoint persists the state snapshot)
+- GET /api/canvas/{canvas_id}/context — context snapshot (canvas_id, canvas_type,
+  current_state)
+- POST /api/canvas/submit — form submission (writes a CanvasAudit row)
+- GET /api/canvas/ — canvas list derived from the CanvasAudit trail
+
 Requirements:
 - MOBILE-01: Canvas API works for mobile (React Native) via API-level testing
 - CROSS-01: Cross-platform canvas state is consistent (web, mobile, desktop)
@@ -24,24 +33,32 @@ from typing import Dict, Any
 import pytest
 import requests
 
-# Add backend to path
-backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Add backend to path (5 dirnames: tests/e2e_ui/tests/cross-platform → backend)
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-from core.models import CanvasAudit
+from core.models import CanvasAudit, CanvasContext
 from sqlalchemy.orm import Session
+
+
+BASE_URL = "http://localhost:8001"
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
 
-def create_mobile_token(user_data: dict, base_url: str = "http://localhost:8001") -> str:
+def create_mobile_token(user: Any, password: str = "TestPassword123!", base_url: str = BASE_URL) -> str:
     """Create access token for mobile platform via API login.
 
+    The real login endpoint accepts ``username`` (not ``email``) — see
+    utils/api_setup.authenticate_user. The user must exist in the DB the
+    backend serves (created by the test_user fixture).
+
     Args:
-        user_data: User data dictionary with email and password
+        user: User ORM instance (must have ``email``)
+        password: User password
         base_url: Base URL for API requests
 
     Returns:
@@ -53,8 +70,8 @@ def create_mobile_token(user_data: dict, base_url: str = "http://localhost:8001"
     response = requests.post(
         f"{base_url}/api/auth/login",
         json={
-            "email": user_data['email'],
-            "password": user_data['password']
+            "username": user.email,
+            "password": password
         }
     )
 
@@ -65,23 +82,30 @@ def create_mobile_token(user_data: dict, base_url: str = "http://localhost:8001"
     return data['access_token']
 
 
-def present_canvas_via_mobile_api(token: str, canvas_data: dict, base_url: str = "http://localhost:8001") -> dict:
+def present_canvas_via_mobile_api(token: str, canvas_id: str, canvas_data: dict, base_url: str = BASE_URL) -> dict:
     """Present canvas via mobile API with X-Platform header.
+
+    Real endpoint: POST /api/canvas/{canvas_id}/context — creates the
+    canvas context and seeds the initial state (the HTTP-visible present path).
 
     Args:
         token: JWT access token
+        canvas_id: Canvas ID to create context for
         canvas_data: Canvas data (type, chart_type, data, etc.)
         base_url: Base URL for API requests
 
     Returns:
-        API response dict with canvas_id
+        API response dict with context_id
 
     Raises:
         AssertionError: If canvas presentation fails
     """
     response = requests.post(
-        f"{base_url}/api/canvas/present",
-        json=canvas_data,
+        f"{base_url}/api/canvas/{canvas_id}/context",
+        json={
+            "canvas_type": canvas_data["type"],
+            "initial_state": canvas_data,
+        },
         headers={
             "Authorization": f"Bearer {token}",
             "X-Platform": "mobile"
@@ -90,13 +114,16 @@ def present_canvas_via_mobile_api(token: str, canvas_data: dict, base_url: str =
 
     assert response.status_code == 200, f"Canvas present failed: {response.text}"
     data = response.json()
-    assert 'canvas_id' in data or 'data' in data, "No canvas_id in response"
+    assert data.get("success") is True, f"Canvas present not successful: {data}"
 
     return data
 
 
-def get_canvas_state_via_mobile_api(token: str, canvas_id: str, base_url: str = "http://localhost:8001") -> dict:
+def get_canvas_state_via_mobile_api(token: str, canvas_id: str, base_url: str = BASE_URL) -> dict:
     """Get canvas state via mobile API.
+
+    Real endpoint: GET /api/canvas/{canvas_id}/context — the state snapshot
+    carries canvas_id / canvas_type / current_state.
 
     Args:
         token: JWT access token
@@ -110,7 +137,7 @@ def get_canvas_state_via_mobile_api(token: str, canvas_id: str, base_url: str = 
         AssertionError: If state retrieval fails
     """
     response = requests.get(
-        f"{base_url}/api/canvas/{canvas_id}/state",
+        f"{base_url}/api/canvas/{canvas_id}/context",
         headers={
             "Authorization": f"Bearer {token}",
             "X-Platform": "mobile"
@@ -118,11 +145,16 @@ def get_canvas_state_via_mobile_api(token: str, canvas_id: str, base_url: str = 
     )
 
     assert response.status_code == 200, f"Get state failed: {response.text}"
-    return response.json()
+    data = response.json()
+    assert data.get("success") is True, f"Get state not successful: {data}"
+
+    return data.get("data") or {}
 
 
-def submit_canvas_form_via_mobile_api(token: str, canvas_id: str, form_values: dict, base_url: str = "http://localhost:8001") -> dict:
+def submit_canvas_form_via_mobile_api(token: str, canvas_id: str, form_values: dict, base_url: str = BASE_URL) -> dict:
     """Submit canvas form via mobile API.
+
+    Real endpoint: POST /api/canvas/submit — persists a CanvasAudit row.
 
     Args:
         token: JWT access token
@@ -149,11 +181,17 @@ def submit_canvas_form_via_mobile_api(token: str, canvas_id: str, form_values: d
     )
 
     assert response.status_code == 200, f"Form submit failed: {response.text}"
-    return response.json()
+    data = response.json()
+    assert data.get("success") is True, f"Form submit not successful: {data}"
+
+    return data
 
 
-def list_canvases_via_mobile_api(token: str, base_url: str = "http://localhost:8001") -> list:
+def list_canvases_via_mobile_api(token: str, base_url: str = BASE_URL) -> list:
     """List canvases via mobile API.
+
+    Real endpoint: GET /api/canvas/ — returns canvases derived from the
+    CanvasAudit trail (canvas_id / canvas_type / action_type / title).
 
     Args:
         token: JWT access token
@@ -166,7 +204,7 @@ def list_canvases_via_mobile_api(token: str, base_url: str = "http://localhost:8
         AssertionError: If list request fails
     """
     response = requests.get(
-        f"{base_url}/api/canvas/list",
+        f"{base_url}/api/canvas/",
         headers={
             "Authorization": f"Bearer {token}",
             "X-Platform": "mobile"
@@ -175,13 +213,15 @@ def list_canvases_via_mobile_api(token: str, base_url: str = "http://localhost:8
 
     assert response.status_code == 200, f"List canvases failed: {response.text}"
     data = response.json()
-    assert isinstance(data, list) or 'data' in data, "Invalid response format"
+    assert data.get("success") is True, f"List canvases not successful: {data}"
 
-    return data if isinstance(data, list) else data.get('data', [])
+    return data.get("canvases") or []
 
 
 def verify_canvas_schema_compatibility(state: dict) -> bool:
     """Verify canvas state matches expected schema for cross-platform compatibility.
+
+    The real context snapshot carries canvas_id / canvas_type / current_state.
 
     Args:
         state: Canvas state dict
@@ -192,7 +232,7 @@ def verify_canvas_schema_compatibility(state: dict) -> bool:
     Raises:
         AssertionError: If required keys are missing
     """
-    required_keys = ['canvas_id', 'type', 'data']
+    required_keys = ['canvas_id', 'canvas_type', 'current_state']
 
     for key in required_keys:
         assert key in state, f"Missing required key: {key}"
@@ -230,7 +270,7 @@ def create_test_form_canvas_data() -> dict:
         "title": "User Registration",
         "schema": {
             "fields": [
- {
+                {
                     "name": "full_name",
                     "label": "Full Name",
                     "type": "text",
@@ -247,68 +287,83 @@ def create_test_form_canvas_data() -> dict:
     }
 
 
+def create_canvas_audit_row(db_session: Session, user: Any, canvas_id: str, canvas_type: str = "chart") -> None:
+    """Create a real Canvas + CanvasAudit row so the audit-derived list/read
+    endpoints can serve it (the exact shape tools/canvas_tool._create_canvas_audit
+    writes in production)."""
+    from core.models import Canvas
+    db_session.add(Canvas(
+        id=canvas_id,
+        tenant_id="default",
+        created_by=str(user.id),
+        name=canvas_id,
+        canvas_type=canvas_type,
+        content={},
+    ))
+    db_session.add(CanvasAudit(
+        id=str(uuid.uuid4()),
+        tenant_id="default",
+        canvas_id=canvas_id,
+        user_id=str(user.id),
+        action_type="present",
+        canvas_type=canvas_type,
+        details_json={"title": canvas_id, "content": {}},
+    ))
+    db_session.commit()
+
+
 # ============================================================================
 # Tests
 # ============================================================================
 
-def test_mobile_canvas_present_api(setup_test_user: Dict[str, Any], db_session: Session):
+def test_mobile_canvas_present_api(test_user, db_session: Session):
     """Test canvas present API works for mobile platform (MOBILE-01).
 
     Scenario:
     1. Create test user and get access token
-    2. Send POST request to /api/canvas/present with X-Platform: mobile header
+    2. Send POST request to /api/canvas/{id}/context with X-Platform: mobile header
     3. Verify response status: 200
-    4. Verify response contains canvas_id
-    5. Verify CanvasAudit record created in database
-    6. Verify platform stored as "mobile"
+    4. Verify response contains context_id and canvas_id
+    5. Verify CanvasContext record created in database
     """
     # Get access token
-    token = create_mobile_token(setup_test_user)
+    token = create_mobile_token(test_user)
 
     # Present chart canvas
+    canvas_id = f"mobile-present-{uuid.uuid4()}"
     canvas_data = create_test_chart_canvas_data()
-    response = present_canvas_via_mobile_api(token, canvas_data)
+    response = present_canvas_via_mobile_api(token, canvas_id, canvas_data)
 
     # Verify response
-    assert 'canvas_id' in response or 'data' in response, "No canvas_id in response"
+    data = response.get("data", {})
+    assert data.get("canvas_id") == canvas_id, "Canvas_id mismatch in response"
 
-    # Extract canvas_id (might be in different response formats)
-    canvas_id = response.get('canvas_id') or response.get('data', {}).get('canvas_id')
-    assert canvas_id is not None, "Could not extract canvas_id from response"
-
-    # Verify CanvasAudit record created
-    audit = db_session.query(CanvasAudit).filter(
-        CanvasAudit.canvas_id == canvas_id
+    # Verify CanvasContext record created
+    context = db_session.query(CanvasContext).filter(
+        CanvasContext.canvas_id == canvas_id
     ).first()
 
-    assert audit is not None, "CanvasAudit record not created"
-    assert audit.action_type == "present", f"Expected action_type='present', got '{audit.action_type}'"
-
-    # Verify platform stored (check details_json)
-    if audit.details_json:
-        # Check if platform information is stored
-        if 'platform' in audit.details_json:
-            assert audit.details_json['platform'] == 'mobile', \
-                f"Expected platform='mobile', got '{audit.details_json['platform']}'"
+    assert context is not None, "CanvasContext record not created"
+    assert context.canvas_type == "chart", f"Expected canvas_type='chart', got '{context.canvas_type}'"
 
 
-def test_mobile_canvas_get_state_api(setup_test_user: Dict[str, Any]):
+def test_mobile_canvas_get_state_api(test_user):
     """Test canvas get state API works for mobile platform (MOBILE-01).
 
     Scenario:
-    1. Create canvas via present API
-    2. Send GET request to /api/canvas/{canvas_id}/state with X-Platform: mobile
+    1. Create canvas context via present API
+    2. Send GET request to /api/canvas/{canvas_id}/context with X-Platform: mobile
     3. Verify response status: 200
-    4. Verify response contains canvas state (canvas_id, type, data)
+    4. Verify response contains canvas state (canvas_id, canvas_type, current_state)
     5. Verify state structure matches web version (cross-platform consistency)
     """
     # Get access token
-    token = create_mobile_token(setup_test_user)
+    token = create_mobile_token(test_user)
 
     # Present canvas
+    canvas_id = f"mobile-state-{uuid.uuid4()}"
     canvas_data = create_test_chart_canvas_data()
-    present_response = present_canvas_via_mobile_api(token, canvas_data)
-    canvas_id = present_response.get('canvas_id') or present_response.get('data', {}).get('canvas_id')
+    present_canvas_via_mobile_api(token, canvas_id, canvas_data)
 
     # Get canvas state
     state = get_canvas_state_via_mobile_api(token, canvas_id)
@@ -318,26 +373,28 @@ def test_mobile_canvas_get_state_api(setup_test_user: Dict[str, Any]):
 
     # Verify state matches what was presented
     assert state['canvas_id'] == canvas_id, "canvas_id mismatch"
-    assert state['type'] in ['chart', 'generic'], f"Unexpected type: {state['type']}"
+    assert state['canvas_type'] == 'chart', f"Unexpected type: {state['canvas_type']}"
+    assert state['current_state'].get('type') == 'chart', \
+        f"Initial state not seeded: {state['current_state']}"
 
 
-def test_mobile_canvas_submit_form_api(setup_test_user: Dict[str, Any], db_session: Session):
+def test_mobile_canvas_submit_form_api(test_user, db_session: Session):
     """Test canvas form submit API works for mobile platform (MOBILE-01).
 
     Scenario:
-    1. Create form canvas via present API
+    1. Create form canvas context via present API
     2. Send POST request to /api/canvas/submit with X-Platform: mobile header
     3. Verify response status: 200
     4. Verify submission success message
     5. Verify CanvasAudit record with action="submit"
     """
     # Get access token
-    token = create_mobile_token(setup_test_user)
+    token = create_mobile_token(test_user)
 
     # Present form canvas
+    canvas_id = f"mobile-form-{uuid.uuid4()}"
     canvas_data = create_test_form_canvas_data()
-    present_response = present_canvas_via_mobile_api(token, canvas_data)
-    canvas_id = present_response.get('canvas_id') or present_response.get('data', {}).get('canvas_id')
+    present_canvas_via_mobile_api(token, canvas_id, canvas_data)
 
     # Submit form
     form_values = {
@@ -347,7 +404,8 @@ def test_mobile_canvas_submit_form_api(setup_test_user: Dict[str, Any], db_sessi
     submit_response = submit_canvas_form_via_mobile_api(token, canvas_id, form_values)
 
     # Verify submission success
-    assert 'success' in submit_response or 'message' in submit_response, "Invalid submit response"
+    assert submit_response.get("success") is True, "Invalid submit response"
+    assert submit_response.get("data", {}).get("submitted") is True, "Submission flag not set"
 
     # Verify CanvasAudit record created
     audit = db_session.query(CanvasAudit).filter(
@@ -358,26 +416,25 @@ def test_mobile_canvas_submit_form_api(setup_test_user: Dict[str, Any], db_sessi
     assert audit is not None, "CanvasAudit submit record not created"
 
 
-def test_mobile_canvas_list_api(setup_test_user: Dict[str, Any]):
+def test_mobile_canvas_list_api(test_user, db_session: Session):
     """Test canvas list API works for mobile platform (MOBILE-01).
 
     Scenario:
-    1. Create 3 canvases via API
-    2. Send GET request to /api/canvas/list with X-Platform: mobile header
+    1. Create 3 canvases (context rows + audit rows)
+    2. Send GET request to /api/canvas/ with X-Platform: mobile header
     3. Verify response status: 200
     4. Verify response contains array of canvases
-    5. Verify count == 3
-    6. Verify each canvas has required fields (id, type, created_at)
+    5. Verify each created canvas is listed with its id and type
     """
     # Get access token
-    token = create_mobile_token(setup_test_user)
+    token = create_mobile_token(test_user)
 
     # Create 3 canvases
     canvas_ids = []
     for i in range(3):
-        canvas_data = create_test_chart_canvas_data()
-        present_response = present_canvas_via_mobile_api(token, canvas_data)
-        canvas_id = present_response.get('canvas_id') or present_response.get('data', {}).get('canvas_id')
+        canvas_id = f"mobile-list-{uuid.uuid4()}"
+        present_canvas_via_mobile_api(token, canvas_id, create_test_chart_canvas_data())
+        create_canvas_audit_row(db_session, test_user, canvas_id)
         canvas_ids.append(canvas_id)
 
     # List canvases
@@ -385,60 +442,53 @@ def test_mobile_canvas_list_api(setup_test_user: Dict[str, Any]):
 
     # Verify list response
     assert isinstance(canvases, list), "Canvases response is not a list"
+    listed_ids = {c.get("canvas_id") for c in canvases}
     assert len(canvases) >= 3, f"Expected at least 3 canvases, got {len(canvases)}"
+    for canvas_id in canvas_ids:
+        assert canvas_id in listed_ids, f"Canvas {canvas_id} not found in list"
 
 
-def test_mobile_canvas_cross_platform_consistency(setup_test_user: Dict[str, Any]):
+def test_mobile_canvas_cross_platform_consistency(test_user):
     """Test canvas state is consistent across mobile and web platforms (CROSS-01).
 
     Scenario:
-    1. Create canvas via mobile API (X-Platform: mobile)
+    1. Create canvas context via mobile API (X-Platform: mobile)
     2. Get canvas state via mobile API
-    3. Compare with web API response format:
-       - Same keys present
-       - Same data types
-       - Same validation rules
-    4. Verify consistency: mobile_state == web_state
+    3. Get the same state via web API (X-Platform: web — same endpoint)
+    4. Verify consistency: mobile_state == web_state (same keys, same values)
     """
     # Get access token
-    token = create_mobile_token(setup_test_user)
+    token = create_mobile_token(test_user)
 
     # Present canvas via mobile API
+    canvas_id = f"mobile-xplat-{uuid.uuid4()}"
     canvas_data = create_test_chart_canvas_data()
-    mobile_response = present_canvas_via_mobile_api(token, canvas_data)
-    canvas_id = mobile_response.get('canvas_id') or mobile_response.get('data', {}).get('canvas_id')
+    present_canvas_via_mobile_api(token, canvas_id, canvas_data)
 
     # Get state via mobile API
     mobile_state = get_canvas_state_via_mobile_api(token, canvas_id)
 
     # Get state via web API (same endpoint, different platform header)
     web_response = requests.get(
-        f"http://localhost:8001/api/canvas/{canvas_id}/state",
+        f"{BASE_URL}/api/canvas/{canvas_id}/context",
         headers={
             "Authorization": f"Bearer {token}",
             "X-Platform": "web"
         }
     )
-
-    web_state = web_response.json() if web_response.status_code == 200 else None
+    assert web_response.status_code == 200, f"Web state request failed: {web_response.text}"
+    web_state = web_response.json().get("data") or {}
 
     # Verify both states have same structure
     verify_canvas_schema_compatibility(mobile_state)
+    verify_canvas_schema_compatibility(web_state)
 
-    if web_state:
-        verify_canvas_schema_compatibility(web_state)
+    # Verify canvas_id matches
+    assert mobile_state['canvas_id'] == web_state['canvas_id'], "canvas_id mismatch between mobile and web"
 
-        # Verify consistency: same keys
-        mobile_keys = set(mobile_state.keys())
-        web_keys = set(web_state.keys())
+    # Verify type matches
+    assert mobile_state['canvas_type'] == web_state['canvas_type'], "type mismatch between mobile and web"
 
-        # At minimum, both should have these keys
-        required_keys = {'canvas_id', 'type', 'data'}
-        assert required_keys.issubset(mobile_keys), f"Mobile state missing keys: {required_keys - mobile_keys}"
-        assert required_keys.issubset(web_keys), f"Web state missing keys: {required_keys - web_keys}"
-
-        # Verify canvas_id matches
-        assert mobile_state['canvas_id'] == web_state['canvas_id'], "canvas_id mismatch between mobile and web"
-
-        # Verify type matches
-        assert mobile_state['type'] == web_state['type'], "type mismatch between mobile and web"
+    # Verify state content matches
+    assert mobile_state['current_state'] == web_state['current_state'], \
+        "current_state mismatch between mobile and web"

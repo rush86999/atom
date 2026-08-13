@@ -24,16 +24,11 @@ from sqlalchemy.pool import StaticPool
 from httpx import AsyncClient
 import httpx
 
-# Fixture modules for E2E suites (database/LLM/workflow/service mocks).
-# Without this wiring the e2e tests fail collection with "fixture not
-# found"; with it, Postgres-dependent fixtures skip cleanly and the
-# SQLite/mocked-LLM e2e tests actually run.
-pytest_plugins = [
-    "tests.e2e.fixtures.database_fixtures",
-    "tests.e2e.fixtures.workflow_fixtures",
-    "tests.e2e.fixtures.llm_fixtures",
-    "tests.e2e.fixtures.service_mock_fixtures",
-]
+# Fixture modules for E2E suites (database/LLM/workflow/service mocks) are
+# registered in the ROOT conftest (tests/conftest.py). pytest no longer
+# permits `pytest_plugins` in a non-top-level conftest — it used to silently
+# affect the whole suite, so it's now a hard collection error. The root
+# conftest is the only legal home for it.
 
 # Add backend to path
 backend_dir = Path(__file__).parent.parent.parent

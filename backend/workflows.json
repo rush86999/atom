@@ -1191,8 +1191,5 @@
     "id": "demo-sales-lead",
     "createdAt": "2025-12-13T00:00:00Z",
     "description": "Demo workflow for sales lead processing"
-  },
-  {
-    "name": "X"
   }
 ]

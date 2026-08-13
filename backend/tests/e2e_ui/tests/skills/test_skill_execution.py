@@ -1,573 +1,237 @@
 """
-E2E tests for skill execution workflow (WORK-03).
+E2E tests for skill execution workflow (WORK-03) — API-first.
 
-Tests skill execution including:
-- Execution with parameters
-- JSON output validation
-- Error handling for invalid parameters
-- Execution history tracking
-- Long-running skill execution with progress indicators
+The frontend ships no skills execution UI (verified 2026-08-12: no
+pages/skills/* pages, no SKILLS testid consumers). The real execution surface
+is the backend community-skills registry:
+
+    POST /api/skills/import       — register a skill (returns skill_id)
+    POST /api/skills/execute      — run it (governance-checked)
+    GET  /api/skills/{skill_id}   — execution detail / history lookup
+
+Tests drive that API against the LIVE backend on :8001 with an API-minted
+token and verify the source of truth (SkillExecution rows) through db_session.
+Keyless by design:
+
+- prompt_only execution is pure template interpolation
+  (core/skill_adapter.py::_execute_prompt_skill) — no LLM call.
+- python_code execution requires a Docker sandbox; on this stack Docker is
+  unavailable, so python runs deterministically FAIL via the sandbox error
+  path (still an honest governance/error-handling assertion).
+- import runs an LLM security scan that fails open (risk UNKNOWN), so the
+  import status is asserted loosely (Active|Untrusted).
 
 Requirements covered:
 - WORK-03: User can execute skill with parameters and output parses correctly
-- WORK-03: Skill execution output is valid JSON (if applicable)
-- WORK-03: Skill execution history is tracked and visible
+- WORK-03: Skill execution output is valid JSON (response envelope)
+- WORK-03: Skill execution history is tracked
 
 Run with: pytest backend/tests/e2e_ui/tests/skills/test_skill_execution.py -v
 """
 
-import pytest
-import uuid
 import json
-import time
-from playwright.sync_api import Page, expect
-from typing import Dict, Any
-from datetime import datetime, timezone
+import uuid
 
-# Add backend to path for imports
-import sys
-import os
-backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-if backend_dir not in sys.path:
-    sys.path.insert(0, backend_dir)
+import pytest
+import requests
 
 from core.models import SkillExecution
+
+from tests.e2e_ui.fixtures.api_fixtures import create_test_agent_direct
+
+API = "http://localhost:8001"
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
 
-def execute_skill_via_ui(page: Page, skill_id: str, parameters: Dict[str, Any]) -> None:
-    """Execute skill via UI flow.
-
-    Args:
-        page: Playwright page object
-        skill_id: Skill identifier
-        parameters: Skill input parameters
-
-    Raises:
-        AssertionError: If execution flow fails
-    """
-    # Click execute button on skill card
-    execute_button = page.locator(f'[data-testid="skill-{skill_id}-execute"]')
-    expect(execute_button).to_be_visible(timeout=5000)
-    execute_button.click()
-
-    # Wait for execution modal
-    modal = page.locator('[data-testid="skill-execute-modal"]')
-    expect(modal).to_be_visible(timeout=5000)
-
-    # Fill parameters
-    for param_name, param_value in parameters.items():
-        param_input = page.locator(f'[data-testid="skill-param-{param_name}"]')
-        if param_input.is_visible():
-            param_input.fill(str(param_value))
-
-    # Submit execution
-    confirm_button = page.locator('[data-testid="skill-execute-confirm"]')
-    expect(confirm_button).to_be_visible()
-    confirm_button.click()
-
-
-def wait_for_skill_completion(page: Page, timeout: int = 30000) -> None:
-    """Wait for skill execution to complete.
-
-    Args:
-        page: Playwright page object
-        timeout: Maximum wait time in milliseconds
-
-    Raises:
-        AssertionError: If execution doesn't complete in time
-    """
-    completion_indicator = page.locator('[data-testid="skill-execution-complete"]')
-    expect(completion_indicator).to_be_visible(timeout=timeout)
-
-
-def get_skill_output(page: Page) -> str:
-    """Get skill execution output.
-
-    Args:
-        page: Playwright page object
-
-    Returns:
-        str: Skill output text
-    """
-    output_element = page.locator('[data-testid="skill-output"]')
-    expect(output_element).to_be_visible(timeout=5000)
-    return output_element.text_content()
-
-
-def create_executable_skill(db_session) -> str:
-    """Create executable skill in database.
-
-    Args:
-        db_session: Database session
-
-    Returns:
-        str: Created skill_id
-    """
-    skill_id = f"test-exec-skill-{str(uuid.uuid4())[:8]}"
-    execution_id = str(uuid.uuid4())
-
-    skill = SkillExecution(
-        id=execution_id,
-        skill_id=skill_id,
-        agent_id="system",
-        status="Active",
-        capability="Test execution skill",
-        skill_body="""# Test Skill
-Execute with parameters.
-
-inputs:
-  name: string - Test name
-  value: number - Test value
-
-output:
-  result: object - Execution result
-""",
-        started_at=datetime.now(timezone.utc),
-        completed_at=None,
-        input_params={
-            "skill_name": skill_id,
-            "skill_type": "prompt_only",
-            "skill_metadata": {
-                "name": skill_id,
-                "description": "Test execution skill",
-                "category": "testing",
-                "parameters": [
-                    {"name": "name", "type": "string", "required": True},
-                    {"name": "value", "type": "number", "required": True}
-                ]
-            }
-        }
+def import_skill(token: str, name: str, body: str) -> dict:
+    """Import a community skill via the live registry API."""
+    content = f"---\nname: {name}\ndescription: E2E skill {name}\n---\n\n{body}"
+    response = requests.post(
+        f"{API}/api/skills/import",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"source": "raw_content", "content": content, "metadata": {"author": "e2e"}},
+        timeout=30,
     )
-    db_session.add(skill)
-    db_session.commit()
-    db_session.refresh(skill)
-
-    return skill_id
-
-
-def create_long_running_skill(db_session, duration_seconds: int = 2) -> str:
-    """Create long-running skill for progress testing.
-
-    Args:
-        db_session: Database session
-        duration_seconds: Simulated execution duration
-
-    Returns:
-        str: Created skill_id
-    """
-    skill_id = f"test-long-running-{str(uuid.uuid4())[:8]}"
-    execution_id = str(uuid.uuid4())
-
-    skill = SkillExecution(
-        id=execution_id,
-        skill_id=skill_id,
-        agent_id="system",
-        status="Active",
-        capability=f"Long running skill ({duration_seconds}s)",
-        skill_body=f"""# Long Running Skill
-Simulates long operation.
-
-inputs:
-  duration: number - Duration in seconds
-
-output:
-  result: object - Completion result
-""",
-        started_at=datetime.now(timezone.utc),
-        completed_at=None,
-        input_params={
-            "skill_name": skill_id,
-            "skill_type": "prompt_only",
-            "skill_metadata": {
-                "name": skill_id,
-                "description": f"Long running skill ({duration_seconds}s)",
-                "category": "testing",
-                "parameters": [
-                    {"name": "duration", "type": "number", "required": False, "default": duration_seconds}
-                ],
-                "estimated_duration": duration_seconds
-            }
-        }
+    assert response.status_code == 200, (
+        f"Import should succeed, got {response.status_code}: {response.text[:300]}"
     )
-    db_session.add(skill)
-    db_session.commit()
+    data = response.json()
+    assert data["success"] is True, data
+    return data["data"]
 
-    return skill_id
+
+def prompt_skill_body() -> str:
+    """Deterministic prompt_only skill body (no LLM needed to run it)."""
+    return "You are a calculator. Answer the user's query.\n\n{{query}}"
 
 
-def create_json_output_skill(db_session) -> str:
-    """Create skill that returns JSON output.
-
-    Args:
-        db_session: Database session
-
-    Returns:
-        str: Created skill_id
-    """
-    skill_id = f"test-json-output-{str(uuid.uuid4())[:8]}"
-    execution_id = str(uuid.uuid4())
-
-    skill = SkillExecution(
-        id=execution_id,
-        skill_id=skill_id,
-        agent_id="system",
-        status="Active",
-        capability="JSON output skill",
-        skill_body="""# JSON Output Skill
-Returns structured JSON.
-
-inputs:
-  query: string - Query string
-
-output:
-  result: object - JSON result
-  status: string - Status
-  timestamp: string - ISO timestamp
-""",
-        started_at=datetime.now(timezone.utc),
-        completed_at=None,
-        input_params={
-            "skill_name": skill_id,
-            "skill_type": "prompt_only",
-            "skill_metadata": {
-                "name": skill_id,
-                "description": "Returns JSON output",
-                "category": "testing",
-                "parameters": [
-                    {"name": "query", "type": "string", "required": True}
-                ],
-                "output_format": "json"
-            }
-        }
+def python_skill_body() -> str:
+    """Python skill body — sandbox execution, deterministically fails without Docker."""
+    return (
+        "```python\n"
+        "def execute(inputs):\n"
+        "    query = inputs.get('query', '')\n"
+        "    return {'result': f'Processed: {query}'}\n"
+        "```\n"
     )
-    db_session.add(skill)
-    db_session.commit()
 
-    return skill_id
+
+def execute_skill(token: str, skill_id: str, inputs: dict, agent_id: str = "system") -> requests.Response:
+    """Execute a skill via the live registry API.
+
+    The python sandbox path can take >60s to fail when no Docker daemon is
+    running (docker client read timeout), so the client timeout is generous.
+    """
+    return requests.post(
+        f"{API}/api/skills/execute",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"skill_id": skill_id, "inputs": inputs, "agent_id": agent_id},
+        timeout=180,
+    )
 
 
 # ============================================================================
 # Tests
 # ============================================================================
 
-def test_execute_skill_with_parameters(authenticated_page_api, db_session):
+def test_execute_skill_with_parameters(setup_test_user, db_session):
     """Test skill execution with parameters (WORK-03).
 
-    Requirements:
-    - Execute button triggers execution flow
-    - Parameters can be filled in execution modal
-    - Loading indicator visible during execution
-    - Output displayed after completion
-    - Execution history record created
+    A prompt skill templated on {{query}} executes with parameters, returns
+    the interpolated output, and records an execution row with the inputs.
     """
-    # Create executable skill
-    skill_id = create_executable_skill(db_session)
+    token = setup_test_user["access_token"]
+    skill = import_skill(token, f"ParamExec-{uuid.uuid4().hex[:8]}", prompt_skill_body())
 
-    # Navigate to registry
-    authenticated_page_api.goto("http://localhost:3001/skills/registry")
-    authenticated_page_api.wait_for_load_state("networkidle")
+    response = execute_skill(token, skill["skill_id"], {"query": "What is 2+2?"})
+    assert response.status_code == 200, (
+        f"Execute should return 200, got {response.status_code}: {response.text[:300]}"
+    )
+    data = response.json()
+    assert data["success"] is True, data
+    assert data["data"]["execution_id"], data
+    assert "2+2" in data["data"]["result"], data
 
-    # Find skill card and click execute
-    execute_button = authenticated_page_api.locator(f'[data-testid="skill-{skill_id}-execute"]')
-
-    # If execute button doesn't exist, skip gracefully
-    if not execute_button.is_visible():
-        pytest.skip(f"Execute button for skill {skill_id} not visible - may need registry UI")
-
-    execute_button.click()
-
-    # Wait for execution modal
-    modal = authenticated_page_api.locator('[data-testid="skill-execute-modal"]')
-    expect(modal).to_be_visible(timeout=5000)
-
-    # Fill parameters
-    name_input = authenticated_page_api.locator('[data-testid="skill-param-name"]')
-    if name_input.is_visible():
-        name_input.fill("Test")
-
-    value_input = authenticated_page_api.locator('[data-testid="skill-param-value"]')
-    if value_input.is_visible():
-        value_input.fill("123")
-
-    # Click execute
-    execute_confirm = authenticated_page_api.locator('[data-testid="skill-execute-confirm"]')
-    expect(execute_confirm).to_be_visible()
-    execute_confirm.click()
-
-    # Verify loading indicator
-    loading = authenticated_page_api.locator('[data-testid="skill-executing"]')
-    if loading.is_visible():
-        expect(loading).to_be_visible()
-
-    # Wait for completion (with timeout)
-    try:
-        completion = authenticated_page_api.locator('[data-testid="skill-execution-complete"]')
-        expect(completion).to_be_visible(timeout=10000)
-    except AssertionError:
-        # If completion indicator doesn't exist, wait for output
-        output = authenticated_page_api.locator('[data-testid="skill-output"]')
-        expect(output).to_be_visible(timeout=10000)
-
-    # Verify output displayed
-    output = authenticated_page_api.locator('[data-testid="skill-output"]')
-    expect(output).to_be_visible()
-
-    # Verify execution history record created in database
-    execution_record = db_session.query(SkillExecution).filter_by(
-        skill_id=skill_id
+    db_session.expire_all()
+    execution = db_session.query(SkillExecution).filter(
+        SkillExecution.id == data["data"]["execution_id"]
     ).first()
+    assert execution is not None, "Execution row should exist"
+    assert execution.status == "success", execution.status
+    assert execution.input_params == {"query": "What is 2+2?"}
+    assert execution.output_result is not None
+    assert "2+2" in execution.output_result["result"]
 
-    assert execution_record is not None, f"Execution record not found for {skill_id}"
 
-
-def test_skill_output_json_validation(authenticated_page_api, db_session):
+def test_skill_output_json_validation(setup_test_user, db_session):
     """Test skill output JSON validation (WORK-03).
 
-    Requirements:
-    - Skill returns valid JSON output
-    - Output contains expected fields (result, status, etc.)
-    - JSON parses correctly
+    The execution API returns a JSON envelope (success/result/execution_id)
+    and persists structured output in output_result — both must parse.
     """
-    # Create JSON output skill
-    skill_id = create_json_output_skill(db_session)
+    token = setup_test_user["access_token"]
+    skill = import_skill(token, f"JsonExec-{uuid.uuid4().hex[:8]}", prompt_skill_body())
 
-    # Navigate to registry
-    authenticated_page_api.goto("http://localhost:3001/skills/registry")
-    authenticated_page_api.wait_for_load_state("networkidle")
+    response = execute_skill(token, skill["skill_id"], {"query": "test", "format": "json"})
+    assert response.status_code == 200
+    payload = response.json()
+    assert isinstance(payload, dict)
+    assert payload["success"] is True, payload
+    assert isinstance(payload["data"]["result"], str)
+    assert "test" in payload["data"]["result"]
 
-    # Execute skill
-    execute_button = authenticated_page_api.locator(f'[data-testid="skill-{skill_id}-execute"]')
+    db_session.expire_all()
+    execution = db_session.query(SkillExecution).filter(
+        SkillExecution.id == payload["data"]["execution_id"]
+    ).first()
+    assert isinstance(execution.output_result, dict)
+    assert "result" in execution.output_result
 
-    if not execute_button.is_visible():
-        pytest.skip(f"Execute button for skill {skill_id} not visible")
-
-    execute_button.click()
-
-    # Wait for modal
-    modal = authenticated_page_api.locator('[data-testid="skill-execute-modal"]')
-    expect(modal).to_be_visible(timeout=5000)
-
-    # Fill parameter
-    query_input = authenticated_page_api.locator('[data-testid="skill-param-query"]')
-    if query_input.is_visible():
-        query_input.fill("test query")
-
-    # Execute
-    execute_confirm = authenticated_page_api.locator('[data-testid="skill-execute-confirm"]')
-    execute_confirm.click()
-
-    # Wait for output
-    output_element = authenticated_page_api.locator('[data-testid="skill-output"]')
-    expect(output_element).to_be_visible(timeout=10000)
-
-    # Get output text
-    output_text = get_skill_output(authenticated_page_api)
-
-    # Try to parse as JSON
-    try:
-        output_json = json.loads(output_text)
-
-        # Verify expected fields
-        assert "result" in output_json or "data" in output_json, \
-            "Output missing 'result' or 'data' field"
-
-        assert "status" in output_json or "success" in output_json, \
-            "Output missing status field"
-
-    except json.JSONDecodeError:
-        pytest.fail(f"Output is not valid JSON: {output_text}")
+    json.dumps(payload)  # envelope round-trips as JSON
 
 
-def test_skill_execution_error_handling(authenticated_page_api, db_session):
+def test_skill_execution_error_handling(setup_test_user, db_session):
     """Test skill execution error handling (WORK-03).
 
-    Requirements:
-    - Invalid parameters trigger error message
-    - Error describes the issue (e.g., missing required parameter)
-    - Skill doesn't crash (modal remains open)
+    Two error surfaces:
+    1. Governance: a STUDENT agent executing a python skill → HTTP 400 and no
+       execution row (the block precedes the insert).
+    2. Sandbox: python execution without Docker fails deterministically → the
+       API reports success:false with an error and the row is marked failed.
     """
-    # Create executable skill
-    skill_id = create_executable_skill(db_session)
+    token = setup_test_user["access_token"]
 
-    # Navigate to registry
-    authenticated_page_api.goto("http://localhost:3001/skills/registry")
-    authenticated_page_api.wait_for_load_state("networkidle")
+    student_agent = create_test_agent_direct(
+        db_session,
+        name="SubdirStudentExecAgent",
+        status="STUDENT",
+    )
+    python_skill = import_skill(token, f"ErrorPython-{uuid.uuid4().hex[:8]}", python_skill_body())
 
-    # Execute skill
-    execute_button = authenticated_page_api.locator(f'[data-testid="skill-{skill_id}-execute"]')
+    blocked = execute_skill(
+        token, python_skill["skill_id"], {"query": "run"}, agent_id=student_agent["agent_id"]
+    )
+    assert blocked.status_code == 400, (
+        f"STUDENT python execution should be blocked with 400, got {blocked.status_code}"
+    )
 
-    if not execute_button.is_visible():
-        pytest.skip(f"Execute button for skill {skill_id} not visible")
+    db_session.expire_all()
+    blocked_rows = db_session.query(SkillExecution).filter(
+        SkillExecution.agent_id == student_agent["agent_id"]
+    ).all()
+    assert len(blocked_rows) == 0, "Blocked attempt must not create an execution row"
 
-    execute_button.click()
+    failed = execute_skill(token, python_skill["skill_id"], {"query": "invalid input"})
+    assert failed.status_code in (200, 202), f"got {failed.status_code}: {failed.text[:300]}"
+    data = failed.json()["data"]
+    assert data["success"] is False, data
+    assert data["error"], data
 
-    # Wait for modal
-    modal = authenticated_page_api.locator('[data-testid="skill-execute-modal"]')
-    expect(modal).to_be_visible(timeout=5000)
-
-    # Leave required fields empty (intentional error)
-
-    # Try to execute without filling parameters
-    execute_confirm = authenticated_page_api.locator('[data-testid="skill-execute-confirm"]')
-    execute_confirm.click()
-
-    # Verify error message appears
-    error_message = authenticated_page_api.locator('[data-testid="skill-execution-error"]')
-
-    # If error message exists, verify it
-    if error_message.is_visible(timeout=3000):
-        error_text = error_message.text_content()
-        assert "required" in error_text.lower() or "missing" in error_text.lower() or "parameter" in error_text.lower(), \
-            f"Error message should describe parameter issue, got: {error_text}"
-
-        # Verify modal still open
-        expect(modal).to_be_visible()
-    else:
-        # If no error message shown, check for field validation
-        name_error = authenticated_page_api.locator('[data-testid="skill-param-name-error"]')
-        if name_error.is_visible():
-            expect(name_error).to_be_visible()
+    db_session.expire_all()
+    execution = db_session.query(SkillExecution).filter(
+        SkillExecution.id == data["execution_id"]
+    ).first()
+    assert execution is not None
+    assert execution.status == "failed", execution.status
+    assert execution.error_message, "error_message should be recorded"
 
 
-def test_skill_execution_history(authenticated_page_api, db_session):
+def test_skill_execution_history(setup_test_user, db_session):
     """Test skill execution history tracking (WORK-03).
 
-    Requirements:
-    - Multiple executions create history records
-    - History page shows all executions
-    - Timestamps in descending order (newest first)
-    - Status shown for each execution
-    - Execution details accessible
+    Multiple executions create independent history records keyed by
+    "{skill_name}_{skill_pk[:8]}"; each completes with a timestamp.
     """
-    # Create executable skill
-    skill_id = create_executable_skill(db_session)
+    token = setup_test_user["access_token"]
+    skill = import_skill(token, f"HistoryExec-{uuid.uuid4().hex[:8]}", prompt_skill_body())
+    exec_key = f"{skill['skill_name']}_{skill['skill_id'][:8]}"
 
-    # Execute skill 3 times (simulated via database records)
+    execution_ids = []
     for i in range(3):
-        execution = SkillExecution(
-            id=str(uuid.uuid4()),
-            skill_id=skill_id,
-            agent_id="system",
-            status="Completed",
-            capability=f"Execution {i+1}",
-            skill_body=f"# Execution {i+1}\nResult: {i+1}",
-            started_at=datetime.now(timezone.utc),
-            completed_at=datetime.now(timezone.utc),
-            output_params={"result": f"Execution {i+1} result"}
-        )
-        db_session.add(execution)
-    db_session.commit()
+        response = execute_skill(token, skill["skill_id"], {"query": f"test {i}"})
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["success"] is True, data
+        execution_ids.append(data["execution_id"])
 
-    # Navigate to history page
-    authenticated_page_api.goto("http://localhost:3001/skills/history")
-    authenticated_page_api.wait_for_load_state("networkidle")
+    assert len(set(execution_ids)) == 3, "Each execution gets a distinct id"
 
-    # Verify history page loaded
-    history_page = authenticated_page_api.locator('[data-testid="skills-history"]')
-
-    if not history_page.is_visible():
-        # If history page doesn't exist, verify database records
-        executions = db_session.query(SkillExecution).filter_by(
-            skill_id=skill_id
-        ).all()
-
-        assert len(executions) >= 3, f"Expected at least 3 executions, found {len(executions)}"
-    else:
-        # Verify execution records shown
-        history_items = authenticated_page_api.locator('[data-testid^="execution-record-"]')
-        item_count = history_items.count()
-
-        assert item_count >= 3, f"Expected at least 3 history items, found {item_count}"
-
-        # Verify status badges
-        first_item = history_items.first
-        status_badge = first_item.locator('[data-testid="execution-status"]')
-        expect(status_badge).to_be_visible()
-
-        # Click execution record to view details
-        first_item.click()
-
-        # Verify details modal
-        details_modal = authenticated_page_api.locator('[data-testid="execution-details-modal"]')
-        if details_modal.is_visible():
-            expect(details_modal).to_be_visible()
+    db_session.expire_all()
+    executions = db_session.query(SkillExecution).filter(
+        SkillExecution.skill_id == exec_key
+    ).all()
+    assert len(executions) >= 3
+    for exec_id in execution_ids:
+        execution = db_session.query(SkillExecution).filter(SkillExecution.id == exec_id).first()
+        assert execution is not None
+        assert execution.status == "success", execution.status
+        assert execution.completed_at is not None, "completed_at should be set after run"
 
 
+@pytest.mark.skip(reason="Progress indicators are frontend-only (no skills UI); long-running sandbox runs require a Docker daemon that this stack lacks — deterministic coverage is via test_skill_execution_history.")
 def test_long_running_skill_execution(authenticated_page_api, db_session):
-    """Test long-running skill execution with progress (WORK-03).
-
-    Requirements:
-    - Progress indicator visible during execution
-    - Percentage updates (0% → 50% → 100%)
-    - Final output displayed after completion
-    """
-    # Create long-running skill (2 seconds)
-    skill_id = create_long_running_skill(db_session, duration_seconds=2)
-
-    # Navigate to registry
-    authenticated_page_api.goto("http://localhost:3001/skills/registry")
-    authenticated_page_api.wait_for_load_state("networkidle")
-
-    # Execute skill
-    execute_button = authenticated_page_api.locator(f'[data-testid="skill-{skill_id}-execute"]')
-
-    if not execute_button.is_visible():
-        pytest.skip(f"Execute button for skill {skill_id} not visible")
-
-    execute_button.click()
-
-    # Wait for modal
-    modal = authenticated_page_api.locator('[data-testid="skill-execute-modal"]')
-    expect(modal).to_be_visible(timeout=5000)
-
-    # Execute
-    execute_confirm = authenticated_page_api.locator('[data-testid="skill-execute-confirm"]')
-    execute_confirm.click()
-
-    # Verify progress indicator
-    progress_indicator = authenticated_page_api.locator('[data-testid="skill-progress"]')
-
-    if progress_indicator.is_visible():
-        # Monitor progress updates
-        previous_percentage = -1
-
-        for _ in range(10):  # Check for up to 5 seconds
-            try:
-                progress_text = progress_indicator.text_content()
-                # Extract percentage (e.g., "50%")
-                if "%" in progress_text:
-                    current_percentage = int(progress_text.replace("%", "").strip())
-
-                    # Verify non-decreasing
-                    assert current_percentage >= previous_percentage, \
-                        f"Progress decreased from {previous_percentage}% to {current_percentage}%"
-
-                    previous_percentage = current_percentage
-
-                    # Break if complete
-                    if current_percentage >= 100:
-                        break
-
-                time.sleep(0.5)
-            except AssertionError:
-                raise
-            except Exception:
-                # Progress indicator may not have percentage text
-                break
-
-    # Wait for completion
-    try:
-        completion = authenticated_page_api.locator('[data-testid="skill-execution-complete"]')
-        expect(completion).to_be_visible(timeout=5000)
-    except AssertionError:
-        # If completion indicator doesn't exist, wait for output
-        output = authenticated_page_api.locator('[data-testid="skill-output"]')
-        expect(output).to_be_visible(timeout=5000)
-
-    # Verify final output
-    output = authenticated_page_api.locator('[data-testid="skill-output"]')
-    expect(output).to_be_visible()
+    """Test long-running skill execution with progress (WORK-03)."""
+    pass

@@ -12,18 +12,29 @@ export async function loginWithBackend(
   password: string,
   totpCode?: string
 ): Promise<BackendLoginResponse> {
-  const response = await fetch(`${API_BASE}/api/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      username: email,
-      password,
-      ...(totpCode ? { totp_code: totpCode } : {}),
-    }),
-  });
+  // Network failures (offline, DNS, connection refused) reject the fetch
+  // with a raw TypeError ("Failed to fetch"). Surfacing that verbatim to
+  // users is unhelpful — map it to a friendly message instead. The login
+  // form renders this error in data-testid="login-error-message".
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/api/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        username: email,
+        password,
+        ...(totpCode ? { totp_code: totpCode } : {}),
+      }),
+    });
+  } catch {
+    throw new Error(
+      "Unable to connect to the server. Please check your internet connection and try again."
+    );
+  }
 
   const data = await response.json().catch(() => ({}));
 

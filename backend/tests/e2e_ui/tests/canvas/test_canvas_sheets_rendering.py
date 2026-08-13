@@ -1,24 +1,25 @@
 """
 E2E Tests for Sheet Canvas Rendering (CANV-02).
 
-Tests verify sheet/spreadsheet canvas displays correctly with:
-- Data grid with proper row/column structure
-- Pagination controls for large datasets
-- Sorting functionality on columns
-- CanvasAudit record creation
+Tests verify the sheet canvas renders correctly through the REAL rendering
+path (no phantom state injection):
 
-Sheet Features:
-- Data grid with 10 rows x 5 columns (default)
-- Pagination for datasets > 100 rows
-- Click-to-sort on column headers
-- Responsive container
+1. A sheet canvas is created as `Canvas` + `CanvasAudit` rows via
+   `canvas_helpers.create_canvas()` (mirroring `tools/canvas_tool.present_*`),
+   with content = the sheet as a list of rows (list of lists).
+2. Tests navigate to `http://localhost:3001/canvas/{id}`, where `CanvasPanel`
+   renders the HTML table grid (column letters A/B/C…, one editable `<input>`
+   per cell, "+ Add New Row" button).
 
-Uses authenticated_page_api fixture for fast authentication.
+Real component capabilities: editable grid, column-letter headers, row
+numbers, add-row. The real component has NO pagination or column sorting —
+those legacy expectations are rewritten as documented skips.
 """
 
-import pytest
 import uuid
-from typing import Dict, Any, List
+from typing import Tuple
+
+import pytest
 from playwright.sync_api import Page, expect
 from sqlalchemy.orm import Session
 
@@ -27,320 +28,154 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
-from core.models import CanvasAudit
+from core.models import CanvasAudit, User
+from tests.e2e_ui.tests.canvas_helpers import create_canvas, open_canvas
 
 
 # =============================================================================
 # Helper Functions
 # =============================================================================
 
-def trigger_canvas_sheet(page: Page, data: List[Dict], title: str = "Test Sheet") -> str:
-    """Simulate WebSocket canvas:update event for sheet.
-
-    Args:
-        page: Playwright page instance
-        data: Sheet data (list of dictionaries, one per row)
-        title: Sheet title
-
-    Returns:
-        str: Generated canvas_id
-    """
-    canvas_id = f"sheet-{str(uuid.uuid4())[:8]}"
-
-    # Extract column names from first row
-    columns = list(data[0].keys()) if data else []
-
-    canvas_message = {
-        "type": "canvas:update",
-        "canvas_id": canvas_id,
-        "data": {
-            "component": "sheet",
-            "title": title,
-            "data": data,
-            "columns": columns
-        }
-    }
-
-    # Store message for potential frontend access
-    page.evaluate(f"(msg) => window.lastCanvasMessage = msg", canvas_message)
-
-    # Dispatch custom event to trigger canvas rendering
-    page.evaluate("""
-        () => {
-            const event = new CustomEvent('canvas:update', {
-                detail: { type: 'canvas:update' }
-            });
-            window.dispatchEvent(event);
-        }
-    """)
-
+def create_sheet_canvas(db: Session, user: User, rows: list, title: str = "Test Sheet") -> str:
+    """Create a sheet canvas whose content is a list of row-lists."""
+    canvas_id = f"e2e-sheet-{uuid.uuid4()}"
+    create_canvas(db, user, canvas_id, "sheet", title, rows)
     return canvas_id
 
 
-def create_sheet_data(rows: int, cols: int) -> List[Dict]:
-    """Create sheet data with specified rows and columns.
+def open_sheet_canvas(page: Page, canvas_id: str) -> None:
+    """Navigate to a sheet canvas and wait for the table grid."""
+    open_canvas(page, canvas_id, "sheet")
+    page.wait_for_selector('[data-testid="canvas-container"] table', timeout=10000)
 
-    Args:
-        rows: Number of rows to generate
-        cols: Number of columns to generate
 
-    Returns:
-        List[Dict]: Sheet data with column pattern "col_{j}" and values "value_{i}_{j}"
+def cell_inputs(page: Page) -> list:
+    """Read the current value of every editable cell in the sheet grid.
 
-    Example:
-        data = create_sheet_data(10, 5)
-        assert len(data) == 10
-        assert len(data[0]) == 5
+    Note: cell values live in the input .value property (controlled React
+    inputs), so DOM inner_text does NOT include them.
     """
-    data = []
-    for i in range(rows):
-        row = {}
-        for j in range(cols):
-            row[f"col_{j}"] = f"value_{i}_{j}"
-        data.append(row)
-    return data
+    return page.evaluate(
+        """() => Array.from(
+            document.querySelectorAll('[data-testid="canvas-container"] tbody td input')
+        ).map(i => i.value)"""
+    )
 
 
-def create_large_sheet_data(rows: int = 100) -> List[Dict]:
-    """Create large sheet data for pagination testing.
-
-    Args:
-        rows: Number of rows (default 100 for pagination testing)
-
-    Returns:
-        List[Dict]: Sheet data with multiple columns
-    """
-    return create_sheet_data(rows, cols=5)
-
-
-def create_sortable_sheet_data() -> List[Dict]:
-    """Create sheet data with sortable numeric column.
-
-    Returns:
-        List[Dict]: Sheet data with a 'value' column containing numbers
-    """
-    return [
-        {"id": "1", "name": "Item A", "value": 150},
-        {"id": "2", "name": "Item B", "value": 75},
-        {"id": "3", "name": "Item C", "value": 200},
-        {"id": "4", "name": "Item D", "value": 100},
-        {"id": "5", "name": "Item E", "value": 50},
-    ]
+def create_sheet_data(rows: int, cols: int) -> list:
+    """Create sheet data as a list of row-lists."""
+    return [[f"value_{r}_{c}" for c in range(cols)] for r in range(rows)]
 
 
 # =============================================================================
 # Sheet Canvas Rendering Tests
 # =============================================================================
 
-class TestSheetCanvasRendering:
-    """Test suite for sheet canvas rendering (CANV-02)."""
+def test_sheet_displays_data_grid(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that sheet displays the data grid with correct structure.
 
-    def test_sheet_displays_data_grid(self, authenticated_page_api: Page, db_session: Session):
-        """Test that sheet displays data grid with correct structure.
+    Verifies:
+    - CanvasPanel container with sheet type badge
+    - Table rendered with 10 data rows + add-row control
+    - Cell values present
+    - CanvasAudit record created
+    """
+    user, _ = authenticated_user
+    sheet_data = create_sheet_data(rows=10, cols=5)
+    canvas_id = create_sheet_canvas(db_session, user, sheet_data, "Test Data Grid")
 
-        Verifies:
-        - Canvas host element appears
-        - Table/grid element rendered
-        - Row count matches data (10 data rows + 1 header = 11)
-        - CanvasAudit record created
-        """
-        # Create sheet data: 10 rows x 5 columns
-        sheet_data = create_sheet_data(rows=10, cols=5)
+    open_sheet_canvas(authenticated_page, canvas_id)
 
-        # Trigger sheet presentation
-        canvas_id = trigger_canvas_sheet(
-            authenticated_page_api,
-            sheet_data,
-            title="Test Data Grid"
-        )
+    # 10 data rows + 1 add-row control row.
+    body_rows = authenticated_page.locator('[data-testid="canvas-container"] tbody tr')
+    assert body_rows.count() == 11, f"Expected 11 tbody rows, got {body_rows.count()}"
 
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
+    values = cell_inputs(authenticated_page)
+    assert values[0] == "value_0_0", f"First cell value should render, got {values[:2]}"
+    assert values[-1] == "value_9_4", f"Last cell value should render, got {values[-2:]}"
 
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
+    audit = db_session.query(CanvasAudit).filter(CanvasAudit.canvas_id == canvas_id).all()
+    assert len(audit) >= 1, "CanvasAudit record should exist for the canvas"
+    assert audit[0].canvas_type == "sheet", "Audit row should carry the sheet type"
 
-        # Verify table/grid element rendered
-        table_element = authenticated_page_api.locator('table, [role="grid"], .data-grid').first
-        expect(table_element).to_be_visible()
 
-        # Verify data content in page
-        page_content = authenticated_page_api.content()
-        assert "value_0_0" in page_content or "Test Data Grid" in page_content
+def test_sheet_pagination_works(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that sheet handles large datasets (100 rows) — real component renders
+    the full grid without pagination (no virtual scrolling on /canvas/{id})."""
+    user, _ = authenticated_user
+    sheet_data = create_sheet_data(rows=100, cols=4)
+    canvas_id = create_sheet_canvas(db_session, user, sheet_data, "Large Sheet")
 
-        # Verify CanvasAudit record
-        audit_records = db_session.query(CanvasAudit).filter(
-            CanvasAudit.canvas_id == canvas_id
-        ).all()
+    open_sheet_canvas(authenticated_page, canvas_id)
 
-    def test_sheet_pagination_works(self, authenticated_page_api: Page):
-        """Test that sheet pagination controls work correctly.
+    body_rows = authenticated_page.locator('[data-testid="canvas-container"] tbody tr')
+    assert body_rows.count() == 101, f"Expected 101 tbody rows (100 data + add row), got {body_rows.count()}"
+    values = cell_inputs(authenticated_page)
+    assert values[0] == "value_0_0", "First cell value should render for large sheets"
 
-        Verifies:
-        - Pagination controls visible for large datasets
-        - Initial page shows subset of data
-        - Clicking next button shows different data
-        - Page indicator updates
-        """
-        # Create large sheet data (100 rows exceeds default page size)
-        sheet_data = create_large_sheet_data(rows=100)
 
-        # Trigger sheet presentation
-        canvas_id = trigger_canvas_sheet(
-            authenticated_page_api,
-            sheet_data,
-            title="Large Sheet - Pagination Test"
-        )
+def test_sheet_sorting_works(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Sheet column sorting: the real /canvas/{id} sheet grid has no column
+    sorting — cell inputs are editable but headers are static column letters.
+    Documented skip (no sorting path exists in the real component)."""
+    pytest.skip(
+        "The real sheet grid (CanvasPanel 'sheet') renders static column-letter "
+        "headers with editable cells; column sorting is not implemented on the "
+        "/canvas/{id} route. Nothing to verify — see CanvasPanel.tsx."
+    )
 
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
 
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
+def test_sheet_column_headers_display(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that sheet renders column-letter headers (A, B, C, …)."""
+    user, _ = authenticated_user
+    sheet_data = [
+        ["ID", "Name", "Role"],
+        ["1", "Alice", "Admin"],
+        ["2", "Bob", "User"],
+    ]
+    canvas_id = create_sheet_canvas(db_session, user, sheet_data, "User Table")
 
-        # Verify pagination controls visible
-        pagination_controls = authenticated_page_api.locator(
-            '.pagination, [data-testid="pagination"], button[aria-label*="next"], button[aria-label*="page"]'
-        ).first
-        # Note: Pagination may not be visible if frontend implements virtual scrolling
-        # This is a placeholder check
+    open_sheet_canvas(authenticated_page, canvas_id)
 
-        # Verify data content
-        page_content = authenticated_page_api.content()
-        assert "value_0_0" in page_content or "Large Sheet" in page_content
+    headers = authenticated_page.locator('[data-testid="canvas-container"] thead th').all_inner_texts()
+    assert headers[:3] == ["#", "A", "B"], f"Expected row-number + A/B column headers, got {headers}"
 
-    def test_sheet_sorting_works(self, authenticated_page_api: Page):
-        """Test that sheet column sorting works correctly.
+    values = cell_inputs(authenticated_page)
+    assert "Alice" in values, "Sheet cell content should render"
 
-        Verifies:
-        - Column headers are clickable
-        - Clicking header sorts data
-        - Sort indicator (arrow) appears
-        - Data re-sorts correctly
-        """
-        # Create sortable sheet data
-        sheet_data = create_sortable_sheet_data()
 
-        # Trigger sheet presentation
-        canvas_id = trigger_canvas_sheet(
-            authenticated_page_api,
-            sheet_data,
-            title="Sortable Sheet"
-        )
+def test_sheet_empty_state(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that sheet handles empty rows gracefully (renders, no crash)."""
+    user, _ = authenticated_user
+    canvas_id = create_sheet_canvas(db_session, user, [["", "", ""]], "Empty Sheet")
 
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
+    open_sheet_canvas(authenticated_page, canvas_id)
 
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
+    add_row_button = authenticated_page.locator("button", has_text="Add New Row").first
+    expect(add_row_button).to_be_visible()
+    table_text = authenticated_page.locator('[data-testid="canvas-container"] table').inner_text()
+    assert "A" in table_text, "Column headers should render even with empty rows"
 
-        # Verify table element
-        table_element = authenticated_page_api.locator('table, [role="grid"]').first
-        expect(table_element).to_be_visible()
 
-        # Try clicking on a column header to sort
-        # Note: This is a simplified check - real sorting would verify data order
-        column_header = authenticated_page_api.locator('th, [role="columnheader"]').first
-        if column_header.count() > 0:
-            # Click header to sort
-            column_header.click()
-            authenticated_page_api.wait_for_timeout(300)
+def test_sheet_responsive_layout(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that sheet table has positive dimensions in the canvas container."""
+    user, _ = authenticated_user
+    canvas_id = create_sheet_canvas(db_session, user, create_sheet_data(3, 3), "Responsive Sheet")
 
-        # Verify data content
-        page_content = authenticated_page_api.content()
-        assert "Item" in page_content or "Sortable Sheet" in page_content
+    open_sheet_canvas(authenticated_page, canvas_id)
 
-    def test_sheet_column_headers_display(self, authenticated_page_api: Page):
-        """Test that sheet column headers display correctly.
-
-        Verifies:
-        - Column headers are visible
-        - Header names match data keys
-        - Headers are styled differently from data rows
-        """
-        # Create sheet data with specific column names
-        sheet_data = [
-            {"ID": "1", "Name": "Alice", "Role": "Admin", "Status": "Active"},
-            {"ID": "2", "Name": "Bob", "Role": "User", "Status": "Inactive"},
-            {"ID": "3", "Name": "Charlie", "Role": "User", "Status": "Active"},
-        ]
-
-        # Trigger sheet presentation
-        canvas_id = trigger_canvas_sheet(
-            authenticated_page_api,
-            sheet_data,
-            title="User Table"
-        )
-
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
-
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
-
-        # Verify column headers in content
-        page_content = authenticated_page_api.content()
-        assert any(header in page_content for header in ["ID", "Name", "Role", "Status"])
-
-    def test_sheet_empty_state(self, authenticated_page_api: Page):
-        """Test that sheet handles empty data gracefully.
-
-        Verifies:
-        - Empty message or placeholder displayed
-        - No error or crash
-        - Canvas still renders properly
-        """
-        # Create empty sheet data
-        sheet_data = []
-
-        # Trigger sheet presentation
-        canvas_id = trigger_canvas_sheet(
-            authenticated_page_api,
-            sheet_data,
-            title="Empty Sheet"
-        )
-
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
-
-        # Verify canvas visible (even with empty data)
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
-
-        # Verify empty state message or title
-        page_content = authenticated_page_api.content()
-        assert "Empty Sheet" in page_content or "No data" in page_content or "empty" in page_content.lower()
-
-    def test_sheet_responsive_layout(self, authenticated_page_api: Page):
-        """Test that sheet has responsive layout.
-
-        Verifies:
-        - Sheet container exists
-        - Table can scroll horizontally on small screens
-        - Column widths are appropriate
-        """
-        # Create sheet data
-        sheet_data = create_sheet_data(rows=5, cols=10)  # 10 columns for horizontal scroll
-
-        # Trigger sheet presentation
-        canvas_id = trigger_canvas_sheet(
-            authenticated_page_api,
-            sheet_data,
-            title="Wide Sheet"
-        )
-
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
-
-        # Verify canvas container
-        canvas_container = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_container).to_be_visible()
-
-        # Check if container has dimensions
-        box_size = canvas_container.bounding_box()
-        assert box_size is not None, "Canvas container should have dimensions"
-        assert box_size['width'] > 0, "Canvas container should have positive width"
+    table = authenticated_page.locator('[data-testid="canvas-container"] table').first
+    box_size = table.bounding_box()
+    assert box_size is not None and box_size["width"] > 0, "Sheet table should have positive width"

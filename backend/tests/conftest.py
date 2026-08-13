@@ -20,8 +20,18 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-# Configure pytest-asyncio
-pytest_plugins = ('pytest_asyncio',)
+# Configure pytest-asyncio. E2E fixture plugins are registered here too:
+# pytest forbids `pytest_plugins` in a non-top-level conftest (it used to
+# leak to the whole suite), so the root conftest is their only legal home.
+# The fixture modules are pure fixture definitions and only activate when a
+# test actually requests one of their fixtures.
+pytest_plugins = (
+    'pytest_asyncio',
+    'tests.e2e.fixtures.database_fixtures',
+    'tests.e2e.fixtures.workflow_fixtures',
+    'tests.e2e.fixtures.llm_fixtures',
+    'tests.e2e.fixtures.service_mock_fixtures',
+)
 
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

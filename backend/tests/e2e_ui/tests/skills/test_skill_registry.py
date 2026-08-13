@@ -1,418 +1,270 @@
 """
-E2E tests for skill registry management (WORK-02).
+E2E tests for skill registry management (WORK-02) — API-first.
 
-Tests skill registry functionality including:
-- Registry listing installed skills
-- Registry filtering by category
-- Skill uninstall flow
-- Skill details page
-- Skill status badges
+The frontend ships no skills registry UI (verified 2026-08-12: no
+pages/skills/* pages, no SKILLS testid consumers; pages/marketplace.tsx is the
+workflow-templates marketplace). The registry surface is the backend
+community-skills API:
+
+    POST   /api/skills/import       — install: parse + security scan → record
+    GET    /api/skills/list         — registry listing (status/type filters)
+    GET    /api/skills/{id}         — registry detail
+    POST   /api/skills/promote      — Untrusted → Active transition
+    DELETE /api/skills/{id}         — uninstall
+
+Tests drive the LIVE backend on :8001 with an API-minted token and verify
+SkillExecution rows (the source of truth) through db_session. Keyless: the
+security scanner is static-pattern + LLM-fail-open, so risk levels asserted
+loosely (LOW|UNKNOWN) except where static patterns force CRITICAL.
 
 Requirements covered:
 - WORK-02: Skill appears in registry after installation
-- WORK-02: Registry displays skill metadata (name, status, version)
+- WORK-02: Registry displays skill metadata (name, status, type)
 
 Run with: pytest backend/tests/e2e_ui/tests/skills/test_skill_registry.py -v
 """
 
-import pytest
 import uuid
-from playwright.sync_api import Page, expect
-from typing import Dict, Any, List
-from datetime import datetime, timezone
 
-# Add backend to path for imports
-import sys
-import os
-backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-if backend_dir not in sys.path:
-    sys.path.insert(0, backend_dir)
+import requests
 
 from core.models import SkillExecution
+
+API = "http://localhost:8001"
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
 
-def install_skill_via_api(db_session, skill_id: str, status: str = "Active", category: str = "testing") -> str:
-    """Install skill via database API.
-
-    Args:
-        db_session: Database session
-        skill_id: Skill identifier
-        status: Skill status (Active, Inactive, Pending)
-        category: Skill category for filtering
-
-    Returns:
-        str: Created skill execution ID
-    """
-    execution_id = str(uuid.uuid4())
-
-    skill = SkillExecution(
-        id=execution_id,
-        skill_id=skill_id,
-        agent_id="system",
-        status=status,
-        capability=f"Test skill {skill_id}",
-        skill_body="# Test skill",
-        started_at=datetime.now(timezone.utc),
-        completed_at=None,
-        input_params={
-            "skill_name": skill_id,
-            "skill_type": "prompt_only",
-            "skill_metadata": {
-                "name": skill_id,
-                "description": f"Test skill {skill_id}",
-                "category": category,
-                "version": "1.0.0",
-                "author": "E2E Test Suite"
-            }
-        }
+def import_skill(token: str, name: str, body: str, metadata: dict = None) -> dict:
+    """Install (import) a skill via the live registry API."""
+    content = f"---\nname: {name}\ndescription: E2E registry skill {name}\n---\n\n{body}"
+    response = requests.post(
+        f"{API}/api/skills/import",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"source": "raw_content", "content": content, "metadata": metadata or {}},
+        timeout=30,
     )
-    db_session.add(skill)
-    db_session.commit()
-    db_session.refresh(skill)
-
-    return execution_id
-
-
-def uninstall_skill_via_ui(page: Page, skill_id: str) -> None:
-    """Uninstall skill via UI.
-
-    Args:
-        page: Playwright page object
-        skill_id: Skill identifier
-
-    Raises:
-        AssertionError: If uninstall flow fails
-    """
-    # Click uninstall button
-    uninstall_button = page.locator(f'[data-testid="skill-{skill_id}-uninstall"]')
-    expect(uninstall_button).to_be_visible(timeout=5000)
-    uninstall_button.click()
-
-    # Wait for uninstall modal
-    modal = page.locator('[data-testid="skill-uninstall-modal"]')
-    expect(modal).to_be_visible(timeout=5000)
-
-    # Confirm uninstall
-    confirm_button = page.locator('[data-testid="skill-uninstall-confirm"]')
-    expect(confirm_button).to_be_visible()
-    confirm_button.click()
-
-    # Wait for success message
-    success = page.locator('[data-testid="skill-uninstall-success"]')
-    expect(success).to_be_visible(timeout=10000)
+    assert response.status_code == 200, (
+        f"Import should succeed, got {response.status_code}: {response.text[:300]}"
+    )
+    data = response.json()
+    assert data["success"] is True, data
+    return data["data"]
 
 
-def create_test_skills_with_categories(db_session, categories: List[str]) -> List[str]:
-    """Create test skills with different categories.
-
-    Args:
-        db_session: Database session
-        categories: List of category names
-
-    Returns:
-        List[str]: List of created skill IDs
-    """
-    skill_ids = []
-
-    for i, category in enumerate(categories):
-        skill_id = f"test-{category}-skill-{str(uuid.uuid4())[:8]}"
-        execution_id = install_skill_via_api(db_session, skill_id, status="Active", category=category)
-        skill_ids.append(skill_id)
-
-    return skill_ids
+def list_skills(token: str, **params) -> list:
+    """GET the registry list with optional filters (status/skill_type/limit)."""
+    response = requests.get(
+        f"{API}/api/skills/list",
+        headers={"Authorization": f"Bearer {token}"},
+        params=params,
+        timeout=15,
+    )
+    assert response.status_code == 200, (
+        f"List should succeed, got {response.status_code}: {response.text[:300]}"
+    )
+    return response.json()["data"]["skills"]
 
 
 # ============================================================================
 # Tests
 # ============================================================================
 
-def test_skill_registry_lists_installed_skills(authenticated_page_api, db_session):
+def test_skill_registry_lists_installed_skills(setup_test_user, db_session):
     """Test skill registry lists all installed skills (WORK-02).
 
-    Requirements:
-    - Registry page loads successfully
-    - All installed skills visible
-    - Skill count matches database
-    - Each skill shows metadata (name, status, version)
+    Installing 3 skills makes them visible in the registry list with name,
+    status, and type metadata; DB rows are the source of truth.
     """
-    # Install 3 test skills via API
-    skill_ids = []
-    for i in range(3):
-        skill_id = f"test-registry-skill-{str(uuid.uuid4())[:8]}"
-        execution_id = install_skill_via_api(db_session, skill_id, status="Active")
-        skill_ids.append(skill_id)
+    token = setup_test_user["access_token"]
+    names = [f"RegistrySkill-{uuid.uuid4().hex[:8]}" for _ in range(3)]
 
-    # Navigate to registry
-    authenticated_page_api.goto("http://localhost:3001/skills/registry")
-    authenticated_page_api.wait_for_load_state("networkidle")
+    imported = [import_skill(token, name, f"Body for {name}") for name in names]
 
-    # Verify registry page loaded
-    registry = authenticated_page_api.locator('[data-testid="skills-registry"]')
-    expect(registry).to_be_visible(timeout=10000)
+    registry = list_skills(token, limit=500)
+    registry_ids = {s["skill_id"] for s in registry}
+    for result in imported:
+        assert result["skill_id"] in registry_ids, (
+            f"Imported skill {result['skill_name']} must appear in registry"
+        )
 
-    # Verify all skills visible
-    # Note: Registry may show pagination, so we check for at least the skills we created
-    skill_cards = authenticated_page_api.locator('[data-testid^="skill-card-"]')
-    card_count = skill_cards.count()
+    # The shared e2e DB accumulates rows across sessions; execution records
+    # share the table (skill_source='community') and surface with status
+    # success/failed — assert strictly only for skills this test imported.
+    for item in registry:
+        assert "skill_id" in item and "skill_name" in item, item
+        assert item["status"], item
+    for result in imported:
+        item = next(s for s in registry if s["skill_id"] == result["skill_id"])
+        assert item["skill_name"] == result["skill_name"]
+        assert item["status"] in ("Active", "Untrusted"), item
+        assert item["skill_type"] in ("prompt_only", "python_code"), item
 
-    assert card_count >= 3, f"Expected at least 3 skill cards, found {card_count}"
-
-    # Verify each skill shows metadata
-    first_card = skill_cards.first
-
-    # Check skill name
-    skill_name = first_card.locator('[data-testid="skill-name"]')
-    expect(skill_name).to_be_visible()
-
-    # Check status badge
-    status_badge = first_card.locator('[data-testid="skill-status"]')
-    expect(status_badge).to_be_visible()
-
-    # Check version
-    version = first_card.locator('[data-testid="skill-version"]')
-    # Version may not always be visible, so we check if it exists
-    if version.is_visible():
-        expect(version).to_be_visible()
+    db_session.expire_all()
+    for result in imported:
+        row = db_session.query(SkillExecution).filter(
+            SkillExecution.id == result["skill_id"]
+        ).first()
+        assert row is not None, f"Skill {result['skill_name']} missing in DB"
+        assert row.input_params["skill_name"] == result["skill_name"]
 
 
-def test_skill_registry_filtering(authenticated_page_api, db_session):
-    """Test skill registry filtering by category (WORK-02).
+def test_skill_registry_filtering(setup_test_user, db_session):
+    """Test skill registry filtering by type (WORK-02).
 
-    Requirements:
-    - Skills can be filtered by category
-    - Filter updates skill list
-    - Filter count badge updates
-    - Clearing filter shows all skills
+    The registry API filters on skill_type (prompt_only|python_code) — the
+    real filter surface. Category filtering lives in skill_metadata and is
+    not an API query parameter.
     """
-    # Install skills with different categories
-    categories = ["productivity", "utility", "testing"]
-    skill_ids = create_test_skills_with_categories(db_session, categories)
+    token = setup_test_user["access_token"]
+    prompt = import_skill(token, f"FilterPrompt-{uuid.uuid4().hex[:8]}", "Prompt body")
+    python = import_skill(
+        token,
+        f"FilterPython-{uuid.uuid4().hex[:8]}",
+        "```python\ndef execute(inputs):\n    return {}\n```\n",
+    )
 
-    # Navigate to registry
-    authenticated_page_api.goto("http://localhost:3001/skills/registry")
-    authenticated_page_api.wait_for_load_state("networkidle")
+    prompt_only = list_skills(token, skill_type="prompt_only")
+    assert all(s["skill_type"] == "prompt_only" for s in prompt_only)
+    assert prompt["skill_id"] in {s["skill_id"] for s in prompt_only}
 
-    # Get initial skill count
-    all_skills = authenticated_page_api.locator('[data-testid^="skill-card-"]')
-    initial_count = all_skills.count()
+    python_only = list_skills(token, skill_type="python_code")
+    assert all(s["skill_type"] == "python_code" for s in python_only)
+    assert python["skill_id"] in {s["skill_id"] for s in python_only}
 
-    # Apply category filter (e.g., "productivity")
-    productivity_filter = authenticated_page_api.locator('[data-testid="skill-category-productivity"]')
+    active = list_skills(token, status="Active", skill_status="Active")
+    assert all(s["status"] == "Active" for s in active)
 
-    if productivity_filter.is_visible():
-        productivity_filter.click()
-        authenticated_page_api.wait_for_timeout(500)
-
-        # Verify only productivity skills shown
-        filtered_skills = authenticated_page_api.locator('[data-testid^="skill-card-"]')
-        filtered_count = filtered_skills.count()
-
-        assert filtered_count <= initial_count, "Filter should reduce skill count"
-
-        # Verify filter count badge updated
-        filter_badge = authenticated_page_api.locator('[data-testid="filter-count-badge"]')
-        if filter_badge.is_visible():
-            badge_text = filter_badge.text_content()
-            assert badge_text.strip().isdigit() or badge_text.strip() == "", \
-                f"Filter badge should show count, got: {badge_text}"
-
-        # Clear filter
-        clear_button = authenticated_page_api.locator('[data-testid="clear-filters-button"]')
-        if clear_button.is_visible():
-            clear_button.click()
-            authenticated_page_api.wait_for_timeout(500)
-
-            # Verify all skills shown again
-            final_count = authenticated_page_api.locator('[data-testid^="skill-card-"]').count()
-            assert final_count >= filtered_count, "Clearing filter should show more skills"
-    else:
-        pytest.skip("Category filters not visible in registry UI")
+    db_session.expire_all()
+    for result in (prompt, python):
+        row = db_session.query(SkillExecution).filter(
+            SkillExecution.id == result["skill_id"]
+        ).first()
+        assert row is not None
 
 
-def test_skill_uninstall_flow(authenticated_page_api, db_session):
+def test_skill_uninstall_flow(setup_test_user, db_session):
     """Test skill uninstall flow (WORK-02).
 
-    Requirements:
-    - Uninstall button triggers uninstall modal
-    - Confirmation removes skill from registry
-    - Database record deleted or marked inactive
-    - Uninstalled skill cannot be executed
+    DELETE removes the definition row from the registry: the skill 404s on
+    detail, disappears from the list, and cannot be executed.
     """
-    # Install test skill
-    skill_id = f"test-uninstall-skill-{str(uuid.uuid4())[:8]}"
-    execution_id = install_skill_via_api(db_session, skill_id, status="Active")
+    token = setup_test_user["access_token"]
+    installed = import_skill(token, f"UninstallFlow-{uuid.uuid4().hex[:8]}", "Body text")
+    skill_id = installed["skill_id"]
 
-    # Navigate to registry
-    authenticated_page_api.goto("http://localhost:3001/skills/registry")
-    authenticated_page_api.wait_for_load_state("networkidle")
+    detail = requests.get(
+        f"{API}/api/skills/{skill_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=15,
+    )
+    assert detail.status_code == 200
 
-    # Find and click uninstall button
-    uninstall_button = authenticated_page_api.locator(f'[data-testid="skill-{skill_id}-uninstall"]')
+    removed = requests.delete(
+        f"{API}/api/skills/{skill_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=15,
+    )
+    assert removed.status_code == 200, f"got {removed.status_code}: {removed.text[:300]}"
+    assert removed.json()["data"]["deleted"] is True
 
-    if not uninstall_button.is_visible():
-        pytest.skip(f"Uninstall button for skill {skill_id} not visible")
+    detail_after = requests.get(
+        f"{API}/api/skills/{skill_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=15,
+    )
+    assert detail_after.status_code == 404, "Deleted skill must 404 on detail"
 
-    uninstall_button.click()
+    execute_after = requests.post(
+        f"{API}/api/skills/execute",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"skill_id": skill_id, "inputs": {"query": "run"}, "agent_id": "system"},
+        timeout=30,
+    )
+    assert execute_after.status_code == 400, (
+        f"Deleted skill must not execute, got {execute_after.status_code}"
+    )
 
-    # Wait for uninstall modal
-    modal = authenticated_page_api.locator('[data-testid="skill-uninstall-modal"]')
-    expect(modal).to_be_visible(timeout=5000)
+    db_session.expire_all()
+    row = db_session.query(SkillExecution).filter(SkillExecution.id == skill_id).first()
+    assert row is None, "Uninstalled skill row must be deleted"
 
-    # Confirm uninstall
-    confirm_button = modal.locator('[data-testid="skill-uninstall-confirm"]')
-    expect(confirm_button).to_be_visible()
-    confirm_button.click()
 
-    # Wait for success message
-    success = authenticated_page_api.locator('[data-testid="skill-uninstall-success"]')
-    expect(success).to_be_visible(timeout=10000)
+def test_skill_details_page(setup_test_user, db_session):
+    """Test skill details lookup (WORK-02).
 
-    # Verify skill removed from registry list
-    authenticated_page_api.wait_for_timeout(1000)  # Wait for UI update
-    skill_card = authenticated_page_api.locator(f'[data-testid="skill-card-{skill_id}"]')
+    GET /api/skills/{id} returns the full definition metadata: name, type,
+    status, body, scan result, sandbox flag.
+    """
+    token = setup_test_user["access_token"]
+    installed = import_skill(token, f"DetailsSkill-{uuid.uuid4().hex[:8]}", "Detail body")
 
-    # Skill card should not be visible (or marked as inactive)
-    if skill_card.is_visible():
-        status_badge = skill_card.locator('[data-testid="skill-status"]')
-        expect(status_badge).to_contain_text("Inactive")
-    else:
-        # Skill removed from list
-        expect(skill_card).not_to_be_visible()
+    detail = requests.get(
+        f"{API}/api/skills/{installed['skill_id']}",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=15,
+    )
+    assert detail.status_code == 200
+    data = detail.json()["data"]
 
-    # Verify database record updated
-    skill_record = db_session.query(SkillExecution).filter_by(
-        skill_id=skill_id
+    assert data["skill_id"] == installed["skill_id"]
+    assert data["skill_name"] == installed["skill_name"]
+    assert data["skill_type"] in ("prompt_only", "python_code"), data
+    assert data["status"] in ("Active", "Untrusted"), data
+    assert "skill_body" in data, data
+    assert "security_scan_result" in data, data
+    assert isinstance(data["sandbox_enabled"], bool), data
+
+    db_session.expire_all()
+    row = db_session.query(SkillExecution).filter(
+        SkillExecution.id == installed["skill_id"]
     ).first()
-
-    if skill_record:
-        # Record should be marked inactive or deleted
-        assert skill_record.status in ["Inactive", "Deleted"], \
-            f"Expected Inactive/Deleted status, got {skill_record.status}"
-    else:
-        # Record deleted (also acceptable)
-        assert skill_record is None, "Skill record should be deleted or inactive"
-
-    # Try to execute uninstalled skill (should fail)
-    authenticated_page_api.goto(f"http://localhost:3001/skills/{skill_id}/execute")
-    authenticated_page_api.wait_for_load_state("networkidle")
-
-    error_message = authenticated_page_api.locator('[data-testid="skill-not-available-error"]')
-
-    if error_message.is_visible():
-        expect(error_message).to_be_visible()
-    else:
-        # May redirect to registry with error
-        current_url = authenticated_page_api.url
-        assert "registry" in current_url or "error" in current_url, \
-            "Should redirect to registry or show error"
+    assert row is not None
+    assert row.skill_source == "community"
 
 
-def test_skill_details_page(authenticated_page_api, db_session):
-    """Test skill details page (WORK-02).
+def test_skill_status_badges(setup_test_user, db_session):
+    """Test skill status transitions (WORK-02).
 
-    Requirements:
-    - Clicking skill card navigates to details page
-    - Details page shows skill metadata
-    - Skill parameters listed
-    - Execution history section visible
+    Status is the registry's badge surface: a clean skill imports Active, a
+    CRITICAL-scan skill imports Untrusted, and promote flips it Active. The
+    list and detail both surface the status.
     """
-    # Install test skill
-    skill_id = f"test-details-skill-{str(uuid.uuid4())[:8]}"
-    execution_id = install_skill_via_api(db_session, skill_id, status="Active")
+    token = setup_test_user["access_token"]
+    clean = import_skill(token, f"BadgeClean-{uuid.uuid4().hex[:8]}", "No code here")
+    malicious = import_skill(
+        token,
+        f"BadgeMalicious-{uuid.uuid4().hex[:8]}",
+        "```python\nimport os\nos.system('echo pwned')\n```\n",
+    )
 
-    # Navigate to registry
-    authenticated_page_api.goto("http://localhost:3001/skills/registry")
-    authenticated_page_api.wait_for_load_state("networkidle")
+    # Keyless stack: the scanner fails open (risk UNKNOWN) for clean content,
+    # and only LOW auto-activates — so a clean import may be Untrusted.
+    assert clean["status"] in ("Active", "Untrusted"), clean
+    assert malicious["status"] == "Untrusted", (
+        f"CRITICAL scan must import Untrusted, got {malicious['status']}"
+    )
 
-    # Click skill card to view details
-    skill_card = authenticated_page_api.locator(f'[data-testid="skill-card-{skill_id}"]')
+    promote = requests.post(
+        f"{API}/api/skills/promote",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"skill_id": malicious["skill_id"]},
+        timeout=15,
+    )
+    assert promote.status_code == 200, f"got {promote.status_code}: {promote.text[:300]}"
+    assert promote.json()["data"]["status"] == "Active"
 
-    if not skill_card.is_visible():
-        pytest.skip(f"Skill card for {skill_id} not visible in registry")
+    detail = requests.get(
+        f"{API}/api/skills/{malicious['skill_id']}",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=15,
+    ).json()["data"]
+    assert detail["status"] == "Active", "Promoted skill must be Active in detail"
 
-    skill_card.click()
-
-    # Wait for details page
-    authenticated_page_api.wait_for_load_state("networkidle")
-
-    # Verify details page loaded
-    details_page = authenticated_page_api.locator('[data-testid="skill-details-page"]')
-
-    if not details_page.is_visible():
-        pytest.skip("Skill details page not implemented")
-
-    expect(details_page).to_be_visible()
-
-    # Verify skill metadata
-    skill_name = authenticated_page_api.locator('[data-testid="skill-name"]')
-    expect(skill_name).to_be_visible()
-
-    skill_description = authenticated_page_api.locator('[data-testid="skill-description"]')
-    expect(skill_description).to_be_visible()
-
-    skill_version = authenticated_page_api.locator('[data-testid="skill-version"]')
-    expect(skill_version).to_be_visible()
-
-    skill_author = authenticated_page_api.locator('[data-testid="skill-author"]')
-    expect(skill_author).to_be_visible()
-
-    # Verify skill parameters listed
-    parameters_section = authenticated_page_api.locator('[data-testid="skill-parameters"]')
-    expect(parameters_section).to_be_visible()
-
-    # Verify execution history section visible
-    history_section = authenticated_page_api.locator('[data-testid="skill-execution-history"]')
-    expect(history_section).to_be_visible()
-
-
-def test_skill_status_badges(authenticated_page_api, db_session):
-    """Test skill status badges display (WORK-02).
-
-    Requirements:
-    - Status badges visible and colored correctly
-    - Active: green
-    - Inactive: gray
-    - Pending: yellow
-    - Badge text matches skill status
-    """
-    # Create skills with different statuses
-    statuses = ["Active", "Inactive", "Pending"]
-    skill_ids = []
-
-    for status in statuses:
-        skill_id = f"test-{status.lower()}-skill-{str(uuid.uuid4())[:8]}"
-        execution_id = install_skill_via_api(db_session, skill_id, status=status)
-        skill_ids.append((skill_id, status))
-
-    # Navigate to registry
-    authenticated_page_api.goto("http://localhost:3001/skills/registry")
-    authenticated_page_api.wait_for_load_state("networkidle")
-
-    # Verify status badges for each skill
-    for skill_id, expected_status in skill_ids:
-        skill_card = authenticated_page_api.locator(f'[data-testid="skill-card-{skill_id}"]')
-
-        if not skill_card.is_visible():
-            continue  # Skip if card not visible
-
-        # Get status badge
-        status_badge = skill_card.locator('[data-testid="skill-status"]')
-        expect(status_badge).to_be_visible()
-
-        # Verify badge text matches status
-        badge_text = status_badge.text_content()
-        assert expected_status in badge_text, \
-            f"Expected status '{expected_status}' in badge, got: {badge_text}"
-
-        # Verify badge color (via CSS class or data attribute)
-        # Note: Color verification may require checking CSS classes
-        if expected_status == "Active":
-            expect(status_badge).to_have_attribute("data-status", "active")
-        elif expected_status == "Inactive":
-            expect(status_badge).to_have_attribute("data-status", "inactive")
-        elif expected_status == "Pending":
-            expect(status_badge).to_have_attribute("data-status", "pending")
+    db_session.expire_all()
+    row = db_session.query(SkillExecution).filter(
+        SkillExecution.id == malicious["skill_id"]
+    ).first()
+    assert row.status == "Active", row.status

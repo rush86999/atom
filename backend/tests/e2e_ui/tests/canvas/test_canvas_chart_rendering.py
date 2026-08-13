@@ -1,24 +1,27 @@
 """
 E2E Tests for Chart Canvas Rendering (CANV-01).
 
-Tests verify all chart types (line, bar, pie) render correctly with:
-- Proper data points and values
-- Axes labels and titles
-- Tooltips on hover
-- Legends with correct items
-- CanvasAudit record creation
+Tests verify all chart types (line, bar, pie) render correctly through the
+REAL rendering path — no phantom state injection:
 
-Chart Types Covered:
-- LineChartCanvas: timestamp/value data with dots
-- BarChartCanvas: category/value data with bars
-- PieChartCanvas: segment data with labels
+1. A chart canvas is created as `Canvas` + `CanvasAudit` rows in the e2e
+   database via `canvas_helpers.create_chart_canvas()` (mirroring what
+   `tools/canvas_tool.present_chart()` persists).
+2. Tests navigate to `http://localhost:3001/canvas/{id}`, where
+   `pages/canvas/[id].tsx` loads `/api/canvas/{id}` and `CanvasPanel` renders
+   the Recharts component (LineChartCanvas/BarChartCanvas/PieChartCanvas).
 
-Uses authenticated_page_api fixture for fast authentication.
+Chart data shapes (from frontend-nextjs/components/canvas/*.tsx):
+- LineChartCanvas: [{timestamp, value, label?}] — dots
+- BarChartCanvas:  [{name, value}] — bars
+- PieChartCanvas:  [{name, value}] — sectors with labels
+
+Reference pattern: tests/test_canvas_charts.py (16/16 passing).
 """
 
-import pytest
 import uuid
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
+
 from playwright.sync_api import Page, expect
 from sqlalchemy.orm import Session
 
@@ -27,381 +30,193 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
-from core.models import CanvasAudit
+from core.models import CanvasAudit, User
+from tests.e2e_ui.pages.page_objects import CanvasChartPage
+from tests.e2e_ui.tests.canvas_helpers import create_chart_canvas, open_canvas
 
 
 # =============================================================================
 # Helper Functions
 # =============================================================================
 
-def trigger_canvas_chart(page: Page, chart_type: str, data: dict, title: str = "Test Chart") -> str:
-    """Simulate WebSocket canvas:update event for chart.
-
-    Args:
-        page: Playwright page instance
-        chart_type: Type of chart ("line", "bar", "pie")
-        data: Chart data dictionary
-        title: Chart title
-
-    Returns:
-        str: Generated canvas_id
-    """
-    canvas_id = f"chart-{str(uuid.uuid4())[:8]}"
-
-    canvas_message = {
-        "type": "canvas:update",
-        "canvas_id": canvas_id,
-        "data": {
-            "component": "chart",
-            "chart_type": chart_type,
-            "title": title,
-            "data": data
-        }
-    }
-
-    # Store message for potential frontend access
-    page.evaluate(f"(msg) => window.lastCanvasMessage = msg", canvas_message)
-
-    # Dispatch custom event to trigger canvas rendering
-    page.evaluate("""
-        () => {
-            const event = new CustomEvent('canvas:update', {
-                detail: { type: 'canvas:update' }
-            });
-            window.dispatchEvent(event);
-        }
-    """)
-
-    return canvas_id
+def create_line_chart_data(point_count: int = 5) -> list[dict]:
+    """Create line chart data (timestamp/value points)."""
+    unique_id = str(uuid.uuid4())[:8]
+    return [
+        {"timestamp": f"2024-02-{23 + i:02d} 12:00", "value": 10 + i * 5, "label": f"Pt-{unique_id}-{i}"}
+        for i in range(point_count)
+    ]
 
 
-def create_line_chart_data() -> dict:
-    """Create line chart data with labels and datasets.
-
-    Returns:
-        dict: Line chart data structure
-    """
-    return {
-        "labels": ["Jan", "Feb", "Mar", "Apr"],
-        "datasets": [{
-            "label": "Sales",
-            "data": [10, 20, 30, 40]
-        }]
-    }
+def create_bar_chart_data(point_count: int = 4) -> list[dict]:
+    """Create bar chart data (category/value pairs)."""
+    unique_id = str(uuid.uuid4())[:8]
+    return [{"name": f"Cat-{unique_id}-{i}", "value": 20 + i * 10} for i in range(point_count)]
 
 
-def create_bar_chart_data() -> dict:
-    """Create bar chart data with categories and values.
-
-    Returns:
-        dict: Bar chart data structure
-    """
-    return {
-        "labels": ["A", "B", "C", "D"],
-        "datasets": [{
-            "label": "Revenue",
-            "data": [15, 25, 35, 45]
-        }]
-    }
+def create_pie_chart_data(point_count: int = 4) -> list[dict]:
+    """Create pie chart data (segment/value pairs)."""
+    unique_id = str(uuid.uuid4())[:8]
+    return [{"name": f"Seg-{unique_id}-{i}", "value": 10 + i * 15} for i in range(point_count)]
 
 
-def create_pie_chart_data() -> dict:
-    """Create pie chart data with segments.
-
-    Returns:
-        dict: Pie chart data structure
-    """
-    return {
-        "labels": ["X", "Y", "Z"],
-        "datasets": [{
-            "data": [30, 40, 30]
-        }]
-    }
-
-
-def create_multi_dataset_chart_data() -> dict:
-    """Create chart data with multiple datasets for legend testing.
-
-    Returns:
-        dict: Multi-dataset chart data
-    """
-    return {
-        "labels": ["Q1", "Q2", "Q3", "Q4"],
-        "datasets": [
-            {
-                "label": "Product A",
-                "data": [100, 120, 140, 160]
-            },
-            {
-                "label": "Product B",
-                "data": [80, 90, 100, 110]
-            }
-        ]
-    }
+def open_chart_canvas(page: Page, canvas_id: str, chart_type: str) -> CanvasChartPage:
+    """Navigate to the real /canvas/{id} route and wait for the chart series."""
+    open_canvas(page, canvas_id, f"{chart_type}_chart")
+    page.wait_for_selector(
+        ".recharts-wrapper, .recharts-line, .recharts-bar-rectangle, .recharts-pie-sector",
+        timeout=10000,
+    )
+    return CanvasChartPage(page)
 
 
 # =============================================================================
 # Chart Rendering Tests
 # =============================================================================
 
-class TestChartCanvasRendering:
-    """Test suite for chart canvas rendering (CANV-01)."""
+def test_line_chart_renders_correctly(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that line chart renders with correct data points.
 
-    def test_line_chart_renders_correctly(self, authenticated_page_api: Page, db_session: Session):
-        """Test that line chart renders with correct data points.
+    Verifies:
+    - CanvasPanel container appears with line_chart type badge
+    - Recharts line SVG series rendered with dots
+    - CanvasAudit record created for the canvas
+    """
+    user, _ = authenticated_user
+    data = create_line_chart_data(5)
+    canvas_id = create_chart_canvas(db_session, user, "line_chart", data, "Monthly Sales")
 
-        Verifies:
-        - Canvas host element appears
-        - Chart type attribute is "line"
-        - Data points are rendered (SVG/canvas elements)
-        - CanvasAudit record created
-        """
-        # Create line chart data
-        chart_data = create_line_chart_data()
+    chart_page = open_chart_canvas(authenticated_page, canvas_id, "line")
 
-        # Trigger chart presentation
-        canvas_id = trigger_canvas_chart(
-            authenticated_page_api,
-            "line",
-            chart_data,
-            title="Monthly Sales"
-        )
+    assert chart_page.is_loaded(), "Line chart should be loaded"
+    assert chart_page.get_chart_type() == "line", "Chart type should be 'line'"
+    assert chart_page.line_chart_svg.first.is_visible(), "Line series should be visible"
+    assert chart_page.get_data_point_count() == 5, "All 5 data points should render"
 
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
+    audit = db_session.query(CanvasAudit).filter(CanvasAudit.canvas_id == canvas_id).all()
+    assert len(audit) >= 1, "CanvasAudit record should exist for the canvas"
+    assert audit[0].canvas_type == "line_chart", "Audit row should carry the chart type"
 
-        # Verify canvas host appears
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
 
-        # Verify chart type attribute
-        chart_element = authenticated_page_api.locator('[data-chart-type="line"]').first
-        expect(chart_element).to_be_visible()
+def test_bar_chart_renders_correctly(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that bar chart renders with correct bar count.
 
-        # Verify data points rendered (check for SVG elements)
-        svg_element = authenticated_page_api.locator('svg').first
-        expect(svg_element).to_be_visible()
+    Verifies:
+    - CanvasPanel container appears with bar_chart type badge
+    - Bar rectangles match the input data length
+    - CanvasAudit record created
+    """
+    user, _ = authenticated_user
+    data = create_bar_chart_data(4)
+    canvas_id = create_chart_canvas(db_session, user, "bar_chart", data, "Revenue by Category")
 
-        # Verify CanvasAudit record created (if backend connected)
-        audit_records = db_session.query(CanvasAudit).filter(
-            CanvasAudit.canvas_id == canvas_id
-        ).all()
-        # Note: Audit may not be created in pure frontend tests
-        # This is a placeholder for when full backend integration is present
+    chart_page = open_chart_canvas(authenticated_page, canvas_id, "bar")
 
-    def test_bar_chart_renders_correctly(self, authenticated_page_api: Page, db_session: Session):
-        """Test that bar chart renders with correct bar count.
+    assert chart_page.is_loaded(), "Bar chart should be loaded"
+    assert chart_page.get_chart_type() == "bar", "Chart type should be 'bar'"
+    assert chart_page.get_data_point_count() == 4, "Expected 4 bars, got different count"
+    assert chart_page.verify_bar_chart_data(data), "Bar values should match input data"
 
-        Verifies:
-        - Canvas host element appears
-        - Chart type attribute is "bar"
-        - Bars rendered match data length (4 bars)
-        - CanvasAudit record created
-        """
-        # Create bar chart data
-        chart_data = create_bar_chart_data()
+    audit = db_session.query(CanvasAudit).filter(CanvasAudit.canvas_id == canvas_id).all()
+    assert len(audit) >= 1, "CanvasAudit record should exist for the canvas"
 
-        # Trigger chart presentation
-        canvas_id = trigger_canvas_chart(
-            authenticated_page_api,
-            "bar",
-            chart_data,
-            title="Revenue by Category"
-        )
 
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
+def test_pie_chart_renders_correctly(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that pie chart renders with correct slice count.
 
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
+    Verifies:
+    - CanvasPanel container appears with pie_chart type badge
+    - Sector count matches the input data length
+    - CanvasAudit record created
+    """
+    user, _ = authenticated_user
+    data = create_pie_chart_data(4)
+    canvas_id = create_chart_canvas(db_session, user, "pie_chart", data, "Market Share")
 
-        # Verify chart type
-        chart_element = authenticated_page_api.locator('[data-chart-type="bar"]').first
-        expect(chart_element).to_be_visible()
+    chart_page = open_chart_canvas(authenticated_page, canvas_id, "pie")
 
-        # Verify SVG rendered
-        svg_element = authenticated_page_api.locator('svg').first
-        expect(svg_element).to_be_visible()
+    assert chart_page.is_loaded(), "Pie chart should be loaded"
+    assert chart_page.get_chart_type() == "pie", "Chart type should be 'pie'"
+    assert chart_page.get_data_point_count() == 4, "Expected 4 sectors, got different count"
+    assert chart_page.verify_pie_chart_data(data), "Pie values should match input data"
 
-        # Verify CanvasAudit record (if backend available)
-        audit_records = db_session.query(CanvasAudit).filter(
-            CanvasAudit.canvas_id == canvas_id
-        ).all()
+    audit = db_session.query(CanvasAudit).filter(CanvasAudit.canvas_id == canvas_id).all()
+    assert len(audit) >= 1, "CanvasAudit record should exist for the canvas"
 
-    def test_pie_chart_renders_correctly(self, authenticated_page_api: Page, db_session: Session):
-        """Test that pie chart renders with correct slice count.
 
-        Verifies:
-        - Canvas host element appears
-        - Chart type attribute is "pie"
-        - Slices rendered match data length (3 slices)
-        - CanvasAudit record created
-        """
-        # Create pie chart data
-        chart_data = create_pie_chart_data()
+def test_chart_title_and_labels_display(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that chart title and type badge display above the chart."""
+    user, _ = authenticated_user
+    title = "Sales Report"
+    canvas_id = create_chart_canvas(db_session, user, "line_chart", create_line_chart_data(3), title)
 
-        # Trigger chart presentation
-        canvas_id = trigger_canvas_chart(
-            authenticated_page_api,
-            "pie",
-            chart_data,
-            title="Market Share"
-        )
+    chart_page = open_chart_canvas(authenticated_page, canvas_id, "line")
 
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
+    # Title in the canvas host header (h3) AND the chart header (h4).
+    assert chart_page.get_title() == title, f"Chart title should be '{title}'"
+    container_text = authenticated_page.locator('[data-testid="canvas-container"]').inner_text()
+    assert title in container_text, "Title should appear in the canvas container"
+    assert "line_chart" in container_text.lower(), "Type badge should show the chart type"
 
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
 
-        # Verify chart type
-        chart_element = authenticated_page_api.locator('[data-chart-type="pie"]').first
-        expect(chart_element).to_be_visible()
+def test_multiple_charts_can_render(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that multiple chart canvases render independently.
 
-        # Verify SVG rendered
-        svg_element = authenticated_page_api.locator('svg').first
-        expect(svg_element).to_be_visible()
+    The /canvas/{id} route renders one canvas per page (real route contract),
+    so "multiple charts" is verified by: render → close → next canvas renders
+    with its own data.
+    """
+    from tests.e2e_ui.tests.canvas_helpers import CANVAS_CLOSE_BUTTON
 
-        # Verify CanvasAudit record
-        audit_records = db_session.query(CanvasAudit).filter(
-            CanvasAudit.canvas_id == canvas_id
-        ).all()
+    user, _ = authenticated_user
+    first_id = create_chart_canvas(db_session, user, "line_chart", create_line_chart_data(3), "First Chart")
+    second_id = create_chart_canvas(db_session, user, "bar_chart", create_bar_chart_data(3), "Second Chart")
 
-    def test_chart_title_and_labels_display(self, authenticated_page_api: Page):
-        """Test that chart title and axis labels display correctly.
+    chart_page = open_chart_canvas(authenticated_page, first_id, "line")
+    assert chart_page.get_chart_type() == "line", "First canvas should render a line chart"
 
-        Verifies:
-        - Title is visible
-        - X-axis label displayed
-        - Y-axis label displayed
-        - Legend displayed (for multi-dataset charts)
-        """
-        # Create chart with labels
-        chart_data = {
-            "labels": ["Jan", "Feb", "Mar"],
-            "datasets": [{
-                "label": "Revenue",
-                "data": [100, 200, 300]
-            }],
-            "options": {
-                "title": "Sales Report",
-                "x_label": "Month",
-                "y_label": "Revenue ($)"
-            }
-        }
+    # Close the first canvas — the container must disappear.
+    authenticated_page.locator(CANVAS_CLOSE_BUTTON).click()
+    authenticated_page.wait_for_selector('[data-testid="canvas-container"]', state="hidden", timeout=5000)
+    assert authenticated_page.locator('[data-testid="canvas-container"]').count() == 0
 
-        # Trigger chart presentation
-        canvas_id = trigger_canvas_chart(
-            authenticated_page_api,
-            "line",
-            chart_data,
-            title="Sales Report"
-        )
+    # Second canvas renders its own bar data.
+    chart_page = open_chart_canvas(authenticated_page, second_id, "bar")
+    assert chart_page.get_chart_type() == "bar", "Second canvas should render a bar chart"
 
-        # Wait for rendering
-        authenticated_page_api.wait_for_timeout(500)
 
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
+def test_chart_legend_displays_for_multi_dataset(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that the Recharts legend renders for chart canvases."""
+    user, _ = authenticated_user
+    canvas_id = create_chart_canvas(db_session, user, "line_chart", create_line_chart_data(4), "Product Comparison")
 
-        # Verify title visible (text content)
-        page_content = authenticated_page_api.content()
-        assert "Sales Report" in page_content or "sales" in page_content.lower()
+    chart_page = open_chart_canvas(authenticated_page, canvas_id, "line")
 
-    def test_multiple_charts_can_render(self, authenticated_page_api: Page):
-        """Test that multiple charts can render simultaneously.
+    assert chart_page.has_legend(), "Chart should display a legend"
+    assert isinstance(chart_page.get_legend_items(), list), "Legend items should be a list"
 
-        Verifies:
-        - Both chart canvas elements visible
-        - Different canvas_id values
-        - Closing first chart leaves second visible
-        """
-        # Trigger first chart
-        canvas_id_1 = trigger_canvas_chart(
-            authenticated_page_api,
-            "line",
-            create_line_chart_data(),
-            title="First Chart"
-        )
 
-        authenticated_page_api.wait_for_timeout(500)
+def test_chart_responsive_container(
+    authenticated_page: Page, authenticated_user: Tuple[User, str], db_session: Session
+):
+    """Test that chart uses the Recharts ResponsiveContainer wrapper."""
+    user, _ = authenticated_user
+    canvas_id = create_chart_canvas(db_session, user, "line_chart", create_line_chart_data(3), "Responsive Chart")
 
-        # Trigger second chart
-        canvas_id_2 = trigger_canvas_chart(
-            authenticated_page_api,
-            "bar",
-            create_bar_chart_data(),
-            title="Second Chart"
-        )
+    chart_page = open_chart_canvas(authenticated_page, canvas_id, "line")
 
-        authenticated_page_api.wait_for_timeout(500)
-
-        # Verify both canvas elements exist
-        canvas_elements = authenticated_page_api.locator('[data-canvas-id]')
-        expect(canvas_elements).to_have_count(lambda count: count >= 2)
-
-        # Verify different canvas IDs
-        canvas_ids = authenticated_page_api.locator('[data-canvas-id]').all()
-        id_values = [el.get_attribute('data-canvas-id') for el in canvas_ids]
-        assert len(set(id_values)) >= 2, "Should have at least 2 unique canvas IDs"
-
-    def test_chart_legend_displays_for_multi_dataset(self, authenticated_page_api: Page):
-        """Test that legend displays for multi-dataset charts.
-
-        Verifies:
-        - Legend element is visible
-        - Legend contains all dataset labels
-        """
-        # Create multi-dataset chart
-        chart_data = create_multi_dataset_chart_data()
-
-        # Trigger chart presentation
-        canvas_id = trigger_canvas_chart(
-            authenticated_page_api,
-            "line",
-            chart_data,
-            title="Product Comparison"
-        )
-
-        authenticated_page_api.wait_for_timeout(500)
-
-        # Verify canvas visible
-        canvas_host = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_host).to_be_visible()
-
-        # Verify dataset labels are in page content
-        page_content = authenticated_page_api.content()
-        assert "Product A" in page_content or "product" in page_content.lower()
-
-    def test_chart_responsive_container(self, authenticated_page_api: Page):
-        """Test that chart has responsive container.
-
-        Verifies:
-        - Chart container exists
-        - Container has responsive CSS classes
-        """
-        # Create chart
-        chart_data = create_line_chart_data()
-
-        # Trigger chart presentation
-        canvas_id = trigger_canvas_chart(
-            authenticated_page_api,
-            "line",
-            chart_data,
-            title="Responsive Chart"
-        )
-
-        authenticated_page_api.wait_for_timeout(500)
-
-        # Verify canvas container exists
-        canvas_container = authenticated_page_api.locator('[data-canvas-id]').first
-        expect(canvas_container).to_be_visible()
-
-        # Check if container has width/height styling
-        # (Responsive containers typically have these)
-        box_size = canvas_container.bounding_box()
-        assert box_size is not None, "Canvas container should have dimensions"
-        assert box_size['width'] > 0, "Canvas container should have positive width"
+    assert chart_page.chart_container.is_visible(), "Chart should render inside a .recharts-wrapper"
+    box_size = chart_page.chart_container.bounding_box()
+    assert box_size is not None and box_size["width"] > 0, "Chart container should have positive width"

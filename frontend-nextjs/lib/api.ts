@@ -53,13 +53,18 @@ apiClient.interceptors.response.use(
   async (error: any) => {
     const originalRequest = error.config;
 
-    // Log technical error for debugging (not user-facing)
-    console.error('[API Error]', {
-      code: error.code,
-      status: error.response?.status,
-      message: error.message,
-      url: originalRequest?.url,
-    });
+    // Don't log expected 404s at error level: components routinely probe for
+    // optional resources (e.g. MiniAppHarness GET /api/canvas/{id}/logic —
+    // 404 means "no logic yet") and Chrome already logs the network 404.
+    if (error.response?.status !== 404) {
+      // Log technical error for debugging (not user-facing)
+      console.error('[API Error]', {
+        code: error.code,
+        status: error.response?.status,
+        message: error.message,
+        url: originalRequest?.url,
+      });
+    }
 
     // Don't retry if no config, request already marked to not retry, or error is permanent/non-retryable (401, 403, 404, etc.)
     if (!originalRequest || originalRequest.__isRetryRequest === true || originalRequest.retry === false || !isRetryableError(error)) {

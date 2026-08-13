@@ -17,6 +17,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
+# google_chat_enhanced_service does a module-level `import google.auth` (and
+# related google-* packages). These are optional enterprise deps absent on CI's
+# ubuntu runner; skip the whole module cleanly instead of hard-failing
+# collection. Placed before the integrations imports below so the skip fires
+# before the module-level google import is triggered.
+pytest.importorskip("google")
+
 import integrations.atom_google_chat_integration as gchat
 from integrations.google_chat_enhanced_service import GoogleChatEventType
 

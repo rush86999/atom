@@ -45,8 +45,9 @@ async def test_hybrid_graphrag_episodic_context():
     # Setup AgentGraphRAGService
     service = AgentGraphRAGService(db=db, workspace_id="ws1", agent_id="agent1")
     
-    # Mock GraphRAG Engine query response
-    service.graphrag.query = MagicMock(return_value={
+    # Mock GraphRAG Engine query response (query is async → AsyncMock;
+    # a sync MagicMock returns a plain dict that `await` cannot consume).
+    service.graphrag.query = AsyncMock(return_value={
         "mode": "global",
         "answer": "Leiden Community Summary on Sorting Algorithms."
     })

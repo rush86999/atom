@@ -151,6 +151,16 @@ class TestWebUILoginLogout:
         assert is_on_login or not is_dashboard_visible, \
             "Should be logged out (either on login page or dashboard not visible)"
 
-        # Verify token cleared from localStorage
-        token = authenticated_page_api.evaluate("() => localStorage.getItem('access_token')")
+        # Verify token cleared from localStorage. Retry the read: right after
+        # the signOut redirect the page can pass through an opaque origin
+        # where localStorage reads throw SecurityError ("Access is denied");
+        # by the time we're settled on /login the read succeeds and must
+        # return None (the Sidebar clears access_token on logout).
+        token = None
+        for _ in range(10):
+            try:
+                token = authenticated_page_api.evaluate("() => localStorage.getItem('access_token')")
+                break
+            except Exception:
+                authenticated_page_api.wait_for_timeout(1000)
         assert token is None, "Access token should be cleared after logout"

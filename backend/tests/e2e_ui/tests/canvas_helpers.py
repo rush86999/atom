@@ -17,11 +17,43 @@ persist in production (audit details_json carries `title` + `content`).
 """
 
 import uuid
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
 from core.models import Canvas, CanvasAudit, User
+
+# Canonical CanvasPanel testids (frontend-nextjs/src/lib/testIds.ts).
+CANVAS_CONTAINER = '[data-testid="canvas-container"]'
+CANVAS_CLOSE_BUTTON = '[data-testid="close-canvas-button"]'
+
+
+def canvas_type_badge(component: str) -> str:
+    """Return the canvas-type badge testid for a component (canvas-type-{component})."""
+    return f'[data-testid="canvas-type-{component}"]'
+
+
+def open_canvas(page, canvas_id: str, component: str | None = None, timeout: int = 15000) -> None:
+    """Navigate to the real /canvas/{id} route and wait for CanvasPanel to mount.
+
+    Mirrors the reference pattern in ``tests/test_canvas_charts.py``: real DB
+    rows + the real route + real component testids. Waits for the canvas
+    container (and optionally the type badge) to appear.
+
+    Args:
+        page: Playwright page (authenticated_page fixture — auth cookie + JWT).
+        canvas_id: Canvas ID (the URL path segment).
+        component: Optional component name; when given, waits for the
+            ``canvas-type-{component}`` badge testid as well.
+        timeout: Max ms to wait for the container.
+    """
+    page.goto(f"http://localhost:3001/canvas/{canvas_id}")
+    page.wait_for_load_state("networkidle")
+    page.wait_for_selector(CANVAS_CONTAINER, timeout=timeout)
+    if component:
+        page.wait_for_selector(canvas_type_badge(component), timeout=timeout)
+
 
 
 def create_canvas(
@@ -65,6 +97,11 @@ def create_canvas(
             user_id=str(user.id),
             action_type=action,
             canvas_type=canvas_type,
+            # Backdate 2s: read_canvas orders by created_at DESC, and SQLite's
+            # func.now() has second granularity — an update written in the same
+            # second as the present row would tie and could be read as "older".
+            # (Backend bug: no deterministic tiebreaker in the ordering.)
+            created_at=datetime.utcnow() - timedelta(seconds=2),
             details_json={"title": title, "content": content},
         )
     )
