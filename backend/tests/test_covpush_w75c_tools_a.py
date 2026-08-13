@@ -158,9 +158,12 @@ class TestWaitForDaemonReady:
 
     def test_timeout(self):
         from tools.atom_cli_skill_wrapper import wait_for_daemon_ready
-        times = iter([0.0, 0.4, 0.9, 1.1, 1.6, 2.1, 2.6, 3.1])
+        clock = [0.0]
+        def _clock():
+            clock[0] += 0.4
+            return clock[0]
         with patch("tools.atom_cli_skill_wrapper.is_daemon_running", return_value=False), \
-             patch("tools.atom_cli_skill_wrapper.time.time", side_effect=lambda: next(times)), \
+             patch("tools.atom_cli_skill_wrapper.time.time", side_effect=_clock), \
              patch("tools.atom_cli_skill_wrapper.time.sleep"):
             assert wait_for_daemon_ready(max_wait=3) is False
 
@@ -170,9 +173,12 @@ class TestWaitForDaemonReady:
         def _running():
             runs["n"] += 1
             return runs["n"] >= 2
-        times = iter([0.0, 0.3])
+        clock = [0.0]
+        def _clock():
+            clock[0] += 0.2
+            return clock[0]
         with patch("tools.atom_cli_skill_wrapper.is_daemon_running", side_effect=_running), \
-             patch("tools.atom_cli_skill_wrapper.time.time", side_effect=lambda: next(times)), \
+             patch("tools.atom_cli_skill_wrapper.time.time", side_effect=_clock), \
              patch("tools.atom_cli_skill_wrapper.time.sleep"):
             assert wait_for_daemon_ready(max_wait=10) is True
 
@@ -224,6 +230,7 @@ class TestAgentGuidanceSystem:
              patch("tools.agent_guidance_canvas_tool.EMERGENCY_GOVERNANCE_BYPASS", False):
             from tools.agent_guidance_canvas_tool import AgentGuidanceSystem
             self.sys = AgentGuidanceSystem(self.db)
+            yield
 
     def _agent(self, **kw):
         return SimpleNamespace(id="a-1", name="Demo", workspace_id="ws-1",
@@ -301,7 +308,7 @@ class TestAgentGuidanceSystem:
         assert tracker.current_step == "Step 2" and tracker.progress == 50
         assert len(tracker.logs) == 1
         self.ws.broadcast.assert_awaited_once()
-        updates = self.ws.broadcast.await_args.args[1]["data"]["data"]["updates"]
+        updates = self.ws.broadcast.await_args.args[1]["data"]["updates"]
         assert updates["logs"] is not None
 
     async def test_update_step_calculated_progress(self):
@@ -413,6 +420,7 @@ class TestAgentGuidanceBypass:
              patch("tools.agent_guidance_canvas_tool.EMERGENCY_GOVERNANCE_BYPASS", True):
             from tools.agent_guidance_canvas_tool import AgentGuidanceSystem
             self.sys = AgentGuidanceSystem(self.db)
+            yield
 
     async def test_start_skips_governance_query(self):
         op_id = await self.sys.start_operation("u-1", "a-1", "browser_automate", {})
@@ -445,6 +453,7 @@ class TestRegisterAgentRadioTools:
         registry = MagicMock()
         with patch("tools.registry.get_tool_registry", return_value=registry):
             _il.reload(radiotool)
+            radiotool.register_agent_radio_tools()
         assert registry.register.call_count == 4
 
 
@@ -475,79 +484,55 @@ class TestVerifyCanvasOwner:
 
 
 class TestReadCanvas:
-    def _run(self, first=None, owner="u-1"):
+    async def _run(self, audit, owner="u-1"):
         db = _cm_db()
-        db.query.return_value.filter.return_value.order_by.return_value.first.return_value = first
-        if owner is None:
-            db.query.return_value.filter.return_value.first.side_effect = \
-                [SimpleNamespace(created_by="other"), first]
-        else:
-            db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
-                created_by=owner)
+        f = db.query.return_value.filter.return_value
+        f.first.return_value = SimpleNamespace(created_by=owner)
+        f.order_by.return_value.first.return_value = audit
         import tools.canvas_crud_tool as mod
         with _patch_db(db):
-            return mod
+            return await mod.read_canvas("u-1", "c-1")
 
     async def test_not_owner(self):
         import tools.canvas_crud_tool as mod
         db = _cm_db()
-        db.query.return_value.filter.return_value.first.side_effect = [
-            SimpleNamespace(created_by="other"), SimpleNamespace()]
+        db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
+            created_by="other")
         with _patch_db(db):
             res = await mod.read_canvas("u-1", "c-1")
         assert res["success"] is False and "not found" in res["error"]
 
     async def test_no_audit(self):
-        import tools.canvas_crud_tool as mod
-        db = _cm_db()
-        db.query.return_value.filter.return_value.order_by.return_value.first.return_value = None
-        with _patch_db(db):
-            res = await mod.read_canvas("u-1", "c-1")
+        res = await self._run(None)
         assert res["success"] is False
 
     async def test_deleted_canvas(self):
-        import tools.canvas_crud_tool as mod
         audit = SimpleNamespace(action_type="delete", canvas_type="docs",
                                 details_json={"content": "x"}, created_at=datetime.now())
-        db = _cm_db()
-        db.query.return_value.filter.return_value.order_by.return_value.first.return_value = audit
-        with _patch_db(db):
-            res = await mod.read_canvas("u-1", "c-1")
+        res = await self._run(audit)
         assert res["success"] is False and res.get("deleted") is True
 
     async def test_success_with_content(self):
-        import tools.canvas_crud_tool as mod
         created = datetime.now()
         audit = SimpleNamespace(action_type="present", canvas_type="docs",
                                 details_json={"content": "hello", "title": "T"},
                                 created_at=created)
-        db = _cm_db()
-        db.query.return_value.filter.return_value.order_by.return_value.first.return_value = audit
-        with _patch_db(db):
-            res = await mod.read_canvas("u-1", "c-1")
+        res = await self._run(audit)
         assert res["success"] is True and res["content"] == "hello"
         assert res["canvas_type"] == "docs" and res["title"] == "T"
         assert res["created_at"] == created.isoformat()
 
     async def test_success_empty_content_preserved(self):
-        import tools.canvas_crud_tool as mod
         audit = SimpleNamespace(action_type="present", canvas_type="email",
                                 details_json={"content": ""}, created_at=None)
-        db = _cm_db()
-        db.query.return_value.filter.return_value.order_by.return_value.first.return_value = audit
-        with _patch_db(db):
-            res = await mod.read_canvas("u-1", "c-1")
+        res = await self._run(audit)
         assert res["success"] is True and res["content"] == ""
         assert res["created_at"] is None
 
     async def test_success_content_falls_back_to_details(self):
-        import tools.canvas_crud_tool as mod
         audit = SimpleNamespace(action_type="present", canvas_type="generic",
                                 details_json={"data": [1, 2]}, created_at=None)
-        db = _cm_db()
-        db.query.return_value.filter.return_value.order_by.return_value.first.return_value = audit
-        with _patch_db(db):
-            res = await mod.read_canvas("u-1", "c-1")
+        res = await self._run(audit)
         assert res["success"] is True and res["content"] == [1, 2]
 
     async def test_exception(self):
@@ -567,7 +552,9 @@ class TestUpdateCanvasContent:
 
     async def _run(self, first, ws_raise=None):
         db = _cm_db()
-        db.query.return_value.filter.return_value.order_by.return_value.first.return_value = first
+        f = db.query.return_value.filter.return_value
+        f.first.return_value = SimpleNamespace(created_by="u-1")
+        f.order_by.return_value.first.return_value = first
         ws = AsyncMock()
         if ws_raise:
             ws.broadcast.side_effect = ws_raise
@@ -620,7 +607,9 @@ class TestDeleteCanvas:
 
     async def _run(self, first, ws_raise=None):
         db = _cm_db()
-        db.query.return_value.filter.return_value.order_by.return_value.first.return_value = first
+        f = db.query.return_value.filter.return_value
+        f.first.return_value = SimpleNamespace(created_by="u-1")
+        f.order_by.return_value.first.return_value = first
         ws = AsyncMock()
         if ws_raise:
             ws.broadcast.side_effect = ws_raise
@@ -667,14 +656,16 @@ class TestListCanvases:
                created_at=None, user_id="u-1"):
         return SimpleNamespace(canvas_id=canvas_id, action_type=action_type,
                                canvas_type=canvas_type,
-                               details_json=details or {"title": "T"},
-                               created_at=created_at or datetime.now(),
+                               details_json=details if details is not None else {"title": "T"},
+                               created_at=created_at,
                                user_id=user_id)
 
     async def _run(self, audits, canvas_type=None, include_deleted=False):
         db = _cm_db()
         q = db.query.return_value
-        q.filter.return_value.order_by.return_value.all.return_value = audits
+        q.filter.return_value = q
+        q.order_by.return_value = q
+        q.all.return_value = audits
         import tools.canvas_crud_tool as mod
         with _patch_db(db):
             return await mod.list_canvases("u-1", canvas_type=canvas_type,
@@ -908,7 +899,7 @@ class TestListTenantMembers:
         db.query.return_value.filter.return_value.all.return_value = [m1, m2]
         with patch("core.database.SessionLocal", return_value=db):
             msg = await list_tenant_members({"workspace_id": "ws-1"})
-        assert "Alice" in msg and "a@b.c" in msg
+        assert "Alice" in msg and "b@b.c" in msg
 
     async def test_error(self):
         from tools.platform_management_tool import list_tenant_members
@@ -1063,6 +1054,21 @@ class TestManageTeam:
     def _db(self):
         return _cm_db()
 
+    def _team_db(self, team_id="team-1"):
+        """DB where the Team row gets its id assigned at flush (like the ORM)."""
+        db = _cm_db()
+        added = {}
+
+        def _add(obj):
+            added["obj"] = obj
+
+        def _flush():
+            added["obj"].id = team_id
+
+        db.add.side_effect = _add
+        db.flush.side_effect = _flush
+        return db
+
     async def test_no_tenant(self):
         from tools.platform_management_tool import manage_team
         msg = await manage_team("T")
@@ -1070,9 +1076,7 @@ class TestManageTeam:
 
     async def test_create(self):
         from tools.platform_management_tool import manage_team
-        db = self._db()
-        team = SimpleNamespace(id="team-1")
-        db.add.side_effect = None
+        db = self._team_db()
         with patch("core.database.SessionLocal", return_value=db):
             msg = await manage_team("T", context={"workspace_id": "ws-1"})
         assert "created" in msg and "team-1" in msg
@@ -1110,7 +1114,7 @@ class TestManageTeam:
 
     async def test_add_members(self):
         from tools.platform_management_tool import manage_team
-        db = self._db()
+        db = self._team_db()
         db.query.return_value.filter.return_value.first.side_effect = [
             SimpleNamespace(id="u-1"), None]
         with patch("core.database.SessionLocal", return_value=db):
@@ -1121,7 +1125,7 @@ class TestManageTeam:
 
     async def test_add_members_user_missing(self):
         from tools.platform_management_tool import manage_team
-        db = self._db()
+        db = self._team_db()
         db.query.return_value.filter.return_value.first.return_value = None
         with patch("core.database.SessionLocal", return_value=db):
             msg = await manage_team("T", context={"workspace_id": "ws-1"},
