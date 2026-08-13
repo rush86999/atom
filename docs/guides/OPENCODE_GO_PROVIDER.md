@@ -313,7 +313,7 @@ curl -X POST http://localhost:8000/api/agent/route \
 ## FAQ
 
 **Q: Why `OPENCODE_API_KEY` not `OPENCODE_GO_API_KEY`?**  
-A: Environment variables can't have hyphens in Python's `os.getenv`. The code explicitly looks for `OPENCODE_API_KEY`.
+A: The code convention is `{PROVIDER_ID}_API_KEY` (uppercase). The provider ID is `opencode-go`, which would produce `OPENCODE-GO_API_KEY` — invalid because env var names use underscores, not hyphens. So it's a special case in `byok_handler.py` that maps `opencode-go` → `OPENCODE_API_KEY`, dropping the "GO".
 
 **Q: Can I use OpenCode Go with the LLM Gateway (`/v1/*`)?**  
 A: Yes. Configure an `atom_sk_*` gateway key, and the gateway will route through OpenCode Go when it wins BPC ranking.
