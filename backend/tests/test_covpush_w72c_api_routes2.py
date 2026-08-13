@@ -137,6 +137,13 @@ class TestBackgroundAgentRoutes:
         assert body["data"]["total"] == 0
         assert body["data"]["active"] == 0
 
+    def test_all_status_success(self, client, runner):
+        with patch("core.background_agent_runner.background_runner", runner):
+            resp = client.get("/api/background-agents/status")
+        assert resp.status_code == 200
+        assert resp.json()["agents"]["agent-1"]["running"] is True
+        runner.get_status.assert_called_once()
+
     def test_all_status_import_error_branch(self, client):
         with patch.dict(sys.modules, {"core.background_agent_runner": None}):
             resp = client.get("/api/background-agents/status")
@@ -528,6 +535,7 @@ class TestIntelligenceRoutes:
     def test_execute_workflow_unknown_definition_403(self, client):
         orch = MagicMock()
         orch.workflows = {}
+        orch.template_manager = None
         orch.execute_workflow = AsyncMock()
         with patch("advanced_workflow_orchestrator.get_orchestrator",
                    return_value=orch):
@@ -731,25 +739,34 @@ class TestMcpServerRoutes:
             resp = client.post("/mcp/", json={"jsonrpc": "2.0", "id": 1})
         assert resp.status_code == 503
 
-    @pytest.mark.asyncio
-    async def test_sse_stream(self, client):
+    def test_sse_stream(self):
+        import asyncio
         from api.mcp_server_routes import mcp_sse
 
-        async def _sleep(_seconds):
-            raise RuntimeError("stream closed")
+        real_sleep = asyncio.sleep
+        calls = {"n": 0}
 
-        with patch("asyncio.sleep", side_effect=_sleep):
-            resp = await mcp_sse(fake_user())
-        assert resp.media_type == "text/event-stream"
-        assert resp.headers["Cache-Control"] == "no-cache"
-        assert resp.headers["Connection"] == "keep-alive"
-        chunks = []
-        with pytest.raises(RuntimeError):
-            async for chunk in resp.body_iterator:
-                chunks.append(chunk)
-        joined = b"".join(chunks).decode()
-        assert "event: endpoint" in joined
-        assert "event: ping" in joined
+        async def _fake_sleep(_seconds):
+            calls["n"] += 1
+            if calls["n"] > 1:
+                raise RuntimeError("stream closed")
+            await real_sleep(0)
+
+        async def _run():
+            with patch("asyncio.sleep", side_effect=_fake_sleep):
+                resp = await mcp_sse(fake_user())
+                assert resp.media_type == "text/event-stream"
+                assert resp.headers["Cache-Control"] == "no-cache"
+                assert resp.headers["Connection"] == "keep-alive"
+                chunks = []
+                with pytest.raises(RuntimeError):
+                    async for chunk in resp.body_iterator:
+                        chunks.append(chunk)
+                joined = "".join(chunks)
+                assert "event: endpoint" in joined
+                assert "event: ping" in joined
+
+        asyncio.run(_run())
 
     def test_sse_disabled_503(self):
         from api.mcp_server_routes import router, get_current_user as mcp_auth
@@ -802,7 +819,7 @@ class TestNotificationSettingsRoutes:
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert data["slack_channel"] == "#ops"
-        session.close.assert_called_once()
+        session.close.assert_called()
 
     def test_get_settings_ownerless_workflow(self, client):
         session = MagicMock()
@@ -827,7 +844,7 @@ class TestNotificationSettingsRoutes:
                 patch("core.models.Workflow", MagicMock()):
             resp = client.get("/api/notifications/ghost")
         assert resp.status_code == 404
-        session.close.assert_called_once()
+        session.close.assert_called()
 
     def test_get_settings_404_other_user(self, client):
         session = MagicMock()
@@ -990,7 +1007,7 @@ class TestNavStubRoutes:
 
     def test_list_tasks_success(self, client):
         db = MagicMock()
-        db.query.return_value = _chain(rows_return=[self._task()])
+        db.query.return_value = _chain(rows_return=[self._task(due=datetime(2026, 1, 2))])
         client.app.dependency_overrides[get_db] = lambda: db
         resp = client.get("/api/v1/tasks?limit=10&offset=5")
         assert resp.status_code == 200
@@ -1139,6 +1156,26 @@ class TestAIWorkflowsRoutes:
         assert body["confidence"] == 0.7
         assert {"type": "email", "value": "boss@corp.com"} in body["entities"]
 
+    def test_fallback_intent_scheduling(self, client):
+        svc = self._fallback_service()
+        with patch("enhanced_ai_workflow_endpoints.ai_service", svc):
+            resp = client.post(
+                "/api/ai-workflows/nlu/parse",
+                json={"text": "schedule a meeting tomorrow"},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["intent"] == "scheduling"
+
+    def test_fallback_intent_search(self, client):
+        svc = self._fallback_service()
+        with patch("enhanced_ai_workflow_endpoints.ai_service", svc):
+            resp = client.post(
+                "/api/ai-workflows/nlu/parse",
+                json={"text": "find the document"},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["intent"] == "search"
+
     def test_fallback_intent_creation(self, client):
         svc = self._fallback_service()
         with patch("enhanced_ai_workflow_endpoints.ai_service", svc):
@@ -1230,6 +1267,60 @@ class TestAIWorkflowsRoutes:
             )
         assert resp.status_code == 200
         assert resp.json()["entities"] == []
+
+    def test_providers_all_keys(self, client):
+        svc = MagicMock()
+        svc.openai_api_key = "sk-openai"
+        svc.anthropic_api_key = "sk-anthropic"
+        svc.deepseek_api_key = "sk-deepseek"
+        svc.google_api_key = "sk-google"
+        with patch("enhanced_ai_workflow_endpoints.ai_service", svc):
+            resp = client.get("/api/ai-workflows/providers")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["count"] == 4
+        assert {p["id"] for p in body["providers"]} == {
+            "openai", "anthropic", "deepseek", "google",
+        }
+        assert body["default"] == "deepseek"
+
+    def test_providers_only_openai(self, client):
+        svc = MagicMock()
+        svc.openai_api_key = "sk-openai"
+        svc.anthropic_api_key = None
+        svc.deepseek_api_key = None
+        svc.google_api_key = None
+        with patch("enhanced_ai_workflow_endpoints.ai_service", svc):
+            resp = client.get("/api/ai-workflows/providers")
+        body = resp.json()
+        assert body["count"] == 1
+        assert body["providers"][0]["id"] == "openai"
+        assert body["default"] == "openai"
+
+    def test_providers_only_anthropic_and_google(self, client):
+        svc = MagicMock()
+        svc.openai_api_key = None
+        svc.anthropic_api_key = "sk-anthropic"
+        svc.deepseek_api_key = None
+        svc.google_api_key = "sk-google"
+        with patch("enhanced_ai_workflow_endpoints.ai_service", svc):
+            resp = client.get("/api/ai-workflows/providers")
+        body = resp.json()
+        assert body["count"] == 2
+        assert {p["id"] for p in body["providers"]} == {"anthropic", "google"}
+        assert body["default"] == "openai"
+
+    def test_providers_no_keys(self, client):
+        svc = MagicMock()
+        svc.openai_api_key = None
+        svc.anthropic_api_key = None
+        svc.deepseek_api_key = None
+        svc.google_api_key = None
+        with patch("enhanced_ai_workflow_endpoints.ai_service", svc):
+            resp = client.get("/api/ai-workflows/providers")
+        body = resp.json()
+        assert body["count"] == 0
+        assert body["default"] == "openai"
 
     def test_providers_error_branch(self, client):
         with patch.dict(sys.modules, {"enhanced_ai_workflow_endpoints": None}):

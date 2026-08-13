@@ -6,13 +6,25 @@ from accounting.models import Account, CategorizationProposal, CategorizationRul
 from sqlalchemy.orm import Session
 
 from core.models import AuditLog
-from integrations.ai_enhanced_service import (
-    AIModelType,
-    AIRequest,
-    AIServiceType,
-    AITaskType,
-    ai_enhanced_service,
-)
+
+# integrations.ai_enhanced_service is an optional dependency (absent from
+# some checkouts). When missing, the module degrades gracefully: the
+# ai_enhanced_service is None and propose_categorization returns None
+# instead of crashing at import time. Mirrors core/business_health_service.py.
+try:
+    from integrations.ai_enhanced_service import (
+        AIModelType,
+        AIRequest,
+        AIServiceType,
+        AITaskType,
+        ai_enhanced_service,
+    )
+except ImportError:
+    AIModelType = None
+    AIRequest = None
+    AIServiceType = None
+    AITaskType = None
+    ai_enhanced_service = None
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +72,10 @@ class AICategorizer:
         ]
 
         # 2. Prepare AI Request
+        if ai_enhanced_service is None:
+            logger.warning("AI enhanced service unavailable, skipping categorization")
+            return None
+
         prompt_data = {
             "transaction": {
                 "description": transaction.description,
