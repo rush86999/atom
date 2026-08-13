@@ -36,7 +36,8 @@ DATABASE_URL=sqlite:///./atom_dev.db
 # MUST be set for JWT sessions to persist across restarts.
 SECRET_KEY=<your-generated-key>
 
-# AI Providers (at least one required for LLM features)
+# AI Providers (optional — server boots without any; LLM features disabled)
+# Options: OPENCODE_API_KEY (recommended), any provider key, or ATOM_LOCAL_ONLY=true + Ollama
 OPENAI_API_KEY=sk-...
 # ANTHROPIC_API_KEY=...
 # DEEPSEEK_API_KEY=...

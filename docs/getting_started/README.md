@@ -52,7 +52,7 @@ cd frontend-nextjs && npm run dev -- -p 3001
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
-cp .env.personal .env   # edit: generate SECRET_KEY/JWT_SECRET_KEY/BYOK_ENCRYPTION_KEY + one LLM key
+cp .env.personal .env   # edit: generate SECRET_KEY/JWT_SECRET_KEY/BYOK_ENCRYPTION_KEY
 docker compose -f docker-compose-personal.yml up -d --build
 ```
 
@@ -70,20 +70,15 @@ piece-engine), use `docker-compose.yml`.
 - **Python**: 3.11+
 - **Node.js**: 22+, **npm**: 9+
 - **Database**: SQLite (default — zero setup) or PostgreSQL (production)
-- **LLM API Key**: at least one provider (OpenAI, Anthropic, DeepSeek, Gemini, GLM, MiniMax, or Ollama for free local)
 - **Optional**: Docker for containerized deployment
 
-### LLM Provider Keys
-```bash
-# Add to backend/.env — at least one required for agent features
-OPENAI_API_KEY=sk-...                 # https://platform.openai.com/api-keys
-# ANTHROPIC_API_KEY=sk-ant-...        # https://console.anthropic.com/
-# DEEPSEEK_API_KEY=...                # https://platform.deepseek.com/
-# GEMINI_API_KEY=...                  # https://aistudio.google.com/app/apikey
-# GLM_API_KEY=...                     # https://open.bigmodel.cn/usercenter/apikeys (GLM-5.2)
-# MINIMAX_API_KEY=...                 # https://platform.minimaxi.com/
-# OLLAMA_BASE_URL=http://localhost:11434/v1   # free, local — no key
-```
+### LLM Providers (optional)
+The server boots without any API key — LLM features are disabled until you
+configure a provider. Options:
+- **OpenCode Go** (recommended): `OPENCODE_API_KEY=...` (low-cost subscription)
+- **Any BYOK key**: add via Settings > AI after launch, no `.env` change needed
+- **Ollama** (free, local): `ATOM_LOCAL_ONLY=true` + `OLLAMA_BASE_URL=http://localhost:11434/v1`
+- **Direct env key**: set `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc. in `.env`
 
 ## 🎯 First Steps After Install
 
@@ -101,8 +96,10 @@ See **[FIRST_STEPS.md](./FIRST_STEPS.md)** for the full walkthrough. Summary:
 ```bash
 DATABASE_URL=sqlite:///./atom_dev.db
 SECRET_KEY=<run: openssl rand -base64 48>   # MUST be set or JWTs reset on restart
-OPENAI_API_KEY=sk-...                        # at least one LLM provider
 ```
+
+LLM keys are optional — the server boots without any. See the LLM Providers
+section above for options, or add a key via Settings > AI after launch.
 
 A complete template with all options is at `backend/.env.example` (every var
 has a working default). The full reference — every variable, its default, and

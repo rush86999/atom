@@ -23,7 +23,7 @@ This guide covers deploying the Atom platform to production using Docker Compose
    # - POSTGRES_PASSWORD (use a strong password)
    # - JWT_SECRET_KEY (openssl rand -hex 32)
    # - BYOK_ENCRYPTION_KEY (openssl rand -hex 32)
-   # - AI provider keys (at least one)
+    # - AI provider keys (optional — LLM features disabled without; add via Settings > AI or .env)
    ```
 
 3. **Start the stack**:
@@ -47,8 +47,8 @@ This guide covers deploying the Atom platform to production using Docker Compose
 | `POSTGRES_PASSWORD` | ✅ | Database password |
 | `JWT_SECRET_KEY` | ✅ | Authentication token signing |
 | `BYOK_ENCRYPTION_KEY` | ✅ | AI key encryption |
-| `OPENAI_API_KEY` | One AI key | OpenAI API access |
-| `ANTHROPIC_API_KEY` | One AI key | Anthropic Claude access |
+| `OPENAI_API_KEY` | — | OpenAI API access (optional — LLM features disabled without) |
+| `ANTHROPIC_API_KEY` | — | Anthropic Claude access (optional) |
 | `TAVILY_API_KEY` | Optional | Web search capability |
 
 ## Health Checks

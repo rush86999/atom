@@ -25,7 +25,9 @@ default (configurable via `ACCESS_TOKEN_EXPIRE_MINUTES`).
 
 ## 2. Pick an LLM provider
 
-At least one provider key is required for the agent features to do anything useful. 
+At least one provider key is needed for agent features to do anything useful.
+The server boots without one — LLM features are just disabled until you configure
+a provider.
 
 **Quick pick:**
 | Goal | Provider | Setup |

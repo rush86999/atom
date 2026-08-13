@@ -60,14 +60,16 @@ Edit `backend/.env` — the minimum required:
 ```bash
 DATABASE_URL=sqlite:///./atom_dev.db
 SECRET_KEY=$(openssl rand -base64 48)   # paste the actual output, not the command
-OPENAI_API_KEY=sk-...                    # at least one LLM provider
 ```
 
-For local-only (free, no API key) LLM, use Ollama instead:
-```bash
-OLLAMA_BASE_URL=http://localhost:11434/v1
-OLLAMA_MODEL=llama3:8b
-```
+LLM providers are optional — the server boots without any API key. LLM
+features are disabled until you configure a provider. Options:
+
+| What to set | Cost |
+|-------------|------|
+| `OPENCODE_API_KEY=<your-key>` | Low-cost subscription (recommended) |
+| Nothing — add via Settings > AI after launch | Varies by provider |
+| `ATOM_LOCAL_ONLY=true` + `OLLAMA_BASE_URL=http://localhost:11434/v1` | Free (local) |
 
 ---
 

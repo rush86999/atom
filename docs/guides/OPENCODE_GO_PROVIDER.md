@@ -78,7 +78,7 @@ When the dynamic pricing cache is unavailable, the router uses built-in mappings
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OPENCODE_API_KEY` | *required* | Subscription key from opencode.ai (format: `sk-opencode-...`) |
+| `OPENCODE_API_KEY` | *to use this provider* | Subscription key from opencode.ai (format: `sk-opencode-...`) |
 | `OPENCODE_BASE_URL` | `https://opencode.ai/zen/v1` | Gateway endpoint (rarely needs changing) |
 | `OPENCODE_RPM` | `60` | Max requests/minute for your tier. Adjust to match your plan. |
 | `OPENCODE_TPM` | `2000000` | Max tokens/minute for your tier. |

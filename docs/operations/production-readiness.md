@@ -50,7 +50,7 @@ GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 MICROSOFT_CLIENT_ID=your-microsoft-client-id
 MICROSOFT_CLIENT_SECRET=your-microsoft-client-secret
-OPENAI_API_KEY=your-openai-api-key
+# OPENAI_API_KEY=your-openai-api-key   # optional — LLM features disabled without
 
 # Server Configuration
 DEBUG=false

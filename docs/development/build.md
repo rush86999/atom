@@ -471,8 +471,8 @@ cp backend/.env.example backend/.env
 
 # Edit .env with your values
 DATABASE_URL=sqlite:///./atom_dev.db
-OPENAI_API_KEY=sk-...
 # ... other variables
+# LLM keys are optional — server boots without any (LLM features disabled)
 ```
 
 ## Platform-Specific Notes

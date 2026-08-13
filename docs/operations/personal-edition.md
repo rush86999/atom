@@ -29,14 +29,14 @@ The Personal Edition is a simplified, streamlined version of Atom optimized for:
 
 - **Docker** (Desktop or Engine) - [Download Docker](https://www.docker.com/products/docker-desktop/)
 - **Git** - [Download Git](https://git-scm.com/downloads)
-- **At least one AI provider API key:**
-  - [OpenAI](https://platform.openai.com/api-keys) (GPT-4/GPT-3.5) - **Recommended**
-  - [Anthropic](https://console.anthropic.com/) (Claude 3.5 Sonnet) - **Best for complex tasks**
-  - [DeepSeek](https://platform.deepseek.com/) (Affordable alternative)
-  - [OpenRouter](https://openrouter.ai/keys) (Unified gateway — one key → 300+ models)
-  - [Zhipu GLM](https://open.bigmodel.cn/) (GLM-5.2 — 1M context, reasoning)
-  - [Moonshot/Kimi](https://platform.moonshot.cn/) (Kimi K2 — 256K context, vision)
-  - [MiniMax](https://api.minimax.io/) (M3 — 512K context, image input)
+
+### LLM Providers (optional)
+The server boots without any API key — LLM features (chat, agents, workflows)
+are disabled until you configure a provider. Options:
+- **OpenCode Go** (recommended): `OPENCODE_API_KEY=...` (low-cost subscription)
+- **Any BYOK key**: add via Settings > AI after launch, no `.env` change needed
+- **Ollama** (free, local): `ATOM_LOCAL_ONLY=true` + `OLLAMA_BASE_URL`
+- **Direct env key**: set `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc. in `.env`
 
 ### System Requirements
 
@@ -58,8 +58,7 @@ cd atom
 # Copy personal edition environment template
 cp .env.personal .env
 
-# Edit .env and add your API keys
-# At minimum, set: OPENAI_API_KEY or ANTHROPIC_API_KEY
+# Edit .env and add your API keys (optional — server boots without any LLM key)
 nano .env  # or use your favorite editor
 ```
 
@@ -191,11 +190,17 @@ nano .env
 SECRET_KEY=<your-generated-key>
 JWT_SECRET_KEY=<your-generated-key>
 BYOK_ENCRYPTION_KEY=<your-generated-key>
+```
 
-# Set at least one AI provider key (OR ATOM_LOCAL_ONLY=true for Ollama)
-OPENAI_API_KEY=sk-your-key-here
-# OR
-ANTHROPIC_API_KEY=sk-ant-your-key-here
+LLM keys are optional — the server boots without any. Options:
+- Set a provider key below (or add via Settings > AI after launch)
+- Or set `ATOM_LOCAL_ONLY=true` for Ollama (fully local, free)
+
+```bash
+# Optional — LLM features disabled without at least one:
+OPENCODE_API_KEY=sk-opencode-...       # Low-cost subscription (recommended)
+# OPENAI_API_KEY=sk-your-key-here     # Or any other provider key
+# ATOM_LOCAL_ONLY=true                # Fully local (requires Ollama)
 ```
 
 The full reference for every env var is at

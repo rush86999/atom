@@ -27,10 +27,11 @@ Docker stacks read the root `.env` (copy `.env.personal` → `.env`).
 # backend/.env  —  everything else has a working default
 DATABASE_URL=sqlite:///./atom_dev.db
 SECRET_KEY=$(openssl rand -base64 48)     # required for persistent JWTs
-OPENAI_API_KEY=sk-...                      # OR ATOM_LOCAL_ONLY=true for Ollama
 ```
 
-That's it. Everything below is optional.
+That's it. Everything below is optional — including LLM keys. The server
+boots without any API key; LLM features (chat, agents, workflows) are
+disabled until you configure a provider (see §6).
 
 ---
 
@@ -110,17 +111,20 @@ The app runs without Redis (background tasks degrade gracefully).
 
 ## 6. AI Providers (BYOK)
 
-Set **at least one** cloud key, OR set `ATOM_LOCAL_ONLY=true` for Ollama.
+Optional. The server boots without any LLM key — LLM features are disabled
+until you configure at least one provider. You can also add keys via the
+UI (Settings > AI) instead of setting env vars.
 
 | Variable | Default | Required? | Description |
 |----------|---------|-----------|-------------|
-| `OPENAI_API_KEY` | unset | one of | https://platform.openai.com/api-keys |
-| `ANTHROPIC_API_KEY` | unset | one of | https://console.anthropic.com/ |
-| `DEEPSEEK_API_KEY` | unset | one of | https://platform.deepseek.com/ |
-| `GOOGLE_API_KEY` | unset | one of | https://aistudio.google.com/ |
-| `GLM_API_KEY` | unset | one of | Z.ai platform (GLM-5.2). |
-| `MOONSHOT_API_KEY` | unset | one of | https://platform.moonshot.cn/ (Kimi K2). |
-| `OPENROUTER_API_KEY` | unset | one of | https://openrouter.ai/keys (unified gateway). |
+| `OPENAI_API_KEY` | unset | — | https://platform.openai.com/api-keys |
+| `ANTHROPIC_API_KEY` | unset | — | https://console.anthropic.com/ |
+| `DEEPSEEK_API_KEY` | unset | — | https://platform.deepseek.com/ |
+| `GOOGLE_API_KEY` | unset | — | https://aistudio.google.com/ |
+| `GLM_API_KEY` | unset | — | Z.ai platform (GLM-5.2). |
+| `MOONSHOT_API_KEY` | unset | — | https://platform.moonshot.cn/ (Kimi K2). |
+| `OPENROUTER_API_KEY` | unset | — | https://openrouter.ai/keys (unified gateway). |
+| `OPENCODE_API_KEY` | unset | — | https://opencode.ai/zen/v1 (low-cost subscription, recommended). |
 | `MODEL_NAME` | `gpt-3.5-turbo` | — | Default model. |
 | `MAX_TOKENS` | `2048` | — | Default max tokens. |
 | `TEMPERATURE` | `0.7` | — | Default sampling temperature. |
@@ -408,10 +412,10 @@ Runtime: `ATOM_SANDBOX_RUNTIME=docker|firecracker|e2b`.
 For a brand-new user copying `backend/.env.example` → `backend/.env`, the app
 boots with **everything defaulted** except:
 - `SECRET_KEY` (set one for persistent logins)
-- one LLM provider key (or `ATOM_LOCAL_ONLY=true`)
 
-All 46+ integrations, marketplace, federation, Redis, scheduler, and feature
-flags have safe defaults and stay dormant until you configure them.
+LLM keys are optional — the server boots without any. All 46+ integrations,
+marketplace, federation, Redis, scheduler, and feature flags have safe defaults
+and stay dormant until you configure them.
 
 > Note (P0/P9): OAuth integration tokens are encrypted at rest with
 > `BYOK_ENCRYPTION_KEY` (fail-closed in production), and the execution sandbox

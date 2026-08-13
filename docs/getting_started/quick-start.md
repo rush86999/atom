@@ -57,11 +57,24 @@ Then set the two things the template can't default for you:
 # backend/.env
 DATABASE_URL=sqlite:///./atom_dev.db     # SQLite = zero external setup
 SECRET_KEY=<run: openssl rand -base64 48>  # MUST be set or JWTs reset on restart
-OPENAI_API_KEY=sk-...                     # At least one LLM provider required
-# ANTHROPIC_API_KEY=sk-ant-...            # Optional alternates
-# DEEPSEEK_API_KEY=...
-# Or go fully local: ATOM_LOCAL_ONLY=true + OLLAMA_BASE_URL=http://localhost:11434/v1
 ```
+
+**LLM providers are optional to boot.** The server starts without any API key.
+LLM features (chat, agents, workflows) are disabled until you configure at
+least one provider. You have three options:
+
+| Option | What to set | Cost |
+|--------|-------------|------|
+| **OpenCode Go** (recommended) | `OPENCODE_API_KEY=<your-key>` | Low-cost subscription, covers all complexity tiers |
+| **Any BYOK key via UI** | Nothing in `.env` — add it at Settings > AI after launch | Varies by provider |
+| **Fully local (Ollama)** | `ATOM_LOCAL_ONLY=true` + `OLLAMA_BASE_URL=http://localhost:11434/v1` | Free |
+
+You can also set provider keys directly in `.env` (e.g. `OPENAI_API_KEY`,
+`ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY`) — the BYOK system auto-imports
+them on first access. See the
+[OpenCode Go guide](../guides/OPENCODE_GO_PROVIDER.md) for the
+lowest-cost cloud option, or [run with Ollama](run-with-ollama.md) for
+a fully local setup.
 
 A complete template lives at `backend/.env.example`; the full reference
 (every var, its default, what it does) is at

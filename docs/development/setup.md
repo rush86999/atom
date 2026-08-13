@@ -57,8 +57,8 @@ Once both services are running:
 **Key settings for development:**
 - `DATABASE_URL=sqlite:///./atom_dev.db` — SQLite (default, zero setup)
 - `SECRET_KEY=<openssl rand -base64 48>` — required for persistent JWTs
-- `OPENAI_API_KEY=sk-...` — at least one LLM provider (or `ATOM_LOCAL_ONLY=true` for Ollama)
 - `DISABLE_AUTH_RATE_LIMIT=1` — lift rate limits for dev (set by `make backend`)
+- LLM providers are optional — server boots without any (LLM features disabled until configured via Settings > AI or `.env`)
 
 ### Frontend Environment (`frontend-nextjs/.env.local`)
 

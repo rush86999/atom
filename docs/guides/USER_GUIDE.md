@@ -25,14 +25,14 @@ Atom is a **self-hosted AI agent workforce** — a team of governed, sandboxed a
    - **Docker**: `docker compose -f docker-compose-personal.yml up -d --build`
    - **DigitalOcean 1-click**: [Deploy →](https://cloud.digitalocean.com/apps/new?repo=https://github.com/rush86999/atom/tree/main&config=deploy/digitalocean/app.yaml)
 
-2. **Configure LLM Provider** (at least one required)
+2. **Configure LLM Provider** (optional — server boots without one, LLM features disabled)
    ```bash
-   # backend/.env — set at least one
-   OPENAI_API_KEY=sk-...
+   # backend/.env — set a provider key, or add one later via Settings > AI
+   OPENCODE_API_KEY=oc_...  # Low-cost subscription (~90% savings, recommended)
+   # OPENAI_API_KEY=sk-...
    # ANTHROPIC_API_KEY=sk-ant-...
    # DEEPSEEK_API_KEY=...
    # GOOGLE_API_KEY=...
-   # OPENCODE_API_KEY=oc_...  # Low-cost subscription (~90% savings)
    # ATOM_LOCAL_ONLY=true + OLLAMA_BASE_URL=http://localhost:11434/v1  # Fully local
    ```
 

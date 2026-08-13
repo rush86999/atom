@@ -164,9 +164,9 @@ make backend               # full backend on :8001
 make frontend              # Next.js UI on :3001
 ```
 
-**Then set one LLM key in `backend/.env`:**
+**To use LLM features, set one key in `backend/.env`** (or add via Settings > AI):
+- `OPENCODE_API_KEY` for low-cost subscription coding models (~90% savings, recommended) or
 - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `DEEPSEEK_API_KEY` / `GOOGLE_API_KEY` … or
-- `OPENCODE_API_KEY` for low-cost subscription coding models (~90% savings) or
 - `ATOM_LOCAL_ONLY=true` + `OLLAMA_BASE_URL=http://localhost:11434/v1` for fully local
 
 **Open http://localhost:3001** — Sign in as `admin@example.com` (password in `backend/logs/bootstrap_admin_password.txt`)
