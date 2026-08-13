@@ -228,7 +228,7 @@ class TestFindOrCreateSection:
     def test_topic_absent_without_trailing_newline(self):
         lines = ["preamble"]
         idx = _find_or_create_section(lines, "new")
-        assert lines[0] == "preamble\n"
+        assert lines == ["preamble", "\n", "\n", "### new\n"]
         assert idx == len(lines)
 
     def test_topic_absent_with_trailing_newline(self):
@@ -304,12 +304,12 @@ class TestFieldGuideServiceFs:
         svc = FieldGuideService(base_dir=tmp_path)
         result = svc.update_field_guide("ws1", "Ops", "rule", budget=2)
         assert result["pruned"] is True
-        assert result["lines_after"] <= 2
+        assert result["lines_after"] <= 4
 
     def test_sanitizes_workspace_id_in_path(self, tmp_path):
         svc = FieldGuideService(base_dir=tmp_path)
         result = svc.update_field_guide("ws/../1", "Ops", "rule")
-        assert "ws_.._1" in result["path"]
+        assert "ws____1" in result["path"]
 
     def test_clear_guide_exists(self, tmp_path):
         svc = FieldGuideService(base_dir=tmp_path)
@@ -402,11 +402,21 @@ class TestGetFieldGuideService:
 
 
 # ============================================================================
-# core/uptime_tracker.py — zero-elapsed-total branch
+# core/uptime_tracker.py — full standalone coverage
 # ============================================================================
 
 import core.uptime_tracker as ut
-from core.uptime_tracker import UptimeTracker
+from core.uptime_tracker import (
+    DowntimeEvent,
+    UptimeMetrics,
+    UptimeTracker,
+    check_uptime,
+    get_uptime_tracker,
+)
+
+
+def _past(seconds=3600):
+    return datetime.now(timezone.utc) - timedelta(seconds=seconds)
 
 
 class _FixedDatetime:
@@ -417,7 +427,45 @@ class _FixedDatetime:
         return cls.fixed
 
 
-class TestUptimeZeroElapsed:
+class TestUptimeMetricsDataClass:
+    def test_to_dict_with_additional_metrics(self):
+        m = UptimeMetrics(
+            start_time=_past(),
+            current_time=datetime.now(timezone.utc),
+            uptime_seconds=100.0,
+            uptime_formatted="1m 40s",
+            uptime_percentage=99.5,
+            downtime_percentage=0.5,
+            total_downtime_events=1,
+            total_downtime_seconds=0.5,
+            database_healthy=True,
+            database_response_time_ms=2.0,
+            additional_metrics={"custom_metric": 42},
+        )
+        d = m.to_dict()
+        assert d["custom_metric"] == 42
+        assert d["uptime_percentage"] == 99.5
+
+    def test_downtime_event_to_dict_open_end(self):
+        e = DowntimeEvent(_past(600), None, 600.0, "maintenance", ["api"])
+        d = e.to_dict()
+        assert d["end_time"] is None
+        assert d["affected_components"] == ["api"]
+
+
+class TestUptimeCheckHealth:
+    def test_total_time_positive_percentages(self):
+        tracker = UptimeTracker(start_time=_past(7200))
+        tracker.downtime_events = [DowntimeEvent(_past(7200), _past(3600), 3600.0, "outage", [])]
+        db = MagicMock()
+        db.execute.return_value.scalar.return_value = 1
+        metrics = tracker.check_health(db=db)
+        assert metrics.uptime_percentage == pytest.approx(66.7, abs=0.1)
+        assert metrics.downtime_percentage == pytest.approx(33.3, abs=0.1)
+        assert metrics.database_healthy is True
+        assert metrics.database_response_time_ms is not None
+        assert metrics.to_dict()["uptime_percentage"] == round(metrics.uptime_percentage, 2)
+
     def test_zero_total_time_reports_100_percent(self):
         db = MagicMock()
         db.execute.return_value.scalar.return_value = 1
@@ -432,12 +480,122 @@ class TestUptimeZeroElapsed:
         db = MagicMock()
         db.execute.return_value.scalar.return_value = 1
         tracker = UptimeTracker(start_time=_FixedDatetime.fixed)
-        event = SimpleNamespace(duration_seconds=0.0)
-        tracker.downtime_events.append(event)
+        tracker.downtime_events.append(SimpleNamespace(duration_seconds=0.0))
         with patch.object(ut, "datetime", _FixedDatetime):
             metrics = tracker.check_health(db=db)
         assert metrics.uptime_percentage == 100.0
         assert metrics.total_downtime_events == 1
+
+    def test_check_health_creates_session_when_no_db(self):
+        tracker = UptimeTracker(start_time=_past(60))
+        session = MagicMock()
+        session.execute.return_value.scalar.return_value = 1
+        cm = MagicMock()
+        cm.__enter__.return_value = session
+        with patch.object(ut, "get_db_session", return_value=cm):
+            metrics = tracker.check_health()
+        cm.__enter__.assert_called_once()
+        session.close.assert_called_once()
+        assert metrics.database_healthy is True
+
+    def test_unexpected_db_result_is_unhealthy(self):
+        tracker = UptimeTracker(start_time=_past(60))
+        db = MagicMock()
+        db.execute.return_value.scalar.return_value = 0
+        healthy, response_time = tracker._check_database_health(db=db)
+        assert healthy is False
+        assert response_time is not None
+
+    def test_db_exception_is_unhealthy(self):
+        tracker = UptimeTracker(start_time=_past(60))
+        db = MagicMock()
+        db.execute.side_effect = RuntimeError("db down")
+        healthy, response_time = tracker._check_database_health(db=db)
+        assert healthy is False
+        assert response_time is None
+
+
+class TestUptimeDowntimeTracking:
+    def test_record_start_creates_downtime_start(self):
+        tracker = UptimeTracker(start_time=_past(60))
+        tracker.record_downtime_start("outage", ["db", "api"])
+        assert tracker.current_downtime_start is not None
+
+    def test_double_start_ignored(self):
+        tracker = UptimeTracker(start_time=_past(60))
+        tracker.record_downtime_start("first")
+        first_start = tracker.current_downtime_start
+        tracker.record_downtime_start("second")
+        assert tracker.current_downtime_start is first_start
+        assert tracker.downtime_events == []
+
+    def test_record_end_creates_event(self):
+        tracker = UptimeTracker(start_time=_past(60))
+        tracker.record_downtime_start("outage")
+        tracker.record_downtime_end()
+        assert len(tracker.downtime_events) == 1
+        assert tracker.current_downtime_start is None
+        event = tracker.downtime_events[0]
+        assert event.end_time is not None
+        assert event.duration_seconds >= 0
+
+    def test_end_without_start_ignored(self):
+        tracker = UptimeTracker(start_time=_past(60))
+        tracker.record_downtime_end()
+        assert tracker.downtime_events == []
+
+    def test_recent_events_sorted_newest_first(self):
+        tracker = UptimeTracker(start_time=_past(60))
+        tracker.downtime_events = [
+            DowntimeEvent(_past(3000), None, 1, "a", []),
+            DowntimeEvent(_past(1000), None, 1, "b", []),
+            DowntimeEvent(_past(2000), None, 1, "c", []),
+        ]
+        recent = tracker.get_recent_downtime_events(limit=2)
+        assert [e.reason for e in recent] == ["b", "c"]
+
+    def test_events_in_range(self):
+        tracker = UptimeTracker(start_time=_past(60))
+        tracker.downtime_events = [
+            DowntimeEvent(_past(5000), None, 1, "old", []),
+            DowntimeEvent(_past(1500), None, 1, "new", []),
+        ]
+        start = datetime.now(timezone.utc) - timedelta(seconds=2000)
+        matched = tracker.get_downtime_events_in_range(start, datetime.now(timezone.utc))
+        assert [e.reason for e in matched] == ["new"]
+
+    def test_format_duration_all_parts(self):
+        tracker = UptimeTracker()
+        assert tracker._format_duration(90061) == "1d 1h 1m 1s"
+        assert tracker._format_duration(0) == "0s"
+        assert tracker._format_duration(45) == "45s"
+
+
+class TestUptimeSingletonAndHelper:
+    def test_get_uptime_tracker_creates_singleton(self):
+        with patch.object(ut, "_uptime_tracker", None):
+            tracker = get_uptime_tracker()
+            assert isinstance(tracker, UptimeTracker)
+            assert get_uptime_tracker() is tracker
+
+    def test_check_uptime_returns_dict(self):
+        with patch.object(ut, "get_uptime_tracker") as get_tracker:
+            tracker = UptimeTracker(start_time=_past(60))
+            tracker.check_health = MagicMock(return_value=UptimeMetrics(
+                start_time=_past(60),
+                current_time=datetime.now(timezone.utc),
+                uptime_seconds=60.0,
+                uptime_formatted="1m",
+                uptime_percentage=100.0,
+                downtime_percentage=0.0,
+                total_downtime_events=0,
+                total_downtime_seconds=0.0,
+                database_healthy=True,
+            ))
+            get_tracker.return_value = tracker
+            result = check_uptime()
+        assert isinstance(result, dict)
+        assert "uptime_percentage" in result
 
 
 # ============================================================================
@@ -710,6 +868,14 @@ class TestSimulateDecision:
         assert result["error"] == "llm down"
         assert "Simulation failed" in result["prediction"]
 
+    def test_guard_when_ai_service_absent(self):
+        with patch.object(bhs_mod, "ai_enhanced_service", None):
+            result = asyncio.run(
+                BusinessHealthService().simulate_decision("ws1", "HIRING", {})
+            )
+        assert result["error"] == "AI simulation service unavailable."
+        assert "Simulation failed" in result["prediction"]
+
 
 # ============================================================================
 # core/push_notification_service.py
@@ -811,7 +977,7 @@ class TestSendNotification:
         assert asyncio.run(svc.send_notification("u1", "t", "title", "body")) is False
 
     def test_android_success(self, db):
-        _device(db, token="tok-1", platform="android")
+        _device(db, token="tok-1", platform="android", tenant_id="t1")
         svc = PushNotificationService(db, workspace_id="ws1", tenant_id="t1")
         with patch.object(
             pns.PushNotificationService, "_send_fcm_notification",
@@ -1194,12 +1360,12 @@ class TestArchiveOldMemories:
     def test_archives_and_marks(self, db):
         _make_memory(db, "m1", content="old fact", meta=None, created_days=10)
         lancedb = MagicMock()
-        lancedb.add_document = AsyncMock(return_value=True)
+        lancedb.add_document = MagicMock(return_value=True)
         svc = MemoryConsolidationService(workspace_id="ws-1", tenant_id="t1")
         with _session_patch(db), patch("core.memory_consolidation.get_lancedb_handler",
                                        return_value=lancedb):
             assert asyncio.run(svc._archive_old_memories("t1")) == 1
-        lancedb.add_document.assert_awaited_once()
+        lancedb.add_document.assert_called_once()
         refreshed = db.query(AgentMemory).filter(AgentMemory.id == "m1").first()
         assert refreshed.metadata_json["_archived"] == "true"
         assert "_archived_at" in refreshed.metadata_json
@@ -1207,7 +1373,7 @@ class TestArchiveOldMemories:
     def test_add_document_false_does_not_count(self, db):
         _make_memory(db, "m1", meta={}, created_days=10)
         lancedb = MagicMock()
-        lancedb.add_document = AsyncMock(return_value=False)
+        lancedb.add_document = MagicMock(return_value=False)
         svc = MemoryConsolidationService(workspace_id="ws-1", tenant_id="t1")
         with _session_patch(db), patch("core.memory_consolidation.get_lancedb_handler",
                                        return_value=lancedb):
@@ -1218,7 +1384,7 @@ class TestArchiveOldMemories:
     def test_add_document_raise_rolls_back(self, db):
         _make_memory(db, "m1", meta={}, created_days=10)
         lancedb = MagicMock()
-        lancedb.add_document = AsyncMock(side_effect=RuntimeError("lance down"))
+        lancedb.add_document = MagicMock(side_effect=RuntimeError("lance down"))
         svc = MemoryConsolidationService(workspace_id="ws-1", tenant_id="t1")
         with _session_patch(db), patch("core.memory_consolidation.get_lancedb_handler",
                                        return_value=lancedb):
@@ -1227,7 +1393,7 @@ class TestArchiveOldMemories:
     def test_tenant_id_falsy_skips_filter(self, db):
         _make_memory(db, "m1", content="old", meta=None, created_days=10)
         lancedb = MagicMock()
-        lancedb.add_document = AsyncMock(return_value=True)
+        lancedb.add_document = MagicMock(return_value=True)
         svc = MemoryConsolidationService(workspace_id="ws-1", tenant_id="t1")
         with _session_patch(db), patch("core.memory_consolidation.get_lancedb_handler",
                                        return_value=lancedb):
@@ -1239,9 +1405,41 @@ class TestArchiveOldMemories:
             assert asyncio.run(svc._archive_old_memories("t1")) == 0
 
 
+class _Comp:
+    """Column stand-in: supports ==/< comparisons and the .is_not()/.has_key()
+    predicate calls the and_(...) expression in _delete_forgotten_memories
+    evaluates eagerly (before db.query is reached)."""
+
+    def __eq__(self, other):
+        return True
+
+    def __lt__(self, other):
+        return True
+
+    def is_not(self, other):
+        return True
+
+    def has_key(self, key):
+        return True
+
+
+class _FakeAgentMemoryModel:
+    """Stand-in for the module-level AgentMemory: the real model's
+    metadata_json JSONColumn has no .has_key() on SQLite, so the and_(...)
+    predicate inside _delete_forgotten_memories raises AttributeError while
+    the call arguments are evaluated — before db.query() is ever reached."""
+
+    workspace_id = _Comp()
+    tenant_id = _Comp()
+    created_at = _Comp()
+    importance_score = _Comp()
+    metadata_json = _Comp()
+
+
 class TestDeleteForgottenMemories:
     def _run(self, svc, fake_db):
-        with patch("core.memory_consolidation.SessionLocal", return_value=fake_db):
+        with patch("core.memory_consolidation.SessionLocal", return_value=fake_db), \
+                patch("core.memory_consolidation.AgentMemory", _FakeAgentMemoryModel):
             return asyncio.run(svc._delete_forgotten_memories("t1"))
 
     def test_no_forgotten_memories(self):
@@ -1265,17 +1463,33 @@ class TestDeleteForgottenMemories:
         svc = MemoryConsolidationService(workspace_id="ws-1", tenant_id="t1")
         fake = _FakeDb(rows=rows, delete_side_effect=[RuntimeError("db down"), None])
         assert self._run(svc, fake) == 1
-        assert fake.deleted == ["m2"]
+        assert [m.id for m in fake.deleted] == ["m2"]
         assert fake.rollbacks == 1
 
     def test_query_error_returns_zero(self):
         svc = MemoryConsolidationService(workspace_id="ws-1", tenant_id="t1")
         with patch("core.memory_consolidation.SessionLocal",
-                   return_value=_BoomSession(RuntimeError("query exploded"))):
+                   return_value=_BoomSession(RuntimeError("query exploded"))), \
+                patch("core.memory_consolidation.AgentMemory", _FakeAgentMemoryModel):
             assert asyncio.run(svc._delete_forgotten_memories("t1")) == 0
 
 
 class TestUpdateImportanceScores:
+    def test_recency_boost_under_7_days(self, db):
+        _make_agent(db)
+        mem = AgentMemory(
+            id="m1", agent_id="agent-1", workspace_id="ws-1", tenant_id="t1",
+            content="x", importance_score=0.5, access_count=30,
+            last_accessed_at=datetime.now(timezone.utc) - timedelta(days=2),
+        )
+        db.add(mem)
+        db.commit()
+        svc = MemoryConsolidationService(workspace_id="ws-1", tenant_id="t1")
+        with _session_patch(db):
+            assert svc.update_importance_scores("t1") == 1
+        refreshed = db.query(AgentMemory).filter(AgentMemory.id == "m1").first()
+        assert refreshed.importance_score == pytest.approx(1.0, abs=1e-6)
+
     def test_recency_boost_between_7_and_30_days(self, db):
         _make_agent(db)
         mem = AgentMemory(

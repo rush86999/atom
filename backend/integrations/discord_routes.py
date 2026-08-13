@@ -29,7 +29,7 @@ class _RateLimiter:
         import time
         now = time.time()
         cutoff = now - self.window
-        self._hits = {k: v for k, v in self._hits.items() if v > cutoff}
+        self._hits = {k: [t for t in v if t > cutoff] for k, v in self._hits.items()}
         if len(self._hits.get(key, [])) >= self.limit:
             return False
         self._hits.setdefault(key, []).append(now)
@@ -164,8 +164,9 @@ async def handle_oauth_callback(code: str, redirect_uri: str = "http://localhost
     try:
         tokens = await discord_service.exchange_token(code, redirect_uri)
         return {"ok": True, "status": "success", **tokens, "timestamp": datetime.now().isoformat()}
-    except Exception as e:
-        return {"ok": False, "status": "error", "message": str(e), "timestamp": datetime.now().isoformat()}
+    except Exception:
+        logger.warning("Discord OAuth callback failed")
+        return {"ok": False, "status": "error", "message": "callback failed", "timestamp": datetime.now().isoformat()}
 
 
 @router.get("/health")
@@ -230,8 +231,15 @@ async def discord_interactions(request: Request):
         user_info = member.get("user") or payload.get("user", {})
         
         # Dispatch to interactive agent handler
-        discord_dispatcher.dispatch(action_id, payload, user_info)
-        
+        user_id = str((user_info or {}).get("id", "unknown")) if isinstance(user_info, dict) else "unknown"
+        await discord_dispatcher.dispatch_action(
+            platform="discord",
+            tenant_id=str(payload.get("tenant_id", "default")),
+            user_id=user_id,
+            action_id=action_id,
+            payload=payload,
+        )
+
         # Defer message interaction update immediately
         return {"type": 6}
 
