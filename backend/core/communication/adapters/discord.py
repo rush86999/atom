@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import json
 import logging
 import os
@@ -92,7 +92,7 @@ class DiscordAdapter(PlatformAdapter):
                     content = data.get("name", "command")
             
             elif interaction_type == 3: # COMPONENT (Button)
-                custom_id = data.get("custom_id") # e.g., "approve_123"
+                custom_id = data.get("custom_id") or "" # e.g., "approve_123"
                 content = custom_id.replace("_", " ").upper() # Normalize to "APPROVE 123"
                 
             return {

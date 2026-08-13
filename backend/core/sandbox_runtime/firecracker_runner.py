@@ -178,10 +178,21 @@ class FirecrackerRuntime:
 
     def _sem(self) -> asyncio.Semaphore:
         # Lazily create the semaphore against the running loop so it survives
-        # across loop recreations in tests.
-        if self._concurrency_sem is None or self._concurrency_sem._bound_loop != asyncio.get_event_loop():  # type: ignore[attr-defined]
+        # across loop recreations in tests. Python < 3.12 binds primitives via
+        # ``_loop`` (None until first acquire); ``_bound_loop`` only exists on
+        # 3.12+ — probe both, and only recreate when a POSITIVE binding differs
+        # (an unbound semaphore binds to whichever loop acquires it first).
+        sem = self._concurrency_sem
+        if sem is None:
             self._concurrency_sem = asyncio.Semaphore(_max_concurrency())
-        return self._concurrency_sem
+            return self._concurrency_sem
+        bound_loop = getattr(sem, "_bound_loop", None)
+        if bound_loop is None:
+            bound_loop = getattr(sem, "_loop", None)
+        if bound_loop is not None and bound_loop != asyncio.get_event_loop():
+            self._concurrency_sem = asyncio.Semaphore(_max_concurrency())
+            return self._concurrency_sem
+        return sem
 
     async def execute_python(
         self,

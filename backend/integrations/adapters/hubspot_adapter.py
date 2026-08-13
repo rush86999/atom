@@ -4,7 +4,6 @@ Wraps HubSpotService to provide a unified IntegrationService interface.
 """
 from typing import Any, Dict, List, Optional
 import logging
-import asyncio
 
 from core.integration_service import IntegrationService, OperationResult, IntegrationErrorCode
 from integrations.hubspot_service import HubSpotService
@@ -55,13 +54,29 @@ class HubSpotAdapter(IntegrationService):
         try:
             if operation == "get_contacts":
                 limit = parameters.get("limit", 10)
-                # Assuming HubSpotService has get_contacts
-                result = await asyncio.to_thread(self.service.get_contacts, access_token, limit=limit)
+                # BUG (this wave): the token was passed positionally — the
+                # service signature is (limit, offset, token) — so the token
+                # landed in `limit` and the API was never authenticated, and
+                # `asyncio.to_thread` over an `async def` returned an
+                # unawaited coroutine instead of the data. Await directly and
+                # pass the token by keyword.
+                result = await self.service.get_contacts(token=access_token, limit=limit)
                 return OperationResult(success=True, data={"contacts": result})
 
             elif operation == "create_contact":
                 properties = parameters.get("properties", {})
-                result = await asyncio.to_thread(self.service.create_contact, access_token, properties)
+                # BUG (this wave): `properties` was passed positionally as
+                # `first_name` and the token as `email`; the service signature
+                # is (email, first_name, last_name, company, phone, token).
+                # Map the properties dict onto the named parameters.
+                result = await self.service.create_contact(
+                    email=properties.get("email") or "",
+                    first_name=properties.get("first_name") or properties.get("firstname"),
+                    last_name=properties.get("last_name") or properties.get("lastname"),
+                    company=properties.get("company"),
+                    phone=properties.get("phone"),
+                    token=access_token,
+                )
                 return OperationResult(success=True, data=result)
 
             else:

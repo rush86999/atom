@@ -43,7 +43,7 @@ class EmailAdapter(PlatformAdapter):
                 self.ses_client = boto3.client("sesv2", region_name=self.region_name)
             except Exception as e:
                 logger.warning(f"Failed to initialize SES client: {e}")
-            self.ses_client = None
+                self.ses_client = None
 
     def verify_request(self, headers: Dict, body: str) -> bool:
         """
