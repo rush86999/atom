@@ -19,12 +19,7 @@ class GithubIntegration:
     def get_headers(self) -> Dict[str, str]:
         headers = {"Content-Type": "application/json"}
         if self.access_token:
-            if 'github' == 'github':
-                headers["Authorization"] = f"token {self.access_token}"
-            elif 'github' in ['slack', 'teams', 'outlook']:
-                headers["Authorization"] = f"Bearer {self.access_token}"
-            else:
-                headers["Authorization"] = f"Bearer {self.access_token}"
+            headers["Authorization"] = f"token {self.access_token}"
         return headers
     
     async def get_user_info(self) -> Optional[Dict]:
@@ -74,11 +69,8 @@ class GithubIntegration:
             'outlook': '/me',
             'teams': '/me'
         }
-        base_url = self.api_endpoint
-        if 'github' == 'teams':
-            base_url = 'https://graph.microsoft.com'
-        return f"{base_url}{endpoints.get('github', '/me')}"
-    
+        return f"{self.api_endpoint}{endpoints.get('github', '/me')}"
+
     def _get_list_endpoint(self) -> str:
         endpoints = {
             'github': '/user/repos',
@@ -87,11 +79,8 @@ class GithubIntegration:
             'outlook': '/me/messages',
             'teams': '/chats'
         }
-        base_url = self.api_endpoint
-        if 'github' in ['teams', 'outlook']:
-            base_url = 'https://graph.microsoft.com'
-        return f"{base_url}{endpoints.get('github', '/items')}"
-    
+        return f"{self.api_endpoint}{endpoints.get('github', '/items')}"
+
     def _get_create_endpoint(self) -> str:
         endpoints = {
             'github': '/user/repos',
@@ -100,10 +89,7 @@ class GithubIntegration:
             'outlook': '/me/sendMail',
             'teams': '/chats'
         }
-        base_url = self.api_endpoint
-        if 'github' in ['teams', 'outlook']:
-            base_url = 'https://graph.microsoft.com'
-        return f"{base_url}{endpoints.get('github', '/items')}"
+        return f"{self.api_endpoint}{endpoints.get('github', '/items')}"
 
 # Global integration instance
 github_integration = GithubIntegration()
