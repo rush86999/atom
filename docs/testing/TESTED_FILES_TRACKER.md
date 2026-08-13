@@ -6,6 +6,140 @@
 
 ---
 
+## Session 2026-08-13 (wave 89 — 7 api-layer modules to ≥95%; 227 new tests, 1 real bug fixed)
+
+**Files**: `api/feedback_batch.py`, `api/feedback_phase2.py`, `api/board_routes.py`, `api/agent_coordination_routes.py`, `api/auth_2fa_routes.py`, `api/financial_ops_routes.py`, `api/user_management_routes.py` — new wave tests `tests/test_covpush_w89_{feedback_batch,feedback_phase2,board_routes,agent_coordination,auth_2fa,financial_ops,user_management}.py` (**227 new tests**). Source fix: `api/feedback_batch.py` (stats Row-destructure crash).
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q --log-cli-level=CRITICAL`, ONE process at a time):
+1. RED proof (before source fix): `GET /api/feedback/batch/stats` **always 500'd with `sqlite3.ProgrammingError: Error binding parameter 1: type 'Row' is not supported`** whenever any feedback row had a non-null `feedback_type` — `db.query(...).distinct().all()` returns SQLAlchemy `Row` tuples, and the `for (feedback_type) in feedback_types:` loop bound the whole Row as a query parameter (same defect in the `pending_by_agent` loop) → stats endpoint unusable in production with any real data.
+2. New-wave combined run (single process, 7 files, `--cov` on all 7 modules) → **227 passed / 0 failed**; **TOTAL 703 stmts / 0 missing / 100%** on all seven modules.
+3. Partner-suite regression (single process: 5 wave files + 6 existing suites incl. `test_covpush_w76_financial_ops`, `test_covpush_w76_feedback_export`, `test_covpush_w65f_api_board`, `test_r80_board_comment_routes`, `tests/api/test_auth_2fa_routes_coverage`, `test_user_management_monitoring`) → **342 passed / 0 failed** (no regressions; `test_feedback_phase2.py`'s 16 pre-existing setup errors are unrelated and unchanged).
+4. mypy: `venv/bin/python -m mypy api/feedback_batch.py --follow-imports=skip` → no issues.
+
+### Coverage deltas (baseline: only `auth_2fa_routes` had any pre-existing coverage; the other six were 0% — never imported by any suite)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `api/feedback_batch.py` | 0/167 / 0% | **167 / 100%** | 167 | — |
+| `api/feedback_phase2.py` | 0/77 / 0% | **77 / 100%** | 77 | — |
+| `api/board_routes.py` | 0/103 / 0% | **103 / 100%** | 103 | — |
+| `api/agent_coordination_routes.py` | 0/72 / 0% | **72 / 100%** | 72 | — |
+| `api/auth_2fa_routes.py` | 80/103 / 78% | **103 / 100%** | 103 | — |
+| `api/financial_ops_routes.py` | 0/100 / 0% | **100 / 100%** | 100 | — |
+| `api/user_management_routes.py` | 0/81 / 0% | **81 / 100%** | 81 | — |
+
+### Bugs fixed (TDD RED→GREEN)
+
+| # | File:line | Bug | Fix |
+|---|---|---|---|
+| 1 | `api/feedback_batch.py:456,471` | **`/api/feedback/batch/stats` 500 on any real data** — `distinct().all()` rows are SQLAlchemy `Row` tuples; `for (feedback_type) in feedback_types:` bound the Row (not the string) into the count query → `ProgrammingError: type 'Row' is not supported` (also in the `agents_with_pending` loop at 471). Regression test `test_stats_with_data` was RED before the fix | Destructure the rows: `for (feedback_type,) in feedback_types:` and `for (agent_id,) in agents_with_pending:` |
+
+### Security verification (all green this wave)
+- **Auth**: all 31 endpoints across the 7 modules reject anonymous callers with 401 (board_routes, feedback_phase2, agent_coordination, financial_ops, user_management, 2fa, feedback_batch). No anonymous routes found.
+- **Role gating**: all 5 `feedback_batch` endpoints require supervisor roles (team_lead+); member/guest → 403; `UserRole`-enum roles normalized.
+- **Permissions**: all 9 `agent_coordination` endpoints enforce AGENT_RUN/AGENT_VIEW → 403 when denied.
+- **IDOR**: `user_management` revoke-session is ownership-scoped (other user's session → 404, not revocable); sessions list scoped to own user.
+- **2FA**: TOTP rate limiting (429 + Retry-After) on enable/disable/verify-action; backup codes single-use (consumed on verify); setup refuses regeneration when enabled (409).
+
+### Remaining uncovered lines
+None — all 7 modules 100%.
+
+### Caveats
+- `agent_coordination_routes` endpoints take scalar params as **query params** and `List[str]`/`Dict` params as the **raw body** (FastAPI inference) — e.g. `POST /coordinate?task=t` with body `["a-1"]`; tests reflect the real wire contract.
+- `success_list_response` puts items in `data` and `total` in `metadata.total` (not `data.total`).
+- 2FA TOTP tests use a retry loop for the 30s-window boundary rollover (code computed just before the window flips is occasionally 422).
+- `require_governance` (financial_ops) is patched to identity in tests; router-level `get_current_user` still proven via anon-client 401s.
+
+---
+
+## Session 2026-08-13 (wave 90 — last 8 untracked api-layer modules to ≥95%; 119 new tests, 4 real bugs fixed)
+
+**Files**: `api/dashboard_routes.py`, `api/shell_routes.py`, `api/stage_router_routes.py`, `api/onboarding_routes.py`, `api/webhook_routes.py`, `api/risk_routes.py`, `api/satellite_routes.py`, `api/sales_routes.py` — new wave tests `tests/test_covpush_w90_{dashboard_routes,shell_routes,stage_router,onboarding,webhook_routes,risk_routes,satellite_routes,sales_routes}.py` (**119 new tests**). Source fixes: `api/sales_routes.py`, `api/shell_routes.py`, `api/webhook_routes.py`, `api/satellite_routes.py`, `core/models.py`, new migration `alembic/versions/20260813_add_workspace_satellite_api_key.py`; partner-suite updated: `tests/unit/api/test_sales_routes.py`.
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time):
+1. RED proofs (before source fixes): (a) `GET /api/sales/pipeline` + `/api/sales/dashboard/summary` served **financial data with ZERO auth** (anonymous-route finding) and `/dashboard/summary` **always 500'd** (calls `get_sales_pipeline(user_id)` without the db dependency — documented-bug test existed since R-mid); (b) `POST /api/shell/execute` with a whitelist-blocked command (`rm -rf /`) **returned 500 instead of 403** — the route's own `raise HTTPException(403, detail={...})` was swallowed by its generic `except Exception` (validation denial never reached the client); (c) `GET /api/shell/sessions` **crashed (500) on NULL `started_at`** (`None.isoformat()`); (d) `Workspace.satellite_api_key` **did not exist anywhere in the codebase** — every `/api/ws/satellite/connect` handshake died with `AttributeError` (close 1011, CLI channel dead) and `GET/POST /api/satellite/key` 500'd on every call.
+2. New-wave combined run (single process, 8 files, `--cov` on all 8 modules) → **119 passed / 0 failed**; **TOTAL 403 stmts / 0 missing / 100%** on all eight modules.
+3. Partner-suite regression (single process: 8 wave files + 6 existing suites) → **210 passed / 0 failed**.
+
+### Coverage deltas (baseline measured against the pre-existing suites that touched each module)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `api/dashboard_routes.py` | 51/67 / 76% | **67 / 100%** | 67 | — |
+| `api/shell_routes.py` | 28/50 / 56% | **52 / 100%** | 52 | — |
+| `api/stage_router_routes.py` | 0/77 / 0% | **77 / 100%** | 77 | — |
+| `api/onboarding_routes.py` | 31/54 / 57% | **54 / 100%** | 54 | — |
+| `api/webhook_routes.py` | 22/37 / 59% | **37 / 100%** | 37 | — |
+| `api/risk_routes.py` | 0/29 / 0% | **29 / 100%** | 29 | — |
+| `api/satellite_routes.py` | 16/57 / 28% | **57 / 100%** | 57 | — |
+| `api/sales_routes.py` | 28/28 / 100% | **30 / 100%** | 30 | — |
+
+### Bugs fixed (TDD RED→GREEN)
+
+| # | File:line | Bug | Fix |
+|---|---|---|---|
+| 1 | `api/sales_routes.py:13-17,52-57` | **Zero auth on both sales endpoints** — financial pipeline data served anonymously (`get_current_user` missing); also `/dashboard/summary` called `get_sales_pipeline(user_id)` without the db dependency → always 500 | Added `current_user: User = Depends(get_current_user)` to both endpoints and `db: Session = Depends(get_db)` to `/dashboard/summary` (alias now works); existing tests updated to override auth |
+| 2 | `api/shell_routes.py:93` | **HTTPException swallowed** — the 403 command-validation denial raised inside `try` was caught by the generic `except Exception` → clients got 500 instead of 403 and never saw the reason | Added `except HTTPException: raise` before the generic handler (standard FastAPI re-raise pattern) |
+| 3 | `api/shell_routes.py:135` | **NULL `started_at` crash** — `s.started_at.isoformat()` on a NULL column 500'd the whole sessions list | `s.started_at.isoformat() if s.started_at else None` (dashboard pattern) |
+| 4 | `core/models.py:261` + `api/satellite_routes.py` (usage) | **`Workspace.satellite_api_key` never existed** — WS handshake auth query raised AttributeError on every connect (1011, satellite CLI dead); key GET/POST endpoints 500'd | Added `satellite_api_key = Column(String(128), nullable=True)` to `Workspace` + guarded migration `20260813_add_workspace_satellite_api_key.py` (batch_alter_table for SQLite, `_table_exists`/`_column_exists` guards for the hybrid DB; chain head `20260813_restore_debug_schema`) |
+| 5 | `api/webhook_routes.py:35` | **Bearer token parse missed leading whitespace** — `removeprefix("Bearer ")` before `.strip()` rejected `"   Bearer <key>  "` (proxy/whitespace-normalized headers) | `.strip()` first, then `removeprefix("Bearer ")`, then `.strip()` again |
+
+### Remaining uncovered lines
+None — all 8 modules 100%.
+
+### Caveats
+- `satellite_routes` WS tests: `get_db_session` is patched (call-time lookup, works); `Depends(get_db)` on the HTTP endpoints resolves the function object captured at decoration, so tests must use `app.dependency_overrides[sr.get_db]` — `patch.object` on the module attribute does NOT intercept it. The mocked `satellite_service.connect` must `await ws.accept()` or the listen loop never runs; never `ws.receive_*()` after a server-side error close (deadlock) — exit the context instead, and assert cleanup via mock calls / caplog.
+- `risk_routes` mock mode: `MOCK_MODE` is read at import time — test it via `importlib.reload(rr)` inside `patch.dict(os.environ, {"FINANCIAL_FORENSICS_MOCK": "true"})`, and reload back to `"false"` after. 500-branch clients use `TestClient(app, raise_server_exceptions=False)`.
+- `dashboard_routes` helpers use chained query mocks (`filter→filter→order_by→limit→all`); the `_chained` helper makes every chained call return itself.
+- `stage_router` approve/reject call `apply_pending_decision(db, ...)` with the REAL `get_db` session — assert on `call_args.args[1]`/kwargs, not the db object identity.
+- `sales_routes` is still not mounted in `main_api_app.py` (dead code) — auth fix is defense-in-depth for when it ships; `tests/unit/api/test_sales_routes.py` updated: fixture overrides `get_current_user`, and the two "documented-bug" summary tests now assert the fixed alias behavior.
+- No mypy regressions introduced (pre-existing baseline errors in `core/models.py`/transitive imports are unchanged; the new column adds none).
+
+---
+
+## Session 2026-08-13 (wave 91 — last 7 untracked core modules to ≥95%; 93 new tests, 1 real bug fixed)
+
+**Files**: `core/microsoft365_learner.py`, `core/schemas.py`, `core/integration_registry_v2.py`, `core/user_preference_routes.py`, `core/blueprint_sanitizer.py`, `core/health.py`, `core/migrate_json_to_jsonb.py` — new wave tests `tests/test_covpush_w91_{m365_learner,schemas,integration_registry,user_preferences,blueprint_sanitizer,health,migrate_json}.py` (**93 new tests**). Source fix: `core/integration_registry_v2.py`.
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time):
+1. RED proof (before source fix): `IntegrationRegistryV2._map_to_piece_auth(None)` **crashed with `AttributeError: 'NoneType' object has no attribute 'get'`** — the method's own `return config if config else None` branch (and its `Optional[Dict]` annotation) imply None is a legal input, but callers passing an empty/None config via the Pieces fallback path would 500; new test asserted `None` → `None` (RED on original code).
+2. New-wave combined run (single process, 7 files, `--cov` on all 7 modules) → **93 passed / 0 failed**; **TOTAL 502 stmts / 3 missing / 99%**.
+3. Partner-suite regression: `tests/test_covpush_w84_integration_registry.py` + `tests/test_blueprint_sanitizer.py` + `tests/test_covpush_w80_m365_learner.py` → 54 passed / 0 failed; `tests/test_covpush_w34_project_health_routes.py` + `tests/test_covpush_w48_health_routes.py` + `tests/test_covpush_w68b_services.py` → 168 passed / 0 failed.
+
+### Coverage deltas (coverage.py statement counts; before = import-only baseline via `coverage run --source=<mods>` on an existing suite)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/microsoft365_learner.py` | 17/134 / 13% | **133 / 99%** | 134 | 183 |
+| `core/schemas.py` | 92/108 / 85% | **107 / 99%** | 108 | 87 |
+| `core/integration_registry_v2.py` | 15/58 / 26% | **59 / 100%** | 59 | — |
+| `core/user_preference_routes.py` | 25/37 / 68% | **37 / 100%** | 37 | — |
+| `core/blueprint_sanitizer.py` | 8/29 / 28% | **29 / 100%** | 29 | — |
+| `core/health.py` | 8/38 / 21% | **38 / 100%** | 38 | — |
+| `core/migrate_json_to_jsonb.py` | 11/40 / 28% | **39 / 98%** | 40 | 64 |
+
+### Bugs fixed (TDD RED→GREEN)
+
+| # | File:line | Bug | Fix |
+|---|---|---|---|
+| 1 | `core/integration_registry_v2.py:67` (`_map_to_piece_auth`) | **None config crashed** — `config.get(...)` on `None` raised `AttributeError` before the method could return its documented `None` fallback; latent crash in the Pieces fallback path for config-less connectors | `config = config or {}` guard at the top of the method |
+
+### Remaining uncovered lines (3 total, all genuinely unreachable — no bug)
+
+| Line | Module | Why unreachable |
+|---|---|---|
+| `microsoft365_learner.py:183` | `_process_outlook_message` `if not entities: return False` | `_build_entities` unconditionally appends the `email:` entity, so `entities` can never be empty; defense-in-depth guard |
+| `schemas.py:87` | `CanvasComponentRequest.sanitize_code` `raise ValueError("Code exceeds maximum length")` | Pydantic v2 validates the field's `max_length=50000` constraint BEFORE the `mode='after'` validator, so the validator's own length check can never fire — duplicate guard |
+| `migrate_json_to_jsonb.py:64` | `except ValueError: raise` | `_validate_identifier` is called OUTSIDE the `try` (lines 35–36, validation-before-DDL by design), so a ValueError always propagates directly and the inner re-raise is dead; the `__main__` entry point + all real migration paths are covered |
+
+### Caveats
+- M365 learner tests fully mock the `onedrive_service` singleton (5 keyword searches per scan — side_effect must cover all 5 or be infinite), the Graph `httpx.AsyncClient` (fake `__aenter__`/`get`), `os.unlink`, `DocumentLifecycleLearner`, and `core.graphrag_engine.GraphRAGEngine`; zero network/LLM.
+- Preference-route tests use `StaticPool` + `check_same_thread=False` because Starlette TestClient executes requests on a worker thread — a plain `sqlite://` engine gets a fresh empty in-memory DB per thread.
+- The R77 IDOR guard is regression-tested: a client-supplied `user_id` in the POST body is stored under the token user, never the spoofed id; unauthenticated requests → 401; service failures → generic 500 with no `str(e)` leak.
+- `migrate_json_to_jsonb` never touches a real DB: fake engine/connection record SQL, and the `__main__` block is exercised by re-executing the module source with `core.database.engine` patched.
+
+---
+
 ## Session 2026-08-13 (wave 87 — 8 never-wave-tested core ops/marketing modules to 100%; 118 new tests, 6 real bugs fixed)
 
 **Files**: `core/satellite_service.py`, `core/tenant_discovery.py`, `core/external_pm_sync.py`, `core/staffing_advisor.py`, `core/negotiation_engine.py`, `core/reputation_service.py`, `core/resource_manager.py`, `core/marketing_analytics.py` — new wave tests `tests/test_covpush_w87_{satellite,tenant_discovery,external_pm,staffing,negotiation,reputation,resource_manager,marketing_analytics}.py` (**118 new tests**). Source fixes: `core/tenant_discovery.py`, `core/external_pm_sync.py`, `core/negotiation_engine.py`, `core/reputation_service.py`, `core/marketing_analytics.py`.

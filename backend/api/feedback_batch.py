@@ -453,7 +453,7 @@ async def get_batch_operation_stats(
         AgentFeedback.feedback_type.isnot(None)
     ).distinct().all()
 
-    for (feedback_type) in feedback_types:
+    for (feedback_type,) in feedback_types:
         count = db.query(AgentFeedback).filter(
             AgentFeedback.feedback_type == feedback_type
         ).count()
@@ -467,7 +467,7 @@ async def get_batch_operation_stats(
         AgentFeedback.status == "pending"
     ).distinct().all()
 
-    for (agent_id) in agents_with_pending:
+    for (agent_id,) in agents_with_pending:
         count = db.query(AgentFeedback).filter(
             AgentFeedback.agent_id == agent_id,
             AgentFeedback.status == "pending"

@@ -64,6 +64,7 @@ class IntegrationRegistryV2:
 
     def _map_to_piece_auth(self, connector_id: str, config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Maps Atom configuration/secrets to ActivePieces piece auth structure."""
+        config = config or {}
         access_token = config.get("access_token")
         api_key = config.get("api_key")
         

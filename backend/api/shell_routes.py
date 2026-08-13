@@ -90,6 +90,8 @@ async def execute_shell_command(
 
         return ShellCommandResponse(**result)
 
+    except HTTPException:
+        raise
     except PermissionError as e:
         logger.warning(f"Shell permission denied: {e}")
         raise HTTPException(status_code=403, detail="Permission denied")
@@ -132,7 +134,7 @@ async def list_shell_sessions(
                 "command": s.command,
                 "exit_code": s.exit_code,
                 "timed_out": s.timed_out,
-                "started_at": s.started_at.isoformat(),
+                "started_at": s.started_at.isoformat() if s.started_at else None,
                 "duration_seconds": s.duration_seconds
             }
             for s in sessions

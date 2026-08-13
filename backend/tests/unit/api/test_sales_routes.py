@@ -17,7 +17,14 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 
 from api import sales_routes
+from core.auth import get_current_user
 from core.models import IntegrationMetric
+
+
+class _FakeUser:
+    id = "user-1"
+    tenant_id = "t1"
+    workspace_id = "ws-1"
 
 
 # =============================================================================
@@ -67,6 +74,7 @@ def client(mock_db):
 
     # Use FastAPI's dependency override mechanism
     app.dependency_overrides[sales_routes.get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: _FakeUser()
 
     yield TestClient(app)
 
@@ -303,52 +311,38 @@ class TestGetSalesPipeline:
 class TestGetSalesDashboardSummary:
     """Tests for GET /api/sales/dashboard/summary endpoint."""
 
-    def test_get_dashboard_summary_fails_without_db(self, client):
-        """Test that dashboard/summary endpoint fails due to bug in production code.
+    def test_get_dashboard_summary_aliases_pipeline(self, client, mock_db, mock_integration_metrics):
+        """Test that dashboard/summary is an alias for pipeline.
 
-        NOTE: The production code has a bug where get_sales_dashboard_summary()
-        calls get_sales_pipeline(user_id) directly without passing the db parameter.
-        Since get_sales_pipeline requires db: Session = Depends(get_db), this fails.
-
-        This test documents the bug. The endpoint returns 500 error.
+        W90 fix: the endpoint previously called get_sales_pipeline(user_id)
+        without the db dependency, always 500'ing. It now receives the db
+        session and returns the same aggregated payload as /pipeline.
         """
-        # Act: Try to get dashboard summary
-        response = client.get("/api/sales/dashboard/summary")
-
-        # Assert: Returns 500 due to production bug
-        assert response.status_code == 500
-        data = response.json()
-        # Error response structure from BaseAPIRouter.internal_error()
-        # Response is {'detail': {'error': {...}, 'success': False}}
-        assert "detail" in data
-        assert data["detail"].get("success") is False
-
-    def test_dashboard_summary_would_alias_pipeline_if_fixed(self, client, mock_db, mock_integration_metrics):
-        """Test that dashboard/summary would be an alias for pipeline if bug was fixed.
-
-        NOTE: This tests what the behavior SHOULD be once the bug is fixed.
-        Currently this test documents the expected behavior.
-        """
-        # The correct implementation would call get_sales_pipeline with proper db injection
-        # For now, we just verify the pipeline endpoint works correctly
+        # Arrange: Mock query result
         mock_query = MagicMock()
         mock_filter = MagicMock()
         mock_filter.all.return_value = mock_integration_metrics
         mock_query.filter.return_value = mock_filter
         mock_db.query.return_value = mock_query
 
-        # Act: Get pipeline data (this works)
-        response = client.get("/api/sales/pipeline")
+        # Act: Get dashboard summary
+        response = client.get("/api/sales/dashboard/summary")
 
-        # Assert: Pipeline endpoint works
+        # Assert: Same data as /api/sales/pipeline
         assert response.status_code == 200
         data = response.json()
         assert data["pipeline_value"] == 150000.00
         assert data["active_deals"] == 55
+        assert data["currency"] == "USD"
+        assert data["source"] == "synced_database"
 
-        # TODO: Once dashboard/summary is fixed, it should return same data
-        # summary_response = client.get("/api/sales/dashboard/summary")
-        # assert summary_response.json() == response.json()
+    def test_dashboard_summary_db_error_returns_500(self, client, mock_db):
+        """Test dashboard/summary surfaces pipeline db failures as generic 500."""
+        mock_db.query.side_effect = Exception("Database connection failed")
+        response = client.get("/api/sales/dashboard/summary")
+        assert response.status_code == 500
+        assert "Internal error" in response.text
+        assert "Database connection failed" not in response.text
 
 
 # =============================================================================

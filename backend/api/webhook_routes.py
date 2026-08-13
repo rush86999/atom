@@ -32,7 +32,7 @@ def _require_webhook_secret(env_var: str):
         secret = os.getenv(env_var)
         if not secret:
             raise HTTPException(status_code=401, detail="Webhook not configured")
-        token = (authorization or "").removeprefix("Bearer ").strip()
+        token = (authorization or "").strip().removeprefix("Bearer ").strip()
         if not token or not hmac.compare_digest(token, secret):
             raise HTTPException(status_code=401, detail="Invalid webhook token")
     return _check

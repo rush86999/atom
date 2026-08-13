@@ -3,8 +3,10 @@ from typing import Any, Dict, List
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.models import User
 from integrations.mcp_service import mcp_service
 
 router = BaseAPIRouter(prefix="/api/sales", tags=["sales"])
@@ -13,7 +15,8 @@ logger = logging.getLogger(__name__)
 @router.get("/pipeline")
 async def get_sales_pipeline(
     user_id: str = "default_user",
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Fetch aggregated sales pipeline from Postgres Cache (Sync Strategy).
@@ -50,9 +53,13 @@ async def get_sales_pipeline(
 
 
 @router.get("/dashboard/summary")
-async def get_sales_dashboard_summary(user_id: str = "default_user"):
+async def get_sales_dashboard_summary(
+    user_id: str = "default_user",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """
     Alias for pipeline stats (Synced), matching Frontend expectations.
     """
-    return await get_sales_pipeline(user_id)
+    return await get_sales_pipeline(user_id, db, current_user)
 

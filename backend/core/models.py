@@ -266,6 +266,11 @@ class Workspace(Base):
     # added; manage via api/workspace_context_routes.py.
     internal_domains = Column(Text, nullable=True)  # JSON string: ["atom.ai", "example.com"]
 
+    # Atom Satellite CLI auth (api/satellite_routes.py): one key per workspace,
+    # verified at WebSocket handshake against this column. Added 2026-08-13
+    # (wave 90) — the endpoints referenced it before the column existed.
+    satellite_api_key = Column(String(128), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
