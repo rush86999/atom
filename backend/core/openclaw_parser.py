@@ -14,6 +14,40 @@ import re
 from typing import Dict, Any, List, Tuple
 
 
+def _quote_at_scalars(content: str) -> str:
+    """Quote ``@``-prefixed plain scalars in the YAML frontmatter.
+
+    The OpenClaw SKILL.md format documents ``author: @username``, but PyYAML
+    rejects ``@`` as the start of a plain scalar token, so every such file
+    raised "Failed to parse SKILL.md" (ScannerError). This rewrites
+    ``key: @value`` into ``key: "@value"`` (frontmatter only) so the
+    documented format parses. Returns the input unchanged when nothing
+    needs quoting.
+    """
+    lines = content.splitlines()
+    in_frontmatter = False
+    normalized = []
+    changed = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "---" and not in_frontmatter:
+            in_frontmatter = True
+            normalized.append(line)
+            continue
+        if stripped == "---" and in_frontmatter:
+            in_frontmatter = False
+            normalized.append(line)
+            continue
+        if in_frontmatter:
+            match = re.match(r"^(\s*[\w-]+:\s*)(@\S+)(.*)$", line)
+            if match:
+                normalized.append(f'{match.group(1)}"{match.group(2)}"{match.group(3)}')
+                changed = True
+                continue
+        normalized.append(line)
+    return "\n".join(normalized) if changed else content
+
+
 class OpenClawParser:
     """
     Parse OpenClaw SKILL.md format with YAML frontmatter and Markdown body.
@@ -59,7 +93,13 @@ class OpenClawParser:
             ValueError: If required fields missing or frontmatter malformed
         """
         try:
-            post = frontmatter.loads(content)
+            try:
+                post = frontmatter.loads(content)
+            except Exception:
+                # Retry: the documented `author: @username` format is rejected
+                # by PyYAML (ScannerError on '@'); re-parse with @-scalars
+                # quoted. No-op for content without frontmatter @-values.
+                post = frontmatter.loads(_quote_at_scalars(content))
             metadata = post.metadata
             body = post.content
 

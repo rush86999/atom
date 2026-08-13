@@ -18,6 +18,7 @@ import secrets
 import time
 from datetime import datetime, timedelta
 from typing import Dict, Optional
+from urllib.parse import quote, unquote
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,9 @@ class OAuthStateManager:
         checksum = self._compute_checksum(random_token, timestamp, user_id)
 
         # Format: random_token:timestamp:user_id:expires_at:checksum
-        state_string = f"{random_token}:{timestamp}:{user_id or ''}:{expires_at}:{checksum}"
+        # The user_id is URL-quoted so a user_id containing ':' cannot break
+        # the 5-part format (which would make the state permanently invalid).
+        state_string = f"{random_token}:{timestamp}:{quote(user_id, safe='') if user_id else ''}:{expires_at}:{checksum}"
 
         logger.debug(f"Generated OAuth state for user {user_id or 'anonymous'}")
 
@@ -133,13 +136,17 @@ class OAuthStateManager:
             if len(parts) != 5:
                 raise ValueError("Invalid state format")
 
-            random_token, timestamp_str, state_user_id, expires_at_str, provided_checksum = parts
+            random_token, timestamp_str, state_user_id_encoded, expires_at_str, provided_checksum = parts
+
+            # Decode the quoted user_id (colon-safe transport; checksum uses
+            # the decoded value so tampering with the quote is detected).
+            state_user_id = unquote(state_user_id_encoded) or None
 
             # Verify checksum first (tamper detection)
             expected_checksum = self._compute_checksum(
                 random_token,
                 int(timestamp_str),
-                state_user_id or None
+                state_user_id
             )
 
             if not secrets.compare_digest(expected_checksum, provided_checksum):
@@ -183,7 +190,7 @@ class OAuthStateManager:
 
             return {
                 "valid": True,
-                "user_id": state_user_id or None,
+                "user_id": state_user_id,
                 "timestamp": timestamp,
                 "expired": False,
                 "tampered": False
@@ -242,7 +249,7 @@ class OAuthStateManager:
         try:
             parts = state.split(":")
             if len(parts) >= 5:
-                return parts[2] or None
+                return unquote(parts[2]) or None
         except Exception:
             pass
         return None

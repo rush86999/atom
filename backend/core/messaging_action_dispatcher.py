@@ -118,7 +118,7 @@ class MessagingActionDispatcher:
 
     async def _handle_intervention(self, db: Session, tenant_id: str, user_id: str, intervention_id: str) -> Dict[str, Any]:
         service = InterventionService(db)
-        success = await service.approve_intervention(intervention_id, tenant_id, user_id)
+        success = await service.approve_intervention(intervention_id, user_id)
         return {"success": success, "message": "Intervention approved" if success else "Approval failed"}
 
     async def _handle_feedback(

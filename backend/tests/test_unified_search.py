@@ -82,7 +82,9 @@ class TestSearchFiltersModel:
         assert filters.doc_type == []
         assert filters.tags == []
         assert filters.date_range is None
-        assert filters.min_score == 0.5
+        # source default is -10.0 ("no minimum" — the endpoint also falls back
+        # to -10.0 when filters are absent); repaired 2026-08-13 (wave 81)
+        assert filters.min_score == -10.0
 
     def test_custom_filters(self):
         """Test custom filter values"""

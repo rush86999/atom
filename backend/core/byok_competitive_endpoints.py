@@ -277,13 +277,21 @@ async def optimize_workflow_costs(
             )
 
             # Calculate costs
-            current_cost = estimated_tokens * cost_optimizer.byok_manager.providers.get(
-                current_provider, cost_optimizer.byok_manager.providers.get("openai")
-            ).cost_per_token
-
-            optimized_cost = estimated_tokens * cost_optimizer.byok_manager.providers.get(
+            current_provider_config = cost_optimizer.byok_manager.providers.get(
+                current_provider
+            ) or cost_optimizer.byok_manager.providers.get("openai")
+            recommended_provider_config = cost_optimizer.byok_manager.providers.get(
                 recommendation.recommended_provider
-            ).cost_per_token
+            )
+
+            current_cost = estimated_tokens * (
+                current_provider_config.cost_per_token if current_provider_config else 0.0
+            )
+
+            optimized_cost = estimated_tokens * (
+                recommended_provider_config.cost_per_token
+                if recommended_provider_config else 0.0
+            )
 
             total_current_cost += current_cost
             total_optimized_cost += optimized_cost

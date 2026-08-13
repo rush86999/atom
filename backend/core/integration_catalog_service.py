@@ -46,7 +46,7 @@ class IntegrationCatalogService:
         """
         try:
             return str(uuid.UUID(tenant_id))
-        except (ValueError, AttributeError):
+        except (ValueError, AttributeError, TypeError):
             raise ValueError(f"Invalid tenant_id format: {tenant_id}")
 
     async def search_integrations(

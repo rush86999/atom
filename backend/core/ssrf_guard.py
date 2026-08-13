@@ -79,26 +79,109 @@ def _is_blocked_ip(ip_str: str) -> bool:
 
 def _normalize_ip_literal(host: str) -> "str | None":
     """Normalize an IP literal that the OS/libc accepts but Python's
-    ``ipaddress`` does not (decimal, hex, and octal encodings of IPv4).
+    ``ipaddress`` does not (decimal, hex, and octal encodings of IPv4, plus
+    short-form dotted IPv4 like ``127.1`` → 127.0.0.1).
 
-    Examples: 2130706433 -> 127.0.0.1, 0x7f000001 -> 127.0.0.1.
+    Examples: 2130706433 -> 127.0.0.1, 0x7f000001 -> 127.0.0.1,
+    127.1 -> 127.0.0.1, 0x7f.0.0.1 -> 127.0.0.1.
     Returns the dotted-quad form, or None if ``host`` is not such an encoding.
     """
-    # Pure integer or hex string with no dots and all digits/hex -> try base.
-    stripped = host.lstrip("0xX") if host.lower().startswith("0x") else host
-    candidates = []
+    # Dotted forms first: canonical dotted-quads are handled by the caller's
+    # ipaddress path (return None); short-form / hex / octal component
+    # encodings are expanded here. Checking the dotted branch BEFORE the
+    # single-hex branch is important — "0x7f.0.0.1" must not be parsed as a
+    # bare hex integer.
+    if "." in host:
+        try:
+            ipaddress.ip_address(host)
+            return None  # canonical — handled by the caller's ipaddress path
+        except ValueError:
+            return _short_form_candidates(host)
+
+    # Single-value numeric encodings (decimal / 0x-hex / leading-zero octal).
     if host.lower().startswith("0x"):
-        candidates = [int(stripped, 16)]
-    elif "." not in host and host.isdigit():
-        candidates = [int(host, 10), int(host, 8) if host.startswith("0") else None]
-    for val in candidates:
-        if val is None or val < 0 or val > 0xFFFFFFFF:
+        try:
+            values = [int(host.lstrip("0xX"), 16)]
+        except ValueError:
+            return None
+    elif host.isdigit():
+        values = [int(host, 10)]
+        if host.startswith("0") and len(host) > 1:
+            try:
+                values.append(int(host, 8))
+            except ValueError:
+                pass
+    else:
+        return None
+
+    for val in values:
+        if val < 0 or val > 0xFFFFFFFF:
             continue
         try:
             return str(ipaddress.IPv4Address(val))
         except (ValueError, ipaddress.AddressValueError):
             continue
     return None
+
+
+def _parse_component_values(part: str):
+    """Possible integer readings of one dotted component: decimal, 0x-hex,
+    and leading-zero octal (glibc inet_aton treats leading zeros as octal;
+    modern macOS libc reads them decimal — return BOTH so the conservative
+    reading can win downstream)."""
+    if not part:
+        return []
+    if part.lower().startswith("0x"):
+        try:
+            val = int(part, 16)
+        except ValueError:
+            return []
+        return [val] if 0 <= val <= 0xFFFFFFFF else []
+    if part.isdigit():
+        values = [int(part, 10)]
+        if part.startswith("0") and len(part) > 1:
+            try:
+                values.append(int(part, 8))
+            except ValueError:
+                pass
+        return values
+    return []
+
+
+def _short_form_candidates(host: str):
+    """Expand libc short-form IPv4 notation into dotted-quad strings.
+
+    inet_aton semantics: 2 parts a.b (b is 24-bit), 3 parts a.b.c (c is
+    16-bit), 4 parts a.b.c.d (each 8-bit). When a blocked reading exists
+    (e.g. octal vs decimal component), return the blocked one — fail closed
+    so glibc-based resolvers cannot be tricked into loopback.
+    """
+    parts = host.split(".")
+    if not 2 <= len(parts) <= 4:
+        return None
+    parsed = [_parse_component_values(p) for p in parts]
+    if any(not comp for comp in parsed):
+        return None
+
+    import itertools
+
+    weights = {2: (24, 0), 3: (24, 16, 0), 4: (24, 16, 8, 0)}
+    maxes = {2: (0xFF, 0xFFFFFF), 3: (0xFF, 0xFF, 0xFFFF), 4: (0xFF, 0xFF, 0xFF, 0xFF)}
+
+    candidates = []
+    for combo in itertools.product(*parsed):
+        if any(val > mx for val, mx in zip(combo, maxes[len(parts)])):
+            continue
+        addr = sum(val << shift for val, shift in zip(combo, weights[len(parts)]))
+        candidates.append(str(ipaddress.IPv4Address(addr)))
+
+    if not candidates:
+        return None
+    # Fail closed: prefer a blocked candidate over a public one.
+    for candidate in candidates:
+        if _is_blocked_ip(candidate):
+            return candidate
+    return candidates[0]
 
 
 def validate_url(url: str, *, resolve_dns: bool = True) -> str:

@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional, Type, List
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 
 from core.structured_logger import get_logger
+from core.models import TenantIntegrationConfig
 
 logger = get_logger(__name__)
 
@@ -368,6 +369,102 @@ class IntegrationRegistry:
             Dict mapping connector_id to service_class_path
         """
         return DEFAULT_SERVICE_REGISTRY.copy()
+
+    # ------------------------------------------------------------------
+    # Tenant configuration (DB-backed via TenantIntegrationConfig)
+    #
+    # These three methods back the IntegrationCatalogService API surface
+    # (search/filter/update). They were previously missing here, so every
+    # catalog call raised AttributeError at runtime.
+    # ------------------------------------------------------------------
+
+    def get_tenant_config(
+        self, db, tenant_id: str, integration_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Return the tenant integration config as a plain dict.
+
+        Args:
+            db: SQLAlchemy session
+            tenant_id: Tenant ID string
+            integration_id: Integration identifier (e.g. "slack")
+
+        Returns:
+            Dict with enabled / sync_settings / connected_user_count /
+            last_activity_at / last_sync_at, or None if no row exists.
+        """
+        config = (
+            db.query(TenantIntegrationConfig)
+            .filter(
+                TenantIntegrationConfig.tenant_id == tenant_id,
+                TenantIntegrationConfig.integration_id == integration_id,
+            )
+            .first()
+        )
+        if config is None:
+            return None
+
+        settings = config.config_json or {}
+        return {
+            "enabled": config.enabled,
+            "sync_settings": settings.get("sync_settings", {}),
+            "connected_user_count": settings.get("connected_user_count", 0),
+            "last_activity_at": settings.get("last_activity_at"),
+            "last_sync_at": settings.get("last_sync_at"),
+        }
+
+    def set_tenant_enabled(
+        self, db, tenant_id: str, integration_id: str, enabled: bool
+    ) -> None:
+        """Enable or disable an integration for a tenant (creates the row
+        if none exists yet)."""
+        config = (
+            db.query(TenantIntegrationConfig)
+            .filter(
+                TenantIntegrationConfig.tenant_id == tenant_id,
+                TenantIntegrationConfig.integration_id == integration_id,
+            )
+            .first()
+        )
+        if config is None:
+            config = TenantIntegrationConfig(
+                tenant_id=tenant_id,
+                integration_id=integration_id,
+                enabled=enabled,
+                config_json={},
+                schema_hash="v1",
+            )
+            db.add(config)
+        else:
+            config.enabled = enabled
+        db.commit()
+
+    def update_sync_settings(
+        self, db, tenant_id: str, integration_id: str, sync_settings: Dict[str, Any]
+    ) -> None:
+        """Replace the sync settings for a tenant integration (creates the
+        row with enabled=True if none exists yet)."""
+        config = (
+            db.query(TenantIntegrationConfig)
+            .filter(
+                TenantIntegrationConfig.tenant_id == tenant_id,
+                TenantIntegrationConfig.integration_id == integration_id,
+            )
+            .first()
+        )
+        if config is None:
+            config = TenantIntegrationConfig(
+                tenant_id=tenant_id,
+                integration_id=integration_id,
+                enabled=True,
+                config_json={"sync_settings": sync_settings},
+                schema_hash="v1",
+            )
+            db.add(config)
+        else:
+            settings = dict(config.config_json or {})
+            settings["sync_settings"] = sync_settings
+            config.config_json = settings
+        db.commit()
 
 
 # Global registry instance for convenient access

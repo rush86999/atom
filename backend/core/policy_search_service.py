@@ -62,6 +62,13 @@ class PGPolicySearchService:
         # Step 1: Generate query embedding
         query_embedding = await self._generate_query_embedding(query)
 
+        # SQLite stores aware datetimes without a tz offset (naive on read),
+        # so aware bindings never compare correctly on the Personal Edition.
+        # Use naive-UTC instants for all SQL comparisons — identical semantics
+        # on PostgreSQL (session TZ = UTC), correct string ordering on SQLite.
+        now_utc = datetime.now(timezone.utc)
+        now_naive = now_utc.replace(tzinfo=None)
+
         # Step 2: Build SQLAlchemy query with filters
         stmt = select(GovernanceDocument).where(
             GovernanceDocument.status == "approved",
@@ -69,7 +76,7 @@ class PGPolicySearchService:
             # Exclude expired documents
             or_(
                 GovernanceDocument.expiration_date.is_(None),
-                GovernanceDocument.expiration_date >= datetime.now(timezone.utc)
+                GovernanceDocument.expiration_date >= now_naive
             )
         )
 
@@ -80,12 +87,12 @@ class PGPolicySearchService:
         # Optional: Verification status filter
         if verification_status == "verified":
             # Last verified within 24 hours
-            threshold = datetime.now(timezone.utc) - timedelta(hours=24)
+            threshold = now_naive - timedelta(hours=24)
             stmt = stmt.where(GovernanceDocument.last_verified >= threshold)
         elif verification_status == "unverified":
             stmt = stmt.where(GovernanceDocument.last_verified.is_(None))
         elif verification_status == "outdated":
-            threshold = datetime.now(timezone.utc) - timedelta(hours=24)
+            threshold = now_naive - timedelta(hours=24)
             stmt = stmt.where(GovernanceDocument.last_verified < threshold)
 
         # Step 3: Fetch candidate documents — limit the query itself to avoid
@@ -162,8 +169,15 @@ class PGPolicySearchService:
         """
         Compute verification status from last_verified timestamp.
         """
-        if not doc.last_verified:
+        last_verified = doc.last_verified
+        if not last_verified:
             return "unverified"
 
-        hours_since = (datetime.now(timezone.utc) - doc.last_verified).total_seconds() / 3600
+        # SQLite returns naive datetimes; normalize both sides to naive UTC
+        # so the comparison never raises TypeError.
+        if last_verified.tzinfo is not None:
+            last_verified = last_verified.astimezone(timezone.utc).replace(tzinfo=None)
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        hours_since = (now_naive - last_verified).total_seconds() / 3600
         return "outdated" if hours_since > 24 else "verified"

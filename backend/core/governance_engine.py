@@ -194,19 +194,30 @@ class ContactGovernance:
 
         # 3. Send Notification
         adapter = communication_service.get_adapter(source)
+        if adapter is None:
+            logger.warning(f"No {source} adapter available for governance alerts (tenant {hitl_action.tenant_id})")
+            return
+
         details = {
             "action_type": hitl_action.action_type,
             "reason": hitl_action.reason,
             "params": hitl_action.params
         }
-        
-        success = await adapter.send_approval_request(
-            target_id=channel_id,
-            action_id=hitl_action.id,
-            details=details,
-            priority=hitl_action.priority
-        )
-        
+
+        # The HITL record is already committed; a notification failure must
+        # never crash the approval request flow (the user still sees the
+        # pending action). Log and continue.
+        try:
+            success = await adapter.send_approval_request(
+                target_id=channel_id,
+                action_id=hitl_action.id,
+                details=details,
+                priority=hitl_action.priority
+            )
+        except Exception as e:
+            logger.error(f"Failed to send HITL notification for {hitl_action.id}: {e}")
+            return
+
         if success:
             hitl_action.notified_channel_id = f"{source}:{channel_id}"
             db.commit()

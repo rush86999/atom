@@ -88,8 +88,11 @@ class AutonomousGuardrailService:
 
         # 1. Rate Limiting (Actions per Hour)
         # Default 60 actions/hour unless specified in agent config
-        config = agent.configuration if hasattr(agent, 'configuration') and agent.configuration else {}
-        rate_limit = config.get("guardrails", {}).get("max_actions_per_hour", 60)
+        config = agent.configuration if hasattr(agent, 'configuration') and isinstance(agent.configuration, dict) else {}
+        guardrail_config = config.get("guardrails")
+        if not isinstance(guardrail_config, dict):
+            guardrail_config = {}
+        rate_limit = guardrail_config.get("max_actions_per_hour", 60)
         recent_actions_count = self._get_recent_action_count(agent_id, tenant_id=effective_tenant, hours=1)
         
         if recent_actions_count >= rate_limit:
@@ -102,12 +105,12 @@ class AutonomousGuardrailService:
 
         # 2. Daily Cost Gating
         # Default $10/day unless specified in agent config
-        cost_limit = config.get("guardrails", {}).get("max_daily_spend_usd", 10.0)
+        cost_limit = guardrail_config.get("max_daily_spend_usd", 10.0)
         daily_spend = self._get_daily_spend(agent_id, tenant_id=effective_tenant)
         
         if daily_spend >= cost_limit:
             # Check enforcement mode
-            enforcement_mode = config.get("guardrails", {}).get("enforcement_mode", self.ALERT_ONLY)
+            enforcement_mode = guardrail_config.get("enforcement_mode", self.ALERT_ONLY)
             
             if enforcement_mode == self.ALERT_ONLY:
                 logger.info(f"Daily cost gate hit (Alert Only): ${daily_spend:.2f}/${cost_limit:.2f}.")
@@ -236,14 +239,24 @@ class AutonomousGuardrailService:
         
         # 1. Financial Transfers
         if "transfer" in action_lower or "payment" in action_lower:
-            amount = params.get("amount", 0)
+            # Coerce to float: string amounts (agent/API-controlled payloads)
+            # must never crash the guardrail — a crash here would bypass the
+            # sensitivity interlock (no BLOCKED_BY_GUARDRAIL ever returned).
+            try:
+                amount = float(params.get("amount", 0) or 0)
+            except (TypeError, ValueError):
+                amount = 0.0
             if amount > 500:
                 logger.warning(f"Sensitive Action Blocked: Transfer amount {amount} > 500")
                 return True
         
         # 2. Mass Deletions
         if "delete" in action_lower:
-            if params.get("batch_count", 1) > 10:
+            try:
+                batch_count = int(params.get("batch_count", 1) or 1)
+            except (TypeError, ValueError):
+                batch_count = 1
+            if batch_count > 10:
                 return True
             if params.get("resource_type") in ["database", "deployment", "user"]:
                 return True

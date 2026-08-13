@@ -6,6 +6,179 @@
 
 ---
 
+## Session 2026-08-13 (wave 84 — 8 never-wave-tested integration/messaging core modules to 100%; 241 new tests, 6 real bugs fixed)
+
+**Files**: `core/package_feature_service.py`, `core/integration_catalog_service.py`, `core/universal_communication_bridge.py`, `core/integration_loader.py`, `core/messaging_action_dispatcher.py`, `core/activity_publisher.py`, `core/policy_search_service.py`, `core/integration_registry_v2.py` — new wave tests `tests/test_covpush_w84_{package_features,integration_catalog,comm_bridge,integration_loader,messaging_dispatcher,activity_publisher,policy_search,integration_registry}.py` (**241 new tests**). Source fixes: `core/integration_registry.py` (3 new methods), `core/integration_catalog_service.py`, `core/messaging_action_dispatcher.py`, `core/policy_search_service.py`, `core/universal_communication_bridge.py`.
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time; `rm -f .coverage` first — stale coverage data merges and corrupts reports):
+1. RED proof (before source fixes): catalog `search_integrations`/`filter_by_category`/`get_integration_config`/`update_integration_config` → **AttributeError** (`get_tenant_config`/`set_tenant_enabled`/`update_sync_settings` did not exist on `IntegrationRegistry`); dispatcher `intervention_approve` → **TypeError** (3 args to a 2-arg `approve_intervention`); policy search `search()` on SQLite → **empty results for `verified`/`outdated` filters + TypeError crash in `_get_verification_status`** (aware-vs-naive datetime); comm bridge inbound message with string `metadata["timestamp"]` → **TypeError → message lost + rollback**, and platform metadata (channel name/sender/message id) **silently dropped** (`metadata=` writes to the non-column name that shadows `Base.metadata`); catalog `_validate_tenant_id(None)` → raw TypeError.
+2. New-wave combined run (single process, 8 files, `--cov` on all 8 modules) → **241 passed / 0 failed**; **TOTAL 667 stmts / 0 missing / 100%** on all eight modules.
+3. Partner-suite regression: `tests/test_integration_registry.py`, `tests/core/test_policy_search_service_coverage.py`, `tests/api/test_realtime_webhooks_tdd.py` → **128 passed / 6 failed** — the 6 webhook failures are **pre-existing** (fail identically on the git-stash baseline: 503/401 webhook-secret + `tenant_not_found` env issues). mypy on the 5 changed files → no new errors (all reported errors are on untouched pre-existing lines).
+
+### Coverage deltas (coverage.py statement counts; before = baseline placeholder run importing the modules)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/package_feature_service.py` | 64/130 / 49% | **130 / 100%** | 130 | — |
+| `core/integration_catalog_service.py` | 16/74 / 22% | **74 / 100%** | 74 | — |
+| `core/universal_communication_bridge.py` | 24/78 / 31% | **100 / 100%** | 100 | — |
+| `core/integration_loader.py` | 18/100 / 18% | **100 / 100%** | 100 | — |
+| `core/messaging_action_dispatcher.py` | 21/85 / 25% | **85 / 100%** | 85 | — |
+| `core/activity_publisher.py` | 12/42 / 29% | **42 / 100%** | 42 | — |
+| `core/policy_search_service.py` | 17/72 / 24% | **78 / 100%** | 78 | — |
+| `core/integration_registry_v2.py` | 15/58 / 26% | **58 / 100%** | 58 | — |
+
+### REAL bugs fixed (TDD red→green)
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/integration_registry.py` | (new, after `list_available_connectors`) | **Every `IntegrationCatalogService` call crashed with AttributeError** — the catalog service calls `get_tenant_config` / `set_tenant_enabled` / `update_sync_settings` on `IntegrationRegistry`, but none existed (the module even imports `TenantIntegrationConfig` unused) → `search_integrations`, `filter_by_category`, `get_integration_config`, `update_integration_config` all 500 | Added the 3 DB-backed methods (read/create/update `TenantIntegrationConfig`; mapped dict `enabled`/`sync_settings`/`connected_user_count`/`last_activity_at`/`last_sync_at`). Second fix in the same pass: **update-then-reassign of the same dict object defeated SQLAlchemy dirty tracking** (mutation never persisted) → `dict(config.config_json or {})` copy |
+| `core/integration_catalog_service.py` | `_validate_tenant_id` ~48 | **`tenant_id=None` → raw TypeError** — `uuid.UUID(None)` raises `TypeError`, which escaped the `except (ValueError, AttributeError)` → 500 instead of clean 400 | Added `TypeError` to the except tuple |
+| `core/messaging_action_dispatcher.py` | `_handle_intervention` ~121 | **Every `intervention_approve` action failed** — called `approve_intervention(intervention_id, tenant_id, user_id)` (3 args) against a 2-arg API `(action_id, approver_id)` → TypeError → generic error envelope; approvals never worked | `await service.approve_intervention(intervention_id, user_id)` |
+| `core/policy_search_service.py` | `search()` ~66-95 + `_get_verification_status` ~168 | **Verified/outdated filters permanently broken on SQLite (Personal Edition)** — aware `datetime` bindings always sort after naive stored ISO strings (aware string has a `+00:00` suffix → lexicographically greater) so `last_verified >= threshold` matched NOTHING; and `_get_verification_status` crashed with TypeError (aware `now` minus naive read-back) whenever a doc had `last_verified` | Naive-UTC instants (`now.replace(tzinfo=None)`) for all SQL bindings (identical semantics on PG/UTC sessions); `_get_verification_status` normalizes naive → UTC before subtracting; never raises |
+| `core/universal_communication_bridge.py` | `receive_message` ~128 | **Inbound messages with a string `metadata["timestamp"]` were lost** — Discord emits `datetime.now().isoformat()`, Slack embeds string `ts` → binding a str to `DateTime` `platform_timestamp` raised TypeError → whole message rolled back | `_parse_timestamp()` helper (ISO string ±`Z`/offset/naive, epoch int/float with overflow guard, datetime passthrough, bool excluded from epoch, unparseable → None) |
+| `core/universal_communication_bridge.py` | `receive_message` + `_record_outbound` ~128/194 | **All platform metadata silently dropped** — `UnifiedMessage(metadata=...)` writes to a non-column name (shadows SQLAlchemy `Base.metadata` class attr) → `metadata_json` stored NULL → channel name/sender/message id/timestamp gone | `metadata_json=metadata` at both write sites |
+
+### Remaining uncovered lines
+None — all eight modules 100% (667 stmts / 0 missing) in the wave-84 combined run.
+
+### Caveats
+- `policy_search_service` SQL filters now bind naive-UTC datetimes — on PostgreSQL this is a no-op for UTC sessions; only SQLite string ordering changes (fixes the bug).
+- Comm-bridge adapter classes are mocked at the `ADAPTERS` class map; the real adapter ctor signatures were not exercised.
+- `integration_registry_v2` patches `importlib.import_module` + `node_bridge` module attrs; `integration_loader` uses a real 1-worker `ThreadPoolExecutor` for the timeout branch (0.01s timeout vs 0.2s sleep — the pool `shutdown(wait=True)` adds ~0.2s per timeout test).
+
+---
+
+## Session 2026-08-13 (wave 82 — 8 never-wave-tested governance/security core modules to ≥98%; 290 new tests, 7 real bugs fixed)
+
+**Files**: `core/autonomous_guardrails.py`, `core/active_intervention_service.py`, `core/governance_helpers.py`, `core/governance_engine.py`, `core/oauth_user_context.py`, `core/oauth_state_manager.py`, `core/credential_vault.py`, `core/ssrf_guard.py` — new wave tests `tests/test_covpush_w82_{guardrails,intervention,governance_helpers,governance_engine,oauth_context,oauth_state,credential_vault,ssrf_guard}.py` (**290 new tests**). Source fixes: `core/autonomous_guardrails.py`, `core/active_intervention_service.py`, `core/governance_engine.py`, `core/oauth_user_context.py`, `core/oauth_handler.py` (added `PROVIDER_CONFIGS` map), `core/oauth_state_manager.py`, `core/ssrf_guard.py`.
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time):
+1. RED proof (before source fixes): guardrails string-`amount` + non-dict config → TypeError/AttributeError crash; intervention Stripe-error → `COMPLETED`; oauth_state colon-user-id → 5-part format broken; ssrf short-form loopback (`127.1`, `0x7f.0.0.1`, `0177.0.0.1`) → DID NOT RAISE with `resolve_dns=False`; governance_engine None-adapter → AttributeError after HITL commit; oauth_user_context aware-ISO expiry → fail-open (no refresh).
+2. New-wave combined run (single process, 8 files, `--cov` on all 8 modules) → **290 passed / 0 failed**; TOTAL **1091 stmts / 99%** (six modules 100%, two 98%).
+3. Wave + partner suites (`test_ssrf_guard.py`, `test_ssrf_fixes.py`, `test_ssrf_bugs.py`, `tests/core/test_ssrf_guard_coverage.py`, `test_oauth_state_single_use.py`, `test_r79_gap_credential_vault.py`, `test_active_intervention_service.py`) → **159 passed / 1 skipped / 1 failed** — the single failure (`test_ssrf_bugs.py::test_base_agent_fetch_url_not_validated`, a source-text "bug-confirming" test) is **pre-existing**: fails identically on the git-stash baseline before this wave.
+
+### Coverage deltas (coverage.py statement counts; before = pre-existing partner suites only)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/autonomous_guardrails.py` | 24/132 / 18% | **142 / 100%** | 142 | — |
+| `core/active_intervention_service.py` | 77/117 / 66% | **111 / 98%** | 113 | 16–17 (outer `except ImportError` — structurally unreachable: inner handler catches every ImportError) |
+| `core/governance_helpers.py` | 14/54 / 26% | **54 / 100%** | 54 | — |
+| `core/governance_engine.py` | 0% (never imported by any test) | **106 / 100%** | 106 | — |
+| `core/oauth_user_context.py` | 0% (never imported) | **149 / 100%** | 149 | — |
+| `core/oauth_state_manager.py` | 62/89 / 70% | **91 / 100%** | 91 | — |
+| `core/credential_vault.py` | 102/111 / 92% | **111 / 100%** | 111 | — |
+| `core/ssrf_guard.py` | 53/72 / 74% | **123 / 98%** | 125 | 122–123 (`IPv4Address(val)` except — unreachable defensive code: val is range-guarded) |
+
+### REAL bugs fixed (TDD red→green)
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/active_intervention_service.py` | `_handle_cancel_subscription` ~158 | **FAIL-OPEN on Stripe API error** — an exception returned `COMPLETED` + "Simulated Stripe cancellation"; a subscription that was NOT canceled is reported to the caller as success (financial op) | Error → `FAILED` + error detail + `stripe_response: {"error": ...}`; also removed the dead try/except around the commented-out Outlook draft path |
+| `core/oauth_user_context.py` | `_is_token_expired` ~93 | **Fail-open expiry check** — AWARE ISO expiry string vs naive `datetime.now()` → TypeError → except assumed token VALID → expired token returned without refresh | Normalize to tz-aware UTC (naive → replace UTC; numeric timestamps via `fromtimestamp(ts, tz=utc)` — naive-fromtimestamp labeling broke non-UTC hosts, fixed in the same pass) |
+| `core/oauth_user_context.py` | `_refresh_token` ~114 | **Refresh never ran** — `from core.oauth_handler import oauth_handler` — no such global exists → ImportError every call → silently returned the old (expired) connection | `OAuthHandler(PROVIDER_CONFIGS[provider]).refresh_access_token(refresh_token)`; added the `PROVIDER_CONFIGS` provider→config map to `core/oauth_handler.py`; unknown provider degrades gracefully |
+| `core/autonomous_guardrails.py` | `_is_sensitive_action` ~238 + config ~91 | **Guardrail crash = enforcement bypass** — string `amount` (agent/API-controlled payload) → TypeError inside the sensitivity check; `configuration["guardrails"]` as non-dict (e.g. `"off"`) → AttributeError; both crash `check_guardrails` so no `BLOCKED_BY_GUARDRAIL` is ever returned | Coerce `amount`/`batch_count` numerically (invalid → 0/1); `isinstance(config, dict)` + non-dict `guardrails` → `{}` |
+| `core/governance_engine.py` | `_notify_governance_channel` ~196 | **HITL flow crash after commit** — `get_adapter()` → None (or adapter send raises) → AttributeError propagates through `request_approval` → 500 even though the HITL record was committed | Guard `adapter is None` (log + return); wrap send in try/except (log + return) |
+| `core/oauth_state_manager.py` | `generate_state`/`validate_state`/`extract_user_id` | **user_id containing ':' → permanently invalid state** — 6+ colon-separated parts failed the 5-part parse; the OAuth flow could never validate for such users; `extract_user_id` returned a truncated id | URL-quote the embedded user_id (`quote(user_id, safe='')`) on generate; `unquote` on validate + extract; checksum still over the decoded value (tamper-proof); colon-free ids byte-identical → fully backward compatible |
+| `core/ssrf_guard.py` | `_normalize_ip_literal` ~80 | **Short-form IPv4 SSRF bypass** — libc short forms `127.1`→127.0.0.1, `127.0.1`, `0x7f.0.0.1`, `0177.0.0.1` (glibc inet_aton octal reading → loopback) are honored by the OS resolver but rejected by `ipaddress` → `resolve_dns=False` validation passed them straight to the HTTP client (metadata/loopback reachable) | `_short_form_candidates()`: 2/3/4-part inet_aton expansion with per-component decimal/hex/octal readings; fail-closed — a blocked reading (octal `0177…` = 127.0.0.1) wins over a public one; dotted branch checked before single-hex so `0x7f.0.0.1` isn't parsed as a bare hex int |
+
+### Remaining uncovered lines
+- `active_intervention_service.py` 16–17: outer `except ImportError` — the inner handler catches every ImportError first; structurally unreachable.
+- `ssrf_guard.py` 122–123: `except (ValueError, AddressValueError)` around `IPv4Address(val)` — val is range-guarded (0..2^32−1), conversion cannot raise; defensive dead code.
+
+### Caveats
+- `governance_helpers` is patched at the SOURCE seam (`core.service_factory.ServiceFactory.get_governance_service`) — the stale `tests/test_governance_helpers.py` (9 pre-existing failures patching the nonexistent module attr `core.governance_helpers.ServiceFactory`) remains broken and was NOT touched.
+- `oauth_user_context` patches `core.connection_service.ConnectionService`/`core.oauth_handler.{OAuthHandler,PROVIDER_CONFIGS}` (function-local imports); gmail/outlook provider flags in `active_intervention_service` are patched at module level (`create=True` for never-bound names).
+- `ssrf_guard` DNS paths patch `core.ssrf_guard.socket.getaddrinfo`; short-form tests assert `resolve_dns=False` still blocks (no DNS lookup for them).
+
+---
+
+## Session 2026-08-13 (wave 83 — 8 never-wave-tested core modules to 100%; 170 new tests, 4 real bugs fixed)
+
+**Files**: `core/scheduler.py`, `core/evolution_pipeline.py`, `core/openclaw_parser.py`, `core/dependency_resolver.py`, `core/agent_task_registry.py`, `core/sync_job_queue.py`, `core/pm_swarm.py`, `core/periodic_tasks.py` — new wave tests `tests/test_covpush_w83_{scheduler,evolution,openclaw,dependency,task_registry,sync_job_queue,pm_swarm,periodic}.py` (**170 new tests**). Source fixes: `core/openclaw_parser.py`, `core/sync_job_queue.py`, `core/pm_swarm.py` (2 bugs).
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time):
+1. RED proof (before source fixes): `test_covpush_w83_openclaw.py::test_parse_skill_md_happy_path` (**ScannerError on documented `author: @username` format**); `test_covpush_w83_sync_job_queue.py::test_enqueue_priority_ordering` (**dequeued LOW-priority job before URGENT**); `test_covpush_w83_pm_swarm.py::test_run_correction_cycle_self_managed_db_closed` (AttributeError — un-entered CM) + `test_apply_corrections_reassign_task_existing_metadata` (KeyError — in-place JSON mutation never persisted).
+2. New-wave combined run (single process, 8 files, `--cov` on all 8 modules) → **170 passed / 0 failed**; all eight modules **100%** in the wave file run.
+3. Wave + partner suites: scheduler (`tests/core/test_scheduler_coverage.py`, `tests/test_phase27_scheduler.py`) + task registry (`tests/test_agent_task_registry_method.py`) + periodic (`tests/test_r80_periodic_tasks.py`) → **100%** on all three (`core/scheduler.py 154 stmts / 0 missing`); dependency (`tests/test_r80_dependency_resolver.py`, `tests/test_auto_installation.py`) → **45 passed / 1 skipped** (pre-existing skip), resolver **100%**.
+4. `mypy --config-file mypy.ini backend/core/{openclaw_parser,sync_job_queue,pm_swarm}.py` → **8 errors at git-stash baseline = 8 errors after** (zero new; all pre-existing `no-any-return` on mocked redis-Any return paths).
+
+### Coverage deltas (coverage.py statement counts; before = pre-existing partner suites only)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/scheduler.py` | 126/154 stmts / 82% | **154 / 100%** | 154 | — |
+| `core/evolution_pipeline.py` | 0% (never imported by any test) | **97 / 100%** | 97 | — |
+| `core/openclaw_parser.py` | 0% (never imported) | **113 / 100%** | 113 | — |
+| `core/dependency_resolver.py` | 67/73 stmts / 92% | **73 / 100%** | 73 | — |
+| `core/agent_task_registry.py` | 114/120 stmts / 95% | **120 / 100%** | 120 | — |
+| `core/sync_job_queue.py` | 0% (never imported) | **113 / 100%** | 113 | — |
+| `core/pm_swarm.py` | 0% (never imported) | **104 / 100%** | 104 | — |
+| `core/periodic_tasks.py` | 49/49 stmts / 100% (already covered) | **49 / 100%** | 49 | — |
+
+### REAL bugs fixed (TDD red→green)
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/openclaw_parser.py` | `parse_skill_md` ~62 | **Documented format unparseable** — every SKILL.md with the documented `author: @username` frontmatter raised `ValueError: Failed to parse SKILL.md` (PyYAML ScannerError: `@` cannot start a plain scalar); the parser's own spec was self-inconsistent | `_quote_at_scalars()` frontmatter pre-normalizer (`key: @value` → `key: "@value"`, frontmatter only) + retry parse; no-op passthrough for content without @-scalars |
+| `core/sync_job_queue.py` | `dequeue` ~152 | **Inverted priority + FIFO ordering** — score = `priority*1e6 − timestamp_ms` makes HIGH priority LARGER, but `zrange(KEY, 0, 0)` returns the LOWEST score → **low-priority jobs dequeued first, and latest-enqueued before earlier ones** (comment documents the opposite intent) | `zrange(KEY, -1, -1)` (max-score member = highest priority + earliest enqueue); regression tests: priority ordering + same-priority FIFO (freezegun-frozen, ms-granularity-safe) |
+| `core/pm_swarm.py` | `run_correction_cycle` ~28 | **Broken self-managed session** — `db = self.db or get_db_session()` returned the un-entered context manager (no `.query`) → AttributeError on every call without an injected session; `finally` also closed nothing useful (same wave-80 `workforce_analytics` class) | `db = get_db_session().__enter__()` + `owned_db` flag; `finally: if owned_db: db.close()` |
+| `core/pm_swarm.py` | `_apply_corrections` ~204 | **Silent metadata loss** — `task.metadata_json["needs_reassignment"] = True` mutates the JSON dict in place; SQLAlchemy doesn't detect JSON in-place mutation → the flag was **silently dropped for any task that already had metadata_json** | Assign a new dict `{**(task.metadata_json or {}), "needs_reassignment": True, "reassignment_reason": ...}` (assignment is change-detected) |
+
+### Remaining uncovered lines
+- None — all eight modules measure 100% with wave + partner files.
+
+### Caveats
+- `sync_job_queue` tests use an in-memory fake `redis.asyncio` client (zset/string semantics incl. negative-index zrange); the wave-83 FIFO regression test freezes time so the two enqueues cannot land in the same millisecond (equal zset scores sort lexicographically → flaky).
+- `pm_swarm` tests use in-memory SQLite with the REAL `Project`/`ProjectTask` models (`ProjectTask` requires `workspace_id` + `milestone_id`); `WorkforceAnalyticsService` fully mocked.
+- `scheduler` wave file covers only the module-level job callables + `_execute_and_log` lifecycle; the scheduling surface (schedule_job/load/syncs) is covered by `tests/core/test_scheduler_coverage.py` — combined 100%.
+
+---
+
+## Session 2026-08-13 (wave 81 — 7 never-wave-tested core modules to 100%; 168 new tests, 4 real bugs fixed)
+
+**Files**: `core/byok_competitive_endpoints.py`, `core/websocket_manager.py`, `core/multi_entity_extraction_routes.py`, `core/unified_calendar_endpoints.py`, `core/unified_search_endpoints.py`, `core/missing_endpoints.py`, `core/chat_context_manager.py` — new wave tests `tests/test_covpush_w81_{byok_competitive,websocket_manager,multi_entity,calendar,search,missing_endpoints,chat_context}.py` (**168 new tests**). Source fixes: `core/unified_calendar_endpoints.py`, `core/missing_endpoints.py`, `core/multi_entity_extraction_routes.py`, `core/byok_competitive_endpoints.py`. Stale-suite repair: `tests/test_unified_search.py` (1 assertion: `min_score` default 0.5 → **-10.0**, matches `SearchFilters` source default `ge=-10.0` + the endpoint's `else -10.0` fallback).
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time):
+1. RED proof (before source fixes): wave calendar + missing_endpoints files → **20 failed** (6 calendar-auth, 6 missing-endpoints-auth, update-validation + state-cascade failures) — exactly the bugs below.
+2. New-wave combined run (single process, 7 files, `--cov` on all 7 modules) → **168 passed / 0 failed**; TOTAL **682 stmts / 100%** (all seven modules 100%).
+3. Wave + partner suites (`tests/unit/test_websocket_manager.py`, `tests/core/test_byok_competitive_endpoints_coverage.py`, `tests/test_r80_byok_competitive_endpoints.py`, `tests/test_unified_search.py`, `tests/test_search_fallback_v2.py`) → **280 passed / 0 failed** (incl. the repaired stale assertion).
+4. Adjacent regression: `tests/test_round68_workflow_trigger_paths.py` + wave calendar + missing files → **114 passed / 0 failed** (R68's auth'd `advanced_workflow_api` demo routes untouched by the missing_endpoints fix).
+5. `mypy --config-file backend/mypy.ini` (from repo root) on the 4 changed sources → **126 errors vs 127 at git-HEAD baseline** (zero new; the `# type: ignore[call-arg]` on the alias-constructor matches the wave-79 precedent).
+
+### Coverage deltas (coverage.py statement counts)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/byok_competitive_endpoints.py` | 138/143 stmts / 97% (2 partner suites) | **145 / 100%** | 145 | — |
+| `core/websocket_manager.py` | 103/106 stmts / 97% (unit suite) | **106 / 100%** | 106 | — |
+| `core/multi_entity_extraction_routes.py` | 0% (never imported) | **60 / 100%** | 60 | — |
+| `core/unified_calendar_endpoints.py` | 0% (never imported) | **130 / 100%** | 130 | — |
+| `core/unified_search_endpoints.py` | 62/120 stmts / 52% (2 partner suites) | **120 / 100%** | 120 | — |
+| `core/missing_endpoints.py` | 0% (never imported) | **48 / 100%** | 48 | — |
+| `core/chat_context_manager.py` | 0% (never imported) | **73 / 100%** | 73 | — |
+
+(Before = `--cov` while running each module's pre-existing partner tests only.)
+
+### REAL bugs fixed (TDD red→green)
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/unified_calendar_endpoints.py` | all 6 routes (~115–230) | **Missing auth on every calendar route** — router auto-loaded at root in main_api_app (lazy registry `unified_calendar`), so anonymous clients could read/create/update/delete the shared calendar and trigger schedule optimization in production | `current_user: User = Depends(get_current_user)` on all 6 routes (`/events` GET/POST, `/events/{id}` PUT/DELETE, `/check-conflicts`, `/optimize`); regression tests assert 401 per route. (Wave-side effect: the unauthenticated DELETE in the 401 test used to mutate the module-global `MOCK_EVENTS`, cascading failures into later tests — post-fix the 401s stop the mutation.) |
+| `core/unified_calendar_endpoints.py` | `UpdateEventRequest` ~50 | **Update path bypassed BUG-068** — `PUT /events/{id}` with `end < start` created an invalid event (only `CreateEventRequest` had the end≥start validator) | Added the same `model_validator` (guarded to when both start/end are set) |
+| `core/missing_endpoints.py` | 6 POST routes (~27–167) | **Missing auth on state-changing demo endpoints** — `/api/v1/tasks/assign`, `/tracking/setup`, 3× `/workflows/demo-*`, `/api/v1/ai/execute` answered anonymous in production (the demo-* paths are shadowed dead code vs R68's auth'd `advanced_workflow_api` versions, but the rest were live) | `Depends(get_current_user)` on all 6 POST routes; `GET /api/v1/ai/providers` intentionally left public (matches BYOK `/api/ai/providers` convention) |
+| `core/multi_entity_extraction_routes.py` | `DiscoveredEntityResponse` ~57 | **Discovered type silently dropped from every list response** — pydantic v2 treats leading-underscore names as private attributes, so `_discovered_type` never serialized (field was declared, route set it, wire JSON omitted it) | Field renamed `discovered_type` with `alias="_discovered_type"` + `ConfigDict(from_attributes=True, populate_by_name=True)` — wire key unchanged (FastAPI response_model_by_alias), the LLM-discovered type now actually reaches clients |
+| `core/byok_competitive_endpoints.py` | `optimize_workflow_costs` ~280 | **Missing-provider crash → 500** — `providers.get(current, providers.get("openai")).cost_per_token` raised AttributeError on `None` when both were absent (e.g. unknown `current_provider` + no openai config); the endpoint then masked it as "Internal error" | Guarded lookups (`x or providers.get("openai")`, `0.0` fallback cost) — unknown providers now yield 0-cost optimizations instead of 500 |
+
+### Remaining uncovered lines
+- None — all seven modules measure 100% with their wave+partner files.
+
+### Caveats
+- `unified_calendar_endpoints` tests reset the module-global `MOCK_EVENTS` via a deepcopy snapshot fixture per test.
+- `multi_entity_extraction_routes` exercised with a FakeDB/FakeQuery that records the filter/order/limit/offset chain (endpoint filters verified by recorded calls, not SQL).
+- `unified_search_endpoints` handler fully mocked (`db`, `_ensure_db`, `_ensure_embedder`, `search`); `get_current_user` overridden; BUG-098 workspace resolution asserted via `get_lancedb_handler.call_args`.
+- `chat_context_manager` uses a minimal DataFrame stand-in (`len`/`sort_values`/`iterrows`) — no pandas dependency.
+- The pre-existing `test_unified_search.py::TestSearchFiltersModel::test_default_filters` failure was a stale assertion (model default changed to `-10.0`), not a source bug — repaired with a comment.
+
+---
+
 ## Session 2026-08-13 (wave 80 — 7 never-wave-tested core services to ≥95%; 169 new tests, 6 real bugs fixed)
 
 **Files**: `core/local_agent_service.py`, `core/analytics_endpoints.py`, `core/memory_integration_mixin.py`, `core/pm_engine.py`, `core/business_intelligence.py`, `core/workforce_analytics.py`, `core/microsoft365_learner.py` — new wave tests `tests/test_covpush_w80_{local_agent,analytics_endpoints,memory_mixin,pm_engine,business_intel,workforce_analytics,m365_learner}.py` (**169 new tests**). Source fixes: `core/local_agent_service.py`, `core/business_intelligence.py`, `core/pm_engine.py`, `core/workforce_analytics.py`. Stale-suite repairs: `tests/test_local_agent_service.py` (1 test), `tests/test_skill_gaps.py` (1 setup block).

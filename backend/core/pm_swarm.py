@@ -25,7 +25,14 @@ class AutonomousBusinessSwarm:
         """
         Executes a full 'Correction Cycle' for either a specific project or general operations.
         """
-        db = self.db or get_db_session()
+        db = self.db
+        owned_db = False
+        if db is None:
+            # get_db_session() returns an un-entered context manager — call
+            # __enter__() so .query/.close exist (previously AttributeError
+            # on every non-injected call).
+            db = get_db_session().__enter__()
+            owned_db = True
         try:
             # 1. Gather State
             state = self._gather_state(workspace_id, project_id, db)
@@ -73,7 +80,7 @@ class AutonomousBusinessSwarm:
                 }
             }
         finally:
-            if not self.db:
+            if owned_db:
                 db.close()
 
     def _gather_state(self, workspace_id: str, project_id: Optional[str], db: Any) -> Dict[str, Any]:
@@ -201,9 +208,14 @@ class AutonomousBusinessSwarm:
                     task = db.query(ProjectTask).filter(ProjectTask.id == task_id).first()
                     if task:
                         task.assigned_to = None
-                        if not task.metadata_json:
-                            task.metadata_json = {}
-                        task.metadata_json["needs_reassignment"] = True
-                        task.metadata_json["reassignment_reason"] = action["reason"]
+                        # Assign a NEW dict — in-place mutation of a JSON
+                        # column is not detected by SQLAlchemy, so the
+                        # flag was silently dropped for tasks that already
+                        # had metadata_json.
+                        task.metadata_json = {
+                            **(task.metadata_json or {}),
+                            "needs_reassignment": True,
+                            "reassignment_reason": action["reason"],
+                        }
                         logger.info(f"Swarm unassigned task {task_id} due to skill gap.")
         db.commit()

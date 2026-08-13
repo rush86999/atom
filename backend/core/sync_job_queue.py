@@ -149,7 +149,11 @@ class SyncJobQueue:
 
         start_time = datetime.now(timezone.utc)
         while True:
-            jobs = await client.zrange(self.QUEUE_KEY, 0, 0)
+            # Highest score = highest priority AND earliest enqueue (score =
+            # priority*1e6 - timestamp_ms). Plain zrange is ascending (lowest
+            # first), which would dequeue the LOWEST-priority/latest job —
+            # inverted priority + FIFO order. Take the max-score member.
+            jobs = await client.zrange(self.QUEUE_KEY, -1, -1)
             if not jobs:
                 if (datetime.now(timezone.utc) - start_time).total_seconds() >= timeout:
                     return None

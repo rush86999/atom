@@ -56,6 +56,32 @@ class UniversalCommunicationBridge:
         logger.warning(f"No adapter found for platform: {platform}")
         return None
 
+    @staticmethod
+    def _parse_timestamp(value: Any) -> Optional[datetime]:
+        """Coerce adapter-supplied timestamps (ISO string, epoch number or
+        datetime) to an aware datetime; returns None when unparseable so an
+        awkward metadata value never breaks message ingestion."""
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            if value.tzinfo is None:
+                return value.replace(tzinfo=timezone.utc)
+            return value
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            try:
+                return datetime.fromtimestamp(value, tz=timezone.utc)
+            except (ValueError, OverflowError, OSError):
+                return None
+        if isinstance(value, str):
+            try:
+                parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                return None
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed
+        return None
+
     async def receive_message(
         self,
         tenant_id: str,
@@ -127,8 +153,8 @@ class UniversalCommunicationBridge:
                 content=content,
                 direction="inbound",
                 status="pending",
-                metadata=metadata,
-                platform_timestamp=metadata.get("timestamp")
+                metadata_json=metadata,
+                platform_timestamp=self._parse_timestamp(metadata.get("timestamp"))
             )
 
             self.db.add(unified_msg)
@@ -190,7 +216,7 @@ class UniversalCommunicationBridge:
                 direction="outbound",
                 status="processed",
                 agent_id=agent_id,
-                metadata=metadata
+                metadata_json=metadata
             )
             self.db.add(unified_msg)
             self.db.commit()

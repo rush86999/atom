@@ -1,8 +1,11 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 import uuid
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
+
+from core.auth import get_current_user
+from core.models import User
 
 router = APIRouter()
 
@@ -25,7 +28,10 @@ class WorkflowRequest(BaseModel):
 # --- Endpoints ---
 
 @router.post("/api/v1/tasks/assign")
-async def assign_tasks(request: TaskAssignmentRequest):
+async def assign_tasks(
+    request: TaskAssignmentRequest,
+    current_user: User = Depends(get_current_user)
+):
     """Assign tasks to a team"""
     return {
         "success": True,
@@ -38,7 +44,10 @@ async def assign_tasks(request: TaskAssignmentRequest):
     }
 
 @router.post("/api/v1/tracking/setup")
-async def setup_tracking(request: TrackingSetupRequest):
+async def setup_tracking(
+    request: TrackingSetupRequest,
+    current_user: User = Depends(get_current_user)
+):
     """Setup progress tracking"""
     return {
         "success": True,
@@ -53,7 +62,10 @@ async def setup_tracking(request: TrackingSetupRequest):
 # --- Demo Workflow Endpoints ---
 
 @router.post("/api/v1/workflows/demo-project-management")
-async def demo_project_management(request: WorkflowRequest):
+async def demo_project_management(
+    request: WorkflowRequest,
+    current_user: User = Depends(get_current_user)
+):
     """Demo endpoint for project management workflow"""
     try:
         return {
@@ -86,7 +98,10 @@ async def demo_project_management(request: WorkflowRequest):
         raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/api/v1/workflows/demo-customer-support")
-async def demo_customer_support(request: WorkflowRequest):
+async def demo_customer_support(
+    request: WorkflowRequest,
+    current_user: User = Depends(get_current_user)
+):
     """Demo endpoint for customer support workflow"""
     try:
         return {
@@ -119,7 +134,10 @@ async def demo_customer_support(request: WorkflowRequest):
         raise HTTPException(status_code=500, detail="Internal error")
 
 @router.post("/api/v1/workflows/demo-sales-lead")
-async def demo_sales_lead(request: WorkflowRequest):
+async def demo_sales_lead(
+    request: WorkflowRequest,
+    current_user: User = Depends(get_current_user)
+):
     """Demo endpoint for sales lead workflow"""
     try:
         return {
@@ -164,7 +182,10 @@ async def get_ai_providers():
     }
 
 @router.post("/api/v1/ai/execute")
-async def execute_ai_workflow(request: WorkflowRequest):
+async def execute_ai_workflow(
+    request: WorkflowRequest,
+    current_user: User = Depends(get_current_user)
+):
     """Execute generic AI workflow"""
     # Mock response for NLU/Workflow execution
     return {

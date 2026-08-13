@@ -85,27 +85,15 @@ class ActiveInterventionService:
                 }
 
             logger.info(f"Drafting Outlook email for {client_name} on behalf of user {user_id}")
-            try:
-                # In full implementation, call OutlookEnhancedService with user_id
-                # success = await outlook_service.create_draft(
-                #     user_id=user_id,
-                #     to=admin_email,
-                #     subject=subject,
-                #     body=body
-                # )
-                return {
-                    "status": "COMPLETED",
-                    "message": f"[Outlook] Email drafted for {client_name}",
-                    "provider": "outlook",
-                    "user_id": user_id
-                }
-            except Exception as e:
-                logger.error(f"Outlook draft failed: {e}")
-                return {
-                    "status": "FAILED",
-                    "message": f"Outlook error: {str(e)}",
-                    "provider": "outlook"
-                }
+            # In full implementation, call OutlookEnhancedService.create_draft
+            # with the authenticated user_id (await outlook_service.create_draft(
+            #     user_id=user_id, to=admin_email, subject=subject, body=body)).
+            return {
+                "status": "COMPLETED",
+                "message": f"[Outlook] Email drafted for {client_name}",
+                "provider": "outlook",
+                "user_id": user_id
+            }
 
         elif GMAIL_AVAILABLE:
              # Gmail Logic
@@ -157,10 +145,14 @@ class ActiveInterventionService:
                 }
             except Exception as e:
                 logger.error(f"Stripe cancellation failed: {e}")
-                # Fallback for mock/test environments allowing simulation
+                # FAIL-CLOSED: an API error means the subscription was NOT
+                # canceled. Reporting COMPLETED here (the old "simulated"
+                # fallback) is fail-open for a financial operation — the
+                # caller believes the cancellation succeeded.
                 return {
-                    "status": "COMPLETED",
-                    "message": f"Simulated Stripe cancellation for {subscription_id} (API Error: {str(e)})"
+                    "status": "FAILED",
+                    "message": f"Stripe cancellation failed: {e}",
+                    "stripe_response": {"error": str(e)},
                 }
         
         return {

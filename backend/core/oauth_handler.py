@@ -309,3 +309,22 @@ WHATSAPP_OAUTH_CONFIG = OAuthConfig(
     scopes=["whatsapp_business_messaging", "whatsapp_business_management"]
 )
 
+
+# Provider → OAuthConfig map. Consumed by core/oauth_user_context for
+# automatic token refresh. Configs snapshot the environment at import time,
+# which matches when the individual *_OAUTH_CONFIG constants are read.
+PROVIDER_CONFIGS: Dict[str, OAuthConfig] = {
+    "google": GOOGLE_OAUTH_CONFIG,
+    "microsoft": MICROSOFT_OAUTH_CONFIG,
+    "salesforce": SALESFORCE_OAUTH_CONFIG,
+    "slack": SLACK_OAUTH_CONFIG,
+    "github": GITHUB_OAUTH_CONFIG,
+    "asana": ASANA_OAUTH_CONFIG,
+    "notion": NOTION_OAUTH_CONFIG,
+    "trello": TRELLO_OAUTH_CONFIG,
+    "dropbox": DROPBOX_OAUTH_CONFIG,
+    "linkedin": LINKEDIN_OAUTH_CONFIG,
+    "whatsapp": WHATSAPP_OAUTH_CONFIG,
+}
+
+

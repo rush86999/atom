@@ -3,7 +3,7 @@ OAuth User Context Manager
 Provides user-scoped OAuth token management with automatic refresh
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, Optional
 
@@ -87,10 +87,17 @@ class OAuthUserContext:
             if isinstance(expires_at, str):
                 expires_at = datetime.fromisoformat(expires_at)
             elif isinstance(expires_at, (int, float)):
-                expires_at = datetime.fromtimestamp(expires_at)
+                expires_at = datetime.fromtimestamp(expires_at, tz=timezone.utc)
 
-            # Check if expired or will expire within 5 minutes (300 seconds)
-            now = datetime.now()
+            # Normalize naive values to timezone-aware UTC. An AWARE ISO expiry
+            # string compared against a naive datetime.now() raised TypeError,
+            # which the except branch treated as "valid" (fail-open) — an
+            # expired token was returned without refresh. Note: naive strings
+            # are assumed UTC; numeric timestamps are epoch-based (UTC) by
+            # definition, so they are converted with an explicit UTC tz.
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
             time_left = (expires_at - now).total_seconds()
 
             return time_left < 300  # Less than 5 minutes remaining
@@ -111,20 +118,22 @@ class OAuthUserContext:
             Updated connection data with new access token
         """
         try:
-            from core.oauth_handler import oauth_handler
+            from core.oauth_handler import OAuthHandler, PROVIDER_CONFIGS
 
             refresh_token = connection.get("refresh_token")
             if not refresh_token:
                 logger.warning(f"No refresh token available for {self.provider}")
                 return connection
 
-            # Use OAuthHandler to refresh token
-            # This will vary by provider
-            new_token_data = await oauth_handler.refresh_token(
-                provider=self.provider,
-                refresh_token=refresh_token,
-                user_id=self.user_id
-            )
+            config = PROVIDER_CONFIGS.get(self.provider)
+            if config is None:
+                logger.warning(f"No OAuth config registered for provider {self.provider}; cannot refresh")
+                return connection
+
+            # Use OAuthHandler to refresh token (provider config from the
+            # provider map; the user scoping comes from this connection row).
+            handler = OAuthHandler(config)
+            new_token_data = await handler.refresh_access_token(refresh_token)
 
             if new_token_data and new_token_data.get("access_token"):
                 logger.info(f"Successfully refreshed {self.provider} token for user {self.user_id}")

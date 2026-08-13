@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 import uuid
-from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, model_validator
 
+from core.auth import get_current_user
+from core.models import User
 from core.schedule_optimizer import ResolutionSlot, schedule_optimizer
 
 router = APIRouter(prefix="/api/v1/calendar", tags=["unified_calendar"])
@@ -56,6 +58,13 @@ class UpdateEventRequest(BaseModel):
     status: Optional[str] = None
     platform: Optional[str] = None
     color: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_end_after_start(self):
+        """Reject events where end is before start (BUG-068 parity with create)."""
+        if self.start is not None and self.end is not None and self.end < self.start:
+            raise ValueError("Event end time must be after or equal to start time")
+        return self
 
 class ConflictCheckRequest(BaseModel):
     start: datetime
@@ -115,7 +124,8 @@ MOCK_EVENTS: List[CalendarEvent] = [
 @router.get("/events", response_model=Dict[str, Any])
 async def get_events(
     start: Optional[datetime] = None,
-    end: Optional[datetime] = None
+    end: Optional[datetime] = None,
+    current_user: User = Depends(get_current_user)
 ):
     # Filter by date range if provided
     filtered_events = MOCK_EVENTS
@@ -127,7 +137,10 @@ async def get_events(
     return {"success": True, "events": filtered_events}
 
 @router.post("/events", response_model=Dict[str, Any])
-async def create_event(event_data: CreateEventRequest):
+async def create_event(
+    event_data: CreateEventRequest,
+    current_user: User = Depends(get_current_user)
+):
     new_event = CalendarEvent(
         id=str(uuid.uuid4()),
         **event_data.dict()
@@ -136,7 +149,11 @@ async def create_event(event_data: CreateEventRequest):
     return {"success": True, "event": new_event}
 
 @router.put("/events/{event_id}", response_model=Dict[str, Any])
-async def update_event(event_id: str, updates: UpdateEventRequest):
+async def update_event(
+    event_id: str,
+    updates: UpdateEventRequest,
+    current_user: User = Depends(get_current_user)
+):
     for i, event in enumerate(MOCK_EVENTS):
         if event.id == event_id:
             update_data = updates.dict(exclude_unset=True)
@@ -147,7 +164,10 @@ async def update_event(event_id: str, updates: UpdateEventRequest):
     raise HTTPException(status_code=404, detail="Event not found")
 
 @router.delete("/events/{event_id}", response_model=Dict[str, Any])
-async def delete_event(event_id: str):
+async def delete_event(
+    event_id: str,
+    current_user: User = Depends(get_current_user)
+):
     global MOCK_EVENTS
     event_to_delete = next((e for e in MOCK_EVENTS if e.id == event_id), None)
     if not event_to_delete:
@@ -157,7 +177,10 @@ async def delete_event(event_id: str):
     return {"success": True, "id": event_id}
 
 @router.post("/check-conflicts", response_model=ConflictResponse)
-async def check_conflicts(request: ConflictCheckRequest):
+async def check_conflicts(
+    request: ConflictCheckRequest,
+    current_user: User = Depends(get_current_user)
+):
     """
     Check for scheduling conflicts with existing events.
     Business Outcome: Prevent users from double-booking.
@@ -196,7 +219,9 @@ async def check_conflicts(request: ConflictCheckRequest):
     )
 
 @router.get("/optimize", response_model=List[Dict[str, Any]])
-async def get_schedule_optimization():
+async def get_schedule_optimization(
+    current_user: User = Depends(get_current_user)
+):
     """
     Detect all conflicts and provide resolution suggestions.
     """

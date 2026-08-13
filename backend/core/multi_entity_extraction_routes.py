@@ -10,7 +10,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, Query
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .database import get_db
 from .auth import get_current_user
@@ -57,14 +57,17 @@ class ExtractEntitiesResponse(BaseModel):
 class DiscoveredEntityResponse(BaseModel):
     """Response model for discovered entity."""
     id: str
-    _discovered_type: str
+    # pydantic v2 treats leading-underscore names as private attributes that
+    # never serialize, so the API silently dropped the discovered type from
+    # every response. Field name `discovered_type` with alias `_discovered_type`
+    # keeps the documented wire key while actually serializing it.
+    discovered_type: str = Field(alias="_discovered_type")
     properties: Dict[str, Any]
     confidence_score: float
     status: str
     created_at: str
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class ApproveEntityRequest(BaseModel):
@@ -190,7 +193,7 @@ async def list_discovered_entities(
     return [
         DiscoveredEntityResponse(
             id=e.id,
-            _discovered_type=e._discovered_type,
+            discovered_type=e._discovered_type,  # type: ignore[call-arg]  # populate_by_name alias field
             properties=e.properties,
             confidence_score=e.confidence_score,
             status=e.status,
