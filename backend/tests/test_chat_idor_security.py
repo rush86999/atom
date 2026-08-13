@@ -176,6 +176,42 @@ class TestLegacySessionOwnershipMigration:
         assert _is_legacy_placeholder_owner("test_user_e2e") is True
         assert _is_legacy_placeholder_owner("real-user-123") is False
 
+    def test_nil_uuid_owner_is_placeholder(self):
+        """Greptile PR #583 follow-up: sessions persisted with the all-zero
+        (nil) UUID owner are ownerless ghost sessions — no real user can ever
+        match that id, so they must be reclaimable by the authenticated caller
+        instead of being loaded at startup and orphaned forever."""
+        from integrations.chat_routes import _is_legacy_placeholder_owner
+        assert _is_legacy_placeholder_owner("00000000-0000-0000-0000-000000000000") is True
+
+    def test_nil_uuid_session_reclaimed_for_authenticated_caller(
+        self, client, victim_session_id
+    ):
+        """A persisted session whose owner is the all-zero UUID must be
+        reclaimed for the authenticated caller (same path as the "anonymous"
+        placeholder), not 403'd as if it belonged to a different real user."""
+        from unittest.mock import patch as _patch
+        from unittest.mock import MagicMock as _MM
+        from core.security_dependencies import get_current_user as _gcu
+
+        ghost_session = {
+            "id": victim_session_id,
+            "user_id": "00000000-0000-0000-0000-000000000000",
+            "title": "ghost chat",
+            "history": [],
+        }
+        with _patch('integrations.chat_routes.chat_orchestrator') as orch:
+            orch.conversation_sessions = {victim_session_id: ghost_session}
+            app.dependency_overrides[_gcu] = lambda: _MM(id="real-user-123")
+            try:
+                response = client.get(
+                    f"/api/chat/sessions/{victim_session_id}?user_id=whatever"
+                )
+                assert response.status_code == 200
+                assert response.json()["user_id"] == "real-user-123"
+            finally:
+                app.dependency_overrides.pop(_gcu, None)
+
     def test_placeholder_session_reclaimed_for_authenticated_caller(
         self, client, victim_session_id
     ):

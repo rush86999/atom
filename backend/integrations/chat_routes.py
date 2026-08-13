@@ -51,6 +51,10 @@ LEGACY_PLACEHOLDER_USER_IDS = frozenset({
     "", "default", "default_user", "anonymous", "anonymous_sales_user", "guest",
     "user", "test_user", "test_user_context", "test_user_agent", "test_user_e2e",
     "test_user_001", "test-user", "test-user-id", "unit_test_user",
+    # Greptile PR #583 follow-up: sessions persisted with the all-zero (nil)
+    # UUID owner are ownerless ghosts — no real user id can ever equal it, so
+    # without this entry they load at startup and stay permanently unclaimable.
+    "00000000-0000-0000-0000-000000000000",
 })
 
 
