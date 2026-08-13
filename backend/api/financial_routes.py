@@ -2,11 +2,12 @@
 Financial Data API Routes
 Handles financial accounts and net worth tracking
 """
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import List, Optional
+from typing import Any, List, Optional
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
@@ -17,6 +18,80 @@ from core.database import get_db
 from core.models import FinancialAccount, FinancialAudit, NetWorthSnapshot, User
 
 router = BaseAPIRouter(prefix="/api/financial", tags=["Financial"])
+
+
+def _account_owner_scope(user_id) -> "Any":
+    """Scope query to accounts owned by the user (ownership lives in
+    account_metadata JSON — the FinancialAccount model has no user column)."""
+    return func.json_extract(FinancialAccount.account_metadata, "$.user_id") == str(user_id)
+
+
+def _account_provider(account: FinancialAccount) -> Optional[str]:
+    """Provider is stored in account_metadata (no dedicated column)."""
+    meta = account.account_metadata or {}
+    return meta.get("provider") if isinstance(meta, dict) else None
+
+
+def _account_user_id(account: FinancialAccount) -> Optional[str]:
+    meta = account.account_metadata or {}
+    return meta.get("user_id") if isinstance(meta, dict) else None
+
+
+def _build_audit(
+    db: Session,
+    *,
+    user_id: str,
+    agent_id: Optional[str],
+    agent_execution_id: Optional[str],
+    account_id: Optional[str],
+    action_type: str,
+    changes: dict,
+    old_values: Optional[dict] = None,
+    new_values: Optional[dict] = None,
+    success: bool,
+    error_message: Optional[str] = None,
+    agent_maturity: Optional[str],
+    governance_check_passed: bool,
+    required_approval: bool,
+    approval_granted: Optional[bool],
+) -> FinancialAudit:
+    """Build a FinancialAudit row against the REAL model schema (the model has
+    no agent_id/action_type/changes/success/... columns — per
+    core/financial_audit_service.py those live in audit_metadata, and
+    operation_type/table_name/record_id hold the action mapping)."""
+    account_ref = account_id or "unknown"
+    try:
+        prev = db.query(FinancialAudit).filter(
+            FinancialAudit.account_id == account_ref
+        ).order_by(FinancialAudit.sequence_number.desc()).first()
+        sequence_number = (prev.sequence_number + 1) if prev and prev.sequence_number else 1
+    except Exception:
+        sequence_number = 1
+
+    return FinancialAudit(
+        user_id=user_id,
+        account_id=account_ref,
+        sequence_number=sequence_number,
+        operation_type={"create": "INSERT", "update": "UPDATE", "delete": "DELETE"}.get(
+            action_type, action_type.upper()
+        ),
+        table_name="financial_accounts",
+        record_id=account_ref,
+        old_values=old_values,
+        new_values=new_values,
+        agent_maturity=agent_maturity,
+        audit_metadata={
+            "agent_id": agent_id,
+            "agent_execution_id": agent_execution_id,
+            "action_type": action_type,
+            "changes": changes,
+            "success": success,
+            "error_message": error_message,
+            "governance_check_passed": governance_check_passed,
+            "required_approval": required_approval,
+            "approval_granted": approval_granted,
+        },
+    )
 
 
 # Request/Response Models
@@ -103,7 +178,7 @@ async def get_net_worth_summary(
     """
     latest = db.query(NetWorthSnapshot).filter(
         NetWorthSnapshot.user_id == current_user.id
-    ).order_by(NetWorthSnapshot.snapshot_date.desc()).first()
+    ).order_by(NetWorthSnapshot.created_at.desc()).first()
 
     if not latest:
         # Return empty summary if no snapshots exist
@@ -115,12 +190,13 @@ async def get_net_worth_summary(
             liabilities=Decimal("0.00")
         )
 
+    snapshot_date = latest.created_at.date() if isinstance(latest.created_at, datetime) else latest.created_at
     return NetWorthSummaryResponse(
         user_id=latest.user_id,
-        snapshot_date=latest.snapshot_date.date() if isinstance(latest.snapshot_date, datetime) else latest.snapshot_date,
+        snapshot_date=snapshot_date,
         net_worth=Decimal(str(latest.net_worth)),
-        assets=Decimal(str(latest.assets)),
-        liabilities=Decimal(str(latest.liabilities))
+        assets=Decimal(str(latest.total_assets)),
+        liabilities=Decimal(str(latest.total_liabilities))
     )
 
 
@@ -136,14 +212,14 @@ async def list_financial_accounts(
     with current balances.
     """
     accounts = db.query(FinancialAccount).filter(
-        FinancialAccount.user_id == current_user.id
+        _account_owner_scope(current_user.id)
     ).order_by(FinancialAccount.created_at.desc()).all()
 
     return [
         FinancialAccountResponse(
             id=account.id,
             account_type=account.account_type,
-            provider=account.provider,
+            provider=_account_provider(account),
             name=account.name,
             balance=Decimal(str(account.balance)),
             currency=account.currency,
@@ -167,7 +243,7 @@ async def get_financial_account(
     """
     account = db.query(FinancialAccount).filter(
         FinancialAccount.id == account_id,
-        FinancialAccount.user_id == current_user.id
+        _account_owner_scope(current_user.id)
     ).first()
 
     if not account:
@@ -175,9 +251,9 @@ async def get_financial_account(
 
     return FinancialAccountDetailResponse(
         id=account.id,
-        user_id=account.user_id,
+        user_id=_account_user_id(account) or str(current_user.id),
         account_type=account.account_type,
-        provider=account.provider,
+        provider=_account_provider(account),
         name=account.name,
         balance=Decimal(str(account.balance)),
         currency=account.currency,
@@ -234,7 +310,8 @@ async def create_financial_account(
 
             if not governance_check_passed:
                 # Create audit entry for failed governance check
-                audit = FinancialAudit(
+                audit = _build_audit(
+                    db,
                     user_id=str(current_user.id),
                     agent_id=agent_id,
                     agent_execution_id=agent_execution_id,
@@ -254,12 +331,15 @@ async def create_financial_account(
                 raise router.permission_denied_error("financial account", "create")
 
     account = FinancialAccount(
-        user_id=current_user.id,
+        tenant_id=getattr(current_user, "tenant_id", None) or "default",
         account_type=request.account_type,
-        provider=request.provider,
-        name=request.name,
+        name=request.name or request.account_type,
         balance=float(request.balance),
-        currency=request.currency
+        currency=request.currency,
+        account_metadata={
+            "user_id": str(current_user.id),
+            "provider": request.provider,
+        }
     )
 
     db.add(account)
@@ -267,7 +347,8 @@ async def create_financial_account(
     db.refresh(account)
 
     # Create audit entry
-    audit = FinancialAudit(
+    audit = _build_audit(
+        db,
         user_id=str(current_user.id),
         agent_id=agent_id,
         agent_execution_id=agent_execution_id,
@@ -286,9 +367,9 @@ async def create_financial_account(
 
     return FinancialAccountDetailResponse(
         id=account.id,
-        user_id=account.user_id,
+        user_id=str(current_user.id),
         account_type=account.account_type,
-        provider=account.provider,
+        provider=_account_provider(account),
         name=account.name,
         balance=Decimal(str(account.balance)),
         currency=account.currency,
@@ -346,7 +427,8 @@ async def update_financial_account(
 
             if not governance_check_passed:
                 # Create audit entry for failed governance check
-                audit = FinancialAudit(
+                audit = _build_audit(
+                    db,
                     user_id=str(current_user.id),
                     agent_id=agent_id,
                     agent_execution_id=agent_execution_id,
@@ -367,7 +449,7 @@ async def update_financial_account(
 
     account = db.query(FinancialAccount).filter(
         FinancialAccount.id == account_id,
-        FinancialAccount.user_id == current_user.id
+        _account_owner_scope(current_user.id)
     ).first()
 
     if not account:
@@ -376,7 +458,7 @@ async def update_financial_account(
     # Track old values for audit
     old_values = {
         "account_type": account.account_type,
-        "provider": account.provider,
+        "provider": _account_provider(account),
         "name": account.name,
         "balance": str(account.balance),
         "currency": account.currency
@@ -388,8 +470,10 @@ async def update_financial_account(
         changes["account_type"] = {"old": account.account_type, "new": request.account_type}
         account.account_type = request.account_type
     if request.provider is not None:
-        changes["provider"] = {"old": account.provider, "new": request.provider}
-        account.provider = request.provider
+        changes["provider"] = {"old": _account_provider(account), "new": request.provider}
+        metadata = dict(account.account_metadata or {})
+        metadata["provider"] = request.provider
+        account.account_metadata = metadata
     if request.name is not None:
         changes["name"] = {"old": account.name, "new": request.name}
         account.name = request.name
@@ -404,7 +488,8 @@ async def update_financial_account(
     db.refresh(account)
 
     # Create audit entry
-    audit = FinancialAudit(
+    audit = _build_audit(
+        db,
         user_id=str(current_user.id),
         agent_id=agent_id,
         agent_execution_id=agent_execution_id,
@@ -424,9 +509,9 @@ async def update_financial_account(
 
     return FinancialAccountDetailResponse(
         id=account.id,
-        user_id=account.user_id,
+        user_id=_account_user_id(account) or str(current_user.id),
         account_type=account.account_type,
-        provider=account.provider,
+        provider=_account_provider(account),
         name=account.name,
         balance=Decimal(str(account.balance)),
         currency=account.currency,
@@ -483,7 +568,8 @@ async def delete_financial_account(
 
             if not governance_check_passed:
                 # Create audit entry for failed governance check
-                audit = FinancialAudit(
+                audit = _build_audit(
+                    db,
                     user_id=str(current_user.id),
                     agent_id=agent_id,
                     agent_execution_id=agent_execution_id,
@@ -504,7 +590,7 @@ async def delete_financial_account(
 
     account = db.query(FinancialAccount).filter(
         FinancialAccount.id == account_id,
-        FinancialAccount.user_id == current_user.id
+        _account_owner_scope(current_user.id)
     ).first()
 
     if not account:
@@ -513,7 +599,7 @@ async def delete_financial_account(
     # Store account info for audit before deletion
     account_info = {
         "account_type": account.account_type,
-        "provider": account.provider,
+        "provider": _account_provider(account),
         "name": account.name,
         "balance": str(account.balance),
         "currency": account.currency
@@ -523,7 +609,8 @@ async def delete_financial_account(
     db.commit()
 
     # Create audit entry
-    audit = FinancialAudit(
+    audit = _build_audit(
+        db,
         user_id=str(current_user.id),
         agent_id=agent_id,
         agent_execution_id=agent_execution_id,
@@ -557,20 +644,25 @@ async def create_net_worth_snapshot(
     """
     snapshot = NetWorthSnapshot(
         user_id=current_user.id,
-        snapshot_date=request.snapshot_date or date.today(),
+        total_assets=float(request.assets),
+        total_liabilities=float(request.liabilities),
         net_worth=float(request.net_worth),
-        assets=float(request.assets),
-        liabilities=float(request.liabilities)
+        currency="USD",
     )
+    if request.snapshot_date is not None:
+        snapshot.created_at = datetime.combine(
+            request.snapshot_date, datetime.min.time(), tzinfo=timezone.utc
+        )
 
     db.add(snapshot)
     db.commit()
     db.refresh(snapshot)
 
+    created_at = snapshot.created_at or datetime.now(timezone.utc)
     return NetWorthSummaryResponse(
         user_id=snapshot.user_id,
-        snapshot_date=snapshot.snapshot_date.date() if isinstance(snapshot.snapshot_date, datetime) else snapshot.snapshot_date,
+        snapshot_date=created_at.date(),
         net_worth=Decimal(str(snapshot.net_worth)),
-        assets=Decimal(str(snapshot.assets)),
-        liabilities=Decimal(str(snapshot.liabilities))
+        assets=Decimal(str(snapshot.total_assets)),
+        liabilities=Decimal(str(snapshot.total_liabilities))
     )

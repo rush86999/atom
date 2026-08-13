@@ -61,7 +61,10 @@ async def verify_messenger_webhook(
         result = messenger_adapter.verify_webhook(mode, token, challenge)
 
         if not result.get('ok'):
-            raise router.permission_denied_error(message="Verification failed", details={"error": result.get('error', 'Unknown error')})
+            raise router.permission_denied_error(
+                action="verify_webhook",
+                details={"error": result.get('error', 'Unknown error')}
+            )
 
         # Return challenge to verify webhook
         return {"hub.challenge": result['challenge']}
@@ -93,7 +96,7 @@ async def handle_messenger_webhook(
         if x_hub_signature and messenger_adapter.app_secret:
             if not messenger_adapter.verify_signature(body, x_hub_signature):
                 logger.warning("Invalid webhook signature")
-                raise router.permission_denied_error(message="Invalid signature")
+                raise router.permission_denied_error(action="verify_webhook_signature")
 
         # Parse JSON body
         import json
@@ -186,7 +189,11 @@ async def get_messenger_user_info(
         result = await messenger_adapter.get_user_info(user_id)
 
         if not result.get('ok'):
-            raise router.not_found_error(message="User not found", details={"error": result.get('error', 'Unknown error')})
+            raise router.not_found_error(
+                resource="User",
+                resource_id=user_id,
+                details={"error": result.get('error', 'Unknown error')}
+            )
 
         return result
 
