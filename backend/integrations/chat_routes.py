@@ -31,6 +31,73 @@ from core.personal_scope import PERSONAL_TENANT_ID as CHAT_ROUTING_TENANT_KEY
 chat_orchestrator = ChatOrchestrator()
 
 
+# ---------------------------------------------------------------------------
+# Legacy session ownership migration
+# ---------------------------------------------------------------------------
+# Chat session IDs are client-generated (``session_<ts>_<rand>``) and persisted
+# in browser localStorage. Before real authentication was enforced, sessions
+# were bound to placeholder user ids ("anonymous", "default_user", "default",
+# test ids, ...) that have no DB User row. Those rows are still loaded into
+# memory from chat_sessions.json at startup, so a legitimate authenticated user
+# opening one got a spurious 403 ("Access denied") instead of their history.
+# A session whose owner is one of these placeholders (or empty) has no real
+# owner to protect — reclaim it for the authenticated caller. Sessions bound to
+# a different *real* user id still return 403 (IDOR protection, see
+# tests/test_chat_idor_security.py).
+LEGACY_PLACEHOLDER_USER_IDS = frozenset({
+    "", "default", "default_user", "anonymous", "anonymous_sales_user", "guest",
+    "user", "test_user", "test_user_context", "test_user_agent", "test_user_e2e",
+    "test_user_001", "test-user", "test-user-id", "unit_test_user",
+})
+
+
+def _is_legacy_placeholder_owner(owner: Optional[str]) -> bool:
+    return (
+        owner is None
+        or not str(owner).strip()
+        or str(owner) in LEGACY_PLACEHOLDER_USER_IDS
+    )
+
+
+def _persist_session_rebind(session_id: str, user_id: str) -> None:
+    """Best-effort: re-point the persisted ChatSession row at the new owner."""
+    try:
+        from core.database import get_db_session
+        from core.models import ChatSession as ChatSessionModel
+        with get_db_session() as db:
+            row = db.query(ChatSessionModel).filter(
+                ChatSessionModel.id == session_id
+            ).first()
+            if row is not None:
+                row.user_id = str(user_id)
+                db.commit()
+    except Exception as e:
+        logger.debug(f"Could not persist session rebind (non-fatal): {e}")
+
+
+def _ensure_session_access(session: Dict[str, Any], current_user: User) -> bool:
+    """Return whether ``current_user`` may access ``session``.
+
+    Legacy placeholder-owned sessions are reclaimed (rebound in the shared
+    in-memory store and persisted) for the caller; a session owned by a
+    different *real* user is refused.
+    """
+    owner = session.get("user_id")
+    if owner is not None and str(owner) != str(current_user.id):
+        if _is_legacy_placeholder_owner(owner):
+            session["user_id"] = str(current_user.id)
+            session_id = session.get("id") or session.get("session_id")
+            if session_id:
+                _persist_session_rebind(str(session_id), str(current_user.id))
+            logger.info(
+                f"Reclaimed legacy chat session {session_id} (was owner={owner!r}) "
+                f"for user {current_user.id}"
+            )
+            return True
+        return False
+    return True
+
+
 # Pydantic Models
 class ChatMessageRequest(BaseModel):
     message: str = Field(..., max_length=32000, description="Chat message from user")
@@ -120,7 +187,7 @@ async def rename_session(
         if not session:
              raise HTTPException(status_code=404, detail="Session not found")
 
-        if session.get("user_id") != current_user.id:
+        if not _ensure_session_access(session, current_user):
              logger.warning(f"Rename denied: Owner {session.get('user_id')} != Requestor {current_user.id}")
              raise HTTPException(status_code=403, detail="Access denied")
 
@@ -171,7 +238,7 @@ async def get_session_details(
             raise HTTPException(status_code=404, detail="Session not found")
 
         # Additional verification: ensure session belongs to the authenticated user
-        if session.get("user_id") != current_user.id:
+        if not _ensure_session_access(session, current_user):
             logger.warning(
                 f"Chat access denied: session {session_id} user mismatch "
                 f"(expected: {current_user.id}, got: {session.get('user_id')})"
@@ -525,7 +592,7 @@ async def get_chat_memory(
 
         session = chat_orchestrator.conversation_sessions[session_id]
         # Verify session belongs to authenticated user
-        if session.get("user_id") != current_user.id:
+        if not _ensure_session_access(session, current_user):
             logger.warning(
                 f"Chat memory access denied: session {session_id} user mismatch "
                 f"(expected: {current_user.id}, got: {session.get('user_id')})"
@@ -570,7 +637,7 @@ async def get_chat_history(
             session = chat_orchestrator.conversation_sessions[session_id]
 
         # Verify session belongs to authenticated user (prevents IDOR)
-        if session.get("user_id") != current_user.id:
+        if not _ensure_session_access(session, current_user):
             logger.warning(
                 f"Chat history access denied: session {session_id} user mismatch "
                 f"(expected: {current_user.id}, got: {session.get('user_id')})"
