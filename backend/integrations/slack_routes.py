@@ -28,6 +28,8 @@ from integrations.integration_helpers import (
     with_governance_check,
 )
 
+logger = logging.getLogger(__name__)
+
 try:
     from slack_sdk import WebClient
     from slack_sdk.errors import SlackApiError
@@ -35,8 +37,6 @@ try:
 except ImportError:
     SLACK_SDK_AVAILABLE = False
     logger.warning("slack_sdk not installed, running in mock mode")
-
-logger = logging.getLogger(__name__)
 
 # Create FastAPI router
 # Auth Type: OAuth2
@@ -238,7 +238,7 @@ async def slack_search(
         try:
             # Import here to avoid circular dependency
             from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
-            atom_ingestion_pipeline.ingest_record("slack", RecordType.COMMUNICATION.value, result)
+            await atom_ingestion_pipeline.ingest_record("slack", RecordType.COMMUNICATION.value, result)
         except Exception as e:
             # Fixed: proper error logging instead of silent pass
             logger.warning(f"Failed to ingest Slack message to memory: {e}")
@@ -365,7 +365,7 @@ async def get_conversation_history(
 
             # Add channel info to message for better context in memory
             msg_with_context = {**msg, "channel": channel}
-            atom_ingestion_pipeline.ingest_record("slack", RecordType.COMMUNICATION.value, msg_with_context)
+            await atom_ingestion_pipeline.ingest_record("slack", RecordType.COMMUNICATION.value, msg_with_context)
         except Exception as e:
             logger.debug(f"Ingestion pipeline not available or failed: {e}")
 

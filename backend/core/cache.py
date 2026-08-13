@@ -132,6 +132,7 @@ class SyncLocalCache:
         self._expire_times: Dict[str, float] = {}
         self.hits = 0
         self.misses = 0
+        self._lock = threading.Lock()
 
     def get(self, key: str) -> Optional[Any]:
         if key not in self._cache:
@@ -489,14 +490,15 @@ class UniversalCacheService:
 
         # Scoped local cache deletion — only delete keys matching this tenant
         async with self.async_local_cache._lock:
-            keys_to_delete = [k for k in self.async_local_cache._store.keys() if k.startswith(tenant_prefix)]
+            keys_to_delete = [k for k in self.async_local_cache._cache.keys() if k.startswith(tenant_prefix)]
             for k in keys_to_delete:
-                self.async_local_cache._store.pop(k, None)
+                self.async_local_cache._cache.pop(k, None)
 
         with self.sync_local_cache._lock:
-            keys_to_delete = [k for k in self.sync_local_cache._store.keys() if k.startswith(tenant_prefix)]
+            keys_to_delete = [k for k in self.sync_local_cache._cache.keys() if k.startswith(tenant_prefix)]
             for k in keys_to_delete:
-                self.sync_local_cache._store.pop(k, None)
+                self.sync_local_cache._cache.pop(k, None)
+                self.sync_local_cache._expire_times.pop(k, None)
 
         if not self.enabled: return 0
 

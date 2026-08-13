@@ -253,8 +253,31 @@ class HealthMonitoringService:
                 UserConnection.status == "active"
             ).count()
 
-            # Get alert counts
-            alerts = await self.get_active_alerts_summary()
+            # Get alert counts. NOTE: previously called
+            # get_active_alerts_summary() here, which calls get_active_alerts()
+            # which calls get_system_metrics() — an infinite mutual recursion
+            # that only terminated by blowing the Python stack limit (~240
+            # nested cycles unwound through except clauses on every call).
+            # Alerts have no persistence layer today, so the in-memory
+            # _alert_cache (populated by future alert-persistence work) is the
+            # non-recursive source.
+            alerts = {
+                "critical": sum(
+                    1 for a in self._alert_cache.values()
+                    if not a.get("acknowledged", False)
+                    and a.get("severity") == "critical"
+                ),
+                "warning": sum(
+                    1 for a in self._alert_cache.values()
+                    if not a.get("acknowledged", False)
+                    and a.get("severity") == "warning"
+                ),
+                "info": sum(
+                    1 for a in self._alert_cache.values()
+                    if not a.get("acknowledged", False)
+                    and a.get("severity") == "info"
+                ),
+            }
 
             # System metrics using psutil
             cpu_usage = 0

@@ -62,7 +62,7 @@ def normalize_provider(provider: str) -> str:
         >>> normalize_provider('openai')
         'openai'
     """
-    if not provider:
+    if not provider or not str(provider).strip():
         return 'unknown'
 
     provider_lower = provider.lower().strip()

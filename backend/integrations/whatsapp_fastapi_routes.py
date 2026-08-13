@@ -97,8 +97,11 @@ async def whatsapp_service_health():
     """Enhanced health check with detailed metrics"""
     try:
         health_data = whatsapp_service_manager.health_check()
-        status_code = 200 if health_data.get("status") == "healthy" else 503
+        if health_data.get("status") != "healthy":
+            raise HTTPException(status_code=503, detail=health_data)
         return health_data
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"WhatsApp service health check error: {str(e)}")
         raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
@@ -210,7 +213,7 @@ async def send_batch_messages(
             "total_recipients": len(request.recipients),
             "success_count": success_count,
             "failure_count": failure_count,
-            "success_rate": (success_count / len(request.recipients)) * 100,
+            "success_rate": (success_count / len(request.recipients)) * 100 if request.recipients else 0.0,
             "results": results,
             "timestamp": datetime.now().isoformat(),
         }

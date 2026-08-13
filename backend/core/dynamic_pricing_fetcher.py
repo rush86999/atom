@@ -281,8 +281,8 @@ class DynamicPricingFetcher:
                     if not model_id:
                         continue
                     pricing[model_id] = {
-                        "input_cost_per_token": float(model.get("input_cost", model.get("prompt", 0))),
-                        "output_cost_per_token": float(model.get("output_cost", model.get("completion", 0))),
+                        "input_cost_per_token": float(model.get("input_cost", model.get("prompt", 0))) / 1_000_000,
+                        "output_cost_per_token": float(model.get("output_cost", model.get("completion", 0))) / 1_000_000,
                         "max_input_tokens": int(model.get("context_length", model.get("context", 200000))),
                         "name": model.get("name", model_id),
                         "source": "opencode-zen",

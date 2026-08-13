@@ -408,10 +408,20 @@ class MemoryManager:
         # 3. Check for expired memories — actually evict them from the dict,
         # not just mark them. Previously EXPIRED entries were kept forever,
         # so _episodic_memory grew unbounded in a long-running agent process.
+        # NOTE: memory.created_at is written naive (datetime.now default) but
+        # callers may pass aware datetimes, so normalize before comparing
+        # against the tz-aware cutoff — a naive-vs-aware comparison raises.
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.episodic_retention_days)
+
+        def _is_expired(memory: MemoryEntry) -> bool:
+            created_at = memory.created_at
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            return created_at < cutoff_date or memory.status == MemoryStatus.EXPIRED
+
         expired_ids = [
             mid for mid, memory in self._episodic_memory.items()
-            if memory.created_at < cutoff_date or memory.status == MemoryStatus.EXPIRED
+            if _is_expired(memory)
         ]
         for mid in expired_ids:
             self._episodic_memory.pop(mid, None)
@@ -599,7 +609,13 @@ class MemoryManager:
             score += access_factor * 0.3
 
         # Factor 2: Recency (recent memories more valuable for learning)
-        days_since_creation = (datetime.now() - memory.created_at).days
+        # NOTE: created_at may be tz-aware from external callers — convert to
+        # local wall time before subtracting from the naive now (a plain
+        # tz-strip skews the delta by the local UTC offset).
+        created_at = memory.created_at
+        if created_at.tzinfo is not None:
+            created_at = created_at.astimezone().replace(tzinfo=None)
+        days_since_creation = (datetime.now() - created_at).days
         recency_factor = max(0, 1.0 - days_since_creation / 30.0)  # 30-day window
         score += recency_factor * 0.2
 
@@ -812,31 +828,37 @@ class ExperienceCalculator:
         recent_intervention_rate = 0.0  # default when no interventions (normal autonomous case)
 
         if total_interventions > 0:
-            # Calculate intervention rate trend (last 10 vs all).
-            # NOTE: divide by len(recent_interventions), not the hardcoded 10
-            # that was here previously — with <10 interventions the rate was
-            # computed against 10 (always too low), distorting graduation gating.
-            recent_interventions = interventions[:10]
+            # Calculate intervention rate over the most recent episodes (last 10
+            # vs all). NOTE: rates must be computed over the episode list, not
+            # the intervention-ONLY sublist — dividing by a list where every
+            # member has intervention_required=True always yields 1.0, which
+            # made the rate binary (0 or 1.0) and distorted graduation gating.
+            recent_memories = memories[:10]
             recent_intervention_rate = (
-                sum(1 for m in recent_interventions if m.intervention_required)
-                / max(len(recent_interventions), 1)
+                sum(1 for m in recent_memories if m.intervention_required)
+                / max(len(recent_memories), 1)
             )
 
-            # Calculate improvement trend (compare first half to second half)
-            mid_point = len(interventions) // 2
-            first_half_rate = sum(1 for m in interventions[:mid_point] if m.intervention_required) / max(mid_point, 1)
-            second_half_rate = sum(1 for m in interventions[mid_point:] if m.intervention_required) / max(len(interventions) - mid_point, 1)
+            # Calculate improvement trend (compare first half to second half).
+            # Same correction: halves are taken from the full episode list so a
+            # genuine improvement (fewer interventions later) is measurable.
+            mid_point = len(memories) // 2
+            first_half_rate = sum(1 for m in memories[:mid_point] if m.intervention_required) / max(mid_point, 1)
+            second_half_rate = sum(1 for m in memories[mid_point:] if m.intervention_required) / max(len(memories) - mid_point, 1)
 
-            if second_half_rate > 0 and first_half_rate > 0:
+            if first_half_rate > 0:
                 improvement_rate = (first_half_rate - second_half_rate) / first_half_rate
                 metrics.intervention_improvement_rate = max(-1.0, min(1.0, improvement_rate))
 
         metrics.recent_intervention_rate = recent_intervention_rate
 
         # Learning consistency (variance in outcomes)
+        # NOTE: the success rate is computed over ALL memories, not just the
+        # successful sublist — dividing a list of successes by itself always
+        # yields 1.0, making the metric meaningless.
         successful_memories = [m for m in memories if m.success_outcome]
         if len(successful_memories) > 10:
-            success_rate = sum(1 for m in successful_memories if m.success_outcome) / len(successful_memories)
+            success_rate = sum(1 for m in memories if m.success_outcome) / len(memories)
             metrics.cross_episode_learning_score = success_rate
         else:
             metrics.cross_episode_learning_score = 0.5  # Default with insufficient data
@@ -1001,11 +1023,15 @@ def simulate_agent_experience(
     """
     memories = []
     for i in range(num_episodes):
-        # Simulate intervention
-        requires_intervention = i % int(1.0 / intervention_rate) if intervention_rate > 0 else False
+        # Simulate intervention — every Nth episode (N = 1/rate) requires one.
+        # NOTE: compare against 0 to produce a real boolean; the previous code
+        # stored the raw remainder (i % N), which is truthy for i % N != 0 —
+        # inverting the rate (65% interventions at rate 0.3) and leaking an
+        # int into intervention_required.
+        requires_intervention = (i % int(1.0 / intervention_rate) == 0) if intervention_rate > 0 else False
 
-        # Simulate outcome
-        success_outcome = not requires_intervention or (i % 3 != 0)  # 2/3 success rate with intervention
+        # Simulate outcome — 2/3 of episodes succeed; intervention episodes fail
+        success_outcome = not requires_intervention or (i % 3 != 0)
 
         memory = create_test_memory(
             agent_id=agent_id,

@@ -15,7 +15,12 @@ from dataclasses import dataclass, asdict
 from urllib.parse import urljoin, urlencode
 from enum import Enum
 
-import asyncpg
+# asyncpg is an optional dependency (used only as the typed DB pool carrier);
+# when absent the service degrades gracefully to a plain HTTP client.
+try:
+    import asyncpg
+except ImportError:
+    asyncpg = None  # type: ignore[assignment]
 
 # SOQL single-quote escaping (defends against SOQL injection).
 from integrations.salesforce_service import escape_soql_string
@@ -70,7 +75,7 @@ class SalesforceAPIError(Exception):
 class SalesforceCoreService:
     """Enterprise-grade Salesforce API service"""
     
-    def __init__(self, db_pool: asyncpg.Pool = None):
+    def __init__(self, db_pool: Optional[Any] = None):
         self.db_pool = db_pool
         self.session = requests.Session()
         self.session.timeout = 30
@@ -692,7 +697,7 @@ class SalesforceCoreService:
 # Global Salesforce service instance
 salesforce_core_service = None
 
-def get_salesforce_core_service(db_pool: asyncpg.Pool = None) -> SalesforceCoreService:
+def get_salesforce_core_service(db_pool: Optional[Any] = None) -> SalesforceCoreService:
     """Get or create Salesforce service instance"""
     global salesforce_core_service
     if salesforce_core_service is None:

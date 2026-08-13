@@ -421,7 +421,7 @@ def get_config() -> ATOMConfig:
 
 def load_config(config_path: str = None) -> ATOMConfig:
     """Load configuration from file or environment"""
-    global config
+    global config, settings
 
     if config_path and os.path.exists(config_path):
         config = ATOMConfig.from_file(config_path)
@@ -430,6 +430,11 @@ def load_config(config_path: str = None) -> ATOMConfig:
         config = ATOMConfig.from_env()
         logger.info("Configuration loaded from environment variables")
 
+    # Keep the `settings` alias (bound at module import) in sync — without
+    # this, `settings` keeps pointing at the import-time instance after a
+    # reload, so `from core.config import settings` and `get_config()` see
+    # different objects.
+    settings = config
     return config
 
 def setup_logging(config: LoggingConfig = None) -> None:

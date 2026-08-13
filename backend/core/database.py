@@ -101,10 +101,19 @@ if "sqlite" in DATABASE_URL:
     }
     if ":memory:" in DATABASE_URL:
         poolclass = StaticPool
+        pool_size = None
+        max_overflow = None
     else:
-        poolclass = None
-    pool_size = None
-    max_overflow = None
+        # File-backed SQLite (dev/Personal Edition + e2e runs against the
+        # live backend): the default QueuePool (size 5, overflow 10, 30s
+        # timeout) exhausts under bursty sync-endpoint load (login audits,
+        # canvas CRUD, notifications + layout integration polls on every
+        # page load), wedging the whole backend mid-suite
+        # ("QueuePool limit ... reached, connection timed out"). Use a
+        # generous pool with a longer checkout timeout for dev SQLite.
+        poolclass = "QueuePool"
+        pool_size = 50
+        max_overflow = 50
 elif "postgresql" in DATABASE_URL:
     # PostgreSQL configuration
     env = os.getenv("ENVIRONMENT", "development")
@@ -141,12 +150,14 @@ engine_kwargs = {
     "echo": os.getenv("SQL_ECHO", "false").lower() == "true"
 }
 
-# Add pool configuration for PostgreSQL
+# Add pool configuration (QueuePool is the SQLAlchemy default when these
+# are set). SQLite file-backed (dev/e2e) uses a generous pool: see the
+# sqlite branch above.
 if pool_size:
     engine_kwargs.update({
         "pool_size": pool_size,
         "max_overflow": max_overflow,
-        "pool_timeout": 30,
+        "pool_timeout": 60,
         "pool_recycle": 3600
     })
 

@@ -247,15 +247,23 @@ class LLMService:
                 agent_id=agent_id,
                 user_id=user_id
             )
-            if "temperature" in params and "temperature" not in kwargs:
+            # Personalization applies only when the caller did not pass an
+            # explicit temperature. "temperature" never reaches kwargs here —
+            # the named parameter consumes it — so a caller-supplied value is
+            # detected by differing from the 0.7 default.
+            if "temperature" in params and temperature == 0.7:
                 temperature = params["temperature"]
+
+        # turn_index is passed positionally below; pop it from kwargs to avoid
+        # a duplicate-keyword TypeError when callers pass it explicitly.
+        turn_index = kwargs.pop("turn_index", 0)
 
         return await handler.generate_response(
             prompt=prompt,
             system_instruction=system_instruction,
             model_type=model,
             temperature=temperature,
-            turn_index=kwargs.get("turn_index", 0),
+            turn_index=turn_index,
             **kwargs
         )
 
@@ -293,12 +301,15 @@ class LLMService:
                 prompt = content  # Use the last user message as prompt for now
 
         # Call underlying handler
+        # turn_index is passed positionally below; pop it from kwargs to avoid
+        # a duplicate-keyword TypeError when callers pass it explicitly.
+        turn_index = kwargs.pop("turn_index", 0)
         response_text = await handler.generate_response(
             prompt=prompt,
             system_instruction=system_instruction,
             model_type=model,
             temperature=temperature,
-            turn_index=kwargs.get("turn_index", 0),
+            turn_index=turn_index,
             **kwargs
         )
 
@@ -343,14 +354,21 @@ class LLMService:
         # Personalization
         agent_id = kwargs.get("agent_id")
         user_id = kwargs.get("user_id")
+        explicit_temperature = kwargs.pop("temperature", None)
         if agent_id and self.continuous_learning:
             params = self.continuous_learning.get_personalized_parameters(
                 tenant_id=workspace_id or tenant_id or self._workspace_id,
                 agent_id=agent_id,
                 user_id=user_id
             )
-            if "temperature" in params and "temperature" not in kwargs:
+            # Personalization applies only when the caller did not pass an
+            # explicit temperature (temperature is a **kwargs entry here).
+            if "temperature" in params and explicit_temperature is None:
                 kwargs["temperature"] = params["temperature"]
+
+        # Re-forward the caller's explicit temperature (popped above).
+        if explicit_temperature is not None:
+            kwargs["temperature"] = explicit_temperature
 
         return await handler.generate_structured_response(
             prompt=prompt,
@@ -359,93 +377,6 @@ class LLMService:
             task_type=model,
             **kwargs
         )
-
-    async def stream_completion(
-        self,
-        messages: List[Dict],
-        model: str = "auto",
-        temperature: float = 0.7,
-        max_tokens: int = 1000,
-        workspace_id: Optional[str] = None,
-        tenant_id: Optional[str] = None,
-        agent_id: Optional[str] = None,
-        **kwargs
-    ) -> AsyncGenerator[str, None]:
-        """Stream LLM responses token-by-token."""
-        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
-        
-        # Resolve model if needed
-        if model in ["auto", "fast", "quality", "balanced"]:
-            last_user_msg = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
-            complexity = handler.analyze_query_complexity(last_user_msg)
-            provider_id, resolved_model = handler.get_optimal_provider(complexity)
-        else:
-            resolved_model = model
-            # In OS, we might need to infer provider_id or pass auto
-            provider_id = "auto" 
-            # Check if there's a better way to infer provider_id in OS BYOKHandler
-            # OS BYOKHandler.stream_completion requires provider_id
-
-        async for token in handler.stream_completion(
-            messages=messages,
-            model=resolved_model,
-            provider_id=provider_id if provider_id != "auto" else "deepseek", # Default to deepseek if auto
-            temperature=temperature,
-            agent_id=agent_id,
-            db=self._db,
-            **kwargs
-        ):
-            yield token
-
-    async def generate_embedding(
-        self,
-        text: str,
-        model: str = "text-embedding-3-small",
-        workspace_id: Optional[str] = None,
-        tenant_id: Optional[str] = None,
-        **kwargs
-    ) -> List[float]:
-        """Generate a single embedding via BYOKHandler."""
-        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
-        
-        # Use underlying handler's client
-        provider_id = self.get_provider(model).value
-        client = handler.async_clients.get(provider_id) or handler.clients.get(provider_id)
-        
-        if not client:
-            raise ValueError(f"No client found for provider {provider_id}")
-
-        # Note: In OS, BYOKHandler doesn't have a direct embed_text yet, 
-        # so we use the client directly but through the handler's managed session.
-        response = await client.embeddings.create(
-            input=text,
-            model=model,
-            **kwargs
-        )
-        return response.data[0].embedding
-
-    async def generate_embeddings_batch(
-        self,
-        texts: List[str],
-        model: str = "text-embedding-3-small",
-        workspace_id: Optional[str] = None,
-        tenant_id: Optional[str] = None,
-        **kwargs
-    ) -> List[List[float]]:
-        """Generate batch embeddings via BYOKHandler."""
-        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
-        provider_id = self.get_provider(model).value
-        client = handler.async_clients.get(provider_id) or handler.clients.get(provider_id)
-
-        if not client:
-            raise ValueError(f"No client found for provider {provider_id}")
-
-        response = await client.embeddings.create(
-            input=texts,
-            model=model,
-            **kwargs
-        )
-        return [item.embedding for item in response.data]
 
     async def generate_speech(
         self,
@@ -471,29 +402,6 @@ class LLMService:
             **kwargs
         )
         return response.read()
-
-    async def transcribe_audio(
-        self,
-        file: Any,
-        model: str = "whisper-1",
-        workspace_id: Optional[str] = None,
-        tenant_id: Optional[str] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
-        """Transcribe audio via BYOKHandler (OpenAI Whisper)."""
-        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
-        provider_id = self.get_provider(model).value
-        client = handler.async_clients.get(provider_id) or handler.clients.get(provider_id)
-
-        if not client:
-            raise ValueError(f"No client found for provider {provider_id}")
-
-        response = await client.audio.transcriptions.create(
-            model=model,
-            file=file,
-            **kwargs
-        )
-        return {"text": response.text}
 
     def estimate_tokens(self, text: Union[str, List[Dict[str, str]]], model: str = "gpt-4o-mini") -> int:
         """Estimate tokens for text or a list of chat messages."""

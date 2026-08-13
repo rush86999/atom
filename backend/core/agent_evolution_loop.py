@@ -700,7 +700,8 @@ class AgentEvolutionLoop:
     ) -> float:
         scores = [a.confidence_score for a in group]
         mean = sum(scores) / len(scores) if scores else 0.5
-        std = math.sqrt(sum((s - mean) ** 2 for s in scores) / len(scores)) or 1e-6
+        std = (math.sqrt(sum((s - mean) ** 2 for s in scores) / len(scores))
+               if scores else 0.0) or 1e-6
         novelty = min(1.0, abs(agent.confidence_score - mean) / (2 * std))
         return PERF_WEIGHT * agent.confidence_score + NOVELTY_WEIGHT * novelty
 

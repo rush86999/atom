@@ -279,6 +279,60 @@ async def get_cards(
         )
 
 
+@router.post("/cards/create")
+async def create_card(
+    user_id: str = Body(..., description="User ID"),
+    name: str = Body(..., description="Card name"),
+    id_list: str = Body(..., description="List ID"),
+    desc: str = Body("", description="Card description"),
+    due: str = Body(None, description="Due date"),
+    labels: List[str] = Body([], description="Label IDs"),
+    card_type: str = Body("task", description="Card type (task, bug, feature, etc.)"),
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new card (requires authentication)"""
+    try:
+        logger.info(f"Creating card '{name}' in list {id_list} for user {user_id}")
+
+        # Map card type to appropriate labels/formatting
+        card_data = {
+            "name": name,
+            "desc": desc,
+            "idList": id_list,
+            "due": due,
+            "idLabels": labels,
+        }
+
+        # Add card type specific formatting (TrelloService has no card_types
+        # attribute; guard so create_card never crashes on the real service)
+        card_types = getattr(trello_service, "card_types", {})
+        if card_type in card_types:
+            formatted_name = f"[{card_types[card_type].upper()}] {name}"
+            card_data["name"] = formatted_name
+
+        card = await trello_service.create_card(user_id=user_id, card_data=card_data)
+
+        return {
+            "ok": True,
+            "data": {
+                "card": card,
+                "message": f"Card '{name}' created successfully",
+                "user_id": user_id,
+                "timestamp": datetime.now().isoformat(),
+            },
+        }
+    except Exception as e:
+        logger.error(f"Failed to create card for user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "ok": False,
+                "error": f"Failed to create card: {str(e)}",
+                "user_id": user_id,
+            },
+        )
+
+
 @router.post("/cards/{card_id}")
 async def get_card(
     card_id: str,
@@ -313,58 +367,6 @@ async def get_card(
                 "ok": False,
                 "error": f"Failed to fetch card: {str(e)}",
                 "card_id": card_id,
-                "user_id": user_id,
-            },
-        )
-
-
-@router.post("/cards/create")
-async def create_card(
-    user_id: str = Body(..., description="User ID"),
-    name: str = Body(..., description="Card name"),
-    id_list: str = Body(..., description="List ID"),
-    desc: str = Body("", description="Card description"),
-    due: str = Body(None, description="Due date"),
-    labels: List[str] = Body([], description="Label IDs"),
-    card_type: str = Body("task", description="Card type (task, bug, feature, etc.)"),
-    current_user: User = Depends(get_current_user)
-):
-    """Create a new card (requires authentication)"""
-    try:
-        logger.info(f"Creating card '{name}' in list {id_list} for user {user_id}")
-
-        # Map card type to appropriate labels/formatting
-        card_data = {
-            "name": name,
-            "desc": desc,
-            "idList": id_list,
-            "due": due,
-            "idLabels": labels,
-        }
-
-        # Add card type specific formatting
-        if card_type in trello_service.card_types:
-            formatted_name = f"[{trello_service.card_types[card_type].upper()}] {name}"
-            card_data["name"] = formatted_name
-
-        card = await trello_service.create_card(user_id=user_id, card_data=card_data)
-
-        return {
-            "ok": True,
-            "data": {
-                "card": card,
-                "message": f"Card '{name}' created successfully",
-                "user_id": user_id,
-                "timestamp": datetime.now().isoformat(),
-            },
-        }
-    except Exception as e:
-        logger.error(f"Failed to create card for user {user_id}: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "ok": False,
-                "error": f"Failed to create card: {str(e)}",
                 "user_id": user_id,
             },
         )
@@ -426,7 +428,7 @@ async def update_card(
 @router.delete("/cards/{card_id}")
 async def delete_card(
     card_id: str,
-    user_id: str = Body(..., description="User ID"),
+    user_id: str = Body(embed=True, description="User ID"),
     current_user: User = Depends(get_current_user)
 ):
     """Delete a card (requires authentication)"""
@@ -507,7 +509,7 @@ async def get_members(
 
 @router.post("/user/profile")
 async def get_user_profile(
-    user_id: str = Body(..., description="User ID"),
+    user_id: str = Body(embed=True, description="User ID"),
     current_user: User = Depends(get_current_user)
 ):
     """Get current user profile (requires authentication)"""
