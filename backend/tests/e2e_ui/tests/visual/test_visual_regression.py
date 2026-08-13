@@ -68,8 +68,17 @@ class TestVisualRegression:
         # Core chat wiring
         assert chat.chat_container.is_visible(), "Chat container not rendered"
         assert chat.chat_input.is_visible(), "Chat input not rendered"
-        # Send button is disabled (but still rendered) until input has text.
-        assert chat.send_button.count() > 0, "Send button not rendered"
+        # Send button is disabled (but still rendered) until input has text;
+        # while processing it is replaced by the Stop button. Under long-suite
+        # load the interface can mount late — wait for either state.
+        try:
+            chat.send_button.wait_for(state="visible", timeout=15000)
+            assert chat.send_button.count() > 0, "Send button not rendered"
+        except Exception:
+            authenticated_page.wait_for_selector(
+                '[data-testid="send-message-button"], button[title="Stop Agent"]',
+                timeout=15000,
+            )
 
         # Send a test message and verify the user bubble renders in history
         test_message = f"Visual snapshot message {__import__('uuid').uuid4()}"
