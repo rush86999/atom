@@ -155,9 +155,14 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     }
                 }
             } else if (res && res.status === 403) {
-                // Stale session id owned by another account — drop it so the
-                // widget stops hitting the same 403 on every open.
+                // Stale session id owned by another account — drop it and
+                // switch to a fresh session so subsequent sends don't keep
+                // reusing the rejected id (removing only localStorage left
+                // sessionId state pointing at the dead id until reload).
                 localStorage.removeItem('atom_chat_session_id');
+                const freshSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                setSessionId(freshSessionId);
+                localStorage.setItem('atom_chat_session_id', freshSessionId);
             }
             setMessages([welcomeMsg]);
         } catch {

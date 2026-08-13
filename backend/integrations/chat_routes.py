@@ -43,7 +43,10 @@ chat_orchestrator = ChatOrchestrator()
 # A session whose owner is one of these placeholders (or empty) has no real
 # owner to protect — reclaim it for the authenticated caller. Sessions bound to
 # a different *real* user id still return 403 (IDOR protection, see
-# tests/test_chat_idor_security.py).
+# tests/test_chat_idor_security.py). Reclamation is durably persisted to BOTH
+# the DB row and the startup JSON file and fails closed if it cannot be — an
+# unpersisted rebind would revert to placeholder ownership on restart and let
+# the session be claimed by a different caller.
 LEGACY_PLACEHOLDER_USER_IDS = frozenset({
     "", "default", "default_user", "anonymous", "anonymous_sales_user", "guest",
     "user", "test_user", "test_user_context", "test_user_agent", "test_user_e2e",
@@ -59,36 +62,51 @@ def _is_legacy_placeholder_owner(owner: Optional[str]) -> bool:
     )
 
 
-def _persist_session_rebind(session_id: str, user_id: str) -> None:
-    """Best-effort: re-point the persisted ChatSession row at the new owner."""
+def _persist_session_rebind(session_id: str, user_id: str) -> bool:
+    """Durably re-point a reclaimed legacy session at its new owner.
+
+    Delegates to the session manager so BOTH persistence stores are updated:
+    the DB row (if present) and the startup JSON file (the store the
+    orchestrator reloads at boot). A rebind that only touches memory would
+    revert to placeholder ownership after a restart and expose the session to
+    re-claiming (Greptile PR #582 finding). Returns True if the rebind was
+    durably recorded in at least one store.
+    """
     try:
-        from core.database import get_db_session
-        from core.models import ChatSession as ChatSessionModel
-        with get_db_session() as db:
-            row = db.query(ChatSessionModel).filter(
-                ChatSessionModel.id == session_id
-            ).first()
-            if row is not None:
-                row.user_id = str(user_id)
-                db.commit()
+        manager = chat_orchestrator.session_manager
+        if manager is not None:
+            return bool(manager.rebind_session_owner(session_id, user_id))
     except Exception as e:
-        logger.debug(f"Could not persist session rebind (non-fatal): {e}")
+        logger.warning(f"Could not persist session rebind: {e}")
+    return False
 
 
 def _ensure_session_access(session: Dict[str, Any], current_user: User) -> bool:
     """Return whether ``current_user`` may access ``session``.
 
     Legacy placeholder-owned sessions are reclaimed (rebound in the shared
-    in-memory store and persisted) for the caller; a session owned by a
-    different *real* user is refused.
+    in-memory store and durably persisted) for the caller; a session owned by
+    a different *real* user is refused. Reclamation fails closed: if the
+    rebind cannot be recorded durably, access is refused and the in-memory
+    rebind is rolled back, so the session can never revert to a claimable
+    placeholder after a restart.
     """
     owner = session.get("user_id")
     if owner is not None and str(owner) != str(current_user.id):
         if _is_legacy_placeholder_owner(owner):
             session["user_id"] = str(current_user.id)
             session_id = session.get("id") or session.get("session_id")
-            if session_id:
-                _persist_session_rebind(str(session_id), str(current_user.id))
+            if session_id and not _persist_session_rebind(str(session_id), str(current_user.id)):
+                # Roll back the in-memory rebind and refuse access: without a
+                # durable transfer the session reverts to placeholder ownership
+                # after a restart and could be claimed by a different caller.
+                session["user_id"] = owner
+                logger.warning(
+                    f"Refused to reclaim legacy chat session {session_id} "
+                    f"(was owner={owner!r}) for user {current_user.id}: "
+                    f"rebind could not be persisted durably"
+                )
+                return False
             logger.info(
                 f"Reclaimed legacy chat session {session_id} (was owner={owner!r}) "
                 f"for user {current_user.id}"

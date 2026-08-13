@@ -200,3 +200,119 @@ class TestLegacySessionOwnershipMigration:
                 assert response.json()["user_id"] == "real-user-123"
             finally:
                 app.dependency_overrides.pop(_gcu, None)
+
+
+class TestLegacySessionMigrationDurability:
+    """Greptile PR #582 follow-up: the legacy-session reclamation must persist
+    the new owner durably (DB row AND the startup JSON file the orchestrator
+    reloads at boot) and must fail closed when it cannot, otherwise the
+    session reverts to placeholder ownership after a restart and can be
+    claimed by a different caller."""
+
+    def _file_manager(self, sessions_file: str):
+        from unittest.mock import patch as _patch
+        from core.chat_session_manager import ChatSessionManager
+
+        with _patch.dict("os.environ", {"ATOM_CHAT_STORAGE": "file"}):
+            return ChatSessionManager(sessions_file=sessions_file)
+
+    def test_reclaim_persists_owner_to_file_store(self, tmp_path, victim_session_id):
+        """Reclaiming a file-backed legacy session must rewrite the JSON store
+        (the source the orchestrator reloads at startup), not just memory."""
+        from unittest.mock import patch as _patch, MagicMock as _MM
+        from integrations.chat_routes import _ensure_session_access
+
+        sessions_file = str(tmp_path / "sessions.json")
+        manager = self._file_manager(sessions_file)
+        manager.create_session(user_id="anonymous", session_id=victim_session_id)
+
+        legacy_session = {
+            "id": victim_session_id,
+            "session_id": victim_session_id,
+            "user_id": "anonymous",
+            "history": [],
+        }
+        with _patch("integrations.chat_routes.chat_orchestrator") as orch:
+            orch.session_manager = manager
+            assert _ensure_session_access(legacy_session, _MM(id="real-user-abc")) is True
+
+        persisted = manager._load_sessions_file()
+        record = next(s for s in persisted if s["session_id"] == victim_session_id)
+        assert record["user_id"] == "real-user-abc"
+
+    def test_reclaimed_session_blocked_for_second_user(
+        self, client, tmp_path, victim_session_id
+    ):
+        """After a durable reclaim, a restart must not re-expose the session:
+        a second caller presenting the same id gets 403."""
+        from unittest.mock import patch as _patch, MagicMock as _MM
+        from core.security_dependencies import get_current_user as _gcu
+        from integrations.chat_routes import _ensure_session_access
+
+        sessions_file = str(tmp_path / "sessions.json")
+        manager = self._file_manager(sessions_file)
+        manager.create_session(user_id="anonymous", session_id=victim_session_id)
+
+        legacy_session = {
+            "id": victim_session_id,
+            "session_id": victim_session_id,
+            "user_id": "anonymous",
+            "history": [],
+        }
+        with _patch("integrations.chat_routes.chat_orchestrator") as orch:
+            orch.session_manager = manager
+            assert _ensure_session_access(legacy_session, _MM(id="user-A")) is True
+
+        # Simulate a restart: fresh manager reloading the same JSON file.
+        fresh = self._file_manager(sessions_file)
+        reloaded = {
+            s["session_id"]: {"id": s["session_id"], "user_id": s["user_id"], "history": []}
+            for s in fresh._load_sessions_file()
+        }
+        assert reloaded[victim_session_id]["user_id"] == "user-A"
+
+        # User B must NOT be able to reclaim it now.
+        with _patch("integrations.chat_routes.chat_orchestrator") as orch:
+            orch.conversation_sessions = reloaded
+            orch.session_manager.get_session.return_value = reloaded[victim_session_id]
+            app.dependency_overrides[_gcu] = lambda: _MM(id="user-B")
+            try:
+                response = client.get(
+                    f"/api/chat/sessions/{victim_session_id}?user_id=whatever"
+                )
+                assert response.status_code == 403
+            finally:
+                app.dependency_overrides.pop(_gcu, None)
+
+    def test_reclaim_fails_closed_when_rebind_cannot_persist(
+        self, client, tmp_path, victim_session_id
+    ):
+        """If the durable rebind fails, reclamation must be refused (403) and
+        the in-memory session must not stay rebound to the caller."""
+        from unittest.mock import patch as _patch, MagicMock as _MM
+        from core.security_dependencies import get_current_user as _gcu
+
+        sessions_file = str(tmp_path / "sessions.json")
+        manager = self._file_manager(sessions_file)
+        manager.create_session(user_id="anonymous", session_id=victim_session_id)
+
+        legacy_session = {
+            "id": victim_session_id,
+            "session_id": victim_session_id,
+            "user_id": "anonymous",
+            "history": [],
+        }
+        with _patch.object(manager, "_save_sessions_file", side_effect=OSError("disk full")):
+            with _patch("integrations.chat_routes.chat_orchestrator") as orch:
+                orch.conversation_sessions = {victim_session_id: legacy_session}
+                orch.session_manager = manager
+                app.dependency_overrides[_gcu] = lambda: _MM(id="user-C")
+                try:
+                    response = client.get(
+                        f"/api/chat/sessions/{victim_session_id}?user_id=whatever"
+                    )
+                    assert response.status_code == 403
+                    # In-memory rebind rolled back — no half-claimed state.
+                    assert legacy_session["user_id"] == "anonymous"
+                finally:
+                    app.dependency_overrides.pop(_gcu, None)

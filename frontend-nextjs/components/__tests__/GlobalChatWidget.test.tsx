@@ -295,6 +295,44 @@ describe('GlobalChatWidget', () => {
     expect(screen.getByText('Old answer')).toBeInTheDocument();
   });
 
+  it('drops a 403 stale session id and switches to a fresh session', async () => {
+    // History for the persisted id is rejected (owned by another account).
+    server.use(
+      rest.get('/api/chat/history/:sid', (req, res, ctx) =>
+        res(ctx.status(403), ctx.json({ detail: 'Access denied' }))
+      )
+    );
+    localStorage.setItem('atom_chat_session_id', 'stale-sess-403');
+
+    render(<GlobalChatWidget />);
+    openChat();
+    await screen.findByText(/Hi! I am your Universal ATOM Assistant/);
+
+    // The stale id must be gone from storage AND from component state: the
+    // next send must carry a fresh session id, not the rejected one.
+    await waitFor(() => {
+      const stored = localStorage.getItem('atom_chat_session_id');
+      expect(stored).toBeTruthy();
+      expect(stored).toMatch(/^session_/);
+      expect(stored).not.toBe('stale-sess-403');
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/Ask ATOM to schedule meetings/), {
+      target: { value: 'Hi again' },
+    });
+    fireEvent.keyDown(screen.getByPlaceholderText(/Ask ATOM to schedule meetings/), {
+      key: 'Enter',
+    });
+
+    await waitFor(() => {
+      expect(postedMessages).toHaveLength(1);
+    });
+    const body = postedMessages[0] as any;
+    expect(body.session_id).toMatch(/^session_/);
+    expect(body.session_id).not.toBe('stale-sess-403');
+    expect(body.session_id).toBe(localStorage.getItem('atom_chat_session_id'));
+  });
+
   it('starts a new chat session on the New Chat button', async () => {
     render(<GlobalChatWidget />);
     openChat();

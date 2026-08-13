@@ -111,8 +111,8 @@ class ChatSessionManager:
                 
         return self._load_sessions_file()
     
-    def _save_sessions_file(self, sessions: List[Dict[str, Any]]):
-        """Save all sessions to file atomically"""
+    def _save_sessions_file(self, sessions: List[Dict[str, Any]]) -> bool:
+        """Save all sessions to file atomically. Returns True on success."""
         try:
             # Atomic write pattern
             temp_file = self.sessions_file + ".tmp"
@@ -121,8 +121,10 @@ class ChatSessionManager:
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(temp_file, self.sessions_file)
+            return True
         except Exception as e:
             logger.error(f"Failed to save sessions file: {e}")
+            return False
 
     def create_session(
         self,
@@ -368,6 +370,47 @@ class ChatSessionManager:
         user_sessions.sort(key=lambda x: x.get('last_active', ''), reverse=True)
         return user_sessions[:limit]
     
+    def rebind_session_owner(self, session_id: str, new_user_id: str) -> bool:
+        """Durably re-point a legacy session at its reclaiming user.
+
+        Updates BOTH persistence stores — the DB row (if present) and the
+        startup JSON file — so the rebind survives a restart. The orchestrator
+        reloads sessions from the file at boot, so a memory-only (or DB-only)
+        rebind would revert the session to placeholder ownership and make it
+        claimable by a different caller again (Greptile review of PR #582).
+        Returns True if the new owner was durably recorded in at least one
+        store.
+        """
+        db_updated = False
+        file_updated = False
+
+        # 1. Database row (if the session lives in the DB).
+        if self.use_db:
+            try:
+                with get_db_session() as db:
+                    row = db.query(ChatSession).filter(
+                        ChatSession.id == session_id
+                    ).first()
+                    if row is not None:
+                        row.user_id = str(new_user_id)
+                        db.commit()
+                        db_updated = True
+            except Exception as e:
+                logger.warning(f"DB rebind failed for session {session_id}: {e}")
+
+        # 2. JSON file record (the store the orchestrator reloads at startup).
+        try:
+            sessions = self._load_sessions_file()
+            for s in sessions:
+                if s.get("session_id") == session_id:
+                    s["user_id"] = str(new_user_id)
+                    file_updated = self._save_sessions_file(sessions)
+                    break
+        except Exception as e:
+            logger.warning(f"File rebind failed for session {session_id}: {e}")
+
+        return db_updated or file_updated
+
     def delete_session(self, session_id: str) -> bool:
         """Delete a session"""
         deleted = False
