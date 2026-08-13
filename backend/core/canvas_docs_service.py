@@ -352,12 +352,17 @@ class DocumentationCanvasService:
             comments = metadata.get("comments", [])
 
             # Find and resolve comment
+            found = False
             for comment in comments:
                 if comment["comment_id"] == comment_id:
                     comment["resolved"] = True
                     comment["resolved_by"] = user_id
                     comment["resolved_at"] = datetime.now().isoformat()
+                    found = True
                     break
+
+            if not found:
+                return {"success": False, "error": "Comment not found"}
 
             metadata["comments"] = comments
 

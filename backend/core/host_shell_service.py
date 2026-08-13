@@ -34,9 +34,6 @@ logger = logging.getLogger(__name__)
 # Maximum execution timeout (5 minutes)
 MAX_TIMEOUT_SECONDS = 300
 
-# Maximum execution timeout (5 minutes)
-MAX_TIMEOUT_SECONDS = 300
-
 
 class HostShellService:
     """
@@ -467,6 +464,11 @@ class HostShellService:
         Returns:
             Dict with exit_code, stdout, stderr, timed_out, session_id
         """
+        # Enforce the 5-minute maximum: MAX_TIMEOUT_SECONDS is a hard cap,
+        # not just a default. A caller passing timeout=3600 must be clamped
+        # to the documented governance limit (Bug: cap was never applied).
+        timeout = min(timeout, MAX_TIMEOUT_SECONDS)
+
         # Get agent maturity level for audit
         agent = db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id

@@ -131,6 +131,10 @@ class IMGovernanceService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Invalid webhook signature"
                 )
+        except HTTPException:
+            # Preserve the specific 403 (invalid signature) instead of letting
+            # the generic handler below replace it with a vague message.
+            raise
         except Exception as e:
             logger.error(f"Error verifying {platform} webhook: {e}")
             raise HTTPException(
@@ -279,6 +283,11 @@ class IMGovernanceService:
                     signature_valid=signature_valid,
                     governance_check_passed=governance_check_passed,
                     agent_maturity_level=agent_maturity_level,
+                    status=(
+                        "rate_limited"
+                        if rate_limited
+                        else ("success" if success else "error")
+                    ),
                     timestamp=datetime.now(timezone.utc)
                 )
 

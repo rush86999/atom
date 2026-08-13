@@ -304,12 +304,30 @@ class NpmDependencyScanner:
                             vuln_list = vuln_info if isinstance(vuln_info, list) else []
 
                         for vuln in vuln_list:
+                            # Real npm audit JSON stores cwe + title inside the
+                            # `via` array (advisory objects), not at the top
+                            # level — fall back to via[0] so cve_id/advisory are
+                            # never silently "UNKNOWN"/"No description".
+                            via = vuln.get("via") or []
+                            first_via = (
+                                via[0]
+                                if isinstance(via, list) and via and isinstance(via[0], dict)
+                                else {}
+                            )
+                            cve_id = vuln.get("cwe") or first_via.get("cwe") or "UNKNOWN"
+                            if isinstance(cve_id, list):
+                                cve_id = cve_id[0] if cve_id else "UNKNOWN"
+                            advisory = (
+                                vuln.get("title")
+                                or first_via.get("title")
+                                or "No description"
+                            )
                             vulnerabilities.append({
-                                "cve_id": vuln.get("cwe", "UNKNOWN"),
+                                "cve_id": cve_id,
                                 "severity": vuln.get("severity", "UNKNOWN"),
                                 "package": pkg_name,
                                 "affected_versions": [vuln.get("range", [])] if not isinstance(vuln.get("range", []), list) else vuln.get("range", []),
-                                "advisory": vuln.get("title", "No description"),
+                                "advisory": advisory,
                                 "source": f"{package_manager}-audit"
                             })
 
@@ -372,8 +390,11 @@ class NpmDependencyScanner:
 
                     vulnerabilities = []
                     for vuln in data.get("vulnerabilities", []):
+                        # Empty/missing CVE identifier list must not IndexError —
+                        # that previously dropped every Snyk finding (false-negative).
+                        cve_ids = vuln.get("identifiers", {}).get("CVE") or ["UNKNOWN"]
                         vulnerabilities.append({
-                            "cve_id": vuln.get("identifiers", {}).get("CVE", ["UNKNOWN"])[0],
+                            "cve_id": cve_ids[0],
                             "severity": vuln.get("severity", "UNKNOWN"),
                             "package": vuln.get("packageName", "UNKNOWN"),
                             "affected_versions": vuln.get("semver", {}).get("vulnerable", []),

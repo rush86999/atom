@@ -321,7 +321,7 @@ class TestTimeoutEnforcement:
                 with patch.object(service, '_log_execution', side_effect=mock_log):
                     result = await service.execute_command(
                         agent_id="test-agent",
-                        command="sleep 1000",
+                        command="tail -f /dev/null",  # whitelisted FILE_READ cmd that can hang
                         working_directory="/tmp"
                     )
 

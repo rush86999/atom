@@ -571,10 +571,12 @@ class IMAuditLog(Base):
     __tablename__ = "im_audit_log"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id"), nullable=False, index=True)
+    # tenant/user are unknown at webhook time (pre-identity-resolution), so
+    # both are nullable here — see core/im_governance_service.py::log_to_audit_trail
+    tenant_id = Column(String, ForeignKey("tenants.id"), nullable=True, index=True)
     user_id = Column(String, ForeignKey("users.id"))
     platform = Column(String, nullable=False)  # telegram, whatsapp, signal
-    chat_id = Column(String, nullable=False)
+    chat_id = Column(String, nullable=True)
     action = Column(String, nullable=False)  # command_sent, response_received, link_request
     agent_id = Column(String, ForeignKey("agent_registry.id"))
     command = Column(Text)
@@ -582,6 +584,17 @@ class IMAuditLog(Base):
     status = Column(String, nullable=False)  # success, error, blocked, rate_limited
     error_message = Column(Text)
     timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+
+    # Wave-78: fields written by IMGovernanceService.log_to_audit_trail (the
+    # PII-hashed webhook audit pipeline). All nullable — older rows predate them.
+    sender_id = Column(String, nullable=True, index=True)
+    payload_hash = Column(String, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
+    success = Column(Boolean, nullable=True, default=None)
+    rate_limited = Column(Boolean, nullable=True, default=None)
+    signature_valid = Column(Boolean, nullable=True, default=None)
+    governance_check_passed = Column(Boolean, nullable=True, default=None)
+    agent_maturity_level = Column(String, nullable=True)
 
     # Relationships
     tenant = relationship("Tenant")
@@ -9356,7 +9369,11 @@ class SyncState(Base):
     """
     __tablename__ = "sync_state"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Who
+    device_id = Column(String(255), nullable=True, index=True)
+    user_id = Column(String(255), nullable=True)
 
     # Sync status
     status = Column(String(50), nullable=False, default="idle")  # idle, syncing, error
@@ -9369,6 +9386,15 @@ class SyncState(Base):
     # Error tracking
     last_error = Column(Text, nullable=True)
     error_count = Column(Integer, nullable=False, default=0)
+
+    # Sync lifecycle counters (used by SyncService marketplace_sync singleton)
+    last_sync_at = Column(DateTime(timezone=True), nullable=True)
+    last_successful_sync_at = Column(DateTime(timezone=True), nullable=True)
+    auto_sync_enabled = Column(Boolean, nullable=False, default=True)
+    total_syncs = Column(Integer, nullable=False, default=0)
+    successful_syncs = Column(Integer, nullable=False, default=0)
+    failed_syncs = Column(Integer, nullable=False, default=0)
+    pending_actions_count = Column(Integer, nullable=False, default=0)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

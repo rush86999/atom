@@ -1236,12 +1236,11 @@ async def execute_device_command(
     try:
         if command_type == "camera":
             # Camera capture
-            timeout = parameters.get("timeout", 10)
             return await device_camera_snap(
                 db=db,
                 user_id=user_id,
+                device_node_id=device_id,
                 agent_id=agent_id,
-                timeout_seconds=timeout
             )
 
         elif command_type == "location":
@@ -1250,8 +1249,9 @@ async def execute_device_command(
             return await device_get_location(
                 db=db,
                 user_id=user_id,
+                device_node_id=device_id,
                 agent_id=agent_id,
-                high_accuracy=high_accuracy
+                accuracy="high" if high_accuracy else "low",
             )
 
         elif command_type == "notification":
@@ -1261,9 +1261,10 @@ async def execute_device_command(
             return await device_send_notification(
                 db=db,
                 user_id=user_id,
+                device_node_id=device_id,
                 agent_id=agent_id,
                 title=title,
-                body=body
+                body=body,
             )
 
         elif command_type == "command":

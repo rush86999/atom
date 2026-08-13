@@ -12,7 +12,7 @@ import re
 import tempfile
 from typing import Any, Dict, List, Optional
 import uuid
-from fastapi import Depends, File, Form, UploadFile
+from fastapi import Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
@@ -355,6 +355,8 @@ async def upload_and_extract(
             extraction_time=result.extraction_time
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to extract facts from {file.filename}: {e}")
         raise router.internal_error(message="Failed to extract facts", details={"error": "Internal error"})

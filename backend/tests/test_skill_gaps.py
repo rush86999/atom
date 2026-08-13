@@ -32,9 +32,12 @@ class TestSkillGaps(unittest.TestCase):
         self.ws = Workspace(id="w_gaps", name="Gap Corp")
         self.db.add(self.ws)
         
-        # Users
-        self.u1 = User(id="u_python", email="py@corp.com", first_name="Python", last_name="Dev", skills="Python, SQL", status="active", role="member")
-        self.u2 = User(id="u_rust", email="rs@corp.com", first_name="Rust", last_name="Expert", skills="Rust, C++", status="active", role="member")
+        # Users (skills column is commented out in the ORM model — set it as
+        # an instance attribute; map_skill_gaps reads it via getattr fallback)
+        self.u1 = User(id="u_python", email="py@corp.com", first_name="Python", last_name="Dev", status="active", role="member")
+        self.u1.skills = "Python, SQL"
+        self.u2 = User(id="u_rust", email="rs@corp.com", first_name="Rust", last_name="Expert", status="active", role="member")
+        self.u2.skills = "Rust, C++"
         self.db.add_all([self.u1, self.u2])
         
         self.p1 = Project(id="p1", workspace_id="w_gaps", name="Gaps Project")

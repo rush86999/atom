@@ -8,6 +8,10 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+# Anchored with fullmatch so a trailing "\n" (regex `$` matches before a final
+# newline) can never be used to smuggle extra headers past validation.
+_EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+
 def send_smtp_email(to_email: str, subject: str, body: str, html_body: Optional[str] = None):
     """
     Send an email using SMTP settings from environment variables.
@@ -26,6 +30,16 @@ def send_smtp_email(to_email: str, subject: str, body: str, html_body: Optional[
         logger.info(f"Body: {body}")
         logger.info(f"--- MOCK EMAIL END ---")
         return True # Return true so the flow continues in dev
+
+    # Header-injection defense (CWE-93): refuse CR/LF in the subject and only
+    # accept validated recipients — the email package serializes raw newlines
+    # verbatim, so unvalidated input would let callers inject Bcc/To headers.
+    if "\r" in subject or "\n" in subject:
+        logger.error(f"Refusing to send email: subject contains a newline (header injection attempt)")
+        return False
+    if not validate_email(to_email):
+        logger.error(f"Refusing to send email: invalid recipient {to_email!r}")
+        return False
 
     try:
         msg = MIMEMultipart('alternative')
@@ -72,9 +86,9 @@ def validate_email(email: str) -> bool:
     if not email or not isinstance(email, str):
         return False
 
-    # Basic email regex pattern
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(pattern, email) is not None
+    # Basic email regex pattern (fullmatch: `$` alone also matches before a
+    # trailing newline, which would let an attacker smuggle extra headers)
+    return _EMAIL_PATTERN.fullmatch(email) is not None
 
 
 def validate_email_strict(email: str) -> tuple[bool, Optional[str]]:
@@ -120,9 +134,8 @@ def validate_email_strict(email: str) -> tuple[bool, Optional[str]]:
     if '.' not in domain:
         return False, "Email domain must contain extension"
 
-    # Basic regex validation
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    if not re.match(pattern, email):
+    # Basic regex validation (fullmatch anchors the end of the string)
+    if not _EMAIL_PATTERN.fullmatch(email):
         return False, "Invalid email format"
 
     return True, None
@@ -148,8 +161,7 @@ def validate_email_with_plus_addressing(email: str) -> bool:
         return False
 
     # Allow + in local part
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(pattern, email) is not None
+    return _EMAIL_PATTERN.fullmatch(email) is not None
 
 
 # ==============================================================================

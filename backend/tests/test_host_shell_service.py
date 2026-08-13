@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from core.host_shell_service import host_shell_service, HostShellService
 from core.command_whitelist import COMMAND_WHITELIST
-from core.models import ShellSession, AgentRegistry
+from core.models import ShellSession, AgentRegistry, AgentStatus
 
 
 class TestCommandValidation:
@@ -58,7 +58,7 @@ class TestMaturityGate:
     @pytest.mark.asyncio
     async def test_autonomous_agent_can_execute(self):
         """AUTONOMOUS agents can execute shell commands."""
-        with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
+        with patch('core.host_shell_service.asyncio.create_subprocess_exec') as mock_subprocess:
             # Mock subprocess
             mock_process = Mock()
             mock_process.returncode = 0
@@ -87,12 +87,12 @@ class TestMaturityGate:
             assert result["timed_out"] is False
 
     @pytest.mark.asyncio
-    async def test_student_agent_blocked(self):
-        """STUDENT agents cannot execute shell commands."""
+    async def test_student_agent_write_blocked(self):
+        """STUDENT agents cannot execute write commands (SUPERVISED+)."""
         # Mock database with STUDENT agent
         mock_db = Mock()
         mock_agent = Mock()
-        mock_agent.status = "STUDENT"
+        mock_agent.status = AgentStatus.STUDENT
         mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
 
         # Should raise PermissionError
@@ -100,31 +100,32 @@ class TestMaturityGate:
             await host_shell_service.execute_shell_command(
                 agent_id="test-agent",
                 user_id="test-user",
-                command="ls -la",
+                command="mkdir -p /tmp/x",
                 db=mock_db
             )
 
-        assert "AUTONOMOUS maturity" in str(exc_info.value)
-        assert "STUDENT" in str(exc_info.value)
+        assert "not permitted for file_write" in str(exc_info.value)
+        assert "Required maturity: SUPERVISED" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_supervised_agent_blocked(self):
-        """SUPERVISED agents cannot execute shell commands."""
+    async def test_supervised_agent_delete_blocked(self):
+        """SUPERVISED agents cannot execute delete commands (AUTONOMOUS only)."""
         # Mock database with SUPERVISED agent
         mock_db = Mock()
         mock_agent = Mock()
-        mock_agent.status = "SUPERVISED"
+        mock_agent.status = AgentStatus.SUPERVISED
         mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
 
         with pytest.raises(PermissionError) as exc_info:
             await host_shell_service.execute_shell_command(
                 agent_id="test-agent",
                 user_id="test-user",
-                command="ls -la",
+                command="rm -f /tmp/x",
                 db=mock_db
             )
 
-        assert "AUTONOMOUS maturity" in str(exc_info.value)
+        assert "not permitted for file_delete" in str(exc_info.value)
+        assert "Required maturity: AUTONOMOUS" in str(exc_info.value)
 
 
 class TestAuditTrail:
@@ -133,7 +134,7 @@ class TestAuditTrail:
     @pytest.mark.asyncio
     async def test_shell_session_created(self):
         """ShellSession record created for each command."""
-        with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
+        with patch('core.host_shell_service.asyncio.create_subprocess_exec') as mock_subprocess:
             mock_process = Mock()
             mock_process.returncode = 0
             mock_process.communicate = AsyncMock(return_value=(b"output", b""))
@@ -161,7 +162,7 @@ class TestAuditTrail:
     @pytest.mark.asyncio
     async def test_failed_command_logged(self):
         """Failed commands are logged to audit trail."""
-        with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
+        with patch('core.host_shell_service.asyncio.create_subprocess_exec') as mock_subprocess:
             # Mock failing command
             mock_process = Mock()
             mock_process.returncode = 1
@@ -193,7 +194,7 @@ class TestTimeoutEnforcement:
     @pytest.mark.asyncio
     async def test_timeout_kills_process(self):
         """Commands exceeding timeout are killed."""
-        with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
+        with patch('core.host_shell_service.asyncio.create_subprocess_exec') as mock_subprocess:
             mock_process = Mock()
             mock_process.kill = Mock()
             # Mock timeout
@@ -213,7 +214,7 @@ class TestTimeoutEnforcement:
             result = await host_shell_service.execute_shell_command(
                 agent_id="test-agent",
                 user_id="test-user",
-                command="sleep 1000",  # Long command
+                command="ls -la",  # Timeout enforced via mock
                 timeout=1,  # 1 second timeout
                 db=mock_db
             )
@@ -228,7 +229,7 @@ class TestWorkingDirectoryRestrictions:
     @pytest.mark.asyncio
     async def test_allowed_directory_accepted(self):
         """Working directories in allowed list are accepted."""
-        with patch('core.host_shell_service.asyncio.create_subprocess_shell') as mock_subprocess:
+        with patch('core.host_shell_service.asyncio.create_subprocess_exec') as mock_subprocess:
             mock_process = Mock()
             mock_process.returncode = 0
             mock_process.communicate = AsyncMock(return_value=(b"", b""))
@@ -272,4 +273,4 @@ class TestWorkingDirectoryRestrictions:
                     db=mock_db
                 )
 
-            assert "not in allowed directories" in str(exc_info.value)
+            assert "is not within allowed directories" in str(exc_info.value)

@@ -215,11 +215,16 @@ class HybridRetrievalService:
 
         # Create (query, episode_text) pairs for cross-encoder
         episode_map = {ep.id: ep for ep in episodes}
-        pairs = [
-            (query, episode_map[ep_id].task_description or "")
-            for ep_id, _ in candidates
-            if ep_id in episode_map
-        ]
+        # Track the episode id per pair so rerank scores can be mapped back
+        # to the right episode (Bug: previously indexed scores by the
+        # ORIGINAL candidate position, misaligning scores whenever a
+        # candidate was missing from the DB).
+        pair_ids = []
+        pairs = []
+        for ep_id, _ in candidates:
+            if ep_id in episode_map:
+                pair_ids.append(ep_id)
+                pairs.append((query, episode_map[ep_id].task_description or ""))
 
         if not pairs:
             logger.warning("[HYBRID] No valid episode content for reranking")
@@ -239,12 +244,15 @@ class HybridRetrievalService:
             score_range = max_score - min_score + 1e-8
             rerank_scores = [(s - min_score) / score_range for s in rerank_scores]
 
+        # Map each episode to its own reranked score
+        score_by_id = dict(zip(pair_ids, rerank_scores))
+
         # Combine coarse and reranked scores (weighted average)
         # Weight: 30% coarse + 70% reranked (reranking is higher quality)
         combined_scores = []
-        for i, (ep_id, coarse_score) in enumerate(candidates):
-            if ep_id in episode_map and i < len(rerank_scores):
-                reranked_score = rerank_scores[i]
+        for ep_id, coarse_score in candidates:
+            if ep_id in score_by_id:
+                reranked_score = score_by_id[ep_id]
                 combined_score = 0.3 * coarse_score + 0.7 * reranked_score
                 combined_scores.append((ep_id, combined_score))
 

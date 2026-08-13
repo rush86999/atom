@@ -12,7 +12,7 @@ import re
 import html
 import json
 from typing import Any, Optional, Union, List, Dict
-from pydantic import field_validator, model_validator, ConfigDict
+from pydantic import model_validator, ConfigDict
 from pydantic import BaseModel as PydanticBaseModel
 
 # Common injection patterns to detect
@@ -28,7 +28,10 @@ INJECTION_PATTERNS = [
 SQL_INJECTION_PATTERNS = [
     r"(''')",                      # SQL comment bypass
     r'--',                          # SQL comment
-    r';\s*(DROP|DELETE|EXEC|EXECUTE)',  # SQL commands after statement terminator
+    # BUG 79-12: the alternation was uppercase (DROP|DELETE|...) but is matched
+    # against a lowercased value — it could NEVER match, so statement-chained
+    # injection like "x'; DROP TABLE t;" went undetected.
+    r';\s*(drop|delete|exec|execute)',  # SQL commands after statement terminator
     r'union\s+select',             # SQL injection
 ]
 
@@ -128,7 +131,10 @@ def validate_html_content(content: str, allowed_tags: List[str] = None) -> str:
         content = re.sub(rf'<{dangerous_tag}[^>]*/?>', '', content, flags=re.IGNORECASE)
 
     # Remove tags not in allowed list
-    if allowed_tags:
+    # BUG 79-8: the guard was `if allowed_tags:` — an EMPTY allowlist (allow
+    # nothing) is falsy, so the filter was skipped and ALL tags survived.
+    # Only None means "use the defaults".
+    if allowed_tags is not None:
         tag_pattern = r'<(\/?)(\w+)(?:\s[^>]*)?(/?)>'
         def replace_tag(match):
             close, tag, self_close = match.groups()
@@ -320,21 +326,35 @@ def validated_string(
     sanitize: bool = True
 ):
     """
-    Create a Pydantic validator for string fields.
+    Create a Pydantic string field type with length/pattern/sanitize rules.
+
+    BUG 79-9: this previously used a nested ``@field_validator(mode='before')
+    @classmethod`` inside the factory — pydantic raised
+    ``TypeError: field_validator() missing 1 required positional argument:
+    'field'`` at class-definition time, so the helper was unusable. Rewritten
+    as pydantic v2 ``Annotated[str, AfterValidator(...)]`` metadata:
+
+    Usage:
+        class Model(BaseModel):
+            code: validated_string(min_length=2, max_length=5, pattern=r'^[a-z]+$')
 
     Args:
-        max_length: Maximum allowed length
+        max_length: Maximum allowed length (truncated, like before)
         min_length: Minimum allowed length
-        pattern: Regex pattern to match
+        pattern: Regex pattern the string must match
         sanitize: Whether to sanitize the string
 
     Returns:
-        Pydantic field validator function
+        Annotated[str, AfterValidator] type usable as a field annotation
     """
-    @field_validator(mode='before')
-    @classmethod
-    def validator(cls, v: Any) -> str:
-        if not isinstance(v, str):
+    from typing import Annotated
+    from pydantic import AfterValidator
+
+    def _check(v: Any) -> str:
+        # Defensive: the Annotated[str, ...] annotation means pydantic already
+        # enforces str (and coerces non-str in lax mode), so this branch is
+        # unreachable through normal model validation.
+        if not isinstance(v, str):  # pragma: no cover - defensive
             raise ValueError('Must be a string')
 
         if len(v) < min_length:
@@ -351,4 +371,4 @@ def validated_string(
 
         return v
 
-    return validator
+    return Annotated[str, AfterValidator(_check)]

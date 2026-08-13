@@ -122,7 +122,9 @@ class HarnessEvolutionService:
         Previously this method required a caller-supplied test_fn but none was
         ever passed, making validation effectively a no-op.
         """
-        logger.info(f"Validating patch {patch['patch_id']} in workspace sandbox...")
+        logger.info(
+            f"Validating patch {patch.get('patch_id', 'unknown')} in workspace sandbox..."
+        )
 
         try:
             with SandboxTransaction(target_dir=workspace_dir, timeout_seconds=10) as tx:

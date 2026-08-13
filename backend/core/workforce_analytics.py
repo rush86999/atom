@@ -41,7 +41,7 @@ class WorkforceAnalyticsService:
         """
         Calculates throughput (tasks completed) and average cycle time.
         """
-        db = self.db or get_db_session()
+        db, cm = self._get_db()
         try:
             start_date = datetime.now(timezone.utc) - timedelta(days=days)
             
@@ -71,14 +71,13 @@ class WorkforceAnalyticsService:
                 "throughput_per_day": total_completed / days if days > 0 else 0
             }
         finally:
-            if not self.db:
-                db.close()
+            self._close_db(db, cm)
 
     def detect_bottlenecks(self, workspace_id: str) -> List[Dict[str, Any]]:
         """
         Identifies users with high task-to-capacity ratios or long-stalled tasks.
         """
-        db = self.db or get_db_session()
+        db, cm = self._get_db()
         try:
             # Find users with > 5 'in_progress' tasks
             bottlenecks = []
@@ -123,15 +122,14 @@ class WorkforceAnalyticsService:
                 
             return bottlenecks
         finally:
-            if not self.db:
-                db.close()
+            self._close_db(db, cm)
 
     def get_focus_score(self, user_id: str) -> float:
         """
         Calculates a 'Focus Score' (0-100) for a user.
         High switching between different projects/contexts lowers the score.
         """
-        db = self.db or get_db_session()
+        db, cm = self._get_db()
         try:
             # Analyze active tasks for different projects
             active_tasks = (
@@ -152,8 +150,7 @@ class WorkforceAnalyticsService:
             
             return score
         finally:
-            if not self.db:
-                db.close()
+            self._close_db(db, cm)
 
     def calculate_estimation_bias(self, workspace_id: str, user_id: Optional[str] = None) -> Dict[str, Any]:
         """

@@ -239,7 +239,10 @@ class AuditTrailValidator:
         if end_time:
             query = query.filter(FinancialAudit.timestamp <= end_time)
 
-        audits = query.all()
+        # BUG 79-7: results were unordered, so oldest_entry/newest_entry
+        # reflected insertion order — wrong whenever rows were not inserted
+        # chronologically (SOX reporting showed a backwards window).
+        audits = query.order_by(FinancialAudit.timestamp).all()
 
         by_action = {}
         by_maturity = {}

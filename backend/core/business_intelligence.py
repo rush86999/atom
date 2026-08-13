@@ -13,6 +13,11 @@ from core.models import BusinessRule
 
 logger = logging.getLogger(__name__)
 
+
+def _utcnow() -> datetime.datetime:
+    """Aware UTC now (module-level datetime import is the module, not the class)."""
+    return datetime.datetime.now(datetime.timezone.utc)
+
 class BusinessEventIntelligence:
     """
     Processes extracted business events to update system state.
@@ -86,12 +91,12 @@ class BusinessEventIntelligence:
                     if order_id:
                         order = db.query(EcommerceOrder).filter(
                             EcommerceOrder.id == order_id,
-                            EcommerceOrder.workspace_id == workspace_id
+                            EcommerceOrder.tenant_id == workspace_id
                         ).first()
                     elif external_id:
                         order = db.query(EcommerceOrder).filter(
                             EcommerceOrder.external_id == external_id,
-                            EcommerceOrder.workspace_id == workspace_id
+                            EcommerceOrder.tenant_id == workspace_id
                         ).first()
 
                     if order:
@@ -99,7 +104,11 @@ class BusinessEventIntelligence:
                         if status in ["shipped", "in_transit"]:
                             order.status = "fulfilled"
                         elif status == "delivered":
-                            order.status = "delivered" if hasattr(order, 'status') and "delivered" in [s.value for s in order.__table__.columns.status.type.enums] else "fulfilled"
+                            # The order status column is a plain String (no
+                            # .enums) — assigning the value directly is the
+                            # only valid path; the old enum-probe crashed
+                            # every delivered shipment with AttributeError.
+                            order.status = "delivered"
 
                         # Update metadata with shipment info
                         if not order.metadata_json:
@@ -155,7 +164,7 @@ class BusinessEventIntelligence:
                             deal.metadata_json["quote_requests"] = []
 
                         deal.metadata_json["quote_requests"].append({
-                            "requested_at": datetime.now().isoformat(),
+                            "requested_at": _utcnow().isoformat(),
                             "amount": amount,
                             "currency": currency,
                             "status": "pending"
@@ -185,7 +194,7 @@ class BusinessEventIntelligence:
                             deal.metadata_json["quotes"] = []
 
                         deal.metadata_json["quotes"].append({
-                            "offered_at": datetime.now().isoformat(),
+                            "offered_at": _utcnow().isoformat(),
                             "amount": amount,
                             "currency": currency,
                             "valid_until": valid_until,
@@ -242,7 +251,7 @@ class BusinessEventIntelligence:
                                 "po_number": po_number,
                                 "amount": amount,
                                 "vendor": vendor,
-                                "linked_at": datetime.now().isoformat()
+                                "linked_at": _utcnow().isoformat()
                             })
 
                             logger.info(f"Linked PO {po_number} to deal {deal.id}")
@@ -254,7 +263,7 @@ class BusinessEventIntelligence:
 
                         order = db.query(EcommerceOrder).filter(
                             EcommerceOrder.id == order_id,
-                            EcommerceOrder.workspace_id == workspace_id
+                            EcommerceOrder.tenant_id == workspace_id
                         ).first()
 
                         if order:

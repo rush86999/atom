@@ -82,11 +82,13 @@ class TestAuditTrailValidatorBugs:
         _make_account(db)
         _make_audit(db, operation_type="INSERT")
         v = AuditTrailValidator(db)
-        # Must not raise AttributeError
+        # Must not raise AttributeError. NOTE: creating the FinancialAccount
+        # above auto-audits it via the after_flush listener (a 'create' entry),
+        # so the table holds 2 entries: the auto 'create' + our manual INSERT.
         stats = v.get_audit_statistics()
-        assert stats["total_audits"] == 1
-        # by_action_type should reflect the actual operation_type
-        assert stats["by_action_type"] == {"INSERT": 1}
+        assert stats["total_audits"] == 2
+        assert stats["by_action_type"]["INSERT"] == 1
+        assert stats["by_action_type"]["create"] == 1
 
     def test_get_audit_statistics_success_rate_does_not_crash(self, db):
         """BUG: get_audit_statistics (line 254) reads `audit.success`, but

@@ -46,7 +46,7 @@ class ExpressionParser:
         self.tokens = []
         self.pos = 0
         self.variables: Dict[str, Any] = {}  # Variable context for resolution
-    TOKEN_NUMBER = r'(?P<NUMBER>-?\d+\.?\d*(?:[eE][+-]?\d+)?)'
+    TOKEN_NUMBER = r'(?P<NUMBER>\d+\.?\d*(?:[eE][+-]?\d+)?)'
     TOKEN_STRING = r'(?P<STRING>"[^"]*"|\'[^\']*\')'
     # Keyword tokens use a trailing ``(?![A-Za-z0-9_])`` negative lookahead so
     # they only match as whole words. Without it the master tokenizer (which
@@ -64,6 +64,7 @@ class ExpressionParser:
         r'(?P<OPERATOR>'
         r'==|!=|<=?|>=?|\*\*|\*|/|%|\+|\-'
         r'|is\s+not(?![A-Za-z0-9_])'
+        r'|not\s+in(?![A-Za-z0-9_])'
         r'|and(?![A-Za-z0-9_])'
         r'|or(?![A-Za-z0-9_])'
         r'|not(?![A-Za-z0-9_])'
@@ -112,14 +113,10 @@ class ExpressionParser:
         'or': lambda a, b: bool(a or b),
         'not': lambda a: bool(not a),
         'in': lambda a, b: a in b if hasattr(b, '__contains__') else False,
+        'not in': lambda a, b: (a not in b) if hasattr(b, '__contains__') else True,
         'is': operator.is_,
         'is not': operator.is_not,
     }
-
-    def __init__(self):
-        """Initialize the expression parser."""
-        self.tokens = []
-        self.pos = 0
 
     def evaluate(self, expression: str, variables: Dict[str, Any]) -> bool:
         """
@@ -241,7 +238,7 @@ class ExpressionParser:
         left = self._parse_additive()
 
         token = self._current_token()
-        if token and token['type'] == 'OPERATOR' and token['value'] in ('==', '!=', '<', '<=', '>', '>=', 'in', 'is', 'is not'):
+        if token and token['type'] == 'OPERATOR' and token['value'] in ('==', '!=', '<', '<=', '>', '>=', 'in', 'not in', 'is', 'is not'):
             op = self._advance()['value']
             right = self._parse_additive()
             return self.OPERATORS[op](left, right)
@@ -365,14 +362,19 @@ class ExpressionParser:
         # Walk dot/index access: e.g. "user.name", "data[0]", "data['k']"
         parts = [p for p in re.split(r'[\.\[\]]', identifier) if p != '']
         if parts and parts[0] in self.variables:
-            # No attribute access that starts with _ (security: line 22 of module docstring)
-            if any(p.startswith('_') for p in parts[1:]):
+            # No attribute access that starts with _ (security: line 22 of
+            # module docstring). BUG 79-2: the guard used to run on the raw
+            # bracket text, so a QUOTED index (``o['_secret']``,
+            # ``o['__class__']``) bypassed it and read any dunder/private
+            # attribute via getattr. Strip quotes before checking.
+            stripped_parts = [p.strip("'\"") for p in parts[1:]]
+            if any(p.startswith('_') for p in stripped_parts):
                 raise ValueError(f"Variable '{identifier}' is not defined")
             value = self.variables[parts[0]]
             try:
                 for part in parts[1:]:
                     part = part.strip("'\"")
-                    if part.isdigit():
+                    if part.lstrip('-').isdigit():
                         value = value[int(part)]
                     elif isinstance(value, dict):
                         value = value[part]

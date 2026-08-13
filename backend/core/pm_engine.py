@@ -148,7 +148,7 @@ class AIProjectManager:
                         
                     # Query GraphRAG for progress on this specific task
                     query = f"Has the task '{task.name}' for project '{project.name}' been completed or worked on recently?"
-                    rag_result = graphrag_engine.query(user_id, query, mode="local")
+                    rag_result = await graphrag_engine.query(user_id, query, mode="local")
                     
                     # Analyze RAG result for evidence
                     evidence = rag_result.get("answer", "").lower()

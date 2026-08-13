@@ -19,40 +19,38 @@ class TestLoggingSecurityVulnerabilities:
     which could expose credentials in log files.
     """
 
-    def test_token_metadata_logged(self):
+    def test_token_metadata_not_logged(self):
         """
-        Test that token metadata is logged.
-
-        BUG: Line 795 - Logs token.metadata which could contain
-        access tokens, refresh tokens, or other sensitive credentials.
-
-        This is a security issue as logs may be accessible to
-        unauthorized users or stored in log aggregation systems.
+        Regression: the vulnerable `logger.error(f"DEBUG: Token metadata:
+        {token.metadata}")` (line 795) was REMOVED in commit 0c16baae6 — the
+        fix logs token PRESENCE only, at debug level, so credentials never
+        reach log files. This test now asserts the FIX (was a bug-confirmation
+        assertion, which went stale the moment the fix landed).
         """
         with open('/Users/rushiparikh/projects/atom/backend/core/hybrid_data_ingestion.py', 'r') as f:
             source = f.read()
 
-        # Verify the bug - token metadata is logged
-        assert 'logger.error(f"DEBUG: Token metadata: {token.metadata}")' in source, \
-            "Bug confirmed: Token metadata is logged (potential credential exposure)"
+        # The vulnerable pattern must be gone
+        assert 'Token metadata: {token.metadata}' not in source, \
+            "Security regression: token metadata is logged (credential exposure)"
+        assert 'DEBUG: Token' not in source
 
-        # Verify it's marked as DEBUG (but using logger.error level)
-        assert 'DEBUG:' in source and 'logger.error' in source, \
-            "Bug confirmed: Using logger.error level for DEBUG message (inconsistent)"
+        # The fix logs token presence only, at DEBUG level
+        assert 'token is not None' in source
 
     def test_logging_includes_tenant_id(self):
         """
-        Test that tenant_id is logged in same context.
-
-        BUG: Line 793 - Logs tenant_id along with token check.
-        While tenant_id is less sensitive, it's still customer data.
+        Regression: the old `logger.error(f"DEBUG: Token found for
+        {self.tenant_id} ...")` logged the tenant id at ERROR level; the
+        current code logs presence only, at debug level.
         """
         with open('/Users/rushiparikh/projects/atom/backend/core/hybrid_data_ingestion.py', 'r') as f:
             source = f.read()
 
-        # Verify tenant_id is logged in debug context
-        assert 'logger.error(f"DEBUG: Token found for {self.tenant_id}' in source, \
-            "Bug confirmed: Tenant ID is logged in debug context"
+        # The old error-level tenant log is gone; debug logs token presence
+        assert 'logger.error' not in source or 'DEBUG: Token found for' not in source
+        assert 'IntegrationToken found for tenant' in source
+        assert 'logger.debug' in source
 
     def test_workflow_logs_token_presence_only(self):
         """

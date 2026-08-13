@@ -211,7 +211,13 @@ class SkillVersioningService:
             List of versions
         """
         versions = self.db.query(SkillVersion).filter(
-            SkillVersion.skill_id == skill_id
+            and_(
+                SkillVersion.skill_id == skill_id,
+                # BUG 79-6: tenant_id was accepted but never applied — any
+                # tenant could read another tenant's skill version history
+                # (changelogs). Versions are tenant-scoped like skills.
+                SkillVersion.tenant_id == tenant_id
+            )
         ).order_by(SkillVersion.created_at.desc()).all()
 
         return [

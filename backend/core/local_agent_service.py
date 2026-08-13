@@ -149,7 +149,11 @@ class LocalAgentService:
         # Step 2: Check directory permission (EXISTING)
         maturity_level_str = governance_result.get("maturity_level", "STUDENT")
         try:
-            maturity_level = AgentStatus(maturity_level_str)
+            # Normalize casing: governance may return member names
+            # ("AUTONOMOUS") or enum values ("autonomous"); AgentStatus only
+            # accepts the lowercase value. Without normalization every
+            # uppercase input silently fell back to STUDENT (suggest-only).
+            maturity_level = AgentStatus(maturity_level_str.lower())
         except ValueError:
             maturity_level = AgentStatus.STUDENT
 

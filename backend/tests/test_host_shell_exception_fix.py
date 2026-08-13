@@ -15,6 +15,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from core.host_shell_service import HostShellService
+from core.models import AgentStatus
 
 
 class TestHostShellExceptionHandlingFix:
@@ -57,14 +58,14 @@ class TestHostShellExceptionHandlingFix:
 
         mock_db = MagicMock()
         mock_agent = MagicMock()
-        mock_agent.status = "STUDENT"
+        mock_agent.status = AgentStatus.AUTONOMOUS
         mock_agent.maturity = "STUDENT"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
         mock_db.add = MagicMock()
         mock_db.commit = MagicMock()
         mock_db.refresh = MagicMock()
 
-        with patch('asyncio.create_subprocess_shell', return_value=mock_process):
+        with patch('core.host_shell_service.asyncio.create_subprocess_exec', return_value=mock_process):
             with patch.object(service, 'logger') as mock_logger:
                 result = await service.execute_read_command(
                     agent_id="agent-1",
@@ -94,14 +95,14 @@ class TestHostShellExceptionHandlingFix:
 
         mock_db = MagicMock()
         mock_agent = MagicMock()
-        mock_agent.status = "STUDENT"
+        mock_agent.status = AgentStatus.AUTONOMOUS
         mock_agent.maturity = "STUDENT"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
         mock_db.add = MagicMock()
         mock_db.commit = MagicMock()
         mock_db.refresh = MagicMock()
 
-        with patch('asyncio.create_subprocess_shell', return_value=mock_process):
+        with patch('core.host_shell_service.asyncio.create_subprocess_exec', return_value=mock_process):
             with patch.object(service, 'logger') as mock_logger:
                 result = await service.execute_read_command(
                     agent_id="agent-1",
@@ -129,14 +130,14 @@ class TestHostShellExceptionHandlingFix:
 
         mock_db = MagicMock()
         mock_agent = MagicMock()
-        mock_agent.status = "STUDENT"
+        mock_agent.status = AgentStatus.AUTONOMOUS
         mock_agent.maturity = "STUDENT"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
         mock_db.add = MagicMock()
         mock_db.commit = MagicMock()
         mock_db.refresh = MagicMock()
 
-        with patch('asyncio.create_subprocess_shell', return_value=mock_process):
+        with patch('core.host_shell_service.asyncio.create_subprocess_exec', return_value=mock_process):
             with patch.object(service, 'logger') as mock_logger:
                 result = await service.execute_read_command(
                     agent_id="agent-1",

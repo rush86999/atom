@@ -20,7 +20,7 @@ import logging
 import os
 from pathlib import Path
 import sys
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 import uuid
 
 # ============================================================================
@@ -74,19 +74,21 @@ def bind_context(**kwargs):
 
 def get_context() -> Dict[str, str]:
     """Get all current context variables"""
-    try:
-        return {
-            "correlation_id": CORRELATION_ID.get(),
-            "user_id": USER_ID.get(),
-            "request_id": REQUEST_ID.get(),
-        }
-    except LookupError:
-        # Context variables not set yet
-        return {
-            "correlation_id": "",
-            "user_id": "",
-            "request_id": "",
-        }
+    # BUG 79-13: a single unset variable raised LookupError, which the broad
+    # except turned into ALL-empty values — correlation_id (and friends) were
+    # silently dropped whenever any other variable was unset. Fall back per
+    # variable instead.
+    def _get(var: ContextVar) -> str:
+        try:
+            return cast(str, var.get())
+        except LookupError:
+            return ""
+
+    return {
+        "correlation_id": _get(CORRELATION_ID),
+        "user_id": _get(USER_ID),
+        "request_id": _get(REQUEST_ID),
+    }
 
 
 def generate_correlation_id() -> str:

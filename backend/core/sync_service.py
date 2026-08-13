@@ -484,10 +484,14 @@ class SyncService:
                 state.last_sync_at = datetime.now(timezone.utc)
                 state.auto_sync_enabled = True
 
+                # Counters are None on a freshly-constructed row until the
+                # first flush applies column defaults — increment defensively
+                # so the singleton always persists (Bug: None + 1 crashed the
+                # first-ever sync-state write, silently swallowed).
                 if status == "syncing":
-                    state.total_syncs += 1
+                    state.total_syncs = (state.total_syncs or 0) + 1
                 elif status == "success":
-                    state.successful_syncs += 1
+                    state.successful_syncs = (state.successful_syncs or 0) + 1
                     state.last_successful_sync_at = datetime.now(timezone.utc)
                     state.pending_actions_count = 0
 
@@ -500,7 +504,7 @@ class SyncService:
                             f"{self._conflicts_manual} manual"
                         )
                 elif status == "error":
-                    state.failed_syncs += 1
+                    state.failed_syncs = (state.failed_syncs or 0) + 1
                     state.pending_actions_count = 1  # Trigger retry
                     if error_message:
                         logger.error(f"Sync error: {error_message}")

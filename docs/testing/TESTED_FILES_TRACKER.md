@@ -6,6 +6,183 @@
 
 ---
 
+## Session 2026-08-13 (wave 80 — 7 never-wave-tested core services to ≥95%; 169 new tests, 6 real bugs fixed)
+
+**Files**: `core/local_agent_service.py`, `core/analytics_endpoints.py`, `core/memory_integration_mixin.py`, `core/pm_engine.py`, `core/business_intelligence.py`, `core/workforce_analytics.py`, `core/microsoft365_learner.py` — new wave tests `tests/test_covpush_w80_{local_agent,analytics_endpoints,memory_mixin,pm_engine,business_intel,workforce_analytics,m365_learner}.py` (**169 new tests**). Source fixes: `core/local_agent_service.py`, `core/business_intelligence.py`, `core/pm_engine.py`, `core/workforce_analytics.py`. Stale-suite repairs: `tests/test_local_agent_service.py` (1 test), `tests/test_skill_gaps.py` (1 setup block).
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time):
+1. New-wave combined run (single process, 7 files, `--cov` on all 7 modules) → **169 passed / 0 failed**; TOTAL **1012 stmts / 100%**.
+2. Wave + repaired `test_local_agent_service.py` (39 tests, incl. 6 pre-existing failures unblocked by the maturity fix + 1 stale-command repair) → **179 passed / 0 failed**.
+3. Partner suites per module: `workforce_analytics` + `test_workforce_intelligence.py` → **34 passed**; `business_intelligence` + `test_business_intelligence.py` → **26 passed / 1 skipped** (historical_learner skip is pre-existing); `test_skill_gaps.py` (repaired) → **1 passed**; `test_domain_agnostic_skills.py` (3), `test_error_handling_fixes.py` (4) → green; `test_pm_external_sync`/`test_pm_mvp` (5 failed) and `test_pm_swarm`/`test_crm_to_delivery` (4 failed) → **identical failure counts at git-stash baseline** (pre-existing, untouched).
+4. `mypy --config-file mypy.ini` on the 4 changed sources → **4 errors vs 7 at baseline** (all pre-existing patterns; zero new).
+
+### Coverage deltas (coverage.py statement counts)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/local_agent_service.py` | 126/207 stmts / 36% | **126 / 100%** | 126 | — |
+| `core/analytics_endpoints.py` | 0% (never imported by any test) | **146 / 100%** | 146 | — |
+| `core/memory_integration_mixin.py` | 67/183 stmts / 37% | **183 / 100%** | 183 | — |
+| `core/pm_engine.py` | 0% (never imported) | **143 / 100%** | 143 | — |
+| `core/business_intelligence.py` | 23/149 stmts / 15% | **151 / 100%** | 151 | — |
+| `core/workforce_analytics.py` | 45/132 stmts / 34% | **129 / 100%** | 129 | — |
+| `core/microsoft365_learner.py` | 0% (never imported) | **134 / 100%** | 134 | — |
+
+(Before = `--cov` while running each module's pre-existing partner tests only; after = wave file + partners.)
+
+### REAL bugs fixed (TDD red→green)
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/local_agent_service.py` | `execute_command` ~150 | **Uppercase-maturity silent downgrade** — `AgentStatus("AUTONOMOUS")` raised ValueError (enum values are lowercase); the `except ValueError` fallback silently forced **every uppercase-maturity agent into STUDENT/suggest-only mode** (never auto-executes). 6 pre-existing `test_local_agent_service.py` failures all traced to this | Normalize `maturity_level_str.lower()` before `AgentStatus()` conversion (regression test uses the REAL `check_directory_permission` end-to-end) |
+| `core/business_intelligence.py` | `_handle_shipments` ~102 | **Delivered-shipment crash** — `order.__table__.columns.status.type.enums` AttributeError (status is a plain `String` column, no `.enums`) → every `status=="delivered"` shipment crashed and rolled back the batch | Assign `order.status = "delivered"` directly |
+| `core/business_intelligence.py` | `_handle_shipments`/`_handle_orders` (3 sites) | **Schema drift** — all EcommerceOrder lookups filtered on non-existent `workspace_id` column → AttributeError → every shipment/PO→SalesOrder event silently rolled back (data loss) | Filter on `EcommerceOrder.tenant_id` (matches `integrations/shopify_webhooks.py` convention) |
+| `core/business_intelligence.py` | `_handle_quotes`/`_handle_orders` (3 sites) | **`import datetime` vs `datetime.now()`** — module-imported datetime has no `.now` → AttributeError on every quote request/offer/PO-link timestamp | `_utcnow()` helper via `datetime.datetime.now(datetime.timezone.utc)` |
+| `core/pm_engine.py` | `infer_project_status` ~151 | **Missing `await` on async `graphrag_engine.query`** — `'coroutine' object has no attribute 'get'` → every status inference with a pending task crashed (feature completely broken) | `await graphrag_engine.query(...)` |
+| `core/workforce_analytics.py` | `calculate_team_velocity`/`detect_bottlenecks`/`get_focus_score` | **Broken no-session path** — `db = self.db or get_db_session()` returned the un-entered context manager (no `.query`) → AttributeError on every non-injected call, and the `db.close()` finally was unreachable; the two newer methods already used the correct `_get_db`/`_close_db` pattern | Converted all three to `_get_db()`/`_close_db()` (5-parametrized regression test asserts the session is entered + closed) |
+
+### Stale suite repair (side effects of the fixes)
+- `tests/test_local_agent_service.py`: 6 pre-existing FAILED → **13/13**. 5 unblocked by the maturity fix; `test_timeout_kills_process` used `sleep 1000` (correctly NOT whitelisted — policy, not a bug) → switched to whitelisted hangable `tail -f /dev/null` (same mock semantics).
+- `tests/test_skill_gaps.py`: 1 pre-existing FAILED → **1/1**. `User(skills=...)` kwarg raised TypeError (skills column commented out in the ORM model) → set as instance attribute (matches the service's `getattr` fallback).
+
+### Remaining uncovered lines
+- None — all seven modules measure 100% with their wave+partner files.
+
+### Caveats
+- `core/analytics_endpoints.py` routes exercised via a minimal FastAPI app (router-only, `get_current_user` overridden); `asyncio.create_task` coroutines captured and driven manually (TestClient's loop doesn't run background tasks before assertions).
+- `memory_integration_mixin` error-callback branches driven via the REAL `handle_error` closure (same-loop task execution + `_callbacks[0][0]` tuple unwrap on 3.11).
+- Pre-existing order-dependence outside this wave: `test_business_intelligence.py` fails only when run AFTER `test_workforce_intelligence.py` in the same process (`RuntimeError: There is no current event loop` — old unittest suite asyncio reuse). Verified separately-green.
+- `workforce_analytics` skill-bearing branches driven with a fake query layer because the ORM `User.skills` column is commented out (schema drift; `map_skill_gaps` degrades via `getattr` fallback — instance-attribute survival under pytest proved unreliable).
+
+---
+
+## Session 2026-08-13 (wave 79 — never-wave-tested core services to 100%; 268 new tests, 13 real bugs fixed)
+
+**Files**: `core/hash_chain_integrity.py`, `core/expression_parser.py`, `core/logging_config.py`, `core/skill_security_scanner.py`, `core/skill_versioning_service.py`, `core/audit_trail_validator.py`, `core/validation.py` — new wave tests `tests/test_covpush_w79_{hash_chain,expression_parser,logging,skill_security,skill_versioning,audit_validator,validation}.py` (**268 new tests**). Source fixes: 6 modules (scanner needed none — only test gaps). Stale-suite repairs: `tests/core/test_audit_trail_validator_bughunt.py` (1), `tests/test_logging_security_bugs.py` (2 bug-confirmation tests flipped to assert the fix landed in `0c16baae6`).
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time):
+1. New-wave combined run (single process, 16 files = 7 wave + 9 partners, `--cov` on all 7 modules) → **411 passed / 0 failed**; TOTAL **1378 stmts / 100%** (all seven modules 100%).
+2. Adjacent regression: `test_workflow_debugger.py` (consumer of the evaluator) → **30 skipped / 0 errors**; `tests/core/services/test_financial_audit_service.py` + `tests/core/test_audit_trail_validator_bughunt.py` + `tests/error_paths/test_finance_error_paths.py` (HashChainIntegrity consumers) → **73 passed**.
+3. `mypy --config-file mypy.ini` on the 6 changed sources → **57 errors vs 60 baseline** (measured by file-swap with `git show HEAD:`; 3 pre-existing errors removed by the `validated_string`/duplicate-`__init__` rewrites, zero new — new code carries `# type: ignore[arg-type]` on the ORM-attribute hash call, matching the pre-existing pattern).
+
+### Coverage deltas (coverage.py statement counts)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/hash_chain_integrity.py` | 0% (never tested) | **100%** | 95 | — |
+| `core/expression_parser.py` | 93% (r79-gap file) | **100%** | 189 | — |
+| `core/logging_config.py` | 32% (stale bug-confirmation suite only) | **100%** | 150 | — |
+| `core/skill_security_scanner.py` | 94% | **100%** | 66 | — |
+| `core/skill_versioning_service.py` | 92% | **100%** | 98 | — |
+| `core/audit_trail_validator.py` | 52% | **100%** | 85 | — |
+| `core/validation.py` | 17% | **100%** | 132 | — |
+
+### REAL bugs fixed (TDD red→green)
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/hash_chain_integrity.py` | `verify_chain` first-entry block | **CRITICAL: the FIRST audit entry's hash was never verified** (loop started at index 1) — content tampering of entry 1 went completely undetected as long as `previous_hash` stayed empty | Recomputed `entries[0]` hash and compare against stored `hash_chain` (reports `hash_mismatch`) |
+| `core/hash_chain_integrity.py` | `verify_chain` first-entry block | `previous_hash=None` (column default) flagged as `first_entry_has_prev_hash` — false tamper alarm on legitimately-created chains; and `compute_entry_hash` dropped `None` prev_hash from canonical JSON → hash computed over `''` never verified against a `None`-stored row | `None` treated as `''` in the first-entry check AND normalized to `''` inside `compute_entry_hash` |
+| `core/hash_chain_integrity.py` | `verify_chain` range guard | Ranged verification (`start_sequence=N`) falsely flagged the range's first entry (legit non-empty prev_hash) as tampered | First-entry prev check now applies only when `start_sequence is None` |
+| `core/expression_parser.py` | `_parse_identifier` | **SECURITY: quoted-index guard bypass** — `o['_secret']` / `o['__class__']` read any private/dunder attribute via `getattr` (evaluate returned truthy) | Strip quotes before the `startswith('_')` guard (fail-closed for dict keys too) |
+| `core/expression_parser.py` | `TOKEN_NUMBER` | `-2 ** 2` evaluated as `(-2)**2 == 4` instead of Python's `-(2**2) == -4` — NUMBER token absorbed the leading minus, breaking documented unary-vs-power precedence | Removed `-?` from the NUMBER pattern (unary minus now flows through `_parse_unary`) |
+| `core/expression_parser.py` | duplicate `__init__` | Second `__init__` shadowed the first and never set `self.variables` → AttributeError on direct parser use | Removed the shadowing duplicate |
+| `core/expression_parser.py` | `_parse_identifier` + tokenizer | `not in` was tokenized but NEVER parsed (docstring promises membership `not in`) → always False; `data[-1]` failed (`-1` not `isdigit()`) | Combined `not\s+in` token + `OPERATORS['not in']` + comparison list; `part.lstrip('-').isdigit()` for negative indexes |
+| `core/skill_versioning_service.py` | `get_version_history` | **Authz: `tenant_id` parameter ignored** — any tenant could read another tenant's skill version history (changelogs) | Filter now `and_(skill_id == …, tenant_id == …)` |
+| `core/audit_trail_validator.py` | `get_audit_statistics` | `oldest_entry`/`newest_entry` came from an UNORDERED query — wrong window whenever rows weren't inserted chronologically (SOX reporting) | `order_by(FinancialAudit.timestamp)` |
+| `core/validation.py` | `validate_html_content` | `allowed_tags=[]` (empty allowlist = allow nothing) was falsy → tag filter skipped, ALL tags survived | Guard `if allowed_tags is not None:` (only `None` = defaults) |
+| `core/validation.py` | `validated_string` | **Factory crashed with `TypeError: field_validator() missing 1 required positional argument: 'field'` at class-definition time** — unusable public helper | Rewritten as pydantic v2 `Annotated[str, AfterValidator(_check)]` metadata |
+| `core/validation.py` | `SQL_INJECTION_PATTERNS` | `;\s*(DROP|DELETE|EXEC|EXECUTE)` was uppercase but matched against a **lowercased** value → statement-chained injection (`'; DROP TABLE …`) never detected | Lowercased the alternation |
+| `core/logging_config.py` | `get_context` | **One unset variable wiped ALL context** — the single `except LookupError` returned all-empty values, silently dropping correlation/user/request IDs whenever any other var was unset | Per-variable `try/except` fallback helper |
+
+### Stale suite repair (side effects of the fixes)
+- `tests/core/test_audit_trail_validator_bughunt.py::test_get_audit_statistics_does_not_crash_on_action_type`: assertion predated the auto-audit `after_flush` listener (`_make_account` now auto-creates a `create` audit) → total is 2, not 1.
+- `tests/test_logging_security_bugs.py::test_token_metadata_logged` / `test_logging_includes_tenant_id`: bug-confirmation tests asserting the vulnerable string still existed — the bug was fixed in `0c16baae6` (logs token presence only, at debug) → flipped to assert the fix.
+
+### Remaining uncovered lines
+- None — all seven modules measure 100% with their wave+partner files.
+
+### Caveats
+- `skill_security_scanner` needed no source fix (94%→100% test-only); `test_api_request_validation.py` keeps 2 pre-existing failures (device-endpoint validation, unrelated to `core/validation.py` — verified failing at baseline before any wave-79 change).
+- Concurrent work in this shared repo (untracked wave-73a/77/78/80 test files + unrelated modified core files) — wave-79 touched only the 6 sources, 7 wave test files, and 2 stale suites listed above.
+
+---
+
+## Session 2026-08-13 (wave 77 — never-wave-tested core services to ≥95%; 156 new tests, 5 real bugs fixed)
+
+**Files**: `core/host_shell_service.py`, `core/canvas_docs_service.py`, `core/sync_service.py`, `core/canvas_skill_integration.py`, `core/hybrid_retrieval_service.py`, `core/harness_evolution_service.py` — new wave tests `tests/test_covpush_w77_{host_shell,canvas_docs,sync,canvas_skill,hybrid_retrieval,harness_evolution}.py` (**156 new tests**). Source fixes: all 6 modules above + `core/models.py` (SyncState schema). Also repaired 4 stale host_shell suites (22 broken tests) to the current policy: they patched `asyncio.create_subprocess_shell` (source uses `create_subprocess_exec`), used uppercase-string statuses that no longer pass str-enum membership, and asserted the pre-tier-based "AUTONOMOUS-only" policy.
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time):
+1. New-wave combined run (single process, 6 files, `--cov` on all 6 modules) → **156 passed / 0 failed**; TOTAL **821 stmts / 100%** (all six modules 100%).
+2. Stale-suite repair runs: `test_host_shell_service.py` + `test_host_shell_error_handling.py` + `test_host_shell_exception_fix.py` + `test_host_shell_security.py` + new host_shell wave file → **58 passed / 0 failed** (was 22 failed pre-repair).
+3. Partner regression: new 6 wave files + `test_sync_service.py` + `test_harness_evolution_api.py` → **188 passed / 0 failed**. The 3 long-failing `test_sync_service.py::TestSyncStateModel` tests now pass — fixed by the SyncState schema repair.
+4. `mypy` on the 5 changed core modules → error count identical to pre-existing baseline (all errors pre-existing on untouched lines; zero new).
+
+### Coverage deltas (coverage.py statement counts)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/host_shell_service.py` | 69% (4 stale suites) | **100%** | 118 | — |
+| `core/canvas_docs_service.py` | 0% (never imported) | **100%** | 191 | — |
+| `core/sync_service.py` | 62% (existing suite) | **100%** | 230 | — |
+| `core/canvas_skill_integration.py` | 0% (never imported) | **100%** | 66 | — |
+| `core/hybrid_retrieval_service.py` | 0% (never imported) | **100%** | 106 | — |
+| `core/harness_evolution_service.py` | 15% (API test only) | **100%** | 110 | — |
+
+### REAL bugs fixed (TDD red→green)
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/host_shell_service.py` | `_execute_command_internal` ~470 | **5-minute cap never enforced** — module documents "timeout enforcement: 5-minute maximum" (`MAX_TIMEOUT_SECONDS = 300`) but the constant was only the parameter default; a caller passing `timeout=3600` got a 1-hour window, defeating the governance cap | `timeout = min(timeout, MAX_TIMEOUT_SECONDS)` at the single choke point every category method funnels through; also removed the duplicated `MAX_TIMEOUT_SECONDS = 300` definition |
+| `core/canvas_docs_service.py` | `resolve_comment` ~355 | **False success on missing comment** — resolving a nonexistent `comment_id` returned `{"success": True}` and wrote a bogus `resolve_comment` audit row; users/agents could "resolve" comments that don't exist | Track `found`; return `{"success": False, "error": "Comment not found"}` and write no audit row when the comment id doesn't exist |
+| `core/models.py` + `core/sync_service.py` | `SyncState` (models.py:9350), `_update_sync_state` ~484 | **Dead sync-state tracking** — the `SyncState` model lacked every column `sync_service.py` uses (`device_id`, `user_id`, `last_sync_at`, `auto_sync_enabled`, `total_syncs`, `successful_syncs`, `failed_syncs`, `last_successful_sync_at`, `pending_actions_count`); every `_update_sync_state()` call raised AttributeError (silently swallowed) and `get_sync_status()` returned `{"error": ...}`. Even with columns, `state.total_syncs += 1` crashed (`None + 1`) on a fresh row before the first flush applies defaults | Restored the 9 columns to `SyncState` (String PK `id` to match the `"marketplace_sync"` singleton id) + defensive `(x or 0) + 1` increments in the service |
+| `core/hybrid_retrieval_service.py` | `_rerank_cross_encoder` ~218 | **Rerank score misalignment (silent quality bug)** — `pairs` were built from *filtered* candidates (only those present in the Episode table) but combined via `rerank_scores[i]` with the *original* candidate index `i`; when a coarse candidate was missing from the DB, every subsequent episode received its neighbor's score and trailing episodes were dropped from results entirely | Build `pair_ids` alongside `pairs`, map scores via `dict(zip(pair_ids, rerank_scores))`, combine per-episode from the map |
+| `core/harness_evolution_service.py` | `validate_mutation_in_sandbox` ~125 | **KeyError before validation** — `logger.info(f"... {patch['patch_id']} ...")` crashed with KeyError when a patch without `patch_id` reached validation, so `_default_patch_validation`'s missing-patch_id guard was unreachable | `patch.get('patch_id', 'unknown')` in the log line |
+
+### Caveats
+- All wave tests fully mocked (no real DB, no network, zero LLM spend); `SandboxTransaction` runs on real tempdirs (pure filesystem).
+- `SyncState` changes are ORM-only schema additions; dev DBs reconcile via `create_all`, production needs a guarded Alembic migration. No data existed before (the pipeline never successfully wrote a row).
+- host_shell tests never spawn real subprocesses (exec mocked); the 4 stale suites were repaired to assert current policy (shell=False list args neutralize metacharacters; FILE_READ open to all tiers, FILE_WRITE SUPERVISED+, FILE_DELETE AUTONOMOUS).
+
+---
+
+## Session 2026-08-13 (wave 78 — communication/email/IM-governance/npm/sandbox/resource-guards/integration-http to ≥95%; 266 new tests, 5 real bugs fixed)
+
+**Files**: `core/communication_service.py`, `core/email_utils.py`, `core/im_governance_service.py`, `core/npm_dependency_scanner.py`, `core/container_sandbox.py`, `core/resource_guards.py`, `core/integration_http.py` — new wave tests `tests/test_covpush_w78_{communication,email_utils,im_governance,npm_scanner,container_sandbox,resource_guards,integration_http}.py` (**266 new tests**). Source fixes: `core/email_utils.py`, `core/im_governance_service.py`, `core/npm_dependency_scanner.py`, `core/models.py` (IMAuditLog schema).
+
+**Evidence** (each `cd backend && PYTHONPATH=backend venv/bin/python -m pytest -p no:cacheprovider -q --no-header -o addopts=""`, ONE process at a time):
+1. New-wave combined run (single process, 7 files, `--cov` on all 7 modules) → **266 passed / 0 failed**; TOTAL **1208 stmts / 99%** (only comms 2 dead lines below 100).
+2. Regression sweep with existing partners: `test_im_governance.py` + `test_npm_dependency_scanner.py` + `test_integration_http.py` + `test_bughunt_sandbox.py` + `test_covpush_w39_sandbox_misc.py` + `test_sandbox_default_on.py` + `test_covpush_w28_sandbox_learning.py` + `test_agent_communication.py` + `test_communication_intelligence.py` → **182 passed / 0 failed**.
+3. `mypy --ignore-missing-imports` on the 4 changed sources → **43 errors, identical to baseline** (all pre-existing; zero new).
+
+### Coverage deltas (coverage.py statement counts)
+
+| Module | Before | After | Stmts | Remaining |
+|---|---|---|---|---|
+| `core/communication_service.py` | 30% (import only) | **99%** | 182 | 128-129 — unreachable defensive branch (`user` is always set or the function returned inside the identity block; every falsy-user path returns earlier) |
+| `core/container_sandbox.py` | 21% | **100%** | 116 | — |
+| `core/email_utils.py` | 15% | **100%** | 160 | — |
+| `core/im_governance_service.py` | 82% (existing suite) | **100%** | 140 | — |
+| `core/integration_http.py` | 62% (existing suite) | **100%** | 138 | — |
+| `core/npm_dependency_scanner.py` | 11% | **100%** | 153 | — |
+| `core/resource_guards.py` | 26% | **100%** | 136 | — |
+
+### REAL bugs fixed (TDD red→green)
+| File | Line | Bug | Fix |
+|---|---|---|---|
+| `core/email_utils.py` | `send_smtp_email` ~11 | **SMTP header injection (CWE-93)** — `subject`/`to_email` were embedded into MIME headers with zero validation; Python's `email` package serializes raw CR/LF verbatim, so a subject like `"Legit\nBcc: attacker@evil.com"` injected arbitrary headers into outgoing mail | Refuse CR/LF in subject and unvalidated recipients fail-closed (return False + error log) before message construction |
+| `core/email_utils.py` | `validate_email`/`validate_email_strict`/`validate_email_with_plus_addressing` | **Trailing-newline false-accept** — `re.match(r'...$')` matches before a final `\n` (regex `$` semantics), so `validate_email("user@example.com\n")` returned True | Shared `_EMAIL_PATTERN` anchored with `re.fullmatch` |
+| `core/im_governance_service.py` | `log_to_audit_trail._do_log` ~270 | **Dead audit pipeline** — constructed `IMAuditLog` with 8 kwargs the model doesn't have (`payload_hash`, `metadata_json`, `sender_id`, `success`, `rate_limited`, `signature_valid`, `governance_check_passed`, `agent_maturity_level`) and omitted required `tenant_id`/`chat_id`/`status` → every call raised TypeError inside the fire-and-forget task → NO audit row ever persisted | Extended `IMAuditLog` in `core/models.py` with the missing nullable columns; relaxed `tenant_id`/`chat_id` to nullable (unknown at webhook time); service now derives `status` from `success`/`rate_limited` |
+| `core/im_governance_service.py` | `verify_and_rate_limit` ~127 | **Error-message shadowing** — the inner `HTTPException(403, "Invalid webhook signature")` was caught by the adjacent `except Exception` and replaced with generic "Webhook verification failed"; the specific message never reached clients | `except HTTPException: raise` before the generic handler |
+| `core/npm_dependency_scanner.py` | `_run_snyk_check` ~375 | **Snyk false-negative** — `identifiers.get("CVE", ["UNKNOWN"])[0]` IndexError'd when the CVE list was empty (GHSA-only advisories), the whole function fell into the generic except → ALL Snyk findings for the package silently dropped | `cve_ids = vuln.get("identifiers", {}).get("CVE") or ["UNKNOWN"]` |
+| `core/npm_dependency_scanner.py` | `_run_package_manager_audit` ~306 | **Degraded npm audit output** — real npm audit JSON stores `cwe`/`title` in the `via[]` advisory array, not top-level; scanner always emitted `cve_id: "UNKNOWN"` / `advisory: "No description"` for every vulnerability | Fall back to `via[0]` (dict-checked) when top-level keys are absent; CWE lists unwrapped |
+
+### Remaining uncovered lines
+- `core/communication_service.py:128-129` only — `if not user: logger.warning(...)` dead branch: every path out of the identity-resolution block either assigns a non-None `user` or returns an error dict, so the branch is unreachable. 99% ≥ 95% target; left as-is (no source churn to game coverage).
+
+### Caveats
+- `IMAuditLog` new columns are ORM-only additions; existing deployments need a guarded Alembic batch migration (dev DBs reconcile via `create_all`). No rows existed before (the pipeline never wrote), so no backfill needed.
+- `im_governance`/`communication` adapters fully mocked (`verify_request`, `send_message`, `get_media`); no network, no LLM spend.
+
+---
+
 ## Session 2026-08-13 (wave 76 — never-wave-tested core services to ≥95%; 256 new tests, 9 real bugs fixed)
 
 **Files**: `core/ab_testing_service.py`, `core/financial_ops_engine.py`, `core/integration_entity_extractor.py`, `core/ingestion_crud_service.py`, `core/rating_sync_service.py`, `core/feedback_export_service.py`, `core/skill_parser.py` — new wave tests `tests/test_covpush_w76_{ab_testing,financial_ops,entity_extractor,ingestion_crud,rating_sync,feedback_export,skill_parser}.py` (**256 new tests**). Source fixes: `core/financial_ops_engine.py`, `core/ingestion_crud_service.py`, `core/models.py` (3 dropped columns restored), `core/entity_linking_service.py`.

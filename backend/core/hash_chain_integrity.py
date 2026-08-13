@@ -118,6 +118,13 @@ class HashChainIntegrity:
         if timestamp.tzinfo is not None:
             timestamp = timestamp.replace(tzinfo=None)
 
+        # Normalize None prev_hash to '' (the column default): _to_canonical_json
+        # drops None values entirely, so an entry stored with previous_hash=None
+        # but hashed over '' would never verify. A missing previous link and an
+        # empty previous link must hash identically.
+        if prev_hash is None:
+            prev_hash = ''
+
         data = {
             'account_id': account_id,
             'action_type': action_type,
@@ -180,15 +187,45 @@ class HashChainIntegrity:
         break_count = 0
         first_break = None
 
-        # Verify first entry (previous_hash should be empty)
-        if entries[0].previous_hash != '':
+        # Verify the first entry in scope. Its own hash was previously NEVER
+        # recomputed (the loop below starts at index 1), so content tampering
+        # of the first audit entry went completely undetected as long as
+        # previous_hash stayed empty.
+        first = entries[0]
+        expected_first_hash = self.compute_entry_hash(
+            account_id=first.account_id,  # type: ignore[arg-type]  # ORM attr, str at runtime
+            action_type=first.operation_type,  # type: ignore[arg-type]
+            old_values=first.old_values,  # type: ignore[arg-type]
+            new_values=first.new_values,  # type: ignore[arg-type]
+            timestamp=first.timestamp,  # type: ignore[arg-type]
+            sequence_number=first.sequence_number,  # type: ignore[arg-type]
+            prev_hash=first.previous_hash,  # type: ignore[arg-type]
+            user_id=first.user_id  # type: ignore[arg-type]
+        )
+        if first.hash_chain != expected_first_hash:
             first_break = {
-                'sequence_number': entries[0].sequence_number,
-                'audit_id': entries[0].id,
-                'issue': 'first_entry_has_prev_hash',
-                'expected_prev_hash': '',
-                'actual_prev_hash': entries[0].previous_hash
+                'sequence_number': first.sequence_number,
+                'audit_id': first.id,
+                'issue': 'hash_mismatch',
+                'expected_hash': expected_first_hash,
+                'actual_hash': first.hash_chain
             }
+            break_count += 1
+
+        # A FULL-chain verification starts at the beginning, so the first entry
+        # must have no previous hash. Ranged verification (start_sequence set)
+        # legitimately begins mid-chain — the range's first entry has a real
+        # previous_hash, so this check would be a false alarm there.
+        # None is treated like '' (the column default) — BUG 79-1 fix.
+        if start_sequence is None and first.previous_hash not in ('', None):
+            if first_break is None:
+                first_break = {
+                    'sequence_number': first.sequence_number,
+                    'audit_id': first.id,
+                    'issue': 'first_entry_has_prev_hash',
+                    'expected_prev_hash': '',
+                    'actual_prev_hash': first.previous_hash
+                }
             break_count += 1
 
         # Verify each subsequent entry
