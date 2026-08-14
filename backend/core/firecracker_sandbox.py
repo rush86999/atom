@@ -1,7 +1,10 @@
 """
 Firecracker sandbox manager.
 Executes commands (e.g. LibreOffice headless macro execution) inside a secure
-microVM or falls back to containerized/local sandboxing when KVM/Firecracker is unavailable.
+microVM. FAIL-CLOSED (W109-1): when KVM/Firecracker is unavailable the
+untrusted command is never executed on the host — ``execute_in_sandbox``
+raises ``SandboxUnavailableError`` instead of silently falling back to
+containerized/local execution.
 """
 
 import asyncio
@@ -12,6 +15,15 @@ from pathlib import Path
 from typing import List, Optional
 
 logger = logging.getLogger(__name__)
+
+
+class SandboxUnavailableError(RuntimeError):
+    """Raised when no secure execution runtime is available.
+
+    Firecracker sandboxing FAILS CLOSED: when KVM/Firecracker is unavailable
+    (or the VM cannot boot) the untrusted command is never executed on the
+    host — callers get an explicit error instead of a silent local fallback.
+    """
 
 
 class FirecrackerSandbox:
@@ -35,49 +47,40 @@ class FirecrackerSandbox:
     ) -> bool:
         """Executes a command inside a Firecracker VM with the input file mapped.
 
-        Falls back to local subprocess execution if Firecracker is not available.
+        Fail-closed: if Firecracker/KVM is unavailable, or the VM fails to
+        start, ``SandboxUnavailableError`` is raised and the command is
+        **never** executed on the host (no silent local fallback). Returns
+        ``False`` if the VM orchestration cannot actually run the command.
         """
-        if self.is_available:
-            logger.info(f"Executing sandboxed command in Firecracker VM: {command}")
-            # In a full production setup:
-            # 1. Prepare Firecracker VM config JSON pointing to rootfs and kernel.
-            # 2. Map input_file into the microVM block device or via vsock.
-            # 3. Start Firecracker process: firecracker --api-sock /tmp/fc.sock
-            # 4. Trigger VM boot and run command.
-            # 5. Extract output_dir changes.
-            # For this integration, we mock the VM orchestration CLI calls:
-            try:
-                # Mock config setup and boot:
-                proc = await asyncio.create_subprocess_exec(
-                    "firecracker",
-                    "--api-sock", "/tmp/firecracker.socket",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                # Fallback to local execution as VM startup mockup
-                await asyncio.sleep(0.5)
-                proc.kill()
-            except Exception as e:
-                logger.debug(f"Mock Firecracker failed: {e}. Using container/local runner.")
-        
-        # Fallback / Local Execution (highly sandboxed via OS-level controls if configured)
-        logger.warning("Firecracker VM sandbox unavailable or using fallback. Executing locally.")
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                *command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env={**os.environ, "HOME": str(Path.home())}
+        if not self.is_available:
+            raise SandboxUnavailableError(
+                "Firecracker sandbox unavailable (KVM or firecracker binary missing); "
+                "refusing to execute untrusted command on host"
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-            if proc.returncode == 0:
-                return True
-            else:
-                logger.error(f"Local sandbox execution returned non-zero code {proc.returncode}: {stderr.decode()}")
-                return False
+        logger.info(f"Executing sandboxed command in Firecracker VM: {command}")
+        try:
+            # Prepare Firecracker VM config JSON pointing to rootfs and kernel,
+            # map input_file into the microVM block device or via vsock, start
+            # the Firecracker process, trigger boot, then run the command.
+            proc = await asyncio.create_subprocess_exec(
+                "firecracker",
+                "--api-sock", "/tmp/firecracker.socket",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            await asyncio.sleep(0.5)
+            proc.kill()
         except Exception as e:
-            logger.error(f"Local sandbox execution failed: {e}")
-            return False
+            logger.debug(f"Firecracker VM startup failed: {e}.")
+            raise SandboxUnavailableError(f"Firecracker VM startup failed: {e}") from e
+
+        # VM orchestration cannot run the command yet — fail closed rather
+        # than silently executing the untrusted command on the host.
+        logger.warning(
+            "Firecracker VM orchestration is a placeholder — command not executed; "
+            "no host fallback."
+        )
+        return False
 
 
 _sandbox: Optional[FirecrackerSandbox] = None

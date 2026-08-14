@@ -202,7 +202,7 @@ class WorkbookRuntime:
         if not self._soffice:
             return {"success": False, "error": "Macro execution requires LibreOffice runtime engine"}
 
-        from core.firecracker_sandbox import get_sandbox
+        from core.firecracker_sandbox import get_sandbox, SandboxUnavailableError
         sandbox = get_sandbox()
 
         # Command to trigger macro execution in LibreOffice Calc standard libraries
@@ -214,7 +214,11 @@ class WorkbookRuntime:
             str(file_path)
         ]
 
-        success = await sandbox.execute_in_sandbox(command, file_path, file_path.parent)
+        try:
+            success = await sandbox.execute_in_sandbox(command, file_path, file_path.parent)
+        except SandboxUnavailableError as e:
+            logger.error(f"Macro sandbox unavailable: {e}")
+            return {"success": False, "error": f"Macro execution requires Firecracker sandbox: {e}"}
         if success:
             await self.recalculate(file_path)
             return {"success": True, "macro": macro_name}

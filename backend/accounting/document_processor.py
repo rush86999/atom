@@ -15,13 +15,23 @@ try:
 except ImportError:
     PDF_OCR_AVAILABLE = False
     PDFOCRService = None
-from integrations.ai_enhanced_service import (
-    AIModelType,
-    AIRequest,
-    AIServiceType,
-    AITaskType,
-    ai_enhanced_service,
-)
+# Optional AI enhanced service integration (W109-3: previously a bare import
+# that made the whole module unimportable when the optional service is absent —
+# matching the try/except pattern used by core/business_health_service.py).
+try:
+    from integrations.ai_enhanced_service import (
+        AIModelType,
+        AIRequest,
+        AIServiceType,
+        AITaskType,
+        ai_enhanced_service,
+    )
+except Exception:
+    AIModelType = None
+    AIRequest = None
+    AIServiceType = None
+    AITaskType = None
+    ai_enhanced_service = None
 
 logger = logging.getLogger(__name__)
 

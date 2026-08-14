@@ -86,6 +86,7 @@ export default function DocumentDetailsPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => router.back()}
+                        aria-label="Go back"
                         className="shrink-0"
                     >
                         <ArrowLeft className="h-6 w-6" />

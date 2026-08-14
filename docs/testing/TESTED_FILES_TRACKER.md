@@ -6,6 +6,106 @@
 
 ---
 
+## Session 2026-08-14 (frontend wave — 10 lowest-coverage pages/components to >=80%; 179 new tests, 3 component fixes)
+
+**Files** (all were 0% except where noted; all previously never tested by any suite):
+
+| File | Before | After | Tests | Notes |
+|---|---|---|---|---|
+| `pages/agents/index.tsx` | 0% | **97.99%** stmts / 80.62% br / 99.44% lines | 34 | `tests/pages/agents-index.test.tsx` |
+| `pages/dev-studio.tsx` | 0% | **99.3%** stmts / 88.5% br / 100% lines | 38 (17 web + 21 tauri) | `tests/pages/dev-studio.test.tsx` + `dev-studio-tauri.test.tsx` |
+| `pages/canvas/[id].tsx` | 0% | **96.92%** stmts / 81.28% br / 100% lines | 31 | `tests/pages/canvas-detail.test.tsx` |
+| `pages/dev-status.tsx` | 0% | **96.9%** stmts / 80.53% br / 95.83% lines | 9 (6 web + 3 tauri) | `tests/pages/dev-status.test.tsx` + `dev-status-tauri.test.tsx` |
+| `pages/finance/index.tsx` | 0% | **100%** stmts / 75% br / 100% lines | 13 | `tests/pages/finance-index.test.tsx` |
+| `pages/documents.tsx` | 0% | **98.68%** stmts / 87.87% br / 98.41% lines | 16 | `tests/pages/documents.test.tsx` |
+| `pages/dashboard/communication/index.tsx` | 0% | **100%** stmts / 90.72% br / 100% lines | 9 | `tests/pages/communication-dashboard.test.tsx` |
+| `pages/analytics.tsx` | 0% | **100%** stmts / 100% funcs / 100% lines | 11 | `tests/pages/analytics.test.tsx` (br 78.35% — remaining are defensive `data?.x || 0` branches unreachable past the `!data` early return) |
+| `pages/canvas/index.tsx` | 0% | **100%** stmts / 92.3% br / 100% lines | 8 | `tests/pages/canvas-index.test.tsx` |
+| `pages/documents/[docId].tsx` | 0% | **97.91%** stmts / 91.48% br / 100% lines | 10 | `tests/pages/document-details.test.tsx` |
+
+**Component fixes (TDD RED→GREEN)**:
+
+1. **`pages/canvas/[id].tsx` Send button a11y** — icon-only button (svg has no title) had NO accessible name → screen readers/keyboard nav cannot identify it; tests could not query it by role. Added `aria-label="Send message"`.
+2. **`pages/documents/[docId].tsx` header back button a11y** — same icon-only issue. Added `aria-label="Go back"`.
+3. **`pages/dev-studio.tsx` dead code removal** — `executeCommand` (69 lines, web + Tauri branches) + `commandOutput`/`isExecuting`/`command`/`commandArgs`/`workingDir` state were never referenced by any JSX (grep-verified) — dead code blocked 80% (35 unreachable statements). Removed; zero behavior change (38 tests pass).
+
+**Notable findings**:
+- `dev-status.tsx` and `dev-studio.tsx` fetch logic: `loadSystemStatus` runs twice per mount (double effect invocation) — `mockResolvedValueOnce` chains get consumed out of order; tests route fetch by URL instead.
+- `@tauri-apps/api` is NOT installed; pages that `require("@tauri-apps/api")` at module scope need `jest.mock("@tauri-apps/api", ...)` (web-mode: `invoke: null`; tauri-mode: delegating fn).
+- jsdom does not submit forms on button click — finance dialog tests use `fireEvent.submit(form)`.
+- Remaining full-suite failures are PRE-ENGINEERING baseline (verified via `git stash` of the 3 source edits): ReasoningChainViewer, mini-app-harness, ProjectCommandCenter, testIds (PROJECTS category drift), login, marketplace — all fail identically on clean baseline.
+
+---
+## Session 2026-08-13 (wave 108 — 5 never-tested modules ≥95%; 190 new tests, 5 real bugs fixed)
+
+**Files**: `core/debug_insights/error_causality.py`, `core/debug_insights/flow.py`, `core/debug_insights/consistency.py`, `integrations/pdf_processing/pdf_memory_routes.py`, `integrations/pdf_processing/pdf_ocr_routes.py` — new wave tests `tests/test_covpush_w108_{error_causality,flow,consistency,pdf_memory,pdf_ocr}.py` (**192 new tests**). None had a ≥95% tracker entry; **all 5 baselines were 0%** (never imported by any existing suite). After: error_causality **100%** (117/117), flow **100%** (93/93), consistency **100%** (93/93), pdf_memory_routes **100%** (212/212), pdf_ocr_routes **98%** (195/198 — 3 unreachable defensive lines, see below). No str(e) leaks remain in the two route modules.
+
+**Bugs fixed (TDD RED→GREEN — failing test first, source then patched)**:
+
+1. **`error_causality.py:127,218` `DebugInsightSeverity.ERROR` AttributeError (W108-1)** — the severity enum has **no `ERROR` member** (only CRITICAL/WARNING/INFO); every multi-event `analyze_error_chain` (root-cause analysis) and every `track_error_propagation` raised AttributeError inside the try → **both analyses ALWAYS returned None** (dead features). Now `DebugInsightSeverity.CRITICAL.value` (2 sites). RED: `test_chain_root_cause`/`test_propagation_stops_at_first_error` (None with logged `error="ERROR"`).
+2. **`error_causality.py:221` tuple-join TypeError (W108-2)** — `' → '.join(propagation_order[:][:5])` joined `(event, comp_key)` **tuples** → `TypeError: sequence item 0: expected str instance, tuple found` → `track_error_propagation` always returned None even after W108-1. Now joins the component keys. RED: `test_propagation_stops_at_first_error`.
+3. **`flow.py:111` `DebugInsightSeverity.ERROR` AttributeError (W108-3)** — same enum bug in `trace_operation_flow`'s interrupted-flow branch → "Operation flow interrupted" insight always fell into except → None. Now `CRITICAL`. RED: `test_interrupted_flow`.
+4. **`flow.py:344` `func.case(..., else_=0)` TypeError (W108-4)** — `func.case` does not accept `else_` kwargs → `analyze_workflow_patterns` ALWAYS raised → workflow failure-rate analysis dead. Now `case(...)` imported from `sqlalchemy`. RED: `test_high_failure_rate` (0 insights + logged `Function.__init__() got an unexpected keyword argument 'else_'`).
+5. **`pdf_ocr_routes.py` auth gap (W108-5, SECURITY)** — `/pdf/status`, `/pdf/process`, `/pdf/extract-text-only`, `/pdf/analyze-pdf-type`, `/pdf/health` had **NO auth** (only `/pdf/process-url` was gated) → any anonymous caller could burn BYOK/LLM credits and probe the OCR service. All 5 now require `get_current_user`. RED: `test_all_routes_require_auth` (anon → 200, now 401). No in-repo callers of these routes exist (grep-verified) — safe to gate.
+6. **`pdf_ocr_routes.py` SSRF DNS-name bypass (W108-6, SECURITY)** — the guard only checked **literal IPs**; DNS names (`http://localhost/x.pdf`, or any name resolving to a private address) sailed through and reached the real `httpx.get` (verified: live "All connection attempts failed" during RED). Now the `ValueError` branch resolves via `socket.getaddrinfo` and blocks any address that is private/loopback/link-local/reserved; unresolvable names fall through to httpx (which fails cleanly). RED: `test_process_url_localhost_name_blocked`, `test_process_url_dns_to_private_ip_blocked`.
+7. **`pdf_ocr_routes.py` str(e) leaks (W108-7)** — exception detail leaked to clients in 3 responses: `/pdf/health` BYOK `"error": str(e)`, `_get_pdf_byok_providers` `"error": str(e)`, `_optimize_pdf_processing_with_byok` `"error": str(e)`. All 3 now return generic messages and log the real detail server-side. RED: `test_health_with_byok_disconnected` (asserted `"byok down" not in response`), `test_outer_exception_generic_error`, `test_exception_generic_error`.
+
+**Coverage deltas** (measured `--cov=<module> --cov-report=term-missing` for the 3 debug modules; the 2 pdf route modules use `coverage run` + report-time `--include` — **numpy 2.4.6's "cannot load module more than once per process" guard breaks any `--source`/`--cov` run that imports the pdf modules**, worked around by omitting `--source` at run time; import-fallback branches covered via a second `--append` run of the same file from `/tmp`, where `backend.*` does not resolve):
+
+| Module | Before | After | Stmts | Remaining uncovered |
+|---|---|---|---|---|
+| `core/debug_insights/error_causality.py` | 0% | **100%** | 117 | — |
+| `core/debug_insights/flow.py` | 0% | **100%** | 93 | — |
+| `core/debug_insights/consistency.py` | 0% | **100%** | 93 | — |
+| `integrations/pdf_processing/pdf_memory_routes.py` | 0% | **100%** | 212 | — |
+| `integrations/pdf_processing/pdf_ocr_routes.py` | 0% | **98%** | 198 | 458-460: `_get_pdf_byok_providers` outer `except Exception` — **unreachable**: the per-provider loop body already catches everything (inner `except Exception: continue`), so the outer handler can never fire; kept as defensive dead code |
+
+**Evidence** (each `cd backend && PYTHONPATH=/Users/rushiparikh/projects/atom/backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time — RAM control):
+1. RED proofs: `None` insights with logged `error="ERROR"`/tuple-join/`else_` TypeErrors (W108-1..4); anon `200` on `/pdf/status` + live network attempts on localhost (W108-5/6); `"boom"`/`"byok down"` in response bodies (W108-7).
+2. Debug-insights run (w108 3 files + w70 regression): **116 passed / 0 failed**; each module standalone 100%.
+3. PDF routes run (2 files): **110 passed / 0 failed**; pdf_memory standalone + append = **212/212 100%**; pdf_ocr standalone + append = **195/198 98%** (the 3 dead lines above).
+4. mypy on the 5 touched modules: only the **pre-existing repo-layout duplicate-module error** (`backend.core`/`core`, verified identical via `git stash` on the untouched `flow.py`) — 0 new errors.
+5. Auth parity note: `/pdf/*` now matches `/pdf-memory/*` (router-level auth) and `/pdf/process-url` (per-route auth).
+
+---
+
+## Session 2026-08-13 (wave 109 — 6 modules to 100%; 108 new tests + 2 repaired scaffold tests, 4 real bugs fixed)
+
+**Files**: `core/marketplace_usage_tracker.py`, `core/firecracker_sandbox.py`, `core/meta_agent_orchestrator.py`, `core/workflow_template_system.py`, `integrations/chat_orchestrator.py`, `accounting/document_processor.py` — new wave tests `tests/test_covpush_w109_{marketplace_usage,firecracker_sandbox,meta_agent_orchestrator,workflow_templates,chat_orchestrator,accounting_docs}.py` (**106 new tests**); stray `integrations/test_chat_orchestrator.py` scaffold **moved to `tests/test_chat_orchestrator.py`** (repaired to the current flow, 2 tests).
+
+**Skips (already covered, no work needed)**: `core/coordinated_strategy_service.py` (wave-85 `test_covpush_w85_strategy.py` — 60/60, 100%, tracked); replacement picked = next largest untracked `core/workflow_template_system.py` (no tracker entry, 63% legacy baseline). `accounting/routes.py` (already **100%** via `test_covpush_w75a_accounting3.py` — measured) and `accounting/tax_service.py` (already **100%** via `test_covpush_w72a_accounting.py` — measured); replacement = largest actually-uncovered accounting module `accounting/document_processor.py` (0%).
+
+**Bugs fixed (TDD RED→GREEN — failing test first, source then patched)**:
+
+1. **`core/firecracker_sandbox.py` FAIL-OPEN host execution (W109-1, SECURITY)**: `execute_in_sandbox` ran the untrusted command (LibreOffice macros) **directly on the host** via `asyncio.create_subprocess_exec(*command)` whenever KVM/firecracker was missing — and even after the fake "VM boot" in the available branch. Silent local fallback = fail-open for untrusted workbook actions. Now **fail-closed**: no KVM/binary → raises `SandboxUnavailableError` (new); VM boot failure → raises; VM orchestration placeholder → returns `False`; the command is **never** executed on the host. Consumer `core/workbook_runtime.run_macro` catches the error → `{"success": False, "error": "Macro execution requires Firecracker sandbox: ..."}` (was an uncaught 500). RED: `test_no_runtime_raises_and_never_executes_locally` (old code returned True after host execution).
+2. **`core/workflow_template_system.py` duplicate `update_template` (W109-2)**: the feature-rich first definition (dict→`TemplateStep` conversion, `id` alias, re-index) was **silently shadowed** by a second, simpler definition → the live method assigned **raw dicts** to `template.steps`, and `create_workflow_from_template` crashed `KeyError: 'parameters'` on any template updated with dict steps; tag/category indexes were never refreshed on update (stale `tags_index` after rename). Merged into one method (dict conversion + alias + `_update_indexes(remove=True)`+add). RED: `test_update_with_dict_steps_then_generate` (`KeyError`/`AttributeError`), `test_update_template_name_tags` (stale index).
+3. **`core/workflow_template_system.py` built-in template creator crash (W109-2b)**: `load_built_in_templates` built the template-dict list in a **list comprehension outside the try/except** — one failing creator (e.g. a broken template definition) crashed the entire manager `__init__`. Creators now run individually inside the try. RED: `test_load_built_in_error_path` (ValueError propagated from `__init__`).
+4. **`accounting/document_processor.py` unimportable (W109-3)**: bare module-level `from integrations.ai_enhanced_service import ...` — that module **does not exist** → `ModuleNotFoundError` on any import → the whole `AIDocumentProcessor` service (bill/invoice AI extraction, OCR) was dead code, 0% reachable. Now a guarded try/except (codebase pattern per `core/business_health_service.py`); absent service → `None` attrs, `_ai_extract` degrades to `None` (never raises). RED: test-module collection `ModuleNotFoundError: No module named 'integrations.ai_enhanced_service'`.
+5. **Minor (folded into #2)**: `WorkflowTemplateManager.__init__` used `mkdir(exist_ok=True)` without `parents=True` — nested `template_dir` crashed `__init__` (FileNotFoundError). Now `mkdir(parents=True, exist_ok=True)`.
+
+**Coverage deltas** (measured `--cov=<module> --cov-report=term-missing`, wave-109 files, single pytest process):
+
+| Module | Before | After (w109 alone / + legacy) | Stmts | Remaining uncovered |
+|---|---|---|---|---|
+| `core/marketplace_usage_tracker.py` | 26% (import) | **100%** | 39 | — |
+| `core/firecracker_sandbox.py` | 36% (import) | **100%** | 33 (refactored from 39) | — |
+| `core/meta_agent_orchestrator.py` | 56% (import) | **100%** | 27 | — |
+| `core/workflow_template_system.py` | 63% (legacy suites) | **100%** (w109 39 + legacy 47) | 347 | — |
+| `integrations/chat_orchestrator.py` | 95.0% (662/697, w75-era suites) | **100%** (w109 + scaffold + comms_services3) | 697 | — |
+| `accounting/document_processor.py` | **0% (unimportable!)** | **100%** | 119 | — |
+
+Combined wave run (6 files + scaffold): **109 passed / 0 failed; TOTAL 1262 stmts / 100% × 6** (chat_orchestrator 55% in that run — the remaining 45% comes from `test_covpush_comms_services3.py`; the w109+scaffold+comms3 run measured **697/697 = 100%**).
+
+**Evidence** (each `cd backend && PYTHONPATH=/Users/rushiparikh/projects/atom/backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time — RAM control):
+1. RED proofs: `SandboxUnavailableError` import error + host-exec assertion (W109-1); `KeyError`/`AttributeError: 'dict' object has no attribute 'step_id'` + stale-index assert (W109-2); `ValueError: template source broke` propagating from `__init__` (W109-2b); `ModuleNotFoundError: No module named 'integrations.ai_enhanced_service'` at test collection (W109-3).
+2. Wave run (7 files, one process, `--cov` all 6 targets) → **109 passed / 0 failed**.
+3. chat_orchestrator: wave + `test_chat_orchestrator.py` + `test_covpush_comms_services3.py` → **697/697 100%**, 110 passed / 1 failed — the failure is the **documented pre-existing** `test_msal_not_available` (verified failing on the untouched baseline comms3 run before this wave: `1 failed, 93 passed`).
+4. workflow_template_system regression: wave + `test_workflow_template_system.py` + `tests/unit/test_workflow_template_system.py` → **86 passed / 13 skipped, 347/347 100%**.
+5. firecracker consumer regression: `test_covpush_w40_workbook_runtime.py` → **30 passed** (run_macro mocks unaffected by the fail-closed contract).
+6. mypy (`--follow-imports=skip`, 4 touched sources): **20 errors — one FEWER than the git-stash baseline (21); 0 new** (document_processor now parses/type-checks at all).
+
+---
+
 ## Session 2026-08-13 (wave 104 — 8 never-tested core modules to 100%; 207 new tests, 8 real bugs fixed)
 
 **Files**: `core/unified_task_endpoints.py`, `core/self_evolution_service.py`, `core/user_context_manager.py`, `core/spend_aggregation_service.py`, `core/stakeholder_engine.py`, `core/intervention_service.py`, `core/knowledge_query_endpoints.py`, `core/email_followup_engine.py` — new wave tests `tests/test_covpush_w104_{unified_tasks,self_evolution,user_context,spend_aggregation,stakeholder,intervention,knowledge_query,email_followup}.py` (**207 new tests**). None had a ≥95% tracker entry; **all 8 baselines were 0%** (`--cov` on the w97-era suites: module never imported). After: **100% × 8** (TOTAL 752 stmts / 0 missing, target ≥95% met).

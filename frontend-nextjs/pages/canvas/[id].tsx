@@ -328,7 +328,7 @@ export default function CanvasDetailPage() {
                                     disabled={isAgentResponding}
                                     className="text-sm"
                                 />
-                                <Button size="icon" onClick={handleSendMessage} disabled={isAgentResponding || !chatInput.trim()}>
+                                <Button size="icon" onClick={handleSendMessage} disabled={isAgentResponding || !chatInput.trim()} aria-label="Send message">
                                     <Send className="h-4 w-4" />
                                 </Button>
                             </div>

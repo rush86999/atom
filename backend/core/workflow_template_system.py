@@ -159,7 +159,7 @@ class WorkflowTemplateManager:
 
     def __init__(self, template_dir: str = "workflow_templates"):
         self.template_dir = Path(template_dir)
-        self.template_dir.mkdir(exist_ok=True)
+        self.template_dir.mkdir(parents=True, exist_ok=True)
 
         self.templates: Dict[str, WorkflowTemplate] = {}
         self.marketplace = TemplateMarketplace()
@@ -202,43 +202,50 @@ class WorkflowTemplateManager:
         return self.templates.get(template_id)
 
     def update_template(self, template_id: str, updates: Dict[str, Any]) -> WorkflowTemplate:
-        """Update an existing workflow template"""
-        template = self.get_template(template_id)
-        if not template:
+        """Update an existing workflow template.
+
+        Steps given as plain dicts are converted to ``TemplateStep`` objects
+        (accepting the ``id`` alias for ``step_id``) so downstream consumers
+        (``create_workflow_from_template``, duration calc) never see raw
+        dicts. Tag/category indexes are refreshed and stale entries removed.
+        """
+        if template_id not in self.templates:
             raise ValueError(f"Template {template_id} not found")
 
-        # Update core fields
+        template = self.templates[template_id]
+
+        # Update fields
         for field, value in updates.items():
-            if hasattr(template, field) and value is not None:
-                # Handle steps list explicitly if needed, but Pydantic might handle assignment if valid
+            if hasattr(template, field) and value is not None and field not in ['template_id', 'created_at']:
                 if field == "steps":
-                     # Ensure we convert dicts to TemplateStep objects if they are dicts
-                     new_steps = []
-                     for s in value:
-                         if isinstance(s, dict):
-                             # Ensure keys match alias (step_id vs id)
-                             if "step_id" not in s and "id" in s:
-                                 s["step_id"] = s["id"]
-                             
-                             # Clean up keys intended for frontend nodes but not in schema
-                             valid_keys = TemplateStep.__fields__.keys()
-                             valid_aliases = {f.alias for f in TemplateStep.__fields__.values()}
-                             # No strict filtering here, let Pydantic handle extra ignore
-                             new_steps.append(TemplateStep(**s))
-                         else:
-                             new_steps.append(s)
-                     template.steps = new_steps
+                    # Ensure we convert dicts to TemplateStep objects
+                    new_steps = []
+                    for s in value:
+                        if isinstance(s, dict):
+                            # Ensure keys match alias (step_id vs id)
+                            if "step_id" not in s and "id" in s:
+                                s["step_id"] = s["id"]
+                            new_steps.append(TemplateStep(**s))
+                        else:
+                            new_steps.append(s)
+                    template.steps = new_steps
                 else:
                     setattr(template, field, value)
 
+        # Recalculate dependencies
+        template.calculate_estimated_duration()
         template.updated_at = datetime.now()
-        
-        # Re-save
+
+        # Re-index (removes stale category/tag entries, adds new ones)
+        self._update_indexes(template, remove=True)
+        self._update_indexes(template)
+
+        # Save updates
         self.templates[template_id] = template
         self.marketplace.templates[template_id] = template
-        self._update_indexes(template) # Re-index
         self._save_template(template)
-        
+
+        logger.info(f"Updated template: {template.name}")
         return template
 
     def list_templates(self,
@@ -325,28 +332,6 @@ class WorkflowTemplateManager:
         except Exception as e:
             logger.error(f"Failed to create workflow from template {template_id}: {e}")
             raise
-
-    def update_template(self, template_id: str, updates: Dict[str, Any]) -> WorkflowTemplate:
-        """Update an existing template"""
-        if template_id not in self.templates:
-            raise ValueError(f"Template {template_id} not found")
-
-        template = self.templates[template_id]
-
-        # Update fields
-        for field, value in updates.items():
-            if hasattr(template, field) and field not in ['template_id', 'created_at']:
-                setattr(template, field, value)
-
-        # Recalculate dependencies
-        template.calculate_estimated_duration()
-        template.updated_at = datetime.now()
-
-        # Save updates
-        self._save_template(template)
-
-        logger.info(f"Updated template: {template.name}")
-        return template
 
     def delete_template(self, template_id: str) -> bool:
         """Delete a template"""
@@ -600,26 +585,27 @@ class WorkflowTemplateManager:
     def load_built_in_templates(self):
         """Load built-in templates"""
         # This would be expanded with comprehensive built-in templates
-        built_in_templates = [
-            self._create_data_processing_template(),
-            self._create_automation_template(),
-            self._create_monitoring_template(),
-            self._create_integration_template(),
-            self._create_content_management_template(),
-            self._create_burnout_protection_template(),
-            self._create_deadline_mitigation_template(),
-            self._create_email_followup_template(),
-            self._create_goal_driven_automation_template(),
-            self._create_agent_pipeline_template(),  # Phase 28
+        creators = [
+            self._create_data_processing_template,
+            self._create_automation_template,
+            self._create_monitoring_template,
+            self._create_integration_template,
+            self._create_content_management_template,
+            self._create_burnout_protection_template,
+            self._create_deadline_mitigation_template,
+            self._create_email_followup_template,
+            self._create_goal_driven_automation_template,
+            self._create_agent_pipeline_template,  # Phase 28
             # Phase 38: Financial Ops & Background Agent Templates
-            self._create_cost_optimization_template(),
-            self._create_budget_approval_template(),
-            self._create_invoice_reconciliation_template(),
-            self._create_periodic_portal_check_template()
+            self._create_cost_optimization_template,
+            self._create_budget_approval_template,
+            self._create_invoice_reconciliation_template,
+            self._create_periodic_portal_check_template
         ]
 
-        for template_data in built_in_templates:
+        for creator in creators:
             try:
+                template_data = creator()
                 template = WorkflowTemplate(**template_data)
                 if template.template_id not in self.templates:
                     self.templates[template.template_id] = template

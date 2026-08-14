@@ -57,7 +57,10 @@ def get_pdf_service(use_byok: bool = True) -> PDFOCRService:
 
 
 @router.get("/status")
-async def get_pdf_service_status(byok_manager=Depends(get_byok_manager_dependency)):
+async def get_pdf_service_status(
+    byok_manager=Depends(get_byok_manager_dependency),
+    current_user=Depends(get_current_user),
+):
     """Get the status and capabilities of the PDF processing service."""
     try:
         service = get_pdf_service()
@@ -99,6 +102,7 @@ async def process_pdf_file(
         True, description="Use BYOK for provider optimization"
     ),
     byok_manager=Depends(get_byok_manager_dependency),
+    current_user=Depends(get_current_user),
 ):
     """
     Process a PDF file with optional OCR and image comprehension.
@@ -178,7 +182,13 @@ async def process_pdf_from_url(
         from urllib.parse import urlparse
         import ipaddress
 
-        # SSRF guard: block private/loopback/link-local URLs.
+        # SSRF guard: block private/loopback/link-local URLs, including DNS
+        # names that resolve to private addresses (e.g. "localhost" or an
+        # internal hostname) — literal-IP checks alone are not sufficient.
+        import socket
+        from urllib.parse import urlparse
+        import ipaddress
+
         parsed = urlparse(pdf_url)
         if parsed.scheme not in ("http", "https"):
             raise HTTPException(status_code=400, detail="URL must be http or https")
@@ -188,7 +198,24 @@ async def process_pdf_from_url(
             if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
                 raise HTTPException(status_code=400, detail="URL must not point to a private/internal address")
         except ValueError:
-            pass  # DNS name — allow
+            # DNS name — resolve and verify every address is public
+            try:
+                for addr in socket.getaddrinfo(hostname, None):
+                    resolved_ip = ipaddress.ip_address(addr[4][0])
+                    if (
+                        resolved_ip.is_private
+                        or resolved_ip.is_loopback
+                        or resolved_ip.is_link_local
+                        or resolved_ip.is_reserved
+                    ):
+                        raise HTTPException(
+                            status_code=400,
+                            detail="URL must not point to a private/internal address",
+                        )
+            except HTTPException:
+                raise
+            except Exception:
+                logger.warning("Failed to resolve hostname for SSRF check: %s", hostname)
 
         # Download PDF from URL
         async with httpx.AsyncClient() as client:
@@ -250,6 +277,7 @@ async def process_pdf_from_url(
 @router.post("/extract-text-only")
 async def extract_text_only(
     file: UploadFile = File(..., description="PDF file for text extraction"),
+    current_user=Depends(get_current_user),
 ):
     """
     Extract text only from PDF (no OCR, no image processing).
@@ -299,6 +327,7 @@ async def extract_text_only(
 @router.post("/analyze-pdf-type")
 async def analyze_pdf_type(
     file: UploadFile = File(..., description="PDF file to analyze"),
+    current_user=Depends(get_current_user),
 ):
     """
     Analyze PDF type (searchable vs scanned) without full processing.
@@ -355,7 +384,10 @@ async def analyze_pdf_type(
 
 
 @router.get("/health")
-async def health_check(byok_manager=Depends(get_byok_manager_dependency)):
+async def health_check(
+    byok_manager=Depends(get_byok_manager_dependency),
+    current_user=Depends(get_current_user),
+):
     """Health check endpoint for PDF processing service."""
     try:
         service = get_pdf_service()
@@ -383,9 +415,10 @@ async def health_check(byok_manager=Depends(get_byok_manager_dependency)):
                     "byok_health": byok_health,
                 }
             except Exception as e:
+                logger.error(f"BYOK health check failed: {e}")
                 health_info["byok_integration"] = {
                     "status": "disconnected",
-                    "error": str(e),
+                    "error": "BYOK health check failed",
                 }
 
         return health_info
@@ -424,7 +457,11 @@ async def _get_pdf_byok_providers(byok_manager) -> Dict[str, Any]:
         return {"pdf_providers": pdf_providers, "total_providers": len(pdf_providers)}
     except Exception as e:
         logger.error(f"Failed to get PDF BYOK providers: {e}")
-        return {"pdf_providers": [], "total_providers": 0, "error": str(e)}
+        return {
+            "pdf_providers": [],
+            "total_providers": 0,
+            "error": "Failed to get PDF BYOK providers",
+        }
 
 
 async def _optimize_pdf_processing_with_byok(
@@ -462,4 +499,8 @@ async def _optimize_pdf_processing_with_byok(
 
     except Exception as e:
         logger.error(f"BYOK optimization failed: {e}")
-        return {"optimized": False, "error": str(e), "task_type": "unknown"}
+        return {
+            "optimized": False,
+            "error": "BYOK optimization failed",
+            "task_type": "unknown",
+        }

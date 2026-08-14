@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set
 
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, case, or_, func
 
 from core.models import (
     DebugEvent,
@@ -108,7 +108,7 @@ class FlowInsightGenerator:
             if flow_analysis["has_errors"]:
                 return DebugInsight(
                     insight_type=DebugInsightType.FLOW.value,
-                    severity=DebugInsightSeverity.ERROR.value,
+                    severity=DebugInsightSeverity.CRITICAL.value,
                     title="Operation flow interrupted",
                     description=f"Operation encountered {flow_analysis['error_count']} errors during execution",
                     summary=f"{flow_analysis['error_count']} errors in operation flow",
@@ -341,7 +341,7 @@ class FlowInsightGenerator:
                     DebugEvent.component_id,
                     func.count(DebugEvent.id).label("total"),
                     func.sum(
-                        func.case(
+                        case(
                             (DebugEvent.level.in_(["ERROR", "CRITICAL"]), 1),
                             else_=0
                         )

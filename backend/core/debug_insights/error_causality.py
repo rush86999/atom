@@ -124,7 +124,7 @@ class ErrorCausalityInsightGenerator:
 
             return DebugInsight(
                 insight_type=DebugInsightType.ERROR.value,
-                severity=DebugInsightSeverity.ERROR.value,
+                severity=DebugInsightSeverity.CRITICAL.value,
                 title=f"Root cause analysis for error in {error_event.component_type}/{error_event.component_id}",
                 description=f"Root cause: {root_cause.message or 'Unknown'} "
                 f"in {root_cause.component_type}/{root_cause.component_id}\n"
@@ -215,10 +215,10 @@ class ErrorCausalityInsightGenerator:
 
             return DebugInsight(
                 insight_type=DebugInsightType.ERROR.value,
-                severity=DebugInsightSeverity.ERROR.value,
+                severity=DebugInsightSeverity.CRITICAL.value,
                 title=f"Error propagation in operation {correlation_id}",
                 description=f"Error affected {len(affected_components)} components "
-                f"before being caught: {' → '.join(propagation_order[:][:5])}",
+                f"before being caught: {' → '.join(comp for _, comp in propagation_order[:5])}",
                 summary=f"Error propagated through {len(affected_components)} components",
                 evidence={
                     "correlation_id": correlation_id,

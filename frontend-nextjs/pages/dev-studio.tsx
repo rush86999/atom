@@ -40,11 +40,6 @@ const DevStudio = () => {
     const [selectedFile, setSelectedFile] = useState<string>("");
     const [directoryContents, setDirectoryContents] = useState<any[]>([]);
     const [currentDirectory, setCurrentDirectory] = useState<string>("");
-    const [commandOutput, setCommandOutput] = useState<string>("");
-    const [isExecuting, setIsExecuting] = useState<boolean>(false);
-    const [command, setCommand] = useState<string>("");
-    const [commandArgs, setCommandArgs] = useState<string>("");
-    const [workingDir, setWorkingDir] = useState<string>("");
 
     // Load system information
     const loadSystemInfo = async () => {
@@ -164,78 +159,6 @@ const DevStudio = () => {
             }
         } catch (error) {
             console.error("Failed to open folder:", error);
-        }
-    };
-
-    // Execute command
-    const executeCommand = async () => {
-        if (!command.trim()) return;
-
-        setIsExecuting(true);
-        setCommandOutput("");
-
-        if (!invoke) {
-            try {
-                const args = commandArgs.split(" ").filter((arg) => arg.trim());
-                const res = await fetch("/api/dev/desktop-bridge", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        command: "execute_command",
-                        args: {
-                            command: command.trim(),
-                            args: args,
-                            workingDir: workingDir || currentDirectory || undefined,
-                        }
-                    })
-                });
-                const result = await res.json();
-                let output = "";
-                if (result.success) {
-                    output += `Command executed successfully (exit code: ${result.exit_code})\n\n`;
-                } else {
-                    output += `Command failed (exit code: ${result.exit_code})\n\n`;
-                }
-                if (result.stdout) output += `STDOUT:\n${result.stdout}\n`;
-                if (result.stderr) output += `STDERR:\n${result.stderr}\n`;
-                setCommandOutput(output);
-            } catch (error: any) {
-                console.error("Failed to execute command:", error);
-                setCommandOutput(error.message || "Execution error");
-            } finally {
-                setIsExecuting(false);
-            }
-            return;
-        }
-
-        try {
-            const args = commandArgs.split(" ").filter((arg) => arg.trim());
-            const result = await invoke("execute_command", {
-                command: command.trim(),
-                args: args,
-                workingDir: workingDir || currentDirectory || undefined,
-            });
-
-            let output = "";
-            if (result.success) {
-                output += `Command executed successfully (exit code: ${result.exit_code})\n\n`;
-            } else {
-                output += `Command failed (exit code: ${result.exit_code})\n\n`;
-            }
-
-            if (result.stdout) {
-                output += `STDOUT:\n${result.stdout}\n`;
-            }
-
-            if (result.stderr) {
-                output += `STDERR:\n${result.stderr}\n`;
-            }
-
-            setCommandOutput(output);
-        } catch (error) {
-            setCommandOutput(`Error executing command: ${error}`);
-        } finally {
-            setIsExecuting(false);
         }
     };
 
