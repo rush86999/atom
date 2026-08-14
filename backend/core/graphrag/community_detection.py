@@ -466,11 +466,17 @@ class CommunityDetectionService:
     ) -> float:
         """Determine resolution parameter based on policy"""
         policy = self.config.resolution_policy
+        # Compare by enum VALUE, not identity: test suites that reload this
+        # module (importlib.reload for import-path coverage) mint NEW
+        # ResolutionPolicy classes with identical values, and identity
+        # comparison against a stale instance would silently fall through
+        # to the base_resolution default.
+        policy_value = policy.value if isinstance(policy, Enum) else str(policy)
 
-        if policy == ResolutionPolicy.FIXED:
+        if policy_value == ResolutionPolicy.FIXED.value:
             return self.config.base_resolution
 
-        elif policy == ResolutionPolicy.ADAPTIVE:
+        elif policy_value == ResolutionPolicy.ADAPTIVE.value:
             # Adjust based on graph density
             num_nodes = graph.number_of_nodes()
             num_edges = graph.number_of_edges()
@@ -486,7 +492,7 @@ class CommunityDetectionService:
             resolution = self.config.base_resolution * (1 + density)
             return max(self.config.min_resolution, min(resolution, self.config.max_resolution))
 
-        elif policy == ResolutionPolicy.HIERARCHICAL:
+        elif policy_value == ResolutionPolicy.HIERARCHICAL.value:
             # Return list of resolutions for hierarchy
             return self.config.base_resolution
 

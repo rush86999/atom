@@ -441,7 +441,7 @@ class TestAgentExecutionAuditLog:
 
         # Then
         assert len(results) == 1
-        assert "test input 1" in results[0].input
+        assert "test input 1" in results[0].input_summary
 
 
 class TestAgentMemoryLimitEnforcement:
@@ -742,12 +742,13 @@ class TestAgentExecutionReplay:
         # Given
         execution = AgentExecution(
             agent_id=test_agent.id,
-            metadata_json={"user_id": test_user.id},
+            metadata_json={"user_id": test_user.id,
+                           "steps": [{"step": 1, "action": "initialize"},
+                                     {"step": 2, "action": "process"}]},
             input_summary="test input",
             status="completed",
             started_at=datetime.utcnow(),
             completed_at=datetime.utcnow() + timedelta(seconds=5),
-            steps='[{"step": 1, "action": "initialize"}, {"step": 2, "action": "process"}]'
         )
         db_session.add(execution)
         db_session.commit()
@@ -760,7 +761,7 @@ class TestAgentExecutionReplay:
 
         # Then
         assert retrieved_execution is not None
-        assert retrieved_execution.steps is not None
+        assert retrieved_execution.metadata_json["steps"] is not None
 
     def test_replay_shows_steps_with_timing(self, db_session, test_agent):
         """Replay shows steps with timing information"""
@@ -807,14 +808,14 @@ class TestAgentExecutionDiff:
         # When
         # Compare executions
         differences = {
-            "input": (execution1.input, execution2.input),
-            "duration_ms": (execution1.duration_ms, execution2.duration_ms)
+            "input": (execution1.input_summary, execution2.input_summary),
+            "duration_s": (execution1.duration_seconds, execution2.duration_seconds)
         }
 
         # Then
         assert differences["input"][0] == "input A"
         assert differences["input"][1] == "input B"
-        assert differences["duration_ms"][0] != differences["duration_ms"][1]
+        assert differences["duration_s"][0] != differences["duration_s"][1]
 
     def test_diff_highlights_differences(self, db_session):
         """Diff view highlights differences clearly"""

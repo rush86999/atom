@@ -822,10 +822,12 @@ class TestCommunityDetectionService:
         assert hierarchy.max_depth == 3
 
     def test_factories(self):
-        assert isinstance(get_community_detector(), CommunityDetectionService)
-        assert isinstance(get_leiden_algorithm(), LeidenAlgorithm)
-        assert isinstance(get_community_detector(CommunityConfig()),
-                          CommunityDetectionService)
+        # Compare by class NAME, not identity — w77b's importlib.reload of
+        # community_detection mints new class objects with the same names,
+        # so isinstance against a pre-reload reference fails in batch runs.
+        assert get_community_detector().__class__.__name__ == "CommunityDetectionService"
+        assert get_leiden_algorithm().__class__.__name__ == "LeidenAlgorithm"
+        assert get_community_detector(CommunityConfig()).__class__.__name__ == "CommunityDetectionService"
 
 
 class TestCommunityDetectionRemainingGaps:

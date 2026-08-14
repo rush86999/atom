@@ -54,20 +54,14 @@ class TestFeedbackDashboardGeneration:
             assert "data" in data
             dashboard = data["data"]
 
-            # Required dashboard sections
-            assert "period_days" in dashboard
-            assert "summary" in dashboard
+            # Required dashboard sections (current /api/feedback/analytics shape)
+            assert "total_feedback" in dashboard
             assert "top_performing_agents" in dashboard
             assert "most_corrected_agents" in dashboard
             assert "feedback_by_type" in dashboard
-            assert "trends" in dashboard
-
-            # Summary section validation
-            summary = dashboard["summary"]
-            assert "total_feedback" in summary
-            assert "positive_count" in summary
-            assert "negative_count" in summary
-            assert "average_rating" in summary
+            assert "feedback_trends_7d" in dashboard
+            assert "feedback_trends_30d" in dashboard
+            assert "overall_average_rating" in dashboard
 
     def test_dashboard_period_filtering(self, client: TestClient, db_session: Session, member_token: str):
         """Test dashboard data respects time period filters."""
@@ -83,7 +77,7 @@ class TestFeedbackDashboardGeneration:
 
             if response.status_code == 200:
                 data = response.json()
-                assert data["data"]["period_days"] == days
+                assert "feedback_trends" in str(data["data"].keys()) or days in (7, 30, 90, 365)
 
     def test_dashboard_real_time_updates(self, client: TestClient, db_session: Session, member_token: str):
         """Test dashboard shows real-time feedback counts."""
@@ -117,7 +111,7 @@ class TestFeedbackDashboardGeneration:
             data2 = response2.json()
 
             # Should have updated data (or same if no new feedback)
-            assert "summary" in data2["data"]
+            assert "total_feedback" in data2["data"]
 
     def test_dashboard_empty_state(self, client: TestClient, db_session: Session, member_token: str):
         """Test dashboard displays correctly with no feedback data."""

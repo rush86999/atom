@@ -119,7 +119,9 @@ def template_factory(db_session: Session):
         template = WorkflowTemplate(
             name=kwargs.get("name", "Test Template"),
             description=kwargs.get("description", "Test description"),
-            created_by=kwargs.get("created_by", "test_user"),
+            category=kwargs.get("category", "general"),
+            icon=kwargs.get("icon", "🔧"),
+            author_id=kwargs.get("author_id", "test_user"),
             steps=kwargs.get("steps", [{"id": "step1", "action": "test"}])
         )
         db_session.add(template)

@@ -105,6 +105,46 @@ for mod in ["numpy", "pandas", "lancedb", "pyarrow"]:
             sys.modules.pop(mod, None)
 
 
+# Register a canonical fake `integrations.ai_enhanced_service` module for the
+# WHOLE suite when the real one is absent (this checkout). Accounting modules
+# (document_processor, categorizer, assistant) bind AIModelType/AIRequest/
+# AITaskType at import time — if a test imports them BEFORE a wave file's
+# own fake registration runs, the enums bind to None and every AI branch
+# silently degrades (and wave tests that patch the service fail with
+# AttributeError: 'NoneType' object has no attribute 'NATURAL_LANGUAGE_COMMANDS').
+# Registering ONE canonical fake at session start makes import order
+# irrelevant. Wave files that need their own scoped fakes (w72a/w74a) reuse
+# this module via sys.modules.get().
+if "integrations.ai_enhanced_service" not in sys.modules:
+    try:
+        import types  # noqa: F401  (imported above already)
+    except ImportError:
+        pass
+    try:
+        __import__("integrations.ai_enhanced_service")
+    except ImportError:
+        _ai_fake = types.ModuleType("integrations.ai_enhanced_service")
+        _ai_fake.AIModelType = type("_AIModelType", (), {"GPT_4": "gpt-4", "GPT_4O": "gpt-4o"})
+        _ai_fake.AIServiceType = type("_AIServiceType", (), {"OPENAI": "openai"})
+        _ai_fake.AITaskType = type("_AITaskType", (), {
+            "NATURAL_LANGUAGE_COMMANDS": "natural_language_commands",
+            "CONVERSATION_ANALYSIS": "conversation_analysis",
+            "TOPIC_EXTRACTION": "topic_extraction",
+        })
+
+        class _AIRequest:
+            def __init__(self, **kwargs):
+                self.__dict__.update(kwargs)
+
+        _ai_fake.AIRequest = _AIRequest
+        _ai_fake.ai_enhanced_service = MagicMock()
+        _ai_fake.ai_enhanced_service.process_ai_request = AsyncMock()
+        _ai_fake.ai_enhanced_service.generate_insights = AsyncMock(
+            return_value={"status": "stub", "message": "AI Enhanced service not available"}
+        )
+        sys.modules["integrations.ai_enhanced_service"] = _ai_fake
+
+
 def pytest_configure(config):
     """
     Pytest hook called after command line options have been parsed.

@@ -48,7 +48,6 @@ class TestAgentRegistration:
             class_name="TestAgent",
             status=AgentStatus.STUDENT.value,
             confidence_score=0.5,
-            created_by="admin_user"
         )
 
         db_session.add(agent)
@@ -79,6 +78,7 @@ class TestAgentRegistration:
     ):
         """Test new agents default to STUDENT status."""
         agent = AgentRegistry(
+            class_name="TestAgent",
             id="agent-default-001",
             name="Default Agent",
             category="automation",
@@ -102,6 +102,7 @@ class TestAgentClassification:
     ):
         """Test agents with confidence < 0.5 classified as STUDENT."""
         agent = AgentRegistry(
+            class_name="TestAgent",
             id="agent-student-001",
             name="Student Agent",
             category="automation",
@@ -123,6 +124,7 @@ class TestAgentClassification:
     ):
         """Test agents with confidence 0.5-0.7 classified as INTERN."""
         agent = AgentRegistry(
+            class_name="TestAgent",
             id="agent-intern-001",
             name="Intern Agent",
             category="automation",
@@ -143,6 +145,7 @@ class TestAgentClassification:
     ):
         """Test agents with confidence 0.7-0.9 classified as SUPERVISED."""
         agent = AgentRegistry(
+            class_name="TestAgent",
             id="agent-supervised-001",
             name="Supervised Agent",
             category="automation",
@@ -163,6 +166,7 @@ class TestAgentClassification:
     ):
         """Test agents with confidence > 0.9 classified as AUTONOMOUS."""
         agent = AgentRegistry(
+            class_name="TestAgent",
             id="agent-autonomous-001",
             name="Autonomous Agent",
             category="automation",
@@ -334,17 +338,17 @@ class TestAgentMaturityTransition:
         agent.updated_at = datetime.utcnow()
 
         # Add audit metadata
-        if not agent.metadata_json:
-            agent.metadata_json = {}
-        agent.metadata_json["promoted_at"] = datetime.utcnow().isoformat()
-        agent.metadata_json["promoted_by"] = "admin_user"
-        agent.metadata_json["previous_status"] = original_status
+        if not agent.configuration:
+            agent.configuration = {}
+        agent.configuration["promoted_at"] = datetime.utcnow().isoformat()
+        agent.configuration["promoted_by"] = "admin_user"
+        agent.configuration["previous_status"] = original_status
 
         db_session.commit()
 
         # Verify audit trail
-        assert "promoted_at" in agent.metadata_json
-        assert "promoted_by" in agent.metadata_json
+        assert "promoted_at" in agent.configuration
+        assert "promoted_by" in agent.configuration
 
 
 class TestAgentCapabilities:
@@ -480,8 +484,10 @@ class TestAgentGraduation:
                 id=f"episode_{i}",
                 agent_id=agent.id,
                 metadata_json={"user_id": "test_user"},
+                tenant_id="default",
                 workspace_id="default",
-                title=f"Episode {i}",
+                task_description=f"Episode {i}",
+                outcome="success",
                 status="completed",
                 maturity_at_time=AgentStatus.STUDENT.value,
                 started_at=datetime.utcnow(),
@@ -512,8 +518,10 @@ class TestAgentGraduation:
                 id=f"episode_{i}",
                 agent_id=agent.id,
                 metadata_json={"user_id": "test_user"},
+                tenant_id="default",
                 workspace_id="default",
-                title=f"Episode {i}",
+                task_description=f"Episode {i}",
+                outcome="success",
                 status="completed",
                 maturity_at_time=AgentStatus.INTERN.value,
                 started_at=datetime.utcnow(),
@@ -545,8 +553,10 @@ class TestAgentGraduation:
                 id=f"episode_{i}",
                 agent_id=agent.id,
                 metadata_json={"user_id": "test_user"},
+                tenant_id="default",
                 workspace_id="default",
-                title=f"Episode {i}",
+                task_description=f"Episode {i}",
+                outcome="success",
                 status="completed",
                 maturity_at_time=AgentStatus.SUPERVISED.value,
                 started_at=datetime.utcnow(),
@@ -607,9 +617,9 @@ class TestAgentGraduation:
         # Check metadata
         db_session.refresh(agent)
         assert agent.metadata_json is not None
-        assert "promoted_at" in agent.metadata_json
-        assert "promoted_by" in agent.metadata_json
-        assert agent.metadata_json["promoted_by"] == "test_admin"
+        assert "promoted_at" in agent.configuration
+        assert "promoted_by" in agent.configuration
+        assert agent.configuration["promoted_by"] == "test_admin"
 
 
 class TestAgentExecutionTracking:
@@ -628,7 +638,7 @@ class TestAgentExecutionTracking:
             workspace_id="default",
             status="running",
             started_at=datetime.utcnow(),
-            input_data={"query": "test"}
+            input_summary="test"
         )
 
         db_session.add(execution)
@@ -749,13 +759,13 @@ class TestAgentConfiguration:
         }
 
         agent.metadata_json = agent.metadata_json or {}
-        agent.metadata_json["config"] = config
+        agent.configuration["config"] = config
         db_session.commit()
 
         # Verify config stored
         db_session.refresh(agent)
         assert "config" in agent.metadata_json
-        assert agent.metadata_json["config"]["max_tokens"] == 2000
+        assert agent.configuration["config"]["max_tokens"] == 2000
 
     def test_agent_config_update(
         self, db_session: Session
@@ -765,7 +775,7 @@ class TestAgentConfiguration:
 
         # Update config
         agent.metadata_json = agent.metadata_json or {}
-        agent.metadata_json["config"] = {
+        agent.configuration["config"] = {
             "max_tokens": 4000,  # Updated
             "temperature": 0.5
         }
@@ -773,7 +783,7 @@ class TestAgentConfiguration:
 
         # Verify updated
         db_session.refresh(agent)
-        assert agent.metadata_json["config"]["max_tokens"] == 4000
+        assert agent.configuration["config"]["max_tokens"] == 4000
 
     def test_agent_config_default_values(
         self, db_session: Session
@@ -846,14 +856,14 @@ class TestAgentDeactivation:
         # Deactivate with reason
         agent.is_active = False
         agent.metadata_json = agent.metadata_json or {}
-        agent.metadata_json["deactivated_at"] = datetime.utcnow().isoformat()
-        agent.metadata_json["deactivation_reason"] = "Deprecated functionality"
-        agent.metadata_json["deactivated_by"] = "admin_user"
+        agent.configuration["deactivated_at"] = datetime.utcnow().isoformat()
+        agent.configuration["deactivation_reason"] = "Deprecated functionality"
+        agent.configuration["deactivated_by"] = "admin_user"
         db_session.commit()
 
         # Verify reason recorded
         db_session.refresh(agent)
-        assert agent.metadata_json["deactivation_reason"] == "Deprecated functionality"
+        assert agent.configuration["deactivation_reason"] == "Deprecated functionality"
 
 
 class TestAgentArchival:
@@ -867,9 +877,9 @@ class TestAgentArchival:
 
         # Mark as archived
         agent.metadata_json = agent.metadata_json or {}
-        agent.metadata_json["archived_at"] = datetime.utcnow().isoformat()
-        agent.metadata_json["archived_by"] = "system"
-        agent.metadata_json["archive_reason"] = "Inactive for 90 days"
+        agent.configuration["archived_at"] = datetime.utcnow().isoformat()
+        agent.configuration["archived_by"] = "system"
+        agent.configuration["archive_reason"] = "Inactive for 90 days"
         agent.is_active = False
         db_session.commit()
 
@@ -894,14 +904,14 @@ class TestAgentArchival:
 
         # Archive
         agent.metadata_json = agent.metadata_json or {}
-        agent.metadata_json["archived_at"] = datetime.utcnow().isoformat()
+        agent.configuration["archived_at"] = datetime.utcnow().isoformat()
         agent.is_active = False
         db_session.commit()
 
         # Unarchive
         agent.is_active = True
-        agent.metadata_json["unarchived_at"] = datetime.utcnow().isoformat()
-        agent.metadata_json["unarchived_by"] = "admin_user"
+        agent.configuration["unarchived_at"] = datetime.utcnow().isoformat()
+        agent.configuration["unarchived_by"] = "admin_user"
         db_session.commit()
 
         # Verify unarchived
