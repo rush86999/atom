@@ -589,10 +589,17 @@ class FormulaExtractor:
         pattern = r"\$?([A-Z]+)\$?\d+"
         matches = re.findall(pattern, formula_str.upper())
 
+        # Dedupe while preserving first-occurrence order. A `set` here made
+        # the parameter order of the extracted semantic expression depend on
+        # PYTHONHASHSEED (set iteration order), so the same formula could be
+        # stored as "sum(Revenue, Cost)" in one run and "sum(Cost, Revenue)"
+        # in another — nondeterministic memory content across workers.
         results = []
-        for col_letter in set(matches):
-            col_num = self._column_letter_to_number(col_letter)
-            results.append((col_letter, col_num))
+        seen = set()
+        for col_letter in matches:
+            if col_letter not in seen:
+                seen.add(col_letter)
+                results.append((col_letter, self._column_letter_to_number(col_letter)))
 
         return results
 
