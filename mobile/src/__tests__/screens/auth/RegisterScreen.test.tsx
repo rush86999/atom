@@ -510,17 +510,9 @@ await act(async () => {
     });
 
     it('should show loading indicator during registration', async () => {
+      let resolveRegister: (value: unknown) => void = () => {};
       global.fetch = jest.fn(() =>
-        new Promise(resolve => setTimeout(() =>
-          resolve({
-            ok: true,
-            status: 200,
-            json: () => Promise.resolve({
-              success: true,
-              data: { user: { id: 'user-123' }, token: 'test-token' },
-            }),
-          } as any)
-        , 1000))
+        new Promise((resolve) => { resolveRegister = resolve; })
       );
 
       const { getByPlaceholderText, getByTestId, queryByTestId } = render(
@@ -535,10 +527,10 @@ await act(async () => {
       const signUpButton = getByTestId('sign-up-button');
 
       fireEvent.changeText(nameInput, 'John Doe');
-fireEvent.changeText(emailInput, 'test@example.com');
-fireEvent.changeText(passwordInput, 'password123');
-fireEvent.changeText(confirmInput, 'password123');
-await act(async () => {
+      fireEvent.changeText(emailInput, 'test@example.com');
+      fireEvent.changeText(passwordInput, 'password123');
+      fireEvent.changeText(confirmInput, 'password123');
+      await act(async () => {
         fireEvent.press(termsCheckbox);
       });
       await act(async () => {
@@ -551,9 +543,19 @@ await act(async () => {
       });
 
       // Loading should disappear after completion
+      await act(async () => {
+        resolveRegister({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            success: true,
+            data: { user: { id: 'user-123' }, token: 'test-token' },
+          }),
+        } as any);
+      });
       await waitFor(() => {
         expect(queryByTestId('activity-indicator')).toBeNull();
-      }, { timeout: 2000 });
+      });
     });
   });
 

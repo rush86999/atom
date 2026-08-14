@@ -5,9 +5,13 @@ API and database performance testing
 
 from datetime import datetime
 import json
+import logging
 import statistics
 import time
 import requests
+
+
+logger = logging.getLogger(__name__)
 
 
 class WhatsAppPerformanceBenchmark:

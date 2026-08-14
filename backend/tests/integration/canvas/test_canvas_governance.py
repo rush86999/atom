@@ -22,16 +22,16 @@ class TestStudentAgentAccess:
 
     def test_student_can_present_read_only_canvas(self, client: TestClient, auth_token: str, db_session: Session):
         """Test STUDENT agents can present read-only canvas."""
-        student = StudentAgentFactory()
+        student = StudentAgentFactory(_session=db_session)
         db_session.add(student)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
             agent_id=student.id,
-            action="present"
+            action_type="present"
         )
         db_session.add(canvas)
         db_session.commit()
@@ -49,16 +49,16 @@ class TestStudentAgentAccess:
 
     def test_student_blocked_from_forms(self, client: TestClient, auth_token: str, db_session: Session):
         """Test STUDENT agents blocked from form submission."""
-        student = StudentAgentFactory()
+        student = StudentAgentFactory(_session=db_session)
         db_session.add(student)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
             agent_id=student.id,
-            component_type="form"
+            details_json={"component_type": "form"}
         )
         db_session.add(canvas)
         db_session.commit()
@@ -78,12 +78,12 @@ class TestStudentAgentAccess:
 
     def test_student_blocked_from_custom_js_components(self, client: TestClient, auth_token: str, db_session: Session):
         """Test STUDENT agents blocked from JavaScript components."""
-        student = StudentAgentFactory()
+        student = StudentAgentFactory(_session=db_session)
         db_session.add(student)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
             agent_id=student.id
@@ -106,17 +106,17 @@ class TestStudentAgentAccess:
 
     def test_student_can_present_charts(self, client: TestClient, auth_token: str, db_session: Session):
         """Test STUDENT agents can present charts."""
-        student = StudentAgentFactory()
+        student = StudentAgentFactory(_session=db_session)
         db_session.add(student)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="orchestration",
             agent_id=student.id,
-            component_type="chart",
-            action="present"
+            details_json={"component_type": "chart"},
+            action_type="present"
         )
         db_session.add(canvas)
         db_session.commit()
@@ -142,16 +142,16 @@ class TestInternAgentAccess:
 
     def test_intern_can_present_streaming_canvas(self, client: TestClient, auth_token: str, db_session: Session):
         """Test INTERN agents can present streaming canvas."""
-        intern = InternAgentFactory()
+        intern = InternAgentFactory(_session=db_session)
         db_session.add(intern)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
             agent_id=intern.id,
-            action="present"
+            action_type="present"
         )
         db_session.add(canvas)
         db_session.commit()
@@ -170,16 +170,16 @@ class TestInternAgentAccess:
 
     def test_intern_requires_approval_for_forms(self, client: TestClient, auth_token: str, db_session: Session):
         """Test INTERN agents require approval for form submission."""
-        intern = InternAgentFactory()
+        intern = InternAgentFactory(_session=db_session)
         db_session.add(intern)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
             agent_id=intern.id,
-            component_type="form"
+            details_json={"component_type": "form"}
         )
         db_session.add(canvas)
         db_session.commit()
@@ -206,12 +206,12 @@ class TestInternAgentAccess:
 
     def test_intern_blocked_from_javascript_execution(self, client: TestClient, auth_token: str, db_session: Session):
         """Test INTERN agents blocked from JavaScript execution."""
-        intern = InternAgentFactory()
+        intern = InternAgentFactory(_session=db_session)
         db_session.add(intern)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
             agent_id=intern.id
@@ -237,16 +237,16 @@ class TestSupervisedAgentAccess:
 
     def test_supervised_can_submit_forms(self, client: TestClient, auth_token: str, db_session: Session):
         """Test SUPERVISED agents can submit forms."""
-        supervised = SupervisedAgentFactory()
+        supervised = SupervisedAgentFactory(_session=db_session)
         db_session.add(supervised)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
             agent_id=supervised.id,
-            component_type="form"
+            details_json={"component_type": "form"}
         )
         db_session.add(canvas)
         db_session.commit()
@@ -269,12 +269,12 @@ class TestSupervisedAgentAccess:
 
     def test_supervised_can_present_custom_components(self, client: TestClient, auth_token: str, db_session: Session):
         """Test SUPERVISED agents can present custom HTML/CSS components."""
-        supervised = SupervisedAgentFactory()
+        supervised = SupervisedAgentFactory(_session=db_session)
         db_session.add(supervised)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
             agent_id=supervised.id
@@ -298,12 +298,12 @@ class TestSupervisedAgentAccess:
 
     def test_supervised_blocked_from_javascript_execution(self, client: TestClient, auth_token: str, db_session: Session):
         """Test SUPERVISED agents blocked from JavaScript execution."""
-        supervised = SupervisedAgentFactory()
+        supervised = SupervisedAgentFactory(_session=db_session)
         db_session.add(supervised)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
             agent_id=supervised.id
@@ -329,12 +329,12 @@ class TestAutonomousAgentAccess:
 
     def test_autonomous_can_execute_javascript(self, client: TestClient, auth_token: str, db_session: Session):
         """Test AUTONOMOUS agents can execute JavaScript."""
-        autonomous = AutonomousAgentFactory()
+        autonomous = AutonomousAgentFactory(_session=db_session)
         db_session.add(autonomous)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
             agent_id=autonomous.id
@@ -356,12 +356,12 @@ class TestAutonomousAgentAccess:
 
     def test_autonomous_can_delete_canvases(self, client: TestClient, auth_token: str, db_session: Session):
         """Test AUTONOMOUS agents can delete canvases."""
-        autonomous = AutonomousAgentFactory()
+        autonomous = AutonomousAgentFactory(_session=db_session)
         db_session.add(autonomous)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
             agent_id=autonomous.id
@@ -380,7 +380,7 @@ class TestAutonomousAgentAccess:
 
     def test_autonomous_full_canvas_access(self, client: TestClient, auth_token: str, db_session: Session):
         """Test AUTONOMOUS agents have full canvas access."""
-        autonomous = AutonomousAgentFactory()
+        autonomous = AutonomousAgentFactory(_session=db_session)
         db_session.add(autonomous)
         db_session.commit()
 
@@ -416,7 +416,7 @@ class TestCanvasActionComplexity:
 
     def test_canvas_presentation_complexity_1(self, client: TestClient, auth_token: str, db_session: Session):
         """Test canvas presentation is complexity 1 (STUDENT+)."""
-        student = StudentAgentFactory()
+        student = StudentAgentFactory(_session=db_session)
         db_session.add(student)
         db_session.commit()
 
@@ -434,7 +434,7 @@ class TestCanvasActionComplexity:
 
     def test_canvas_streaming_complexity_2(self, client: TestClient, auth_token: str, db_session: Session):
         """Test canvas streaming is complexity 2 (INTERN+)."""
-        intern = InternAgentFactory()
+        intern = InternAgentFactory(_session=db_session)
         db_session.add(intern)
         db_session.commit()
 
@@ -452,15 +452,15 @@ class TestCanvasActionComplexity:
 
     def test_form_submission_complexity_3(self, client: TestClient, auth_token: str, db_session: Session):
         """Test form submission is complexity 3 (SUPERVISED+)."""
-        supervised = SupervisedAgentFactory()
+        supervised = SupervisedAgentFactory(_session=db_session)
         db_session.add(supervised)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             agent_id=supervised.id,
-            component_type="form"
+            details_json={"component_type": "form"}
         )
         db_session.add(canvas)
         db_session.commit()
@@ -480,12 +480,12 @@ class TestCanvasActionComplexity:
 
     def test_javascript_execution_complexity_4(self, client: TestClient, auth_token: str, db_session: Session):
         """Test JavaScript execution is complexity 4 (AUTONOMOUS only)."""
-        autonomous = AutonomousAgentFactory()
+        autonomous = AutonomousAgentFactory(_session=db_session)
         db_session.add(autonomous)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             agent_id=autonomous.id
         )
@@ -510,13 +510,13 @@ class TestGovernanceBypass:
 
     def test_cannot_bypass_with_agent_id_spoofing(self, client: TestClient, auth_token: str, db_session: Session):
         """Test cannot bypass governance by spoofing agent ID."""
-        student = StudentAgentFactory()
-        autonomous = AutonomousAgentFactory()
+        student = StudentAgentFactory(_session=db_session)
+        autonomous = AutonomousAgentFactory(_session=db_session)
         db_session.add_all([student, autonomous])
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id)
+        canvas = CanvasAuditFactory(_session=db_session, id=canvas_id)
         db_session.add(canvas)
         db_session.commit()
 
@@ -537,15 +537,15 @@ class TestGovernanceBypass:
 
     def test_governance_check_logged(self, client: TestClient, auth_token: str, db_session: Session):
         """Test governance checks are logged in audit trail."""
-        student = StudentAgentFactory()
+        student = StudentAgentFactory(_session=db_session)
         db_session.add(student)
         db_session.commit()
 
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             agent_id=student.id,
-            action="present"
+            action_type="present"
         )
         db_session.add(canvas)
         db_session.commit()

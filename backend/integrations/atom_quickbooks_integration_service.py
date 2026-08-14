@@ -1257,8 +1257,12 @@ class AtomQuickBooksIntegrationService:
             self.performance_metrics['fraud_detection_time'] = detection_time
             # Determine if fraudulent
             is_fraudulent = risk_score > 50
+            # BUG FIX: include 'reason' — create_payment() formats
+            # fraud_check['reason'] and previously raised KeyError,
+            # swallowing the fraud rejection with a misleading error.
             return {
                 'is_fraudulent': is_fraudulent,
+                'reason': ', '.join(risk_factors) if is_fraudulent else '',
                 'risk_score': risk_score,
                 'risk_factors': risk_factors,
                 'detection_time': detection_time

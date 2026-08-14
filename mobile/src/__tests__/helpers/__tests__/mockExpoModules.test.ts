@@ -319,4 +319,176 @@ describe('MockExpoModules', () => {
       expect(await MockAsyncStorage.getItem('test')).toBeNull();
     });
   });
+
+  // ========================================================================
+  // Wave 118 additions: error/config/count helpers + storage extras
+  // ========================================================================
+
+  describe('MockCamera error helpers', () => {
+    it('should configure picture capture to fail', async () => {
+      MockCamera.setPictureError('Shutter jammed');
+      await expect(
+        jest.requireMock('expo-camera').takePictureAsync()
+      ).rejects.toThrow('Shutter jammed');
+    });
+
+    it('should use the default error message', async () => {
+      MockCamera.setPictureError();
+      await expect(
+        jest.requireMock('expo-camera').takePictureAsync()
+      ).rejects.toThrow('Camera not available');
+    });
+
+    it('should track permission and picture counts', async () => {
+      const camera = jest.requireMock('expo-camera');
+      await camera.requestCameraPermissionsAsync();
+      await camera.takePictureAsync();
+
+      expect(MockCamera.getPermissionRequestCount()).toBeGreaterThan(0);
+      expect(MockCamera.getPictureCount()).toBeGreaterThan(0);
+    });
+  });
+
+  describe('MockLocation error and geocode helpers', () => {
+    it('should configure position retrieval to fail', async () => {
+      MockLocation.setPositionError('GPS offline');
+      await expect(
+        jest.requireMock('expo-location').getCurrentPositionAsync()
+      ).rejects.toThrow('GPS offline');
+    });
+
+    it('should use the default position error', async () => {
+      MockLocation.setPositionError();
+      await expect(
+        jest.requireMock('expo-location').getCurrentPositionAsync()
+      ).rejects.toThrow('Location not available');
+    });
+
+    it('should configure geocode results', async () => {
+      const addresses = [{ latitude: 1, longitude: 2, street: '1 Main St' }];
+      MockLocation.setGeocodeResult(addresses);
+      await expect(jest.requireMock('expo-location').geocodeAsync('x')).resolves.toEqual(addresses);
+    });
+  });
+
+  describe('MockNotifications error and count helpers', () => {
+    it('should configure scheduling to fail', async () => {
+      MockNotifications.setScheduleError('Channel blocked');
+      await expect(
+        jest.requireMock('expo-notifications').scheduleNotificationAsync()
+      ).rejects.toThrow('Channel blocked');
+    });
+
+    it('should use the default schedule error', async () => {
+      MockNotifications.setScheduleError();
+      await expect(
+        jest.requireMock('expo-notifications').scheduleNotificationAsync()
+      ).rejects.toThrow('Failed to schedule notification');
+    });
+
+    it('should track schedule and push token counts', async () => {
+      const notifications = jest.requireMock('expo-notifications');
+      await notifications.scheduleNotificationAsync();
+      await notifications.getExpoPushTokenAsync();
+
+      expect(MockNotifications.getScheduleCount()).toBeGreaterThan(0);
+      expect(MockNotifications.getPushTokenRequestCount()).toBeGreaterThan(0);
+    });
+  });
+
+  describe('MockLocalAuthentication count helper', () => {
+    it('should track authentication attempts', async () => {
+      await jest.requireMock('expo-local-authentication').authenticateAsync();
+      expect(MockLocalAuthentication.getAuthAttemptCount()).toBeGreaterThan(0);
+    });
+  });
+
+  describe('MockSecureStore extras', () => {
+    it('should report availability, keys, and size', async () => {
+      expect(await MockSecureStore.isAvailable()).toBe(true);
+      expect(MockSecureStore.getAllKeys()).toEqual([]);
+      expect(MockSecureStore.size()).toBe(0);
+
+      await MockSecureStore.setItem('k1', 'v1');
+      await MockSecureStore.setItem('k2', 'v2');
+      expect(MockSecureStore.getAllKeys()).toEqual(['k1', 'k2']);
+      expect(MockSecureStore.size()).toBe(2);
+    });
+  });
+
+  describe('MockAsyncStorage extras', () => {
+    it('should support getAllKeys, multiGet, multiSet, multiRemove', async () => {
+      await MockAsyncStorage.multiSet([['a', '1'], ['b', '2']]);
+      expect(await MockAsyncStorage.getAllKeys()).toEqual(['a', 'b']);
+
+      const pairs = await MockAsyncStorage.multiGet(['a', 'c']);
+      expect(pairs).toEqual([['a', '1'], ['c', null]]);
+
+      await MockAsyncStorage.multiRemove(['a']);
+      expect(await MockAsyncStorage.getItem('a')).toBeNull();
+      expect(await MockAsyncStorage.getItem('b')).toBe('2');
+    });
+
+    it('should support sync key listing and clearing', async () => {
+      await MockAsyncStorage.setItem('x', '1');
+      expect(MockAsyncStorage.getAllKeysSync()).toEqual(['x']);
+      MockAsyncStorage.clearSync();
+      expect(MockAsyncStorage.getAllKeysSync()).toEqual([]);
+      expect(MockAsyncStorage.size()).toBe(0);
+    });
+
+    it('should report size', async () => {
+      expect(MockAsyncStorage.size()).toBe(0);
+      await MockAsyncStorage.setItem('y', '1');
+      expect(MockAsyncStorage.size()).toBe(1);
+    });
+  });
+
+  // ========================================================================
+  // Wave 118 additions: default-arg + denial branches
+  // ========================================================================
+
+  describe('default argument branches', () => {
+    it('should apply default values when arguments are omitted', async () => {
+      MockCamera.setPermissionGranted();
+      MockLocation.setForegroundPermissionGranted();
+      MockLocation.setBackgroundPermissionGranted();
+      MockNotifications.setScheduleResult();
+      MockNotifications.setBadgeCount();
+      MockLocalAuthentication.setHasHardware();
+      MockLocalAuthentication.setIsEnrolled();
+      MockLocalAuthentication.setAuthResult();
+      MockDevice.setDeviceInfo();
+      setPermissionGranted('camera');
+      setPermissionGranted('biometric');
+
+      expect(
+        (jest.requireMock('expo-camera').requestCameraPermissionsAsync() as Promise<any>)
+      ).resolves.toMatchObject({ granted: true });
+    });
+
+    it('should produce denied status for permission refusals', async () => {
+      MockLocation.setForegroundPermissionGranted(false, false);
+      MockLocation.setBackgroundPermissionGranted(false, false);
+
+      const foreground = await jest.requireMock('expo-location').requestForegroundPermissionsAsync();
+      const background = await jest.requireMock('expo-location').requestBackgroundPermissionsAsync();
+
+      expect(foreground.status).toBe('denied');
+      expect(foreground.granted).toBe(false);
+      expect(foreground.canAskAgain).toBe(false);
+      expect(background.status).toBe('denied');
+    });
+
+    it('should use the default geocode result when omitted', async () => {
+      MockLocation.setGeocodeResult();
+      const result = await jest.requireMock('expo-location').geocodeAsync('ignored');
+      expect(result).toEqual([]);
+    });
+
+    it('should merge onto an empty object for missing keys', async () => {
+      await MockAsyncStorage.mergeItem('fresh', '{"b": 2}');
+      expect(await MockAsyncStorage.getItem('fresh')).toBe('{"b":2}');
+    });
+  });
 });

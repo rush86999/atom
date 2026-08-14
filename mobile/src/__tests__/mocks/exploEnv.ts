@@ -22,9 +22,14 @@ const mockEnv = new Proxy(
   }
 );
 
-// Set EXPO_PUBLIC_API_URL if not already set
-if (!process.env.EXPO_PUBLIC_API_URL) {
-  process.env.EXPO_PUBLIC_API_URL = 'http://localhost:8000';
+// Set EXPO_PUBLIC_API_URL if not already set.
+// NOTE: uses the captured originalEnv reference (not `process.env` directly)
+// because babel-preset-expo rewrites dotted `process.env.EXPO_PUBLIC_*`
+// reads into `require('expo/virtual/env').env.*` — which would recurse into
+// this very module (it IS the expo/virtual/env mock).
+const apiUrlKey = 'EXPO_PUBLIC_API_URL';
+if (!originalEnv[apiUrlKey]) {
+  originalEnv[apiUrlKey] = 'http://localhost:8000';
 }
 
 module.exports = mockEnv;

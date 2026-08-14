@@ -7,6 +7,7 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field, field_validator
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from core.audit_service import audit_service
@@ -237,12 +238,17 @@ async def login_for_access_token(
 @router.post("/register", response_model=Token)
 async def register_user(user_data: UserCreate, db: Session = Depends(get_db), _rl=Depends(register_rate_limit)):
     # Check if user exists
-    if db.query(User).filter(User.email == user_data.email).first():
+    # BUG FIX: compare emails case-insensitively — "USER@example.com" could
+    # previously bypass the duplicate check and register a second account for
+    # the same mailbox. Emails are stored lowercased to keep uniqueness
+    # consistent.
+    normalized_email = user_data.email.strip().lower()
+    if db.query(User).filter(func.lower(User.email) == normalized_email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    
+
     # Create new user
     new_user = User(
-        email=user_data.email,
+        email=normalized_email,
         hashed_password=get_password_hash(user_data.password),
         first_name=user_data.first_name,
         last_name=user_data.last_name,

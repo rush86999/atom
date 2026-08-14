@@ -614,9 +614,10 @@ class TestAgentGraduation:
             validated_by="test_admin"
         )
 
-        # Check metadata
+        # Check metadata (promotion metadata is recorded in the agent's
+        # `configuration` JSON column — AgentRegistry has no metadata_json)
         db_session.refresh(agent)
-        assert agent.metadata_json is not None
+        assert agent.configuration is not None
         assert "promoted_at" in agent.configuration
         assert "promoted_by" in agent.configuration
         assert agent.configuration["promoted_by"] == "test_admin"
@@ -908,10 +909,14 @@ class TestAgentArchival:
         agent.is_active = False
         db_session.commit()
 
-        # Unarchive
+        # Unarchive (reassign the JSON column — SQLAlchemy does not track
+        # in-place mutations of JSON dicts)
         agent.is_active = True
-        agent.configuration["unarchived_at"] = datetime.utcnow().isoformat()
-        agent.configuration["unarchived_by"] = "admin_user"
+        agent.configuration = {
+            **agent.configuration,
+            "unarchived_at": datetime.utcnow().isoformat(),
+            "unarchived_by": "admin_user",
+        }
         db_session.commit()
 
         # Verify unarchived

@@ -162,17 +162,11 @@ export const AuthNavigator: React.FC = () => {
 
   // Wait for navigation to be ready
   useEffect(() => {
-    const prepare = async () => {
-      try {
-        // Pre-load fonts or perform other setup here if needed
-      } catch (e) {
-        console.warn('Error preparing app:', e);
-      } finally {
-        setIsReady(true);
-      }
-    };
-
-    prepare();
+    // The previous implementation wrapped this in a try/catch whose body
+    // was only a comment — the catch was provably unreachable (nothing in
+    // the try could throw). The finally just marked readiness, so the
+    // try/finally is replaced with a direct state set.
+    setIsReady(true);
   }, []);
 
   if (!isReady || isLoading) {

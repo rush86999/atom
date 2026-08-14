@@ -194,7 +194,10 @@ async def update_canvas_content(
         str(current_user.id), canvas_id, content, canvas_type, title
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
+        # BUG FIX: not-found errors must return 404 (consistent with GET
+        # /{canvas_id}), not 400 — a missing canvas is not a bad request.
+        status = 404 if "not found" in str(result.get("error", "")).lower() else 400
+        raise HTTPException(status_code=status, detail=result.get("error"))
     return result
 
 
@@ -207,7 +210,10 @@ async def delete_canvas(
     from tools.canvas_crud_tool import delete_canvas as delete_fn
     result = await delete_fn(str(current_user.id), canvas_id)
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
+        # BUG FIX: not-found errors must return 404 (consistent with GET
+        # /{canvas_id}), not 400 — a missing canvas is not a bad request.
+        status = 404 if "not found" in str(result.get("error", "")).lower() else 400
+        raise HTTPException(status_code=status, detail=result.get("error"))
     return result
 
 

@@ -7,8 +7,15 @@
 
 import {
   createMockCameraRef,
+  createMockBarcodeResult,
+  createMockPhoto,
+  createMockDocumentCorners,
   createMockLocation,
   createMockGeofence,
+  createMockGeofenceNotification,
+  createMockLocationHistoryEntry,
+  createMockLocationHistory,
+  createMockGeocodeResult,
   createMockNotification,
   createMockPushToken,
   simulateNetworkSwitch,
@@ -426,6 +433,143 @@ describe('deviceMocks - Sync Utilities', () => {
       expect(result.duration).toBe(5000);
       expect(result.error).toBe('Network error');
       expect(result.timestamp).toBe(timestamp);
+    });
+  });
+
+  // ========================================================================
+  // Wave 118 additions: barcode / photo / corners / geofence / history
+  // ========================================================================
+
+  describe('createMockBarcodeResult', () => {
+    it('should create a QR barcode with corner points by default', () => {
+      const result = createMockBarcodeResult();
+      expect(result.barcodes).toHaveLength(1);
+      expect(result.barcodes[0].type).toBe('qr');
+      expect(result.barcodes[0].rawValue).toBe('https://example.com');
+      expect(result.barcodes[0].cornerPoints).toHaveLength(4);
+    });
+
+    it('should honor custom type/data and drop corner points when requested', () => {
+      const result = createMockBarcodeResult({
+        type: 'ean13',
+        data: '5901234123457',
+        withCorners: false,
+      });
+      expect(result.barcodes[0].type).toBe('ean13');
+      expect(result.barcodes[0].rawValue).toBe('5901234123457');
+      expect(result.barcodes[0].cornerPoints).toHaveLength(2);
+    });
+  });
+
+  describe('createMockPhoto', () => {
+    it('should create a photo with default dimensions', () => {
+      const photo = createMockPhoto();
+      expect(photo.type).toBe('photo');
+      expect(photo.width).toBe(1920);
+      expect(photo.height).toBe(1080);
+      expect(photo.size).toBe(1024000);
+      expect(photo.uri).toMatch(/^file:\/\/\/mock\/photo-/);
+    });
+
+    it('should honor custom options including exif', () => {
+      const exif = { Make: 'Apple' };
+      const photo = createMockPhoto({
+        uri: 'file:///custom.jpg',
+        width: 3840,
+        height: 2160,
+        size: 5000,
+        exif,
+      });
+      expect(photo.uri).toBe('file:///custom.jpg');
+      expect(photo.width).toBe(3840);
+      expect(photo.height).toBe(2160);
+      expect(photo.size).toBe(5000);
+      expect(photo.exif).toBe(exif);
+    });
+  });
+
+  describe('createMockDocumentCorners', () => {
+    it('should create four corner points', () => {
+      const corners = createMockDocumentCorners();
+      expect(corners.topLeft).toEqual({ x: 10, y: 10 });
+      expect(corners.topRight).toEqual({ x: 90, y: 10 });
+      expect(corners.bottomRight).toEqual({ x: 90, y: 90 });
+      expect(corners.bottomLeft).toEqual({ x: 10, y: 90 });
+    });
+  });
+
+  describe('createMockGeofenceNotification', () => {
+    it('should use defaults when no args given', () => {
+      const notification = createMockGeofenceNotification();
+      expect(notification.event).toBe('enter');
+      expect(notification.region.id).toBeTruthy();
+      expect(notification.location.coords.latitude).toBe(37.7749);
+      expect(typeof notification.timestamp).toBe('number');
+    });
+
+    it('should honor custom region, event, and location', () => {
+      const region = { id: 'home', radius: 50 };
+      const location = { latitude: 1, longitude: 2 };
+      const notification = createMockGeofenceNotification(region, 'exit', location);
+      expect(notification.event).toBe('exit');
+      expect(notification.region).toBe(region);
+      expect(notification.location).toBe(location);
+    });
+  });
+
+  describe('createMockLocationHistoryEntry', () => {
+    it('should create an entry with defaults', () => {
+      const entry = createMockLocationHistoryEntry();
+      expect(entry.latitude).toBe(37.7749);
+      expect(entry.longitude).toBe(-122.4194);
+      expect(entry.accuracy).toBe(10);
+      expect(typeof entry.timestamp).toBe('number');
+    });
+
+    it('should honor overrides', () => {
+      const entry = createMockLocationHistoryEntry({ latitude: 1, longitude: 2, accuracy: 5, timestamp: 123 });
+      expect(entry).toEqual({ latitude: 1, longitude: 2, accuracy: 5, timestamp: 123 });
+    });
+  });
+
+  describe('createMockLocationHistory', () => {
+    it('should generate the requested count with default spacing', () => {
+      const history = createMockLocationHistory(5);
+      expect(history).toHaveLength(5);
+      expect(history[0].latitude).toBe(37.7749);
+      expect(history[4].latitude).toBeCloseTo(37.7753, 4);
+      expect(history[1].timestamp - history[0].timestamp).toBe(1000);
+    });
+
+    it('should use the default count and custom options', () => {
+      const history = createMockLocationHistory(undefined as any, { latitude: 10, accuracy: 3 });
+      expect(history).toHaveLength(10);
+      expect(history[0].latitude).toBe(10);
+      expect(history[0].accuracy).toBe(3);
+    });
+  });
+
+  describe('createMockGeocodeResult', () => {
+    it('should return a single default geocode result', () => {
+      const [result] = createMockGeocodeResult();
+      expect(result.street).toBe('123 Main St');
+      expect(result.city).toBe('San Francisco');
+      expect(result.region).toBe('CA');
+      expect(result.postalCode).toBe('94102');
+      expect(result.country).toBe('USA');
+    });
+
+    it('should honor overrides', () => {
+      const [result] = createMockGeocodeResult({
+        street: '1 Apple Way',
+        city: 'Cupertino',
+        region: 'CA',
+        postalCode: '95014',
+        country: 'US',
+      });
+      expect(result.street).toBe('1 Apple Way');
+      expect(result.city).toBe('Cupertino');
+      expect(result.country).toBe('US');
     });
   });
 });

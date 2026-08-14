@@ -139,8 +139,16 @@ def admin_user(db_session: Session):
     Create an admin user for testing.
     """
     from tests.factories.user_factory import AdminUserFactory
+    from core.models import UserStatus
 
-    user = AdminUserFactory(_session=db_session)
+    user = AdminUserFactory(
+        # SECURITY: UserFactory randomizes status across all UserStatus
+        # values; get_current_user rejects tokens for non-ACTIVE users, so
+        # without forcing ACTIVE the admin_token fixture failed with 401
+        # ~75% of the time.
+        status=UserStatus.ACTIVE.value,
+        _session=db_session
+    )
     return user
 
 

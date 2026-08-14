@@ -156,11 +156,21 @@ class TestCSRFPrevention:
         self, client: TestClient
     ):
         """Test same-origin policy in CORS headers."""
-        response = client.options("/api/auth/login")
+        # A proper CORS preflight requires Origin + Access-Control-Request-
+        # Method headers; without them Starlette routes the OPTIONS straight
+        # to the route (405).
+        response = client.options(
+            "/api/auth/login",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "POST",
+            },
+        )
 
-        # Should have CORS headers
-        # (implementation dependent)
-        assert response.status_code in [200, 404]
+        # Preflight should be handled by the CORS middleware, and only
+        # allow origins from the configured allow-list.
+        assert response.status_code == 200
+        assert "access-control-allow-origin" in response.headers
 
     def test_csrf_validation_headers(
         self, client: TestClient
@@ -291,7 +301,9 @@ class TestInputValidation:
     ):
         """Test content-type validation on POST requests."""
         # Try to send JSON with wrong content-type
-        response = client.post("/api/agents",
+        # (POST /api/agents does not exist -> 405; use the register
+        # endpoint which has a JSON body model)
+        response = client.post("/api/auth/register",
             data="not-json",
             headers={
                 "Authorization": f"Bearer {valid_auth_token}",
@@ -457,11 +469,14 @@ class TestSensitiveDataExposure:
             pass
 
     def test_api_does_not_return_database_errors(
-        self, client: TestClient
+        self, client: TestClient, valid_auth_token
     ):
         """Test API doesn't expose database errors."""
-        # Try to trigger database error
-        response = client.get("/api/agents/invalid-uuid-format")
+        # Try to trigger database error (endpoint requires auth, otherwise
+        # the response is a 401 before the lookup ever happens)
+        response = client.get("/api/agents/invalid-uuid-format",
+            headers={"Authorization": f"Bearer {valid_auth_token}"}
+        )
 
         # Should return 404 or 400, not 500
         assert response.status_code in [400, 404, 422]
@@ -570,23 +585,53 @@ class TestMassAssignment:
         self, client: TestClient, member_token, db_session: Session
     ):
         """Test admin role cannot be mass assigned."""
-        # Try to update user with admin role
-        response = client.put("/api/auth/me", json={
-            "role": "ADMIN",
-            "is_admin": True
+        # There is no self-service PUT /api/auth/me; the self-service
+        # write path is POST /api/auth/register, which must ignore any
+        # client-supplied role (register hard-codes role="member").
+        email = "massassign@example.com"
+        response = client.post("/api/auth/register", json={
+            "email": email,
+            "password": "SecurePass123!",
+            "first_name": "Mass",
+            "last_name": "Assign",
+            "role": "super_admin",
+            "is_admin": True,
         }, headers={"Authorization": f"Bearer {member_token}"})
 
-        # Should reject mass assignment
-        assert response.status_code in [400, 403, 404]
+        # Should reject or ignore the mass assignment
+        assert response.status_code in [200, 201, 400, 422]
+        if response.status_code in [200, 201]:
+            from core.models import User
+            user = db_session.query(User).filter(User.email == email).first()
+            assert user is not None
+            assert user.role == "member"
 
     def test_sensitive_fields_protected(
-        self, client: TestClient, member_token
+        self, client: TestClient, member_token, db_session: Session
     ):
         """Test sensitive fields cannot be modified."""
-        response = client.put("/api/auth/me", json={
+        # Same as above: registration is the self-service write path and
+        # must ignore attempts to inject password hashes / superuser flags.
+        email = "sensitivefields@example.com"
+        response = client.post("/api/auth/register", json={
+            "email": email,
+            "password": "SecurePass123!",
+            "first_name": "Sensitive",
+            "last_name": "Fields",
             "password_hash": "hacked",
-            "is_superuser": True
+            "hashed_password": "hacked",
+            "is_superuser": True,
         }, headers={"Authorization": f"Bearer {member_token}"})
 
         # Should reject or ignore
-        assert response.status_code in [200, 400, 404]
+        assert response.status_code in [200, 201, 400, 422]
+        if response.status_code in [200, 201]:
+            from core.models import User
+            from core.auth import get_password_hash
+            user = db_session.query(User).filter(User.email == email).first()
+            assert user is not None
+            assert user.hashed_password != "hacked"
+            # Password is bcrypt-hashed with the real (server-side) scheme
+            assert user.hashed_password == get_password_hash("SecurePass123!") or \
+                user.hashed_password.startswith(("$2b$", "$2a$"))
+            assert user.role != "super_admin"

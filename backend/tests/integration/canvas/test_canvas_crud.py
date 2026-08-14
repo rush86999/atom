@@ -99,10 +99,10 @@ class TestCanvasRetrieval:
         """Test retrieving canvas by ID."""
         # Create a canvas audit record first
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
-            action="present"
+            action_type="present"
         )
         db_session.add(canvas)
         db_session.commit()
@@ -135,9 +135,9 @@ class TestCanvasRetrieval:
         """Test listing all canvases."""
         # Create multiple canvas audit records
         for i in range(3):
-            canvas = CanvasAuditFactory(
+            canvas = CanvasAuditFactory(_session=db_session, 
                 canvas_type="generic",
-                action="present"
+                action_type="present"
             )
             db_session.add(canvas)
         db_session.commit()
@@ -158,8 +158,8 @@ class TestCanvasRetrieval:
     def test_list_canvases_with_filters(self, client: TestClient, auth_token: str, db_session: Session):
         """Test listing canvases with type filter."""
         # Create canvases of different types
-        generic_canvas = CanvasAuditFactory(canvas_type="generic", action="present")
-        docs_canvas = CanvasAuditFactory(canvas_type="docs", action="present")
+        generic_canvas = CanvasAuditFactory(_session=db_session, canvas_type="generic", action_type="present")
+        docs_canvas = CanvasAuditFactory(_session=db_session, canvas_type="docs", action_type="present")
         db_session.add_all([generic_canvas, docs_canvas])
         db_session.commit()
 
@@ -186,10 +186,10 @@ class TestCanvasUpdate:
     def test_update_canvas_title(self, client: TestClient, auth_token: str, db_session: Session):
         """Test updating canvas title."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
-            action="present"
+            action_type="present"
         )
         db_session.add(canvas)
         db_session.commit()
@@ -212,10 +212,10 @@ class TestCanvasUpdate:
     def test_update_canvas_components(self, client: TestClient, auth_token: str, db_session: Session):
         """Test updating canvas components."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="orchestration",
-            action="present"
+            action_type="present"
         )
         db_session.add(canvas)
         db_session.commit()
@@ -257,10 +257,10 @@ class TestCanvasDeletion:
     def test_delete_canvas(self, client: TestClient, auth_token: str, db_session: Session):
         """Test canvas deletion."""
         canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(
+        canvas = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
-            action="present"
+            action_type="present"
         )
         db_session.add(canvas)
         db_session.commit()
@@ -304,11 +304,11 @@ class TestCanvasAuditTrail:
         canvas_id = str(uuid.uuid4())
 
         # Create audit record
-        audit = CanvasAuditFactory(
+        audit = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="generic",
-            action="present",
-            user_id=uuid.UUID(auth_token.split("_")[1]) if "_" in auth_token else uuid.uuid4()
+            action_type="present",
+            user_id=str(uuid.uuid4())
         )
         db_session.add(audit)
         db_session.commit()
@@ -320,7 +320,8 @@ class TestCanvasAuditTrail:
 
         assert retrieved_audit is not None
         assert retrieved_audit.action_type == "present"
-        assert (retrieved_audit.details_json or {}).get("canvas_type") == "generic"
+        # canvas_type is a real denormalized column now, not details_json payload
+        assert retrieved_audit.canvas_type == "generic"
 
     def test_canvas_audit_metadata(self, client: TestClient, auth_token: str, db_session: Session):
         """Test canvas audit metadata storage."""
@@ -331,11 +332,11 @@ class TestCanvasAuditTrail:
             "render_time_ms": 150
         }
 
-        audit = CanvasAuditFactory(
+        audit = CanvasAuditFactory(_session=db_session, 
             id=canvas_id,
             canvas_type="orchestration",
-            action="present",
-            audit_metadata=metadata
+            action_type="present",
+            details_json=metadata
         )
         db_session.add(audit)
         db_session.commit()

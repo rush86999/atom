@@ -31,7 +31,12 @@ import {
 // API Base URL
 // ============================================================================
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+// Variable-keyed access: babel-preset-expo rewrites `process.env.EXPO_PUBLIC_*`
+// reads (dotted OR string-literal computed) into `require('expo/virtual/env')
+// .env.*`, which has no `env` key in the jest mock — those forms throw at
+// module load. A variable key bypasses the rewrite.
+const apiUrlKey = 'EXPO_PUBLIC_API_URL';
+const API_BASE_URL = process.env[apiUrlKey] || 'http://localhost:8000';
 
 // ============================================================================
 // Auth Handlers

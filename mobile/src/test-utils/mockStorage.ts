@@ -83,9 +83,19 @@ export function resetMmkvStorage() {
  * Seed MMKV with test data
  */
 export function seedMmkvStorage(data: Record<string, any>) {
-  // Mock is accessed via global helpers
-  const mockStorage = global.__mmkvStorage || new Map();
+  // The global instance installed by jest.setup.js is the store services
+  // actually read from — write through to it (previous code seeded a
+  // throwaway `__mmkvStorage` map that nothing ever read).
+  const instance = global.__mmkvGlobalInstance;
+  if (instance) {
+    Object.entries(data).forEach(([key, value]) => {
+      instance.set(key, value);
+    });
+    return;
+  }
 
+  // Fallback for environments without the jest.setup instance
+  const mockStorage = global.__mmkvStorage || new Map();
   Object.entries(data).forEach(([key, value]) => {
     mockStorage.set(key, value);
   });

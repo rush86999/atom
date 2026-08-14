@@ -21,16 +21,29 @@ from sqlalchemy.orm import Session
 from unittest.mock import Mock, patch, MagicMock
 
 from core.models import AgentRegistry, CanvasAudit, AgentExecution, AgentStatus, User
-# TODO: CanvasState is not exported from core.models (only CanvasAudit is).
-# A local stub keeps the existing tests collectible/constructible until a real
-# CanvasState ORM model lands. It intentionally has no table mapping so any
-# test that actually relies on DB persistence will fail loudly rather than
-# silently produce misleading results.
-class CanvasState:
-    """Test-only stub. Replace with the real ORM model when it lands."""
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+from core.models import Canvas as CanvasModel
+import uuid as _uuid
+
+
+def _seed_canvas(db_session: Session, canvas_id: str, title: str, canvas_type: str):
+    """Seed a real Canvas row (the old CanvasState stub was never a mapped model)."""
+    owner = User(
+        id=f"owner_{canvas_id}",
+        email=f"owner_{canvas_id}@example.com",
+        hashed_password="hash", first_name="Test", last_name="User",
+        role="member", status="active",
+    )
+    db_session.add(owner)
+    canvas = CanvasModel(
+        id=canvas_id,
+        tenant_id="default",
+        created_by=owner.id,
+        name=title,
+        canvas_type=canvas_type,
+    )
+    db_session.add(canvas)
+    db_session.commit()
+    return canvas
 
 
 class TestCanvasCreationEndpoint:
@@ -82,17 +95,7 @@ class TestCanvasRetrievalEndpoint:
     def test_get_canvas_by_id_success(self, client: TestClient, db_session: Session):
         """Test successful canvas retrieval."""
         # Create canvas state
-        canvas = CanvasState(
-            id="test_canvas_123",
-            title="Test Canvas",
-            canvas_type="sheets",
-            description="Test canvas description",
-            components=[],
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db_session.add(canvas)
-        db_session.commit()
+        _seed_canvas(db_session, "test_canvas_123", "Test Canvas", "sheets")
 
         response = client.get("/api/canvas/test_canvas_123")
         # May return 404 if endpoint doesn't exist or different route structure
@@ -114,16 +117,7 @@ class TestCanvasUpdateEndpoint:
 
     def test_update_canvas_success(self, client: TestClient, db_session: Session):
         """Test successful canvas update."""
-        canvas = CanvasState(
-            id="update_canvas_123",
-            title="Original Title",
-            canvas_type="docs",
-            components=[],
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db_session.add(canvas)
-        db_session.commit()
+        _seed_canvas(db_session, "update_canvas_123", "Original Title", "docs")
 
         update_data = {
             "title": "Updated Title",
@@ -143,16 +137,7 @@ class TestCanvasUpdateEndpoint:
 
     def test_update_canvas_invalid_type(self, client: TestClient, db_session: Session):
         """Test updating canvas with invalid type."""
-        canvas = CanvasState(
-            id="type_canvas_123",
-            title="Type Canvas",
-            canvas_type="sheets",
-            components=[],
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db_session.add(canvas)
-        db_session.commit()
+        _seed_canvas(db_session, "type_canvas_123", "Type Canvas", "sheets")
 
         update_data = {
             "canvas_type": "invalid_type"
@@ -166,16 +151,7 @@ class TestCanvasDeletionEndpoint:
 
     def test_delete_canvas_success(self, client: TestClient, db_session: Session):
         """Test successful canvas deletion."""
-        canvas = CanvasState(
-            id="delete_canvas_123",
-            title="Delete Me",
-            canvas_type="sheets",
-            components=[],
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db_session.add(canvas)
-        db_session.commit()
+        _seed_canvas(db_session, "delete_canvas_123", "Delete Me", "sheets")
 
         response = client.delete("/api/canvas/delete_canvas_123")
         # May return 404 or 405 if endpoint doesn't exist or different method
@@ -188,20 +164,12 @@ class TestCanvasDeletionEndpoint:
 
     def test_delete_canvas_with_audit_records(self, client: TestClient, db_session: Session):
         """Test deleting canvas with existing audit records."""
-        canvas = CanvasState(
-            id="audit_canvas_123",
-            title="Audit Canvas",
-            canvas_type="sheets",
-            components=[],
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db_session.add(canvas)
-        db_session.commit()
+        _seed_canvas(db_session, "audit_canvas_123", "Audit Canvas", "sheets")
 
         # Create audit record
         audit = CanvasAudit(
             id="audit_123",
+            tenant_id="default",
             canvas_id="audit_canvas_123",
             agent_id="test_agent",
             user_id="test_user",
@@ -224,25 +192,8 @@ class TestCanvasListEndpoint:
     def test_list_canvases_success(self, client: TestClient, db_session: Session):
         """Test successful canvas list retrieval."""
         # Create test canvases
-        canvas1 = CanvasState(
-            id="list_canvas_1",
-            title="Canvas 1",
-            canvas_type="sheets",
-            components=[],
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        canvas2 = CanvasState(
-            id="list_canvas_2",
-            title="Canvas 2",
-            canvas_type="docs",
-            components=[],
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db_session.add(canvas1)
-        db_session.add(canvas2)
-        db_session.commit()
+        _seed_canvas(db_session, "list_canvas_1", "Canvas 1", "sheets")
+        _seed_canvas(db_session, "list_canvas_2", "Canvas 2", "docs")
 
         response = client.get("/api/canvas")
         # May return 404 or 405 if endpoint doesn't exist or different route
@@ -250,25 +201,8 @@ class TestCanvasListEndpoint:
 
     def test_list_canvases_with_type_filter(self, client: TestClient, db_session: Session):
         """Test listing canvases filtered by type."""
-        canvas1 = CanvasState(
-            id="filter_canvas_1",
-            title="Sheets Canvas",
-            canvas_type="sheets",
-            components=[],
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        canvas2 = CanvasState(
-            id="filter_canvas_2",
-            title="Docs Canvas",
-            canvas_type="docs",
-            components=[],
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db_session.add(canvas1)
-        db_session.add(canvas2)
-        db_session.commit()
+        _seed_canvas(db_session, "filter_canvas_1", "Sheets Canvas", "sheets")
+        _seed_canvas(db_session, "filter_canvas_2", "Docs Canvas", "docs")
 
         response = client.get("/api/canvas?type=sheets")
         assert response.status_code in [200, 404, 405]
@@ -284,16 +218,7 @@ class TestCanvasComponentAddition:
 
     def test_add_component_to_canvas(self, client: TestClient, db_session: Session):
         """Test adding component to canvas."""
-        canvas = CanvasState(
-            id="component_canvas_123",
-            title="Component Canvas",
-            canvas_type="sheets",
-            components=[],
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db_session.add(canvas)
-        db_session.commit()
+        _seed_canvas(db_session, "component_canvas_123", "Component Canvas", "sheets")
 
         component_data = {
             "type": "chart",
@@ -317,16 +242,7 @@ class TestCanvasComponentAddition:
 
     def test_add_component_missing_data(self, client: TestClient, db_session: Session):
         """Test adding component with missing data."""
-        canvas = CanvasState(
-            id="missing_component_canvas",
-            title="Missing Component",
-            canvas_type="docs",
-            components=[],
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db_session.add(canvas)
-        db_session.commit()
+        _seed_canvas(db_session, "missing_component_canvas", "Missing Component", "docs")
 
         component_data = {
             "type": "chart"
@@ -482,7 +398,7 @@ class TestFormSubmissionWithGovernance:
             if response.status_code == 200:
                 audit = db_session.query(CanvasAudit).filter_by(
                     canvas_id="audit_canvas",
-                    action="submit"
+                    action_type="submit"
                 ).first()
                 # May not exist if endpoint returned 404/405
                 assert audit is not None or response.status_code in [404, 405]
@@ -506,7 +422,7 @@ class TestFormSubmissionWithGovernance:
             agent_id=agent.id,
             workspace_id="default",
             status="completed",
-            input_data={"action": "present_form"}
+            input_summary="present_form"
         )
         db_session.add(execution)
         db_session.commit()
@@ -539,15 +455,15 @@ class TestFormSubmissionWithGovernance:
         # Should return validation error
         assert response.status_code in [400, 422, 404, 405]
 
-    def test_form_submit_unauthenticated(self, client: TestClient, db_session: Session):
+    def test_form_submit_unauthenticated(self, client_no_auth: TestClient, db_session: Session):
         """Test form submission without authentication returns 401."""
         form_data = {
             "canvas_id": "test_canvas",
             "form_data": {"field1": "value1"}
         }
 
-        # Don't mock authentication - should fail
-        response = client.post("/api/canvas/submit", json=form_data)
+        # client_no_auth does NOT override get_current_user - auth is enforced
+        response = client_no_auth.post("/api/canvas/submit", json=form_data)
         # Should return unauthorized or 404 if endpoint missing
         assert response.status_code in [401, 403, 404, 405]
 
@@ -560,6 +476,7 @@ class TestCanvasAuditTrail:
         # Create audit records
         audit1 = CanvasAudit(
             id="audit_1",
+            tenant_id="default",
             canvas_id="audit_history_canvas",
             agent_id="agent_1",
             user_id="user_1",
@@ -570,6 +487,7 @@ class TestCanvasAuditTrail:
         )
         audit2 = CanvasAudit(
             id="audit_2",
+            tenant_id="default",
             canvas_id="audit_history_canvas",
             agent_id="agent_2",
             user_id="user_2",
@@ -601,6 +519,7 @@ class TestCanvasAuditTrail:
 
         audit = CanvasAudit(
             id="governance_audit_1",
+            tenant_id="default",
             canvas_id="governance_canvas",
             agent_id=agent.id,
             user_id="user_1",
@@ -613,5 +532,5 @@ class TestCanvasAuditTrail:
         # Retrieve audit record
         retrieved = db_session.query(CanvasAudit).filter_by(id="governance_audit_1").first()
         assert retrieved is not None
-        assert retrieved.governance_check_passed is True
-        assert "field_count" in retrieved.audit_metadata
+        assert retrieved.details_json.get("governance_check_passed") is True
+        assert "field_count" in retrieved.details_json

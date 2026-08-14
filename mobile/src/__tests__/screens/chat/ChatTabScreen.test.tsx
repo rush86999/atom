@@ -591,7 +591,9 @@ describe('ChatTabScreen', () => {
 
       const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
       const deleteButton = buttons.find((b: any) => b.text === 'Delete');
-      await deleteButton.onPress();
+      await act(async () => {
+        await deleteButton.onPress();
+      });
 
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:8000/api/chat/conversations/conv-1',

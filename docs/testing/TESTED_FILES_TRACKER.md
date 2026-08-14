@@ -6,6 +6,128 @@
 
 ---
 
+## Session 2026-08-14 (wave 118 — mobile coverage-depth: every src/ file <80% stmts → ≥80%; 210 new tests, 2 real bugs + 1 latent module-load bug + 1 dead-code removal)
+
+**Baseline** (`cd mobile && npm test -- --coverage --watchAll=false --maxWorkers=2`): below-80%-statements files were all TEST-INFRA structure (`__tests__/helpers/*`, `__tests__/mocks/*`, `test-utils/*`) plus `navigation/AuthNavigator.tsx` branches (75%). Also 4 flaky failing tests (ChatTabScreen delete timeout ×2 runs, Login/Register loading indicators, testUtils `wait` 99ms race). All 12 target files now 100% stmts; full suite **exit 0** — 127 suites / 4276 passed / 2 intentional skips (skip-side of `skipOnPlatform`/`onlyOnPlatform`), zero coverage-threshold violations.
+
+| File | Before stmts/br/fn/lines | After stmts/br/fn/lines | New tests |
+|---|---|---|---|
+| `__tests__/helpers/websocketMocks.ts` | 0 / 0 / 0 / 0 | **100 / 100 / 100 / 100** | 35 (new `__tests__/helpers/__tests__/websocketMocks.test.ts`: full MockSocketImpl lifecycle — connect/disconnect/emit/on/off/once/ping→pong, registry fns, all 9 simulate* helpers, `_triggerEvent` handler-throw catch via direct invocation, jest factory, setup/cleanup) |
+| `__tests__/helpers/deepLinkHelpers.ts` | 50 / 81.25 / 72.72 / 49.25 | **100 / 100 / 100 / 100** | 14 (new `deepLinkHelpers.test.ts`: parse/build/validate/extract for both prefixes, `https://atom.ai` bare-host slice path, all 26 links in `getAllTestDeepLinks`) |
+| `__tests__/helpers/testUtils.ts` | 73.83 / 37.03 / 69.23 / 73.07 | **100 / 100 / 100 / 100** | 22 (extended `testUtils.test.ts`: renderWithTestWrapper, waitForCondition happy/timeout, flushPromisesLegacy, advanceTimersByTime(+Sync), resetAllMocks incl. absent-global branch, setupFakeTimers, cleanupTestWithReset, skipOnPlatform/onlyOnPlatform (describe-level registration — jest-circus bans nested tests; plain-object record because jest.setup's afterEach clearAllMocks wipes jest.fn history between the registered tests), createMockWebSocket, renderWithSafeArea both branches, insets helpers, Platform.select fallback chain ×4) |
+| `__tests__/helpers/storageTestHelpers.ts` | 69.18 / 48.52 / 77.77 / 68.78 | **100 / 83.82 / 100 / 100** | 36 (new `storageTestHelpers.test.ts`: all mock*State fns incl. MMKV-warn fallback, getAllStoredState/clearAllStorage, token helpers, all 4 partial-auth + 3 corruption scenarios via it.each, verifyAuthState/verifyDeviceState match/miss/unspecified) |
+| `__tests__/helpers/deviceMocks.ts` | 77.27 / 61.95 / 60 / 77.77 | **100 / 97.82 / 100 / 100** | 16 (extended `deviceMocks.test.ts`: barcode/photo/corners/geofence-notification/location-history/geocode factories, defaults + overrides) |
+| `__tests__/helpers/navigationMocks.tsx` | 82.71 / 57.57 / 65.71 / 80.3 | **100 / 96.96 / 100 / 100** | 17 (new `navigationMocks.test.tsx`: every factory incl. all 14 registered screens rendered, nav-button press, root-state capture hook both tab-merge and stack paths, auth-context variants, Ionicons mock) |
+| `__tests__/helpers/mockExpoModules.ts` | 84.37 / 61.7 / 71.42 / 84.21 | **100 / 95.74 / 100 / 100** | 17 (extended `mockExpoModules.test.ts`: error/config/count helpers for camera/location/notifications/biometric, SecureStore isAvailable/keys/size, AsyncStorage multiGet/multiSet/multiRemove/getAllKeysSync/clearSync/size, default-arg + denial branches, merge-onto-missing-key) |
+| `__tests__/mocks/exploEnv.ts` | 0 / 0 / 0 / 0 | **100 / 100 / 100 / 100** | 7 (new `__tests__/mocks/__tests__/exploEnv.test.ts`: direct env read, EXPO_PUBLIC_ prefix fallback, non-string keys, has→true, default-var + keep-existing) |
+| `test-utils/mockData.ts` | 0 / 0 / 0 / 0 | **100 / 100 / 100 / 100** | 18 (new `test-utils/__tests__/mockData.test.ts`: shape validation of all 16 fixtures — maturity levels, canvas types, workflow/execution/episode/conversation/message/device/notification/form/chart/pending-action contracts, default export bundle) |
+| `test-utils/mockStorage.ts` | 0 / 0 / 0 / 0 | **100 / 89.47 / 100 / 100** | 15 (new `test-utils/__tests__/mockStorage.test.ts`: AsyncStorage/MMKV/SecureStore seed/read/clear round-trips, JSON-parse fallback via raw write, missing-global-hook guards, combined helpers, auth-token helpers) |
+| `test-utils/mockHandlers.ts` | 0 / 0 / 0 / 0 | **100 / 90 / 100 / 100** | 9 (new `test-utils/__tests__/mockHandlers.test.ts` — **msw is NOT installed**, so the module is tested via `jest.mock('msw'/'msw/node', ..., { virtual: true })`: all 26 handler URLs/methods captured, every resolver invoked with mock req/res/ctx for both 404 and 200 branches, server lifecycle fns, overrideHandlers, default export) |
+| `navigation/AuthNavigator.tsx` | 94.11 / 75 / 100 / 94.11 | **100 / 100 / 100 / 100** | 2 (new `AuthNavigatorBranches.test.tsx` with AppNavigator stubbed — react-navigation 6.4 forbids nesting its own NavigationContainer inside AuthNavigator's, which is why the main suite renders AppNavigator directly; covers authenticated `initialRouteName='Main'` + Main Screen ternary sides and the `isLoading` second-operand of the loading gate) |
+
+**Real bugs fixed (TDD red→green)**:
+1. `test-utils/mockStorage.ts:85-92` — `seedMmkvStorage` seeded a throwaway `global.__mmkvStorage` map that nothing ever read; services read `global.__mmkvGlobalInstance` (installed by jest.setup's react-native-mmkv mock factory). Any test seeding MMKV got silent no-ops. RED: `mockStorage.test.ts` "seeds into the global mmkv storage" (getString returned null). Fixed to write through to `__mmkvGlobalInstance` with a fallback for environments without it.
+2. `test-utils/mockHandlers.ts:34` — latent module-load crash: babel-preset-expo rewrites DOTTED **and string-literal-computed** `process.env.EXPO_PUBLIC_*` reads into `require('expo/virtual/env').env.*`, which has no `env` key in jest.setup's mock → `TypeError: Cannot read properties of undefined` at import (0% coverage because nothing could ever import it). RED: `mockHandlers.test.ts` failed at module load. Fixed with a **variable-keyed** access (`process.env[apiUrlKey]`) which bypasses the rewrite (verified via babel transform probe). Same latent crash existed in `__tests__/mocks/exploEnv.ts:26` (it IS the env mock — self-recursion) — fixed the same way there.
+3. Flaky-test fixes (test-side): ChatTabScreen delete test called the Alert button's `onPress` **without `act()`** — the state update never flushed so the item never disappeared (fails 2/2 runs; deterministic RED reproduced in isolation with STEP-debug). Wrapped in `act`. Login/Register loading tests raced on real 200ms/1000ms `setTimeout` promises — replaced with deferred-promise + explicit resolve inside `act` (fully deterministic). testUtils `wait` test raced Node timer clamping (observed 99ms vs ≥100ms) — assert ≥95.
+
+**Dead code removed**: `navigation/AuthNavigator.tsx:165-176` — the `prepare()` try/catch whose try body was only a comment: the `catch (e)` branch was **provably unreachable** (nothing could throw) and caused the 75% branch threshold. Replaced with a direct `setIsReady(true)` in the effect (behavior-identical; 386 navigation tests + 74 AuthNavigator tests stay green). The prior wave's "unreachable catch" note is now resolved rather than documented.
+
+**Unreachable/defensive branches documented** (NOT chased; all ≥80% after the above): `mockStorage.ts:49` (`multiGet` null-value guard — getAllKeys only returns existing keys), `mockStorage.ts:98` (MMKV fallback map set — covered via absence test, branch-table edge), `storageTestHelpers.ts:172,208-228,…` (getAllStoredState null-guards / reset-hook presence guards — defensive), `deviceMocks.ts:667,705` (waitForSyncComplete/Progress timeout guard branches), `navigationMocks.tsx:273` (onNavigate optional call), `mockHandlers.ts:39` (`rest` import binding), `mockExpoModules.ts:229-230` (setScheduleResult default-id branch), `AuthNavigator.tsx` none remaining.
+
+**Test-infra landmines** (for future waves): (1) jest.setup's global `afterEach(() => jest.clearAllMocks())` wipes jest.fn call history BETWEEN tests — never assert cross-test accumulation on spies; use plain-object records or capture at factory time (mockHandlers' `setupServer` args must be stored inside the mock factory's own closure objects — babel ALSO re-initializes `let` module vars after hoisted imports run, so even "declare `let x = []` then assign in factory" resets). (2) jest-circus bans registering tests inside test bodies — `skipOnPlatform`/`onlyOnPlatform` must be invoked at describe level. (3) The `react-native-mmkv` mock factory only runs on first require — tests touching `global.__mmkvGlobalInstance` need `jest.requireMock('react-native-mmkv')` in beforeAll. (4) RN's `process.env` shim rejects `delete` AND stringifies `undefined` assignments — reset with `''`. (5) `toHaveTextContent` is NOT available (jest-native matchers not extended in this setup) — assert `props.children`. (6) jest-expo's `Platform.OS` is 'ios'. (7) jest.config.js had a stale per-file threshold for `platformPermissions.test.ts` (a test file — no coverage data) that forced exit 1 on an otherwise-green run; removed.
+
+**Verification** (per-file, combined with pre-existing suites; all ≥ thresholds):
+```bash
+cd mobile
+npx jest src/__tests__/helpers/__tests__/websocketMocks.test.ts --coverage --collectCoverageFrom='src/__tests__/helpers/websocketMocks.ts' --watchAll=false --maxWorkers=2            # 35 passed, 100/100/100/100
+npx jest src/__tests__/helpers/__tests__/deepLinkHelpers.test.ts --coverage --collectCoverageFrom='src/__tests__/helpers/deepLinkHelpers.ts' --watchAll=false --maxWorkers=2          # 14 passed, 100/100/100/100
+npx jest src/__tests__/helpers/__tests__/testUtils.test.ts --coverage --collectCoverageFrom='src/__tests__/helpers/testUtils.ts' --watchAll=false --maxWorkers=2                        # 46 passed + 2 skipped, 100/100/100/100
+npx jest src/__tests__/helpers/__tests__/storageTestHelpers.test.ts --coverage --collectCoverageFrom='src/__tests__/helpers/storageTestHelpers.ts' --watchAll=false --maxWorkers=2      # 36 passed, 100/83.82/100/100
+npx jest src/__tests__/helpers/__tests__/deviceMocks.test.ts --coverage --collectCoverageFrom='src/__tests__/helpers/deviceMocks.ts' --watchAll=false --maxWorkers=2                    # 45 passed, 100/97.82/100/100
+npx jest src/__tests__/helpers/__tests__/navigationMocks.test.tsx --coverage --collectCoverageFrom='src/__tests__/helpers/navigationMocks.tsx' --watchAll=false --maxWorkers=2          # 17 passed, 100/96.96/100/100
+npx jest src/__tests__/helpers/__tests__/mockExpoModules.test.ts --coverage --collectCoverageFrom='src/__tests__/helpers/mockExpoModules.ts' --watchAll=false --maxWorkers=2            # 56 passed, 100/95.74/100/100
+npx jest src/__tests__/mocks/__tests__/exploEnv.test.ts --coverage --collectCoverageFrom='src/__tests__/mocks/exploEnv.ts' --watchAll=false --maxWorkers=2                                # 7 passed, 100/100/100/100
+npx jest src/test-utils/__tests__/mockData.test.ts --coverage --collectCoverageFrom='src/test-utils/mockData.ts' --watchAll=false --maxWorkers=2                                          # 18 passed, 100/100/100/100
+npx jest src/test-utils/__tests__/mockStorage.test.ts --coverage --collectCoverageFrom='src/test-utils/mockStorage.ts' --watchAll=false --maxWorkers=2                                    # 15 passed, 100/89.47/100/100
+npx jest src/test-utils/__tests__/mockHandlers.test.ts --coverage --collectCoverageFrom='src/test-utils/mockHandlers.ts' --watchAll=false --maxWorkers=2                                  # 9 passed, 100/90/100/100
+npx jest src/__tests__/navigation/AuthNavigator.test.tsx src/__tests__/navigation/AuthNavigatorBranches.test.tsx --coverage --collectCoverageFrom='src/navigation/AuthNavigator.tsx' --watchAll=false --maxWorkers=2  # 74 passed, 100/100/100/100
+# full suite: npm test -- --coverage --watchAll=false --maxWorkers=2  → EXIT 0, 127 suites / 4276 passed / 2 skipped, 0 threshold violations
+```
+**Remaining (out of wave scope)**: none — every `src/**/*.{ts,tsx}` file is ≥80% on all four metrics (lowest branch: `storageTestHelpers.ts` 83.82). Overall suite: 96.44% stmts / 90.61% branch / 96.92% funcs / 96.67% lines.
+
+---
+
+## Session 2026-08-14 (wave 119 — frontend hooks/lib coverage-depth: 5 threshold-failing hooks + lowest lib file to ≥85/90%; 58 new tests, 1 real bug fixed)
+
+**Baseline**: full suite `npx jest --coverage --watchAll=false --maxWorkers=2` (threshold failures list, hooks/lib subset) — **useVoiceAgent** (lines 84.48%, funcs 72.72%), **useMemorySearch** (branches 75%), **useSecurityScanner** (branches 72.5%, funcs 75%), **useUserActivity** (branches 78.04%), **useLiveSupport** (branches 75%) below their jest thresholds; all lib/ files were already ≥90% stmts (lowest: `matchConfidence.ts` 94.73%). No jest.config.js thresholds touched.
+
+| File | Before stmts/br/fn/lines | After stmts/br/fn/lines | New tests |
+|---|---|---|---|
+| `hooks/useVoiceAgent.ts` | 85.93 / 90 / 72.72 / 84.48 | **100 / 90 / 100 / 100** | 5 (new `useVoiceAgent-branches.test.ts`: mount-audio `addEventListener` ended/error handlers, unmount listener removal, `play()` rejection, Audio-construction throw) |
+| `hooks/useMemorySearch.ts` | 89.13 / 75 / 100 / 90.9 | **100 / 100 / 100 / 100** | 7 (new `useMemorySearch-branches.test.ts`: success-without-results, `success:false`, non-ok HTTP toast, out-of-order stale guard ×2 incl. mid-`json()` supersede, stale-failure isolation, in-flight isSearching) |
+| `hooks/useSecurityScanner.ts` | 90 / 72.5 / 75 / 92.1 | **98 / 85 / 100 / 100** | 6 (new `useSecurityScanner-branches.test.ts` + `useSecurityScanner-import-fail.test.ts`: dynamic `@tauri-apps/api/core` import fallback, import-throw catch → web-API fallback, `writeResult === true` short-circuit, write/execute-command failure fallbacks) |
+| `hooks/useUserActivity.ts` | 89.88 / 78.04 / 93.33 / 92.64 | **100 / 95.12 / 93.33 / 100** | 9 (new `useUserActivity-branches.test.ts`: recordActivity clearTimeout on repeat events, override HTTP/network errors ×2, `document.hidden` interval skip + resume, no-userId no-ops) |
+| `hooks/useLiveSupport.ts` | 100 / 75 / 100 / 100 | **100 / 93.75 / 100 / 100** | 6 (new `useLiveSupport-branches.test.ts`: auth_token→token fallback chain, no-token → `{}` headers, bare-array body, unexpected-shape → `[]`, HTTP error, non-Error rejection) |
+| `hooks/useCanvasState.ts` | 90.09 / 82.95 / 95.45 / 89.13 | **100 / 93.18 / 100 / 100** | 9 (new `useCanvasState-branches.test.ts`: getter-only `window.atom` reaches the verifyCanvasAPI/`!api` guards — the only way those lines run in a browser env, stub init with subscribe, 5s registration-timeout warn + no-warn, previously-registered-null warn, `getCanvasRegistrationStatus`/`clearCanvasRegistrationWarnings`) |
+| `hooks/useWhatsAppWebSocket.ts` | 90.98 / 88.23 / 100 / 90.59 | **99.18 / 94.11 / 100 / 99.14** | 10 (new `useWhatsAppWebSocket-branches.test.ts`: ping send-throw, invalid-JSON parse error, CONNECTING/OPEN connect no-ops, constructor throw, sendMessage throw/not-connected/raw-string, unmount close) |
+| `hooks/useWebSocket.ts` | 95.53 / 83.67 / 100 / 96.03 | **98.21 / 87.75 / 100 / 100** | 6 (new `useWebSocket-branches.test.ts`: relative-url joins (both slash forms), full ws:// passthrough, onopen clears pending reconnect timer, sendMessage OPEN/CONNECTING) |
+| `lib/matchConfidence.ts` | 94.73 / 92.3 / 100 / 94.44 | **100 / 100 / 100 / 100** | 2 (out-of-range `chosen_index`, empty-candidates → `[]`) |
+
+**Real bug fixed (TDD red→green)**: `hooks/useMemorySearch.ts:60-62` — the catch block lacked the stale-request guard that the success path has (lines 46/50, BUG-040): a **superseded** search whose fetch REJECTS still toasted "Error searching historical data" (and logged) even though its results would have been discarded — stale failures were user-visible. Fixed with `if (myRequestId !== requestIdRef.current) return;` before the log/toast. RED: `useMemorySearch-branches.test.ts` "stale request failure does not clear newer results or toast".
+
+**Dead-code / unreachable findings** (NOT changed): `useWhatsAppWebSocket.ts:300` ("Component unmount" close) is unreachable — the first effect's cleanup (`disconnect()`) nulls `wsRef.current` before the second effect's cleanup runs; `useLiveSupport.ts:23` `typeof window !== 'undefined'` false branch unreachable in jsdom; `useCanvasState.ts` verifyAPI guards only reachable via getter-only `window.atom` (stub init otherwise makes the API always present).
+
+**Test-infra landmines**: (1) `resetMocks: true` restores jsdom's ORIGINAL `localStorage.getItem` — plain `global.localStorage = ...` silently fails (jsdom getter-only accessor); must `Object.defineProperty(window, 'localStorage', ...)` (pattern from `api-admin.test.ts`). (2) `useWebSocket`'s suite-level `simulateOpen` does NOT update `readyState`, so OPEN-guard tests must set `ws.readyState = WebSocket.OPEN` first. (3) `useWhatsAppWebSocket` tests: the global WebSocket mock lacks the static `CONNECTING/OPEN/CLOSED` constants the hook's guards compare against — define them on the mock class. (4) `useCanvasState`: mount-time stub init makes "API missing" branches unreachable unless `window.atom` is a getter-only property (sloppy-mode assignment no-ops). (5) `jest.doMock` with a throwing factory does NOT make a dynamic `import()` reject once the module is cached — split the import-failure test into its own file with a top-level throwing `jest.mock` factory.
+
+**Verification** (per-file, combined with pre-existing suites; all ≥ thresholds):
+```bash
+cd frontend-nextjs
+npx jest hooks/__tests__/useVoiceAgent-branches.test.ts hooks/__tests__/useVoiceAgent.test.ts --coverage --collectCoverageFrom='hooks/useVoiceAgent.ts' --watchAll=false --maxWorkers=2          # 39 passed, 100/90/100/100
+npx jest hooks/__tests__/useMemorySearch-branches.test.ts hooks/__tests__/useMemorySearch.test.ts --coverage --collectCoverageFrom='hooks/useMemorySearch.ts' --watchAll=false --maxWorkers=2   # 27 passed, 100/100/100/100
+npx jest hooks/__tests__/useSecurityScanner-branches.test.ts hooks/__tests__/useSecurityScanner-import-fail.test.ts hooks/__tests__/useSecurityScanner.test.ts --coverage --collectCoverageFrom='hooks/useSecurityScanner.ts' --watchAll=false --maxWorkers=2 # 30 passed, 98/85/100/100
+npx jest hooks/__tests__/useUserActivity-branches.test.ts hooks/__tests__/useUserActivity.test.ts --coverage --collectCoverageFrom='hooks/useUserActivity.ts' --watchAll=false --maxWorkers=2  # 35 passed, 100/95.12/93.33/100
+npx jest hooks/__tests__/useLiveSupport-branches.test.ts hooks/__tests__/useLiveSupport.test.ts --coverage --collectCoverageFrom='hooks/useLiveSupport.ts' --watchAll=false --maxWorkers=2      # 25 passed, 100/93.75/100/100
+npx jest hooks/__tests__/useCanvasState-branches.test.ts hooks/__tests__/useCanvasState.test.ts hooks/__tests__/useCanvasState-comprehensive.test.ts hooks/__tests__/useCanvasState.api.test.ts hooks/__tests__/useCanvasStateRegistration.test.ts --coverage --collectCoverageFrom='hooks/useCanvasState.ts' --watchAll=false --maxWorkers=2  # 95 passed, 100/93.18/100/100
+npx jest hooks/__tests__/useWhatsAppWebSocket-branches.test.ts hooks/__tests__/useWhatsAppWebSocket.test.ts hooks/__tests__/useWhatsAppWebSocketEnhanced.test.ts --coverage --collectCoverageFrom='hooks/useWhatsAppWebSocket.ts' --watchAll=false --maxWorkers=2 # 111 passed, 99.18/94.11/100/99.14
+npx jest hooks/__tests__/useWebSocket-branches.test.ts hooks/__tests__/useWebSocket.test.ts --coverage --collectCoverageFrom='hooks/useWebSocket.ts' --watchAll=false --maxWorkers=2          # 57 passed, 98.21/87.75/100/100
+npx jest lib/__tests__/matchConfidence.test.ts --coverage --collectCoverageFrom='lib/matchConfidence.ts' --watchAll=false --maxWorkers=2                                                     # 9 passed, 100/100/100/100
+# full suite: npx jest --coverage --watchAll=false --maxWorkers=2   (threshold check — hooks/lib clean; remaining failures are pre-existing components/canvas: InteractiveForm, ViewOrchestrator, BarChart, LineChart, IntegrationConnectionGuide)
+```
+**Remaining (out of wave scope)**: components/canvas threshold failures from the baseline run: `InteractiveForm.tsx` (funcs 73%), `ViewOrchestrator.tsx` (branches 77%), `BarChart.tsx`/`LineChart.tsx` (stmts 73.5%, funcs 33%), `IntegrationConnectionGuide.tsx` (stmts 83%, funcs 81%).
+
+---
+
+## Session 2026-08-14 (wave 117 — last untracked modules: whatsapp integration leftovers + misplaced accounting test; 50 new tests, 1 bug fixed)
+
+**Scope**: final cleanup wave over the last uncovered/untracked modules. Every run: `rm -f .coverage` first, `-p no:cacheprovider`, one process at a time.
+
+| Module | Decision | Stmts | Coverage | New tests |
+|---|---|---|---|---|
+| `integrations/whatsapp_api_setup_guide.py` | **Tested** (guide generator: `create_api_setup_guide`, `create_environment_template`, `main()` incl. /tmp JSON + .env serialization, structural contracts on all 8 steps/credentials/troubleshooting/checklist) | 49 | **98%** | 15 (`tests/test_covpush_w117_whatsapp_guide.py`) |
+| `integrations/whatsapp_performance_benchmark.py` | **Tested** (grade thresholds, result parsing, success-rate math, overall metrics, print targets, comprehensive-run success/failure, all exception paths) | 97 | **100%** | 23 (`tests/test_covpush_w117_whatsapp_benchmark.py`) |
+| `integrations/whatsapp_database_optimization_final.py` | **Tested** (DDL bookkeeping, per-step success/exception, composite run all-fail permutations, result accessor) | 58 | **100%** | 12 (`tests/test_covpush_w117_whatsapp_db_optimizer.py`) |
+| `accounting/test_advanced_finance.py` | **Moved** → `tests/test_advanced_finance.py` (git mv — pytest never collected it in `accounting/`) + **repaired** to run green (1 test, rewritten as asserted flow) | — | — | 1 |
+| `core/coordinated_strategy_service.py` | **Skipped** — already 100% via `tests/test_covpush_w85_strategy.py` (15 passed, 60/60 stmts) | 60 | 100% | 0 |
+
+**Bug fixed (TDD red→green)**:
+1. `integrations/whatsapp_performance_benchmark.py` — **undefined `logger` NameError**: `benchmark_api_endpoint`'s exception paths (inner per-iteration `except` at line 41 and outer `except` at 64) called `logger.error` but no `logger` existed → any request failure (connection refused, timeout, 5xx-scan loop) **crashed the method with NameError instead of returning False**. Fixed by adding `import logging` + `logger = logging.getLogger(__name__)`. RED: `test_request_exception_returns_false` (asserted the method returns False; failed with NameError pre-fix).
+
+**Moved-file repair** (`tests/test_advanced_finance.py`): was uncollectable + broken as a script — removed the `sys.path.append(os.getcwd())` hack (pytest `pythonpath=.`), removed duplicate `import asyncio`, **fixed missing `await` on `ingestion_pipeline.ingest_message`** (async — the coroutine never ran, so the semantic-memory leg silently no-op'd), replaced the real-dev-DB dependency (RED: `no such table: workspaces` — `atom_dev.db` has no schema) with an in-memory SQLite engine via `Base.metadata.create_all`, mocked LanceDB memory manager + ingestion pipeline (zero network/LLM; broken-torch env has embeddings disabled), and converted the print-only "verification" into real asserts (mapping fields, persisted transaction, budget-overrun alert path via `patch.object(..., create=True)` — `check_financial_integrity` is intentionally not part of `CrossSystemReasoningEngine`'s API, matching the `getattr` degradation contract already covered by w74b).
+
+**Verification** (each in its own process, `rm -f .coverage` first):
+```bash
+cd backend
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_w117_whatsapp_benchmark.py --cov=integrations.whatsapp_performance_benchmark --cov-report=term-missing -p no:cacheprovider -q    # 23 passed, 100%
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_w117_whatsapp_guide.py --cov=integrations.whatsapp_api_setup_guide --cov-report=term-missing -p no:cacheprovider -q                                  # 15 passed, 98% (line 384 = __main__ guard)
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_w117_whatsapp_db_optimizer.py --cov=integrations.whatsapp_database_optimization_final --cov-report=term-missing -p no:cacheprovider -q                     # 12 passed, 100%
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_advanced_finance.py -p no:cacheprovider -q                                                                                                    # 1 passed
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_w85_strategy.py --cov=core.coordinated_strategy_service --cov-report=term-missing -p no:cacheprovider -q                                  # 15 passed, 100% (pre-existing — skipped)
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_w117_whatsapp_benchmark.py tests/test_covpush_w117_whatsapp_guide.py tests/test_covpush_w117_whatsapp_db_optimizer.py tests/test_advanced_finance.py -p no:cacheprovider -q   # 51 passed, 0 failed
+```
+Note: pytest-benchmark's "Low Assertion Density" + a default `--cov` (pytest.ini `[coverage:run] source = backend`) inject extra warnings/summary noise; `.coverage` must be removed between runs or reports merge stale data.
+
+---
+
 ## Session 2026-08-13 (wave 116 — backend depth: governance/agent + api cluster probes; 129 new tests, 3 bugs fixed)
 
 **Probes run** (one process at a time, `rm -f .coverage` first, `-p no:cacheprovider`):

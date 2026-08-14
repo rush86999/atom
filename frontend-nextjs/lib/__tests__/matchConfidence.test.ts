@@ -56,6 +56,26 @@ describe("orderCandidatesForReview", () => {
     const ordered = orderCandidatesForReview(mc);
     expect(ordered[0].selector).toBe("button.a");
   });
+
+  it("out-of-range chosen_index preserves original order", () => {
+    const mc: MatchConfidence = {
+      level: "partial", score: 0.70,
+      rationale: "stale index",
+      candidates: [c1, c2], chosen_index: 5,
+    };
+    const ordered = orderCandidatesForReview(mc);
+    expect(ordered[0].selector).toBe("button.a");
+    expect(ordered[1].selector).toBe("button.b");
+  });
+
+  it("returns an empty array when no candidates exist", () => {
+    const mc: MatchConfidence = {
+      level: "high", score: 0.95,
+      rationale: "single match",
+      candidates: [],
+    };
+    expect(orderCandidatesForReview(mc)).toEqual([]);
+  });
 });
 
 describe("buildModificationPayload", () => {

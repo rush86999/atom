@@ -274,8 +274,10 @@ await act(async () => {
     });
 
     it('should show loading indicator during login', async () => {
-      jest.useRealTimers();
-      mockLogin.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ success: true }), 200)));
+      let resolveLogin: (value: unknown) => void = () => {};
+      mockLogin.mockImplementation(
+        () => new Promise((resolve) => { resolveLogin = resolve; })
+      );
 
       const { getByPlaceholderText, getByTestId, queryByTestId } = render(
         <LoginScreen navigation={mockNavigation as any} />
@@ -286,8 +288,8 @@ await act(async () => {
       const signInButton = getByTestId('sign-in-button');
 
       fireEvent.changeText(emailInput, 'test@example.com');
-fireEvent.changeText(passwordInput, 'password123');
-await act(async () => {
+      fireEvent.changeText(passwordInput, 'password123');
+      await act(async () => {
         fireEvent.press(signInButton);
       });
 
@@ -297,9 +299,12 @@ await act(async () => {
       });
 
       // Loading should disappear after completion
+      await act(async () => {
+        resolveLogin({ success: true });
+      });
       await waitFor(() => {
         expect(queryByTestId('activity-indicator')).toBeNull();
-      }, { timeout: 2000 });
+      });
     });
   });
 

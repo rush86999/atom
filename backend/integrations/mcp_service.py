@@ -2421,7 +2421,11 @@ class MCPService(IntegrationService):
             elif tool_name == "generate_pdf_report":
                 from fpdf import FPDF
                 pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=12)
-                for line in arguments.get("content", "").split('\n'): pdf.multi_cell(0, 10, txt=line)
+                # BUG FIX: fpdf2 >= 2.7.6 rejects multi_cell(w=0) ("Not enough
+                # horizontal space"), making this tool always raise. Use the
+                # effective printable width instead.
+                _w = pdf.w - pdf.l_margin - pdf.r_margin
+                for line in arguments.get("content", "").split('\n'): pdf.multi_cell(_w, 10, txt=line)
                 # Sanitize filename to its basename to prevent path traversal
                 # (BUG-034): os.path.join("/tmp", "/etc/x") == "/etc/x" because
                 # an absolute second arg discards the base. Take only the name.

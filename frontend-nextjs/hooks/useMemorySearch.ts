@@ -58,6 +58,9 @@ export function useMemorySearch(options: UseMemorySearchOptions = {}) {
                 toast.error("Failed to search historical data");
             }
         } catch (error) {
+            // Guard: a superseded (stale) request's failure must not toast or
+            // log — only the latest search's outcome is user-visible (BUG-040).
+            if (myRequestId !== requestIdRef.current) return;
             console.error("Memory search error:", error);
             toast.error("Error searching historical data");
         } finally {
