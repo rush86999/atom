@@ -1293,11 +1293,11 @@ def versioning_client(admin_user, monkeypatch):
     monkeypatch.setattr("api.workflow_versioning_endpoints.versioning_system", vs)
     monkeypatch.setattr("api.workflow_versioning_endpoints.version_manager", vm)
     # Defensive: tests/unit/test_workflow_versioning_endpoints.py permanently
-    # replaces router.success_response/validation_error with MagicMocks on the
-    # shared BaseAPIRouter instance — restore the real bound methods.
+    # replaces router.success_response/not_found_error/validation_error with
+    # MagicMocks on the shared BaseAPIRouter instance — restore the real ones.
     from core.base_routes import BaseAPIRouter
 
-    for method in ("success_response", "validation_error"):
+    for method in ("success_response", "not_found_error", "validation_error"):
         if not isinstance(getattr(versioning_router, method), type(
                 getattr(BaseAPIRouter, method))):
             setattr(versioning_router, method,
