@@ -374,8 +374,8 @@ class TestAgentExecutionAuditLog:
         # Given
         execution = AgentExecution(
             agent_id=test_agent.id,
-            user_id=test_user.id,
-            input="test input",
+            metadata_json={"user_id": test_user.id},
+            input_summary="test input",
             status="running",
             started_at=datetime.utcnow()
         )
@@ -389,16 +389,16 @@ class TestAgentExecutionAuditLog:
 
         # Then
         assert len(logged_executions) >= 1
-        assert logged_executions[0].input == "test input"
+        assert logged_executions[0].input_summary == "test input"
 
     def test_log_details_complete(self, db_session, test_agent, test_user):
         """Log includes timestamp, agent_id, user_id, input, output, status"""
         # Given
         execution = AgentExecution(
             agent_id=test_agent.id,
-            user_id=test_user.id,
-            input="test input",
-            output="test output",
+            metadata_json={"user_id": test_user.id},
+            input_summary="test input",
+            output_summary="test output",
             status="completed",
             started_at=datetime.utcnow(),
             completed_at=datetime.utcnow()
@@ -413,8 +413,8 @@ class TestAgentExecutionAuditLog:
 
         # Then
         assert logged_execution.agent_id == test_agent.id
-        assert logged_execution.user_id == test_user.id
-        assert logged_execution.input == "test input"
+        assert logged_execution.metadata_json["user_id"] == test_user.id
+        assert logged_execution.input_summary == "test input"
         assert logged_execution.status == "completed"
         assert logged_execution.started_at is not None
 
@@ -425,8 +425,8 @@ class TestAgentExecutionAuditLog:
         for i in range(3):
             execution = AgentExecution(
                 agent_id=test_agent.id,
-                user_id=test_user.id,
-                input=f"test input {i}",
+                metadata_json={"user_id": test_user.id},
+                input_summary=f"test input {i}",
                 status="completed",
                 started_at=datetime.utcnow()
             )
@@ -436,7 +436,7 @@ class TestAgentExecutionAuditLog:
         # When
         # Search for specific input
         results = db_session.query(AgentExecution).filter(
-            AgentExecution.input.like("%test input 1%")
+            AgentExecution.input_summary.like("%test input 1%")
         ).all()
 
         # Then
@@ -691,8 +691,8 @@ class TestAgentExecutionMetrics:
         # Given
         execution = AgentExecution(
             agent_id=test_agent.id,
-            user_id=test_user.id,
-            input="test",
+            metadata_json={"user_id": test_user.id},
+            input_summary="test",
             status="completed",
             started_at=datetime.utcnow(),
             completed_at=datetime.utcnow() + timedelta(seconds=5)
@@ -742,8 +742,8 @@ class TestAgentExecutionReplay:
         # Given
         execution = AgentExecution(
             agent_id=test_agent.id,
-            user_id=test_user.id,
-            input="test input",
+            metadata_json={"user_id": test_user.id},
+            input_summary="test input",
             status="completed",
             started_at=datetime.utcnow(),
             completed_at=datetime.utcnow() + timedelta(seconds=5),
@@ -787,18 +787,18 @@ class TestAgentExecutionDiff:
         # Given
         execution1 = AgentExecution(
             agent_id=test_agent.id,
-            user_id=test_user.id,
-            input="input A",
-            output="output A",
-            duration_ms=5000,
+            metadata_json={"user_id": test_user.id},
+            input_summary="input A",
+            output_summary="output A",
+            duration_seconds=(5000 / 1000.0),
             started_at=datetime.utcnow()
         )
         execution2 = AgentExecution(
             agent_id=test_agent.id,
-            user_id=test_user.id,
-            input="input B",
-            output="output B",
-            duration_ms=6000,
+            metadata_json={"user_id": test_user.id},
+            input_summary="input B",
+            output_summary="output B",
+            duration_seconds=(6000 / 1000.0),
             started_at=datetime.utcnow()
         )
         db_session.add_all([execution1, execution2])
@@ -865,8 +865,8 @@ class TestAgentExecutionNotification:
         notifications = []
         execution = AgentExecution(
             agent_id=test_agent.id,
-            user_id=test_user.id,
-            input="long running task",
+            metadata_json={"user_id": test_user.id},
+            input_summary="long running task",
             status="completed",
             started_at=datetime.utcnow() - timedelta(minutes=10),
             completed_at=datetime.utcnow()

@@ -387,13 +387,21 @@ class ConductorAgent:
             elif result.failed_steps > 0:
                 context.status = ExecutionStatus.FAILED
                 result.status = ExecutionStatus.FAILED
-            elif not result.completed_steps and not result.skipped_steps:
-                # No step could run (e.g. the start step's dependencies or
-                # condition blocked it) — don't leave the workflow dangling
-                # in RUNNING forever with zero progress.
+            elif not context.is_complete():
+                # The strategy loop exited without reaching a terminal state
+                # for every step: either no step could run at all (the start
+                # step's dependencies or condition blocked it) or the DAG
+                # stalled with ready steps exhausted (a step's dependencies
+                # can never be satisfied). Never leave the workflow dangling
+                # in RUNNING forever with no path to completion.
                 context.status = ExecutionStatus.FAILED
                 result.status = ExecutionStatus.FAILED
-                result.errors.append("Workflow made no progress: no steps could execute")
+                if not result.completed_steps and not result.skipped_steps:
+                    result.errors.append("Workflow made no progress: no steps could execute")
+                else:
+                    result.errors.append(
+                        "Workflow stalled: steps remain that cannot execute"
+                    )
 
         except Exception as e:
             logger.error(f"Workflow execution failed: {e}")

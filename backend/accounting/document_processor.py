@@ -110,6 +110,11 @@ class AIDocumentProcessor:
 
     async def _ai_extract(self, text: str, doc_type: str) -> Optional[Dict[str, Any]]:
         """Call AI to extract structured info from text"""
+        # The optional AI service may be absent (guarded import above sets
+        # the enums to None) — degrade gracefully instead of AttributeError.
+        if AIRequest is None or AITaskType is None or ai_enhanced_service is None:
+            logger.debug("AI extraction unavailable — AI service not configured")
+            return None
         prompt = (
             f"Extract financial information from this {doc_type} text. "
             "Identify the name of the " + ("vendor" if doc_type == "bill" else "customer") + " as 'entity_name'. "

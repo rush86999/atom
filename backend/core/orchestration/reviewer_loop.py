@@ -55,7 +55,7 @@ def is_review_rejection(result: Any) -> bool:
     strategy = getattr(result, "strategy", None)
     if strategy is None or getattr(strategy, "value", strategy) != "review":
         return False
-    details = result.details or {}
+    details = getattr(result, "details", None) or {}
     return details.get("accepted") is False
 
 

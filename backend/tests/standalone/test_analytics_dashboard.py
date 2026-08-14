@@ -4,6 +4,7 @@ Analytics Dashboard Test Script
 Run this to verify the analytics dashboard is working correctly.
 """
 
+import pytest
 from pathlib import Path
 import sys
 
@@ -33,6 +34,16 @@ def test_engine_initialization():
     except Exception as e:
         print(f"  ✗ Engine initialization failed: {e}")
         return False, None
+
+@pytest.fixture
+def engine():
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import StaticPool
+    eng = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    from core.models_registration import Base
+    Base.metadata.create_all(eng)
+    return eng
+
 
 def test_helper_methods(engine):
     """Test all helper methods."""

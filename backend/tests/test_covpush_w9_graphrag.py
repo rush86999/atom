@@ -512,7 +512,7 @@ class TestCommunityDataclasses:
         assert r.communities == []
         assert r.hierarchy is None
         assert r.num_communities == 0
-        assert r.algorithm_used == ClusteringAlgorithm.LEIDEN
+        assert r.algorithm_used.value == ClusteringAlgorithm.LEIDEN.value
 
 
 class TestLeidenAlgorithm:
@@ -526,7 +526,7 @@ class TestLeidenAlgorithm:
         g.add_edges_from([("a", "b"), ("b", "c"), ("c", "d"), ("d", "a"), ("a", "c")])
         algo = LeidenAlgorithm(CommunityConfig(min_community_size=2))
         result = algo.detect(g, resolution=1.0)
-        assert result.algorithm_used == ClusteringAlgorithm.LOUVAIN
+        assert result.algorithm_used.value == ClusteringAlgorithm.LOUVAIN.value
         assert result.num_communities >= 1
         assert result.execution_time_ms >= 0.0
 
@@ -571,7 +571,7 @@ class TestLeidenAlgorithm:
             g = nx.Graph()
             g.add_nodes_from(["a", "b", "c", "d", "e", "f"])
             result = algo._detect_with_networkx(g, 1.0)
-            assert result.algorithm_used == ClusteringAlgorithm.LEIDEN
+            assert result.algorithm_used.value == ClusteringAlgorithm.LEIDEN.value
             assert result.num_communities == 2
             assert result.modularity == 0.42
         finally:
@@ -624,7 +624,7 @@ class TestLeidenAlgorithm:
         algo = LeidenAlgorithm(CommunityConfig(min_community_size=2))
         with patch("core.graphrag.community_detection.NETWORKX_AVAILABLE", True):
             result = algo._detect_simple(g, 1.0)
-        assert result.algorithm_used == ClusteringAlgorithm.LABEL_PROPAGATION
+        assert result.algorithm_used.value == ClusteringAlgorithm.LABEL_PROPAGATION.value
         assert result.num_communities == 2
 
     def test_detect_simple_without_networkx(self):
@@ -663,7 +663,7 @@ class TestLeidenAlgorithm:
         algo = LeidenAlgorithm(CommunityConfig(min_community_size=2))
         result = algo._partition_to_result(FakePartition(), graph, 1.0)
         assert result.num_communities == 2
-        assert result.algorithm_used == ClusteringAlgorithm.LEIDEN
+        assert result.algorithm_used.value == ClusteringAlgorithm.LEIDEN.value
         assert result.modularity == 0.3
 
     def test_partition_to_result_min_size_filters(self):
@@ -839,7 +839,7 @@ class TestCommunityDetectionRemainingGaps:
         algo = LeidenAlgorithm(CommunityConfig(min_community_size=2))
         with patch("core.graphrag.community_detection.NETWORKX_AVAILABLE", False):
             result = algo.detect(g, 1.0)
-        assert result.algorithm_used == ClusteringAlgorithm.LABEL_PROPAGATION
+        assert result.algorithm_used.value == ClusteringAlgorithm.LABEL_PROPAGATION.value
 
     def test_build_graph_raises_without_networkx(self):
         sess = FakeSession({GraphNode: [node("a")], GraphEdge: []})

@@ -31,8 +31,8 @@ class TestMetricsCollectionAgentExecution:
         completed_at = started_at + timedelta(seconds=5)
         execution = AgentExecution(
             agent_id=test_agent.id,
-            user_id=test_user.id,
-            input="test",
+            metadata_json={"user_id": test_user.id},
+            input_summary="test",
             status="completed",
             started_at=started_at,
             completed_at=completed_at
@@ -53,8 +53,8 @@ class TestMetricsCollectionAgentExecution:
         # Given
         execution = AgentExecution(
             agent_id=test_agent.id,
-            user_id=test_user.id,
-            input="test",
+            metadata_json={"user_id": test_user.id},
+            input_summary="test",
             status="completed"
         )
         execution.memory_used_mb = 256
@@ -73,8 +73,8 @@ class TestMetricsCollectionAgentExecution:
         # Given
         execution = AgentExecution(
             agent_id=test_agent.id,
-            user_id=test_user.id,
-            input="test",
+            metadata_json={"user_id": test_user.id},
+            input_summary="test",
             status="completed"
         )
         execution.cpu_used_percent = 45
@@ -93,8 +93,8 @@ class TestMetricsCollectionAgentExecution:
         # Given
         execution = AgentExecution(
             agent_id=test_agent.id,
-            user_id=test_user.id,
-            input="test",
+            metadata_json={"user_id": test_user.id},
+            input_summary="test",
             status="completed"
         )
         execution.tokens_used = 150
@@ -113,8 +113,8 @@ class TestMetricsCollectionAgentExecution:
         # Given
         execution = AgentExecution(
             agent_id=test_agent.id,
-            user_id=test_user.id,
-            input="test",
+            metadata_json={"user_id": test_user.id},
+            input_summary="test",
             status="completed",
             duration_ms=5000,
             memory_used_mb=256,

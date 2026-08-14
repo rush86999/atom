@@ -992,5 +992,23 @@
     "metadata": {},
     "message_count": 0,
     "history": []
+  },
+  {
+    "session_id": "3903cd55-38e8-47d0-bec1-2771b8e2ab2c",
+    "user_id": "test_user",
+    "created_at": "2026-08-14T19:16:43.635249+00:00",
+    "last_active": "2026-08-14T19:16:43.635249+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "62836f00-e4ff-40d2-93c5-98006b8dca45",
+    "user_id": "test_user",
+    "created_at": "2026-08-14T19:16:43.683878+00:00",
+    "last_active": "2026-08-14T19:16:43.683878+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
   }
 ]

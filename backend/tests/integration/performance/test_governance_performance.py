@@ -329,6 +329,16 @@ class TestGovernanceEdgeCases:
         result = benchmark(get_from_empty)
         assert result is None
 
+    @pytest.fixture
+    def cache_with_entries(self):
+        """Cache with 100 entries (alias of populated_governance_cache shape)."""
+        from core.governance_cache import GovernanceCache
+        cache = GovernanceCache(max_size=1000, ttl_seconds=60)
+        for i in range(100):
+            cache.set(agent_id=f"agent_{i}", action_type=f"action_{i % 5}",
+                      data={"allowed": True})
+        return cache
+
     @pytest.mark.benchmark(group="governance-cache")
     def test_cache_stats(self, benchmark, cache_with_entries):
         """

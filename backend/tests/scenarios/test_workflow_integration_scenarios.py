@@ -63,12 +63,12 @@ class TestWorkflowTemplateCreation:
         # Create two workflows from same template
         workflow1 = WorkflowExecution(
             template_id=template.id,
-            user_id=test_user.id,
+            metadata_json={"user_id": test_user.id},
             status="pending"
         )
         workflow2 = WorkflowExecution(
             template_id=template.id,
-            user_id=test_user.id,
+            metadata_json={"user_id": test_user.id},
             status="pending"
         )
         db_session.add_all([workflow1, workflow2])
@@ -134,7 +134,7 @@ class TestWorkflowTriggerConfigurationSchedule:
         # When
         execution = WorkflowExecution(
             template_id=template.id,
-            user_id=test_user.id,
+            metadata_json={"user_id": test_user.id},
             trigger_type="schedule",
             schedule_cron="0 9 * * *",  # Daily at 9 AM
             status="scheduled"
@@ -174,7 +174,7 @@ class TestWorkflowTriggerConfigurationWebhook:
         # When
         execution = WorkflowExecution(
             template_id=template.id,
-            user_id=test_user.id,
+            metadata_json={"user_id": test_user.id},
             trigger_type="webhook",
             webhook_url=f"https://api.atom.com/webhooks/workflow/{template.id}",
             status="active"
@@ -216,7 +216,7 @@ class TestWorkflowTriggerConfigurationEvent:
         # When
         execution = WorkflowExecution(
             template_id=template.id,
-            user_id=test_user.id,
+            metadata_json={"user_id": test_user.id},
             trigger_type="event",
             event_type=event_type,
             status="subscribed"

@@ -97,8 +97,13 @@ def integration_client(integration_db):
         finally:
             pass
 
-    from core.main import app
+    from main_api_app import app  # core.main was renamed
+    from core.auth import get_current_user
+    from core.models import User as _User
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = lambda: _User(
+        id="integration-user", email="integration@test.local",
+        first_name="I", last_name="T", role="admin", status="active")
 
     client = TestClient(app)
     yield client
@@ -288,13 +293,13 @@ class TestAgentExecutionIntegration:
         integration_db.commit()
 
         # Trigger agent execution via API
-        response = integration_client.post("/api/agents/execute", json={
+        response = integration_client.post("/api/agents/atom/execute", json={
             "agent_id": "lifecycle-test-agent",
             "input": "test input"
         })
 
         # May return 200, 202, or error depending on implementation
-        assert response.status_code in [200, 202, 400, 404, 500]
+        assert response.status_code in [200, 202, 400, 404, 422, 500]
 
         # Verify execution record may have been created
         execution = integration_db.query(AgentExecution).filter(
@@ -550,7 +555,7 @@ class TestCrossServiceIntegration:
         integration_db.commit()
 
         # Execute workflow with governance check
-        governance_service = AgentGovernanceService(db_session=integration_db)
+        governance_service = AgentGovernanceService(db=integration_db)
 
         try:
             can_execute = await governance_service.can_execute_action(

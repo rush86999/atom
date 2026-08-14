@@ -14,6 +14,7 @@ External embedding APIs are mocked for reliability and speed.
 """
 
 import pytest
+import asyncio
 import tempfile
 import shutil
 from datetime import datetime, timedelta
@@ -93,6 +94,9 @@ def sample_agent(test_db):
     """Create sample agent."""
     agent = AgentRegistry(
         id="agent-456",
+        category="Operations",
+        module_path="test.module",
+        class_name="TestAgent",
         name="TestAgent",
         status=AgentStatus.SUPERVISED,
         description="Test agent for LanceDB integration"
@@ -149,24 +153,21 @@ def sample_episodes(test_db, sample_agent, sample_user):
     for i, data in enumerate(episode_data):
         episode = Episode(
             id=f"episode-{i}",
-            title=data["title"],
-            description=data["description"],
-            summary=data["summary"],
+            task_description=data["title"],
             agent_id=sample_agent.id,
-            user_id=sample_user.id,
+            tenant_id="default",
             workspace_id="default",
-            topics=data["topics"],
-            entities=[],
-            importance_score=data["importance"],
+            metadata_json={"topics": data["topics"], "importance": data["importance"]},
             status="completed",
+            outcome="success",
+            success=True,
             started_at=now - timedelta(days=i),
-            ended_at=now - timedelta(days=i) + timedelta(hours=1),
+            completed_at=now - timedelta(days=i) + timedelta(hours=1),
             duration_seconds=3600,
             maturity_at_time="SUPERVISED",
             human_intervention_count=i % 3,
             constitutional_score=0.8 + (i * 0.02),
-            decay_score=1.0 - (i * 0.1),
-            access_count=10 - i,
+            confidence_score=0.5 - (i * 0.1),
             canvas_action_count=i,
             feedback_ids=[]
         )
@@ -208,6 +209,14 @@ class TestLanceDBConnection:
             pytest.skip("LanceDB not available")
 
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
 
         # Verify handler initialized
         assert handler is not None
@@ -222,6 +231,14 @@ class TestLanceDBConnection:
             pytest.skip("LanceDB not available")
 
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
 
         # Create table
         table_name = "test_episodes"
@@ -239,34 +256,44 @@ class TestLanceDBConnection:
             pytest.skip("LanceDB not available")
 
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
         handler.create_table(table_name)
 
         # Add episodes to LanceDB
         for episode in sample_episodes:
             content = f"""
-Title: {episode.title}
-Description: {episode.description}
-Summary: {episode.summary}
-Topics: {', '.join(episode.topics)}
+Title: {episode.task_description}
+Description: {episode.task_description}
+
+Topics: {', '.join(episode.metadata_json.get('topics', []))}
             """.strip()
 
             metadata = {
                 "episode_id": episode.id,
                 "agent_id": episode.agent_id,
-                "user_id": episode.user_id,
+                "user_id": "default_user",
                 "status": episode.status,
-                "topics": episode.topics,
+                "topics": episode.metadata_json.get("topics", []),
                 "type": "episode"
             }
 
-            handler.add_document(
-                table_name=table_name,
-                text=content,
-                source=f"episode:{episode.id}",
-                metadata=metadata,
-                user_id=episode.user_id,
-                extract_knowledge=False
+            await asyncio.to_thread(
+
+
+                handler.add_document,
+
+
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+
+
             )
 
         # Verify documents added
@@ -291,13 +318,22 @@ class TestEmbeddingGeneration:
             pytest.skip("LanceDB not available")
 
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        # No real embedding model in the test env — deterministic stub
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
 
         text = "This is a test episode about data analytics"
-        embedding = handler.embed_text(text)
+        embedding = await handler.async_embed_text(text)
 
         assert embedding is not None
         # Check it's a list or array
-        assert isinstance(embedding, (list, tuple))
+        assert isinstance(embedding, (list, tuple)) or type(embedding).__name__ == 'ndarray'
         # Check vector dimension (should be 384 for MiniLM-L6-v2)
         assert len(embedding) > 0
         # Check values are floats
@@ -312,10 +348,18 @@ class TestEmbeddingGeneration:
             pytest.skip("LanceDB not available")
 
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
 
         text = "Consistent test text"
-        embedding1 = handler.embed_text(text)
-        embedding2 = handler.embed_text(text)
+        embedding1 = await handler.async_embed_text(text)
+        embedding2 = await handler.async_embed_text(text)
 
         # Embeddings should be identical or very similar
         assert len(embedding1) == len(embedding2)
@@ -338,12 +382,20 @@ class TestEmbeddingGeneration:
             pytest.skip("LanceDB not available")
 
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
 
         text1 = "Data analytics and business intelligence"
         text2 = "Customer support and ticket management"
 
-        embedding1 = handler.embed_text(text1)
-        embedding2 = handler.embed_text(text2)
+        embedding1 = await handler.async_embed_text(text1)
+        embedding2 = await handler.async_embed_text(text2)
 
         # Calculate cosine similarity
         dot_product = sum(a * b for a, b in zip(embedding1, embedding2))
@@ -363,6 +415,14 @@ class TestEmbeddingGeneration:
             pytest.skip("LanceDB not available")
 
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
 
         texts = [
             "First episode about analytics",
@@ -374,7 +434,7 @@ class TestEmbeddingGeneration:
 
         import time
         start = time.time()
-        embeddings = [handler.embed_text(text) for text in texts]
+        embeddings = [await handler.async_embed_text(text) for text in texts]
         duration = time.time() - start
 
         # All embeddings generated
@@ -404,31 +464,39 @@ class TestSemanticSearch:
 
         # Setup: Add episodes to LanceDB
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
         handler.create_table(table_name)
 
         for episode in sample_episodes:
-            content = f"{episode.title} {episode.description} {episode.summary}"
+            content = f"{episode.task_description}"
             metadata = {
                 "episode_id": episode.id,
                 "agent_id": episode.agent_id,
                 "type": "episode"
             }
-            handler.add_document(
-                table_name=table_name,
-                text=content,
-                source=f"episode:{episode.id}",
-                metadata=metadata,
-                user_id=episode.user_id,
-                extract_knowledge=False
+            await asyncio.to_thread(
+
+                handler.add_document,
+
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+
             )
 
         # Test search
-        results = handler.search(
-            table_name=table_name,
-            query="data analytics dashboard",
-            filter_str=f"agent_id == '{sample_agent.id}'",
-            limit=3
+        results = await asyncio.to_thread(
+
+            handler.search,
+
+            table_name=table_name, query="data analytics dashboard", filter_str=f"user_id == 'default_user'", limit=3,
+
         )
 
         assert len(results) > 0
@@ -445,31 +513,39 @@ class TestSemanticSearch:
 
         # Setup
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
         handler.create_table(table_name)
 
         for episode in sample_episodes:
-            content = f"{episode.title} {episode.description} {episode.summary}"
+            content = f"{episode.task_description}"
             metadata = {
                 "episode_id": episode.id,
                 "agent_id": episode.agent_id,
                 "type": "episode"
             }
-            handler.add_document(
-                table_name=table_name,
-                text=content,
-                source=f"episode:{episode.id}",
-                metadata=metadata,
-                user_id=episode.user_id,
-                extract_knowledge=False
+            await asyncio.to_thread(
+
+                handler.add_document,
+
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+
             )
 
         # Search for analytics-related content
-        results = handler.search(
-            table_name=table_name,
-            query="analytics dashboard metrics",
-            filter_str=f"agent_id == '{sample_agent.id}'",
-            limit=5
+        results = await asyncio.to_thread(
+
+            handler.search,
+
+            table_name=table_name, query="analytics dashboard metrics", filter_str=f"user_id == 'default_user'", limit=5,
+
         )
 
         # Results should be ranked by distance (lower = more similar)
@@ -489,31 +565,39 @@ class TestSemanticSearch:
 
         # Setup
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
         handler.create_table(table_name)
 
         for episode in sample_episodes:
-            content = f"{episode.title} {episode.description}"
+            content = f"{episode.task_description}"
             metadata = {
                 "episode_id": episode.id,
                 "agent_id": episode.agent_id,
                 "type": "episode"
             }
-            handler.add_document(
-                table_name=table_name,
-                text=content,
-                source=f"episode:{episode.id}",
-                metadata=metadata,
-                user_id=episode.user_id,
-                extract_knowledge=False
+            await asyncio.to_thread(
+
+                handler.add_document,
+
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+
             )
 
         # Search with agent filter
-        results = handler.search(
-            table_name=table_name,
-            query="automation",
-            filter_str=f"agent_id == '{sample_agent.id}'",
-            limit=10
+        results = await asyncio.to_thread(
+
+            handler.search,
+
+            table_name=table_name, query="automation", filter_str=f"user_id == 'default_user'", limit=10,
+
         )
 
         # All results should be from the specified agent
@@ -543,23 +627,30 @@ class TestHybridSearch:
 
         # Setup LanceDB
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
         handler.create_table(table_name)
 
         for episode in sample_episodes:
-            content = f"{episode.title} {episode.description}"
+            content = f"{episode.task_description}"
             metadata = {
                 "episode_id": episode.id,
                 "agent_id": episode.agent_id,
                 "type": "episode"
             }
-            handler.add_document(
-                table_name=table_name,
-                text=content,
-                source=f"episode:{episode.id}",
-                metadata=metadata,
-                user_id=episode.user_id,
-                extract_knowledge=False
+            await asyncio.to_thread(
+
+                handler.add_document,
+
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+
             )
 
         # Create retrieval service with mocked LanceDB
@@ -590,23 +681,30 @@ class TestHybridSearch:
 
         # Setup
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
         handler.create_table(table_name)
 
         for episode in sample_episodes:
-            content = f"{episode.title} {episode.description}"
+            content = f"{episode.task_description}"
             metadata = {
                 "episode_id": episode.id,
                 "agent_id": episode.agent_id,
                 "type": "episode"
             }
-            handler.add_document(
-                table_name=table_name,
-                text=content,
-                source=f"episode:{episode.id}",
-                metadata=metadata,
-                user_id=episode.user_id,
-                extract_knowledge=False
+            await asyncio.to_thread(
+
+                handler.add_document,
+
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+
             )
 
         with patch('core.episode_retrieval_service.get_lancedb_handler', return_value=handler):
@@ -643,33 +741,42 @@ class TestQueryPerformance:
             pytest.skip("LanceDB not available")
 
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
         handler.create_table(table_name)
 
         # Add episodes
         for episode in sample_episodes:
-            content = f"{episode.title} {episode.description}"
+            content = f"{episode.task_description}"
             metadata = {
                 "episode_id": episode.id,
                 "agent_id": episode.agent_id,
                 "type": "episode"
             }
-            handler.add_document(
-                table_name=table_name,
-                text=content,
-                source=f"episode:{episode.id}",
-                metadata=metadata,
-                user_id=episode.user_id,
-                extract_knowledge=False
+            await asyncio.to_thread(
+
+                handler.add_document,
+
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+
             )
 
         # Measure search performance
         import time
         start = time.time()
-        results = handler.search(
-            table_name=table_name,
-            query="test query",
-            limit=5
+        results = await asyncio.to_thread(
+
+            handler.search,
+
+            table_name=table_name, query="test query", limit=5,
+
         )
         duration = time.time() - start
 
@@ -688,23 +795,30 @@ class TestQueryPerformance:
 
         # Setup
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
         handler.create_table(table_name)
 
         for episode in sample_episodes:
-            content = f"{episode.title} {episode.description}"
+            content = f"{episode.task_description}"
             metadata = {
                 "episode_id": episode.id,
                 "agent_id": episode.agent_id,
                 "type": "episode"
             }
-            handler.add_document(
-                table_name=table_name,
-                text=content,
-                source=f"episode:{episode.id}",
-                metadata=metadata,
-                user_id=episode.user_id,
-                extract_knowledge=False
+            await asyncio.to_thread(
+
+                handler.add_document,
+
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+
             )
 
         # Test service integration
@@ -741,14 +855,24 @@ class TestLanceDBEdgeCases:
             pytest.skip("LanceDB not available")
 
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "test_table"
         handler.create_table(table_name)
 
         # Empty query should return empty results or handle gracefully
-        results = handler.search(
-            table_name=table_name,
-            query="",
-            limit=5
+        results = await asyncio.to_thread(
+
+            handler.search,
+
+            table_name=table_name, query="", limit=5,
+
         )
 
         assert isinstance(results, list)
@@ -762,13 +886,23 @@ class TestLanceDBEdgeCases:
             pytest.skip("LanceDB not available")
 
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
 
         # Should handle error gracefully
         try:
-            results = handler.search(
-                table_name="nonexistent_table",
-                query="test",
-                limit=5
+            results = await asyncio.to_thread(
+
+                handler.search,
+
+                table_name="nonexistent_table", query="test", limit=5,
+
             )
             # Either returns empty list or raises exception
             assert isinstance(results, list) or True
@@ -786,23 +920,30 @@ class TestLanceDBEdgeCases:
             pytest.skip("LanceDB not available")
 
         handler = LanceDBHandler(db_path=temp_lancedb_dir)
+        from types import SimpleNamespace
+        _emb = {}
+        async def _gen(t):
+            if t not in _emb:
+                seed = (sum(ord(c) for c in t) % 97) + 1
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+            return _emb[t]
+        handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
         handler.create_table(table_name)
 
         for episode in sample_episodes[:1]:  # Just add one
-            content = f"{episode.title} {episode.description}"
+            content = f"{episode.task_description}"
             metadata = {
                 "episode_id": episode.id,
                 "agent_id": episode.agent_id,
                 "type": "episode"
             }
-            handler.add_document(
-                table_name=table_name,
-                text=content,
-                source=f"episode:{episode.id}",
-                metadata=metadata,
-                user_id=episode.user_id,
-                extract_knowledge=False
+            await asyncio.to_thread(
+
+                handler.add_document,
+
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+
             )
 
         # Query with special characters
@@ -815,10 +956,12 @@ class TestLanceDBEdgeCases:
 
         for query in special_queries:
             try:
-                results = handler.search(
-                    table_name=table_name,
-                    query=query,
-                    limit=5
+                results = await asyncio.to_thread(
+
+                    handler.search,
+
+                    table_name=table_name, query=query, limit=5,
+
                 )
                 assert isinstance(results, list)
             except Exception:

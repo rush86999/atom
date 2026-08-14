@@ -69,7 +69,8 @@ def test_user(db_session: Session):
         email="testuser@example.com",
         first_name="Test",
         last_name="User",
-        role="member"
+        role="member",
+        status="active",
     )
     db_session.add(user)
     db_session.commit()

@@ -479,7 +479,7 @@ class TestAgentGraduation:
             episode = Episode(
                 id=f"episode_{i}",
                 agent_id=agent.id,
-                user_id="test_user",
+                metadata_json={"user_id": "test_user"},
                 workspace_id="default",
                 title=f"Episode {i}",
                 status="completed",
@@ -511,7 +511,7 @@ class TestAgentGraduation:
             episode = Episode(
                 id=f"episode_{i}",
                 agent_id=agent.id,
-                user_id="test_user",
+                metadata_json={"user_id": "test_user"},
                 workspace_id="default",
                 title=f"Episode {i}",
                 status="completed",
@@ -544,7 +544,7 @@ class TestAgentGraduation:
             episode = Episode(
                 id=f"episode_{i}",
                 agent_id=agent.id,
-                user_id="test_user",
+                metadata_json={"user_id": "test_user"},
                 workspace_id="default",
                 title=f"Episode {i}",
                 status="completed",
@@ -624,7 +624,7 @@ class TestAgentExecutionTracking:
         execution = AgentExecution(
             id="exec-001",
             agent_id=agent.id,
-            user_id="test_user",
+            metadata_json={"user_id": "test_user"},
             workspace_id="default",
             status="running",
             started_at=datetime.utcnow(),
@@ -651,7 +651,7 @@ class TestAgentExecutionTracking:
         execution = AgentExecution(
             id="exec-002",
             agent_id=agent.id,
-            user_id="test_user",
+            metadata_json={"user_id": "test_user"},
             workspace_id="default",
             status="running",
             started_at=datetime.utcnow()
@@ -680,7 +680,7 @@ class TestAgentExecutionTracking:
         execution = AgentExecution(
             id="exec-003",
             agent_id=agent.id,
-            user_id="test_user",
+            metadata_json={"user_id": "test_user"},
             workspace_id="default",
             status="running",
             started_at=datetime.utcnow()
@@ -711,7 +711,7 @@ class TestAgentExecutionTracking:
         execution = AgentExecution(
             id="exec-004",
             agent_id=agent.id,
-            user_id="test_user",
+            metadata_json={"user_id": "test_user"},
             workspace_id="default",
             status="running",
             started_at=start_time

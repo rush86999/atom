@@ -1,9 +1,20 @@
 import json
 import uuid
+import pytest
 import requests
 
 BASE_URL = "http://localhost:8000/api/atom-agent/chat"
 
+# Manual smoke script against a live backend — skip under pytest when no server
+# is running (collected as a test only for the __main__ harness below).
+try:
+    requests.get("http://localhost:8000/health/live", timeout=1)
+    _SERVER_UP = True
+except Exception:
+    _SERVER_UP = False
+
+@pytest.mark.skipif(not _SERVER_UP, reason="manual smoke script; requires live backend on :8000")
+@pytest.mark.parametrize("message", ["Create a task to buy groceries"])
 def test_chat(message):
     print(f"\n--- Testing: '{message}' ---")
     payload = {

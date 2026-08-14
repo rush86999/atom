@@ -70,18 +70,20 @@ class TestBrowserSessionCoverage:
     async def test_browser_session_start_chromium_success(self, mock_playwright_fn, browser_session):
         """Successfully start Chromium browser session."""
         # Setup mocks
-        mock_pw = MagicMock()
         mock_browser = MagicMock()
         mock_context = MagicMock()
         mock_page = MagicMock()
 
         mock_playwright_instance = MagicMock()
-        mock_playwright_instance.chromium.launch.return_value = mock_browser
-        mock_playwright_instance.firefox.launch.return_value = mock_browser
-        mock_playwright_instance.webkit.launch.return_value = mock_browser
+        # async_playwright().start() and the launch/new_context/new_page calls
+        # are all awaited — they must be AsyncMocks.
+        mock_playwright_instance.start = AsyncMock(return_value=mock_playwright_instance)
+        mock_playwright_instance.chromium.launch = AsyncMock(return_value=mock_browser)
+        mock_playwright_instance.firefox.launch = AsyncMock(return_value=mock_browser)
+        mock_playwright_instance.webkit.launch = AsyncMock(return_value=mock_browser)
 
-        mock_browser.new_context.return_value = mock_context
-        mock_context.new_page.return_value = mock_page
+        mock_browser.new_context = AsyncMock(return_value=mock_context)
+        mock_context.new_page = AsyncMock(return_value=mock_page)
 
         mock_playwright_fn.return_value = mock_playwright_instance
 
@@ -108,17 +110,17 @@ class TestBrowserSessionCoverage:
             browser_type="firefox"
         )
 
-        mock_pw = MagicMock()
         mock_browser = MagicMock()
         mock_context = MagicMock()
         mock_page = MagicMock()
 
         mock_playwright_instance = MagicMock()
-        mock_playwright_instance.firefox.launch.return_value = mock_browser
-        mock_browser.new_context.return_value = mock_context
-        mock_context.new_page.return_value = mock_page
+        mock_playwright_instance.start = AsyncMock(return_value=mock_playwright_instance)
+        mock_playwright_instance.firefox.launch = AsyncMock(return_value=mock_browser)
+        mock_browser.new_context = AsyncMock(return_value=mock_context)
+        mock_context.new_page = AsyncMock(return_value=mock_page)
 
-        mock_playwright_fn.return_value.return_value = mock_playwright_instance
+        mock_playwright_fn.return_value = mock_playwright_instance
 
         result = await session.start()
         assert result == True
@@ -155,235 +157,170 @@ class TestBrowserSessionCoverage:
         # Should not raise exception
 
 
-class TestBrowserToolCoverage:
-    """Coverage expansion for BrowserTool class."""
+class TestBrowserFunctionsCoverage:
+    """Coverage for the module-level browser_* service functions.
+
+    Ported from the removed BrowserTool class to the current function API
+    (browser_navigate / browser_screenshot / browser_fill_form /
+    browser_extract_text / browser_execute_script / browser_close_session).
+    """
 
     @pytest.fixture
-    def mock_db_session(self):
-        """Get mock database session."""
-        return MagicMock()
+    def browser_fns(self):
+        """Provide the module functions plus the shared session manager."""
+        import tools.browser_tool as bt
+        bt.get_browser_manager().sessions.clear()
+        old_flag = bt.BROWSER_LOCATOR_API_ENABLED
+        bt.BROWSER_LOCATOR_API_ENABLED = False
+        yield bt
+        bt.BROWSER_LOCATOR_API_ENABLED = old_flag
+        bt.get_browser_manager().sessions.clear()
 
-    @pytest.fixture
-    def browser_tool(self, mock_db_session):
-        """Get browser tool instance."""
-        return BrowserTool(mock_db_session)
-
-    # Test: BrowserTool initialization
-    def test_browser_tool_init(self, browser_tool):
-        """Browser tool initializes correctly."""
-        assert browser_tool.db == browser_tool.db
-        assert browser_tool.sessions == {}
-
-    # Test: Browser session creation
-    @patch('tools.browser_tool.BrowserSession')
-    @pytest.mark.asyncio
-    async def test_create_browser_session_success(self, mock_session_class, browser_tool):
-        """Successfully create browser session."""
-        mock_session = MagicMock()
-        mock_session.start = AsyncMock(return_value=True)
-        mock_session_class.return_value = mock_session
-
-        result = await browser_tool.create_session(
-            user_id="user-123",
-            agent_id="agent-123",
-            headless=True,
-            browser_type="chromium"
-        )
-
-        assert "session_id" in result
-        assert result["success"] == True
-        mock_session.start.assert_called_once()
-
-    # Test: Browser navigation
-    @pytest.mark.asyncio
-    async def test_navigate_to_url_success(self, browser_tool):
-        """Successfully navigate to URL."""
-        mock_session = MagicMock()
-        mock_session.page = MagicMock()
-        mock_session.page.goto = AsyncMock()
-        browser_tool.sessions["test-session"] = mock_session
-
-        result = await browser_tool.navigate(
-            session_id="test-session",
-            url="https://example.com"
-        )
-
-        assert result["success"] == True
-        mock_session.page.goto.assert_called_once_with("https://example.com", wait_until="domcontentloaded", timeout=30000)
-
-    @pytest.mark.asyncio
-    async def test_navigate_session_not_found(self, browser_tool):
-        """Navigate with non-existent session."""
-        result = await browser_tool.navigate(
-            session_id="nonexistent",
-            url="https://example.com"
-        )
-
-        assert result["success"] == False
-        assert "not found" in result["error"].lower()
-
-    # Test: Screenshot capture
-    @pytest.mark.asyncio
-    async def test_take_screenshot_success(self, browser_tool):
-        """Successfully take screenshot."""
-        mock_session = MagicMock()
-        mock_session.page = MagicMock()
-        mock_session.page.screenshot = AsyncMock(return_value=b"fake_image_data")
-        browser_tool.sessions["test-session"] = mock_session
-
-        result = await browser_tool.screenshot(session_id="test-session")
-
-        assert result["success"] == True
-        assert "screenshot" in result
-        mock_session.page.screenshot.assert_called_once()
-
-    # Test: Form filling
-    @pytest.mark.asyncio
-    async def test_fill_form_success(self, browser_tool):
-        """Successfully fill form."""
-        mock_session = MagicMock()
-        mock_session.page = MagicMock()
-        mock_session.page.fill = AsyncMock()
-        browser_tool.sessions["test-session"] = mock_session
-
-        result = await browser_tool.fill_form(
-            session_id="test-session",
-            selectors={"#name": "John Doe", "#email": "john@example.com"}
-        )
-
-        assert result["success"] == True
-        assert mock_session.page.fill.call_count == 2
-
-    # Test: Web scraping
-    @pytest.mark.asyncio
-    async def test_scrape_text_success(self, browser_tool):
-        """Successfully scrape text content."""
-        mock_session = MagicMock()
-        mock_session.page = MagicMock()
-        mock_session.page.inner_text = AsyncMock(return_value="Scraped content")
-        browser_tool.sessions["test-session"] = mock_session
-
-        result = await browser_tool.scrape(
-            session_id="test-session",
-            selector="body"
-        )
-
-        assert result["success"] == True
-        assert result["content"] == "Scraped content"
-        mock_session.page.inner_text.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_scrape_attributes_success(self, browser_tool):
-        """Successfully scrape element attributes."""
-        mock_session = MagicMock()
-        mock_session.page = MagicMock()
-        mock_session.page.get_attribute = AsyncMock(return_value="attribute_value")
-        browser_tool.sessions["test-session"] = mock_session
-
-        result = await browser_tool.scrape(
-            session_id="test-session",
-            selector="a.link",
-            attribute="href"
-        )
-
-        assert result["success"] == True
-        assert result["content"] == "attribute_value"
-
-    # Test: JavaScript execution
-    @pytest.mark.asyncio
-    async def test_execute_javascript_success(self, browser_tool):
-        """Successfully execute JavaScript."""
-        mock_session = MagicMock()
-        mock_session.page = MagicMock()
-        mock_session.page.evaluate = AsyncMock(return_value="eval result")
-        browser_tool.sessions["test-session"] = mock_session
-
-        result = await browser_tool.execute_javascript(
-            session_id="test-session",
-            code="document.title"
-        )
-
-        assert result["success"] == True
-        assert result["result"] == "eval result"
-
-    # Test: Session cleanup
-    @pytest.mark.asyncio
-    async def test_close_session_success(self, browser_tool):
-        """Successfully close browser session."""
+    def _add_session(self, bt, session_id="test-session"):
         mock_session = MagicMock()
         mock_session.close = AsyncMock()
-        browser_tool.sessions["test-session"] = mock_session
+        bt.get_browser_manager().sessions[session_id] = mock_session
+        return mock_session
 
-        result = await browser_tool.close_session(session_id="test-session")
+    @pytest.mark.asyncio
+    async def test_navigate_to_url_success(self, browser_fns):
+        bt = browser_fns
+        mock_session = self._add_session(bt)
+        mock_session.page.goto = AsyncMock()
+        mock_session.page.title = AsyncMock(return_value="Example")
+        mock_session.page.url = "https://example.com"
 
-        assert result["success"] == True
-        assert "test-session" not in browser_tool.sessions
+        result = await bt.browser_navigate(session_id="test-session", url="https://example.com")
+
+        assert result["success"] is True
+        mock_session.page.goto.assert_called_once_with(
+            "https://example.com", wait_until="load", timeout=30000)
+
+    @pytest.mark.asyncio
+    async def test_navigate_session_not_found(self, browser_fns):
+        result = await browser_fns.browser_navigate(session_id="nonexistent", url="https://example.com")
+        assert result["success"] is False
+        assert "not found" in result.get("error", "").lower()
+
+    @pytest.mark.asyncio
+    async def test_take_screenshot_success(self, browser_fns):
+        bt = browser_fns
+        mock_session = self._add_session(bt)
+        mock_session.page.screenshot = AsyncMock(return_value=b"fake_image_data")
+
+        result = await bt.browser_screenshot(session_id="test-session")
+
+        assert result["success"] is True
+        mock_session.page.screenshot.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_fill_form_success(self, browser_fns):
+        bt = browser_fns
+        mock_session = self._add_session(bt)
+        mock_session.page.fill = AsyncMock()
+
+        element = MagicMock()
+        element.evaluate = AsyncMock(return_value="INPUT")
+        mock_session.page.wait_for_selector = AsyncMock()
+        mock_session.page.query_selector = AsyncMock(return_value=element)
+
+        result = await bt.browser_fill_form(
+            session_id="test-session",
+            selectors={"#name": "John Doe", "#email": "john@example.com"})
+
+        assert result["success"] is True
+        assert mock_session.page.fill.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_scrape_text_success(self, browser_fns):
+        bt = browser_fns
+        mock_session = self._add_session(bt)
+        element = MagicMock()
+        element.inner_text = AsyncMock(return_value="Scraped content")
+        mock_session.page.query_selector_all = AsyncMock(return_value=[element])
+
+        result = await bt.browser_extract_text(session_id="test-session", selector="body")
+
+        assert result["success"] is True
+        assert result.get("content", result.get("text")) == "Scraped content"
+        element.inner_text.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_execute_javascript_success(self, browser_fns):
+        bt = browser_fns
+        mock_session = self._add_session(bt)
+        mock_session.page.evaluate = AsyncMock(return_value="eval result")
+
+        result = await bt.browser_execute_script(session_id="test-session", script="document.title")
+
+        assert result["success"] is True
+        assert result.get("result") == "eval result"
+
+    @pytest.mark.asyncio
+    async def test_close_session_success(self, browser_fns):
+        bt = browser_fns
+        mock_session = self._add_session(bt)
+
+        result = await bt.browser_close_session(session_id="test-session")
+
+        assert result["success"] is True
+        assert "test-session" not in bt.get_browser_manager().sessions
         mock_session.close.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_close_session_not_found(self, browser_tool):
-        """Close non-existent session."""
-        result = await browser_tool.close_session(session_id="nonexistent")
-        assert result["success"] == False
+    async def test_close_session_not_found(self, browser_fns):
+        result = await browser_fns.browser_close_session(session_id="nonexistent")
+        assert result["success"] is False
 
 
-class TestBrowserToolErrorHandling:
-    """Coverage expansion for browser tool error handling."""
-
-    @pytest.fixture
-    def mock_db_session(self):
-        """Get mock database session."""
-        return MagicMock()
+class TestBrowserFunctionsErrorHandling:
+    """Error-path coverage for the module-level browser_* functions."""
 
     @pytest.fixture
-    def browser_tool(self, mock_db_session):
-        """Get browser tool instance."""
-        return BrowserTool(mock_db_session)
+    def browser_fns(self):
+        import tools.browser_tool as bt
+        bt.get_browser_manager().sessions.clear()
+        old_flag = bt.BROWSER_LOCATOR_API_ENABLED
+        bt.BROWSER_LOCATOR_API_ENABLED = False
+        yield bt
+        bt.BROWSER_LOCATOR_API_ENABLED = old_flag
+        bt.get_browser_manager().sessions.clear()
 
-    # Test: Invalid URL handling
-    @pytest.mark.asyncio
-    async def test_navigate_invalid_url(self, browser_tool):
-        """Navigate with invalid URL."""
+    def _add_session(self, bt, session_id="test-session"):
         mock_session = MagicMock()
-        mock_session.page = MagicMock()
+        bt.get_browser_manager().sessions[session_id] = mock_session
+        return mock_session
+
+    @pytest.mark.asyncio
+    async def test_navigate_invalid_url(self, browser_fns):
+        bt = browser_fns
+        mock_session = self._add_session(bt)
         mock_session.page.goto = AsyncMock(side_effect=Exception("Invalid URL"))
-        browser_tool.sessions["test-session"] = mock_session
 
-        result = await browser_tool.navigate(
-            session_id="test-session",
-            url="not-a-url"
-        )
+        result = await bt.browser_navigate(session_id="test-session", url="not-a-url")
 
-        assert result["success"] == False
+        assert result["success"] is False
 
-    # Test: Selector not found
     @pytest.mark.asyncio
-    async def test_fill_form_selector_not_found(self, browser_tool):
-        """Fill form with selector that doesn't exist."""
-        mock_session = MagicMock()
-        mock_session.page = MagicMock()
-        mock_session.page.fill = AsyncMock(side_effect=Exception("Element not found"))
-        browser_tool.sessions["test-session"] = mock_session
+    async def test_fill_form_selector_not_found(self, browser_fns):
+        bt = browser_fns
+        mock_session = self._add_session(bt)
+        mock_session.page.wait_for_selector = AsyncMock(side_effect=Exception("Element not found"))
 
-        result = await browser_tool.fill_form(
-            session_id="test-session",
-            selectors={"#nonexistent": "value"}
-        )
+        result = await bt.browser_fill_form(
+            session_id="test-session", selectors={"#nonexistent": "value"})
 
-        assert result["success"] == False
+        # Per-field failures are tolerated: the form result stays successful
+        # but no fields are filled (documented fill_form behavior).
+        assert result["success"] is True
+        assert result["fields_filled"] == 0
 
-    # Test: JavaScript execution error
     @pytest.mark.asyncio
-    async def test_execute_javascript_error(self, browser_tool):
-        """Execute JavaScript that raises error."""
-        mock_session = MagicMock()
-        mock_session.page = MagicMock()
+    async def test_execute_javascript_error(self, browser_fns):
+        bt = browser_fns
+        mock_session = self._add_session(bt)
         mock_session.page.evaluate = AsyncMock(side_effect=Exception("Syntax error"))
-        browser_tool.sessions["test-session"] = mock_session
 
-        result = await browser_tool.execute_javascript(
-            session_id="test-session",
-            code="invalid javascript"
-        )
+        result = await bt.browser_execute_script(session_id="test-session", script="invalid javascript")
 
-        assert result["success"] == False
+        assert result["success"] is False

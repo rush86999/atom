@@ -30,7 +30,10 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-os.environ.setdefault("BYPASS_RATE_LIMIT", "1")
+# NOTE: BYPASS_RATE_LIMIT must NOT be set at module level — it leaks into
+# every later test in the process and silently disables ALL auth rate
+# limiters (the w75 auth-endpoint 429 tests fail with 200). Scope it to
+# the tests that need it via the _bypass_rate_limit fixture below.
 
 import pytest
 from fastapi import FastAPI, HTTPException
@@ -38,6 +41,23 @@ from fastapi.testclient import TestClient
 from sqlalchemy.exc import IntegrityError
 
 from core.auth import get_current_user
+
+
+@pytest.fixture(autouse=True)
+def _bypass_rate_limit():
+    """Scoped rate-limit bypass for THIS module's tests only.
+
+    The enterprise login/register tests fire many requests from the shared
+    'testclient' IP, tripping the real (non-overridden) limiters. Set the
+    bypass per-test and restore afterwards so no later test file inherits it.
+    """
+    prev = os.environ.get("BYPASS_RATE_LIMIT")
+    os.environ["BYPASS_RATE_LIMIT"] = "1"
+    yield
+    if prev is None:
+        os.environ.pop("BYPASS_RATE_LIMIT", None)
+    else:
+        os.environ["BYPASS_RATE_LIMIT"] = prev
 from core.database import get_db
 
 USER = SimpleNamespace(id="u-1", tenant_id="t-1", role="member", email="u@t.com")

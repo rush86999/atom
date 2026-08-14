@@ -75,6 +75,9 @@ def sample_agent(test_db):
     """Create sample agent."""
     agent = AgentRegistry(
         id="agent-lifecycle-456",
+        category="Operations",
+        module_path="test.module",
+        class_name="TestAgent",
         name="LifecycleAgent",
         status=AgentStatus.SUPERVISED,
         description="Test agent for lifecycle operations"
@@ -105,22 +108,19 @@ def episodes_with_varying_ages(test_db, sample_agent, sample_user):
     for i, config in enumerate(age_configs):
         episode = Episode(
             id=f"episode-decay-{i}",
-            title=f"Episode {i} days old",
-            description=f"Episode created {config['days']} days ago",
-            summary=f"Test episode for decay calculation",
-            agent_id=sample_agent.id,
-            user_id=sample_user.id,
-            workspace_id="default",
-            topics=["test", "decay"],
-            entities=[],
-            importance_score=1.0,
+            task_description=f"Episode {i} days old",
+                        agent_id=sample_agent.id,
+            tenant_id="default",
+        workspace_id="default",
+        metadata_json={"topics": []},
             status="completed",
+        outcome="success",
+        success=True,
             started_at=now - timedelta(days=config["days"]),
-            ended_at=now - timedelta(days=config["days"]) + timedelta(hours=1),
+            completed_at=now - timedelta(days=config["days"]) + timedelta(hours=1),
             maturity_at_time="SUPERVISED",
             human_intervention_count=0,
-            constitutional_score=0.9,
-            decay_score=1.0,  # Will be updated by decay calculation
+            constitutional_score=0.9,  # Will be updated by decay calculation
             access_count=0
         )
         test_db.add(episode)
@@ -148,24 +148,19 @@ def episodes_for_consolidation(test_db, sample_agent, sample_user):
     for i, title in enumerate(similar_topics):
         episode = Episode(
             id=f"episode-similar-{i}",
-            title=title,
-            description=f"Analytics and dashboard work",
-            summary=f"Dashboard episode {i}",
-            agent_id=sample_agent.id,
-            user_id=sample_user.id,
-            workspace_id="default",
-            topics=["analytics", "dashboard", "metrics"],
-            entities=[],
-            importance_score=0.8,
+            task_description=title,
+                        agent_id=sample_agent.id,
+            tenant_id="default",
+        workspace_id="default",
+        metadata_json={"topics": []},
             status="completed",
+        outcome="success",
+        success=True,
             started_at=now - timedelta(days=i),
-            ended_at=now - timedelta(days=i) + timedelta(hours=1),
+            completed_at=now - timedelta(days=i) + timedelta(hours=1),
             maturity_at_time="SUPERVISED",
             human_intervention_count=0,
-            constitutional_score=0.9,
-            decay_score=1.0,
-            access_count=5,
-            consolidated_into=None  # Not yet consolidated
+            constitutional_score=0.9,  # Not yet consolidated
         )
         test_db.add(episode)
         episodes.append(episode)
@@ -173,24 +168,19 @@ def episodes_for_consolidation(test_db, sample_agent, sample_user):
     # Add one dissimilar episode
     dissimilar = Episode(
         id="episode-different-0",
-        title="Customer Support Ticket Routing",
-        description="Automated support workflows",
-        summary="Support automation episode",
-        agent_id=sample_agent.id,
-        user_id=sample_user.id,
+        task_description="Customer Support Ticket Routing",
+                agent_id=sample_agent.id,
+        tenant_id="default",
         workspace_id="default",
-        topics=["support", "automation"],
-        entities=[],
-        importance_score=0.7,
+        metadata_json={"topics": []},
         status="completed",
+        outcome="success",
+        success=True,
         started_at=now - timedelta(days=1),
-        ended_at=now - timedelta(days=1) + timedelta(hours=1),
+        completed_at=now - timedelta(days=1) + timedelta(hours=1),
         maturity_at_time="SUPERVISED",
         human_intervention_count=0,
         constitutional_score=0.85,
-        decay_score=1.0,
-        access_count=3,
-        consolidated_into=None
     )
     test_db.add(dissimilar)
     episodes.append(dissimilar)
@@ -261,22 +251,19 @@ class TestEpisodeDecay:
             for days_old, expected_score in test_cases:
                 episode = Episode(
                     id=f"episode-boundary-{days_old}",
-                    title=f"Test episode {days_old} days old",
-                    description="Boundary test",
-                    summary="Test",
-                    agent_id=sample_agent.id,
-                    user_id=sample_user.id,
-                    workspace_id="default",
-                    topics=["test"],
-                    entities=[],
-                    importance_score=0.5,
+                    task_description=f"Test episode {days_old} days old",
+                                        agent_id=sample_agent.id,
+                    tenant_id="default",
+        workspace_id="default",
+        metadata_json={"topics": []},
                     status="completed",
+        outcome="success",
+        success=True,
                     started_at=datetime.now() - timedelta(days=days_old),
-                    ended_at=datetime.now() - timedelta(days=days_old) + timedelta(hours=1),
+                    completed_at=datetime.now() - timedelta(days=days_old) + timedelta(hours=1),
                     maturity_at_time="SUPERVISED",
                     human_intervention_count=0,
                     constitutional_score=0.9,
-                    decay_score=1.0,
                     access_count=0
                 )
                 test_db.add(episode)
@@ -311,22 +298,19 @@ class TestEpisodeDecay:
             # Create episode >180 days old
             old_episode = Episode(
                 id="episode-very-old",
-                title="Very Old Episode",
-                description="Should be archived",
-                summary="Test",
-                agent_id=sample_agent.id,
-                user_id=sample_user.id,
-                workspace_id="default",
-                topics=["test"],
-                entities=[],
-                importance_score=0.5,
+                task_description="Very Old Episode",
+                                agent_id=sample_agent.id,
+                tenant_id="default",
+        workspace_id="default",
+        metadata_json={"topics": []},
                 status="completed",
+        outcome="success",
+        success=True,
                 started_at=datetime.now() - timedelta(days=200),
-                ended_at=datetime.now() - timedelta(days=200) + timedelta(hours=1),
+                completed_at=datetime.now() - timedelta(days=200) + timedelta(hours=1),
                 maturity_at_time="SUPERVISED",
                 human_intervention_count=0,
                 constitutional_score=0.9,
-                decay_score=1.0,
                 access_count=0
             )
             test_db.add(old_episode)
@@ -366,7 +350,7 @@ class TestEpisodeConsolidation:
 
         # Add episodes to LanceDB
         for episode in episodes_for_consolidation:
-            content = f"{episode.title} {episode.description}"
+            content = f"{episode.task_description}"
             metadata = {
                 "episode_id": episode.id,
                 "agent_id": episode.agent_id,
@@ -377,7 +361,7 @@ class TestEpisodeConsolidation:
                 text=content,
                 source=f"episode:{episode.id}",
                 metadata=metadata,
-                user_id=episode.user_id,
+                user_id="default_user",
                 extract_knowledge=False
             )
 
@@ -421,7 +405,7 @@ class TestEpisodeConsolidation:
         handler.create_table(table_name)
 
         for episode in episodes_for_consolidation:
-            content = f"{episode.title} {episode.description}"
+            content = f"{episode.task_description}"
             metadata = {
                 "episode_id": episode.id,
                 "agent_id": episode.agent_id,
@@ -432,7 +416,7 @@ class TestEpisodeConsolidation:
                 text=content,
                 source=f"episode:{episode.id}",
                 metadata=metadata,
-                user_id=episode.user_id,
+                user_id="default_user",
                 extract_knowledge=False
             )
 
@@ -506,29 +490,26 @@ class TestEpisodeArchival:
 
         episode = Episode(
             id="episode-to-archive",
-            title="Episode to Archive",
-            description="Test archival",
-            summary="Test",
-            agent_id=sample_agent.id,
-            user_id=sample_user.id,
-            workspace_id="default",
-            topics=["test", "archive"],
-            entities=[],
-            importance_score=0.5,
+            task_description="Episode to Archive",
+                        agent_id=sample_agent.id,
+            tenant_id="default",
+        workspace_id="default",
+        metadata_json={"topics": []},
             status="completed",
+        outcome="success",
+        success=True,
             started_at=datetime.now() - timedelta(days=10),
-            ended_at=datetime.now() - timedelta(days=10) + timedelta(hours=1),
+            completed_at=datetime.now() - timedelta(days=10) + timedelta(hours=1),
             maturity_at_time="SUPERVISED",
             human_intervention_count=0,
             constitutional_score=0.9,
-            decay_score=1.0,
             access_count=5
         )
         test_db.add(episode)
         test_db.commit()
 
         # Add to LanceDB
-        content = f"{episode.title} {episode.description}"
+        content = f"{episode.task_description}"
         metadata = {
             "episode_id": episode.id,
             "agent_id": episode.agent_id,
@@ -539,7 +520,7 @@ class TestEpisodeArchival:
             text=content,
             source=f"episode:{episode.id}",
             metadata=metadata,
-            user_id=episode.user_id,
+            user_id="default_user",
             extract_knowledge=False
         )
 
@@ -596,22 +577,19 @@ class TestImportanceScoreUpdates:
 
         episode = Episode(
             id="episode-positive-feedback",
-            title="Positive Feedback Episode",
-            description="Test",
-            summary="Test",
-            agent_id=sample_agent.id,
-            user_id=sample_user.id,
-            workspace_id="default",
-            topics=["test"],
-            entities=[],
-            importance_score=0.5,  # Starting score
+            task_description="Positive Feedback Episode",
+                        agent_id=sample_agent.id,
+            tenant_id="default",
+        workspace_id="default",
+        metadata_json={"topics": []},  # Starting score
             status="completed",
+        outcome="success",
+        success=True,
             started_at=datetime.now() - timedelta(days=1),
-            ended_at=datetime.now() - timedelta(days=1) + timedelta(hours=1),
+            completed_at=datetime.now() - timedelta(days=1) + timedelta(hours=1),
             maturity_at_time="SUPERVISED",
             human_intervention_count=0,
             constitutional_score=0.9,
-            decay_score=1.0,
             access_count=0
         )
         test_db.add(episode)
@@ -647,22 +625,19 @@ class TestImportanceScoreUpdates:
 
         episode = Episode(
             id="episode-negative-feedback",
-            title="Negative Feedback Episode",
-            description="Test",
-            summary="Test",
-            agent_id=sample_agent.id,
-            user_id=sample_user.id,
-            workspace_id="default",
-            topics=["test"],
-            entities=[],
-            importance_score=0.7,  # Starting score
+            task_description="Negative Feedback Episode",
+                        agent_id=sample_agent.id,
+            tenant_id="default",
+        workspace_id="default",
+        metadata_json={"topics": []},  # Starting score
             status="completed",
+        outcome="success",
+        success=True,
             started_at=datetime.now() - timedelta(days=1),
-            ended_at=datetime.now() - timedelta(days=1) + timedelta(hours=1),
+            completed_at=datetime.now() - timedelta(days=1) + timedelta(hours=1),
             maturity_at_time="SUPERVISED",
             human_intervention_count=0,
             constitutional_score=0.9,
-            decay_score=1.0,
             access_count=0
         )
         test_db.add(episode)
@@ -699,22 +674,19 @@ class TestImportanceScoreUpdates:
         # Test with high starting score and positive feedback
         episode = Episode(
             id="episode-clamp-high",
-            title="Clamp Test High",
-            description="Test",
-            summary="Test",
-            agent_id=sample_agent.id,
-            user_id=sample_user.id,
-            workspace_id="default",
-            topics=["test"],
-            entities=[],
-            importance_score=0.95,  # Already high
+            task_description="Clamp Test High",
+                        agent_id=sample_agent.id,
+            tenant_id="default",
+        workspace_id="default",
+        metadata_json={"topics": []},  # Already high
             status="completed",
+        outcome="success",
+        success=True,
             started_at=datetime.now() - timedelta(days=1),
-            ended_at=datetime.now() - timedelta(days=1) + timedelta(hours=1),
+            completed_at=datetime.now() - timedelta(days=1) + timedelta(hours=1),
             maturity_at_time="SUPERVISED",
             human_intervention_count=0,
             constitutional_score=0.9,
-            decay_score=1.0,
             access_count=0
         )
         test_db.add(episode)
@@ -736,22 +708,19 @@ class TestImportanceScoreUpdates:
         # Test with low starting score and negative feedback
         episode2 = Episode(
             id="episode-clamp-low",
-            title="Clamp Test Low",
-            description="Test",
-            summary="Test",
-            agent_id=sample_agent.id,
-            user_id=sample_user.id,
-            workspace_id="default",
-            topics=["test"],
-            entities=[],
-            importance_score=0.05,  # Already low
+            task_description="Clamp Test Low",
+                        agent_id=sample_agent.id,
+            tenant_id="default",
+        workspace_id="default",
+        metadata_json={"topics": []},  # Already low
             status="completed",
+        outcome="success",
+        success=True,
             started_at=datetime.now() - timedelta(days=1),
-            ended_at=datetime.now() - timedelta(days=1) + timedelta(hours=1),
+            completed_at=datetime.now() - timedelta(days=1) + timedelta(hours=1),
             maturity_at_time="SUPERVISED",
             human_intervention_count=0,
             constitutional_score=0.9,
-            decay_score=1.0,
             access_count=0
         )
         test_db.add(episode2)
@@ -794,22 +763,19 @@ class TestBulkLifecycleOperations:
         for i in range(5):
             episode = Episode(
                 id=f"episode-batch-{i}",
-                title=f"Batch Episode {i}",
-                description="Test",
-                summary="Test",
-                agent_id=sample_agent.id,
-                user_id=sample_user.id,
-                workspace_id="default",
-                topics=["test"],
-                entities=[],
-                importance_score=0.5,
+                task_description=f"Batch Episode {i}",
+                                agent_id=sample_agent.id,
+                tenant_id="default",
+        workspace_id="default",
+        metadata_json={"topics": []},
                 status="completed",
+        outcome="success",
+        success=True,
                 started_at=datetime.now() - timedelta(days=i),
-                ended_at=datetime.now() - timedelta(days=i) + timedelta(hours=1),
+                completed_at=datetime.now() - timedelta(days=i) + timedelta(hours=1),
                 maturity_at_time="SUPERVISED",
                 human_intervention_count=0,
                 constitutional_score=0.9,
-                decay_score=1.0,
                 access_count=i * 10  # Initial counts
             )
             test_db.add(episode)
