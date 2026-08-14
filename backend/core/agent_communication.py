@@ -220,7 +220,9 @@ class AgentEventBus:
 
                             for agent_id in subscriber_ids:
                                 if agent_id in self._subscribers:
-                                    for websocket in self._subscribers[agent_id]:
+                                    # Iterate a copy: unsubscribe() mutates the
+                                    # set while we send (mirrors publish()).
+                                    for websocket in list(self._subscribers[agent_id]):
                                         try:
                                             await websocket.send_json(event)
                                         except Exception as e:

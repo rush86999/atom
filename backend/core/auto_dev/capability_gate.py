@@ -176,8 +176,6 @@ class AutoDevCapabilityService:
                     )
                     .count()
                 )
-            else:
-                return True
 
             return count < max_daily
         except Exception as e:
