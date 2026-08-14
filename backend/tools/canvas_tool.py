@@ -1022,19 +1022,77 @@ async def canvas_execute_javascript(
             }
 
         # Check for obviously dangerous patterns (basic security)
+        # BUG FIX: the case-insensitive form (`javascript_lower`) was computed
+        # but never used, so mixed-case variants ("EVAL(", "eVaL(") bypassed
+        # the filter entirely. Matching is now truly case-insensitive.
+        # BUG FIX: bracket-notation access ("document['cookie']",
+        # "sessionStorage['password']") and the classic exfiltration /
+        # script-injection vectors (fetch(), document.write, dynamic <script>
+        # creation, innerHTML assignment) were missing from the blocklist,
+        # letting the payloads enumerated in INTG-13 through.
         dangerous_patterns = [
-            "eval(", "Function(", "setTimeout(", "setInterval(",
-            "document.cookie", "localStorage.", "sessionStorage.",
-            "window.location", "window.top", "window.parent"
+            "eval(", "function(", "settimeout(", "setinterval(",
+            "document.cookie", "localstorage.", "sessionstorage.",
+            "window.location", "window.top", "window.parent",
+            # Node/server-side APIs — never legitimate in browser canvas JS
+            "process.exit", "require(",
+            # Network exfiltration
+            "fetch(", "xmlhttprequest", "sendbeacon",
+            # DOM script injection / exfil sinks
+            "document.write", "document.writeln",
+            "createelement('script'", 'createelement("script"',
+            ".innerhtml", "<script",
+            # Bracket-notation access to sensitive globals
+            "document[", "window[", "localstorage[", "sessionstorage[",
         ]
 
         javascript_lower = javascript.lower()
         for pattern in dangerous_patterns:
-            if pattern in javascript:
-                logger.warning(f"JavaScript execution blocked: Dangerous pattern '{pattern}' detected")
+            idx = javascript_lower.find(pattern)
+            if idx != -1:
+                # Report the matched substring in its original casing so the
+                # rejection message quotes what the agent actually wrote.
+                matched = javascript[idx:idx + len(pattern)]
+                logger.warning(f"JavaScript execution blocked: Dangerous pattern '{matched}' detected")
+                # BUG FIX: blocked attempts were never audited — the security
+                # event only reached the application log, leaving no CanvasAudit
+                # trail (and a dangling "running" AgentExecution) for forensic
+                # review. Record the violation and fail the execution.
+                if FeatureFlags.should_enforce_governance('canvas'):
+                    with get_db_session() as db:
+                        await _create_canvas_audit(
+                            db=db,
+                            agent_id=agent.id if agent else None,
+                            agent_execution_id=agent_execution.id if agent_execution else None,
+                            user_id=user_id,
+                            canvas_id=canvas_id,
+                            session_id=session_id,
+                            component_type="javascript_execution",
+                            component_name=None,
+                            action="execute",
+                            governance_check_passed=False,
+                            metadata={
+                                "javascript": javascript,
+                                "javascript_length": len(javascript),
+                                "blocked": True,
+                                "security_violation": matched,
+                                "session_id": session_id,
+                            },
+                        )
+                        if agent_execution:
+                            execution = db.query(AgentExecution).filter(
+                                AgentExecution.id == agent_execution.id
+                            ).first()
+                            if execution:
+                                execution.status = "failed"
+                                execution.error_message = (
+                                    f"JavaScript contains potentially dangerous pattern: {matched}"
+                                )
+                                execution.completed_at = datetime.now()
+                                db.commit()
                 return {
                     "success": False,
-                    "error": f"JavaScript contains potentially dangerous pattern: {pattern}. Use of {pattern} is not allowed."
+                    "error": f"JavaScript contains potentially dangerous pattern: {matched}. Use of {matched} is not allowed."
                 }
 
         # Send JavaScript execution request via WebSocket

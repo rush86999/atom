@@ -237,7 +237,12 @@ async def create_browser_session(
 
     if not result.get("success"):
         error_msg = result.get("error", "Failed to create browser session")
-        if "governance" in error_msg.lower() or "permission" in error_msg.lower():
+        # BUG FIX: the tool's governance denial message is
+        # "Agent not permitted to use browser: ..." — the word "permission"
+        # never appears, so governance denials fell through to a generic 400
+        # instead of the intended 403 permission_denied_error.
+        lowered = error_msg.lower()
+        if "governance" in lowered or "permission" in lowered or "not permitted" in lowered:
             raise router.permission_denied_error("create_browser_session", "BrowserSession", details={"error": error_msg})
         raise router.error_response("SESSION_CREATE_FAILED", error_msg, status_code=400)
 

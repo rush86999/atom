@@ -24,7 +24,8 @@ class TestSkillRegistryServiceCoverage:
         ("community", "skills/community/"),
         ("custom", "skills/custom/"),
     ])
-    def test_import_skill_types(self, skill_type, source_path, db_session, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_import_skill_types(self, skill_type, source_path, db_session, monkeypatch):
         """Cover skill import (lines 93-219) - different skill types"""
         # Mock frontmatter
         mock_post = Mock()
@@ -49,13 +50,13 @@ class TestSkillRegistryServiceCoverage:
 
         # Mock scanner
         mock_scanner_instance = Mock()
-        mock_scanner_instance.scan_skill.return_value = {"risk_level": "LOW"}
+        mock_scanner_instance.scan_skill = AsyncMock(return_value={"risk_level": "LOW"})  # scan_skill is async
         monkeypatch.setattr('core.skill_registry_service.SkillSecurityScanner', Mock(return_value=mock_scanner_instance))
 
         from core.skill_registry_service import SkillRegistryService
         registry = SkillRegistryService(db_session)
 
-        result = registry.import_skill(
+        result = await registry.import_skill(
             source="raw_content",
             content="---\nname: test_skill\n---\nTest body",
             metadata={"imported_by": "test_user"}
@@ -71,7 +72,8 @@ class TestSkillRegistryServiceCoverage:
         ("HIGH", "Untrusted"),
         ("CRITICAL", "Untrusted"),
     ])
-    def test_import_skill_risk_levels(self, risk_level, expected_status, db_session, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_import_skill_risk_levels(self, risk_level, expected_status, db_session, monkeypatch):
         """Cover security scan handling (lines 166-178)"""
         # Mock frontmatter
         mock_post = Mock()
@@ -90,20 +92,21 @@ class TestSkillRegistryServiceCoverage:
 
         # Mock scanner with different risk levels
         mock_scanner_instance = Mock()
-        mock_scanner_instance.scan_skill.return_value = {"risk_level": risk_level}
+        mock_scanner_instance.scan_skill = AsyncMock(return_value={"risk_level": risk_level})  # scan_skill is async
         monkeypatch.setattr('core.skill_registry_service.SkillSecurityScanner', Mock(return_value=mock_scanner_instance))
 
         from core.skill_registry_service import SkillRegistryService
         registry = SkillRegistryService(db_session)
 
-        result = registry.import_skill(
+        result = await registry.import_skill(
             source="raw_content",
             content="---\nname: test\n---\nBody"
         )
 
         assert result["status"] == expected_status
 
-    def test_import_skill_with_packages(self, db_session, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_import_skill_with_packages(self, db_session, monkeypatch):
         """Cover Python package extraction (lines 140-142)"""
         # Mock frontmatter
         mock_post = Mock()
@@ -124,13 +127,13 @@ class TestSkillRegistryServiceCoverage:
 
         # Mock scanner
         mock_scanner_instance = Mock()
-        mock_scanner_instance.scan_skill.return_value = {"risk_level": "LOW"}
+        mock_scanner_instance.scan_skill = AsyncMock(return_value={"risk_level": "LOW"})  # scan_skill is async
         monkeypatch.setattr('core.skill_registry_service.SkillSecurityScanner', Mock(return_value=mock_scanner_instance))
 
         from core.skill_registry_service import SkillRegistryService
         registry = SkillRegistryService(db_session)
 
-        result = registry.import_skill(
+        result = await registry.import_skill(
             source="raw_content",
             content="---\nname: python_skill\npackages:\n  - numpy==1.21.0\n---\n```python\n```"
         )
@@ -139,7 +142,8 @@ class TestSkillRegistryServiceCoverage:
         # Check packages are stored
         assert "packages" in result["metadata"]
 
-    def test_import_skill_with_npm_packages(self, db_session, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_import_skill_with_npm_packages(self, db_session, monkeypatch):
         """Cover npm package extraction (lines 144-150)"""
         # Mock frontmatter
         mock_post = Mock()
@@ -160,13 +164,13 @@ class TestSkillRegistryServiceCoverage:
 
         # Mock scanner
         mock_scanner_instance = Mock()
-        mock_scanner_instance.scan_skill.return_value = {"risk_level": "LOW"}
+        mock_scanner_instance.scan_skill = AsyncMock(return_value={"risk_level": "LOW"})  # scan_skill is async
         monkeypatch.setattr('core.skill_registry_service.SkillSecurityScanner', Mock(return_value=mock_scanner_instance))
 
         from core.skill_registry_service import SkillRegistryService
         registry = SkillRegistryService(db_session)
 
-        result = registry.import_skill(
+        result = await registry.import_skill(
             source="raw_content",
             content="---\nname: node_skill\nnode_packages:\n  - lodash@4.17.21\n---\n```javascript\n```"
         )
@@ -282,15 +286,18 @@ class TestSkillRegistryServiceCoverage:
         db_session.add(skill)
         db_session.commit()
 
-        # Mock governance service
+        # Mock governance service — always report the agent's maturity; an
+        # unknown agent (None caps) is executed as system, so the STUDENT
+        # block must come from a real STUDENT maturity_level.
         mock_governance_instance = Mock()
         mock_governance_instance.get_agent_capabilities.return_value = {
             "maturity_level": agent_maturity
-        } if agent_maturity != "STUDENT" or skill_type != "python_code" else None
+        }
         monkeypatch.setattr('core.skill_registry_service.AgentGovernanceService', Mock(return_value=mock_governance_instance))
 
         # Mock execution methods
         monkeypatch.setattr('core.skill_registry_service.SkillRegistryService._execute_prompt_skill', Mock(return_value="Prompt result"))
+        monkeypatch.setattr('core.skill_registry_service.SkillRegistryService._execute_python_skill', Mock(return_value="Python result"))
         monkeypatch.setattr('core.skill_registry_service.SkillRegistryService._create_execution_episode', AsyncMock(return_value="episode-id"))
 
         from core.skill_registry_service import SkillRegistryService
@@ -418,7 +425,7 @@ class TestSkillRegistryServiceCoverage:
             "success": False,
             "error": "Installation failed"
         }
-        monkeypatch.setattr('core.skill_registry_service.PackageInstaller', Mock(return_value=mock_installer_instance))
+        monkeypatch.setattr('core.package_installer.PackageInstaller', Mock(return_value=mock_installer_instance))
 
         # Mock parser
         monkeypatch.setattr('core.skill_registry_service.SkillParser.extract_python_code', Mock(return_value=["print('test')"]))
@@ -448,8 +455,8 @@ class TestSkillRegistryServiceCoverage:
         mock_installer_instance.execute_with_packages.return_value = "Node.js result"
         monkeypatch.setattr('core.npm_package_installer.NpmPackageInstaller', Mock(return_value=mock_installer_instance))
 
-        # Mock install dependencies
-        async def mock_install(*args, **kwargs):
+        # Mock install dependencies (sync method returning the install result)
+        def mock_install(*args, **kwargs):
             return {
                 "success": True,
                 "image_tag": "skill-test:latest",
@@ -477,8 +484,15 @@ class TestSkillRegistryServiceCoverage:
         assert result == "Node.js result"
 
     @pytest.mark.asyncio
-    async def test_execute_nodejs_skill_no_code(self, db_session):
+    async def test_execute_nodejs_skill_no_code(self, db_session, monkeypatch):
         """Cover Node.js execution (lines 739-741) - no code found"""
+        # Bypass the npm governance/install step so the test exercises the
+        # code-extraction failure path directly.
+        monkeypatch.setattr(
+            'core.skill_registry_service.SkillRegistryService._install_npm_dependencies_for_skill',
+            Mock(return_value={"success": True, "image_tag": "skill-test:latest", "vulnerabilities": []})
+        )
+
         skill_data = {
             "skill_name": "test_skill",
             "skill_type": "python_code",

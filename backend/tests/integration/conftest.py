@@ -81,6 +81,21 @@ def db_session():
     # Cleanup
     session.close()
     engine.dispose()
+
+    # ServiceFactory caches session-bound services in thread-local storage
+    # (get_governance_service/get_context_resolver/get_episode_service, ...).
+    # Without clearing this, a later test reuses a service bound to THIS
+    # test's disposed temp-file engine and fails with
+    # "no such table: <x>" (same pattern as tests/unit/governance/conftest.py).
+    from core.service_factory import ServiceFactory
+    for attr in ("episode_service", "governance_service", "context_resolver",
+                 "guardrails_service", "memory_consolidation_service",
+                 "activity_publisher", "knowledge_extractor", "graphrag_engine",
+                 "canvas_context_service", "canvas_recording_service",
+                 "canvas_summary_service", "social_post_generator"):
+        if hasattr(ServiceFactory._thread_local, attr):
+            delattr(ServiceFactory._thread_local, attr)
+
     # Delete temp database file
     if hasattr(engine, '_test_db_path'):
         try:

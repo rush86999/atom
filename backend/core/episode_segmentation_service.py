@@ -199,6 +199,25 @@ class EpisodeBoundaryDetector:
             return 0.0
 
 
+class _ByokLLMAdapter:
+    """Adapter exposing a BYOK handler's generate_response() behind the
+    LLMService.generate() interface that CanvasSummaryService calls.
+
+    # BUG FIX: __init__ documents that injecting ``byok_handler`` lets mocks
+    # of ``byok_handler.generate_response`` drive summary generation, but the
+    # raw handler was handed to CanvasSummaryService, which calls
+    # ``.generate(...)`` — a method BYOKHandler does not have. Every
+    # byok-injected summary therefore errored and silently fell back to
+    # metadata extraction.
+    """
+
+    def __init__(self, handler: Any):
+        self._handler = handler
+
+    async def generate(self, prompt: str, **kwargs: Any) -> str:
+        return await self._handler.generate_response(prompt=prompt, **kwargs)
+
+
 class EpisodeSegmentationService:
     """Creates episodes from agent sessions and executions"""
 
@@ -242,7 +261,10 @@ class EpisodeSegmentationService:
         if llm_service is not None:
             resolved_llm = llm_service
         elif byok_handler is not None:
-            resolved_llm = byok_handler
+            # BUG FIX: wrap the handler in _ByokLLMAdapter so its
+            # generate_response() is reachable through the generate() call
+            # CanvasSummaryService makes (see adapter docstring).
+            resolved_llm = _ByokLLMAdapter(byok_handler)
         else:
             resolved_llm = self._init_default_llm_service()
 

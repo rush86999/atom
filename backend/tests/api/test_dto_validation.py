@@ -21,11 +21,17 @@ class TestAgentDTOValidation:
 
     def test_agent_request_dto_required_fields(self):
         """Test that agent request DTOs enforce required fields."""
-        from api.agent_routes import AgentRunRequest
+        from api.agent_routes import AgentFeedbackRequest
 
-        # Missing required field 'agent_id'
+        # user_correction and original_output are required (no defaults)
         with pytest.raises(ValidationError):
-            AgentRunRequest()
+            AgentFeedbackRequest()
+
+        # Providing the required fields validates fine
+        request = AgentFeedbackRequest(
+            user_correction="Use the other tool", original_output="wrong tool"
+        )
+        assert request.user_correction == "Use the other tool"
 
     def test_agent_request_dto_optional_fields(self):
         """Test that agent request DTOs handle optional fields."""
@@ -43,20 +49,25 @@ class TestAgentDTOValidation:
             pass
 
     def test_agent_response_dto_all_fields(self):
-        """Test that agent response DTOs include all expected fields."""
-        # This test verifies response DTO structure
-        # We'll test the actual response structure instead
+        """Test that agent update DTOs expose all expected fields."""
         from api.agent_routes import AgentUpdateRequest
 
-        try:
-            dto = AgentUpdateRequest(
-                agent_id="test-agent",
-                updates={}
-            )
-            assert dto.agent_id == "test-agent"
-        except (ValidationError, ImportError, TypeError):
-            # DTO may have different structure
-            pass
+        # Effective AgentUpdateRequest (partial-update model): all fields
+        # optional, name/category whitespace-validated
+        dto = AgentUpdateRequest(
+            name="Test Agent",
+            description="A test agent",
+            category="testing",
+            configuration={"k": "v"},
+            capabilities=["tools"],
+        )
+        assert dto.name == "Test Agent"
+        assert dto.category == "testing"
+        assert dto.capabilities == ["tools"]
+
+        # Whitespace-only names are rejected by the field validator
+        with pytest.raises(ValidationError):
+            AgentUpdateRequest(name="   ")
 
     def test_agent_dto_enum_validation(self):
         """Test that agent DTOs validate enum fields correctly."""

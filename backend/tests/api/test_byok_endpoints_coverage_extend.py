@@ -401,12 +401,13 @@ class TestBYOKEndpointsApiKeyManagement:
 
     def test_store_api_key_for_provider(self, client):
         """Test POST /api/ai/providers/{provider_id}/keys"""
+        # Keys are submitted via POST body (never query params) per the
+        # endpoint's security contract
         response = client.post(
             "/api/ai/providers/deepseek/keys",
-            params={
+            json={
                 "api_key": "sk-deepseek-new-key",
-                "key_name": "default",
-                "environment": "production"
+                "key_name": "default"
             }
         )
 
@@ -414,6 +415,7 @@ class TestBYOKEndpointsApiKeyManagement:
         data = response.json()
         assert data["success"] is True
         assert "key_id" in data
+        assert data["provider_id"] == "deepseek"
 
     def test_get_api_key_status(self, client, mock_byok_manager):
         """Test GET /api/ai/providers/{provider_id}/keys/{key_name}"""
@@ -480,14 +482,14 @@ class TestBYOKEndpointsUsageTracking:
 
     def test_get_usage_stats_single_provider(self, client):
         """Test GET /api/ai/usage/stats for single provider"""
-        response = client.get("/api/ai/usage/stats?provider=openai")
+        # The filter query parameter is provider_id
+        response = client.get("/api/ai/usage/stats?provider_id=openai")
 
         assert response.status_code == 200
         data = response.json()
         # Single provider returns provider_id and usage
-        assert "provider_id" in data
-        # May have "usage" or other fields
-        assert "provider_id" in data or "usage" in data
+        assert data["provider_id"] == "openai"
+        assert "usage" in data
 
     def test_get_usage_stats_all_providers(self, client):
         """Test GET /api/ai/usage/stats for all providers"""
@@ -500,7 +502,7 @@ class TestBYOKEndpointsUsageTracking:
 
     def test_usage_stats_includes_rate_limits(self, client):
         """Test usage stats include rate limiting information"""
-        response = client.get("/api/ai/usage/stats?provider=openai")
+        response = client.get("/api/ai/usage/stats?provider_id=openai")
 
         data = response.json()
         usage = data.get("usage", {})
@@ -726,10 +728,12 @@ class TestBYOKEndpointsErrorHandling:
         """Test store key for invalid provider"""
         response = client.post(
             "/api/ai/providers/invalid_provider/keys",
-            params={"api_key": "some-key"}
+            json={"api_key": "some-valid-length-key"}
         )
 
-        assert response.status_code == 404
+        # Current contract: unknown providers are rejected with 400
+        assert response.status_code == 400
+        assert "Invalid provider_id" in response.json()["detail"]
 
     def test_concurrent_request_handling(self, client):
         """Test handling of concurrent requests to same endpoint"""

@@ -27,7 +27,18 @@ def mock_websocket():
     ws.receive_text = AsyncMock()
     ws.send_text = AsyncMock()
     ws.close = AsyncMock()
+    # The WS endpoint requires a JWT via the `token` query parameter
+    # (ws://host/ws/{workspace_id}?token=<jwt>)
+    ws.query_params = {"token": "test-token"}
     return ws
+
+
+@pytest.fixture(autouse=True)
+def mock_ws_auth():
+    """Bypass JWT validation for the authenticated WS endpoint."""
+    mock_user = MagicMock()
+    with patch("api.websocket_routes.get_current_user_ws", AsyncMock(return_value=mock_user)):
+        yield
 
 
 @pytest.fixture
@@ -191,6 +202,7 @@ class TestWorkspaceRouting:
         mock_websocket2.receive_text = AsyncMock(side_effect=Exception("Done"))
         mock_websocket2.send_text = AsyncMock()
         mock_websocket2.close = AsyncMock()
+        mock_websocket2.query_params = {"token": "test-token"}
 
         try:
             await websocket_endpoint(mock_websocket2, workspace_2)

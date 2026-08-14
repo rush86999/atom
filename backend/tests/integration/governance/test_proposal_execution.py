@@ -73,7 +73,6 @@ class TestCanvasActionProposals:
             title="Submit Form Data",
             description="Submit user registration form",
             proposal_data={
-                "proposed_action": {
                 "action_type": "canvas_present",
                 "canvas_type": "form",
                 "form_id": "registration_form",
@@ -82,8 +81,7 @@ class TestCanvasActionProposals:
                     "email": "test@example.com",
                     "phone": "555-1234"
                 },
-                "action": "submit"
-            },
+                "action": "submit",
                 "reasoning": "Form submission requires INTERN+ maturity"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -140,15 +138,13 @@ class TestCanvasActionProposals:
             title="Present Sales Chart",
             description="Display monthly sales data as line chart",
             proposal_data={
-                "proposed_action": {
                 "action_type": "canvas_present",
                 "canvas_type": "chart",
                 "chart_type": "line",
                 "data": {
                     "labels": ["Jan", "Feb", "Mar"],
                     "values": [100, 150, 200]
-                }
-            },
+                },
                 "reasoning": "Chart presentation is LOW complexity (INTERN+)"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -191,7 +187,6 @@ class TestCanvasActionProposals:
             title="Present Spreadsheet Data",
             description="Display financial data in spreadsheet format",
             proposal_data={
-                "proposed_action": {
                 "action_type": "canvas_present",
                 "canvas_type": "sheets",
                 "data": {
@@ -200,8 +195,7 @@ class TestCanvasActionProposals:
                         ["Item A", 10.00, 5],
                         ["Item B", 15.50, 3]
                     ]
-                }
-            },
+                },
                 "reasoning": "Sheet data presentation requires INTERN maturity"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -248,14 +242,12 @@ class TestBrowserAutomationProposals:
             title="Navigate to Website",
             description="Navigate to example.com and extract data",
             proposal_data={
-                "proposed_action": {
                 "action_type": "browser_automate",
                 "url": "https://example.com",
                 "actions": [
                     {"type": "navigate", "url": "https://example.com"},
                     {"type": "screenshot"}
-                ]
-            },
+                ],
                 "reasoning": "Browser automation requires INTERN+ maturity"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -307,15 +299,13 @@ class TestBrowserAutomationProposals:
             title="Fill and Submit Web Form",
             description="Automate form submission on external website",
             proposal_data={
-                "proposed_action": {
                 "action_type": "browser_automate",
                 "url": "https://example.com/form",
                 "actions": [
                     {"type": "fill", "selector": "#name", "value": "Test User"},
                     {"type": "fill", "selector": "#email", "value": "test@example.com"},
                     {"type": "click", "selector": "button[type='submit']"}
-                ]
-            },
+                ],
                 "reasoning": "Form automation requires INTERN maturity"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -367,15 +357,13 @@ class TestDeviceCapabilityProposals:
             title="Capture Photo",
             description="Use device camera to capture document photo",
             proposal_data={
-                "proposed_action": {
                 "action_type": "device_command",
                 "device_type": "camera",
                 "command": "take_photo",
                 "parameters": {
                     "quality": "high",
                     "flash": "auto"
-                }
-            },
+                },
                 "reasoning": "Camera access requires INTERN maturity"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -419,14 +407,12 @@ class TestDeviceCapabilityProposals:
             title="Get Current Location",
             description="Retrieve device GPS location",
             proposal_data={
-                "proposed_action": {
                 "action_type": "device_command",
                 "device_type": "location",
                 "command": "get_location",
                 "parameters": {
                     "accuracy": "high"
-                }
-            },
+                },
                 "reasoning": "Location access requires INTERN maturity"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -469,15 +455,13 @@ class TestDeviceCapabilityProposals:
             title="Send Notification",
             description="Send local notification to user",
             proposal_data={
-                "proposed_action": {
                 "action_type": "device_command",
                 "device_type": "notifications",
                 "command": "send",
                 "parameters": {
                     "title": "Task Complete",
                     "body": "Your automated task has finished"
-                }
-            },
+                },
                 "reasoning": "Sending notifications requires INTERN maturity"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -524,15 +508,13 @@ class TestDeepLinkProposals:
             title="Open Agent via Deep Link",
             description="Open specific agent conversation",
             proposal_data={
-                "proposed_action": {
                 "action_type": "canvas_present",
                 "canvas_type": "orchestration",
                 "deep_link": "atom://agent/sales_assistant",
                 "parameters": {
                     "conversation_id": "conv_123",
                     "message": "Help me with sales data"
-                }
-            },
+                },
                 "reasoning": "Deep link navigation requires INTERN maturity"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -574,14 +556,12 @@ class TestDeepLinkProposals:
             title="Open Workflow via Deep Link",
             description="Navigate to workflow execution",
             proposal_data={
-                "proposed_action": {
                 "action_type": "canvas_present",
                 "canvas_type": "orchestration",
                 "deep_link": "atom://workflow/monthly_report",
                 "parameters": {
                     "auto_start": True
-                }
-            },
+                },
                 "reasoning": "Workflow deep link requires INTERN maturity"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -628,7 +608,6 @@ class TestMultiStepComplexActions:
             title="Extract Data and Visualize",
             description="Navigate to website, extract data, present as chart",
             proposal_data={
-                "proposed_action": {
                 "action_type": "browser_automate",  # Primary action type
                 "url": "https://example.com/data",
                 "actions": [
@@ -640,8 +619,7 @@ class TestMultiStepComplexActions:
                         "canvas_type": "chart",
                         "data": "$extracted"  # Reference extracted data
                     }
-                ]
-            },
+                ],
                 "reasoning": "Multi-step workflow requires INTERN maturity"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -692,7 +670,6 @@ class TestMultiStepComplexActions:
             title="Conditional Action Workflow",
             description="Execute different actions based on conditions",
             proposal_data={
-                "proposed_action": {
                 "action_type": "canvas_present",
                 "canvas_type": "form",
                 "conditional": {
@@ -715,8 +692,7 @@ class TestMultiStepComplexActions:
                             }
                         }
                     ]
-                }
-            },
+                },
                 "reasoning": "Conditional workflow requires INTERN maturity"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -758,7 +734,6 @@ class TestMultiStepComplexActions:
             title="Sequential Data Pipeline",
             description="Execute actions in sequence",
             proposal_data={
-                "proposed_action": {
                 "action_type": "canvas_present",
                 "canvas_type": "orchestration",
                 "sequence": [
@@ -780,8 +755,7 @@ class TestMultiStepComplexActions:
                         "canvas_type": "chart",
                         "data": "$step2.data"
                     }
-                ]
-            },
+                ],
                 "reasoning": "Sequential pipeline requires INTERN maturity"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -828,10 +802,8 @@ class TestProposalExecutionErrors:
             title="Failing Action",
             description="Action that will fail",
             proposal_data={
-                "proposed_action": {
                 "action_type": "browser_automate",
-                "url": "https://invalid-domain-that-does-not-exist.example"
-            },
+                "url": "https://invalid-domain-that-does-not-exist.example",
                 "reasoning": "Test error handling"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -873,9 +845,7 @@ class TestProposalExecutionErrors:
             title="Unknown Action Type",
             description="Action with unsupported type",
             proposal_data={
-                "proposed_action": {
-                "action_type": "unsupported_action_type"
-            },
+                "action_type": "unsupported_action_type",
                 "reasoning": "Test unknown type handling"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -917,9 +887,7 @@ class TestProposalExecutionErrors:
             title="Skipped Action",
             description="Action should be skipped",
             proposal_data={
-                "proposed_action": {
-                "action_type": "canvas_present"
-            },
+                "action_type": "canvas_present",
                 "reasoning": "Test execution disabled"
             },
             status=ProposalStatus.PENDING_APPROVAL.value,

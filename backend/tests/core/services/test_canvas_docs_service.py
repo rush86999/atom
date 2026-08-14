@@ -498,9 +498,11 @@ Final content.
         result = docs_service.get_table_of_contents(test_canvas_id)
 
         assert result["success"] is True
-        assert result["total"] == 3  # #, ##, ##
+        assert result["total"] == 4  # #, ##, ###, ##
         assert any(h["title"] == "Main Heading" for h in result["headings"])
         assert any(h["level"] == 1 for h in result["headings"])
+        assert any(h["title"] == "Subsection 1.1" and h["level"] == 3
+                   for h in result["headings"])
 
     def test_get_table_of_contents_no_headings(self, docs_service, test_user_id, test_canvas_id):
         """Test TOC for document without headings."""

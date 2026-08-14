@@ -7,11 +7,33 @@ from fastapi.testclient import TestClient
 from api.document_ingestion_routes import router
 
 
+_current_test_user = None
+
+
 @pytest.fixture
 def app():
+    global _current_test_user
+    _current_test_user = None
+
     app = FastAPI()
     app.include_router(router)
-    return app
+
+    # The parse/upload endpoints require an authenticated user; by default the
+    # override mirrors real auth (401 when unauthenticated).
+    from fastapi import HTTPException
+    from core.security_dependencies import get_current_user
+
+    def override_get_current_user():
+        if _current_test_user is None:
+            raise HTTPException(status_code=401, detail="Could not validate credentials")
+        return _current_test_user
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
+    yield app
+
+    app.dependency_overrides.clear()
+    _current_test_user = None
 
 
 @pytest.fixture
@@ -47,6 +69,9 @@ def test_get_ocr_status(client):
 
 
 def test_parse_document(client):
+    global _current_test_user
+    _current_test_user = MagicMock(id="doc-ingest-user", role="member", status="active")
+
     from io import BytesIO
     # Test that parse endpoint accepts file upload
     # Note: We don't test actual parsing logic here, just endpoint functionality

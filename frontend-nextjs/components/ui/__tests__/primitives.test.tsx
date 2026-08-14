@@ -3,8 +3,18 @@
  * resizable, slider, select, sheet, dropdown-menu, SecurityScanner, index.
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+
+// react-resizable-panels' browser build uses AbortSignal options that jsdom's
+// addEventListener cannot validate. Mock it with plain div stubs that forward
+// props and children so the rendered panel structure is still asserted.
+jest.mock('react-resizable-panels', () => ({
+  __esModule: true,
+  PanelGroup: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  Panel: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  PanelResizeHandle: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+}));
 
 import { Separator } from '../separator';
 import { Skeleton } from '../skeleton';
@@ -37,9 +47,9 @@ describe('components/ui/separator', () => {
 
 describe('components/ui/skeleton', () => {
   it('renders a skeleton div with className', () => {
-    render(<Skeleton className="w-10" />);
-    const el = screen.getByRole('presentation');
-    expect(el.className).toContain('animate-pulse');
+    render(<Skeleton data-testid="skeleton" className="w-10" />);
+    expect(screen.getByTestId('skeleton')).toHaveClass('animate-pulse');
+    expect(screen.getByTestId('skeleton')).toHaveClass('w-10');
   });
 });
 
@@ -143,8 +153,14 @@ describe('components/ui/sheet', () => {
     );
     await user.click(screen.getByText('Open2'));
     await screen.findByText('Closable');
-    await user.click(document.querySelector('[data-state="open"] [aria-label="Close"]') as HTMLElement);
-    await screen.findByText('Closable', { selector: 'body' });
+    // The close button has no aria-label attribute; its accessible name comes
+    // from the sr-only "Close" span. fireEvent bypasses the pointer-events
+    // assertion that user-event can't perform while Radix disables pointer
+    // events on the rest of the page for the open modal.
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => {
+      expect(screen.queryByText('Closable')).not.toBeInTheDocument();
+    });
   });
 });
 
@@ -168,9 +184,9 @@ describe('components/ui/dropdown-menu', () => {
 
 describe('components/ui/SecurityScanner', () => {
   const findings = [
-    { category: 'Injection', severity: 'CRITICAL', description: 'eval used', analyzer: 'static' },
-    { category: 'PII Leak', severity: 'LOW', description: 'logs emails', analyzer: 'static' },
-    { category: 'Odd', severity: 'OTHER', description: 'x', analyzer: 'static' },
+    { category: 'Injection', severity: 'CRITICAL' as const, description: 'eval used', analyzer: 'static' },
+    { category: 'PII Leak', severity: 'LOW' as const, description: 'logs emails', analyzer: 'static' },
+    { category: 'Odd', severity: 'OTHER' as const, description: 'x', analyzer: 'static' },
   ];
 
   it('renders the idle state with the scan button', () => {
@@ -198,7 +214,7 @@ describe('components/ui/SecurityScanner', () => {
     expect(screen.getByText('Injection')).toBeInTheDocument();
     expect(screen.getByText('PII Leak')).toBeInTheDocument();
     expect(screen.getByText('CRITICAL')).toBeInTheDocument();
-    expect(screen.getByText('MEDIUM')).not.toBeInTheDocument();
+    expect(screen.queryByText('MEDIUM')).not.toBeInTheDocument();
     expect(screen.getByText('OTHER')).toBeInTheDocument();
   });
 

@@ -218,7 +218,8 @@ def test_device_session_model(db: Session, sample_device_node: DeviceNode):
         user_id=sample_device_node.user_id,
         session_type="camera",
         status="active",
-        created_at=datetime.utcnow()
+        # DeviceSession timestamps are started_at/stopped_at (server defaults)
+        started_at=datetime.utcnow()
     )
     db.add(session)
     db.commit()

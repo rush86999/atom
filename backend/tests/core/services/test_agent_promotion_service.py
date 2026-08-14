@@ -71,6 +71,8 @@ def test_feedback(db_session, test_agent):
             user_id="test-user",
             rating=5,  # Positive
             feedback_type="thumbs_up",
+            original_output="Original agent answer",  # NOT NULL column
+            user_correction="",  # NOT NULL column
             created_at=datetime.now() - timedelta(days=i),
         )
         db_session.add(feedback)
@@ -357,7 +359,7 @@ class TestGetPromotionPath:
 
         result = promotion_service.get_promotion_path(agent.id)
 
-        assert result["current_status"] == "STUDENT"
+        assert result["current_status"] == AgentStatus.STUDENT.value
         assert len(result["promotion_path"]) == 3  # STUDENT->INTERN, INTERN->SUPERVISED, SUPERVISED->AUTONOMOUS
 
     def test_get_promotion_path_intern_agent(self, promotion_service, test_agent):
@@ -377,7 +379,7 @@ class TestGetPromotionPath:
 
             result = promotion_service.get_promotion_path(test_agent.id)
 
-            assert result["current_status"] == "INTERN"
+            assert result["current_status"] == AgentStatus.INTERN.value
             assert len(result["promotion_path"]) == 2  # INTERN->SUPERVISED, SUPERVISED->AUTONOMOUS
 
     def test_get_promotion_path_agent_not_found(self, promotion_service):

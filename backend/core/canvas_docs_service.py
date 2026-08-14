@@ -97,6 +97,12 @@ class DocumentationCanvasService:
                 canvas_id=canvas_id,
                 action_type="create",  # Changed from "action" to "action_type"
                 canvas_type="docs",
+                # Explicit microsecond-precision timestamp: the server default
+                # (func.now()) only has second precision, so audits created in
+                # the same second tied on created_at and the
+                # order_by(desc(created_at)).first() "latest audit" lookups
+                # could pick a stale row (lost versions, unresolvable comments).
+                created_at=datetime.now(),
                 details_json={  # Changed from "audit_metadata" to "details_json"
                     "canvas_type": "docs",
                     "title": title,
@@ -188,6 +194,7 @@ class DocumentationCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="update_content",
+                created_at=datetime.now(),
                 canvas_type="docs",
                 details_json={
                     "canvas_type": "docs",
@@ -298,6 +305,7 @@ class DocumentationCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="add_comment",
+                created_at=datetime.now(),
                 canvas_type="docs",
                 details_json={
                     "canvas_type": "docs",
@@ -373,6 +381,7 @@ class DocumentationCanvasService:
                 user_id=user_id,
                 canvas_id=canvas_id,
                 action_type="resolve_comment",
+                created_at=datetime.now(),
                 canvas_type="docs",
                 details_json={
                     "canvas_type": "docs",
@@ -495,6 +504,7 @@ class DocumentationCanvasService:
                 canvas_id=canvas_id,
                 action_type="restore_version",
                 canvas_type="docs",
+                created_at=datetime.now(),
                 details_json={
                     "canvas_type": "docs",
                     **metadata,

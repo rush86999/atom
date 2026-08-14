@@ -343,14 +343,14 @@ class TestApplyDirectivesToClone:
         loop = AgentEvolutionLoop(db_session)
         loop._validate_via_guardrails = AsyncMock(return_value=True)
 
-        # Mock SkillCreationAgent
-        with patch('core.agent_evolution_loop.SkillCreationAgent') as mock_skill_class:
+        # Mock SkillCreationAgent (resolved via ServiceFactory inside the method)
+        with patch('core.service_factory.ServiceFactory.get_skill_creation_agent') as mock_get_agent:
             mock_skill = MagicMock()
             mock_skill.id = "skill-new"
             mock_skill.name = "evolved_skill_test"
             mock_skill_agent = AsyncMock()
             mock_skill_agent.create_skill_from_api_documentation = AsyncMock(return_value=mock_skill)
-            mock_skill_class.return_value = mock_skill_agent
+            mock_get_agent.return_value = mock_skill_agent
 
             directives = ["CREATE_SKILL: Fetch data from API https://example.com"]
             evolved_config, guardrail_ok = await loop._apply_directives_to_clone(
@@ -360,6 +360,7 @@ class TestApplyDirectivesToClone:
             assert guardrail_ok is True
             assert "active_skills" in evolved_config
             assert "skill-new" in evolved_config["active_skills"]
+            mock_skill_agent.create_skill_from_api_documentation.assert_awaited_once()
 
 
 class TestEvaluateEvolvedConfig:
@@ -441,10 +442,33 @@ class TestEvaluateEvolvedConfig:
                 agent, evolved_config, "tenant-fallback"
             )
 
-            # Should use fallback: confidence_score + evolution_bonus
-            assert score >= 0.75  # Base confidence
-            assert score <= 1.0  # Max
-            # evolution_bonus = 0.01 * 2 = 0.02, so ~0.77
+            # Fallback is the raw confidence_score proxy: the evolution-count
+            # bonus was removed (perverse incentive — evolving more must not
+            # inflate the score). 0.75 >= 0.55 threshold → passed.
+            assert score == 0.75
+            assert passed is True
+
+        # A below-threshold agent must fail the proxy benchmark.
+        from core.models import AgentRegistry as _AR
+        low_agent = _AR(
+            id="agent-fallback-low",
+            tenant_id="tenant-fallback",
+            name="Low Confidence Agent",
+            status="SUPERVISED",
+            confidence_score=0.3,
+            category="general",
+            module_path="core.test_agent",
+            class_name="TestAgent",
+        )
+        db_session.add(low_agent)
+        db_session.commit()
+
+        with patch('core.graduation_exam.GraduationExamService', side_effect=ImportError):
+            score, passed = await loop._evaluate_evolved_config(
+                low_agent, evolved_config, "tenant-fallback"
+            )
+
+            assert score == 0.3
             assert passed is False  # Below 0.55 threshold
 
 
@@ -538,12 +562,21 @@ class TestRecordTrace:
             category="general",
         )
 
-        # VALIDATED_BUG: Returns None due to missing evolution_type
-        # Expected: Should create trace successfully
-        # Actual: Returns None after IntegrityError
-        # Severity: HIGH
-        # Fix: Add evolution_type="combined" to trace creation (line 565-583)
-        assert trace is None  # Bug causes failure
+        # The trace now records evolution_type="combined" (the bug where a
+        # missing evolution_type caused an IntegrityError and returned None
+        # has been fixed in _record_trace).
+        assert trace is not None
+        assert trace.agent_id == "agent-trace"
+        assert trace.tenant_id == "tenant-trace"
+        assert trace.generation == 1
+        assert trace.evolution_type == "combined"
+        assert trace.benchmark_passed is True
+        assert trace.benchmark_score == 0.88
+        assert trace.parent_agent_ids == ["parent1", "parent2"]
+        assert trace.ancestor_count == 2
+        assert trace.model_patch == "+ new_feature"
+        assert trace.tool_use_log == ["tool1", "tool2"]
+        assert trace.evolving_requirements == "improve quality"
 
     def test_record_trace_handles_errors(self, db_session):
         """Cover lines 588-591: Error handling in trace recording."""

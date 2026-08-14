@@ -10,7 +10,7 @@ Tests for debug query API including:
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from unittest.mock import Mock, patch, MagicMock
@@ -43,6 +43,17 @@ def debug_query(db_session):
     return DebugQuery(db_session)
 
 
+@pytest.fixture(autouse=True)
+def _disable_cache(debug_query):
+    """Disable the process-global debug cache for every test.
+
+    The cache is a singleton with a 5-minute TTL shared across the whole test
+    run; without this, a cached result from one test (with its own in-memory
+    DB) leaks into other tests using the same component/time-range key.
+    """
+    debug_query.cache = None
+
+
 @pytest.fixture
 def sample_events(db_session):
     """Create sample debug events."""
@@ -52,6 +63,7 @@ def sample_events(db_session):
     events = [
         DebugEvent(
             id=f"event-{i}",
+            event_type=DebugEventType.LOG.value if i % 3 != 0 else DebugEventType.ERROR.value,
             component_type="agent",
             component_id="agent-1",
             level="INFO" if i % 3 != 0 else "ERROR",
@@ -79,7 +91,7 @@ def sample_insights(db_session):
         DebugInsight(
             id=f"insight-{i}",
             insight_type=DebugInsightType.ERROR.value if i % 2 == 0 else DebugInsightType.PERFORMANCE.value,
-            severity=DebugInsightSeverity.HIGH.value if i % 3 == 0 else DebugInsightSeverity.MEDIUM.value,
+            severity=DebugInsightSeverity.CRITICAL.value if i % 3 == 0 else DebugInsightSeverity.WARNING.value,
             title=f"Insight {i}",
             summary=f"Summary {i}",
             description=f"Description {i}",
@@ -205,6 +217,7 @@ class TestGetOperationProgress:
         for i in range(5):
             event = DebugEvent(
                 id=f"completed-event-{i}",
+                event_type=DebugEventType.LOG.value,
                 component_type="workflow",
                 component_id="workflow-1",
                 level="INFO",
@@ -230,6 +243,7 @@ class TestGetOperationProgress:
         for i in range(5):
             event = DebugEvent(
                 id=f"error-event-{i}",
+                event_type=DebugEventType.ERROR.value if i == 2 else DebugEventType.LOG.value,
                 component_type="agent",
                 component_id="agent-1",
                 level="ERROR" if i == 2 else "INFO",
@@ -256,8 +270,10 @@ class TestExplainError:
         # Create error event
         error_event = DebugEvent(
             id="error-to-explain",
+            event_type=DebugEventType.ERROR.value,
             component_type="agent",
             component_id="agent-1",
+            correlation_id="explain-correlation",
             level="ERROR",
             message="Connection timeout",
             timestamp=datetime.utcnow(),
@@ -285,8 +301,10 @@ class TestExplainError:
         """Test error explanation with insight."""
         error_event = DebugEvent(
             id="error-with-insight",
+            event_type=DebugEventType.ERROR.value,
             component_type="agent",
             component_id="agent-1",
+            correlation_id="insight-correlation",
             level="ERROR",
             message="Error with insight",
             timestamp=datetime.utcnow(),
@@ -297,7 +315,7 @@ class TestExplainError:
         insight = DebugInsight(
             id="related-insight",
             insight_type=DebugInsightType.ERROR.value,
-            severity=DebugInsightSeverity.HIGH.value,
+            severity=DebugInsightSeverity.CRITICAL.value,
             title="Root Cause",
             summary="Memory leak detected",
             description="Agent has memory leak",
@@ -312,7 +330,9 @@ class TestExplainError:
         result = await debug_query.explain_error("error-with-insight")
 
         assert result["found"] is True
-        assert result["root_cause"] == "Memory leak detected"
+        # explain_error surfaces the related insight's description as the
+        # root cause and its suggestions.
+        assert result["root_cause"] == "Agent has memory leak"
         assert "Restart agent" in result["suggestions"]
 
 
@@ -329,8 +349,10 @@ class TestCompareComponents:
             for i in range(10):
                 event = DebugEvent(
                     id=f"compare-event-{agent_id}-{i}",
+                    event_type=DebugEventType.ERROR.value if i < error_count else DebugEventType.LOG.value,
                     component_type="agent",
                     component_id=agent_id,
+                    correlation_id=f"compare-{agent_id}",
                     level="ERROR" if i < error_count else "INFO",
                     message=f"Event {i}",
                     timestamp=now - timedelta(minutes=i),
@@ -358,7 +380,10 @@ class TestCompareComponents:
         )
 
         assert len(result["components"]) == 1
-        assert "Need at least 2 components" in result["insights"]
+        assert any(
+            "Need at least 2 components" in insight
+            for insight in result["insights"]
+        )
 
 
 class TestNaturalLanguageQuery:
@@ -372,8 +397,10 @@ class TestNaturalLanguageQuery:
         for i in range(5):
             event = DebugEvent(
                 id=f"failing-event-{i}",
+                event_type=DebugEventType.ERROR.value,
                 component_type="workflow",
                 component_id="workflow-789",
+                correlation_id="failing-correlation",
                 level="ERROR",
                 message="Database connection failed",
                 timestamp=now - timedelta(minutes=i),
@@ -410,8 +437,8 @@ class TestHelperMethods:
     def test_parse_time_range_hours(self, debug_query):
         """Test parsing time range in hours."""
         result = debug_query._parse_time_range("5h")
-        # Should be approximately 5 hours ago
-        diff = datetime.utcnow() - result
+        # Should be approximately 5 hours ago (returns timezone-aware UTC)
+        diff = datetime.now(timezone.utc) - result
         assert diff.total_seconds() > 4 * 3600
         assert diff.total_seconds() < 6 * 3600
 
@@ -419,7 +446,7 @@ class TestHelperMethods:
         """Test parsing time range in days."""
         result = debug_query._parse_time_range("2d")
         # Should be approximately 2 days ago
-        diff = datetime.utcnow() - result
+        diff = datetime.now(timezone.utc) - result
         assert diff.total_seconds() > 1.5 * 86400
         assert diff.total_seconds() < 2.5 * 86400
 
@@ -427,7 +454,7 @@ class TestHelperMethods:
         """Test parsing time range in minutes."""
         result = debug_query._parse_time_range("30m")
         # Should be approximately 30 minutes ago
-        diff = datetime.utcnow() - result
+        diff = datetime.now(timezone.utc) - result
         assert diff.total_seconds() > 25 * 60
         assert diff.total_seconds() < 35 * 60
 
@@ -435,7 +462,7 @@ class TestHelperMethods:
         """Test default time range parsing."""
         result = debug_query._parse_time_range("invalid")
         # Should default to 1 hour
-        diff = datetime.utcnow() - result
+        diff = datetime.now(timezone.utc) - result
         assert diff.total_seconds() > 0.9 * 3600
         assert diff.total_seconds() < 1.1 * 3600
 
@@ -461,7 +488,8 @@ class TestErrorHandling:
             result = await debug_query.get_component_health("agent", "agent-1")
 
             assert result["status"] == "error"
-            assert "health_score" == 0
+            assert result["health_score"] == 0
+            assert "DB error" in result["error"]
 
     @pytest.mark.asyncio
     async def test_explain_error_handling(self, debug_query):

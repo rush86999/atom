@@ -28,6 +28,9 @@ class TestWorkflowJourney:
     def test_list_workflows(self, registered_user):
         """The workflows list endpoint is reachable (not 404).
 
+        The live workflow router (core/workflow_endpoints.py) is mounted at
+        /api/v1/workflows and its list route is GET /api/v1/workflows/workflows.
+
         NOTE: the workflow_debugging router has a response-model mismatch
         that causes a ResponseValidationError when stored workflows lack
         nodes/connections/enabled fields. This is a known bug in the
@@ -37,7 +40,7 @@ class TestWorkflowJourney:
         headers = {"Authorization": f"Bearer {token}"}
 
         try:
-            resp = client.get("/api/workflows", headers=headers)
+            resp = client.get("/api/v1/workflows/workflows", headers=headers)
             assert resp.status_code != 404, \
                 f"Workflows endpoint 404: {resp.status_code}"
         except Exception as e:

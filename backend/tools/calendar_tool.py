@@ -194,12 +194,17 @@ class CalendarTool:
                     return False, f"Agent '{agent_id}' not found"
 
                 # Check maturity level
-                maturity = agent.maturity_level
+                # BUG FIX: AgentRegistry.maturity_level aliases the `status`
+                # column, whose canonical values are lowercase
+                # ("student"/"intern"/...). Comparing them against an
+                # uppercase ladder always raised ValueError and denied every
+                # agent. Normalize both sides to uppercase before indexing.
+                maturity = agent.maturity_level or ""
                 maturity_order = ["STUDENT", "INTERN", "SUPERVISED", "AUTONOMOUS"]
 
                 try:
-                    current_level = maturity_order.index(maturity)
-                    required_level = maturity_order.index(required_maturity)
+                    current_level = maturity_order.index(maturity.upper())
+                    required_level = maturity_order.index(required_maturity.upper())
                 except ValueError:
                     return False, f"Invalid maturity level: {maturity}"
 

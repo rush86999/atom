@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 
 interface Finding {
     category: string;
-    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'OTHER';
     description: string;
     analyzer: string;
 }

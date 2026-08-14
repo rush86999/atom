@@ -15,8 +15,8 @@ deliver satisfaction.
 
 All training and inference is CPU-only scikit-learn (RandomForest /
 LogisticRegression). A typical predictor is a small RandomForest fit on tens
-to a few hundred examples with 10 features — a sub-10ms job that runs on any
-end-user laptop.
+to a few hundred examples with 16 features (10 baseline + 6 intent one-hots)
+— a sub-10ms job that runs on any end-user laptop.
 
 Known limitation: today ``RoutingFeedback`` carries no prompt text, so all
 feedback for a given tenant/task yields near-identical features (only the
@@ -246,9 +246,18 @@ class PerModelRouter:
         if estimator is None:
             return stats.positive_rate
 
+        # Build the vector against the estimator's OWN feature count.
+        # Predictors persisted before the intent one-hots were added expect 10
+        # features; the current contract has 16. Truncating to the estimator's
+        # n_features_in_ keeps those predictors serving (they just don't see
+        # the intent signal) instead of raising a feature-count ValueError.
+        names = self.feature_extractor.feature_names
+        expected = getattr(estimator, "n_features_in_", len(names))
+        if expected and 0 < expected < len(names):
+            names = names[:expected]
         vector = np.array([
             features.get(name, 0.0)
-            for name in self.feature_extractor.feature_names
+            for name in names
         ]).reshape(1, -1)
 
         if hasattr(estimator, "predict_proba"):

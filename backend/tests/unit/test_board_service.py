@@ -201,12 +201,15 @@ class TestTaskCRUD:
             TaskCreate(title="T", column_id=col_id, status=BoardStatus.BACKLOG),
         )
 
+        # patch_task returns the same instance it updated, so capture the
+        # pre-patch version to verify the optimistic-lock counter advanced.
+        version_before = task.version_id
         updated, _meta = service.patch_task(
             board_a.id, task.id,
-            TaskPatch(expected_version=task.version_id, status=BoardStatus.TODO),
+            TaskPatch(expected_version=version_before, status=BoardStatus.TODO),
         )
         assert updated.status == BoardStatus.TODO
-        assert updated.version_id > task.version_id
+        assert updated.version_id > version_before
 
     def test_patch_with_stale_version_returns_409(self, db_session, board_a, user_a):
         service = BoardService(db_session)

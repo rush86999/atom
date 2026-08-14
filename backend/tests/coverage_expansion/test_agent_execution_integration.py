@@ -28,7 +28,11 @@ class TestAgentExecutionIntegration:
     @pytest.fixture
     def db_session(self):
         """Get test database session."""
-        from core.database import SessionLocal
+        from core.database import SessionLocal, engine, Base
+        # Under ATOM_MOCK_DATABASE=true the global engine is a fresh
+        # in-memory SQLite with no tables; create them (checkfirst makes
+        # this idempotent) so fixtures can insert rows.
+        Base.metadata.create_all(engine)
         session = SessionLocal()
         yield session
         session.rollback()
@@ -40,14 +44,23 @@ class TestAgentExecutionIntegration:
         agent = AgentRegistry(
             id="test-agent",
             name="Test Agent",
-            maturity_level="AUTONOMOUS",
+            maturity_level="autonomous",
             type="generic",
-            status="active",
-            enabled=True
+            enabled=True,
+            category="Operations",
+            module_path="core.test_agents",
+            class_name="TestAgent",
         )
         db_session.add(agent)
         db_session.commit()
-        return agent
+        yield agent
+        # Shared in-memory engine: remove rows so later tests don't hit
+        # UNIQUE constraint failures on the same agent id.
+        db_session.query(AgentExecution).filter(
+            AgentExecution.agent_id == agent.id
+        ).delete(synchronize_session=False)
+        db_session.delete(agent)
+        db_session.commit()
 
     @pytest.fixture
     def student_agent(self, db_session):
@@ -55,14 +68,23 @@ class TestAgentExecutionIntegration:
         agent = AgentRegistry(
             id="student-agent",
             name="Student Agent",
-            maturity_level="STUDENT",
+            maturity_level="student",
             type="generic",
-            status="active",
-            enabled=True
+            enabled=True,
+            category="Operations",
+            module_path="core.test_agents",
+            class_name="StudentTestAgent",
         )
         db_session.add(agent)
         db_session.commit()
-        return agent
+        yield agent
+        # Shared in-memory engine: remove rows so later tests don't hit
+        # UNIQUE constraint failures on the same agent id.
+        db_session.query(AgentExecution).filter(
+            AgentExecution.agent_id == agent.id
+        ).delete(synchronize_session=False)
+        db_session.delete(agent)
+        db_session.commit()
 
     # Test: agent execution with governance
     @pytest.mark.asyncio

@@ -400,10 +400,12 @@ class TestAuditTrailValidator:
     def test_get_audit_statistics_structure(self):
         """Test audit statistics returns correct structure"""
         db = Mock()
-        # Mock the query chain properly
+        # Mock the query chain properly (get_audit_statistics filters
+        # optionally and always orders by timestamp — BUG 79-7)
         mock_query = Mock()
         mock_query.all.return_value = []
         mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
         db.query.return_value = mock_query
 
         validator = AuditTrailValidator(db)

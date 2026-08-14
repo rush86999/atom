@@ -37,6 +37,7 @@ from sqlalchemy.orm import Session
 from core.database import get_db_session
 from core.models import LLMRoutingFeedback
 from core.llm.response_quality import ResponseQuality
+from core.llm.intent_detector import INTENT_CATEGORIES
 from core.llm.routing import (
     TrainingConfig,
     TrainingExample,
@@ -91,6 +92,10 @@ class RoutingRequest:
     budget_limit: Optional[float] = None
     user_preferences: Dict[str, Any] = field(default_factory=dict)
     conversation_context: Dict[str, Any] = field(default_factory=dict)
+    # Detected intent/domain category (coding, reasoning, ...) from the
+    # intent detector, folded into the predictor feature vector as one-hots.
+    # None when not detected or detection disabled (all intent features 0).
+    intent: Optional[str] = None
 
 
 @dataclass
@@ -1005,8 +1010,8 @@ class LearningBasedRouter:
         for model in candidates:
             key = f"{request.tenant_id}:{request.task_type}:{model.model_id}"
             ema_data = self._ema_scores.get(key, {})
-            # Use bias-corrected values (read-time correction) so the max is on
-            # the same scale as the per-model corrected values used in scoring.
+            # Use the same plain stored values the per-model scoring reads, so
+            # the max is on the same scale as the per-model terms.
             corrected_latency = self._ema_corrected(ema_data, "latency", alpha)
             if corrected_latency is not None:
                 observed_latencies.append(corrected_latency)
@@ -1131,15 +1136,16 @@ class LearningBasedRouter:
         has_history = bool(ema_data)
         alpha = self._ema_alpha()
 
-        # Quality / success: bias-corrected EMA success, else static quality_score.
-        # (Read-time correction via _ema_corrected — stored values are raw.)
+        # Quality / success: EMA success, else static quality_score.
+        # (_ema_corrected is a plain read — bias correction was removed as
+        # unsound for non-stationary telemetry; see _ema_update_metric.)
         corrected_success = self._ema_corrected(ema_data, "success", alpha)
         success_score = corrected_success if corrected_success is not None else model.quality_score
 
         max_latency = ema_norm["max_latency"]
         max_cost = ema_norm["max_cost"]
 
-        # Latency: lower is better. Bias-corrected observed EMA, else speed spec.
+        # Latency: lower is better. EMA observed latency, else speed spec.
         corrected_latency = self._ema_corrected(ema_data, "latency", alpha)
         if corrected_latency is not None:
             latency_score = 1.0 - (corrected_latency / max_latency)
@@ -1147,7 +1153,7 @@ class LearningBasedRouter:
         else:
             latency_score = model.speed_score
 
-        # Cost: lower is better. Bias-corrected observed EMA (per-call $), else
+        # Cost: lower is better. EMA observed cost (per-call $), else
         # convert the per-million spec to a per-call estimate so units match.
         corrected_cost = self._ema_corrected(ema_data, "cost", alpha)
         if corrected_cost is not None:
@@ -1241,8 +1247,8 @@ class LearningBasedRouter:
 
         Always increments a per-key ``samples`` counter (previously this field
         was read by get_routing_statistics but never written, so it always
-        reported 1). Uses bias-corrected EMA so early values reflect the true
-        running mean rather than clustering near the seed.
+        reported 1). Uses plain EMA (no bias correction — that was removed as
+        unsound for non-stationary telemetry; see _ema_update_metric).
         """
         key = f"{feedback.tenant_id}:{feedback.task_type}:{feedback.model_id}"
         self._ema_record_key(key)
@@ -1387,6 +1393,7 @@ class LearningBasedRouter:
             routing_time_ms=routing_time_ms,
             routing_result_id=routing_result_id,
             prompt_features=prompt_features,
+            intent=getattr(request, "intent", None),
         )
 
     def _generate_reasoning(
@@ -1740,7 +1747,7 @@ class LearningBasedRouter:
         return pmr
 
     def _extract_request_features(self, request: RoutingRequest) -> Dict[str, float]:
-        """Extract the trainer's 10 prompt features from a RoutingRequest.
+        """Extract the trainer's prompt features from a RoutingRequest.
 
         This mirrors the feature contract in FeatureExtractor.feature_names so
         that per-model predictors (trained on the same feature space) are
@@ -1753,12 +1760,18 @@ class LearningBasedRouter:
         ``"prompt_text"``, ``"has_code"``, ``"has_numbers"``,
         ``"avg_word_length"``), those are used instead — enabling genuine
         within-task discrimination.
+
+        Intent: ``request.intent`` (or ``conversation_context["intent"]``) is
+        encoded as one-hot ``intent_*`` features so per-model predictors can
+        learn intent-specific satisfaction *within* a tenant/task bucket. The
+        live byok_handler paths build a bare request object without
+        ``conversation_context``, so both reads are defensive (getattr).
         """
         import math
 
         task = request.task_type
         tokens = max(1, request.estimated_tokens)
-        ctx = request.conversation_context or {}
+        ctx = getattr(request, "conversation_context", None) or {}
 
         # Content signals: prefer caller-supplied values, then prompt-text
         # inspection, then task-type defaults.
@@ -1781,6 +1794,12 @@ class LearningBasedRouter:
             else:
                 avg_word_length = 5.0
 
+        intent = getattr(request, "intent", None) or ctx.get("intent") or ""
+        intent_one_hots = {
+            f"intent_{c}": 1.0 if intent == c else 0.0
+            for c in INTENT_CATEGORIES
+        }
+
         return {
             "log_tokens": math.log2(tokens + 1),
             "token_bucket": self._token_bucket(tokens),
@@ -1794,6 +1813,7 @@ class LearningBasedRouter:
             "has_code": float(has_code),
             "has_numbers": float(has_numbers),
             "avg_word_length": float(avg_word_length),
+            **intent_one_hots,
         }
 
     @staticmethod
@@ -1827,6 +1847,8 @@ class LearningBasedRouter:
             "has_code": 1.0 if task_type == "code_generation" else 0.0,
             "has_numbers": 0.0,
             "avg_word_length": 5.0,
+            # Intent unknown at default time: all one-hots zero (neutral).
+            **{f"intent_{c}": 0.0 for c in INTENT_CATEGORIES},
         }
 
     def _feedback_to_training_example(
@@ -1989,7 +2011,8 @@ class LearningBasedRouter:
             if key_tenant != tenant_id:
                 continue  # don't leak other tenants' telemetry
             out_key = f"{task_type}:{model_id}"
-            # Read-time bias-corrected values (stored values are raw EMA).
+            # Plain stored EMA values (bias correction was removed — stored
+            # values are the live EMA).
             alpha = self._ema_alpha()
             c_success = self._ema_corrected(data, "success", alpha)
             c_latency = self._ema_corrected(data, "latency", alpha)

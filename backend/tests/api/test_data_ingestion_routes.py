@@ -309,7 +309,7 @@ class TestDataIngestionRoutes:
 
         assert response.status_code == 500
 
-    @patch("api.data_ingestion_routes.DEFAULT_SYNC_CONFIGS")
+    @patch("core.hybrid_data_ingestion.DEFAULT_SYNC_CONFIGS")
     def test_list_available_integrations_success(self, mock_configs, app):
         """Test GET /api/data-ingestion/available-integrations - successful list"""
         mock_config_1 = MagicMock()
@@ -343,7 +343,7 @@ class TestDataIngestionRoutes:
         assert "default_sync_days" in integrations[0]
         assert "max_records" in integrations[0]
 
-    @patch("api.data_ingestion_routes.DEFAULT_SYNC_CONFIGS")
+    @patch("core.hybrid_data_ingestion.DEFAULT_SYNC_CONFIGS")
     def test_list_available_integrations_empty(self, mock_configs, app):
         """Test GET /api/data-ingestion/available-integrations - empty list"""
         mock_configs.items.return_value = []

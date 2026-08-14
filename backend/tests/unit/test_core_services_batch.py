@@ -537,13 +537,27 @@ class TestProposalService:
         # Arrange
         proposal = await self._create_proposal(proposal_service)
 
-        # Act
-        result = await proposal_service.approve_proposal(
-            proposal.id, user_id="user-123"
-        )
+        # Act — mock the action execution: the "send_email" fixture action has
+        # no real executor (only browser/canvas/integration/workflow/device/
+        # agent actions do); the executors themselves are tested separately.
+        from unittest.mock import patch
+
+        execution_result = {
+            "success": True,
+            "executed_at": datetime.now().isoformat(),
+        }
+        with patch.object(
+            proposal_service,
+            "_execute_proposed_action_with",
+            new=AsyncMock(return_value=execution_result),
+        ):
+            result = await proposal_service.approve_proposal(
+                proposal.id, user_id="user-123"
+            )
 
         # Assert
         assert result is not None
+        assert result["success"] is True
         assert proposal.status == "executed"
         assert proposal.approved_by == "user-123"
         assert proposal.approved_at is not None

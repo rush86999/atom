@@ -23,9 +23,21 @@ except ImportError:
 
 
 @pytest.fixture
-def app():
+def app(db):
+    from unittest.mock import Mock
+
+    from core.auth import get_current_user
+    from core.database import get_db
+
     app = FastAPI()
     app.include_router(router)
+
+    # Messaging endpoints require authentication; supply a deterministic
+    # test user and the per-test database session from tests/unit/conftest.py.
+    test_user = Mock()
+    test_user.id = "test-user-123"
+    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_db] = lambda: db
     return app
 
 
@@ -116,11 +128,15 @@ class TestErrorHandling:
     """Tests for error handling"""
 
     def test_send_message_missing_content(self, client):
-        response = client.post("/api/messaging/messages", json={
-            "conversation_id": "conv-001",
-            "sender_id": "user-123"
+        """The messaging API is proactive messaging; sending without the
+        required content field must be rejected with a validation error."""
+        response = client.post("/api/v1/messaging/proactive/send", json={
+            "agent_id": "agent-001",
+            "platform": "slack",
+            "recipient_id": "user-123"
+            # content deliberately omitted
         })
-        assert response.status_code in [200, 400, 422]
+        assert response.status_code == 422
 
     def test_get_nonexistent_conversation(self, client):
         response = client.get("/api/messaging/conversations/nonexistent")

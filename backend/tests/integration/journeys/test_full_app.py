@@ -86,12 +86,21 @@ class TestFullAppBoots:
         Before the import-path fixes, main_api_app silently loaded only ~148
         routes (the rest 404'd). We assert a high floor so a regression that
         drops dozens of routers is caught immediately.
+
+        NOTE: this venv's FastAPI registers included routers lazily
+        (`_IncludedRouter` wrappers), so len(app.routes) no longer reflects
+        the mounted surface (~199 wrappers for 1000+ endpoints). The OpenAPI
+        schema forces full route resolution and is the reliable count.
         """
-        app = full_app_client.app
-        route_count = len(app.routes)
+        resp = full_app_client.get("/api/v1/openapi.json")
+        assert resp.status_code == 200, (
+            f"OpenAPI schema unavailable: {resp.status_code} — routers are "
+            "failing to import (check safe_import_router ERROR logs)."
+        )
+        path_count = len(resp.json().get("paths", {}))
         # The minimal app has ~180; the full app should have hundreds.
-        assert route_count > 400, (
-            f"Full app only loaded {route_count} routes — expected 400+. "
+        assert path_count > 400, (
+            f"Full app only exposed {path_count} API paths — expected 400+. "
             "Routers are failing to import (check safe_import_router ERROR logs)."
         )
 

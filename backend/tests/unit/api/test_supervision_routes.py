@@ -23,9 +23,21 @@ except ImportError:
 
 
 @pytest.fixture
-def app():
+def app(db):
+    from unittest.mock import Mock
+
+    from core.auth import get_current_user
+    from core.database import get_db
+
     app = FastAPI()
     app.include_router(router)
+
+    # Supervision endpoints require authentication; supply a deterministic
+    # test user and the per-test database session from tests/unit/conftest.py.
+    test_user = Mock()
+    test_user.id = "test-user-123"
+    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_db] = lambda: db
     return app
 
 
@@ -126,8 +138,10 @@ class TestErrorHandling:
     """Tests for error handling"""
 
     def test_invalid_session_id(self, client):
+        """A nonexistent session ID is reported as 404, not an error."""
         response = client.get("/api/supervision/sessions/nonexistent")
-        assert response.status_code in [200, 400, 404, 500, 503]
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
 
 
 if __name__ == "__main__":
