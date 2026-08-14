@@ -57,7 +57,7 @@ class TeamsService(IntegrationService):
             logger.error(f"Teams connection test failed: {e}")
             return {
                 "status": "error",
-                "message": str(e),
+                "message": "Teams connection test failed",
                 "authenticated": False
             }
     

@@ -538,31 +538,59 @@ class TestBusinessProfile:
 
 
 class TestWebhook:
-    def test_verification_subscribe(self, client):
+    def test_verification_subscribe(self, client, monkeypatch):
+        # Wave 93 (fail-closed): handshake requires the configured verify token
+        monkeypatch.setenv("WHATSAPP_VERIFY_TOKEN", "tok")
         response = _c(client, "get",
                       "/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=CH")
         assert response.status_code == 200
         assert response.json() == "CH"
+
+    def test_verification_wrong_token_403(self, client):
+        # Wave 93 (fail-closed): token mismatch is rejected even with the
+        # correct subscribe mode
+        response = _c(client, "get",
+                      "/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=CH")
+        assert response.status_code == 403
 
     def test_verification_rejected(self, client):
         response = _c(client, "get",
                       "/api/whatsapp/webhook?hub.mode=unsubscribe&hub.verify_token=tok&hub.challenge=CH")
         assert response.status_code == 403
 
-    def test_webhook_handler_success(self, client):
+    def test_webhook_handler_success(self, client, monkeypatch):
+        # Wave 93 (fail-closed): a valid X-Hub-Signature-256 is required
+        monkeypatch.setenv("WHATSAPP_APP_SECRET", "0123456789abcdef0123456789abcdef")
         from integrations import universal_webhook_bridge
+        import hmac
+        import hashlib
+        body = ('{"entry": [{"id": "p1"}]}').encode()
+        digest = hmac.new(
+            "0123456789abcdef0123456789abcdef".encode(), body,
+            hashlib.sha256).digest()
         with patch.object(universal_webhook_bridge.universal_webhook_bridge,
                           "process_incoming_message", new=AsyncMock(return_value=True)):
             response = _c(client, "post", "/api/whatsapp/webhook",
-                          json={"entry": [{"id": "p1"}]})
+                          content=body,
+                          headers={"X-Hub-Signature-256": "sha256=" + digest.hex()})
         assert response.status_code == 200
         assert response.json() == {"status": "received"}
 
-    def test_webhook_handler_error_500(self, client):
+    def test_webhook_handler_error_500(self, client, monkeypatch):
+        # Wave 93 (fail-closed): signature required before the handler body
+        monkeypatch.setenv("WHATSAPP_APP_SECRET", "0123456789abcdef0123456789abcdef")
         saved = sys.modules.get("integrations.universal_webhook_bridge")
         sys.modules["integrations.universal_webhook_bridge"] = None
         try:
-            response = _c(client, "post", "/api/whatsapp/webhook", json={"entry": []})
+            import hmac
+            import hashlib
+            body = b'{"entry": []}'
+            digest = hmac.new(
+                "0123456789abcdef0123456789abcdef".encode(), body,
+                hashlib.sha256).digest()
+            response = _c(client, "post", "/api/whatsapp/webhook",
+                          content=body,
+                          headers={"X-Hub-Signature-256": "sha256=" + digest.hex()})
         finally:
             if saved is not None:
                 sys.modules["integrations.universal_webhook_bridge"] = saved

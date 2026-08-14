@@ -451,7 +451,8 @@ class ShopifyService(IntegrationService):
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
         except Exception as e:
-            return {"healthy": False, "message": str(e)}
+            logger.error(f"Shopify health check failed: {e}")
+            return {"healthy": False, "message": "Shopify health check failed"}
 
     async def execute_operation(self, operation: str, parameters: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         token = parameters.get("access_token") or self.config.get("access_token")

@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from core.security_dependencies import get_current_user
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "ai"))
 
 from ai.automation_engine import AutomationEngine, AutomationWorkflow
@@ -18,7 +20,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Create router
-router = APIRouter(prefix="/ai", tags=["ai"])
+# Security: every endpoint requires an authenticated session user (401
+# anonymous; R38-40 anon-sweep policy).
+router = APIRouter(prefix="/ai", tags=["ai"],
+                   dependencies=[Depends(get_current_user)])
 
 # Initialize AI components
 nlp_engine = NaturalLanguageEngine()
@@ -164,6 +169,10 @@ async def ingest_platform_data(request: DataIngestRequest) -> DataIngestResponse
             relationships_created=relationships_created,
         )
 
+    except HTTPException:
+        # Do not swallow the intentional 400 (unsupported platform) in the
+        # broad handler below (wave 92 bug: it surfaced as 500).
+        raise
     except Exception as e:
         logger.error(f"Data ingestion failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal error")
@@ -208,6 +217,10 @@ async def search_unified_data(request: DataSearchRequest) -> DataSearchResponse:
             results=serializable_results, total_count=len(serializable_results)
         )
 
+    except HTTPException:
+        # Do not swallow the intentional 400 (invalid entity type) in the
+        # broad handler below (wave 92 bug: it surfaced as 500).
+        raise
     except Exception as e:
         logger.error(f"Data search failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal error")

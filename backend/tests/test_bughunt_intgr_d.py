@@ -246,11 +246,21 @@ class TestSyncToPostgresCacheWorkspaceId:
                 if n.endswith("Service")
                 and not n.startswith("_")
                 and isinstance(mod.__dict__[n], type)
+                # Only the module's OWN classes: the module namespace also
+                # contains the imported abstract base IntegrationService,
+                # which cannot be instantiated.
+                and mod.__dict__[n].__module__ == module
             )
             svc = mod.__dict__[svc_name]()
 
         SessionLocal = _in_memory_metric_db()
-        with mock.patch.object(
+        # All these services lazily import SessionLocal inside the sync
+        # method (`from core.database import SessionLocal`), so the patch
+        # MUST land on core.database.SessionLocal — patching the module attr
+        # alone silently hit the real dev DB.
+        with mock.patch(
+            "core.database.SessionLocal", SessionLocal
+        ), mock.patch.object(
             mod, "SessionLocal", SessionLocal, create=True
         ), mock.patch.object(
             mod, "get_db_session", create=True
@@ -260,7 +270,9 @@ class TestSyncToPostgresCacheWorkspaceId:
             # Stub out the data-fetching pieces
             if module == "integrations.github_service":
                 svc.get_user_repositories = lambda **kw: []
-                result = asyncio.run(svc.sync_to_postgres_cache("ws-1"))
+                # github_service.sync_to_postgres_cache is SYNC (returns a
+                # dict), unlike the other services — no asyncio.run here.
+                result = svc.sync_to_postgres_cache("ws-1")
             elif module == "integrations.gitlab_service":
                 svc.get_projects = mock.AsyncMock(return_value=[])
                 result = asyncio.run(
@@ -269,7 +281,7 @@ class TestSyncToPostgresCacheWorkspaceId:
             elif module == "integrations.notion_service":
                 svc.search_pages_in_workspace = mock.Mock(return_value=[])
                 svc.search_databases_in_workspace = mock.Mock(return_value=[])
-                result = asyncio.run(svc.sync_to_postgres_cache())
+                result = asyncio.run(svc.sync_to_postgres_cache("ws-1"))
             elif module == "integrations.outlook_calendar_service":
                 svc.get_events = mock.AsyncMock(return_value=[])
                 result = asyncio.run(svc.sync_to_postgres_cache("ws-1"))

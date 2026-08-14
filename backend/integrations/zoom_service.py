@@ -67,6 +67,9 @@ class ZoomService(IntegrationService):
     async def exchange_token(self, code: str, redirect_uri: str) -> Dict[str, Any]:
         """Exchange authorization code for access token"""
         try:
+            if not self.client_id or not self.client_secret:
+                raise HTTPException(status_code=400, detail="Missing Zoom credentials")
+
             auth = (self.client_id, self.client_secret)
             data = {
                 "grant_type": "authorization_code",
@@ -272,10 +275,14 @@ class ZoomService(IntegrationService):
             }
         except Exception as e:
             logger.error(f"Zoom health check failed: {e}")
+            try:
+                last_check = datetime.now(timezone.utc).isoformat()
+            except Exception:
+                last_check = None
             return {
                 "healthy": False,
                 "message": "Zoom health check failed",
-                "last_check": datetime.now(timezone.utc).isoformat()
+                "last_check": last_check
             }
 
     async def execute_operation(

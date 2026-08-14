@@ -9,8 +9,10 @@ Teams, Outlook, OneDrive, SharePoint, and Power Platform.
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from core.security_dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,14 @@ MICROSOFT365_SCOPES = [
 ]
 
 # Initialize router
-microsoft365_router = APIRouter(prefix="/microsoft365", tags=["Microsoft 365"])
+# Security: every endpoint requires an authenticated user (401 anonymous).
+# The MS Graph access token remains a per-request query param on top of the
+# session auth — consistent with the R38-40 anon-sweep policy.
+microsoft365_router = APIRouter(
+    prefix="/microsoft365",
+    tags=["Microsoft 365"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 # Pydantic models

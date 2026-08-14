@@ -318,6 +318,8 @@ class CommunicationAppIngestionIntegration:
                 }
             except ValueError:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error getting app config: {str(e)}")
                 raise HTTPException(status_code=500, detail="Internal error")
@@ -348,6 +350,8 @@ class CommunicationAppIngestionIntegration:
                     
             except ValueError:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error ingesting message: {str(e)}")
                 raise HTTPException(status_code=500, detail="Internal error")
@@ -411,6 +415,8 @@ class CommunicationAppIngestionIntegration:
                     
             except ValueError:
                 raise HTTPException(status_code=404, detail=f"Invalid app_id: {app_id}")
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error starting stream: {str(e)}")
                 raise HTTPException(status_code=500, detail="Internal error")

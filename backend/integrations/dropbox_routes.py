@@ -153,8 +153,10 @@ async def get_dropbox_oauth_status():
 
 
 @router.get("/user", summary="Get Dropbox user info")
-async def get_dropbox_user():
-    """Get authenticated Dropbox user information"""
+async def get_dropbox_user(
+    current_user: User = Depends(get_current_user)
+):
+    """Get authenticated Dropbox user information (requires authentication)"""
     try:
         await dropbox_auth_handler.ensure_valid_token()
         user_info = await dropbox_auth_handler.get_user_info()
@@ -449,8 +451,11 @@ async def create_shared_link(
 
 # User endpoints
 @router.get("/user/info", summary="Get user information")
-async def get_user_info(user_id: str = Query(..., description="User ID")):
-    """Get Dropbox user information"""
+async def get_user_info(
+    user_id: str = Query(..., description="User ID"),
+    current_user: User = Depends(get_current_user)
+):
+    """Get Dropbox user information (requires authentication)"""
     try:
         token = await dropbox_auth_handler.ensure_valid_token()
         result = await dropbox_service.get_account_info(access_token=token)
@@ -468,8 +473,11 @@ async def get_user_info(user_id: str = Query(..., description="User ID")):
 
 
 @router.get("/space/usage", summary="Get space usage")
-async def get_space_usage(user_id: str = Query(..., description="User ID")):
-    """Get Dropbox space usage information"""
+async def get_space_usage(
+    user_id: str = Query(..., description="User ID"),
+    current_user: User = Depends(get_current_user)
+):
+    """Get Dropbox space usage information (requires authentication)"""
     try:
         token = await dropbox_auth_handler.ensure_valid_token()
         result = await dropbox_service.get_space_usage(access_token=token)
@@ -492,8 +500,9 @@ async def get_file_metadata(
     path: str = Query(..., description="File path"),
     include_media_info: bool = Query(False, description="Include media info"),
     include_deleted: bool = Query(False, description="Include deleted files"),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get detailed file metadata"""
+    """Get detailed file metadata (requires authentication)"""
     try:
         token = await dropbox_auth_handler.ensure_valid_token()
         result = await dropbox_service.get_metadata(

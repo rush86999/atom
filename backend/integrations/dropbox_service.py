@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 class DropboxService(IntegrationService):
     """Standardized Dropbox API integration service"""
 
-    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+    def __init__(self, tenant_id: str = "default",
+                 config: Optional[Dict[str, Any]] = None):
         if config is None:
             config = {}
         super().__init__(tenant_id=tenant_id, config=config)
@@ -88,3 +89,209 @@ class DropboxService(IntegrationService):
             }
         except Exception as e:
             return {"ok": False, "status": "unhealthy", "healthy": False, "service": "dropbox", "error": str(e), "timestamp": datetime.now(timezone.utc).isoformat()}
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Direct operation methods (wave 93) — dropbox_routes.py calls these with
+    # an explicit access_token (resolved via DropboxAuthHandler). All were
+    # MISSING from the service, so every route 500'd with AttributeError.
+    # Implemented with the dropbox SDK in the same style as execute_operation;
+    # errors propagate to the route layer (which maps them to 500).
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _get_dropbox_client(self, access_token: Optional[str]) -> Any:
+        """Build a dropbox SDK client for the given access token."""
+        if not access_token:
+            raise ValueError("No Dropbox access token available")
+        return dropbox.Dropbox(access_token)
+
+    def _metadata_to_dict(self, entry: Any) -> Dict[str, Any]:
+        """Convert a FileMetadata/FolderMetadata entry to a plain dict."""
+        data: Dict[str, Any] = {
+            "id": entry.id,
+            "name": entry.name,
+            "path": entry.path_display,
+            "path_lower": entry.path_lower,
+        }
+        if isinstance(entry, dropbox.files.FolderMetadata):
+            data[".tag"] = "folder"
+            data["shared_folder_id"] = getattr(entry, "shared_folder_id", None)
+        else:
+            data[".tag"] = "file"
+            data["size"] = getattr(entry, "size", None)
+            data["rev"] = getattr(entry, "rev", None)
+            data["is_downloadable"] = getattr(entry, "is_downloadable", True)
+            data["content_hash"] = getattr(entry, "content_hash", None)
+        return data
+
+    async def list_folder(
+        self,
+        path: str = "",
+        access_token: Optional[str] = None,
+        recursive: bool = False,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """List files and folders in a path (wave 93)."""
+        dbx = self._get_dropbox_client(access_token)
+        result = dbx.files_list_folder(path, recursive=recursive, limit=limit)
+        return [self._metadata_to_dict(e) for e in result.entries]
+
+    async def upload_file(
+        self,
+        path: str,
+        file_content: bytes,
+        access_token: Optional[str] = None,
+        autorename: bool = True,
+    ) -> Dict[str, Any]:
+        """Upload file bytes to Dropbox (wave 93)."""
+        dbx = self._get_dropbox_client(access_token)
+        result = dbx.files_upload(
+            file_content, path,
+            mode=dropbox.files.WriteMode.overwrite, autorename=autorename,
+        )
+        return self._metadata_to_dict(result)
+
+    async def download_file(
+        self, path: str, access_token: Optional[str] = None
+    ) -> bytes:
+        """Download a file from Dropbox, returning raw bytes (wave 93)."""
+        dbx = self._get_dropbox_client(access_token)
+        _metadata, response = dbx.files_download(path)
+        content: bytes = response.content
+        return content
+
+    async def search(
+        self,
+        query: str,
+        access_token: Optional[str] = None,
+        path: str = "",
+        max_results: int = 50,
+        file_extensions: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Search files in Dropbox (wave 93)."""
+        dbx = self._get_dropbox_client(access_token)
+        options = dropbox.files.SearchOptions(
+            path=path, max_results=max_results,
+            file_extensions=file_extensions)
+        result = dbx.files_search_v2(query, options=options)
+        matches = []
+        for match in result.matches:
+            metadata = match.metadata
+            if hasattr(metadata, "get_metadata"):
+                metadata = metadata.get_metadata()
+            if metadata is not None:
+                matches.append(self._metadata_to_dict(metadata))
+        return matches
+
+    async def create_folder(
+        self, path: str, access_token: Optional[str] = None, autorename: bool = True
+    ) -> Dict[str, Any]:
+        """Create a folder in Dropbox (wave 93)."""
+        dbx = self._get_dropbox_client(access_token)
+        result = dbx.files_create_folder_v2(path, autorename=autorename)
+        return self._metadata_to_dict(result.metadata)
+
+    async def delete_item(
+        self, path: str, access_token: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Delete a file or folder from Dropbox (wave 93)."""
+        dbx = self._get_dropbox_client(access_token)
+        result = dbx.files_delete_v2(path)
+        return self._metadata_to_dict(result.metadata)
+
+    async def move_item(
+        self,
+        from_path: str,
+        to_path: str,
+        access_token: Optional[str] = None,
+        autorename: bool = True,
+        allow_ownership_transfer: bool = False,
+    ) -> Dict[str, Any]:
+        """Move a file or folder in Dropbox (wave 93)."""
+        dbx = self._get_dropbox_client(access_token)
+        result = dbx.files_move_v2(
+            from_path, to_path, autorename=autorename,
+            allow_ownership_transfer=allow_ownership_transfer)
+        return self._metadata_to_dict(result.metadata)
+
+    async def copy_item(
+        self,
+        from_path: str,
+        to_path: str,
+        access_token: Optional[str] = None,
+        autorename: bool = True,
+        allow_ownership_transfer: bool = False,
+    ) -> Dict[str, Any]:
+        """Copy a file or folder in Dropbox (wave 93)."""
+        dbx = self._get_dropbox_client(access_token)
+        result = dbx.files_copy_v2(
+            from_path, to_path, autorename=autorename,
+            allow_ownership_transfer=allow_ownership_transfer)
+        return self._metadata_to_dict(result.metadata)
+
+    async def create_shared_link(
+        self,
+        path: str,
+        access_token: Optional[str] = None,
+        settings: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Create a shared link for a file or folder (wave 93)."""
+        dbx = self._get_dropbox_client(access_token)
+        link_settings = None
+        if settings:
+            link_settings = dropbox.sharing.SharedLinkSettings(**settings)
+        result = dbx.sharing_create_shared_link_with_settings(
+            path, link_settings)
+        return {
+            "url": result.url,
+            "name": result.name,
+            "path": result.path_lower,
+            "preview_type": getattr(result, "preview_type", None),
+        }
+
+    async def get_account_info(
+        self, access_token: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get the connected Dropbox account profile (wave 93)."""
+        dbx = self._get_dropbox_client(access_token)
+        result = dbx.users_get_current_account()
+        name = getattr(result, "name", None)
+        return {
+            "account_id": result.account_id,
+            "email": result.email,
+            "email_verified": result.email_verified,
+            "name": {
+                "given_name": getattr(name, "given_name", None),
+                "surname": getattr(name, "surname", None),
+                "display_name": getattr(name, "display_name", None),
+            },
+            "country": getattr(result, "country", None),
+            "locale": getattr(result, "locale", None),
+            "referral_link": getattr(result, "referral_link", None),
+        }
+
+    async def get_space_usage(
+        self, access_token: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get the connected Dropbox account space usage (wave 93)."""
+        dbx = self._get_dropbox_client(access_token)
+        result = dbx.users_get_space_usage()
+        allocation = getattr(result, "allocation", None)
+        return {
+            "used": result.used,
+            "allocation": allocation.to_dict()
+            if allocation and hasattr(allocation, "to_dict")
+            else str(allocation),
+        }
+
+    async def get_metadata(
+        self, path: str, access_token: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get metadata for a single file or folder (wave 93)."""
+        dbx = self._get_dropbox_client(access_token)
+        result = dbx.files_get_metadata(path)
+        return self._metadata_to_dict(result)
+
+
+# Global singleton — dropbox_routes.py imports this name (wave 93: the
+# singleton was missing, so the routes module could not even import).
+dropbox_service = DropboxService()

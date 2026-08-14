@@ -307,10 +307,15 @@ class LinearService(IntegrationService):
                 "last_check": datetime.now(timezone.utc).isoformat(),
             }
         except Exception as e:
+            logger.error(f"Linear health check failed: {e}")
+            try:
+                last_check = datetime.now(timezone.utc).isoformat()
+            except Exception:
+                last_check = None
             return {
                 "healthy": False,
-                "message": f"Linear service unhealthy: {str(e)}",
-                "last_check": datetime.now(timezone.utc).isoformat(),
+                "message": "Linear service unhealthy",
+                "last_check": last_check,
             }
 
     async def execute_operation(
@@ -368,7 +373,8 @@ class LinearService(IntegrationService):
                 return {"success": False, "error": f"Unknown operation: {operation}"}
 
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logger.error(f"Linear operation {operation} failed: {e}")
+            return {"success": False, "error": "Linear operation failed"}
 
     async def sync_to_postgres_cache(self, workspace_id: str, access_token: str = None) -> Dict[str, Any]:
         """Sync Linear analytics to PostgreSQL IntegrationMetric table."""
@@ -392,7 +398,7 @@ class LinearService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="linear",
                         metric_key=key
                     ).first()
@@ -402,7 +408,7 @@ class LinearService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="linear",
                             metric_key=key,
                             value=float(value),
@@ -416,14 +422,14 @@ class LinearService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Linear metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Linear metrics sync failed"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Linear PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Linear PostgreSQL cache sync failed"}
 
     async def full_sync(self, workspace_id: str, access_token: str = None) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Linear"""

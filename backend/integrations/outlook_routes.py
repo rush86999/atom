@@ -10,13 +10,19 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from core.security_dependencies import get_current_user
 from .outlook_service import OutlookService
 
 logger = logging.getLogger(__name__)
 
 # Initialize router
-# Auth Type: OAuth2
-router = APIRouter(prefix="/api/outlook", tags=["outlook"])
+# Auth Type: OAuth2 (endpoints additionally require an authenticated session
+# user — 401 anonymous; R38-40 anon-sweep policy)
+router = APIRouter(
+    prefix="/api/outlook",
+    tags=["outlook"],
+    dependencies=[Depends(get_current_user)],
+)
 
 @router.get("/auth/url")
 async def get_auth_url():
@@ -209,6 +215,33 @@ async def create_draft_email(request: EmailDraftRequest):
         )
 
 
+# Unread emails endpoint
+# NOTE: must stay registered BEFORE /emails/{email_id} — Starlette matches
+# routes in registration order, so a later static path is shadowed by the
+# dynamic route (wave 92 bug: /emails/unread returned the email-detail
+# handler with email_id="unread" and the unread endpoint was unreachable).
+@router.get("/emails/unread", summary="Get unread emails")
+async def get_unread_emails(
+    user_id: str = Query(..., description="User ID"),
+    max_results: int = Query(50, description="Maximum results"),
+):
+    """Get unread emails"""
+    try:
+        emails = await outlook_service.get_unread_emails(user_id, max_results)
+        return {
+            "success": True,
+            "service": "outlook",
+            "operation": "get_unread_emails",
+            "data": emails,
+            "count": len(emails),
+        }
+    except Exception as e:
+        logger.error(f"Error getting unread emails: {e}")
+        raise HTTPException(
+            status_code=500, detail="Internal error"
+        )
+
+
 @router.get("/emails/{email_id}", summary="Get email by ID")
 async def get_email(email_id: str, user_id: str = Query(..., description="User ID")):
     """Get specific email by ID"""
@@ -225,6 +258,9 @@ async def get_email(email_id: str, user_id: str = Query(..., description="User I
         else:
             raise HTTPException(status_code=404, detail="Email not found")
 
+    except HTTPException:
+        # Do not swallow the intentional 404 in the broad handler below.
+        raise
     except Exception as e:
         logger.error(f"Error getting email: {e}")
         raise HTTPException(status_code=500, detail="Internal error")
@@ -459,31 +495,11 @@ async def get_user_profile(user_id: str = Query(..., description="User ID")):
         else:
             raise HTTPException(status_code=404, detail="User profile not found")
 
+    except HTTPException:
+        # Do not swallow the intentional 404 in the broad handler below.
+        raise
     except Exception as e:
         logger.error(f"Error getting user profile: {e}")
-        raise HTTPException(
-            status_code=500, detail="Internal error"
-        )
-
-
-# Unread emails endpoint
-@router.get("/emails/unread", summary="Get unread emails")
-async def get_unread_emails(
-    user_id: str = Query(..., description="User ID"),
-    max_results: int = Query(50, description="Maximum results"),
-):
-    """Get unread emails"""
-    try:
-        emails = await outlook_service.get_unread_emails(user_id, max_results)
-        return {
-            "success": True,
-            "service": "outlook",
-            "operation": "get_unread_emails",
-            "data": emails,
-            "count": len(emails),
-        }
-    except Exception as e:
-        logger.error(f"Error getting unread emails: {e}")
         raise HTTPException(
             status_code=500, detail="Internal error"
         )

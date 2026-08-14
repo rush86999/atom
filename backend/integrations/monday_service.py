@@ -250,7 +250,7 @@ class MondayService(IntegrationService):
 
         variables = {
             "itemId": item_id,
-            "columnValues": json.dumps(column_values) if column_values else {},
+            "columnValues": json.dumps(column_values) if column_values else "{}",
         }
 
         result = self._make_request(access_token, query, variables)
@@ -439,14 +439,14 @@ class MondayService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Monday metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Failed to save Monday metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Monday.com PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Monday.com cache sync failed"}
 
     async def full_sync(self, access_token: str, workspace_id: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Monday.com"""
@@ -580,4 +580,5 @@ class MondayService(IntegrationService):
                 return {"success": False, "error": f"Unknown operation: {operation}"}
 
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logger.error(f"Monday.com operation {operation} failed: {e}")
+            return {"success": False, "error": f"Monday.com operation failed: {operation}"}

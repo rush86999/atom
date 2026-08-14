@@ -6,11 +6,17 @@ Tests that Slack integration endpoints properly enforce agent maturity levels:
 - INTERN+ agents can send messages (complexity 2)
 - SUPERVISED+ agents can perform state changes
 - AUTONOMOUS agents have full access
+
+NOTE (wave 93): POST /search and GET /conversations/history now require
+authentication (they ingest into agent memory with a client-supplied
+user_id — an unauthenticated memory-forgery vector). The fixture below
+overrides get_current_user for these tests.
 """
 
 import pytest
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
+from unittest.mock import MagicMock
 
 # Create test app with Slack router
 from integrations.slack_routes import router as slack_router
@@ -18,11 +24,20 @@ from integrations.slack_routes import router as slack_router
 app = FastAPI()
 app.include_router(slack_router)
 
+from core.auth import get_current_user
+from core.models import User
+
 
 @pytest.fixture
 def client():
-    """Get test client"""
-    return TestClient(app)
+    """Get test client with authenticated user (wave 93)"""
+    user = MagicMock(spec=User)
+    user.id = "test_user"
+    user.email = "test@example.com"
+    user.tenant_id = "t-1"
+    app.dependency_overrides[get_current_user] = lambda: user
+    yield TestClient(app)
+    app.dependency_overrides.clear()
 
 
 class TestSlackEndpointBasics:

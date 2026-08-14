@@ -434,8 +434,13 @@ class NotionService(IntegrationService):
             logger.error(f"Failed to search databases: {e}")
             return []
 
-    async def sync_to_postgres_cache(self) -> Dict[str, Any]:
-        """Sync Notion analytics to PostgreSQL IntegrationMetric table."""
+    async def sync_to_postgres_cache(self, workspace_id: str = "default") -> Dict[str, Any]:
+        """Sync Notion analytics to PostgreSQL IntegrationMetric table.
+
+        Args:
+            workspace_id: Workspace/tenant identifier written into every
+                metric row (defaults to "default" for backwards compat).
+        """
         try:
             from core.database import SessionLocal
             from core.models import IntegrationMetric
@@ -457,11 +462,11 @@ class NotionService(IntegrationService):
                 
                 # Use "me" or workspace identifier if available
                 # Notion token is often per-workspace
-                workspace_id = "default"
+                mapping_id = workspace_id or "default"
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        workspace_id=workspace_id,
+                        workspace_id=mapping_id,
                         integration_type="notion",
                         metric_key=key
                     ).first()
@@ -471,7 +476,7 @@ class NotionService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            workspace_id=workspace_id,
+                            workspace_id=mapping_id,
                             integration_type="notion",
                             metric_key=key,
                             value=float(value),

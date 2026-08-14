@@ -197,9 +197,14 @@ async def send_slack_message(
 async def slack_search(
     request: SlackSearchRequest,
     agent_id: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """Search Slack messages with governance check (complexity 1 - STUDENT+)"""
+    """Search Slack messages with governance check (complexity 1 - STUDENT+)
+
+    **SECURITY**: Requires authentication — search results are ingested into
+    agent memory and an unauthenticated caller could forge memory entries.
+    """
     logger.info(f"Searching Slack for: {request.query}")
 
     # Governance check for search operations (READ - complexity 1)
@@ -323,9 +328,15 @@ async def get_conversation_history(
     limit: int = 10,
     user_id: str = "test_user",
     agent_id: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get conversation history for a channel with governance check (complexity 1 - STUDENT+)"""
+    """Get conversation history for a channel with governance check
+    (complexity 1 - STUDENT+)
+
+    **SECURITY**: Requires authentication — history is ingested into agent
+    memory and an unauthenticated caller could forge memory entries.
+    """
     logger.info(f"Getting conversation history for channel: {channel}")
 
     # Governance check for history operations (READ - complexity 1)
@@ -535,17 +546,21 @@ async def slack_interactive_callback(request: Request):
     ts_header = request.headers.get("X-Slack-Request-Timestamp", "")
     sig_header = request.headers.get("X-Slack-Signature", "")
 
-    if SLACK_SIGNING_SECRET:  # Only enforce if secret is configured
-        is_valid, reason = _verify_slack_signature(raw_body, ts_header, sig_header)
-        if not is_valid:
-            # Always return 200 to Slack; log the security event internally
-            logger.warning(f"Slack signature verification failed: {reason} (IP={client_ip})")
-            return {"ok": True}
-    else:
-        logger.warning(
-            "SLACK_SIGNING_SECRET not set — skipping signature verification. "
-            "Set this env var in production!"
+    # FAIL CLOSED: without a configured signing secret the request is
+    # unverifiable and MUST NOT be processed (no payload parsing, no action
+    # dispatch). Slack still receives its mandatory 200.
+    if not SLACK_SIGNING_SECRET:
+        logger.error(
+            "SLACK_SIGNING_SECRET not configured — rejecting interactive "
+            "request without processing (fail closed)"
         )
+        return {"ok": True}
+
+    is_valid, reason = _verify_slack_signature(raw_body, ts_header, sig_header)
+    if not is_valid:
+        # Always return 200 to Slack; log the security event internally
+        logger.warning(f"Slack signature verification failed: {reason} (IP={client_ip})")
+        return {"ok": True}
 
     # ── 3. Parse form-encoded payload ─────────────────────────────────────────
     try:

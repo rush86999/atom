@@ -4,9 +4,13 @@ Production-ready FastAPI routes for WhatsApp Business integration
 """
 
 from datetime import datetime, timedelta
+import base64
+import hashlib
+import hmac
 import logging
+import os
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request
 from pydantic import BaseModel, Field
 
 from core.auth import get_current_user
@@ -71,6 +75,37 @@ class BusinessProfileUpdate(BaseModel):
 router = APIRouter(prefix="/api/whatsapp", tags=["WhatsApp Business"])
 
 
+def _get_webhook_verify_token() -> str:
+    """Configured webhook verify token (env first, then integration config)."""
+    token = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
+    if not token and whatsapp_integration is not None:
+        token = getattr(whatsapp_integration, "webhook_verify_token", "") or ""
+    return token
+
+
+def _get_webhook_app_secret() -> str:
+    """Configured webhook app secret (env first, then integration config)."""
+    secret = os.getenv("WHATSAPP_APP_SECRET", "")
+    if not secret and whatsapp_integration is not None:
+        secret = getattr(whatsapp_integration, "webhook_app_secret", "") or ""
+    return secret
+
+
+def _verify_webhook_signature(raw_body: bytes, signature_header: str,
+                              app_secret: str) -> bool:
+    """Verify the Meta X-Hub-Signature-256 HMAC-SHA256 header."""
+    if not signature_header.startswith("sha256="):
+        return False
+    digest = hmac.new(app_secret.encode("utf-8"), raw_body,
+                      hashlib.sha256).digest()
+    supplied = signature_header[len("sha256="):]
+    return (
+        hmac.compare_digest(digest.hex(), supplied)
+        or hmac.compare_digest(
+            base64.b64encode(digest).decode("utf-8"), supplied)
+    )
+
+
 @router.get("/health", summary="Basic WhatsApp health check")
 async def whatsapp_health():
     """Basic health check for WhatsApp Business integration"""
@@ -119,8 +154,10 @@ async def whatsapp_service_metrics():
 
 
 @router.post("/service/initialize", summary="Initialize WhatsApp service")
-async def initialize_service():
-    """Initialize WhatsApp Business service with configuration"""
+async def initialize_service(
+    current_user: User = Depends(get_current_user)
+):
+    """Initialize WhatsApp Business service with configuration (requires authentication)"""
     try:
         result = whatsapp_service_manager.initialize_service()
         return result
@@ -225,9 +262,10 @@ async def send_batch_messages(
 
 @router.get("/conversations", summary="Get WhatsApp conversations")
 async def get_conversations(
-    limit: int = Query(default=50, ge=1, le=100), offset: int = Query(default=0, ge=0)
+    limit: int = Query(default=50, ge=1, le=100), offset: int = Query(default=0, ge=0),
+    current_user: User = Depends(get_current_user)
 ):
-    """Retrieve WhatsApp conversations with pagination"""
+    """Retrieve WhatsApp conversations with pagination (requires authentication)"""
     try:
         conversations = whatsapp_integration.get_conversations(limit, offset)
         return {
@@ -253,8 +291,9 @@ async def search_conversations(
     date_to: str = Query(default="", description="End date (YYYY-MM-DD)"),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    current_user: User = Depends(get_current_user)
 ):
-    """Search conversations with advanced filtering"""
+    """Search conversations with advanced filtering (requires authentication)"""
     try:
         # Validate search parameters
         if not query and not status and not date_from and not date_to:
@@ -333,8 +372,9 @@ async def search_conversations(
 async def get_messages(
     whatsapp_id: str = Path(..., description="WhatsApp contact ID"),
     limit: int = Query(default=100, ge=1, le=1000),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get message history for a specific contact"""
+    """Get message history for a specific contact (requires authentication)"""
     try:
         messages = whatsapp_integration.get_messages(whatsapp_id, limit)
         return {
@@ -350,9 +390,10 @@ async def get_messages(
 
 @router.get("/messages", summary="Get WhatsApp messages (all)")
 async def get_all_messages(
-    limit: int = Query(default=10, ge=1, le=100, description="Maximum messages to return")
+    limit: int = Query(default=10, ge=1, le=100, description="Maximum messages to return"),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get recent WhatsApp messages across all conversations (E2E test compatibility)"""
+    """Get recent WhatsApp messages across all conversations (requires authentication)"""
     try:
         # Get recent conversations and extract messages
         conversations = whatsapp_integration.get_conversations(limit=limit, offset=0)
@@ -403,8 +444,9 @@ async def create_template(
 async def get_analytics(
     start_date: str = Query(default="", description="Start date (YYYY-MM-DD)"),
     end_date: str = Query(default="", description="End date (YYYY-MM-DD)"),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get comprehensive analytics and metrics"""
+    """Get comprehensive analytics and metrics (requires authentication)"""
     try:
         if start_date:
             start_dt = datetime.fromisoformat(start_date)
@@ -436,8 +478,9 @@ async def export_analytics(
     format: str = Query(default="json", pattern="^(json|csv)$"),
     start_date: str = Query(default="", description="Start date (YYYY-MM-DD)"),
     end_date: str = Query(default="", description="End date (YYYY-MM-DD)"),
+    current_user: User = Depends(get_current_user)
 ):
-    """Export analytics data in various formats"""
+    """Export analytics data in various formats (requires authentication)"""
     try:
         if start_date:
             start_dt = datetime.fromisoformat(start_date)
@@ -501,8 +544,10 @@ async def export_analytics(
 
 
 @router.get("/configuration/business-profile", summary="Get business profile")
-async def get_business_profile():
-    """Get current WhatsApp business profile configuration"""
+async def get_business_profile(
+    current_user: User = Depends(get_current_user)
+):
+    """Get current WhatsApp business profile configuration (requires authentication)"""
     try:
         profile = whatsapp_service_manager.config.get("business_profile", {})
         return {
@@ -560,31 +605,64 @@ async def webhook_verification(
     hub_verify_token: str = Query(alias="hub.verify_token"),
     hub_challenge: str = Query(alias="hub.challenge"),
 ):
-    """Handle WhatsApp webhook verification"""
+    """Handle WhatsApp webhook verification (FAIL CLOSED).
+
+    The handshake only succeeds when hub.mode == "subscribe" AND the
+    supplied verify token matches the configured WHATSAPP_VERIFY_TOKEN
+    (env) or whatsapp_integration.webhook_verify_token. An unconfigured
+    token can never satisfy the handshake.
+    """
     try:
-        # For development, accept any token if mode is subscribe
-        if hub_mode == "subscribe":
+        expected = _get_webhook_verify_token()
+        if (
+            hub_mode == "subscribe"
+            and expected
+            and hmac.compare_digest(hub_verify_token, expected)
+        ):
             return hub_challenge
-        else:
-            raise HTTPException(status_code=403, detail="Verification failed")
+        raise HTTPException(status_code=403, detail="Verification failed")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"WhatsApp webhook verification error: {str(e)}")
-        raise HTTPException(status_code=403, detail="Internal error")
+        raise HTTPException(status_code=403, detail="Verification failed")
 
 
 @router.post("/webhook", summary="WhatsApp webhook handler")
-async def webhook_handler(webhook_data: Dict[str, Any]):
-    """Handle incoming WhatsApp messages and events"""
+async def webhook_handler(request: Request):
+    """Handle incoming WhatsApp messages and events (FAIL CLOSED).
+
+    Requires a valid X-Hub-Signature-256 HMAC header computed with the
+    configured app secret (WHATSAPP_APP_SECRET env or
+    whatsapp_integration.webhook_app_secret). Without a configured secret
+    the endpoint refuses (503); a missing/mismatched signature is rejected
+    (401). Forged events can never reach the ingestion bridge.
+    """
     try:
+        app_secret = _get_webhook_app_secret()
+        if not app_secret:
+            logger.error("WhatsApp webhook app secret not configured")
+            raise HTTPException(status_code=503, detail="Webhook not configured")
+
+        raw_body = await request.body()
+        signature = request.headers.get("X-Hub-Signature-256", "")
+        if not _verify_webhook_signature(raw_body, signature, app_secret):
+            logger.warning("WhatsApp webhook signature verification failed")
+            raise HTTPException(status_code=401, detail="Invalid signature")
+
+        import asyncio
+        import json
+
+        webhook_data = json.loads(raw_body.decode("utf-8"))
         logger.info(f"WhatsApp webhook received: {str(webhook_data)[:200]}...")
 
         # Process incoming messages and events
-        import asyncio
-
         from integrations.universal_webhook_bridge import universal_webhook_bridge
         asyncio.create_task(universal_webhook_bridge.process_incoming_message("whatsapp", webhook_data))
 
         return {"status": "received"}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"WhatsApp webhook handler error: {str(e)}")
         raise HTTPException(status_code=503 if not WHATSAPP_AVAILABLE else 500, detail="WhatsApp integration not available" if not WHATSAPP_AVAILABLE else "Internal error")
