@@ -170,7 +170,8 @@ describe("MiniAppHarness", () => {
     fireEvent.click(screen.getByText("Scaffold"));
     await waitFor(() => expect(apiClientMock.get).toHaveBeenCalledTimes(2));
     // A transient failure must not wipe the source the user is editing.
-    expect((screen.getByTestId("logic-editor") as HTMLTextAreaElement).value).toBe("state = {'keep': True}");
+    // (The refetch flips loading=true, so wait for the editor to come back.)
+    await waitFor(() => expect(screen.getByTestId("logic-editor")).toHaveValue("state = {'keep': True}"));
   });
 
   it("sends comma-separated scopes and dependencies to scaffold", async () => {

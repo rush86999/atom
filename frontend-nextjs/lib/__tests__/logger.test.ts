@@ -9,6 +9,19 @@
 
 import { logger, appServiceLogger } from '../logger';
 
+// Mock @opentelemetry/api so we can simulate an active trace span (the
+// log formatter must stamp traceId/spanId/traceFlags onto the log object).
+jest.mock('@opentelemetry/api', () => ({
+  trace: {
+    getSpan: jest.fn(),
+  },
+  context: {
+    active: jest.fn(),
+  },
+}));
+
+import { trace } from '@opentelemetry/api';
+
 // Mock pino so it never instantiates the "pino-pretty" dev transport (not an
 // installed dependency). The logger unit tests only verify the wrapper API,
 // so a stubbed pino instance is sufficient. jest.mock is hoisted to the top
@@ -18,10 +31,14 @@ import { logger, appServiceLogger } from '../logger';
 // each test, so the child() implementation is re-established in beforeEach
 // via jest.requireMock. We cannot use a module-scope mock* variable here:
 // the import of '../logger' (which requires pino) is hoisted above the const,
-// so the factory would read it before initialization (TDZ).
+// so the factory would read it before initialization (TDZ). We use `var`
+// instead: it is hoisted AND initialized (to undefined), so the factory can
+// capture the pino constructor config without hitting the TDZ.
 // Note: child() is a plain function (not jest.fn) so it is NOT wiped by
 // resetMocks between tests — the appServiceLogger.child wrapper always gets a
 // real child object back.
+var mockPinoConfig: any;
+
 jest.mock('pino', () => {
   const createHandler = () => ({
     level: 'info',
@@ -34,16 +51,19 @@ jest.mock('pino', () => {
   });
   return {
     __esModule: true,
-    default: jest.fn(() => ({
-      level: 'info',
-      info: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
-      debug: jest.fn(),
-      fatal: jest.fn(),
-      trace: jest.fn(),
-      child: createHandler,
-    })),
+    default: jest.fn((config: any) => {
+      mockPinoConfig = config;
+      return {
+        level: 'info',
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn(),
+        fatal: jest.fn(),
+        trace: jest.fn(),
+        child: createHandler,
+      };
+    }),
   };
 });
 
@@ -182,5 +202,107 @@ describe('logger.ts - Logger Configuration', () => {
   // Test 20: appServiceLogger is same as logger
   test('appServiceLogger should be the same as logger', () => {
     expect(appServiceLogger).toBe(logger);
+  });
+
+  // Test 21: level formatter uppercases the level label
+  test('level formatter should uppercase the level label', () => {
+    expect(mockPinoConfig.formatters.level('info')).toEqual({ level: 'INFO' });
+    expect(mockPinoConfig.formatters.level('error')).toEqual({ level: 'ERROR' });
+  });
+
+  // Test 22: log formatter passes objects through unchanged without a span
+  test('log formatter should leave object unchanged when no active span', () => {
+    (trace.getSpan as jest.Mock).mockReturnValueOnce(undefined);
+    const obj = { message: 'hello', userId: 42 };
+    expect(mockPinoConfig.formatters.log(obj)).toBe(obj);
+  });
+
+  // Test 23: log formatter stamps trace context when a span is active
+  test('log formatter should stamp traceId/spanId/traceFlags from active span', () => {
+    (trace.getSpan as jest.Mock).mockReturnValueOnce({
+      spanContext: () => ({
+        traceId: 'trace-abc',
+        spanId: 'span-xyz',
+        traceFlags: 1,
+      }),
+    });
+    const obj: Record<string, any> = { message: 'traced' };
+    const result = mockPinoConfig.formatters.log(obj);
+    expect(result.traceId).toBe('trace-abc');
+    expect(result.spanId).toBe('span-xyz');
+    expect(result.traceFlags).toBe(1);
+  });
+
+  // Test 24: timestamp formatter produces an ISO timestamp string
+  test('timestamp formatter should produce an ISO timestamp string', () => {
+    const ts = mockPinoConfig.timestamp();
+    expect(typeof ts).toBe('string');
+    expect(ts).toMatch(/,"timestamp":"\d{4}-\d{2}-\d{2}T/);
+  });
+
+  // Test 25: base service/version come from environment or defaults
+  test('base service and version should be configured', () => {
+    expect(mockPinoConfig.base).toBeDefined();
+    expect(typeof mockPinoConfig.base.service).toBe('string');
+    expect(typeof mockPinoConfig.base.version).toBe('string');
+  });
+
+  // Test 26: dev (non-production) environment enables pino-pretty transport
+  test('non-production environment should use pino-pretty transport', () => {
+    // NODE_ENV defaults to 'test' here, so the pretty transport is configured.
+    expect(mockPinoConfig.transport).toBeDefined();
+    expect(mockPinoConfig.transport.target).toBe('pino-pretty');
+  });
+
+  // Test 27: production environment disables the pretty transport
+  test('production environment should not use pino-pretty transport', () => {
+    // resetMocks: true wipes the pino mock implementation before each test;
+    // re-establish it so the isolated require gets a real (mocked) pino.
+    const mockPinoDefault = (jest.requireMock('pino') as any).default;
+    mockPinoDefault.mockImplementation((config: any) => {
+      mockPinoConfig = config;
+      return {
+        level: 'info',
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn(),
+        fatal: jest.fn(),
+        trace: jest.fn(),
+        child: () => ({
+          level: 'info',
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+          debug: jest.fn(),
+          fatal: jest.fn(),
+          trace: jest.fn(),
+        }),
+      };
+    });
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      jest.isolateModules(() => {
+        require('../logger');
+      });
+      expect(mockPinoConfig.transport).toBeUndefined();
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
+  });
+
+  // Test 28: all four flexible-argument calling conventions reach pino
+  test('flexible log method supports all four argument conventions', () => {
+    // (string) → pino.info(message)
+    expect(() => logger.info('just a message')).not.toThrow();
+    // (string, object) → pino.info(object, message)
+    expect(() => logger.warn('context message', { userId: 1 })).not.toThrow();
+    // (object, string) → pino.info(object, message)
+    expect(() => logger.error({ event: 'x' }, 'message after object')).not.toThrow();
+    // (object) → pino.info(object)
+    expect(() => logger.debug({ event: 'y' })).not.toThrow();
+    // (object, object) → pino.info(object)
+    expect(() => logger.trace({ a: 1 }, { b: 2 })).not.toThrow();
   });
 });

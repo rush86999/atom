@@ -619,6 +619,14 @@ describe('HubSpot API Service', () => {
       });
     });
 
+    it('should return an empty list on error', async () => {
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('API error'));
+
+      const result = await hubspotApi.getDeals();
+
+      expect(result).toEqual({ deals: [], total: 0, hasMore: false });
+    });
+
     it('should handle pagination parameters', async () => {
       (global.mockFetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
@@ -754,6 +762,279 @@ describe('HubSpot API Service', () => {
           }),
         })
       );
+    });
+  });
+
+  // ==========================================================================
+  // Extended coverage: company/deal lookups, pipelines, analytics, lists,
+  // templates, email, searches, and error paths
+  // ==========================================================================
+  describe('getCompany', () => {
+    it('should return the company when found', async () => {
+      const company = { id: 'c1', name: 'Acme', domain: 'acme.com' };
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ company }),
+      });
+
+      const result = await hubspotApi.getCompany('c1');
+
+      expect(result).toEqual(company);
+      expect(global.fetch).toHaveBeenCalledWith('/api/hubspot/companies/c1', expect.anything());
+    });
+
+    it('should return null when the company is missing', async () => {
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}),
+      });
+
+      await expect(hubspotApi.getCompany('c1')).resolves.toBeNull();
+    });
+
+    it('should return null on error', async () => {
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+
+      await expect(hubspotApi.getCompany('c1')).resolves.toBeNull();
+    });
+  });
+
+  describe('getCompanies with params', () => {
+    it('should append limit/after/properties query parameters', async () => {
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ companies: [], total: 0, hasMore: false }),
+      });
+
+      await hubspotApi.getCompanies({
+        limit: 25,
+        after: 'cur',
+        properties: ['domain', 'name'],
+      });
+
+      const url = (global.mockFetch as jest.Mock).mock.calls[0][0];
+      expect(url).toContain('limit=25');
+      expect(url).toContain('after=cur');
+      expect(url).toContain('properties=domain%2Cname');
+    });
+  });
+
+  describe('getDeal', () => {
+    it('should return the deal when found', async () => {
+      const deal = { id: 'd1', amount: 1000 };
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ deal }),
+      });
+
+      const result = await hubspotApi.getDeal('d1');
+
+      expect(result).toEqual(deal);
+      expect(global.fetch).toHaveBeenCalledWith('/api/hubspot/deals/d1', expect.anything());
+    });
+
+    it('should return null when the deal is missing or on error', async () => {
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+      await expect(hubspotApi.getDeal('d1')).resolves.toBeNull();
+
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      await expect(hubspotApi.getDeal('d1')).resolves.toBeNull();
+    });
+  });
+
+  describe('createDeal / updateDeal error paths', () => {
+    it('createDeal should return a failure payload on error', async () => {
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('create failed'));
+
+      const result = await hubspotApi.createDeal({ amount: 1 });
+
+      expect(result).toEqual({ success: false, error: 'create failed' });
+    });
+
+    it('updateDeal should return a failure payload on error', async () => {
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('update failed'));
+
+      const result = await hubspotApi.updateDeal('d1', { amount: 2 });
+
+      expect(result).toEqual({ success: false, error: 'update failed' });
+    });
+  });
+
+  describe('getCampaign', () => {
+    it('should return the campaign when found', async () => {
+      const campaign = { id: 'cp1', name: 'Launch' };
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ campaign }),
+      });
+
+      const result = await hubspotApi.getCampaign('cp1');
+
+      expect(result).toEqual(campaign);
+    });
+
+    it('should return null when missing or on error', async () => {
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+      await expect(hubspotApi.getCampaign('cp1')).resolves.toBeNull();
+
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      await expect(hubspotApi.getCampaign('cp1')).resolves.toBeNull();
+    });
+  });
+
+  describe('getPipelineStages', () => {
+    it('should return stages when present', async () => {
+      const stages = [{ id: 's1', label: 'Open' }];
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ stages }),
+      });
+
+      const result = await hubspotApi.getPipelineStages('p1');
+
+      expect(result).toEqual(stages);
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/hubspot/pipelines/p1/stages',
+        expect.anything()
+      );
+    });
+
+    it('should return an empty array when missing or on error', async () => {
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+      await expect(hubspotApi.getPipelineStages('p1')).resolves.toEqual([]);
+
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      await expect(hubspotApi.getPipelineStages('p1')).resolves.toEqual([]);
+    });
+  });
+
+  describe('analytics endpoints', () => {
+    it('getDealAnalytics should return the payload or an empty object on error', async () => {
+      const payload = { deals: [], revenue: 0 };
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => payload });
+      await expect(hubspotApi.getDealAnalytics()).resolves.toEqual(payload);
+
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      await expect(hubspotApi.getDealAnalytics()).resolves.toEqual({});
+    });
+
+    it('getContactAnalytics should return the payload or an empty object on error', async () => {
+      const payload = { contacts: 5 };
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => payload });
+      await expect(hubspotApi.getContactAnalytics()).resolves.toEqual(payload);
+
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      await expect(hubspotApi.getContactAnalytics()).resolves.toEqual({});
+    });
+
+    it('getCampaignAnalytics should return the payload or an empty object on error', async () => {
+      const payload = { campaigns: [] };
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => payload });
+      await expect(hubspotApi.getCampaignAnalytics()).resolves.toEqual(payload);
+
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      await expect(hubspotApi.getCampaignAnalytics()).resolves.toEqual({});
+    });
+  });
+
+  describe('createList', () => {
+    it('should create a list successfully', async () => {
+      const list = { id: 'l1', name: 'VIP', type: 'static' };
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ list }),
+      });
+
+      const result = await hubspotApi.createList({ name: 'VIP', type: 'static' });
+
+      expect(result).toEqual({ success: true, list });
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/hubspot/lists',
+        expect.objectContaining({ method: 'POST' })
+      );
+    });
+
+    it('should return a failure payload on error', async () => {
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('list failed'));
+
+      const result = await hubspotApi.createList({ name: 'X', type: 'static' });
+
+      expect(result).toEqual({ success: false, error: 'list failed' });
+    });
+  });
+
+  describe('getEmailTemplates', () => {
+    it('should return templates or an empty array on error', async () => {
+      const templates = [{ id: 't1', name: 'Intro' }];
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ templates }),
+      });
+      await expect(hubspotApi.getEmailTemplates()).resolves.toEqual(templates);
+
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      await expect(hubspotApi.getEmailTemplates()).resolves.toEqual([]);
+    });
+  });
+
+  describe('sendEmail', () => {
+    it('should send successfully', async () => {
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+
+      const result = await hubspotApi.sendEmail('t1', ['c1', 'c2']);
+
+      expect(result).toEqual({ success: true });
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/hubspot/email/send',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ templateId: 't1', contactIds: ['c1', 'c2'] }),
+        })
+      );
+    });
+
+    it('should return a failure payload on error', async () => {
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('send failed'));
+
+      const result = await hubspotApi.sendEmail('t1', []);
+
+      expect(result).toEqual({ success: false, error: 'send failed' });
+    });
+  });
+
+  describe('searchCompanies / searchDeals', () => {
+    it('searchCompanies should return matches or an empty array on error', async () => {
+      const companies = [{ id: 'c1', name: 'Acme' }];
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ companies }),
+      });
+      await expect(hubspotApi.searchCompanies('acme')).resolves.toEqual(companies);
+
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      await expect(hubspotApi.searchCompanies('acme')).resolves.toEqual([]);
+    });
+
+    it('searchDeals should return matches or an empty array on error', async () => {
+      const deals = [{ id: 'd1' }];
+      (global.mockFetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ deals }),
+      });
+      await expect(hubspotApi.searchDeals('acme')).resolves.toEqual(deals);
+
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+      await expect(hubspotApi.searchDeals('acme')).resolves.toEqual([]);
+    });
+  });
+
+  describe('getAIPredictions error path', () => {
+    it('should return an empty predictions payload on error', async () => {
+      (global.mockFetch as jest.Mock).mockRejectedValueOnce(new Error('ai down'));
+
+      const result = await hubspotApi.getAIPredictions();
+
+      expect(result).toEqual({ models: [], predictions: [], forecast: [] });
     });
   });
 });

@@ -12,7 +12,7 @@ interface CostCalculatorProps {
 export function CostCalculator({ selectedTier }: CostCalculatorProps) {
   const { estimateCost } = useCognitiveTier();
   const [prompt, setPrompt] = useState("");
-  const [requestsPerDay, setRequestsPerDay] = useState([100]);
+  const [requestsPerDay, setRequestsPerDay] = useState(100);
   const [estimatedCost, setEstimatedCost] = useState<number | null>(null);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export function CostCalculator({ selectedTier }: CostCalculatorProps) {
       const costs = await estimateCost(prompt);
       const tierCost = costs.find(c => c.tier === selectedTier);
       if (tierCost) {
-        const monthlyRequests = requestsPerDay[0] * 30;
+        const monthlyRequests = requestsPerDay * 30;
         const costPerRequest = tierCost.estimated_cost_usd;
         setEstimatedCost(costPerRequest * monthlyRequests);
       } else {
@@ -53,7 +53,7 @@ export function CostCalculator({ selectedTier }: CostCalculatorProps) {
         </div>
 
         <div className="space-y-2">
-          <Label>Requests Per Day: {requestsPerDay[0]}</Label>
+          <Label>Requests Per Day: {requestsPerDay}</Label>
           <Slider
             value={requestsPerDay}
             onValueChange={setRequestsPerDay}

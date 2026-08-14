@@ -225,7 +225,8 @@ describe('testIds', () => {
         'AUTH',
         'FORM',
         'SKILLS',
-        'SETTINGS'
+        'SETTINGS',
+        'PROJECTS'
       ]);
     });
   });

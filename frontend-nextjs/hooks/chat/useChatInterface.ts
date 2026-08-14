@@ -151,12 +151,12 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         }
     };
 
-    const handleSend = async (overrideText?: string) => {
+    const handleSend = async (overrideText?: string): Promise<boolean> => {
         // overrideText is used by handleRegenerate to re-send the original
         // prompt (input is empty at that point). Without it, regenerate would
         // silently delete the exchange and produce nothing.
         const currentInput = (overrideText ?? input).trim();
-        if (!currentInput) return;
+        if (!currentInput) return false;
 
         // Clear any prior provider-error banner before attempting another send.
         setProviderError(null);
@@ -223,7 +223,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     content: data.message || "No AI provider configured.",
                     timestamp: new Date(),
                 }]);
-                return;
+                return false;
             }
 
             // Budget-exceeded: surface as a distinct error-type message so the
@@ -239,7 +239,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     content: data.message || "Budget limit reached — execution halted.",
                     timestamp: new Date(),
                 }]);
-                return;
+                return false;
             }
 
             // Clear the safety-net timeout on any successful resolution.
@@ -266,6 +266,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                 // Mark this generation as REST-fulfilled so the WebSocket
                 // streaming:complete path doesn't append a duplicate.
                 _restFulfilledRef.current = true;
+                return true;
             } else {
                 throw new Error(data.error || "Failed to process request");
             }
@@ -277,6 +278,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                 content: "⚠️ I encountered an error. Please check your connection and try again.",
                 timestamp: new Date(),
             }]);
+            return false;
         } finally {
             // Clear the safety-net timeout on EVERY exit path, not just
             // success. Without this, an error/early-return (no_llm_provider,
@@ -357,11 +359,11 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         // original messages so we can restore them if the regenerate fails.
         const originalMessages = [...messages];
         setMessages(prev => prev.slice(0, userIdx));
-        try {
-            await handleSend(originalPrompt);
-        } catch {
-            // Regenerate failed — restore the original exchange so the user
-            // doesn't lose their conversation.
+        // handleSend never throws (it swallows errors internally), so the
+        // boolean return is the failure signal: restore the original exchange
+        // so the user doesn't lose their conversation.
+        const ok = await handleSend(originalPrompt);
+        if (!ok) {
             setMessages(originalMessages);
             toast({
                 title: "Regenerate failed",

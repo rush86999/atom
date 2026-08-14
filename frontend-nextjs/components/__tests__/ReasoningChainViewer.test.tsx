@@ -13,7 +13,7 @@
  *   opens the correction input and Enter submits onStepFeedback(stepId, 0, comment)
  * - no chainId + no chainData renders "No reasoning chain available"
  *
- * API: GET /api/v1/voice/reasoning/:chainId (mermaid render is mocked)
+ * API: GET /api/reasoning/chain/:chainId (mermaid render is mocked)
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -68,7 +68,7 @@ describe('ReasoningChainViewer', () => {
 
     server.resetHandlers();
     server.use(
-      rest.get('/api/v1/voice/reasoning/:chainId', (req, res, ctx) => {
+      rest.get('http://localhost:8000/api/reasoning/chain/:chainId', (req, res, ctx) => {
         return res(ctx.status(200), ctx.json(chainData));
       })
     );
@@ -111,14 +111,14 @@ describe('ReasoningChainViewer', () => {
 
   it('renders the error message when the chain fetch fails', async () => {
     server.use(
-      rest.get('/api/v1/voice/reasoning/:chainId', (req, res, ctx) => {
+      rest.get('http://localhost:8000/api/reasoning/chain/:chainId', (req, res, ctx) => {
         return res(ctx.status(404));
       })
     );
 
     render(<ReasoningChainViewer chainId="missing" />);
 
-    expect(await screen.findByText('Failed to fetch reasoning chain')).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to fetch reasoning chain/)).toBeInTheDocument();
   });
 
   it('expands a step to show inputs, outputs and duration detail', async () => {

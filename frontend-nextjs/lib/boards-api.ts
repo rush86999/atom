@@ -218,6 +218,12 @@ export class DecomposeNeedsKeyError extends Error {
   constructor() {
     super('Task decomposition requires a tenant BYOK key. Add one in Settings → API Keys.');
     this.name = 'DecomposeNeedsKeyError';
+    // ES5 transpilation (tsconfig target) of `extends Error` returns a raw
+    // Error instance from super() — its prototype is Error.prototype, so
+    // `err instanceof DecomposeNeedsKeyError` is false everywhere (the
+    // TaskDetailDrawer BYOK-key branch was dead code). Repoint the prototype
+    // so instanceof works in the compiled output.
+    Object.setPrototypeOf(this, DecomposeNeedsKeyError.prototype);
   }
 }
 

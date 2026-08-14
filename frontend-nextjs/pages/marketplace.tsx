@@ -76,17 +76,7 @@ export default function MarketplacePage() {
     const [previewTemplate, setPreviewTemplate] = useState<WorkflowTemplate | null>(null)
     const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
-<<<<<<< Updated upstream
-=======
-    useEffect(() => {
-        console.log("[PROBE] effect ran, fetchTemplates identity:", !!fetchTemplates);
-        fetchTemplates()
-    }, [fetchTemplates])
-    console.log("[PROBE-RENDER] at effect call: fetchTemplates =", fetchTemplates ? "FN" : "UNDEFINED");
-
->>>>>>> Stashed changes
     const fetchTemplates = useCallback(async () => {
-        console.log("[PROBE] fetchTemplates body, selectedCategory:", selectedCategory);
         try {
             setLoading(true)
             setErrorMessage(null)

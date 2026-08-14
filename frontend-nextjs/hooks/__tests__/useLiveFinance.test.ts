@@ -12,19 +12,50 @@
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { rest } from 'msw';
 import { useLiveFinance, UnifiedTransaction, FinanceStats } from '../useLiveFinance';
 
-describe('useLiveFinance Hook', () => {
+  describe('useLiveFinance Hook', () => {
+  const { overrideHandler } = require('@/tests/mocks/server');
+
+  // Module-scope fetch counter captured by the default MSW handler below.
+  // Behavior-based alternative to jest.spyOn(global, 'setInterval') — spying
+  // on the fake-timer setInterval corrupts timer state for every later test
+  // in this file (the fetch integration tests never settle afterward).
+  let financeOverviewFetches = 0;
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    financeOverviewFetches = 0;
+    // Default MSW handler: every render of the hook fires a fetch to
+    // /api/atom/finance/live/overview. Tests 1–8 don't assert on the payload,
+    // so answer with a benign empty overview instead of passing through to the
+    // real network (which hangs under fake timers and pollutes later tests).
+    overrideHandler(
+      rest.get('/api/atom/finance/live/overview', (req, res, ctx) => {
+        financeOverviewFetches += 1;
+        return res(
+          ctx.json({
+            ok: true,
+            stats: {
+              total_revenue: 0,
+              pending_revenue: 0,
+              transaction_count: 0,
+              platform_breakdown: {},
+            },
+            transactions: [],
+            providers: {},
+          })
+        );
+      })
+    );
   });
 
   afterEach(() => {
     jest.runOnlyPendingTimers();
     jest.useRealTimers();
   });
-
   describe('1. Initial State Tests', () => {
     test('isLoading starts as true', () => {
       const { result } = renderHook(() => useLiveFinance());
@@ -58,23 +89,22 @@ describe('useLiveFinance Hook', () => {
 
   describe('2. Polling Behavior Tests', () => {
     test('sets up interval on mount', () => {
-      const setIntervalSpy = jest.spyOn(global, 'setInterval');
-
+      // Fake timers are active: the hook's 60s polling interval is a pending
+      // fake timer. (Cannot spy on global.setInterval here — spying on the
+      // fake-timer implementation corrupts later tests in this file.)
       renderHook(() => useLiveFinance());
 
-      expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 60000);
-      setIntervalSpy.mockRestore();
+      expect(jest.getTimerCount()).toBeGreaterThan(0);
     });
 
     test('clears interval on unmount', () => {
-      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
-
       const { unmount } = renderHook(() => useLiveFinance());
+
+      expect(jest.getTimerCount()).toBeGreaterThan(0);
 
       unmount();
 
-      expect(clearIntervalSpy).toHaveBeenCalled();
-      clearIntervalSpy.mockRestore();
+      expect(jest.getTimerCount()).toBe(0);
     });
   });
 
@@ -210,16 +240,23 @@ describe('useLiveFinance Hook', () => {
   });
 
   describe('7. Polling Interval Tests', () => {
-    test('uses 60 second interval', () => {
-      const setIntervalSpy = jest.spyOn(global, 'setInterval');
-
+    test('uses 60 second interval', async () => {
+      // Behavior-based: the default MSW handler counts fetches. Mounting fires
+      // the initial fetch (1); advancing exactly 60s fires the interval tick
+      // (2) — proving the polling cadence is 60s.
       renderHook(() => useLiveFinance());
 
-      const calls = setIntervalSpy.mock.calls;
-      const intervalCall = calls.find(call => call[1] === 60000);
+      // Flush the async initial fetch (MSW resolves in a microtask).
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(financeOverviewFetches).toBe(1);
 
-      expect(intervalCall).toBeDefined();
-      setIntervalSpy.mockRestore();
+      await act(async () => {
+        jest.advanceTimersByTime(60000);
+      });
+
+      expect(financeOverviewFetches).toBe(2);
     });
   });
 
@@ -240,6 +277,168 @@ describe('useLiveFinance Hook', () => {
       const secondRefresh = result.current.refresh;
 
       expect(firstRefresh).toBe(secondRefresh);
+    });
+  });
+
+  // ------------------------------------------------------------------------
+  // 9. Fetch Integration Tests (MSW handlers — repo convention: never mock
+  // global.fetch; MSW wraps it and converts relative URLs to absolute)
+  // ------------------------------------------------------------------------
+  describe('9. Fetch Integration Tests', () => {
+
+    beforeEach(() => {
+      jest.useRealTimers();
+    });
+
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
+    test('fetches and populates transactions, stats, and providers on success', async () => {
+      overrideHandler(
+        rest.get('/api/atom/finance/live/overview', (req, res, ctx) =>
+          res(
+            ctx.json({
+              ok: true,
+              stats: {
+                total_revenue: 10000,
+                pending_revenue: 2500,
+                transaction_count: 12,
+                platform_breakdown: { stripe: 7000, xero: 3000 },
+              },
+              transactions: [
+                {
+                  id: 'txn-1',
+                  description: 'Consulting',
+                  amount: 1000,
+                  currency: 'USD',
+                  date: '2026-03-01',
+                  status: 'completed',
+                  platform: 'stripe',
+                },
+              ],
+              providers: { stripe: true, xero: false },
+            })
+          )
+        )
+      );
+
+      const { result } = renderHook(() => useLiveFinance());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.transactions).toHaveLength(1);
+      expect(result.current.transactions[0].id).toBe('txn-1');
+      expect(result.current.stats.total_revenue).toBe(10000);
+      expect(result.current.stats.platform_breakdown).toEqual({
+        stripe: 7000,
+        xero: 3000,
+      });
+      expect(result.current.activeProviders).toEqual({ stripe: true, xero: false });
+    });
+
+    test('leaves defaults untouched when the response is not ok', async () => {
+      overrideHandler(
+        rest.get('/api/atom/finance/live/overview', (req, res, ctx) =>
+          res(ctx.status(500), ctx.json({}))
+        )
+      );
+
+      const { result } = renderHook(() => useLiveFinance());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.transactions).toEqual([]);
+      expect(result.current.stats.total_revenue).toBe(0);
+      expect(result.current.activeProviders).toEqual({});
+    });
+
+    test('handles fetch rejection gracefully and clears loading', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      overrideHandler(
+        rest.get('/api/atom/finance/live/overview', (req, res, ctx) =>
+          res.networkError('Network down')
+        )
+      );
+
+      const { result } = renderHook(() => useLiveFinance());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to fetch live finance data:',
+        expect.any(Error)
+      );
+      expect(result.current.transactions).toEqual([]);
+      consoleSpy.mockRestore();
+    });
+
+    test('refresh() re-fetches the overview endpoint', async () => {
+      overrideHandler(
+        rest.get('/api/atom/finance/live/overview', (req, res, ctx) =>
+          res(
+            ctx.json({
+              ok: true,
+              stats: {
+                total_revenue: 10000,
+                pending_revenue: 2500,
+                transaction_count: 12,
+                platform_breakdown: {},
+              },
+              transactions: [
+                {
+                  id: 'txn-1',
+                  description: 'Consulting',
+                  amount: 1000,
+                  currency: 'USD',
+                  date: '2026-03-01',
+                  status: 'completed',
+                  platform: 'stripe',
+                },
+              ],
+              providers: { stripe: true },
+            })
+          )
+        )
+      );
+
+      const { result } = renderHook(() => useLiveFinance());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+        expect(result.current.stats.total_revenue).toBe(10000);
+      });
+
+      // Second override: the refresh() call must observe the new payload.
+      overrideHandler(
+        rest.get('/api/atom/finance/live/overview', (req, res, ctx) =>
+          res(
+            ctx.json({
+              ok: true,
+              stats: {
+                total_revenue: 500,
+                pending_revenue: 0,
+                transaction_count: 1,
+                platform_breakdown: {},
+              },
+              transactions: [],
+              providers: {},
+            })
+          )
+        )
+      );
+
+      await act(async () => {
+        await result.current.refresh();
+      });
+
+      expect(result.current.stats.total_revenue).toBe(500);
     });
   });
 });

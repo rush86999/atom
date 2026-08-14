@@ -17,8 +17,21 @@
 import React from 'react';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { rest } from 'msw';
-import { server } from '@/tests/mocks/server';
+
+// --- apiClient mock: the component posts create_task via the authenticated
+// axios client; MSW does not intercept jsdom's fetch adapter, so assert on the
+// mocked client (same pattern as mini-app-harness / SlashCommandBar). ---
+import { apiClient } from '@/lib/api-client';
+
+jest.mock('@/lib/api-client', () => ({
+  apiClient: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn() },
+}));
+const apiClientMock = apiClient as unknown as {
+  post: jest.Mock;
+  get: jest.Mock;
+  put: jest.Mock;
+  delete: jest.Mock;
+};
 
 // --- WS mock: React state so a new lastMessage re-renders the component ---
 let _setLastMessage: (m: any) => void = () => {};
@@ -99,8 +112,6 @@ const makeTasks = () => [
 ];
 
 describe('ProjectCommandCenter', () => {
-  let executeBody: any[];
-
   beforeEach(() => {
     jest.clearAllMocks();
     liveTasks = makeTasks();
@@ -114,14 +125,7 @@ describe('ProjectCommandCenter', () => {
     searchResults = [];
     isSearching = false;
     routerQuery = {};
-    executeBody = [];
-    server.resetHandlers();
-    server.use(
-      rest.post('/api/intelligence/execute', async (req, res, ctx) => {
-        executeBody.push(req.body);
-        return res(ctx.status(200), ctx.json({ success: true }));
-      })
-    );
+    apiClientMock.post.mockResolvedValue({ data: { success: true } });
   });
 
   it('renders KPI cards with task counts and platform names', async () => {
@@ -172,8 +176,8 @@ describe('ProjectCommandCenter', () => {
     fireEvent.click(screen.getByRole('button', { name: 'asana' }));
     fireEvent.click(screen.getByRole('button', { name: 'Create Task' }));
 
-    await waitFor(() => expect(executeBody).toHaveLength(1));
-    expect(executeBody[0]).toEqual({
+    await waitFor(() => expect(apiClientMock.post).toHaveBeenCalledTimes(1));
+    expect(apiClientMock.post).toHaveBeenCalledWith('/api/intelligence/execute', {
       action_type: 'tool',
       action_payload: {
         tool_name: 'create_task',
@@ -212,13 +216,11 @@ describe('ProjectCommandCenter', () => {
     await waitFor(() => {
       expect(screen.queryByText('Quick Create Task')).not.toBeInTheDocument();
     });
-    expect(executeBody).toHaveLength(0);
+    expect(apiClientMock.post).not.toHaveBeenCalled();
   });
 
   it('toasts an error when task creation fails', async () => {
-    server.use(
-      rest.post('/api/intelligence/execute', (req, res, ctx) => res.networkError('boom'))
-    );
+    apiClientMock.post.mockRejectedValue(new Error('boom'));
 
     render(<ProjectCommandCenter />);
     await screen.findByText('Project Command Center');

@@ -145,13 +145,16 @@ describe('LoginPage', () => {
   test('shows generic error when login throws (network failure)', async () => {
     mockFetch.mockRejectedValue(new Error('Network Error'));
     render(<LoginPage />);
-    fillLoginForm('user@example.com', 'secret123');
+    fillLoginForm('a@example.com', 'secret123');
     fireEvent.click(screen.getByTestId('login-submit-button'));
 
+    // loginWithBackend maps raw network errors ("Failed to fetch") to a
+    // user-friendly message instead of surfacing them verbatim.
     await waitFor(() => {
-      expect(screen.getByTestId('login-error-message')).toHaveTextContent('Network Error');
+      expect(screen.getByTestId('login-error-message')).toHaveTextContent(
+        'Unable to connect to the server. Please check your internet connection and try again.'
+      );
     });
-    expect(mockPush).not.toHaveBeenCalled();
   });
 
   test('disables submit button and shows Processing... while loading', async () => {

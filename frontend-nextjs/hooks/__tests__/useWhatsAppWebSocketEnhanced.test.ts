@@ -39,6 +39,13 @@ describe('useWhatsAppWebSocketEnhanced Hook', () => {
       mockWsInstances.push(mockWs);
       return mockWs;
     }) as any;
+    // The hook guards on WebSocket.OPEN / WebSocket.CONNECTING statics — a
+    // bare jest.fn() has neither, so readyState comparisons against undefined
+    // made every guard pass/fail by accident. Restore the real constants.
+    (global as any).WebSocket.CONNECTING = 0;
+    (global as any).WebSocket.OPEN = 1;
+    (global as any).WebSocket.CLOSING = 2;
+    (global as any).WebSocket.CLOSED = 3;
 
     // Mock console.log for debug mode
     jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -691,6 +698,410 @@ describe('useWhatsAppWebSocketEnhanced Hook', () => {
       );
 
       expect(result.current.websocket).toBeDefined();
+    });
+  });
+
+  // ==========================================================================
+  // 9. Edge-Case Coverage (ping, reconnect loop, guards, send errors)
+  // ==========================================================================
+  describe('9. Edge-Case Coverage', () => {
+    describe('sendPing', () => {
+      test('sends a ping frame when the socket is open', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+        act(() => {
+          mockWsInstances[0].simulateOpen();
+        });
+
+        act(() => {
+          result.current.sendPing();
+        });
+
+        const ping = JSON.parse(mockWsInstances[0].send.mock.calls[0][0]);
+        expect(ping.type).toBe('ping');
+        expect(typeof ping.timestamp).toBe('string');
+      });
+
+      test('records an error when ping send throws', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+        act(() => {
+          mockWsInstances[0].simulateOpen();
+        });
+        mockWsInstances[0].send.mockImplementation(() => {
+          throw new Error('send failed');
+        });
+
+        act(() => {
+          result.current.sendPing();
+        });
+
+        expect(result.current.error).toBe('Failed to send ping message');
+      });
+
+      test('is a no-op when the socket is not open', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+
+        expect(() => {
+          act(() => {
+            result.current.sendPing();
+          });
+        }).not.toThrow();
+      });
+    });
+
+    describe('message handling edges', () => {
+      test('sets an error state on malformed JSON messages', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+        act(() => {
+          mockWsInstances[0].simulateOpen();
+        });
+
+        act(() => {
+          mockWsInstances[0].simulateMessage('{not json');
+        });
+
+        expect(result.current.error).toBe('Error parsing WebSocket message');
+        expect(result.current.lastMessage).toBeNull();
+      });
+
+      test('stores the payload and handles benign control message types', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false, debugMode: true })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+        act(() => {
+          mockWsInstances[0].simulateOpen();
+        });
+
+        for (const msg of [
+          { type: 'pong' },
+          { type: 'connection_established' },
+          { type: 'subscription_confirmed' },
+          { type: 'test_notification_response' },
+          { type: 'unknown_custom_type' },
+        ]) {
+          act(() => {
+            mockWsInstances[0].simulateMessage(msg);
+          });
+        }
+
+        expect(result.current.lastMessage).toEqual({ type: 'unknown_custom_type' });
+      });
+
+      test('surfaces server error messages via state and toast', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+        act(() => {
+          mockWsInstances[0].simulateOpen();
+        });
+
+        act(() => {
+          mockWsInstances[0].simulateMessage({ type: 'error', error: 'Rate limited' });
+        });
+
+        expect(result.current.error).toBe('Rate limited');
+        expect(mockToastFn).toHaveBeenCalledWith(
+          expect.objectContaining({ title: 'WebSocket Error', variant: 'error' })
+        );
+      });
+    });
+
+    describe('reconnect loop', () => {
+      test('reconnects after an abnormal close with a delay', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+        act(() => {
+          mockWsInstances[0].simulateOpen();
+        });
+
+        act(() => {
+          mockWsInstances[0].simulateClose(1001, 'Going away');
+        });
+        expect(result.current.isConnected).toBe(false);
+        expect(result.current.connectionAttempts).toBe(1);
+        expect(mockWsInstances).toHaveLength(1); // no immediate reconnect
+
+        act(() => {
+          jest.advanceTimersByTime(3000);
+        });
+
+        expect(mockWsInstances).toHaveLength(2);
+        expect(result.current.reconnectCount).toBe(1);
+      });
+
+      test('does not reconnect past the configured attempt limit', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({
+            autoConnect: false,
+            reconnectAttempts: 0,
+          })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+        act(() => {
+          mockWsInstances[0].simulateOpen();
+        });
+
+        act(() => {
+          mockWsInstances[0].simulateClose(1001, 'Going away');
+        });
+
+        act(() => {
+          jest.advanceTimersByTime(30000);
+        });
+
+        expect(mockWsInstances).toHaveLength(1);
+        expect(mockToastFn).toHaveBeenCalledWith(
+          expect.objectContaining({ title: 'Connection Lost' })
+        );
+      });
+
+      test('a normal close (1000) does not trigger reconnection', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+        act(() => {
+          mockWsInstances[0].simulateOpen();
+        });
+
+        act(() => {
+          mockWsInstances[0].simulateClose(1000, 'Normal closure');
+        });
+
+        act(() => {
+          jest.advanceTimersByTime(30000);
+        });
+
+        expect(mockWsInstances).toHaveLength(1);
+        expect(result.current.reconnectCount).toBe(0);
+      });
+    });
+
+    describe('connect guards', () => {
+      test('does not create a new socket when already open', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+        act(() => {
+          mockWsInstances[0].simulateOpen();
+        });
+
+        act(() => {
+          result.current.connect();
+        });
+
+        expect(mockWsInstances).toHaveLength(1);
+      });
+
+      test('does not create a new socket while connecting', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+
+        act(() => {
+          result.current.connect();
+        });
+
+        expect(mockWsInstances).toHaveLength(1);
+      });
+
+      test('handles a WebSocket constructor failure gracefully', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        (global as any).WebSocket = jest.fn(() => {
+          throw new Error('constructor boom');
+        }) as any;
+
+        act(() => {
+          result.current.connect();
+        });
+
+        expect(result.current.error).toBe('Failed to create WebSocket connection');
+        expect(result.current.isConnecting).toBe(false);
+      });
+    });
+
+    describe('disconnect and sendMessage', () => {
+      test('disconnect closes the socket and resets state', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+        act(() => {
+          mockWsInstances[0].simulateOpen();
+        });
+
+        act(() => {
+          result.current.disconnect();
+        });
+
+        expect(mockWsInstances[0].close).toHaveBeenCalledWith(1000, 'Manual disconnect');
+        expect(result.current.isConnected).toBe(false);
+        expect(result.current.isConnecting).toBe(false);
+        expect(result.current.error).toBeNull();
+        expect(result.current.reconnectCount).toBe(0);
+      });
+
+      test('sendMessage serializes objects and returns true when open', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+        act(() => {
+          mockWsInstances[0].simulateOpen();
+        });
+
+        let ok = false;
+        act(() => {
+          ok = result.current.sendMessage({ type: 'hello', payload: 1 });
+        });
+
+        expect(ok).toBe(true);
+        expect(mockWsInstances[0].send).toHaveBeenCalledWith(
+          JSON.stringify({ type: 'hello', payload: 1 })
+        );
+      });
+
+      test('sendMessage passes strings through as-is', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+        act(() => {
+          mockWsInstances[0].simulateOpen();
+        });
+
+        act(() => {
+          result.current.sendMessage('raw frame');
+        });
+
+        expect(mockWsInstances[0].send).toHaveBeenCalledWith('raw frame');
+      });
+
+      test('sendMessage returns false and records an error when send throws', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+        act(() => {
+          mockWsInstances[0].simulateOpen();
+        });
+        mockWsInstances[0].send.mockImplementation(() => {
+          throw new Error('boom');
+        });
+
+        let ok = true;
+        act(() => {
+          ok = result.current.sendMessage({ type: 'x' });
+        });
+
+        expect(ok).toBe(false);
+        expect(result.current.error).toBe('Failed to send WebSocket message');
+      });
+
+      test('sendMessage returns false when not connected', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        let ok = true;
+        act(() => {
+          ok = result.current.sendMessage({ type: 'x' });
+        });
+
+        expect(ok).toBe(false);
+        expect(result.current.error).toBe('WebSocket not connected');
+      });
+
+      test('subscribeToEvents sends the subscribe frame via sendMessage', () => {
+        const { result } = renderHook(() =>
+          useWhatsAppWebSocketEnhanced({ autoConnect: false })
+        );
+
+        act(() => {
+          result.current.connect();
+        });
+        act(() => {
+          mockWsInstances[0].simulateOpen();
+        });
+
+        let ok = false;
+        act(() => {
+          ok = result.current.subscribeToEvents(['message.new', 'conversation.new']);
+        });
+
+        expect(ok).toBe(true);
+        expect(mockWsInstances[0].send).toHaveBeenCalledWith(
+          JSON.stringify({
+            type: 'subscribe',
+            subscriptions: ['message.new', 'conversation.new'],
+          })
+        );
+      });
     });
   });
 });
