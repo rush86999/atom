@@ -22,6 +22,7 @@ No LLM spend, no network.
 """
 from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock
+import uuid
 
 import pytest
 from sqlalchemy import create_engine
@@ -81,7 +82,10 @@ def _seed_acu(db, tenant_id, days_ago, cost):
 
 def _seed_usage(db, tenant_id, days_ago, cost, chain_id=None, unique=None):
     row = TokenUsage(
-        id=f"tu-{unique or days_ago}-{id(object())}",
+        # id(object()) is memory-address based — GC can reuse the address
+        # across seeds in a batch, colliding with UNIQUE constraint. Use
+        # uuid4 for guaranteed uniqueness.
+        id=f"tu-{unique or days_ago}-{uuid.uuid4()}",
         agent_id="agent-1",
         workspace_id="ws-1",
         tenant_id=tenant_id,

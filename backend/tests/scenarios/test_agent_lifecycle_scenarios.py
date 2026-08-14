@@ -603,7 +603,7 @@ class TestAgentGraduation:
     ):
         """Test graduation records metadata."""
         agent = StudentAgentFactory(
-            metadata_json={},
+            configuration={},
             _session=db_session
         )
         graduation_service = AgentGraduationService(db_session)
@@ -758,13 +758,13 @@ class TestAgentConfiguration:
             "timeout": 30
         }
 
-        agent.metadata_json = agent.metadata_json or {}
+        agent.configuration = agent.configuration or {}
         agent.configuration["config"] = config
         db_session.commit()
 
         # Verify config stored
         db_session.refresh(agent)
-        assert "config" in agent.metadata_json
+        assert "config" in agent.configuration
         assert agent.configuration["config"]["max_tokens"] == 2000
 
     def test_agent_config_update(
@@ -774,7 +774,7 @@ class TestAgentConfiguration:
         agent = InternAgentFactory(_session=db_session)
 
         # Update config
-        agent.metadata_json = agent.metadata_json or {}
+        agent.configuration = agent.configuration or {}
         agent.configuration["config"] = {
             "max_tokens": 4000,  # Updated
             "temperature": 0.5
@@ -855,7 +855,7 @@ class TestAgentDeactivation:
 
         # Deactivate with reason
         agent.is_active = False
-        agent.metadata_json = agent.metadata_json or {}
+        agent.configuration = agent.configuration or {}
         agent.configuration["deactivated_at"] = datetime.utcnow().isoformat()
         agent.configuration["deactivation_reason"] = "Deprecated functionality"
         agent.configuration["deactivated_by"] = "admin_user"
@@ -876,7 +876,7 @@ class TestAgentArchival:
         agent = StudentAgentFactory(_session=db_session)
 
         # Mark as archived
-        agent.metadata_json = agent.metadata_json or {}
+        agent.configuration = agent.configuration or {}
         agent.configuration["archived_at"] = datetime.utcnow().isoformat()
         agent.configuration["archived_by"] = "system"
         agent.configuration["archive_reason"] = "Inactive for 90 days"
@@ -886,7 +886,7 @@ class TestAgentArchival:
         # Verify archived
         db_session.refresh(agent)
         assert agent.is_active is False
-        assert "archived_at" in agent.metadata_json
+        assert "archived_at" in agent.configuration
 
     def test_archived_agent_not_listed(
         self, db_session: Session
@@ -903,7 +903,7 @@ class TestAgentArchival:
         agent = InternAgentFactory(_session=db_session)
 
         # Archive
-        agent.metadata_json = agent.metadata_json or {}
+        agent.configuration = agent.configuration or {}
         agent.configuration["archived_at"] = datetime.utcnow().isoformat()
         agent.is_active = False
         db_session.commit()
@@ -917,4 +917,4 @@ class TestAgentArchival:
         # Verify unarchived
         db_session.refresh(agent)
         assert agent.is_active is True
-        assert "unarchived_at" in agent.metadata_json
+        assert "unarchived_at" in agent.configuration
