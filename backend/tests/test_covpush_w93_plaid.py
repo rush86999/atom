@@ -351,7 +351,7 @@ class TestDataOps:
 
 class TestHealthCheck:
     def test_missing_credentials_unhealthy(self, unauthed_svc):
-        result = unauthed_svc.health_check()
+        result = asyncio.run(unauthed_svc.health_check())
         assert result["ok"] is False
         assert result["status"] == "unhealthy"
         assert "Missing credentials" in result["message"]
@@ -359,7 +359,7 @@ class TestHealthCheck:
     def test_healthy(self, svc):
         with patch("requests.post") as post:
             post.return_value = MagicMock(status_code=200)
-            result = svc.health_check()
+            result = asyncio.run(svc.health_check())
         assert result["ok"] is True
         assert result["status"] == "healthy"
         assert result["version"] == "1.0.0"
@@ -368,14 +368,14 @@ class TestHealthCheck:
     def test_unhealthy_status(self, svc):
         with patch("requests.post") as post:
             post.return_value = MagicMock(status_code=500)
-            result = svc.health_check()
+            result = asyncio.run(svc.health_check())
         assert result["ok"] is False
         assert result["status"] == "unhealthy"
 
     def test_exception_unhealthy(self, svc):
         with patch("requests.post",
                    side_effect=RuntimeError("network down")):
-            result = svc.health_check()
+            result = asyncio.run(svc.health_check())
         assert result["ok"] is False
         assert result["error"] == "Plaid health check failed"
 

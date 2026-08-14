@@ -304,7 +304,9 @@ class TestFeatureExtractorEmpty:
         extractor = trm.FeatureExtractor()
         weights = extractor.extract_weights([])
         assert weights.shape == (0,)
-        assert extractor.extract_features([]).shape == (0, 10)
+        # 10 base features + 6 intent one-hots (appended — see
+        # INTENT_FEATURE_NAMES in routellm_trainer).
+        assert extractor.extract_features([]).shape == (0, 16)
         assert extractor.extract_targets([]).shape == (0,)
 
 

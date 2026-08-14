@@ -14,6 +14,7 @@ no network, no real DB.
   no native → Pieces details None → NOT_FOUND, Pieces success, Pieces
   exception → EXECUTION_EXCEPTION.
 """
+import asyncio
 import importlib
 from unittest.mock import AsyncMock, MagicMock
 
@@ -21,6 +22,25 @@ import pytest
 
 from core.integration_registry_v2 import IntegrationRegistryV2, registry
 from core.integration_service import IntegrationErrorCode, OperationResult
+
+
+
+def _run_coro(coro):
+    """Run a coroutine resilient to a missing current event loop.
+
+    Earlier suites in a batch may create/close loops via
+    ``asyncio.new_event_loop()``, which poisons ``asyncio.get_event_loop()``
+    for sync tests — fall back to a fresh loop (and close it).
+    """
+    try:
+        return asyncio.get_event_loop().run_until_complete(coro)
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
 
 
 class _FakeAdapter:
@@ -158,7 +178,7 @@ def test_execute_operation_native_success(monkeypatch, reg):
         return result
 
     adapter.execute_operation = _run
-    out = asyncio.get_event_loop().run_until_complete(
+    out = _run_coro(
         reg.execute_operation("asana", "create_task", {"name": "x"}, config={"api_key": "k"})
     )
     assert out is result
@@ -175,7 +195,7 @@ def test_execute_operation_native_exception(monkeypatch, reg):
     monkeypatch.setattr(reg, "get_service", lambda c, config=None: adapter)
     import asyncio
 
-    out = asyncio.get_event_loop().run_until_complete(
+    out = _run_coro(
         reg.execute_operation("asana", "op", {})
     )
     assert out.success is False
@@ -192,7 +212,7 @@ def test_execute_operation_pieces_fallback_success(monkeypatch, reg):
     monkeypatch.setattr(mod, "node_bridge", bridge)
     import asyncio
 
-    out = asyncio.get_event_loop().run_until_complete(
+    out = _run_coro(
         reg.execute_operation("custom_connector", "post_message", {"text": "hi"},
                               config={"api_key": "sk"})
     )
@@ -213,7 +233,7 @@ def test_execute_operation_pieces_not_found(monkeypatch, reg):
     monkeypatch.setattr(mod, "node_bridge", bridge)
     import asyncio
 
-    out = asyncio.get_event_loop().run_until_complete(
+    out = _run_coro(
         reg.execute_operation("unknown_connector", "op", {})
     )
     assert out.success is False
@@ -230,7 +250,7 @@ def test_execute_operation_pieces_exception(monkeypatch, reg):
     monkeypatch.setattr(mod, "node_bridge", bridge)
     import asyncio
 
-    out = asyncio.get_event_loop().run_until_complete(
+    out = _run_coro(
         reg.execute_operation("custom_connector", "op", {})
     )
     assert out.success is False

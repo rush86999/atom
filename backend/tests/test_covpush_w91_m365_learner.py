@@ -117,7 +117,21 @@ def _patch_httpx(monkeypatch, response=None):
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    """Run a coroutine without depending on a current event loop.
+
+    Earlier suites in a batch may create/close loops via
+    ``asyncio.new_event_loop()``, which poisons
+    ``asyncio.get_event_loop()`` for sync tests — fall back to a fresh
+    loop (and close it) when no loop is current.
+    """
+    try:
+        return asyncio.get_event_loop().run_until_complete(coro)
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
 
 
 # ============================================================================

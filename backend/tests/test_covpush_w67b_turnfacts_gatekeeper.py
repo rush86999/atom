@@ -1058,11 +1058,16 @@ class TestNotFoundHandler:
         }
 
     def test_custom_details_passed_verbatim(self):
-        # Contract: explicit details replace the default identity dict.
+        # Contract (w116): caller details are PRESERVED and the resource
+        # identity is merged in (setdefault) rather than discarded.
         err = handle_not_found(
             "Workspace", "w1", details={"workspace_name": "Test"},
         )
-        assert err.detail["details"] == {"workspace_name": "Test"}
+        assert err.detail["details"] == {
+            "workspace_name": "Test",
+            "resource_type": "Workspace",
+            "resource_id": "w1",
+        }
 
 
 class TestPermissionDeniedHandler:
@@ -1074,7 +1079,11 @@ class TestPermissionDeniedHandler:
 
     def test_custom_details(self):
         err = handle_permission_denied("delete", "Agent", details={"owner": "someone"})
-        assert err.detail["details"] == {"owner": "someone"}
+        assert err.detail["details"] == {
+            "owner": "someone",
+            "action": "delete",
+            "resource_type": "Agent",
+        }
 
 
 class TestInvoiceErrors:

@@ -363,8 +363,11 @@ class TestAsk:
     async def test_ask_health_query(self, db):
         _event(db, "h-1", component_id="agent-42", level="INFO")
         result = await DebugQuery(db).ask("show me the health of agent-42")
-        assert result["health_score"] == 100
-        assert result["status"] == "healthy"
+        # ask() wraps health in the documented shape (answer/confidence/
+        # evidence) — the raw health dict lives in evidence[0].
+        assert "agent-42 is healthy" in result["answer"]
+        assert result["evidence"][0]["health_score"] == 100
+        assert result["evidence"][0]["status"] == "healthy"
 
     async def test_ask_error_query(self, db):
         result = await DebugQuery(db).ask("What error is happening?")

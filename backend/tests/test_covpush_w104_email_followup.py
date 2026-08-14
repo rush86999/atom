@@ -30,7 +30,7 @@ def _run(*args):
     return asyncio.run(args[0])
 
 
-NOW = datetime(2026, 8, 13, 12, 0, 0)
+NOW = datetime.now()
 
 
 def _sent(**kw):

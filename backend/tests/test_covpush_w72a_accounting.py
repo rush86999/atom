@@ -41,10 +41,17 @@ import pytest
 # Fake `integrations.ai_enhanced_service` module (absent from this checkout).
 # MUST be registered before importing accounting.categorizer.
 # ---------------------------------------------------------------------------
-_ai_mod = types.ModuleType("integrations.ai_enhanced_service")
-_ai_mod.AIModelType = SimpleNamespace(GPT_4="gpt-4")
-_ai_mod.AIServiceType = SimpleNamespace(OPENAI="openai")
-_ai_mod.AITaskType = SimpleNamespace(NATURAL_LANGUAGE_COMMANDS="natural_language_commands")
+# Share ONE canonical fake across wave files when the real module is
+# absent — two files registering distinct ModuleType objects for the same
+# name made batch order decide which object sys.modules held, so identity
+# assertions compared across instances and failed depending on import order.
+_ai_mod = sys.modules.get("integrations.ai_enhanced_service")
+if _ai_mod is None or not hasattr(_ai_mod, "AITaskType"):
+    _ai_mod = types.ModuleType("integrations.ai_enhanced_service")
+    _ai_mod.AIModelType = SimpleNamespace(GPT_4="gpt-4")
+    _ai_mod.AIServiceType = SimpleNamespace(OPENAI="openai")
+    _ai_mod.AITaskType = SimpleNamespace(NATURAL_LANGUAGE_COMMANDS="natural_language_commands")
+    sys.modules["integrations.ai_enhanced_service"] = _ai_mod
 
 
 class _AIRequest:
@@ -53,8 +60,18 @@ class _AIRequest:
 
 
 _ai_mod.AIRequest = _AIRequest
-_ai_mod.ai_enhanced_service = MagicMock()
-_ai_mod.ai_enhanced_service.process_ai_request = AsyncMock()
+if not hasattr(_ai_mod, "ai_enhanced_service"):
+    # Only the first wave file to load creates the shared service mock —
+    # rebinding here would wipe another file's configured return_value and
+    # break batch runs ('<=' not supported between AsyncMock and int).
+    _ai_mod.ai_enhanced_service = MagicMock()
+    _ai_mod.ai_enhanced_service.process_ai_request = AsyncMock()
+    # Honor the real service contract for callers that import the module
+    # (e.g. api/marketing_routes' stub fallback expects generate_insights
+    # to return the stub envelope when the service is absent).
+    _ai_mod.ai_enhanced_service.generate_insights = AsyncMock(
+        return_value={"status": "stub", "message": "AI Enhanced service not available"}
+    )
 sys.modules["integrations.ai_enhanced_service"] = _ai_mod
 
 from accounting import (  # noqa: E402

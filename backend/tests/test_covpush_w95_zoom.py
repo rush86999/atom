@@ -13,6 +13,7 @@ optional params, no-token 401, HTTPError -> 400), get_capabilities,
 health_check (healthy/unhealthy/exception path -> generic), execute_operation
 (all 5 ops + unknown op + inner-exception -> generic envelope, no str(e) leak).
 """
+import asyncio
 import pytest
 from datetime import datetime, timezone
 
@@ -261,14 +262,14 @@ class TestCapabilities:
 class TestHealthCheck:
     def test_healthy(self):
         svc = _svc({"client_id": "cid", "client_secret": "cs"})
-        out = svc.health_check()
+        out = asyncio.run(svc.health_check())
         assert out["healthy"] is True
         assert "operational" in out["message"]
         assert "last_check" in out
 
     def test_unhealthy_missing_client_id(self):
         svc = _svc({"client_secret": "cs"})
-        out = svc.health_check()
+        out = asyncio.run(svc.health_check())
         assert out["healthy"] is False
         assert "not configured" in out["message"]
 
@@ -277,7 +278,7 @@ class TestHealthCheck:
         with __import__("unittest.mock", fromlist=["patch"]).patch(
                 "integrations.zoom_service.datetime") as dt:
             dt.now.side_effect = RuntimeError("clock broke")
-            out = svc.health_check()
+            out = asyncio.run(svc.health_check())
         assert out["healthy"] is False
         assert out["message"] == "Zoom health check failed"
 
