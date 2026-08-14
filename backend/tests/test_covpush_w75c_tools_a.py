@@ -892,9 +892,9 @@ class TestListTenantMembers:
         db = _cm_db()
         db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
             tenant_id="t-1")
-        m1 = SimpleNamespace(full_name="Alice", email="a@b.c", id="u-1", role="admin",
+        m1 = SimpleNamespace(name="Alice", email="a@b.c", id="u-1", role="admin",
                              status="active")
-        m2 = SimpleNamespace(full_name=None, email="b@b.c", id="u-2", role=None,
+        m2 = SimpleNamespace(name=None, email="b@b.c", id="u-2", role=None,
                              status=None)
         db.query.return_value.filter.return_value.all.return_value = [m1, m2]
         with patch("core.database.SessionLocal", return_value=db):

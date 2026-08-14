@@ -13,8 +13,10 @@ from sqlalchemy.orm import Session
 
 from integrations.atom_telegram_integration import atom_telegram_integration
 from integrations.universal_webhook_bridge import universal_webhook_bridge
+from core.auth import get_current_user
 from core.im_governance_service import IMGovernanceService
 from core.database import get_db
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -44,19 +46,21 @@ async def telegram_webhook(
 
     # Verify Telegram's secret token — Telegram sends the
     # X-Telegram-Bot-Api-Secret-Token header (set when the webhook is
-    # registered). Previously the comment said "signature verification" but
-    # the token was never checked. Fails closed: rejects if configured but
-    # mismatched, or if not configured at all.
+    # registered). Fails CLOSED: a missing or mismatched token is rejected,
+    # and an unconfigured secret (no ATOM_TELEGRAM_WEBHOOK_SECRET /
+    # legacy TELEGRAM_WEBHOOK_SECRET_TOKEN) rejects ALL requests.
     import os
     import hmac as _hmac
-    expected_token = os.getenv("TELEGRAM_WEBHOOK_SECRET_TOKEN", "")
-    if expected_token:
-        if not x_telegram_bot_api_secret_token or not _hmac.compare_digest(
-            expected_token, x_telegram_bot_api_secret_token
-        ):
-            raise HTTPException(status_code=401, detail="Invalid Telegram secret token")
-    else:
-        logger.warning("TELEGRAM_WEBHOOK_SECRET_TOKEN not set — Telegram webhook accepts all requests")
+    expected_token = os.getenv("ATOM_TELEGRAM_WEBHOOK_SECRET") or \
+        os.getenv("TELEGRAM_WEBHOOK_SECRET_TOKEN", "")
+    if not expected_token:
+        logger.error("ATOM_TELEGRAM_WEBHOOK_SECRET not set — refusing all "
+                     "Telegram webhook requests (fail-closed)")
+        raise HTTPException(status_code=401, detail="Webhook secret not configured")
+    if not x_telegram_bot_api_secret_token or not _hmac.compare_digest(
+        expected_token, x_telegram_bot_api_secret_token
+    ):
+        raise HTTPException(status_code=401, detail="Invalid Telegram secret token")
 
     # Get raw body for message parsing
     body_bytes = await request.body()
@@ -88,6 +92,8 @@ async def telegram_webhook(
     # Check if it's a message - apply governance
     message = update.get("message")
     if message:
+        import asyncio
+
         # Initialize IMGovernanceService with database session
         im_governance_service = IMGovernanceService(db)
 
@@ -122,8 +128,8 @@ async def telegram_webhook(
 
         # Stage 3: Route to Universal Webhook Bridge
         try:
-            result = asyncio.create_task(
-                universal_webhook_bridge.process_incoming_message("telegram", message)
+            await universal_webhook_bridge.process_incoming_message(
+                "telegram", message
             )
 
             # Log to audit trail (async, non-blocking)
@@ -169,12 +175,14 @@ async def telegram_health():
         return {"status": "unhealthy", "error": str(e)}
 
 @router.get("/status")
-async def telegram_status():
+async def telegram_status(current_user: User = Depends(get_current_user)):
     """Get detailed Telegram status"""
     return await atom_telegram_integration.get_service_status()
 
 @router.get("/workspaces/{user_id}")
-async def get_telegram_workspaces(user_id: int):
+async def get_telegram_workspaces(
+    user_id: int, current_user: User = Depends(get_current_user)
+):
     """Get Telegram workspaces for user"""
     return await atom_telegram_integration.get_intelligent_workspaces(user_id)
 
@@ -201,7 +209,10 @@ class KeyboardButton(BaseModel):
     switch_inline_query_current_chat: Optional[str] = Field(None, description="Switch to inline in current chat")
 
 @router.post("/send-keyboard")
-async def send_keyboard_message(request: SendKeyboardRequest):
+async def send_keyboard_message(
+    request: SendKeyboardRequest,
+    current_user: User = Depends(get_current_user),
+):
     """
     Send a message with interactive inline keyboard.
 
@@ -229,6 +240,7 @@ async def edit_message_keyboard(
     chat_id: int,
     message_id: int,
     keyboard: List[List[Dict[str, Any]]],
+    current_user: User = Depends(get_current_user),
 ):
     """
     Edit keyboard of an existing message.
@@ -252,6 +264,7 @@ async def answer_callback_query(
     show_alert: Optional[bool] = False,
     url: Optional[str] = None,
     cache_time: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
 ):
     """
     Answer a callback query from an inline keyboard button.
@@ -287,7 +300,10 @@ class InlineQueryRequest(BaseModel):
     next_offset: Optional[str] = Field(None, description="Next offset for pagination")
 
 @router.post("/answer-inline")
-async def answer_inline_query(request: InlineQueryRequest):
+async def answer_inline_query(
+    request: InlineQueryRequest,
+    current_user: User = Depends(get_current_user),
+):
     """
     Answer an inline query.
 
@@ -319,7 +335,10 @@ class ChatActionRequest(BaseModel):
     progress: Optional[int] = Field(None, description="Progress percentage (0-100)")
 
 @router.post("/send-chat-action")
-async def send_chat_action(request: ChatActionRequest):
+async def send_chat_action(
+    request: ChatActionRequest,
+    current_user: User = Depends(get_current_user),
+):
     """
     Send a chat action indicator.
 
@@ -360,7 +379,10 @@ class TelegramMessageRequest(BaseModel):
     reply_to_message_id: Optional[int] = None
 
 @router.post("/send")
-async def send_telegram_message(request: TelegramMessageRequest):
+async def send_telegram_message(
+    request: TelegramMessageRequest,
+    current_user: User = Depends(get_current_user),
+):
     """
     Send a telegram message with enhanced options.
 
@@ -390,7 +412,10 @@ class SendPhotoRequest(BaseModel):
     parse_mode: Optional[str] = None
 
 @router.post("/send-photo")
-async def send_telegram_photo(request: SendPhotoRequest):
+async def send_telegram_photo(
+    request: SendPhotoRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Send a photo to Telegram chat"""
     result = await atom_telegram_integration.send_photo(
         chat_id=request.chat_id,
@@ -412,7 +437,10 @@ class SendPollRequest(BaseModel):
     explanation: Optional[str] = None
 
 @router.post("/send-poll")
-async def send_telegram_poll(request: SendPollRequest):
+async def send_telegram_poll(
+    request: SendPollRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Send a poll to Telegram chat"""
     result = await atom_telegram_integration.send_poll(
         chat_id=request.chat_id,
@@ -432,7 +460,9 @@ async def send_telegram_poll(request: SendPollRequest):
 # ============================================================================
 
 @router.post("/get-chat-info/{chat_id}")
-async def get_chat_info(chat_id: int):
+async def get_chat_info(
+    chat_id: int, current_user: User = Depends(get_current_user)
+):
     """Get information about a Telegram chat"""
     result = await atom_telegram_integration.get_chat_info(chat_id)
 
@@ -441,7 +471,7 @@ async def get_chat_info(chat_id: int):
     return result
 
 @router.get("/capabilities")
-async def telegram_capabilities():
+async def telegram_capabilities(current_user: User = Depends(get_current_user)):
     """Get Telegram integration capabilities"""
     return {
         "platform": "Telegram",

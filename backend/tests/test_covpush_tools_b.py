@@ -550,7 +550,7 @@ class TestPlatformManagementTool:
         q.all.return_value = []
         res3 = await list_tenant_members({"workspace_id": "ws-1"})
         assert "No members" in res3
-        member = SimpleNamespace(full_name="Alice", email="a@b", id="u1")
+        member = SimpleNamespace(name="Alice", email="a@b", id="u1")
         q.all.return_value = [member]
         res4 = await list_tenant_members({"workspace_id": "ws-1"})
         assert "Alice" in res4

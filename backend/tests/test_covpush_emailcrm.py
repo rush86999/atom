@@ -2483,10 +2483,17 @@ class TestChatResponseGen:
         assert "updated successfully" in orch._generate_main_message("q", intent, {co.FeatureType.SCHEDULING: {"data": {"x": 1}}})
         assert "scheduling" in orch._generate_main_message("q", intent, {})
         intent = {"primary_intent": co.ChatIntent.CRM}
+<<<<<<< Updated upstream
         assert orch._generate_main_message("q", intent, {co.FeatureType.CRM: {"success": True, "data": {"answer": "CRM answer"}}}) == "CRM answer"
         assert "help you with your CRM" in orch._generate_main_message("q", intent, {})
         intent = {"primary_intent": co.ChatIntent.BUSINESS_HEALTH}
         assert orch._generate_main_message("q", intent, {co.FeatureType.BUSINESS_HEALTH: {"success": True, "message": "all good"}}) == "all good"
+=======
+        assert "CRM request" in orch._generate_main_message("q", intent, {co.FeatureType.CRM: {"success": True, "data": {"answer": "CRM answer"}}})
+        assert "help you with your CRM" in orch._generate_main_message("q", intent, {})
+        intent = {"primary_intent": co.ChatIntent.BUSINESS_HEALTH}
+        assert "business health" in orch._generate_main_message("q", intent, {co.FeatureType.BUSINESS_HEALTH: {"success": True, "message": "all good"}})
+>>>>>>> Stashed changes
         assert "business health query" in orch._generate_main_message("q", intent, {})
         intent = {"primary_intent": co.ChatIntent.SCHEDULING}
         default_msg = orch._generate_main_message("q", intent, {})

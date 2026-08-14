@@ -148,6 +148,8 @@ class SalesforceAuthHandler:
                     )
                     return token_data
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error exchanging Salesforce code for token: {e}")
             raise HTTPException(
@@ -214,6 +216,8 @@ class SalesforceAuthHandler:
                     logger.info("Successfully refreshed Salesforce access token")
                     return token_data
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error refreshing Salesforce token: {e}")
             raise HTTPException(
@@ -258,6 +262,8 @@ class SalesforceAuthHandler:
                     self.user_info = user_data
                     return user_data
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error getting Salesforce user info: {e}")
             raise HTTPException(status_code=500, detail="Internal error")

@@ -111,6 +111,8 @@ class DropboxAuthHandler:
                     )
                     return token_data
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error exchanging Dropbox code for token: {e}")
             raise HTTPException(
@@ -167,6 +169,8 @@ class DropboxAuthHandler:
                     logger.info("Successfully refreshed Dropbox access token")
                     return token_data
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error refreshing Dropbox token: {e}")
             raise HTTPException(
@@ -206,6 +210,8 @@ class DropboxAuthHandler:
                     self.user_info = user_data
                     return user_data
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error getting Dropbox user info: {e}")
             raise HTTPException(status_code=500, detail="Internal error")

@@ -1,11 +1,13 @@
-import datetime
+from datetime import datetime
 import logging
 from ecommerce.models import EcommerceStore
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.auth import get_current_user
 from core.database import get_db
+from core.models import User
 
 from .shopify_service import ShopifyService
 
@@ -44,15 +46,17 @@ async def shopify_auth_callback(auth_request: ShopifyAuthRequest, db: Session = 
         
         if not store:
             store = EcommerceStore(
-                workspace_id=auth_request.workspace_id,
                 shop_domain=auth_request.shop,
                 access_token=access_token,
-                platform="shopify"
+                platform="shopify",
+                metadata_json={"workspace_id": auth_request.workspace_id}
             )
             db.add(store)
         else:
             store.access_token = access_token
-            store.workspace_id = auth_request.workspace_id
+            store_meta = dict(store.metadata_json or {})
+            store_meta["workspace_id"] = auth_request.workspace_id
+            store.metadata_json = store_meta
             
         db.commit()
         
@@ -69,6 +73,7 @@ async def shopify_auth_callback(auth_request: ShopifyAuthRequest, db: Session = 
 
 @router.get("/shop")
 async def get_shop_info(
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain (e.g. my-shop.myshopify.com)")
 ):
@@ -78,6 +83,7 @@ async def get_shop_info(
 
 @router.get("/products")
 async def list_products(
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain"),
     limit: int = Query(20, ge=1, le=100)
@@ -88,6 +94,7 @@ async def list_products(
 
 @router.get("/orders")
 async def list_orders(
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain"),
     limit: int = Query(20, ge=1, le=100)
@@ -109,6 +116,7 @@ async def shopify_status():
 
 @router.post("/webhooks/setup")
 async def setup_shopify_webhooks(
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain"),
     webhook_base_url: str = Query(..., description="Base URL for webhooks (e.g. https://your-domain.com/api/webhooks/shopify)")
@@ -151,6 +159,7 @@ async def shopify_root():
 # --- CUSTOMERS ---
 @router.get("/customers")
 async def list_customers(
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain"),
     limit: int = Query(20, ge=1, le=100)
@@ -161,6 +170,7 @@ async def list_customers(
 
 @router.get("/customers/search")
 async def search_customers(
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain"),
     query: str = Query(..., description="Search query (email, name, etc.)")
@@ -172,6 +182,7 @@ async def search_customers(
 @router.get("/customers/{customer_id}")
 async def get_customer(
     customer_id: str,
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain")
 ):
@@ -183,6 +194,7 @@ async def get_customer(
 @router.get("/fulfillments/{order_id}")
 async def get_fulfillments(
     order_id: str,
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain")
 ):
@@ -193,6 +205,7 @@ async def get_fulfillments(
 @router.post("/fulfillments/{order_id}")
 async def create_fulfillment(
     order_id: str,
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain"),
     location_id: str = Query(..., description="Location ID"),
@@ -209,6 +222,7 @@ async def create_fulfillment(
 @router.get("/refunds/{order_id}")
 async def get_refunds(
     order_id: str,
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain")
 ):
@@ -219,6 +233,7 @@ async def get_refunds(
 # --- DRAFT ORDERS ---
 @router.get("/draft-orders")
 async def list_draft_orders(
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain"),
     limit: int = Query(20, ge=1, le=100)
@@ -230,6 +245,7 @@ async def list_draft_orders(
 @router.post("/draft-orders/{draft_id}/complete")
 async def complete_draft_order(
     draft_id: str,
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain")
 ):
@@ -241,6 +257,7 @@ async def complete_draft_order(
 @router.get("/transactions/{order_id}")
 async def get_transactions(
     order_id: str,
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain")
 ):
@@ -251,6 +268,7 @@ async def get_transactions(
 # --- ANALYTICS ---
 @router.get("/analytics")
 async def get_shop_analytics(
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain")
 ):
@@ -260,6 +278,7 @@ async def get_shop_analytics(
 
 @router.get("/inventory")
 async def get_inventory(
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain"),
     location_id: str = Query(None, description="Filter by location")
@@ -270,6 +289,7 @@ async def get_inventory(
 
 @router.get("/locations")
 async def get_locations(
+    current_user: User = Depends(get_current_user),
     access_token: str = Query(..., description="Access Token"),
     shop: str = Query(..., description="Shop Domain")
 ):

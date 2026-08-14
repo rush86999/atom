@@ -73,6 +73,7 @@ async def airtable_status(user_id: str = "test_user"):
 async def list_records(
     base_id: str,
     table_name: str,
+    current_user: User = Depends(get_current_user),
     max_records: int = Query(100, le=1000),
     view: Optional[str] = None,
     filter_formula: Optional[str] = None
@@ -100,7 +101,12 @@ async def list_records(
 
 
 @router.get("/records/{base_id}/{table_name}/{record_id}")
-async def get_record(base_id: str, table_name: str, record_id: str):
+async def get_record(
+    base_id: str,
+    table_name: str,
+    record_id: str,
+    current_user: User = Depends(get_current_user)
+):
     """Get a specific record from Airtable"""
     try:
         record = await airtable_service.get_record(

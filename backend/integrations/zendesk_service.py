@@ -40,6 +40,16 @@ class ZendeskService(IntegrationService):
             "Content-Type": "application/json"
         }
 
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return the operations this Zendesk service exposes."""
+        return {
+            "operations": ['get_tickets', 'get_ticket', 'create_ticket', 'search_tickets', 'get_users'],
+            "required_params": ["subdomain", "access_token"],
+            "optional_params": ["client_id", "client_secret"],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": True,
+        }
+
     def get_authorization_url(self, redirect_uri: str, state: str = None, scope: str = "read write") -> str:
         """Generate OAuth authorization URL"""
         params = {
@@ -263,12 +273,17 @@ class ZendeskService(IntegrationService):
                 "version": "1.0.0",
             }
         except Exception as e:
+            logger.error(f"Zendesk health check failed: {e}")
+            try:
+                timestamp = datetime.now(timezone.utc).isoformat()
+            except Exception:
+                timestamp = None
             return {
                 "ok": False,
                 "status": "unhealthy",
                 "service": "zendesk",
-                "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "error": "Zendesk health check failed",
+                "timestamp": timestamp,
             }
 
     async def execute_operation(
@@ -325,7 +340,7 @@ class ZendeskService(IntegrationService):
                 }
         except Exception as e:
             logger.error(f"Error executing Zendesk operation {operation}: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Zendesk operation failed"}
 
 # NOTE: Legacy singleton instance removed - use IntegrationRegistry instead
 # zendesk_service = ZendeskService("default", {})

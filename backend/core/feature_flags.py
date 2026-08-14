@@ -155,6 +155,12 @@ class FeatureFlags:
     # Device Capabilities (Camera, Screen Recording, etc.)
     DEVICE_CAPABILITIES_ENABLED = os.getenv("DEVICE_CAPABILITIES_ENABLED", "true").lower() == "true"
 
+    # Smart Home Control (Philips Hue, Home Assistant) — referenced by
+    # core/smarthome/hue_service.py + home_assistant_service.py; declared here
+    # (wave 99: the attribute was missing and every service construction
+    # raised AttributeError).
+    SMART_HOME_CONTROL_ENABLED = os.getenv("SMART_HOME_CONTROL_ENABLED", "true").lower() == "true"
+
     # Deep Linking
     DEEPLINK_ENABLED = os.getenv("DEEPLINK_ENABLED", "true").lower() == "true"
 

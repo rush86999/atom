@@ -305,6 +305,14 @@ class Tenant(Base):
     segregated_namespaces = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
 
+    # Tenant profile fields written by tools/platform_management_tool.py
+    # update_tenant_profile (wave 99: these were missing, so billing_email /
+    # budget_limit_usd / metadata_json assignments were silently dropped on
+    # commit while the tool reported success).
+    billing_email = Column(String, nullable=True)
+    budget_limit_usd = Column(Float, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True, default=dict)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -456,6 +464,10 @@ class User(Base):
     role = Column(String, nullable=False)  # Fixed: database requires NOT NULL
     status = Column(String, nullable=False)  # Fixed: database requires NOT NULL
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True)  # From database schema
+    # Active/inactive marker used by tools/platform_management_tool.py
+    # manage_tenant_member (wave 99: was missing — deactivate/reactivate
+    # silently never persisted).
+    is_active = Column(Boolean, default=True, nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -4983,6 +4995,50 @@ class IntegrationToken(Base):
     def is_valid(self) -> bool:
         """Check if token is valid (active and not expired)."""
         return self.status == "active" and not self.is_expired()
+
+
+class NotionToken(Base):
+    """
+    Notion OAuth token storage.
+
+    Consumed by integrations/notion_routes.py (OAuth callback + token
+    resolution). Notion access tokens don't expire natively, but an
+    expires_at horizon is stored for safety and rotation hygiene.
+    """
+    __tablename__ = "notion_tokens"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    workspace_id = Column(String, nullable=True, index=True)
+    status = Column(String, default="active")  # active, revoked, expired
+
+    access_token = Column(Text, nullable=False)
+    refresh_token = Column(Text, nullable=True)  # Notion has none; kept for symmetry
+    notion_user_id = Column(String, nullable=True)  # Notion bot id
+    workspace_name = Column(String, nullable=True)
+    workspace_icon = Column(String, nullable=True)
+    token_type = Column(String, default="bearer")
+    owner_type = Column(String, nullable=True)  # "user" or "workspace"
+    scope = Column(String, nullable=True)  # matches alembic bcf9c8a7a85c
+
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    last_used = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", backref="notion_tokens")
+
+    def __repr__(self):
+        masked = f"{self.access_token[:8]}..." if self.access_token else None
+        return f"<NotionToken(id={self.id}, workspace={self.workspace_id}, status={self.status}, token={masked})>"
+
+    def is_expired(self) -> bool:
+        """Check if token is expired."""
+        if not self.expires_at:
+            return False
+        from datetime import datetime
+        return datetime.now(self.expires_at.tzinfo) >= self.expires_at
 
 
 # ============================================================================

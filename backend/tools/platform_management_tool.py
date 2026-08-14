@@ -179,7 +179,10 @@ async def list_tenant_members(context: Dict[str, Any] = None) -> str:
             
         result = [f"Members for Tenant {tenant_id}:"]
         for m in members:
-            result.append(f"- {m.full_name or m.email} (ID: {m.id}, Role: {getattr(m, 'role', 'N/A')}, Status: {getattr(m, 'status', 'N/A')})")
+            # wave 99: User exposes a `name` property (first+last), not
+            # `full_name` — the old attribute never existed, so this always
+            # raised AttributeError and returned "Error listing tenant members".
+            result.append(f"- {m.name or m.email} (ID: {m.id}, Role: {getattr(m, 'role', 'N/A')}, Status: {getattr(m, 'status', 'N/A')})")
             
         return "\n".join(result)
     except Exception as e:
@@ -368,7 +371,9 @@ async def create_tenant(
 
     try:
         with SessionLocal() as db:
-            tenant = Tenant(name=name)
+            # wave 99: Tenant.subdomain is NOT NULL+unique — creating without
+            # it always failed with IntegrityError. Derive a unique slug.
+            tenant = Tenant(name=name, subdomain=f"tenant-{uuid.uuid4().hex[:12]}")
             db.add(tenant)
             db.commit()
             return f"Tenant '{name}' created successfully with ID {tenant.id}."

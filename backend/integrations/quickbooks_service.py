@@ -48,6 +48,16 @@ class QuickBooksService(IntegrationService):
             "Content-Type": "application/json"
         }
 
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return the operations this QuickBooks service exposes."""
+        return {
+            "operations": ['get_company_info', 'get_customers', 'get_invoices', 'get_expenses', 'full_sync'],
+            "required_params": ["client_id", "client_secret", "realm_id"],
+            "optional_params": ["access_token", "use_sandbox"],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": False,
+        }
+
     def get_authorization_url(self, redirect_uri: str, state: str = None, scope: str = "com.intuit.quickbooks.accounting") -> str:
         """Generate OAuth authorization URL"""
         params = {
@@ -65,6 +75,9 @@ class QuickBooksService(IntegrationService):
     async def exchange_token(self, code: str, redirect_uri: str) -> Dict[str, Any]:
         """Exchange authorization code for access token"""
         try:
+            if not self.client_id or not self.client_secret:
+                raise HTTPException(status_code=400, detail="Missing QuickBooks credentials")
+
             data = {
                 "grant_type": "authorization_code",
                 "code": code,
@@ -225,12 +238,17 @@ class QuickBooksService(IntegrationService):
                 "version": "1.0.0",
             }
         except Exception as e:
+            logger.error(f"QuickBooks health check failed: {e}")
+            try:
+                timestamp = datetime.now(timezone.utc).isoformat()
+            except Exception:
+                timestamp = None
             return {
                 "ok": False,
                 "status": "unhealthy",
                 "service": "quickbooks",
-                "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "error": "QuickBooks health check failed",
+                "timestamp": timestamp,
             }
 
     async def execute_operation(
@@ -279,7 +297,7 @@ class QuickBooksService(IntegrationService):
                 }
         except Exception as e:
             logger.error(f"Error executing QuickBooks operation {operation}: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "QuickBooks operation failed"}
     async def sync_to_postgres_cache(self, user_id: str, realm_id: str, access_token: str) -> Dict[str, Any]:
         """Sync QuickBooks analytics to PostgreSQL IntegrationMetric table."""
         try:
@@ -328,14 +346,14 @@ class QuickBooksService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving QuickBooks metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "QuickBooks metrics sync failed"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"QuickBooks PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "QuickBooks PostgreSQL cache sync failed"}
 
     async def full_sync(self, user_id: str, realm_id: str, access_token: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for QuickBooks"""

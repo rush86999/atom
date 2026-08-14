@@ -116,6 +116,8 @@ class ZoomAuthHandler:
                     )
                     return token_data
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error exchanging Zoom code for token: {e}")
             raise HTTPException(
@@ -165,6 +167,8 @@ class ZoomAuthHandler:
                     logger.info("Successfully refreshed Zoom access token")
                     return token_data
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error refreshing Zoom token: {e}")
             raise HTTPException(
@@ -203,6 +207,8 @@ class ZoomAuthHandler:
                     self.user_info = user_data
                     return user_data
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error getting Zoom user info: {e}")
             raise HTTPException(status_code=500, detail="Internal error")
@@ -324,6 +330,8 @@ class ZoomAuthHandler:
 
                     return await response.json()
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error making Zoom API request: {e}")
             raise HTTPException(

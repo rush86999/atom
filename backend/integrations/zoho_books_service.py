@@ -64,11 +64,11 @@ class ZohoBooksService(IntegrationService):
                 "supported": ['get_organizations', 'get_contacts'],
             }
         except Exception as exc:
-            return {"success": False, "error": str(exc)}
+            return {"success": False, "error": "Zoho Books operation failed"}
 
     async def _get_active_token(self, tenant_id: Optional[str] = None) -> Optional[str]:
         """Get a valid access token for the tenant, refreshing if necessary"""
-        tid = tenant_id or self.session_id or self.tenant_id
+        tid = tenant_id or getattr(self, "session_id", None) or self.tenant_id
         if not tid:
             return self.access_token or os.getenv("ZOHO_BOOKS_ACCESS_TOKEN")
 
@@ -288,14 +288,14 @@ class ZohoBooksService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Zoho Books metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Zoho Books metrics sync failed"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Zoho Books PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Zoho Books PostgreSQL cache sync failed"}
 
     async def full_sync(self, user_id: str, access_token: str, organization_id: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Zoho Books"""
@@ -315,6 +315,6 @@ class ZohoBooksService(IntegrationService):
 
 
 def get_zoho_books_service(config: Dict[str, Any]) -> ZohoBooksService:
-    return ZohoBooksService(tenant_id, config)
+    return ZohoBooksService(tenant_id="default", config=config)
 
 zoho_books_service = ZohoBooksService(tenant_id="default", config={})

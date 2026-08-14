@@ -52,10 +52,15 @@ class MailchimpService(IntegrationService):
                 "last_check": datetime.now(timezone.utc).isoformat()
             }
         except Exception as e:
+            logger.error(f"Mailchimp service health check failed: {e}")
+            try:
+                last_check = datetime.now(timezone.utc).isoformat()
+            except Exception:
+                last_check = None
             return {
                 "healthy": False,
-                "message": f"Mailchimp service health check failed: {str(e)}",
-                "last_check": datetime.now(timezone.utc).isoformat()
+                "message": "Mailchimp service health check failed",
+                "last_check": last_check
             }
 
     async def execute_operation(
@@ -104,9 +109,10 @@ class MailchimpService(IntegrationService):
                     "details": {}
                 }
         except Exception as e:
+            logger.error(f"Error executing Mailchimp operation {operation}: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Mailchimp operation failed",
                 "details": {}
             }
 
@@ -195,7 +201,7 @@ class MailchimpService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="mailchimp",
                         metric_key=key
                     ).first()
@@ -205,7 +211,7 @@ class MailchimpService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="mailchimp",
                             metric_key=key,
                             value=float(value),
@@ -219,14 +225,14 @@ class MailchimpService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Mailchimp metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Mailchimp metrics sync failed"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Mailchimp PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Mailchimp PostgreSQL cache sync failed"}
 
     async def full_sync(self, workspace_id: str, access_token: str = None, server_prefix: str = None) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Mailchimp"""

@@ -22,9 +22,9 @@ class AsanaRealService:
     BASE_URL = "https://app.asana.com/api/1.0"
     
     def __init__(self, access_token: str = None, workspace_gid: str = None):
-        # Get from environment or parameter
-        self.access_token = access_token or os.getenv("ASANA_ACCESS_TOKEN", "2/1211551477617044/1211959900544452:04904fb3621a011e810dc1c21ef41890")
-        self.workspace_gid = workspace_gid or "1211551477617056"  # Default workspace
+        # Get from environment or parameter (never a hardcoded credential)
+        self.access_token = access_token or os.getenv("ASANA_ACCESS_TOKEN", "")
+        self.workspace_gid = workspace_gid or os.getenv("ASANA_WORKSPACE_GID", "")
         
     async def _make_request(self, method: str, endpoint: str, data: Dict = None) -> Dict:
         """Make authenticated request to Asana API"""
@@ -50,7 +50,11 @@ class AsanaRealService:
                         return result
                 elif method == "DELETE":
                     async with session.delete(url, headers=headers) as response:
-                        return {"success": True}
+                        if response.status in (200, 204):
+                            return {"success": True}
+                        error_text = await response.text()
+                        logger.error(f"Asana DELETE failed: {error_text}")
+                        return {"success": False, "errors": [{"message": "DELETE failed"}]}
             except Exception as e:
                 logger.error(f"Asana API request failed: {e}")
                 return {"errors": [{"message": str(e)}]}
@@ -116,6 +120,9 @@ class AsanaRealService:
             else:
                 log_integration_complete(audit_ctx, error=Exception("Failed to create task"))
                 return None
+        except HTTPException as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
         except Exception as e:
             logger.error(f"Failed to create Asana task: {e}")
             log_integration_complete(audit_ctx, error=e)
@@ -163,6 +170,9 @@ class AsanaRealService:
             else:
                 log_integration_complete(audit_ctx, error=Exception("Failed to update task"))
                 return None
+        except HTTPException as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
         except Exception as e:
             logger.error(f"Failed to update Asana task: {e}")
             log_integration_complete(audit_ctx, error=e)
@@ -194,6 +204,9 @@ class AsanaRealService:
             result = await self._make_request("DELETE", f"tasks/{task_id}")
             log_integration_complete(audit_ctx, success=True)
             return result.get("success", False)
+        except HTTPException as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
         except Exception as e:
             logger.error(f"Failed to delete Asana task: {e}")
             log_integration_complete(audit_ctx, error=e)
@@ -232,6 +245,9 @@ class AsanaRealService:
             else:
                 log_integration_complete(audit_ctx, error=Exception("Failed to get projects"))
                 return []
+        except HTTPException as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
         except Exception as e:
             logger.error(f"Failed to get Asana projects: {e}")
             log_integration_complete(audit_ctx, error=e)
@@ -277,6 +293,9 @@ class AsanaRealService:
             else:
                 log_integration_complete(audit_ctx, error=Exception("Failed to create project"))
                 return None
+        except HTTPException as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
         except Exception as e:
             logger.error(f"Failed to create Asana project: {e}")
             log_integration_complete(audit_ctx, error=e)

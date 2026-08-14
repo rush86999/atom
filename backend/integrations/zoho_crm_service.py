@@ -67,7 +67,7 @@ class ZohoCRMService(IntegrationService):
                 "supported": ['get_leads', 'get_deals', 'get_modules', 'create_lead', 'create_record'],
             }
         except Exception as exc:
-            return {"success": False, "error": str(exc)}
+            return {"success": False, "error": "Zoho CRM operation failed"}
 
     async def _get_active_token(self, tenant_id: Optional[str] = None) -> Optional[str]:
         """Get a valid access token for the tenant, refreshing if necessary"""
@@ -149,6 +149,8 @@ class ZohoCRMService(IntegrationService):
             response = await self.client.get(f"{self.base_url}/Leads", headers=headers)
             response.raise_for_status()
             return response.json().get("data", [])
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Failed to fetch Zoho CRM leads: {e}")
             return []
@@ -165,6 +167,8 @@ class ZohoCRMService(IntegrationService):
             response = await self.client.post(f"{self.base_url}/Leads", headers=headers, json=payload)
             response.raise_for_status()
             return response.json().get("data", [{}])[0]
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Failed to create Zoho CRM lead: {e}")
             raise HTTPException(status_code=500, detail="Zoho CRM Lead creation failed")
@@ -180,6 +184,8 @@ class ZohoCRMService(IntegrationService):
             response = await self.client.get(f"{self.base_url}/Deals", headers=headers)
             response.raise_for_status()
             return response.json().get("data", [])
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Failed to fetch Zoho CRM deals: {e}")
             return []
@@ -220,6 +226,8 @@ class ZohoCRMService(IntegrationService):
             response = await self.client.post(f"{self.base_url}/{module}", headers=headers, json=payload)
             response.raise_for_status()
             return response.json().get("data", [{}])[0]
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Failed to create Zoho CRM record in {module}: {e}")
             raise HTTPException(status_code=500, detail=f"Zoho CRM {module} creation failed")
@@ -249,7 +257,7 @@ class ZohoCRMService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="zoho_crm",
                         metric_key=key
                     ).first()
@@ -259,7 +267,7 @@ class ZohoCRMService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="zoho_crm",
                             metric_key=key,
                             value=float(value),
@@ -273,14 +281,14 @@ class ZohoCRMService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Zoho CRM metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Zoho CRM metrics sync failed"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Zoho CRM PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Zoho CRM PostgreSQL cache sync failed"}
 
     async def full_sync(self, workspace_id: str, tenant_id: Optional[str] = None) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Zoho CRM"""

@@ -9,9 +9,31 @@ Changes: Added tenant_id context for multi-tenancy, inherits from IntegrationSer
 import logging
 import requests
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
+
 from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
+
+
+def _is_loopback_url(url: str) -> bool:
+    """
+    True when the URL targets the local machine (loopback hostname or a
+    loopback IP literal). The Obsidian Local REST API runs on the user's own
+    machine, so loopback is the intended destination — not an SSRF target.
+    Everything else still goes through the SSRF guard.
+    """
+    import ipaddress as _ipaddress
+
+    hostname = urlparse(url).hostname
+    if not hostname:
+        return False
+    if hostname.lower() == "localhost":
+        return True
+    try:
+        return _ipaddress.ip_address(hostname).is_loopback
+    except ValueError:
+        return False
 
 
 class ObsidianService(IntegrationService):
@@ -38,10 +60,14 @@ class ObsidianService(IntegrationService):
 
         self.api_token = config.get("api_token")
         self.plugin_url = config.get("plugin_url", "http://localhost:27123").rstrip('/')
-        # SSRF guard: validate the plugin_url doesn't point to internal/private IPs
+        # SSRF guard: validate the plugin_url doesn't point to internal/private
+        # IPs. Loopback URLs (the Obsidian Local REST API's default
+        # http://localhost:27123) are exempt — they are the intended
+        # destination, not an SSRF vector.
         from core.ssrf_guard import validate_url, SSRFError
         try:
-            validate_url(self.plugin_url)
+            if not _is_loopback_url(self.plugin_url):
+                validate_url(self.plugin_url)
         except SSRFError as e:
             logger.warning(f"Obsidian plugin_url blocked by SSRF guard: {e}")
             raise ValueError(f"Invalid plugin_url: {e}")

@@ -63,11 +63,11 @@ class ZohoInventoryService(IntegrationService):
                 "supported": ['get_items', 'get_inventory_levels'],
             }
         except Exception as exc:
-            return {"success": False, "error": str(exc)}
+            return {"success": False, "error": "Zoho Inventory operation failed"}
 
     async def _get_active_token(self, tenant_id: Optional[str] = None) -> Optional[str]:
         """Get a valid access token for the tenant, refreshing if necessary"""
-        tid = tenant_id or self.session_id or self.tenant_id
+        tid = tenant_id or getattr(self, "session_id", None) or self.tenant_id
         if not tid:
             return self.access_token or os.getenv("ZOHO_INVENTORY_ACCESS_TOKEN")
 
@@ -145,6 +145,8 @@ class ZohoInventoryService(IntegrationService):
             response = await self.client.get(f"{self.base_url}/items", headers=headers, params=params)
             response.raise_for_status()
             return response.json().get("items", [])
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Failed to fetch Zoho Inventory items: {e}")
             return []
@@ -171,9 +173,11 @@ class ZohoInventoryService(IntegrationService):
                 "stock_on_hand": item.get("stock_on_hand", 0),
                 "available_stock": item.get("available_stock", 0)
             }
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Failed to check stock for {item_id}: {e}")
-            return {"error": str(e)}
+            return {"error": "Failed to check stock"}
 
     async def get_inventory_levels(self, token: Optional[str] = None, organization_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetch inventory levels for all active items"""
@@ -235,14 +239,14 @@ class ZohoInventoryService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Zoho Inventory metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Zoho Inventory metrics sync failed"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Zoho Inventory PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Zoho Inventory PostgreSQL cache sync failed"}
 
     async def full_sync(self, user_id: str, access_token: str, organization_id: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Zoho Inventory"""
@@ -262,6 +266,6 @@ class ZohoInventoryService(IntegrationService):
 
 
 def get_zoho_inventory_service(config: Dict[str, Any]) -> ZohoInventoryService:
-    return ZohoInventoryService(tenant_id, config)
+    return ZohoInventoryService(tenant_id="default", config=config)
 
 zoho_inventory_service = ZohoInventoryService(tenant_id="default", config={})
