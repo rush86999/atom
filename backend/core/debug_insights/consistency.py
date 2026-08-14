@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_
 
 from core.models import (
     DebugEvent,
@@ -284,16 +284,19 @@ class ConsistencyInsightGenerator:
         """
         try:
             # Count unique components that have data
+            # NB: `.distinct(col).count()` (DISTINCT ON) is PostgreSQL-only and
+            # is *silently ignored* by SQLite — the Personal Edition DB would
+            # overcount rows with the same component_id as distinct replicas.
+            # `func.count(func.distinct(col))` is portable across both dialects.
             component_count = (
-                self.db.query(DebugStateSnapshot)
+                self.db.query(func.count(func.distinct(DebugStateSnapshot.component_id)))
                 .filter(
                     and_(
                         DebugStateSnapshot.operation_id == operation_id,
                         DebugStateSnapshot.component_type == component_type,
                     )
                 )
-                .distinct(DebugStateSnapshot.component_id)
-                .count()
+                .scalar()
             )
 
             if component_count < expected_replicas:
@@ -373,17 +376,17 @@ class ConsistencyInsightGenerator:
             )
 
             for (operation_id,) in operations:
-                # Count components per operation
+                # Count components per operation (portable distinct count —
+                # see verify_replication_completion for the SQLite rationale)
                 component_count = (
-                    self.db.query(DebugStateSnapshot)
+                    self.db.query(func.count(func.distinct(DebugStateSnapshot.component_id)))
                     .filter(
                         and_(
                             DebugStateSnapshot.operation_id == operation_id,
                             DebugStateSnapshot.captured_at >= time_filter,
                         )
                     )
-                    .distinct(DebugStateSnapshot.component_id)
-                    .count()
+                    .scalar()
                 )
 
                 # If an operation has only 1 component, it might not be replicating
