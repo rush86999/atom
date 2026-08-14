@@ -1686,25 +1686,6 @@ class TestLeidenAlgorithm:
         assert get_leiden_algorithm(cfg).config is cfg
 
 
-# ============================================================================
-# Module-import path coverage (MUST run last: reload replaces module globals,
-# which would otherwise desync the classes bound at import time above).
-# ============================================================================
-
-class TestModuleImportPaths:
-    def test_community_detection_igraph_import_success_and_restore(self):
-        mod = sys.modules["core.graphrag.community_detection"]
-        stub = SimpleNamespace()
-        with patch.dict(sys.modules, {"igraph": stub}):
-            reloaded = importlib.reload(mod)
-            assert reloaded.IGRAPH_AVAILABLE is True
-            assert reloaded.ig is stub
-        sys.modules.pop("igraph", None)
-        restored = importlib.reload(mod)
-        assert restored.IGRAPH_AVAILABLE is False
-        assert restored.ig is None
-
-
 class TestCommunityDetectionService:
     def _svc(self, **overrides):
         cfg = CommunityConfig(**overrides)
@@ -1894,3 +1875,40 @@ class TestCommunityDetectionService:
         with patch("core.graphrag.community_detection.get_db_session", return_value=sess):
             hierarchy = self._svc(resolution_policy=ResolutionPolicy.FIXED, base_resolution=1.0).detect_hierarchy("ws-1")
         assert hierarchy.max_depth == 3
+
+
+# ============================================================================
+# Module-import path coverage. MUST run last in this file: importlib.reload
+# replaces the module globals (enums/classes), which would otherwise desync
+# the class objects bound at import time above.
+# ============================================================================
+
+class TestModuleImportPaths:
+    def test_community_detection_igraph_import_success_and_restore(self):
+        mod = sys.modules["core.graphrag.community_detection"]
+        stub = SimpleNamespace()
+        with patch.dict(sys.modules, {"igraph": stub}):
+            reloaded = importlib.reload(mod)
+            assert reloaded.IGRAPH_AVAILABLE is True
+            assert reloaded.ig is stub
+        sys.modules.pop("igraph", None)
+        restored = importlib.reload(mod)
+        assert restored.IGRAPH_AVAILABLE is False
+        assert restored.ig is None
+
+    def test_community_detection_networkx_import_failure_and_restore(self, caplog):
+        mod = sys.modules["core.graphrag.community_detection"]
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "networkx":
+                raise ImportError("simulated missing networkx")
+            return real_import(name, *args, **kwargs)
+
+        with patch.object(builtins, "__import__", side_effect=fake_import), \
+                caplog.at_level("WARNING", logger="core.graphrag.community_detection"):
+            reloaded = importlib.reload(mod)
+        assert reloaded.NETWORKX_AVAILABLE is False
+        assert "NetworkX not available" in caplog.text
+        restored = importlib.reload(mod)
+        assert restored.NETWORKX_AVAILABLE is True
