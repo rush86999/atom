@@ -3,8 +3,10 @@ Domain/Intent Detector for LLM routing.
 
 Complements the cognitive tier system (which answers "how hard is this?") with
 a domain classifier (which answers "what kind of task is this?"). The detected
-intent nudges cognitive tier selection and enriches the learning-router cache
-key so per-model predictors can learn intent-specific preferences.
+intent nudges cognitive tier selection and feeds intent one-hot features to the
+learning-router predictors so per-model predictors can learn intent-specific
+preferences (as features, not as a cache-key dimension — the feedback pipeline
+carries no intent column).
 
 Design mirrors ``CognitiveClassifier`` (weighted regex + structural signals +
 task bias) and Manifest's specificity detector (keyword trie + tool-prefix
