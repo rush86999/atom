@@ -17,11 +17,8 @@ from .universal_webhook_bridge import universal_webhook_bridge
 
 logger = logging.getLogger(__name__)
 
-<<<<<<< Updated upstream
 _bg_tasks: set = set()
 
-=======
->>>>>>> Stashed changes
 # The module previously imported ``line_service`` as an instance, but
 # line_service.py only defines the ``LineService`` class — the import failed
 # with ImportError, so this router (and the webhook below) was dead.

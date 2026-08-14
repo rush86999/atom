@@ -247,8 +247,11 @@ to default routing.
 1. **Tier nudge** in `CognitiveTierService.select_tier`: after complexity classification,
    before preference clamping. A coding/reasoning intent floors the tier at VERSATILE;
    conversation caps at STANDARD. The preference min/max clamp still constrains the nudged tier.
-2. **Learning-router cache key**: intent becomes a third dimension (`f"{tenant}:{task}:{intent}"`)
-   so per-model predictors learn intent-specific preferences (e.g. DeepSeek wins coding intents).
+2. **Learning-router features**: intent is encoded as six `intent_*` one-hots in the
+   predictor feature vector, so per-model predictors learn intent-specific preferences
+   (e.g. DeepSeek wins coding intents) within a tenant/task bucket. (Not a cache-key
+   dimension: an earlier `{tenant}:{task}:{intent}` key was removed because the feedback
+   pipeline carries no intent column — see [LEARNING_LLM_ROUTER.md](./LEARNING_LLM_ROUTER.md).)
 
 Can be overridden per-request via the `x-atom-intent` header (see [Routing Headers](../reference/ROUTING_HEADERS.md)).
 

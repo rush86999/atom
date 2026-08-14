@@ -33,7 +33,7 @@ Legend: ✅ strong · ◐ partial / opt-in · ❌ absent · ➖ not applicable (
 | **Agent-callable memory tools** | ✅ | ✅ | `memory_remember` / `memory_forget` (Atom) vs `lancedb_remember` / `mem0_*` (Hermes). |
 | **Context compression** | ✅ | ◐ | Atom: RTK tool-output compression (15-95% savings, structured-data safe) + session-dedup (exact-match) + boundary-protection + tool-pair sanitization. Hermes has an LLM-summary phase (3 documented bugs). See [Token Compression](TOKEN_COMPRESSION.md). |
 | **Self-healing request repair** | ✅ | ❌ | Atom: rule-based autofix on provider 4xx (param renames, drop unsupported, truncate context) + optional LLM healer. Hermes has none. See [Self-Healing](REQUEST_SELF_HEALING.md). |
-| **Domain/intent detection** | ✅ | ❌ | Atom: 6-category intent detector (coding/reasoning/conversation/etc.) feeding tier nudging + predictor cache key. Hermes has none. |
+| **Domain/intent detection** | ✅ | ❌ | Atom: 6-category intent detector (coding/reasoning/conversation/etc.) feeding tier nudging + intent one-hot features in the learning-router predictor vector. Hermes has none. |
 | **LKGP sticky routing** | ✅ | ❌ | Atom: session-level last-known-good-path routing for multi-turn consistency. Hermes has none. |
 | **Fusion routing (panel+judge)** | ✅ | ❌ | Atom: N-model parallel + judge synthesis (COMPLEX tier, opt-in only). Hermes has none. |
 | **Per-request routing overrides** | ✅ | ❌ | Atom: x-atom-tier/model/intent headers. Hermes has none. |

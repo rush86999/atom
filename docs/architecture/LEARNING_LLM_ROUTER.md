@@ -110,7 +110,9 @@ tenant/task-scoped, consistent between route-time lookup and training-side
 writes. Predictors are globally loaded from disk (one `per_model/` directory),
 so each `PerModelRouter` instance has access to all models' estimators; the
 cache key controls which *retrain trigger* applies, not which predictors are
-visible.
+visible. **Intent-specific preference is captured as features** (six `intent_*`
+one-hots in the 16-feature vector, see [Prompt-feature capture](#prompt-feature-capture-trainserve-consistency)),
+so the feedback pipeline doesn't need a new column for intent to steer routing.
 
 ### Per-model predictors (`core/llm/routing/per_model_router.py`)
 
@@ -173,17 +175,28 @@ feedback. It lets predictors learn "model X truncates long prompts" /
 Feedback write-throughs to the `llm_routing_feedback` table so learned data
 survives restarts. On startup, the singleton hydrates from the DB. Columns:
 `routing_result_id`, `tenant_id`, `task_type`, `model_id`, outcome booleans,
-optional metrics, and `prompt_features` (the 10-feature vector, as JSON, so
+optional metrics, and `prompt_features` (the 16-feature vector, as JSON, so
 training reproduces the exact features the decision used).
 
 ### Prompt-feature capture (train/serve consistency)
 
-At route time, `_extract_request_features` computes a 10-feature vector
+At route time, `_extract_request_features` computes a 16-feature vector
 (log_tokens, token_bucket, task one-hots, has_code, has_numbers,
-avg_word_length). The `routing_result_id` correlates each decision to its
-features, so when feedback arrives, predictors train on the **same** features
-used to make the decision — eliminating train/serve skew. Defense-in-depth
-fallback: evicted/restarted ids degrade gracefully to task-level defaults.
+avg_word_length, **6 intent one-hots**). The `routing_result_id` correlates
+each decision to its features, so when feedback arrives, predictors train on
+the **same** features used to make the decision — eliminating train/serve
+skew. Defense-in-depth fallback: evicted/restarted ids degrade gracefully to
+task-level defaults.
+
+**Intent is a feature, not a key dimension.** The predictor cache key stays
+2-part `{tenant}:{task}` (the feedback pipeline carries no intent column), but
+intent now enters the 16-feature vector as one-hots — so per-model predictors
+learn intent-specific satisfaction *within* a tenant/task bucket. This is
+train/serve consistent because the stashed/persisted `prompt_features` carry
+the one-hots. Predictors persisted before this change were fit on 10 features;
+`predict_satisfaction` truncates the vector to the estimator's
+`n_features_in_` so legacy `.pkl` files keep serving (without the intent
+signal) instead of raising.
 
 ## The flag
 
@@ -260,6 +273,24 @@ score = rule_based_base                                          # BPC-style qua
 The production chat path (`_rerank_with_learning`) uses this same blend — it no
 longer consults only the predictor. So `ATOM_EMA_ROUTER_ENABLED=true` now
 actually steers live traffic (it previously flipped only a dashboard boolean).
+
+**Cold-start gating (Aug 2026):** the live re-rank used to early-return when no
+predictor bucket existed for the tenant/task, so EMA could never route during
+*full* cold start — the documented "EMA carries while predictors are cold"
+handoff was dead on the production path. The gating now only skips when
+neither predictors nor EMA could contribute; with `ATOM_EMA_ROUTER_ENABLED`,
+observed EMA success re-ranks candidates even with zero trained predictors
+(e.g. routing around a model that started failing while the predictors are
+still accumulating samples).
+
+**Live-path robustness (Aug 2026):** `_rerank_with_learning` /
+`_stash_decision_features` build a synthetic request object (no
+`conversation_context`) for feature extraction. The extractor previously read
+`conversation_context` directly, raising AttributeError on the synthetic
+object — swallowed by the best-effort guard, so the live re-rank and feature
+stash silently no-op'd in production (the same class of bug as the R97 3D-key
+fix). Both reads are now defensive, and intent is threaded through the
+synthetic request into the stashed feature vector.
 
 > **Note on `ATOM_EMA_ROUTER_ENABLED`:** this flag toggles whether the EMA term
 > contributes to scoring. EMA telemetry is **collected on every feedback** (and
