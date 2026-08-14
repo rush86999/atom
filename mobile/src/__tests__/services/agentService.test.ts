@@ -613,6 +613,120 @@ describe('AgentService', () => {
   });
 
   // ========================================================================
+  // Coverage Wave Additions (branch completion)
+  // ========================================================================
+
+  describe('Coverage Wave Additions', () => {
+    test('getAgents omits maturity_level and status when set to ALL', async () => {
+      (apiService.get as jest.Mock).mockResolvedValue({ success: true, data: [] });
+
+      await agentService.getAgents({ maturity: 'ALL', status: 'ALL' });
+
+      expect(apiService.get).toHaveBeenCalledWith('/api/agents', { params: {} });
+    });
+
+    test('getChatSessions uses default limit of 20 when no argument passed', async () => {
+      (apiService.get as jest.Mock).mockResolvedValue({ success: true, data: [] });
+
+      await agentService.getChatSessions();
+
+      expect(apiService.get).toHaveBeenCalledWith('/api/chat/sessions', {
+        params: { limit: 20 },
+      });
+    });
+
+    test('getChatSessions returns default error message on unknown error', async () => {
+      (apiService.get as jest.Mock).mockRejectedValue(new Error());
+
+      const result = await agentService.getChatSessions();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to fetch chat sessions');
+    });
+
+    test('getChatSession returns default error message on unknown error', async () => {
+      (apiService.get as jest.Mock).mockRejectedValue(new Error());
+
+      const result = await agentService.getChatSession('session_1');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to fetch chat session');
+    });
+
+    test('getAgent returns default error message on unknown error', async () => {
+      (apiService.get as jest.Mock).mockRejectedValue(new Error());
+
+      const result = await agentService.getAgent('agent_1');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to fetch agent');
+    });
+
+    test('sendMessage returns default error message on unknown error', async () => {
+      (apiService.post as jest.Mock).mockRejectedValue(new Error());
+
+      const result = await agentService.sendMessage('agent_1', 'Test');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to send message');
+    });
+
+    test('getEpisodeContext returns default error message on unknown error', async () => {
+      (apiService.post as jest.Mock).mockRejectedValue(new Error());
+
+      const result = await agentService.getEpisodeContext('agent_1', 'test');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to fetch episode context');
+    });
+
+    test('createChatSession handles error with message', async () => {
+      (apiService.post as jest.Mock).mockRejectedValue(new Error('create failed'));
+
+      const result = await agentService.createChatSession('agent_1');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('create failed');
+    });
+
+    test('createChatSession returns default error message on unknown error', async () => {
+      (apiService.post as jest.Mock).mockRejectedValue(new Error());
+
+      const result = await agentService.createChatSession('agent_1');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to create chat session');
+    });
+
+    test('deleteChatSession returns default error message on unknown error', async () => {
+      (apiService.delete as jest.Mock).mockRejectedValue(new Error());
+
+      const result = await agentService.deleteChatSession('session_1');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to delete chat session');
+    });
+
+    test('getAgentCapabilities returns default error message on unknown error', async () => {
+      (apiService.get as jest.Mock).mockRejectedValue(new Error());
+
+      const result = await agentService.getAgentCapabilities('agent_1');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to fetch agent capabilities');
+    });
+
+    test('getAvailableAgents returns default error message on unknown error', async () => {
+      (apiService.get as jest.Mock).mockRejectedValue(new Error());
+
+      const result = await agentService.getAvailableAgents();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to fetch available agents');
+    });
+  });
+
+  // ========================================================================
   // Streaming Tests (TODO)
   // ========================================================================
 

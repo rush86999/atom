@@ -1944,4 +1944,443 @@ describe('WebSocketContext', () => {
       });
     });
   });
+
+  // ==========================================================================
+  // Coverage Wave Additions (branch completion)
+  // ==========================================================================
+
+  describe('Coverage Wave Additions', () => {
+    it('should no-op connect() when the socket is already connected', async () => {
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      simulateSocketConnection(result, mockSocket);
+
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
+      const { io } = require('socket.io-client');
+      const ioCallsBefore = io.mock.calls.length;
+
+      act(() => {
+        result.current.connect();
+      });
+
+      expect(io.mock.calls.length).toBe(ioCallsBefore);
+    });
+
+    it('should no-op on()/off() before a socket exists', () => {
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      const callback = jest.fn();
+
+      expect(() => {
+        act(() => {
+          result.current.on('test:event', callback);
+          result.current.off('test:event', callback);
+          result.current.off('test:event');
+        });
+      }).not.toThrow();
+    });
+
+    it('should no-op leaveRoom when not connected', async () => {
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.leaveRoom('room-1');
+      });
+
+      expect(mockSocket.emit).not.toHaveBeenCalledWith('leave', { room: 'room-1' });
+    });
+
+    it('should not emit subscribe_stream when not connected', () => {
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.subscribeToStream('session-1', jest.fn(), jest.fn(), jest.fn());
+      });
+
+      expect(mockSocket.emit).not.toHaveBeenCalledWith(
+        'subscribe_stream',
+        expect.anything()
+      );
+    });
+
+    it('should no-op typing unsubscribe when callback is not registered', async () => {
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      const first = jest.fn();
+      const second = jest.fn();
+
+      let unsubscribeFirst: () => void;
+      let unsubscribeSecond: () => void;
+      act(() => {
+        unsubscribeFirst = result.current.subscribeToTyping(first);
+        unsubscribeSecond = result.current.subscribeToTyping(second);
+      });
+
+      act(() => {
+        unsubscribeFirst();
+        unsubscribeSecond();
+        // Unsubscribe again — callback no longer in the list (index -1)
+        unsubscribeFirst();
+      });
+
+      // Sanity: no throw and listeners still functional
+      expect(() => {
+        act(() => {
+          unsubscribeSecond();
+        });
+      }).not.toThrow();
+    });
+
+    it('should queue streaming messages and flush them on connect', async () => {
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      const onError = jest.fn();
+      let unsubscribe: () => void;
+      act(() => {
+        unsubscribe = result.current.sendStreamingMessage(
+          'agent-1',
+          'queued message',
+          'session-1',
+          { onChunk: jest.fn(), onComplete: jest.fn(), onError }
+        );
+      });
+
+      // Not connected yet — queued and reported
+      expect(onError).toHaveBeenCalledWith('Not connected');
+
+      // Connecting flushes the queue
+      simulateSocketConnection(result, mockSocket);
+
+      await waitFor(() => {
+        expect(mockSocket.emit).toHaveBeenCalledWith('agent:chat', {
+          agentId: 'agent-1',
+          message: 'queued message',
+          sessionId: 'session-1',
+        });
+      });
+
+      act(() => {
+        unsubscribe();
+      });
+    });
+
+    it('should ignore streaming events with unknown stream ids', async () => {
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      simulateSocketConnection(result, mockSocket);
+
+      const streamingCallback = mockSocket.on.mock.calls.find(
+        (call: any[]) => call[0] === 'agent:streaming'
+      )?.[1];
+      const completeCallback = mockSocket.on.mock.calls.find(
+        (call: any[]) => call[0] === 'agent:streaming_complete'
+      )?.[1];
+      const errorCallback = mockSocket.on.mock.calls.find(
+        (call: any[]) => call[0] === 'agent:streaming_error'
+      )?.[1];
+
+      expect(() => {
+        act(() => {
+          streamingCallback?.({ stream_id: 'unknown', token: 'x' });
+          completeCallback?.({ stream_id: 'unknown' });
+          errorCallback?.({ stream_id: 'unknown', error: 'boom' });
+        });
+      }).not.toThrow();
+    });
+
+    it('should surface socket creation errors as connection errors', async () => {
+      const { io } = require('socket.io-client');
+      io.mockImplementationOnce(() => {
+        throw new Error('ws transport failed');
+      });
+
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      expect(result.current.connectionError).toBe('ws transport failed');
+      expect(result.current.isConnecting).toBe(false);
+    });
+
+    it('should disconnect when authentication is revoked', async () => {
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      simulateSocketConnection(result, mockSocket);
+
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
+      try {
+        mockAuthContext.isAuthenticated = false;
+
+        // Fire a socket disconnect event to re-render the provider; the
+        // [isAuthenticated] effect then sees false and disconnects.
+        const disconnectCallback = mockSocket.on.mock.calls.find(
+          (call: any[]) => call[0] === 'disconnect'
+        )?.[1];
+        act(() => {
+          disconnectCallback?.('client disconnect');
+        });
+
+        expect(mockSocket.disconnect).toHaveBeenCalled();
+        expect(result.current.isConnected).toBe(false);
+      } finally {
+        mockAuthContext.isAuthenticated = true;
+      }
+    });
+
+    it('should clear a pre-existing heartbeat interval on re-connect', async () => {
+      jest.useFakeTimers();
+      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      simulateSocketConnection(result, mockSocket);
+
+      // Fire the connect handler a second time (simulated reconnect) —
+      // startHeartbeat runs again while the first interval is still active.
+      const connectCallback = mockSocket.on.mock.calls.find(
+        (call: any[]) => call[0] === 'connect'
+      )?.[1];
+      act(() => {
+        connectCallback?.();
+      });
+
+      expect(clearIntervalSpy).toHaveBeenCalled();
+
+      clearIntervalSpy.mockRestore();
+      jest.useRealTimers();
+    });
+
+    it('should mark quality offline when heartbeat runs without a connection', async () => {
+      jest.useFakeTimers();
+
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      simulateSocketConnection(result, mockSocket);
+
+      // Socket drops after the initial connection
+      Object.defineProperty(mockSocket, 'connected', {
+        get: () => false,
+        configurable: true,
+      });
+
+      act(() => {
+        jest.advanceTimersByTime(30000);
+      });
+
+      expect(result.current.connectionQuality).toBe('offline');
+
+      jest.useRealTimers();
+    });
+
+    it('should report good quality for mid-range latency (100-300ms)', async () => {
+      jest.useFakeTimers();
+
+      // Script Date.now so each heartbeat cycle measures exactly 200ms:
+      // [cycle1 start, cycle1 pong, cycle2 start, cycle2 pong, cycle3 start, cycle3 pong]
+      const dateNowSpy = jest
+        .spyOn(Date, 'now')
+        .mockReturnValueOnce(1_000_000_000)
+        .mockReturnValueOnce(1_000_000_200)
+        .mockReturnValueOnce(1_000_100_000)
+        .mockReturnValueOnce(1_000_100_200)
+        .mockReturnValueOnce(1_000_200_000)
+        .mockReturnValueOnce(1_000_200_200);
+
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      simulateSocketConnection(result, mockSocket);
+
+      for (let i = 0; i < 3; i++) {
+        act(() => {
+          jest.advanceTimersByTime(30000);
+        });
+
+        const pongCallbacks = mockSocket.once.mock.calls.filter(
+          (call: any[]) => call[0] === 'pong'
+        );
+        const pongCallback = pongCallbacks[pongCallbacks.length - 1]?.[1];
+
+        if (pongCallback) {
+          act(() => {
+            pongCallback();
+          });
+        }
+      }
+
+      expect(result.current.connectionQuality).toBe('good');
+
+      dateNowSpy.mockRestore();
+      jest.useRealTimers();
+    });
+
+    it('should rejoin stored rooms on reconnection', async () => {
+      (AsyncStorage.getAllKeys as jest.Mock).mockResolvedValue([
+        'socket_room_roomA',
+        'socket_room_roomB',
+        'unrelated_key',
+      ]);
+
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      simulateSocketConnection(result, mockSocket);
+
+      await waitFor(() => {
+        expect(mockSocket.emit).toHaveBeenCalledWith('join', { room: 'roomA' });
+        expect(mockSocket.emit).toHaveBeenCalledWith('join', { room: 'roomB' });
+      });
+    });
+
+    it('useAgentChat should ignore streaming and completion from other agents', async () => {
+      const { result } = renderHook(() => useAgentChat('agent-1'), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect?.();
+      });
+
+      const connectCallback = mockSocket.on.mock.calls.find(
+        (call: any[]) => call[0] === 'connect'
+      )?.[1];
+      if (connectCallback) {
+        await act(async () => {
+          await connectCallback();
+        });
+      }
+
+      Object.defineProperty(mockSocket, 'connected', {
+        get: () => true,
+        configurable: true,
+      });
+
+      const streamingCallback = mockSocket.on.mock.calls.filter(
+        (call: any[]) => call[0] === 'agent:streaming'
+      ).slice(-1)[0]?.[1];
+      const completeCallback = mockSocket.on.mock.calls.filter(
+        (call: any[]) => call[0] === 'agent:streaming_complete'
+      ).slice(-1)[0]?.[1];
+
+      act(() => {
+        // Other agent's streaming — ignored
+        streamingCallback?.({ agent_id: 'agent-2', content: 'nope' });
+        completeCallback?.({ agent_id: 'agent-2' });
+      });
+
+      expect(result.current.messages).toHaveLength(0);
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    it('useAgentChat should handle streaming_complete without a streaming last message', async () => {
+      const { result } = renderHook(() => useAgentChat('agent-1'), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect?.();
+      });
+
+      const connectCallback = mockSocket.on.mock.calls.find(
+        (call: any[]) => call[0] === 'connect'
+      )?.[1];
+      if (connectCallback) {
+        await act(async () => {
+          await connectCallback();
+        });
+      }
+
+      Object.defineProperty(mockSocket, 'connected', {
+        get: () => true,
+        configurable: true,
+      });
+
+      const messageCallback = mockSocket.on.mock.calls.filter(
+        (call: any[]) => call[0] === 'agent:message'
+      ).slice(-1)[0]?.[1];
+      const completeCallback = mockSocket.on.mock.calls.filter(
+        (call: any[]) => call[0] === 'agent:streaming_complete'
+      ).slice(-1)[0]?.[1];
+
+      act(() => {
+        // A plain (non-streaming) last message
+        messageCallback?.({ agent_id: 'agent-1', content: 'final' });
+      });
+
+      act(() => {
+        completeCallback?.({ agent_id: 'agent-1' });
+      });
+
+      await waitFor(() => {
+        expect(result.current.isStreaming).toBe(false);
+      });
+      expect(result.current.messages).toHaveLength(1);
+      // Last message was not marked streaming — left untouched
+      expect(result.current.messages[0].isStreaming).toBeUndefined();
+    });
+  });
 });

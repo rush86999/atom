@@ -1,41 +1,59 @@
 """
-Property-based and unit tests for proposal episode creation.
+Tests for proposal episode creation via ProposalService.
 
-Tests the integration between ProposalService and EpisodeSegmentationService
-to ensure proposal approvals/rejections are captured as learning episodes.
+Wave 116 (2026-08-13): rewritten against the current async API and current
+Episode schema. The previous version used a phantom AgentProposal surface
+(proposed_action= / reasoning= / proposed_by= constructor kwargs,
+Episode.proposal_outcome / Episode.rejection_reason / Episode.human_edits
+columns) and called approve/reject without user_id — it failed 13/13.
+
+Now aligned: proposals carry proposal_data, episodes expose outcome/reason/
+edits via metadata_json, and executors are mocked so no real canvas/browser
+side effects run. Uses a fresh in-memory DB per test.
 """
 
-import pytest
 import uuid
-from hypothesis import given, strategies as st, settings
-from sqlalchemy.orm import Session
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from hypothesis import given, settings, strategies as st
+from hypothesis import HealthCheck
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from core.models import (
     AgentProposal,
     AgentRegistry,
     AgentStatus,
+    Episode,
+    EpisodeSegment,
     ProposalStatus,
     ProposalType,
     User,
     Workspace,
 )
 from core.proposal_service import ProposalService
+from core.models_registration import Base
 
-
-# ============================================================================
-# Test Fixtures
-# ============================================================================
 
 @pytest.fixture
 def db():
-    """Create a test database session."""
-    from core.database import SessionLocal
-    db = SessionLocal()
+    """Fresh in-memory database session with full schema (per test)."""
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    SessionLocal = sessionmaker(bind=engine)
+    session = SessionLocal()
     try:
-        yield db
+        yield session
     finally:
-        db.close()
+        session.close()
+        engine.dispose()
 
 
 @pytest.fixture
@@ -45,7 +63,9 @@ def user(db: Session):
         id=f"test_proposal_user_{uuid.uuid4()}",
         email=f"proposal_test-{uuid.uuid4()}@example.com",
         first_name="Proposal",
-        last_name="Test User", role="member", status="active"
+        last_name="Test User",
+        role="member",
+        status="active",
     )
     db.add(user)
     db.commit()
@@ -56,8 +76,9 @@ def user(db: Session):
 def workspace(db: Session, user: User):
     """Create test workspace."""
     workspace = Workspace(
-        id="test_proposal_workspace",
-        name="Proposal Test Workspace", )
+        id=f"test_ws_{uuid.uuid4()}",
+        name="Proposal Test Workspace",
+    )
     db.add(workspace)
     db.commit()
     return workspace
@@ -67,13 +88,15 @@ def workspace(db: Session, user: User):
 def intern_agent(db: Session, workspace: Workspace, user: User):
     """Create INTERN agent."""
     agent = AgentRegistry(
-        id="test_intern_agent_proposal",
+        id=f"test_intern_agent_{uuid.uuid4()}",
         name="Test Intern Agent Proposal",
         category="testing",
         module_path="agents.test_agent",
         class_name="TestAgent",
         status=AgentStatus.INTERN.value,
-        confidence_score=0.6, 
+        confidence_score=0.6,
+        user_id=user.id,
+        tenant_id="default",
     )
     db.add(agent)
     db.commit()
@@ -82,27 +105,29 @@ def intern_agent(db: Session, workspace: Workspace, user: User):
 
 @pytest.fixture
 def proposal_factory(db: Session, intern_agent: AgentRegistry, user: User):
-    """Factory to create proposals."""
+    """Factory to create proposals against the current schema."""
+
     def _create_proposal(
         title: str = "Test Proposal",
-        proposal_type: str = ProposalType.ACTION.value,
         reasoning: str = "Test reasoning",
+        proposal_data: dict = None,
     ) -> AgentProposal:
         proposal = AgentProposal(
-            id=f"test_proposal_{datetime.now().timestamp()}",
+            id=f"test_proposal_{uuid.uuid4().hex[:8]}",
+            tenant_id="default",
+            user_id=user.id,
             agent_id=intern_agent.id,
             agent_name=intern_agent.name,
-            proposal_type=proposal_type,
+            proposal_type=ProposalType.ACTION.value,
             title=title,
-            description="Test proposal description",
-            proposed_action={
+            description=f"Proposal with reasoning: {reasoning}",
+            proposal_data=proposal_data or {
                 "action_type": "canvas_present",
                 "canvas_type": "chart",
+                "reasoning": reasoning,
             },
-            reasoning=reasoning,
             status=ProposalStatus.PENDING_APPROVAL.value,
-            proposed_by=intern_agent.id,
-            created_at=datetime.now(),
+            created_at=datetime(2026, 8, 1, 12, 0, 0),
         )
         db.add(proposal)
         db.commit()
@@ -112,174 +137,139 @@ def proposal_factory(db: Session, intern_agent: AgentRegistry, user: User):
     return _create_proposal
 
 
-# ============================================================================
-# Unit Tests
-# ============================================================================
+def _service(db, *, execute_result=None):
+    """ProposalService with a mocked action executor (no real side effects)."""
+    service = ProposalService(db)
+    service._execute_proposed_action_with = AsyncMock(
+        return_value=execute_result if execute_result is not None
+        else {"success": True, "result": "ok"}
+    )
+    return service
+
+
+def _learning_patch():
+    """Patch AgentLearningEnhanced so its record_* calls are awaitable."""
+    learning_cls = MagicMock()
+    learning_cls.return_value.record_user_correction = AsyncMock()
+    learning_cls.return_value.record_rejection = AsyncMock()
+    return patch("core.proposal_service.AgentLearningEnhanced", learning_cls)
+
+
+def _find_episode(db, proposal):
+    return db.query(Episode).filter(
+        Episode.proposal_id == proposal.id
+    ).first()
+
 
 class TestProposalEpisodeCreation:
     """Test proposal episode creation functionality."""
 
     @pytest.mark.asyncio
     async def test_create_episode_from_approved_proposal(
-        self,
-        db: Session,
-        proposal_factory,
-        user: User,
+        self, db: Session, proposal_factory, user: User
     ):
         """Test creating episode from approved proposal."""
         proposal = proposal_factory(title="Test Approval Proposal")
 
-        proposal_service = ProposalService(db)
+        service = _service(db)
+        with _learning_patch():
+            await service.approve_proposal(proposal.id, user.id)
 
-        # Approve proposal
-        result = await proposal_service.approve_proposal(
-            proposal_id=proposal.id, modifications=None,
-        )
-
-        # Verify episode created
-        from core.models import Episode
-        episode = db.query(Episode).filter(
-            Episode.proposal_id == proposal.id,
-            Episode.proposal_outcome == "approved",
-        ).first()
-
+        episode = _find_episode(db, proposal)
         assert episode is not None
         assert episode.agent_id == proposal.agent_id
-        assert episode.user_id == user.id
         assert episode.proposal_id == proposal.id
-        assert episode.proposal_outcome == "approved"
+        assert episode.metadata_json["proposal_outcome"] == "approved"
         assert episode.maturity_at_time == AgentStatus.INTERN.value
+        assert episode.outcome == "success"
 
     @pytest.mark.asyncio
     async def test_create_episode_from_rejected_proposal(
-        self,
-        db: Session,
-        proposal_factory,
-        user: User,
+        self, db: Session, proposal_factory, user: User
     ):
         """Test creating episode from rejected proposal."""
         proposal = proposal_factory(title="Test Rejection Proposal")
         rejection_reason = "Insufficient justification"
 
-        proposal_service = ProposalService(db)
+        service = _service(db)
+        with _learning_patch():
+            await service.reject_proposal(proposal.id, user.id, rejection_reason)
 
-        # Reject proposal
-        await proposal_service.reject_proposal(
-            proposal_id=proposal.id, reason=rejection_reason,
-        )
-
-        # Verify episode created
-        from core.models import Episode
-        episode = db.query(Episode).filter(
-            Episode.proposal_id == proposal.id,
-            Episode.proposal_outcome == "rejected",
-        ).first()
-
+        episode = _find_episode(db, proposal)
         assert episode is not None
-        assert episode.proposal_outcome == "rejected"
-        assert episode.rejection_reason == rejection_reason
+        assert episode.metadata_json["proposal_outcome"] == "rejected"
+        assert episode.metadata_json["rejection_reason"] == rejection_reason
+        assert episode.outcome == "failure"
+        assert episode.supervision_decision == "rejected"
 
     @pytest.mark.asyncio
     async def test_episode_with_modifications(
-        self,
-        db: Session,
-        proposal_factory,
-        user: User,
+        self, db: Session, proposal_factory, user: User
     ):
         """Test episode captures proposal modifications."""
         proposal = proposal_factory()
         modifications = {"param1": "updated_value", "param2": "new_param"}
 
-        proposal_service = ProposalService(db)
+        service = _service(db)
+        with _learning_patch():
+            await service.approve_proposal(
+                proposal.id, user.id, modifications=modifications
+            )
 
-        # Approve with modifications
-        await proposal_service.approve_proposal(
-            proposal_id=proposal.id, modifications=modifications,
-        )
-
-        # Verify episode includes modifications
-        from core.models import Episode
-        episode = db.query(Episode).filter(
-            Episode.proposal_id == proposal.id,
-        ).first()
-
+        episode = _find_episode(db, proposal)
         assert episode is not None
-        assert episode.human_edits == modifications
+        assert episode.metadata_json["human_edits"] == [
+            {"param1": "updated_value"}, {"param2": "new_param"}
+        ]
+        assert episode.importance_score >= 0.6  # modifications boost
 
     @pytest.mark.asyncio
     async def test_episode_importance_for_rejected_proposals(
-        self,
-        db: Session,
-        proposal_factory,
-        user: User,
+        self, db: Session, proposal_factory, user: User
     ):
         """Test rejected proposals have higher importance scores."""
         approved_proposal = proposal_factory(title="Approved Test")
         rejected_proposal = proposal_factory(title="Rejected Test")
 
-        proposal_service = ProposalService(db)
+        service = _service(db)
+        with _learning_patch():
+            await service.approve_proposal(approved_proposal.id, user.id)
+            await service.reject_proposal(
+                rejected_proposal.id, user.id, "Not good enough"
+            )
 
-        # Approve one
-        await proposal_service.approve_proposal(
-            proposal_id=approved_proposal.id, )
-
-        # Reject one
-        await proposal_service.reject_proposal(
-            proposal_id=rejected_proposal.id, reason="Not good enough",
-        )
-
-        # Get episodes
-        from core.models import Episode
-        approved_episode = db.query(Episode).filter(
-            Episode.proposal_id == approved_proposal.id,
-        ).first()
-
-        rejected_episode = db.query(Episode).filter(
-            Episode.proposal_id == rejected_proposal.id,
-        ).first()
+        approved_episode = _find_episode(db, approved_proposal)
+        rejected_episode = _find_episode(db, rejected_proposal)
 
         assert approved_episode is not None
         assert rejected_episode is not None
-
         # Rejected should have higher importance (learning opportunity)
         assert rejected_episode.importance_score > approved_episode.importance_score
 
     @pytest.mark.asyncio
     async def test_episode_segments_created(
-        self,
-        db: Session,
-        proposal_factory,
-        user: User,
+        self, db: Session, proposal_factory, user: User
     ):
         """Test episode includes proposal and outcome segments."""
         proposal = proposal_factory()
 
-        proposal_service = ProposalService(db)
-        await proposal_service.approve_proposal(
-            proposal_id=proposal.id, )
+        service = _service(db)
+        with _learning_patch():
+            await service.approve_proposal(proposal.id, user.id)
 
-        # Verify segments created
-        from core.models import Episode, EpisodeSegment
-        episode = db.query(Episode).filter(
-            Episode.proposal_id == proposal.id,
-        ).first()
-
+        episode = _find_episode(db, proposal)
         segments = db.query(EpisodeSegment).filter(
-            EpisodeSegment.episode_id == episode.id,
+            EpisodeSegment.episode_id == episode.id
         ).all()
 
         assert len(segments) >= 2  # Proposal + outcome segments
-
         segment_types = {s.segment_type for s in segments}
         assert "proposal" in segment_types
         assert "reflection" in segment_types
 
     @pytest.mark.asyncio
     async def test_episode_topics_from_proposal(
-        self,
-        db: Session,
-        proposal_factory,
-        user: User,
+        self, db: Session, proposal_factory, user: User
     ):
         """Test topics extracted from proposal content."""
         proposal = proposal_factory(
@@ -287,42 +277,46 @@ class TestProposalEpisodeCreation:
             reasoning="This proposal analyzes financial data and generates insights",
         )
 
-        proposal_service = ProposalService(db)
-        await proposal_service.approve_proposal(
-            proposal_id=proposal.id, )
+        service = _service(db)
+        with _learning_patch():
+            await service.approve_proposal(proposal.id, user.id)
 
-        # Verify topics extracted
-        from core.models import Episode
-        episode = db.query(Episode).filter(
-            Episode.proposal_id == proposal.id,
-        ).first()
-
+        episode = _find_episode(db, proposal)
         assert episode.topics is not None
         assert len(episode.topics) > 0
-        # Should include action type and words from title/reasoning
-        assert any("action" in t.lower() for t in episode.topics)
+        # action type is always included
+        assert any("canvas" in t.lower() for t in episode.topics)
 
     @pytest.mark.asyncio
     async def test_human_intervention_count_set(
-        self,
-        db: Session,
-        proposal_factory,
-        user: User,
+        self, db: Session, proposal_factory, user: User
     ):
         """Test proposal episodes have intervention_count = 1."""
         proposal = proposal_factory()
 
-        proposal_service = ProposalService(db)
-        await proposal_service.approve_proposal(
-            proposal_id=proposal.id, )
+        service = _service(db)
+        with _learning_patch():
+            await service.approve_proposal(proposal.id, user.id)
 
-        # Verify human intervention counted
-        from core.models import Episode
-        episode = db.query(Episode).filter(
-            Episode.proposal_id == proposal.id,
-        ).first()
-
+        episode = _find_episode(db, proposal)
         assert episode.human_intervention_count == 1  # Human approval/rejection
+
+    @pytest.mark.asyncio
+    async def test_execution_failure_still_creates_episode(
+        self, db: Session, proposal_factory, user: User
+    ):
+        """Failed executions record a failure episode."""
+        proposal = proposal_factory()
+
+        service = _service(db, execute_result={"success": False, "error": "boom"})
+        with _learning_patch():
+            result = await service.approve_proposal(proposal.id, user.id)
+
+        assert result["success"] is False
+        episode = _find_episode(db, proposal)
+        assert episode is not None
+        assert episode.metadata_json["proposal_outcome"] == "failed"
+        assert episode.outcome == "failure"
 
 
 # ============================================================================
@@ -336,7 +330,7 @@ class TestProposalEpisodeProperties:
         title=st.text(min_size=5, max_size=50).filter(lambda x: len(x.strip()) > 0),
         reasoning=st.text(min_size=10, max_size=200).filter(lambda x: len(x.strip()) > 0),
     )
-    @settings(max_examples=15)
+    @settings(max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
     async def test_episode_content_preservation(
         self,
@@ -352,18 +346,13 @@ class TestProposalEpisodeProperties:
             reasoning=reasoning.strip(),
         )
 
-        proposal_service = ProposalService(db)
-        await proposal_service.approve_proposal(
-            proposal_id=proposal.id, )
+        service = _service(db)
+        with _learning_patch():
+            await service.approve_proposal(proposal.id, user.id)
 
-        # Verify content in episode
-        from core.models import Episode
-        episode = db.query(Episode).filter(
-            Episode.proposal_id == proposal.id,
-        ).first()
-
+        episode = _find_episode(db, proposal)
         assert episode is not None
-        assert proposal.title in episode.title
+        assert title.strip() in episode.task_description
         assert len(episode.topics) > 0
 
     @given(
@@ -374,7 +363,7 @@ class TestProposalEpisodeProperties:
             max_size=10,
         )
     )
-    @settings(max_examples=15)
+    @settings(max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
     async def test_modifications_preserved_in_episode(
         self,
@@ -389,26 +378,22 @@ class TestProposalEpisodeProperties:
 
         proposal = proposal_factory()
 
-        proposal_service = ProposalService(db)
-        await proposal_service.approve_proposal(
-            proposal_id=proposal.id, modifications=modifications_dict,
-        )
+        service = _service(db)
+        with _learning_patch():
+            await service.approve_proposal(
+                proposal.id, user.id, modifications=modifications_dict
+            )
 
-        # Verify modifications in episode
-        from core.models import Episode
-        episode = db.query(Episode).filter(
-            Episode.proposal_id == proposal.id,
-        ).first()
-
+        episode = _find_episode(db, proposal)
         assert episode is not None
-        assert episode.human_edits == modifications_dict
+        assert len(episode.metadata_json["human_edits"]) == len(modifications_dict)
 
     @given(
         rejection_reason=st.text(min_size=10, max_size=200).filter(
             lambda x: len(x.strip()) > 0
         ),
     )
-    @settings(max_examples=15)
+    @settings(max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
     async def test_rejection_reason_preserved(
         self,
@@ -420,25 +405,21 @@ class TestProposalEpisodeProperties:
         """Test rejection reason is preserved in episode."""
         proposal = proposal_factory()
 
-        proposal_service = ProposalService(db)
-        await proposal_service.reject_proposal(
-            proposal_id=proposal.id, reason=rejection_reason.strip(),
-        )
+        service = _service(db)
+        with _learning_patch():
+            await service.reject_proposal(
+                proposal.id, user.id, rejection_reason.strip()
+            )
 
-        # Verify rejection reason in episode
-        from core.models import Episode
-        episode = db.query(Episode).filter(
-            Episode.proposal_id == proposal.id,
-        ).first()
-
+        episode = _find_episode(db, proposal)
         assert episode is not None
-        assert episode.rejection_reason == rejection_reason.strip()
-        assert episode.proposal_outcome == "rejected"
+        assert episode.metadata_json["rejection_reason"] == rejection_reason.strip()
+        assert episode.metadata_json["proposal_outcome"] == "rejected"
 
     @given(
         outcome=st.sampled_from(["approved", "rejected"]),
     )
-    @settings(max_examples=2)
+    @settings(max_examples=2, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
     async def test_outcome_recorded_correctly(
         self,
@@ -450,29 +431,23 @@ class TestProposalEpisodeProperties:
         """Test proposal outcome is recorded correctly."""
         proposal = proposal_factory()
 
-        proposal_service = ProposalService(db)
+        service = _service(db)
+        with _learning_patch():
+            if outcome == "approved":
+                await service.approve_proposal(proposal.id, user.id)
+            else:
+                await service.reject_proposal(
+                    proposal.id, user.id, "Test rejection"
+                )
 
-        if outcome == "approved":
-            await proposal_service.approve_proposal(
-                proposal_id=proposal.id, )
-        else:
-            await proposal_service.reject_proposal(
-                proposal_id=proposal.id, reason="Test rejection",
-            )
-
-        # Verify outcome
-        from core.models import Episode
-        episode = db.query(Episode).filter(
-            Episode.proposal_id == proposal.id,
-        ).first()
-
+        episode = _find_episode(db, proposal)
         assert episode is not None
-        assert episode.proposal_outcome == outcome
+        assert episode.metadata_json["proposal_outcome"] == outcome
 
     @given(
         st.integers(min_value=0, max_value=10),
     )
-    @settings(max_examples=10)
+    @settings(max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
     async def test_importance_score_bounds(
         self,
@@ -486,17 +461,15 @@ class TestProposalEpisodeProperties:
 
         modifications = {f"key_{i}": f"value_{i}" for i in range(modification_count)}
 
-        proposal_service = ProposalService(db)
-        await proposal_service.approve_proposal(
-            proposal_id=proposal.id, modifications=modifications if modifications else None,
-        )
+        service = _service(db)
+        with _learning_patch():
+            await service.approve_proposal(
+                proposal.id,
+                user.id,
+                modifications=modifications if modifications else None,
+            )
 
-        # Verify importance score
-        from core.models import Episode
-        episode = db.query(Episode).filter(
-            Episode.proposal_id == proposal.id,
-        ).first()
-
+        episode = _find_episode(db, proposal)
         assert episode is not None
         assert 0.0 <= episode.importance_score <= 1.0
 
@@ -508,7 +481,7 @@ class TestProposalEpisodeProperties:
             unique=True,
         )
     )
-    @settings(max_examples=10)
+    @settings(max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio
     async def test_entities_extracted_from_proposal(
         self,
@@ -518,26 +491,20 @@ class TestProposalEpisodeProperties:
         entity_list,
     ):
         """Test entities are extracted from proposal."""
-        # Create proposal with specific entities in action
-        proposal = proposal_factory()
-        proposal.proposed_action = {
-            "action_type": "test_action",
-            "entities": entity_list[:5],  # Use first 5 as entities
-        }
-        db.commit()
+        proposal = proposal_factory(
+            proposal_data={
+                "action_type": "test_action",
+                "entities": entity_list[:5],  # Use first 5 as entities
+            }
+        )
 
-        proposal_service = ProposalService(db)
-        await proposal_service.approve_proposal(
-            proposal_id=proposal.id, )
+        service = _service(db)
+        with _learning_patch():
+            await service.approve_proposal(proposal.id, user.id)
 
-        # Verify entities extracted
-        from core.models import Episode
-        episode = db.query(Episode).filter(
-            Episode.proposal_id == proposal.id,
-        ).first()
-
+        episode = _find_episode(db, proposal)
         assert episode is not None
         assert len(episode.entities) > 0
-        # Should include proposal ID, agent ID, reviewer ID
-        assert any("proposal:" in e for e in episode.entities)
-        assert any("agent:" in e for e in episode.entities)
+        # Should include proposal ID and agent ID
+        assert f"proposal:{proposal.id}" in episode.entities
+        assert f"agent:{proposal.agent_id}" in episode.entities

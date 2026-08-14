@@ -31,14 +31,14 @@ export const ExecutionChart: React.FC<ExecutionChartProps> = ({
 }) => {
   if (data.length === 0) {
     return (
-      <View style={[styles.container, { height }]}>
+      <View testID="execution-chart-empty" style={[styles.container, { height }]}>
         <Text style={styles.emptyText}>No data available</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View testID="execution-chart" style={styles.container}>
       <VictoryChart
         theme={VictoryTheme.material}
         containerComponent={<VictoryVoronoiContainer />}

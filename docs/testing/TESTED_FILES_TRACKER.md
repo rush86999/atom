@@ -6,6 +6,106 @@
 
 ---
 
+## Session 2026-08-13 (wave 116 — backend depth: governance/agent + api cluster probes; 129 new tests, 3 bugs fixed)
+
+**Probes run** (one process at a time, `rm -f .coverage` first, `-p no:cacheprovider`):
+- **Probe A** (8 wave suites w69/w85/w63/w104/w106/w87 + `--cov=core`): 189 passed. Core modules <95% (≥40 stmts): `config.py` 65%, `database.py` 44%, `error_handlers.py` 57%, `byok_endpoints.py` 41%, `proposal_service.py` 8%, `llm_usage_tracker.py` 53%, `agent_task_registry.py` 40%, `skill_registry_service.py` 9%, `student_training_service.py` 62%, `auth_rate_limit.py` 68%, `llm/rate_usage_persistence.py` 45%, `auto_dev/base_engine.py` 40%.
+- **Probe B** (6 wave suites w90/w89/w104 + `--cov=api`): 102 passed — **no api module below 95%** (all wave targets already covered).
+
+**True baselines re-measured with each module's dedicated suites** (config 100%, auth_rate_limit 100%, student_training 100% — already done; proposal_service 99% — already done; skill_registry 95%, byok_endpoints 72%, error_handlers 83%, agent_task_registry 42%, llm_usage_tracker 53%, rate_usage_persistence 45%). `core/database.py` cluster timed out (5-min probe limit) and `auto_dev/base_engine.py` coverage measurement conflicts with the shared SQLAlchemy metadata — both skipped as marginal.
+
+**New files** (129 new tests, fully mocked, zero LLM spend):
+- `tests/test_covpush_w116_error_handlers.py` — 20 tests
+- `tests/test_covpush_w116_agent_task_registry.py` — 26 tests
+- `tests/test_covpush_w116_llm_usage_tracker.py` — 16 tests
+- `tests/test_covpush_w116_rate_usage_persistence.py` — 17 tests
+- `tests/test_covpush_w116_skill_registry.py` — 14 tests
+- `tests/test_covpush_w116_byok_endpoints.py` — 36 tests
+
+| Module | Before | After | Stmts | Notes |
+|---|---|---|---|---|
+| `core/error_handlers.py` | 83% | **99%** | 168 | fallback-import path (subprocess probe), global/atom exception handlers, severity mapping, Result edge branches; 617/636 are `)`-line artifacts of covered constructs |
+| `core/agent_task_registry.py` | 42% | **100%** | 120 | registration indexes, cancel wait/unregister/timeout, agent-run cancel, cleanup, module helper |
+| `core/llm_usage_tracker.py` | 53% | **100%** | 73 | daily-window budgets, record bounding, lazy date pruning, reset, singleton |
+| `core/llm/rate_usage_persistence.py` | 45% | **100%** | 88 | table-ensure race + failure, fire-and-forget record, cached monthly aggregates, singleton |
+| `core/skill_registry_service.py` | 95% | **100%** | 385 | sandbox lazy-init, agent-caps None fallback, npm permission denial in python path, vulnerability warnings, node install-failure defensive branch, missing-node-code, suspicious scripts, frontmatter-parse failure, reload exception |
+| `core/byok_endpoints.py` | 72% | **99%** | 589 | corrupt-config/save failures, fernet fail-loud, env-key fallback, decrypt failure, track_usage, optimal-provider budget/reasoning/deepseek fallback, all route branches (keys/providers/optimize/usage-stats/pdf/pricing/estimate); line 917 is dead code (first `byok_health_check` shadowed by the route version at 1389) |
+
+**Bugs fixed (TDD red→green)**:
+1. `core/error_handlers.py:413-421` (`handle_not_found`) + `:443-451` (`handle_permission_denied`) — **shallow-merge bug**: `details or {"resource_type": ...}` discarded caller-provided details, so `resource_type`/`resource_id` (and `action`) were lost from the response when extra detail fields were passed (KeyError downstream). Fixed by merging with `setdefault`. RED: `test_error_handlers.py::test_handle_not_found_includes_resource_details` (was failing with KeyError `'resource_type'`).
+2. `core/error_handlers.py:294` — **broken graceful-degradation path**: `atom_exception_handler(request, exc: AtomException)` used an unresolved module-level annotation, so the whole module raised `NameError` at import when `core.exceptions` is unavailable — the `ATOM_EXCEPTIONS_AVAILABLE=False` legacy fallback (lines 19-25) was unreachable dead code. Fixed with a string annotation `"AtomException"`. RED: subprocess probe in `test_covpush_w116_error_handlers.py` (import failed with NameError).
+
+**Stale suites aligned (no source change; tests were phantom-API / pre-Bug-14)**: (a) `tests/test_proposal_service.py` rewritten against the current async API (`create_action_proposal`/`submit_for_approval`/`approve_proposal`/`reject_proposal`/`get_pending_proposals`/`get_proposal_history`) — was 26 failed (phantom `create_proposal`/`batch_approve`/`reviewer_id` kwargs), now 18 passed. (b) `tests/test_proposal_episode_creation.py` rewritten against current `AgentProposal`/`Episode` schema (`proposal_data` payload, `metadata_json` outcome/reason/edits, executor mocked, in-memory DB per test) — was 13 errors (stale dev DB + phantom columns), now 14 passed. (c) `tests/test_security_config.py` + `tests/test_config.py` (5 tests) aligned with the Bug-14 fail-closed behavior (default key replaced by random key in production; `validate()` lives on `ATOMConfig`, not `SecurityConfig`) — all green.
+
+**Verification** (each in its own process, `rm -f .coverage` first):
+```bash
+cd backend
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_w116_error_handlers.py tests/test_error_handlers.py --cov=core.error_handlers --cov-report=term-missing -p no:cacheprovider -q          # 59 passed, 99%
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_w116_agent_task_registry.py tests/test_agent_task_registry_method.py --cov=core.agent_task_registry --cov-report=term-missing -p no:cacheprovider -q   # 26 passed, 100%
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_w116_llm_usage_tracker.py --cov=core.llm_usage_tracker --cov-report=term-missing -p no:cacheprovider -q                                                # 16 passed, 100%
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_w116_rate_usage_persistence.py --cov=core.llm.rate_usage_persistence --cov-report=term-missing -p no:cacheprovider -q                                 # 17 passed, 100%
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_skill_registry.py tests/test_skill_registry_service.py tests/test_covpush_w116_skill_registry.py --cov=core.skill_registry_service --cov-report=term-missing -p no:cacheprovider -q   # 91 passed, 100%
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_w116_byok_endpoints.py tests/test_covpush_w63_byok_endpoints.py --cov=core.byok_endpoints --cov-report=term-missing -p no:cacheprovider -q                 # 96 passed, 99%
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_proposal_service.py tests/test_covpush_w27_proposal_service.py tests/test_covpush_w42_proposals.py tests/test_covpush_w48_proposal_executors.py tests/test_bughunt_proposal_actions.py tests/test_match_confidence_proposal_gating.py tests/test_proposal_episode_creation.py tests/test_scaling_proposal_service.py -p no:cacheprovider -q   # 195 passed (was 26 failed + 13 errors), proposal_service 99%
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_security_config.py tests/test_config.py tests/test_covpush_w64h_config.py tests/test_governance_config.py tests/test_covpush_w73_governance_config.py tests/test_covpush_w103_auth_rate_limit.py -p no:cacheprovider -q   # 292 passed
+# all wave-116 + touched suites in one process:
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_w116_*.py tests/test_error_handlers.py tests/test_agent_task_registry_method.py tests/test_covpush_skill_registry.py tests/test_skill_registry_service.py tests/test_covpush_w63_byok_endpoints.py tests/test_proposal_service.py tests/test_proposal_episode_creation.py tests/test_security_config.py tests/test_config.py -p no:cacheprovider -q   # 443 passed, 0 failed
+```
+mypy on the changed file: 8 pre-existing errors (all in the untouched `Result` class — identical count with changes stashed); no new errors introduced.
+
+---
+
+## Session 2026-08-14 (mobile coverage wave — largest screens/components/services/contexts to 80%+)
+
+**Baseline measurement**: full suite `npm test -- --coverage --watchAll=false --maxWorkers=2` (116 suites / 4002 tests, 70s) — only **one** source file below 60% (`src/screens/analytics/ExecutionChart.tsx`, 0%). All task-named candidates (ConversationListScreen 90.7%, ChatTabScreen 93.8%, CanvasViewerScreen 92.5%, SettingsScreen 94.9%, `services/api.ts` 100%, `storage/secureTokenStorage.ts` 100%) were already ≥80%. Targeted the 6 largest files below 80% in any metric: **66 new tests** (suite: 118 suites / 4068 tests, 0 failures).
+
+| File | Before stmts/branch/fn | After stmts/branch/fn | New tests |
+|---|---|---|---|
+| `screens/analytics/ExecutionChart.tsx` (135 ln) | 0 / 0 / 0 | **100 / 100 / 100** | 6 (new `src/__tests__/screens/analytics/ExecutionChart.test.tsx`, richer victory-native mock that invokes `tickFormat`) |
+| `services/agentService.ts` (227 ln) | 92.7 / 62.5 / 100 | **100 / 97.5 / 100** | 12 (default-limit branch + all error-path branches incl. no-message defaults) |
+| `components/canvas/CanvasWebView.tsx` (901 ln) | 93.6 / 70.7 / 90.5 | **93.6 / 93.5 / 90.5** | 9 (new `CanvasWebView.edge.test.tsx`: default canvasType, empty-theme fallbacks, zoom toggle 1→1.5→1, `isConnected: null`, unmount cleanup) |
+| `contexts/WebSocketContext.tsx` (645 ln) | 97.0 / 77.2 / 98.1 | **98.9 / 93.5 / 98.1** | 15 (connect no-op, queued-message flush, unknown-stream events, socket-creation throw, auth-revoked disconnect, rejoin rooms, heartbeat good/offline, useAgentChat other-agent filtering) |
+| `contexts/AuthContext.tsx` (514 ln) | 89.8 / 72.0 / 93.3 | **98.3 / 95.1 / 93.3** | 19 (login 400/429/5xx/other-status, no-refresh/no-user, network-error defaults, logout backend-fail, clearTokens swallow, biometric/device-registration error paths, device-info-unavailable) |
+| `screens/auth/RegisterScreen.tsx` (645 ln) | 94.7 / 93.9 / 70.0 | **100 / 93.9 / 100** | 4 (onBlur ×4 + onSubmitEditing ref-focus handlers) |
+
+**Real bug fixed (TDD red→green)**:
+1. `mobile/jest.setup.js` NetInfo mock — `addEventListener` returned `{ remove: jest.fn() }` while the real API returns an unsubscribe **function**; `CanvasWebView`'s `useEffect` does `return unsubscribe`, so every unmount raised React's "TypeError: destroy is not a function" (21 occurrences in the main CanvasWebView suite). Mock now returns `jest.fn()` matching the API contract. Failing test: `CanvasWebView.edge.test.tsx` "unmounting calls the NetInfo unsubscribe cleanly".
+
+**Test-infra landmines found**: (1) RNTL `renderHook` in this version has no `rerender()` — drove the auth-revoked test via a socket `disconnect` event instead. (2) Heartbeat "good" latency (100–300ms) is untestable via `setTimeout` under fake timers (interval fires mid-window → latency drifts 200/400/600ms) — scripted `jest.spyOn(Date, 'now')` instead. (3) `jest.clearAllMocks()` does not clear `mockResolvedValueOnce` queues — cross-test fetch pollution in AuthContext; each new test now `mockReset()`s fetch first. (4) `initializeAuth` consumes the first fetch via the token-expiry→`refreshToken` path when SecureStore mocks return non-null for every key — device-registration tests use a key-aware `getItemAsync` mock.
+
+**Verification**:
+```bash
+cd mobile
+npx jest <test-file> --coverage --collectCoverageFrom='<source>' --watchAll=false --maxWorkers=2   # per-file, all ≥80%
+npm test -- --coverage --watchAll=false --maxWorkers=2   # 118 suites / 4068 tests passed, 42s
+```
+Remaining sub-80% src files (both pre-existing, outside this wave's scope): `src/navigation/AuthNavigator.tsx` branches 75% (catch in empty `prepare()` try block is unreachable dead code), `src/__tests__/helpers/*` (test helpers, not source).
+
+## Session 2026-08-13 (wave 115 — probe A below-95% closure; 149 new tests, 0 bugs found)
+
+**Probes run** (one process at a time, `rm -f .coverage` first, `-p no:cacheprovider`):
+- **Probe A** (10 wave suites w92/w93/w97/w98/w100/w104/w105/w109 + `--cov=integrations`): all wave-target modules at 100% EXCEPT `integrations/chat_orchestrator.py` **51%** (697 stmts, 341 missed — w109 target, biggest cluster) and `integrations/xero_service.py` **22%** (135 stmts, 105 missed — partial from w105 xero_routes).
+- **Probe B** (7 wave suites w73/w75/w79/w82/w88/w91/w104 + `--cov=core`): all wave targets at 100% (api_governance, governance_engine, auth_endpoints, user_context_manager, blueprint_sanitizer, sql_validator, hash_chain_integrity). No core work needed.
+
+**New files**: `tests/test_covpush_w115_chat_orchestrator.py` (122 tests), `tests/test_covpush_w115_xero_service.py` (27 tests) — **149 new tests**, fully mocked, zero LLM spend, zero network, zero real DB writes.
+
+| Module | Before | After (w115 alone) | After (+ w109) | Stmts | Notes |
+|---|---|---|---|---|---|
+| `integrations/chat_orchestrator.py` | 51% | **95%** (35 lines = w109-only fallback branches) | **100%** | 697 | w115 closes: `__init__` fallbacks (session-manager/AI-engines ImportError), `get_user_sessions` both paths, `_load_persisted_sessions` (early return + exception), `_emit_agent_step`, `process_chat_message` (dedup success, LKGP sticky-hint build + model remember, 1st cancellation checkpoint, budget-failure precedence incl. `error_code`/`recovery_url`, exception path with BUG-125 persist), `_get_qwen_response` (no-service/success/failure/exception + tier/intent/sticky kwargs), `_analyze_intent` NLP + fallback branches, `_classify_intent` full mapping, `_route_to_features` failure log + ComputerUseAgent fallback (thinker/tasker/exception), `_generate_coordinated_response`, `_generate_main_message` all intent branches, `_generate_next_steps`, search/simple/task/workflow/scheduling/automation/finance (5 remaining intents)/CRM/business-health (simulate HIRING/CAPEX/GENERAL + priorities + exception) handlers, `_get_or_create_session` (ownership-mismatch IDOR defense + persistence + swallow), `_update_session` ChatSession backfill, `_handle_agent_request` (success/budget-exceeded propagation/exception), cancellation registry |
+| `integrations/xero_service.py` | 22% | **100%** | **100%** | 135 | w115 closes: `_get_headers` (with/without tenant), `exchange_token` (success + HTTPError→400), `get_tenants`/`get_invoices`/`get_contacts` (success + failure→500, tenant fallback, limit slice), capabilities/health_check, `execute_operation` all 6 branches, `sync_to_postgres_cache` (update/insert/rollback/outer-failure), `full_sync` |
+
+**Bugs found**: none — all behavior matched intent while covering (3 failing tests were test-side: positional-arg `kwargs["url"]` misuse, plain `Exception` vs `httpx.HTTPError`, shared mock object across metric keys). No source changes; zero regression risk.
+
+**Verification** (each in its own process, `rm -f .coverage` first):
+```bash
+cd backend
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_w115_chat_orchestrator.py tests/test_covpush_w109_chat_orchestrator.py --cov=integrations.chat_orchestrator --cov-report=term-missing -p no:cacheprovider -q   # 138 passed, 100%
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_w115_xero_service.py --cov=integrations.xero_service --cov-report=term-missing -p no:cacheprovider -q   # 27 passed, 100%
+rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpush_w92_m365.py tests/test_covpush_w93_slack.py tests/test_covpush_w97_zoho_books.py tests/test_covpush_w104_unified_tasks.py tests/test_covpush_w109_chat_orchestrator.py tests/test_covpush_w115_chat_orchestrator.py tests/test_covpush_w100_teams_routes.py tests/test_covpush_w105_jira_routes.py tests/test_covpush_w105_xero_routes.py tests/test_covpush_w105_quickbooks_routes.py tests/test_covpush_w98_shopify_routes.py --cov=integrations --cov-report=term-missing -p no:cacheprovider -q   # 574 passed, all wave targets 100%
+```
+
+---
+
 ## Session 2026-08-14 (frontend wave — 10 lowest-coverage pages/components to >=80%; 179 new tests, 3 component fixes)
 
 **Files** (all were 0% except where noted; all previously never tested by any suite):

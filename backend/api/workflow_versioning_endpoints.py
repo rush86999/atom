@@ -736,7 +736,11 @@ async def health_check():
         )
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
-        raise router.internal_error("Versioning system unavailable", status_code=503)
+        raise router.error_response(
+            error_code="VERSIONING_UNAVAILABLE",
+            message="Versioning system unavailable",
+            status_code=503
+        )
 
 # Export router for inclusion in main app
 __all__ = ["router"]

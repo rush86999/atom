@@ -720,9 +720,11 @@ jest.mock('@react-native-community/netinfo', () => {
 
   const mockModule = {
     fetch: mockFetch,
-    addEventListener: jest.fn().mockReturnValue({
-      remove: jest.fn(),
-    }),
+    // Real @react-native-community/netinfo addEventListener returns an
+    // unsubscribe FUNCTION — mirror the API contract so effects that
+    // `return unsubscribe` clean up properly (returning `{ remove }`
+    // previously made React fail with "destroy is not a function" on unmount).
+    addEventListener: jest.fn().mockReturnValue(jest.fn()),
     useNetInfo: jest.fn().mockReturnValue({
       isConnected: true,
       isInternetReachable: true,

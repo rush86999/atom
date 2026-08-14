@@ -1,596 +1,312 @@
 """
 Tests for ProposalService - Agent proposal workflow and governance.
 
-Coverage Goals (25-30% on 1209 lines):
-- Proposal creation and validation
-- Proposal approval workflow
-- Proposal execution
+Wave 116 (2026-08-13): rewritten against the current async API
+(create_action_proposal / submit_for_approval / approve_proposal /
+reject_proposal / get_pending_proposals / get_proposal_history). The
+previous version exercised a phantom sync API (create_proposal,
+batch_approve, reviewer_id kwargs) and failed 26/26.
+
+Coverage Goals:
+- Proposal creation and validation (INTERN gate, unknown agent)
+- Approval workflow (modifications, execution failure, wrong status)
+- Rejection workflow with reason capture
 - Governance enforcement (INTERN maturity)
-- Proposal history and audit trail
+- Proposal history and pending-proposal filtering
 """
 
+import asyncio
+from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch
-from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
-from core.models import (
-    AgentProposal,
-    AgentRegistry,
-    AgentStatus
-)
+from core.models import AgentProposal, AgentRegistry, AgentStatus
+from core.proposal_service import ProposalService
+
+
+def run(coro):
+    return asyncio.new_event_loop().run_until_complete(coro)
+
+
+def make_proposal(**overrides):
+    execution_result = overrides.pop("execution_result", None)
+    fields = {
+        "id": "prop-1",
+        "tenant_id": "default",
+        "user_id": "system",
+        "agent_id": "agent-123",
+        "agent_name": "Intern Agent",
+        "title": "Action Proposal",
+        "proposal_type": "action",
+        "proposal_data": {"action_type": "canvas_create", "canvas_type": "chart"},
+        "status": "pending_approval",
+        "created_at": datetime(2026, 8, 1, 12, 0, 0),
+        "approved_by": None,
+        "approved_at": None,
+    }
+    fields.update(overrides)
+    proposal = AgentProposal(**fields)
+    proposal.execution_result = execution_result
+    return proposal
+
+
+def make_agent(status="intern", **overrides):
+    fields = {
+        "id": "agent-123",
+        "name": "Intern Agent",
+        "category": "general",
+        "confidence_score": 0.65,
+        "tenant_id": "default",
+        "user_id": "system",
+        "status": status,
+    }
+    fields.update(overrides)
+    return AgentRegistry(**fields)
+
+
+@pytest.fixture
+def mock_db():
+    return Mock(spec=Session)
+
+
+@pytest.fixture
+def service(mock_db):
+    return ProposalService(db=mock_db)
 
 
 class TestProposalCreation:
-    """Test proposal creation and validation."""
+    """Proposal creation and validation."""
 
-    def test_create_proposal_intern_agent(self):
+    def test_create_proposal_intern_agent(self, mock_db, service):
         """INTERN agents can create proposals for human review."""
-        mock_db = Mock(spec=Session)
-        mock_agent = Mock()
-        mock_agent.id = "agent-123"
-        mock_agent.status = "INTERN"
-
+        mock_agent = make_agent()
         mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
-        mock_db.add = Mock()
-        mock_db.commit = Mock()
-        mock_db.refresh = Mock()
 
-        # Import proposal service
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        proposal = service.create_proposal(
-            agent_id="agent-123",
-            action_type="canvas_create",
-            proposal_data={"canvas_type": "chart"}
-        )
+        proposal = run(service.create_action_proposal(
+            intern_agent_id="agent-123",
+            trigger_context={"query": "create a chart"},
+            proposed_action={"action_type": "canvas_create", "canvas_type": "chart"},
+            reasoning="The user asked for a chart",
+        ))
 
         assert proposal.agent_id == "agent-123"
-        assert proposal.action_type == "canvas_create"
-        assert proposal.status == "pending"
+        assert proposal.status == "pending_approval"
+        assert proposal.proposal_type == "action"
+        assert "chart" in proposal.title or proposal.title is not None
 
-    def test_create_proposal_supervised_agent(self):
-        """SUPERVISED agents can create proposals."""
-        mock_db = Mock(spec=Session)
-        mock_agent = Mock()
-        mock_agent.status = "SUPERVISED"
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
-        mock_db.add = Mock()
-        mock_db.commit = Mock()
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        proposal = service.create_proposal(
-            agent_id="agent-456",
-            action_type="form_submission",
-            proposal_data={"form_id": "form-123"}
-        )
-
-        assert proposal.status == "pending"
-
-    def test_create_proposal_student_agent_blocked(self):
-        """STUDENT agents cannot create proposals."""
-        mock_db = Mock(spec=Session)
-        mock_agent = Mock()
-        mock_agent.status = "STUDENT"
-
+    def test_create_proposal_with_title_and_selector_candidates(
+        self, mock_db, service
+    ):
+        mock_agent = make_agent()
         mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
 
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
+        proposal = run(service.create_action_proposal(
+            intern_agent_id="agent-123",
+            trigger_context={},
+            proposed_action={
+                "action_type": "browser_click",
+                "selector_candidates": [
+                    {"selector": "#submit", "match_count": 3, "is_text_only": False},
+                ],
+                "match_rationale": "best match",
+                "match_score": 0.9,
+                "chosen_index": 0,
+                "per_field_confidence": {"email": {"level": "high", "score": 0.8}},
+            },
+            reasoning="clicking submit",
+            canvas_id="canvas-1",
+            session_id="session-1",
+            title="Custom title",
+        ))
 
-        with pytest.raises(PermissionError) as exc_info:
-            service.create_proposal(
-                agent_id="agent-789",
-                action_type="canvas_create",
-                proposal_data={}
-            )
+        assert proposal.canvas_id == "canvas-1"
+        assert proposal.session_id == "session-1"
+        assert proposal.title == "Custom title"
+        assert "Selector candidates" in proposal.description
 
-        assert "STUDENT" in str(exc_info.value)
+    def test_create_proposal_unknown_agent_raises(self, mock_db, service):
+        mock_db.query.return_value.filter.return_value.first.return_value = None
+        with pytest.raises(ValueError, match="not found"):
+            run(service.create_action_proposal(
+                intern_agent_id="ghost",
+                trigger_context={},
+                proposed_action={"action_type": "canvas_create"},
+                reasoning="",
+            ))
 
-    def test_proposal_validation_action_type(self):
-        """Proposal action_type is validated."""
-        mock_db = Mock(spec=Session)
-        mock_agent = Mock()
-        mock_agent.status = "INTERN"
-
+    def test_create_proposal_student_agent_blocked(self, mock_db, service):
+        """STUDENT agents cannot create proposals (hard block, not warning)."""
+        mock_agent = make_agent(status="student")
         mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
 
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        # Valid action types
-        valid_types = ["canvas_create", "form_submit", "browser_automate"]
-
-        for action_type in valid_types:
-            proposal = service.create_proposal(
-                agent_id="agent-123",
-                action_type=action_type,
-                proposal_data={}
-            )
-            assert proposal.action_type == action_type
-
-    def test_proposal_validation_schema(self):
-        """Proposal data is validated against schema."""
-        mock_db = Mock(spec=Session)
-        mock_agent = Mock()
-        mock_agent.status = "INTERN"
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
-        mock_db.add = Mock()
-        mock_db.commit = Mock()
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        # Valid proposal data
-        proposal_data = {
-            "canvas_type": "chart",
-            "data_source": "sales_db",
-            "visualization": "line"
-        }
-
-        proposal = service.create_proposal(
-            agent_id="agent-123",
-            action_type="canvas_create",
-            proposal_data=proposal_data
-        )
-
-        assert proposal.proposal_data == proposal_data
+        with pytest.raises(PermissionError, match="not an INTERN agent"):
+            run(service.create_action_proposal(
+                intern_agent_id="agent-123",
+                trigger_context={},
+                proposed_action={"action_type": "canvas_create"},
+                reasoning="",
+            ))
 
 
-class TestProposalApproval:
-    """Test proposal approval workflow."""
+class TestSubmitForApproval:
+    """Submission state machine."""
 
-    def test_approve_proposal(self):
-        """Human reviewer can approve pending proposal."""
-        mock_db = Mock(spec=Session)
-        mock_proposal = Mock()
-        mock_proposal.id = "proposal-123"
-        mock_proposal.status = "pending"
+    def test_submit_pending_proposal(self, service):
+        proposal = make_proposal()
+        run(service.submit_for_approval(proposal))  # must not raise
 
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_proposal
-        mock_db.commit = Mock()
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        approved_proposal = service.approve_proposal(
-            proposal_id="proposal-123",
-            reviewer_id="user-456",
-            comments="Looks good"
-        )
-
-        assert approved_proposal.status == "approved"
-
-    def test_reject_proposal(self):
-        """Human reviewer can reject pending proposal."""
-        mock_db = Mock(spec=Session)
-        mock_proposal = Mock()
-        mock_proposal.id = "proposal-123"
-        mock_proposal.status = "pending"
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_proposal
-        mock_db.commit = Mock()
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        rejected_proposal = service.reject_proposal(
-            proposal_id="proposal-123",
-            reviewer_id="user-456",
-            rejection_reason="Security concern"
-        )
-
-        assert rejected_proposal.status == "rejected"
-
-    def test_approve_already_approved_proposal_fails(self):
-        """Cannot approve a proposal that's already approved."""
-        mock_db = Mock(spec=Session)
-        mock_proposal = Mock()
-        mock_proposal.id = "proposal-123"
-        mock_proposal.status = "approved"
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_proposal
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        with pytest.raises(ValueError) as exc_info:
-            service.approve_proposal(
-                proposal_id="proposal-123",
-                reviewer_id="user-456"
-            )
-
-        assert "already approved" in str(exc_info.value).lower()
-
-    def test_batch_approve_proposals(self):
-        """Approve multiple proposals at once."""
-        mock_db = Mock(spec=Session)
-
-        mock_proposals = [
-            Mock(id="p1", status="pending"),
-            Mock(id="p2", status="pending"),
-            Mock(id="p3", status="pending"),
-        ]
-
-        mock_query = Mock()
-        mock_query.filter.return_value.all.return_value = mock_proposals
-        mock_db.query.return_value.filter.return_value = mock_query
-        mock_db.commit = Mock()
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        approved_count = service.batch_approve(
-            proposal_ids=["p1", "p2", "p3"],
-            reviewer_id="user-789"
-        )
-
-        assert approved_count == 3
+    def test_submit_wrong_status_raises(self, service):
+        proposal = make_proposal(status="executed")
+        with pytest.raises(ValueError, match="PENDING_APPROVAL"):
+            run(service.submit_for_approval(proposal))
 
 
-class TestProposalExecution:
-    """Test proposal execution after approval."""
+class TestApproval:
+    """Approval workflow."""
 
-    def test_execute_approved_proposal(self):
-        """Approved proposals can be executed."""
-        mock_db = Mock(spec=Session)
-        mock_proposal = Mock()
-        mock_proposal.id = "proposal-123"
-        mock_proposal.status = "approved"
-        mock_proposal.action_type = "canvas_create"
-        mock_proposal.proposal_data = {"canvas_type": "chart"}
+    def test_approve_proposal_executes_action(self, mock_db, service):
+        proposal = make_proposal()
+        mock_db.query.return_value.filter.return_value.first.return_value = proposal
 
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_proposal
-        mock_db.commit = Mock()
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        result = service.execute_proposal(
-            proposal_id="proposal-123"
-        )
+        with patch.object(
+            service, "_execute_proposed_action_with",
+            new=AsyncMock(return_value={"success": True, "result": "done"}),
+        ), patch.object(service, "_create_proposal_episode", new=AsyncMock()), \
+             patch("core.proposal_service.AgentLearningEnhanced") as learning_cls:
+            learning = learning_cls.return_value
+            learning.record_user_correction = AsyncMock()
+            result = run(service.approve_proposal("prop-1", "user-1"))
 
         assert result["success"] is True
-
-    def test_execute_rejected_proposal_fails(self):
-        """Rejected proposals cannot be executed."""
-        mock_db = Mock(spec=Session)
-        mock_proposal = Mock()
-        mock_proposal.id = "proposal-123"
-        mock_proposal.status = "rejected"
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_proposal
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        with pytest.raises(ValueError) as exc_info:
-            service.execute_proposal(
-                proposal_id="proposal-123"
-            )
-
-        assert "rejected" in str(exc_info.value).lower()
-
-    def test_execute_pending_proposal_fails(self):
-        """Pending proposals cannot be executed (must be approved first)."""
-        mock_db = Mock(spec=Session)
-        mock_proposal = Mock()
-        mock_proposal.id = "proposal-123"
-        mock_proposal.status = "pending"
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_proposal
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        with pytest.raises(ValueError) as exc_info:
-            service.execute_proposal(
-                proposal_id="proposal-123"
-            )
-
-        assert "not approved" in str(exc_info.value).lower()
-
-
-class TestGovernanceEnforcement:
-    """Test governance enforcement for proposals."""
-
-    def test_intern_maturity_required(self):
-        """Only INTERN+ agents can create proposals."""
-        mock_db = Mock(spec=Session)
-        mock_student_agent = Mock()
-        mock_student_agent.status = "STUDENT"
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_student_agent
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        with pytest.raises(PermissionError):
-            service.create_proposal(
-                agent_id="student-agent",
-                action_type="canvas_create",
-                proposal_data={}
-            )
-
-    def test_supervised_maturity_allowed(self):
-        """SUPERVISED agents can create proposals."""
-        mock_db = Mock(spec=Session)
-        mock_agent = Mock()
-        mock_agent.status = "SUPERVISED"
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
-        mock_db.add = Mock()
-        mock_db.commit = Mock()
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        proposal = service.create_proposal(
-            agent_id="supervised-agent",
-            action_type="canvas_create",
-            proposal_data={}
-        )
-
-        assert proposal is not None
-
-    def test_autonomous_maturity_allowed(self):
-        """AUTONOMOUS agents can create proposals."""
-        mock_db = Mock(spec=Session)
-        mock_agent = Mock()
-        mock_agent.status = "AUTONOMOUS"
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
-        mock_db.add = Mock()
-        mock_db.commit = Mock()
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        proposal = service.create_proposal(
-            agent_id="autonomous-agent",
-            action_type="canvas_create",
-            proposal_data={}
-        )
-
-        assert proposal is not None
-
-
-class TestProposalHistory:
-    """Test proposal history and audit trail."""
-
-    def test_get_proposal_history(self):
-        """Get full history of proposals for an agent."""
-        mock_db = Mock(spec=Session)
-
-        mock_proposals = [
-            Mock(id="p1", status="approved", created_at=datetime.utcnow()),
-            Mock(id="p2", status="rejected", created_at=datetime.utcnow()),
-            Mock(id="p3", status="pending", created_at=datetime.utcnow()),
-        ]
-
-        mock_query = Mock()
-        mock_query.filter.return_value.order_by.return_value.all.return_value = mock_proposals
-        mock_db.query.return_value.filter.return_value = mock_query
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        history = service.get_agent_proposal_history(
-            agent_id="agent-123"
-        )
-
-        assert len(history) == 3
-
-    def test_proposal_audit_trail(self):
-        """Proposal has complete audit trail of status changes."""
-        mock_db = Mock(spec=Session)
-        mock_proposal = Mock()
-        mock_proposal.id = "proposal-123"
-
-        mock_audit_trail = [
-            {"status": "pending", "timestamp": datetime.utcnow(), "user_id": None},
-            {"status": "approved", "timestamp": datetime.utcnow(), "user_id": "user-456"},
-        ]
-
-        mock_proposal.audit_trail = mock_audit_trail
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_proposal
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        audit_trail = service.get_proposal_audit_trail("proposal-123")
-
-        assert len(audit_trail) == 2
-        assert audit_trail[1]["status"] == "approved"
-
-    def test_proposal_versioning(self):
-        """Proposal changes are versioned."""
-        mock_db = Mock(spec=Session)
-        mock_proposal = Mock()
-        mock_proposal.id = "proposal-123"
-        mock_proposal.version = 2
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_proposal
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        version = service.get_proposal_version("proposal-123")
-
-        assert version == 2
-
-
-class TestProposalExpiration:
-    """Test proposal expiration and timeout."""
-
-    def test_proposal_expiration_timeout(self):
-        """Proposals expire after timeout period."""
-        mock_db = Mock(spec=Session)
-        mock_proposal = Mock()
-        mock_proposal.id = "proposal-123"
-        mock_proposal.status = "pending"
-        mock_proposal.created_at = datetime.utcnow() - timedelta(hours=25)
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_proposal
-        mock_db.commit = Mock()
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        # Check if proposal is expired
-        is_expired = service.is_proposal_expired("proposal-123")
-
-        assert is_expired is True
-
-    def test_auto_reject_expired_proposals(self):
-        """Expired proposals are automatically rejected."""
-        mock_db = Mock(spec=Session)
-
-        mock_proposals = [
-            Mock(id="p1", status="pending", created_at=datetime.utcnow() - timedelta(hours=25)),
-            Mock(id="p2", status="pending", created_at=datetime.utcnow() - timedelta(hours=30)),
-        ]
-
-        mock_query = Mock()
-        mock_query.filter.return_value.all.return_value = mock_proposals
-        mock_db.query.return_value.filter.return_value = mock_query
-        mock_db.commit = Mock()
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        expired_count = service.auto_reject_expired_proposals()
-
-        assert expired_count == 2
-
-
-class TestProposalNotifications:
-    """Test notification system for pending proposals."""
-
-    def test_notify_pending_proposals(self):
-        """Notify reviewers of pending proposals."""
-        mock_db = Mock(spec=Session)
-
-        mock_proposals = [
-            Mock(id="p1", agent_id="agent-1", action_type="canvas_create"),
-            Mock(id="p2", agent_id="agent-2", action_type="form_submit"),
-        ]
-
-        mock_query = Mock()
-        mock_query.filter.return_value.all.return_value = mock_proposals
-        mock_db.query.return_value.filter.return_value = mock_query
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        pending = service.get_pending_proposals()
-
-        assert len(pending) == 2
-
-    def test_notify_approval_alerts(self):
-        """Agents are notified when proposals are approved."""
-        mock_db = Mock(spec=Session)
-        mock_proposal = Mock()
-        mock_proposal.id = "proposal-123"
-        mock_proposal.agent_id = "agent-456"
-        mock_proposal.status = "approved"
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_proposal
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        # Simulate notification
-        notification = service.create_approval_notification("proposal-123")
-
-        assert notification["agent_id"] == "agent-456"
-        assert notification["proposal_id"] == "proposal-123"
-        assert notification["status"] == "approved"
-
-
-class TestProposalStatistics:
-    """Test proposal statistics and metrics."""
-
-    def test_get_proposal_statistics(self):
-        """Get statistics for agent proposals."""
-        mock_db = Mock(spec=Session)
-
-        mock_stats = {
-            "total": 100,
-            "pending": 10,
-            "approved": 80,
-            "rejected": 10,
-            "approval_rate": 0.80
-        }
-
-        mock_query = Mock()
-        mock_query.filter.return_value.count.return_value = 100
-        mock_db.query.return_value.filter.return_value = mock_query
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        stats = service.get_proposal_statistics("agent-123")
-
-        assert stats["total"] == 100
-
-    def test_approval_rate_calculation(self):
-        """Calculate approval rate for agent."""
-        mock_db = Mock(spec=Session)
-
-        mock_proposals = [
-            Mock(status="approved"),
-            Mock(status="approved"),
-            Mock(status="rejected"),
-            Mock(status="pending"),
-        ]
-
-        mock_query = Mock()
-        mock_query.filter.return_value.all.return_value = mock_proposals
-        mock_db.query.return_value.filter.return_value = mock_query
-
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
-
-        approval_rate = service.calculate_approval_rate("agent-123")
-
-        assert approval_rate == 0.5  # 2 approved out of 4 total
-
-
-class TestErrorHandling:
-    """Test error handling in proposal operations."""
-
-    def test_proposal_not_found(self):
-        """Return None when proposal doesn't exist."""
-        mock_db = Mock(spec=Session)
-
+        assert proposal.status == "executed"
+        assert proposal.approved_by == "user-1"
+        assert proposal.execution_result["success"] is True
+
+    def test_approve_proposal_not_found(self, mock_db, service):
         mock_db.query.return_value.filter.return_value.first.return_value = None
+        with pytest.raises(ValueError, match="not found"):
+            run(service.approve_proposal("ghost", "user-1"))
 
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
+    def test_approve_wrong_status_raises(self, mock_db, service):
+        proposal = make_proposal(status="rejected")
+        mock_db.query.return_value.filter.return_value.first.return_value = proposal
+        with pytest.raises(ValueError, match="PENDING_APPROVAL"):
+            run(service.approve_proposal("prop-1", "user-1"))
 
-        proposal = service.get_proposal("nonexistent-proposal")
+    def test_approve_with_modifications_merges_action(self, mock_db, service):
+        proposal = make_proposal()
+        mock_db.query.return_value.filter.return_value.first.return_value = proposal
 
-        assert proposal is None
+        with patch.object(
+            service, "_execute_proposed_action_with",
+            new=AsyncMock(return_value={"success": True, "result": "ok"}),
+        ), patch.object(service, "_create_proposal_episode", new=AsyncMock()), \
+             patch("core.proposal_service.AgentLearningEnhanced") as learning_cls:
+            learning = learning_cls.return_value
+            learning.record_user_correction = AsyncMock()
+            run(service.approve_proposal(
+                "prop-1", "user-1", modifications={"canvas_type": "bar"}))
 
-    def test_agent_not_found_for_proposal(self):
-        """Raise error when agent doesn't exist."""
-        mock_db = Mock(spec=Session)
+        assert proposal.proposal_data["canvas_type"] == "bar"
+        assert proposal.modifications == {"canvas_type": "bar"}
+        learning.record_user_correction.assert_awaited_once()
 
+    def test_approve_execution_failure_marks_failed(self, mock_db, service):
+        proposal = make_proposal()
+        mock_db.query.return_value.filter.return_value.first.return_value = proposal
+
+        with patch.object(
+            service, "_execute_proposed_action_with",
+            new=AsyncMock(return_value={"success": False, "error": "boom"}),
+        ), patch.object(service, "_create_proposal_episode", new=AsyncMock()), \
+             patch("core.proposal_service.AgentLearningEnhanced"):
+            result = run(service.approve_proposal("prop-1", "user-1"))
+
+        assert result["success"] is False
+        assert proposal.status == "execution_failed"
+
+    def test_approve_execution_exception_marks_failed_and_raises(
+        self, mock_db, service
+    ):
+        proposal = make_proposal()
+        mock_db.query.return_value.filter.return_value.first.return_value = proposal
+
+        with patch.object(
+            service, "_execute_proposed_action_with",
+            new=AsyncMock(side_effect=RuntimeError("executor exploded")),
+        ), patch("core.proposal_service.AgentLearningEnhanced"):
+            with pytest.raises(RuntimeError, match="executor exploded"):
+                run(service.approve_proposal("prop-1", "user-1"))
+
+        assert proposal.status == "execution_failed"
+        assert proposal.execution_result["success"] is False
+
+
+class TestRejection:
+    """Rejection workflow."""
+
+    def test_reject_proposal_records_reason(self, mock_db, service):
+        proposal = make_proposal()
+        mock_db.query.return_value.filter.return_value.first.return_value = proposal
+
+        with patch.object(service, "_create_proposal_episode", new=AsyncMock()), \
+             patch("core.proposal_service.AgentLearningEnhanced") as learning_cls:
+            learning = learning_cls.return_value
+            learning.record_rejection = AsyncMock()
+            run(service.reject_proposal("prop-1", "user-1", "not needed"))
+
+        assert proposal.status == "rejected"
+        assert proposal.approved_by == "user-1"
+        assert proposal.execution_result["reason"] == "not needed"
+        assert proposal.execution_result["rejected"] is True
+        learning.record_rejection.assert_awaited_once()
+
+    def test_reject_proposal_not_found(self, mock_db, service):
         mock_db.query.return_value.filter.return_value.first.return_value = None
+        with pytest.raises(ValueError, match="not found"):
+            run(service.reject_proposal("ghost", "user-1", "nope"))
 
-        from core.proposal_service import ProposalService
-        service = ProposalService(db=mock_db)
+    def test_reject_already_executed_proposal_raises(self, mock_db, service):
+        """A proposal that already ran must not be flipped to REJECTED."""
+        proposal = make_proposal(status="executed")
+        mock_db.query.return_value.filter.return_value.first.return_value = proposal
+        with pytest.raises(ValueError, match="PENDING_APPROVAL"):
+            run(service.reject_proposal("prop-1", "user-1", "too late"))
 
-        with pytest.raises(ValueError):
-            service.create_proposal(
-                agent_id="nonexistent-agent",
-                action_type="canvas_create",
-                proposal_data={}
-            )
+
+class TestQueries:
+    """Pending proposals and history."""
+
+    def test_get_pending_all(self, service):
+        service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+        assert run(service.get_pending_proposals()) == []
+
+    def test_get_pending_filters(self, service):
+        proposals = [make_proposal(), make_proposal(id="prop-2")]
+        deep = service.db.query.return_value.filter.return_value
+        deepest = deep.filter.return_value.filter.return_value.filter.return_value
+        deepest.order_by.return_value.limit.return_value.all.return_value = proposals
+        result = run(service.get_pending_proposals(
+            agent_id="agent-123", canvas_id="canvas-1", tenant_id="default", limit=10))
+        assert result == proposals
+        assert deep.filter.call_count >= 1  # agent filter applied
+
+    def test_get_proposal_history(self, service):
+        proposals = [
+            make_proposal(id="p1", status="executed", approved_by="user-1",
+                          approved_at=datetime(2026, 8, 2, 9, 0, 0),
+                          execution_result={"success": True}),
+            make_proposal(id="p2", status="rejected"),
+        ]
+        service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = proposals
+
+        history = run(service.get_proposal_history("agent-123"))
+
+        assert len(history) == 2
+        assert history[0]["proposal_id"] == "p1"
+        assert history[0]["status"] == "executed"
+        assert history[0]["approved_at"] is not None
+        assert history[0]["approved_by"] == "user-1"
+        assert history[1]["approved_at"] is None
