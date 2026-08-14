@@ -218,6 +218,13 @@ class AgentGovernanceService:
         "send_email": 3,
         "email_send": 3,
         "browser_action": 3,
+        # BUG FIX: browser_execute_script has no exact key, so the substring
+        # resolver matched the generic "execute" (level 4) and silently
+        # required AUTONOMOUS, contradicting the route contract
+        # (api/browser_routes.py execute_script: "Requires SUPERVISED+
+        # maturity") — the exact class of shadowing the comment above the
+        # resolver warns about. Pin it explicitly to level 3 (SUPERVISED+).
+        "browser_execute_script": 3,
         "post_message": 3,
         "schedule": 3,
         "upload": 3,

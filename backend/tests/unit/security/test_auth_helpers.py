@@ -76,20 +76,29 @@ class TestPasswordHashing:
         # Hash length should be 60 characters (standard bcrypt)
         assert len(hashed) == 60
 
-    def test_password_truncation_to_71_bytes(self):
-        """Test password is truncated to 71 bytes for bcrypt limit."""
-        # Bcrypt has a 72-byte limit including null terminator
-        # Create a password longer than 71 bytes
+    def test_password_over_72_bytes_rejected(self):
+        """Passwords over the 72-byte bcrypt limit are rejected (fail closed).
+
+        get_password_hash() deliberately raises instead of silently
+        truncating: bcrypt truncation past 72 bytes makes distinct long
+        passwords collide to the same hash.
+        """
         long_password = "a" * 100  # 100 ASCII characters = 100 bytes
 
-        hashed = get_password_hash(long_password)
+        with pytest.raises(ValueError, match="72-byte"):
+            get_password_hash(long_password)
 
-        # Should not raise an error
+    def test_password_at_72_byte_boundary_round_trips(self):
+        """A password at exactly the 72-byte bcrypt limit hashes and verifies."""
+        boundary_password = "a" * 72
+
+        hashed = get_password_hash(boundary_password)
+
         assert hashed is not None
         assert len(hashed) == 60
 
         # Verification should work with same long password
-        assert verify_password(long_password, hashed) is True
+        assert verify_password(boundary_password, hashed) is True
 
     def test_empty_password_hashing(self):
         """Test hashing empty password."""

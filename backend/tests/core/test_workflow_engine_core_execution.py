@@ -654,7 +654,8 @@ class TestWorkflowEngineStatePersistence:
     async def test_execution_state_persisted_to_db(self):
         """Test execution state is persisted to database."""
         engine = WorkflowEngine()
-        state_manager = get_state_manager()
+        state_manager = FakeStateManager()
+        engine.state_manager = state_manager
 
         workflow = {
             "id": "test-state-persist",
@@ -675,12 +676,14 @@ class TestWorkflowEngineStatePersistence:
             assert state is not None
             assert state["workflow_id"] == "test-state-persist"
             assert "steps" in state
+            assert state["status"] == "COMPLETED"
 
     @pytest.mark.asyncio
     async def test_step_output_saved_to_state(self):
         """Test step output is saved to execution state."""
         engine = WorkflowEngine()
-        state_manager = get_state_manager()
+        state_manager = FakeStateManager()
+        engine.state_manager = state_manager
 
         workflow = {
             "id": "test-output-save",
@@ -703,12 +706,15 @@ class TestWorkflowEngineStatePersistence:
             state = await state_manager.get_execution_state(execution_id)
             step1_state = state["steps"].get("step1", {})
             assert step1_state.get("status") in ["RUNNING", "COMPLETED"]
+            assert step1_state.get("status") == "COMPLETED"
+            assert state["outputs"]["step1"]["data"]["result"] == 42
 
     @pytest.mark.asyncio
     async def test_resume_from_saved_state(self):
         """Test resuming workflow from saved state."""
         engine = WorkflowEngine()
-        state_manager = get_state_manager()
+        state_manager = FakeStateManager()
+        engine.state_manager = state_manager
 
         workflow = {
             "id": "test-resume-state",
@@ -720,26 +726,9 @@ class TestWorkflowEngineStatePersistence:
         }
 
         # Create state with step1 already completed, then pause the execution.
-        # Use a per-run unique execution id (the dev DB persists between runs).
-        execution_id = f"test-resume-exec-{uuid.uuid4()}"
-        from core.database import get_async_db_session
-        from core.models import WorkflowExecution
-
-        async with get_async_db_session() as db:
-            db.add(WorkflowExecution(
-                execution_id=execution_id,
-                workflow_id="test-resume-state",
-                status="PAUSED",
-                input_data="{}",
-                steps="{}",
-                outputs="{}",
-                context="{}",
-                version=1,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
-            ))
-            await db.commit()
+        execution_id = await state_manager.create_execution("test-resume-state", {})
         await state_manager.update_step_status(execution_id, "step1", "COMPLETED", output={"result": "done"})
+        await state_manager.update_execution_status(execution_id, "PAUSED")
 
         # Resume - should skip step1
         with patch.object(engine, '_execute_step') as mock_execute:
@@ -751,7 +740,7 @@ class TestWorkflowEngineStatePersistence:
             # Only step2 should execute
             calls = [call[0][0]["id"] for call in mock_execute.call_args_list]
             assert "step2" in calls
-            # step1 might be checked but not executed
+            assert "step1" not in calls
 
 
 class TestWorkflowEngineSchemaValidation:

@@ -54,11 +54,14 @@ class ConnectionManager:
         self.CANVAS_USER_LEAVE = "canvas:user:leave"
 
     async def connect(self, websocket: WebSocket, token: str):
-        await websocket.accept()
+        # BUG FIX: accept() used to run before the try/except, so a failed
+        # accept() raised out of connect() instead of being handled gracefully
+        # (returning None) like every other connection error below.
+        try:
+            await websocket.accept()
 
-        # Authenticate
-        with get_db_session() as db:
-            try:
+            # Authenticate
+            with get_db_session() as db:
                 # SECURITY: dev-token bypass requires BOTH:
                 # 1. Explicit ALLOW_WS_DEV_TOKEN=true env var
                 # 2. ENVIRONMENT != "production"
@@ -104,14 +107,14 @@ class ConnectionManager:
                 logger.info(f"User {user.email} connected via WebSocket")
                 return user
 
-            except Exception as e:
-                logger.error(f"WebSocket connection error: {e}")
-                try:
-                    await websocket.close()
-                except RuntimeError:
-                    # Connection might be already closed or in a state where close() is invalid
-                    pass
-                return None
+        except Exception as e:
+            logger.error(f"WebSocket connection error: {e}")
+            try:
+                await websocket.close()
+            except RuntimeError:
+                # Connection might be already closed or in a state where close() is invalid
+                pass
+            return None
 
     def disconnect(self, websocket: WebSocket, user_id: str):
         # Remove from user connections

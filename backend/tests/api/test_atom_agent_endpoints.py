@@ -1845,47 +1845,55 @@ class TestStreamingEndpointComprehensive:
         mock_agent.id = "student_agent"
         mock_agent.name = "Student Agent"
 
-        with patch('core.agent_context_resolver.AgentContextResolver') as mock_resolver_class:
+        # All three patches must be ACTIVE while chat_stream_agent runs —
+        # the endpoint imports these names at call time, so the original
+        # with-blocks (which exited before the call) left the real
+        # resolver/governance/db in place and the request died as an
+        # unrelated "Internal server error".
+        with patch('core.agent_context_resolver.AgentContextResolver') as mock_resolver_class, \
+             patch('core.agent_governance_service.AgentGovernanceService') as mock_gov_class, \
+             patch('core.database.get_db_session') as mock_db:
+
             mock_resolver = Mock()
             mock_resolver.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
             mock_resolver_class.return_value = mock_resolver
 
-        with patch('core.agent_governance_service.AgentGovernanceService') as mock_gov_class:
             mock_gov = Mock()
             mock_gov.can_perform_action = Mock(return_value={"allowed": False, "reason": "Student agents cannot stream"})
             mock_gov_class.return_value = mock_gov
 
-        with patch('core.database.get_db_session') as mock_db:
-            mock_db_session = Mock()
-            mock_db.__enter__ = Mock(return_value=mock_db_session)
-            mock_db.__exit__ = Mock(return_value=False)
+            # get_db_session() is used as a context manager by the endpoint:
+            # `with get_db_session() as db:` — so the mock's RETURN VALUE must
+            # support __enter__/__exit__ (MagicMock), and the session methods
+            # (add/commit/refresh) are never reached when governance blocks.
+            mock_db_session = MagicMock()
             mock_db.return_value = mock_db_session
 
-        request = ChatRequest(
-            message="Test",
-            user_id="test_user",
-            workspace_id="default",
-            agent_id="student_agent"
-        )
-
-        # Governance should block the request
-        import os
-        old_gov = os.environ.get("STREAMING_GOVERNANCE_ENABLED")
-        os.environ["STREAMING_GOVERNANCE_ENABLED"] = "true"
-
-        try:
-            result = await chat_stream_agent(
-                request, current_user=SimpleNamespace(id="test_user")
+            request = ChatRequest(
+                message="Test",
+                user_id="test_user",
+                workspace_id="default",
+                agent_id="student_agent"
             )
 
-            # Should return error response
-            assert result["success"] is False
-            assert "governance" in str(result).lower() or "permitted" in str(result).lower()
-        finally:
-            if old_gov is None:
-                os.environ.pop("STREAMING_GOVERNANCE_ENABLED", None)
-            else:
-                os.environ["STREAMING_GOVERNANCE_ENABLED"] = old_gov
+            # Governance should block the request
+            import os
+            old_gov = os.environ.get("STREAMING_GOVERNANCE_ENABLED")
+            os.environ["STREAMING_GOVERNANCE_ENABLED"] = "true"
+
+            try:
+                result = await chat_stream_agent(
+                    request, current_user=SimpleNamespace(id="test_user")
+                )
+
+                # Should return error response
+                assert result["success"] is False
+                assert "governance" in str(result).lower() or "permitted" in str(result).lower()
+            finally:
+                if old_gov is None:
+                    os.environ.pop("STREAMING_GOVERNANCE_ENABLED", None)
+                else:
+                    os.environ["STREAMING_GOVERNANCE_ENABLED"] = old_gov
 
     @pytest.mark.asyncio
     async def test_stream_governance_disabled(self):

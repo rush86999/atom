@@ -27,8 +27,11 @@ import {
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import TeamsIntegration from '@/components/TeamsIntegration';
+import { useToast } from '@/components/ui/use-toast';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
+
+const getToastMock = (): jest.Mock => (useToast as jest.Mock)().toast;
 
 const mockTeams = [
   {
@@ -873,6 +876,327 @@ describe('TeamsIntegration', () => {
           })
         );
       });
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended coverage: error paths, external links, badges, dialog selects
+// ---------------------------------------------------------------------------
+describe('TeamsIntegration (extended coverage)', () => {
+  const user = userEvent.setup();
+  // NOTE: jest.config.js sets restoreMocks:true, which detaches describe-scope
+  // spies after every test — create a fresh console.error spy per test.
+  let errorSpy: jest.SpyInstance;
+  beforeEach(() => {
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.clearAllMocks();
+    server.resetHandlers();
+    server.use(...teamsHandlers);
+  });
+  afterEach(() => {
+    errorSpy.mockRestore();
+  });
+
+  test('opens a team in Teams via the card button', async () => {
+    const openSpy = jest.fn();
+    window.open = openSpy as any;
+
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+
+    const buttons = screen.getAllByRole('button', { name: /open in teams/i });
+    fireEvent.click(buttons[0]);
+
+    expect(openSpy).toHaveBeenCalledWith('https://teams.example.com/eng', '_blank');
+  });
+
+  test('joins a meeting via the Join Meeting button', async () => {
+    const openSpy = jest.fn();
+    window.open = openSpy as any;
+
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+
+    await user.click(screen.getByRole('button', { name: /meetings/i }));
+    const joinButtons = await screen.findAllByRole('button', { name: /join meeting/i });
+    fireEvent.click(joinButtons[0]);
+
+    expect(openSpy).toHaveBeenCalledWith('https://teams.example.com/join/123', '_blank');
+  });
+
+  test('channels tab renders membership badges and selects a channel', async () => {
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+    await selectTeamByCard(user, 'Engineering');
+
+    await user.click(screen.getByRole('button', { name: /channels/i }));
+
+    expect(await screen.findByText('General')).toBeInTheDocument();
+    expect(screen.getByText('Frontend')).toBeInTheDocument();
+    expect(screen.getByText('Shared Links')).toBeInTheDocument();
+    expect(screen.getAllByText('standard').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('private').length).toBeGreaterThan(0);
+    expect(screen.getByText('shared')).toBeInTheDocument();
+    expect(screen.getByText('Favorite')).toBeInTheDocument();
+
+    // clicking a channel card selects it (Messages tab becomes usable)
+    await user.click(screen.getByText('Frontend'));
+    await user.click(screen.getByRole('button', { name: /messages/i }));
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /send message/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  test('renders specialization badges for education teams', async () => {
+    server.use(
+      rest.post('/api/integrations/teams/teams', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json({
+            data: {
+              teams: [
+                {
+                  id: 't1',
+                  displayName: 'Science Class',
+                  createdDateTime: '2026-01-15T10:00:00Z',
+                  visibility: 'public',
+                  specialization: 'educationStandard',
+                  webUrl: 'https://teams.example.com/science',
+                },
+                {
+                  id: 't2',
+                  displayName: 'Teacher Training',
+                  createdDateTime: '2026-01-16T10:00:00Z',
+                  visibility: 'public',
+                  specialization: 'educationProfessionalLearning',
+                  webUrl: 'https://teams.example.com/training',
+                },
+              ],
+            },
+          })
+        );
+      })
+    );
+
+    render(<TeamsIntegration />);
+    await settleData(/Science Class/);
+
+    expect(screen.getByText('Teacher Training')).toBeInTheDocument();
+    expect(screen.getAllByText(/educationStandard/i).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/educationProfessionalLearning/i).length
+    ).toBeGreaterThan(0);
+  });
+
+  test('shows error toast when team creation fails', async () => {
+    server.use(
+      rest.post('/api/integrations/teams/teams/create', (req, res) =>
+        res.networkError('boom')
+      )
+    );
+
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+
+    await user.click(screen.getByRole('button', { name: /create team/i }));
+    const dialogContent = document.getElementById('dialog-content') as HTMLElement;
+    await user.type(within(dialogContent).getByPlaceholderText(/team name/i), 'Fail Team');
+    await user.click(within(dialogContent).getByRole('button', { name: /create team/i }));
+
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Error', description: 'Failed to create team' })
+      );
+    });
+  });
+
+  test('shows error toast when channel creation fails', async () => {
+    server.use(
+      rest.post('/api/integrations/teams/channels/create', (req, res) =>
+        res.networkError('boom')
+      )
+    );
+
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+    await selectTeamByCard(user, 'Engineering');
+    await user.click(screen.getByRole('button', { name: /channels/i }));
+
+    await user.click(screen.getByRole('button', { name: /create channel/i }));
+    const dialogContent = document.getElementById('dialog-content') as HTMLElement;
+    await user.type(
+      within(dialogContent).getByPlaceholderText(/enter channel name/i),
+      'Fail Channel'
+    );
+    await user.click(
+      within(dialogContent).getByRole('button', { name: /create channel/i })
+    );
+
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Error', description: 'Failed to create channel' })
+      );
+    });
+  });
+
+  test('shows error toast when sending a message fails', async () => {
+    server.use(
+      rest.post('/api/integrations/teams/messages/send', (req, res) =>
+        res.networkError('boom')
+      )
+    );
+
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+    await selectTeamByCard(user, 'Engineering');
+    await user.click(screen.getByRole('button', { name: /messages/i }));
+    const comboboxes = screen.getAllByRole('combobox');
+    await user.click(comboboxes[1]);
+    const listbox = await screen.findByRole('listbox');
+    await user.click(within(listbox).getByText('General'));
+
+    await user.click(screen.getByRole('button', { name: /send message/i }));
+    const dialogContent = document.getElementById('dialog-content') as HTMLElement;
+    await user.type(
+      within(dialogContent).getByPlaceholderText(/type your message/i),
+      'Doomed message'
+    );
+    await user.click(
+      within(dialogContent).getByRole('button', { name: /send message/i })
+    );
+
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Error', description: 'Failed to send message' })
+      );
+    });
+  });
+
+  test('shows error toast when meeting creation fails', async () => {
+    server.use(
+      rest.post('/api/integrations/teams/meetings/create', (req, res) =>
+        res.networkError('boom')
+      )
+    );
+
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+    await user.click(screen.getByRole('button', { name: /meetings/i }));
+
+    await user.click(screen.getByRole('button', { name: /schedule meeting/i }));
+    const dialogContent = document.getElementById('dialog-content') as HTMLElement;
+    await user.type(
+      within(dialogContent).getByPlaceholderText('Meeting subject'),
+      'Doomed Meeting'
+    );
+    const dateInputs = dialogContent.querySelectorAll('input[type="datetime-local"]');
+    fireEvent.change(dateInputs[0], { target: { value: '2026-09-01T09:00' } });
+    fireEvent.change(dateInputs[1], { target: { value: '2026-09-01T10:00' } });
+    await user.click(
+      within(dialogContent).getByRole('button', { name: /schedule meeting/i })
+    );
+
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Error', description: 'Failed to create meeting' })
+      );
+    });
+  });
+
+  test('shows error toast when team loading fails and logs auxiliary errors', async () => {
+    const netFail = (path: string) => rest.post(path, (req, res) => res.networkError('boom'));
+    server.use(
+      netFail('/api/integrations/teams/teams'),
+      netFail('/api/integrations/teams/profile'),
+      netFail('/api/integrations/teams/meetings'),
+      netFail('/api/integrations/teams/users')
+    );
+
+    render(<TeamsIntegration />);
+
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Error', description: 'Failed to load teams from Microsoft Teams' })
+      );
+    });
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Failed to load user profile:', expect.anything());
+      expect(errorSpy).toHaveBeenCalledWith('Failed to load meetings:', expect.anything());
+      expect(errorSpy).toHaveBeenCalledWith('Failed to load users:', expect.anything());
+    });
+  });
+
+  test('logs an error when messages fail to load for a selected channel', async () => {
+    server.use(
+      rest.post('/api/integrations/teams/messages', (req, res) => res.networkError('boom'))
+    );
+
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+    await selectTeamByCard(user, 'Engineering');
+
+    await user.click(screen.getByRole('button', { name: /channels/i }));
+    // messages only load after a channel is selected
+    await user.click(await screen.findByText('General'));
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Failed to load messages:', expect.anything());
+    });
+  });
+
+  test('dialog selects update visibility, specialization, and membership type', async () => {
+    const pickOption = async (trigger: Element, label: string) => {
+      fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+      const option = await waitFor(() => {
+        const found = Array.from(document.querySelectorAll('[role="option"]')).find(
+          (i) => i.textContent === label
+        );
+        if (!found) throw new Error(`option ${label} not found`);
+        return found as HTMLElement;
+      });
+      fireEvent.click(option);
+    };
+
+    // --- Create Team dialog: visibility + specialization selects ---
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+
+    await user.click(screen.getByRole('button', { name: /create team/i }));
+    let dialogContent = document.getElementById('dialog-content') as HTMLElement;
+    await user.type(within(dialogContent).getByPlaceholderText(/team name/i), 'Selects Team');
+
+    const teamComboboxes = within(dialogContent).getAllByRole('combobox');
+    await pickOption(teamComboboxes[0], 'Private');
+    await pickOption(teamComboboxes[1], 'None');
+
+    await user.click(within(dialogContent).getByRole('button', { name: /create team/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    // --- Create Channel dialog: description + membership type ---
+    await selectTeamByCard(user, 'Engineering');
+    await user.click(screen.getByRole('button', { name: /channels/i }));
+    await user.click(screen.getByRole('button', { name: /create channel/i }));
+    dialogContent = document.getElementById('dialog-content') as HTMLElement;
+    await user.type(
+      within(dialogContent).getByPlaceholderText(/enter channel name/i),
+      'Selects Channel'
+    );
+    fireEvent.change(within(dialogContent).getByPlaceholderText('Channel description'), {
+      target: { value: 'A very select channel' },
+    });
+    const channelComboboxes = within(dialogContent).getAllByRole('combobox');
+    await pickOption(channelComboboxes[channelComboboxes.length - 1], 'Private');
+
+    await user.click(
+      within(dialogContent).getByRole('button', { name: /create channel/i })
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
   });
 });

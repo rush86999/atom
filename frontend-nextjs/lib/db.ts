@@ -25,10 +25,6 @@ if (process.env.NODE_ENV === 'production') {
                 console.error('❌  Cannot execute query: Database not connected (missing DATABASE_URL)');
                 throw new Error('Database not connected');
             },
-            on: () => { },
-            connect: async () => {
-                throw new Error('Database not connected');
-            }
         } as any;
     } else {
         // Check if a pool already exists on the global object

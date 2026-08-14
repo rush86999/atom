@@ -48,7 +48,12 @@ def create_auth_test_app():
 @pytest.fixture(scope="function")
 def db_session():
     """Create test database session."""
-    from core.database import SessionLocal
+    from core.database import SessionLocal, engine, Base
+    # Ensure tables exist on the app's engine: under ATOM_MOCK_DATABASE=true the
+    # engine is a shared in-memory SQLite that starts empty, and nothing else
+    # in a standalone run creates the schema (this fixture previously relied on
+    # table-creation side effects from other test files).
+    Base.metadata.create_all(bind=engine, checkfirst=True)
     session = SessionLocal()
     try:
         yield session

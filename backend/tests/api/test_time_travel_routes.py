@@ -16,8 +16,21 @@ class TestTimeTravelRoutes:
 
     @pytest.fixture
     def client(self):
-        """Create test client."""
-        return TestClient(app)
+        """Create test client with authentication overridden.
+
+        The restored /api/time-travel fork route requires get_current_user
+        (see api/time_travel_routes.py docstring); override it so requests
+        act as a mock user, and restore the shared app state afterwards.
+        """
+        from core.auth import get_current_user
+
+        mock_user = Mock()
+        mock_user.id = "test-user"
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        try:
+            yield TestClient(app)
+        finally:
+            app.dependency_overrides.pop(get_current_user, None)
 
     @patch('api.time_travel_routes.get_orchestrator')
     def test_fork_workflow_success(self, mock_get_orchestrator, client):

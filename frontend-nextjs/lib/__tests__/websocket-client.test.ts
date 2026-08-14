@@ -1,141 +1,45 @@
 /**
- * Tests for WebSocket Client
- *
- * Tests the WebSocket client wrapper
+ * lib/websocket-client tests — mock client connect/subscribe/on/disconnect.
  */
 
 import { WebSocketClient, getWebSocketClient, WebSocketMessage } from '../websocket-client';
 
-describe('WebSocketClient', () => {
-  let client: WebSocketClient;
-  const mockConfig = { url: 'ws://localhost:8080' };
-
+describe('lib/websocket-client', () => {
   beforeEach(() => {
-    client = new WebSocketClient(mockConfig);
+    jest.spyOn(console, 'log').mockImplementation(() => {});
   });
 
-  describe('constructor', () => {
-    it('should create client with config', () => {
-      expect(client).toBeInstanceOf(WebSocketClient);
-    });
+  it('connects and resolves', async () => {
+    const client = new WebSocketClient({ url: 'ws://x' });
+    await expect(client.connect()).resolves.toBeUndefined();
   });
 
-  describe('connect', () => {
-    it('should connect successfully', async () => {
-      await expect(client.connect()).resolves.not.toThrow();
-    });
-
-    it('should return a promise', () => {
-      const result = client.connect();
-      expect(result).toBeInstanceOf(Promise);
-    });
+  it('subscribes to a channel', () => {
+    const client = new WebSocketClient({});
+    expect(() => client.subscribe('workspace:default')).not.toThrow();
   });
 
-  describe('subscribe', () => {
-    it('should subscribe to channel', () => {
-      expect(() => client.subscribe('test-channel')).not.toThrow();
-    });
+  it('registers and invokes listeners, and returns an unsubscribe function', () => {
+    const client = new WebSocketClient({});
+    const listener = jest.fn();
+    const msg: WebSocketMessage = { type: 'agent_step', timestamp: 't' };
+    // Second registration for the same event exercises the existing-array path.
+    const unsubscribe = client.on('message', listener);
+    client.on('message', jest.fn());
+    (client as any).listeners['message'].forEach((fn: Function) => fn(msg));
+    expect(listener).toHaveBeenCalledWith(msg);
+
+    unsubscribe();
+    expect((client as any).listeners['message']).toHaveLength(1);
   });
 
-  describe('on', () => {
-    it('should register event listener', () => {
-      const callback = jest.fn();
-      const unsubscribe = client.on('test-event', callback);
-
-      expect(typeof unsubscribe).toBe('function');
-    });
-
-    it('should return unsubscribe function', () => {
-      const callback = jest.fn();
-      const unsubscribe = client.on('test-event', callback);
-
-      expect(unsubscribe).toBeDefined();
-      expect(typeof unsubscribe).toBe('function');
-    });
-
-    it('should allow multiple listeners for same event', () => {
-      const callback1 = jest.fn();
-      const callback2 = jest.fn();
-
-      client.on('test-event', callback1);
-      client.on('test-event', callback2);
-
-      // Both should be registered (we can't directly access listeners but we can verify no errors)
-      expect(() => {
-        client.on('test-event', callback1);
-        client.on('test-event', callback2);
-      }).not.toThrow();
-    });
-
-    it('should handle different event types', () => {
-      const callback1 = jest.fn();
-      const callback2 = jest.fn();
-
-      expect(() => {
-        client.on('event1', callback1);
-        client.on('event2', callback2);
-      }).not.toThrow();
-    });
+  it('disconnects', () => {
+    const client = new WebSocketClient({});
+    expect(() => client.disconnect()).not.toThrow();
   });
 
-  describe('disconnect', () => {
-    it('should disconnect successfully', () => {
-      expect(() => client.disconnect()).not.toThrow();
-    });
-  });
-});
-
-describe('getWebSocketClient', () => {
-  it('should return WebSocketClient instance', () => {
-    const config = { url: 'ws://localhost:8080' };
-    const client = getWebSocketClient(config);
-
+  it('getWebSocketClient returns a configured client', () => {
+    const client = getWebSocketClient({ url: 'ws://y' });
     expect(client).toBeInstanceOf(WebSocketClient);
-  });
-
-  it('should pass config to client', () => {
-    const config = { url: 'ws://test.com' };
-    const client = getWebSocketClient(config);
-
-    expect(client).toBeInstanceOf(WebSocketClient);
-  });
-});
-
-describe('WebSocketMessage', () => {
-  it('should define WebSocketMessage interface', () => {
-    const message: WebSocketMessage = {
-      type: 'test',
-      timestamp: '2024-01-15T10:30:00Z',
-      message: 'Test message',
-    };
-
-    expect(message.type).toBe('test');
-    expect(message.timestamp).toBe('2024-01-15T10:30:00Z');
-  });
-
-  it('should have optional execution_id', () => {
-    const message1: WebSocketMessage = {
-      type: 'test',
-      timestamp: '2024-01-15T10:30:00Z',
-    };
-
-    const message2: WebSocketMessage = {
-      type: 'test',
-      timestamp: '2024-01-15T10:30:00Z',
-      execution_id: 'exec-123',
-    };
-
-    expect(message1.execution_id).toBeUndefined();
-    expect(message2.execution_id).toBe('exec-123');
-  });
-
-  it('should have optional data field', () => {
-    const message: WebSocketMessage = {
-      type: 'test',
-      timestamp: '2024-01-15T10:30:00Z',
-      data: { key: 'value' },
-    };
-
-    expect(message.data).toEqual({ key: 'value' });
   });
 });

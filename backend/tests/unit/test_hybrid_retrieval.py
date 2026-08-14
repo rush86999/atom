@@ -36,12 +36,13 @@ class TestHybridRetrievalService:
     @pytest.fixture
     def agent_with_episodes(self, db):
         """Create agent with test episodes."""
-        agent = AgentFactory(status="AUTONOMOUS")
+        agent = AgentFactory(_session=db, status="AUTONOMOUS")
 
         # Create 100 episodes with varied content
         episodes = []
         for i in range(100):
             episode = EpisodeFactory(
+                _session=db,
                 agent_id=agent.id,
                 task_description=f"Test episode {i} about topic {i % 10}"
             )
@@ -264,8 +265,8 @@ class TestEmbeddingServiceExtensions:
         from core.models import Episode
 
         # Create test data
-        agent = AgentFactory()
-        episodes = [EpisodeFactory(agent_id=agent.id) for _ in range(100)]
+        agent = AgentFactory(_session=db)
+        episodes = [EpisodeFactory(_session=db, agent_id=agent.id) for _ in range(100)]
 
         # Merge episodes into database session
         for ep in episodes:
@@ -311,9 +312,10 @@ class TestCrossEncoderReranking:
         from core.models import Episode
 
         # Create test data
-        agent = AgentFactory()
+        agent = AgentFactory(_session=db)
         episodes = [
             EpisodeFactory(
+                _session=db,
                 agent_id=agent.id,
                 task_description=f"Episode {i} about specific topic with detailed content"
             )
@@ -358,8 +360,8 @@ class TestCrossEncoderReranking:
     async def test_reranking_performance_mocked(self, embedding_service, db):
         """Test reranking performance (<150ms for 50 candidates) - mocked."""
         # Create test data
-        agent = AgentFactory()
-        episodes = [EpisodeFactory(agent_id=agent.id) for _ in range(50)]
+        agent = AgentFactory(_session=db)
+        episodes = [EpisodeFactory(_session=db, agent_id=agent.id) for _ in range(50)]
         db.commit()
 
         episode_ids = [ep.id for ep in episodes]

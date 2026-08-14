@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { CanvasHost } from '../canvas-host';
 
 // Mock marked to avoid ESM import issues
@@ -30,6 +30,50 @@ jest.mock('@monaco-editor/react', () => ({
       />
     </div>
   ),
+}));
+
+// Mock the chart canvases and interactive form (heavy children)
+jest.mock('@/components/canvas/LineChart', () => ({
+  LineChartCanvas: ({ data, title }: any) => (
+    <div data-testid="line-chart">
+      line-title:{title} rows:{data.length}
+    </div>
+  ),
+}));
+jest.mock('@/components/canvas/BarChart', () => ({
+  BarChartCanvas: ({ data, title }: any) => (
+    <div data-testid="bar-chart">
+      bar-title:{title} rows:{data.length}
+    </div>
+  ),
+}));
+jest.mock('@/components/canvas/PieChart', () => ({
+  PieChartCanvas: ({ data, title }: any) => (
+    <div data-testid="pie-chart">
+      pie-title:{title} rows:{data.length}
+    </div>
+  ),
+}));
+jest.mock('@/components/canvas/InteractiveForm', () => ({
+  InteractiveForm: ({ fields, title, onSubmit }: any) => (
+    <div data-testid="interactive-form">
+      form-title:{title} fields:{fields.length}
+      <button
+        onClick={() => {
+          // Swallow rejections: the component rethrows submission errors on
+          // purpose and the unhandled rejection would fail the test run.
+          Promise.resolve(onSubmit({ name: 'x' })).catch(() => {});
+        }}
+      >
+        submit-form
+      </button>
+    </div>
+  ),
+}));
+
+const mockApiPost = jest.fn();
+jest.mock('@/lib/api', () => ({
+  apiClient: { post: (...args: any[]) => mockApiPost(...args) },
 }));
 
 // Use the mockFetch that setup.ts exports on global scope
@@ -196,5 +240,410 @@ describe('CanvasHost', () => {
     // Save button should not exist since canvas is not open
     expect(screen.queryByText('Save Changes')).not.toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended coverage: every canvas component type, preview mode, save variants
+// ---------------------------------------------------------------------------
+describe('CanvasHost (extended coverage)', () => {
+  let errorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(global, 'fetch').mockResolvedValue(
+      (global as any).createMockResponse() as any
+    );
+    mockApiPost.mockReset();
+    mockApiPost.mockResolvedValue({ ok: true });
+  });
+
+  afterEach(() => {
+    errorSpy.mockRestore();
+    jest.restoreAllMocks();
+  });
+
+  const canvasMessage = (overrides: Record<string, unknown> = {}) => ({
+    type: 'canvas:present',
+    data: {
+      component: 'markdown',
+      title: 'Canvas',
+      data: { content: '# Hello' },
+      ...overrides,
+    },
+  });
+
+  test('renders chart canvases resolving data from all payload shapes', () => {
+    const { rerender } = render(
+      <CanvasHost
+        lastMessage={canvasMessage({
+          component: 'line_chart',
+          data: [{ x: 1 }, { x: 2 }],
+        })}
+      />
+    );
+    // raw array data + canvasTitle fallback
+    expect(screen.getByTestId('line-chart')).toHaveTextContent(
+      'line-title:Canvas rows:2'
+    );
+
+    // {data: [...]} shape with explicit title
+    rerender(
+      <CanvasHost
+        lastMessage={canvasMessage({
+          component: 'bar_chart',
+          data: { title: 'Revenue', data: [{ y: 1 }] },
+        })}
+      />
+    );
+    expect(screen.getByTestId('bar-chart')).toHaveTextContent(
+      'bar-title:Revenue rows:1'
+    );
+
+    // {content: [...]} shape (PUT update flow)
+    rerender(
+      <CanvasHost
+        lastMessage={canvasMessage({
+          component: 'pie_chart',
+          data: { title: 'FromContent', content: [{ z: 3 }] },
+        })}
+      />
+    );
+    expect(screen.getByTestId('pie-chart')).toHaveTextContent(
+      'pie-title:FromContent rows:1'
+    );
+  });
+
+  test('renders a form canvas and submits through the api client', async () => {
+    render(
+      <CanvasHost
+        lastMessage={canvasMessage({
+          component: 'form',
+          title: 'Signup',
+          data: { schema: { fields: [{ name: 'email' }] } },
+        })}
+      />
+    );
+
+    expect(screen.getByTestId('interactive-form')).toHaveTextContent(
+      'form-title:Signup fields:1'
+    );
+
+    fireEvent.click(screen.getByText('submit-form'));
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/canvas/submit',
+        expect.objectContaining({ form_data: { name: 'x' } })
+      );
+    });
+  });
+
+  test('unwraps {content: {...}} form payloads and unwrapped fields', () => {
+    const { rerender } = render(
+      <CanvasHost
+        lastMessage={canvasMessage({
+          component: 'form',
+          data: { content: { fields: [{ name: 'a' }, { name: 'b' }] } },
+        })}
+      />
+    );
+    expect(screen.getByTestId('interactive-form')).toHaveTextContent('fields:2');
+
+    rerender(
+      <CanvasHost
+        lastMessage={canvasMessage({
+          component: 'form',
+          data: { fields: [{ name: 'only' }] },
+        })}
+      />
+    );
+    expect(screen.getByTestId('interactive-form')).toHaveTextContent('fields:1');
+  });
+
+  test('form submission failures are logged and rethrown', async () => {
+    mockApiPost.mockRejectedValue(new Error('post failed'));
+
+    render(
+      <CanvasHost
+        lastMessage={canvasMessage({
+          component: 'form',
+          data: { fields: [{ name: 'a' }] },
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByText('submit-form'));
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Form submission failed:',
+        expect.any(Error)
+      );
+    });
+  });
+
+  test('email canvas: editing metadata marks unsaved, Send alerts, save posts metadata', async () => {
+    const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        (global as any).createMockResponse({
+          ok: true,
+          json: async () => ({ id: 'artifact-2', version: 5 }),
+        }) as any
+      );
+
+    render(
+      <CanvasHost
+        lastMessage={{
+          type: 'canvas:present',
+          data: {
+            id: 'canvas-9',
+            component: 'email',
+            title: 'Draft',
+            data: { content: 'Body text' },
+            metadata: { to: 'a@b.com', subject: 'Hi' },
+          },
+        }}
+      />
+    );
+
+    // editing the To field marks the canvas dirty
+    fireEvent.change(screen.getByPlaceholderText('recipient@example.com'), {
+      target: { value: 'c@d.com' },
+    });
+
+    const send = screen.getByRole('button', { name: /send/i });
+    fireEvent.click(send);
+    expect(alertSpy).toHaveBeenCalledWith('Sending email to c@d.com...');
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Save Changes'));
+    });
+
+    expect(fetchSpy).toHaveBeenCalled();
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(String(url)).toContain('/api/artifacts/update');
+    expect(String(init.body)).toContain('"metadata"');
+    expect(String(init.body)).toContain('c@d.com');
+
+    alertSpy.mockRestore();
+  });
+
+  test('sheet canvas: cell edits, add row, and save with sheet payload', async () => {
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        (global as any).createMockResponse({
+          ok: true,
+          json: async () => ({ id: 'artifact-3', version: 1 }),
+        }) as any
+      );
+
+    render(
+      <CanvasHost
+        lastMessage={{
+          type: 'canvas:present',
+          data: {
+            component: 'sheet',
+            title: 'Grid',
+            data: [
+              ['h1', 'h2'],
+              ['v1', 'v2'],
+            ],
+          },
+        }}
+      />
+    );
+
+    // edit a cell
+    fireEvent.change(screen.getByDisplayValue('v1'), { target: { value: 'edited' } });
+    expect(screen.getByDisplayValue('edited')).toBeInTheDocument();
+
+    // add a row
+    fireEvent.click(screen.getByText('+ Add New Row'));
+    const newCell = screen.getAllByRole('textbox');
+    expect(newCell.length).toBeGreaterThan(4);
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Save Changes'));
+    });
+
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(String(url)).toContain('/api/artifacts');
+    expect(String(init.body)).toContain('edited');
+  });
+
+  test('save failures are logged without crashing', async () => {
+    jest.spyOn(global, 'fetch').mockRejectedValue(new Error('save failed'));
+
+    render(
+      <CanvasHost
+        lastMessage={{
+          type: 'canvas:present',
+          data: { component: 'sheet', title: 'S', data: { rows: [['a']] } },
+        }}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Save Changes'));
+    });
+
+    expect(errorSpy).toHaveBeenCalledWith('Error saving artifact:', expect.any(Error));
+  });
+
+  test('markdown preview mode renders sanitized html and toggles back', () => {
+    render(<CanvasHost lastMessage={canvasMessage({ component: 'markdown' })} />);
+
+    fireEvent.click(screen.getByText('Preview Mode'));
+    expect(screen.getByText('Edit Mode')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Edit Mode'));
+    expect(screen.getByText('Preview Mode')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-editor')).toBeInTheDocument();
+  });
+
+  test('renders snapshot canvas with metadata chips and state tree', () => {
+    render(
+      <CanvasHost
+        lastMessage={{
+          type: 'canvas:present',
+          data: {
+            component: 'snapshot',
+            title: 'Snap',
+            data: { timestamp: '2026-08-14T10:00:00Z', source: 'web', state: { a: 1 } },
+          },
+        }}
+      />
+    );
+
+    expect(screen.getByText(/Captured:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Source: web/i)).toBeInTheDocument();
+    expect(screen.getByText(/"a": 1/)).toBeInTheDocument();
+  });
+
+  test('renders browser_view canvas with and without a screenshot', () => {
+    const { rerender } = render(
+      <CanvasHost
+        lastMessage={{
+          type: 'canvas:present',
+          data: {
+            component: 'browser_view',
+            title: 'Browser',
+            data: { url: 'https://example.com', screenshot: 'data:image/png;base64,abc' },
+          },
+        }}
+      />
+    );
+
+    expect(screen.getByText('https://example.com')).toBeInTheDocument();
+    expect(screen.getByAltText('Browser Snapshot')).toBeInTheDocument();
+
+    rerender(
+      <CanvasHost
+        lastMessage={{
+          type: 'canvas:present',
+          data: {
+            component: 'browser_view',
+            title: 'Browser',
+            data: { url: '' },
+          },
+        }}
+      />
+    );
+    expect(screen.getByText('Connecting to remote browser...')).toBeInTheDocument();
+    expect(screen.getByText('about:blank')).toBeInTheDocument();
+  });
+
+  test('renders unknown component types via the custom fallback', () => {
+    render(
+      <CanvasHost
+        lastMessage={{
+          type: 'canvas:present',
+          data: { component: 'status_panel', title: 'Status', data: 'All good' },
+        }}
+      />
+    );
+    expect(screen.getByText('status_panel')).toBeInTheDocument();
+
+    render(
+      <CanvasHost
+        lastMessage={{
+          type: 'canvas:present',
+          data: { component: 'custom_thing', title: 'Custom', data: { payload: 42 } },
+        }}
+      />
+    );
+    expect(screen.getByText('Custom Component: custom_thing')).toBeInTheDocument();
+    expect(screen.getByText(/"payload": 42/)).toBeInTheDocument();
+  });
+
+  test('shows version chip and synced indicator for saved canvases', () => {
+    render(
+      <CanvasHost
+        lastMessage={{
+          type: 'canvas:present',
+          data: {
+            id: 'canvas-77',
+            canvas_id: 'ignored-canvas-id',
+            version: 3,
+            component: 'document',
+            title: 'Doc',
+            data: { content: '# Doc' },
+          },
+        }}
+      />
+    );
+
+    expect(screen.getByText('v3')).toBeInTheDocument();
+    expect(screen.getByText('Synced to cloud')).toBeInTheDocument();
+    // documents expose the Preview Mode toggle too
+    expect(screen.getByText('Preview Mode')).toBeInTheDocument();
+  });
+
+  test('renders "No data to display" for data-less components', () => {
+    render(
+      <CanvasHost
+        lastMessage={{
+          type: 'canvas:present',
+          data: { component: 'markdown', title: 'Empty', data: undefined },
+        }}
+      />
+    );
+
+    expect(screen.getByText('No data to display')).toBeInTheDocument();
+  });
+
+  test('editor changes mark the canvas dirty and enable save', async () => {
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        (global as any).createMockResponse({
+          ok: true,
+          json: async () => ({ id: 'artifact-4', version: 2 }),
+        }) as any
+      );
+
+    render(
+      <CanvasHost
+        lastMessage={{
+          type: 'canvas:present',
+          data: { component: 'code', title: 'Snippet', data: { content: 'let x = 1;' } },
+        }}
+      />
+    );
+
+    expect(screen.queryByText('Save Changes')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId('editor-content'), {
+      target: { value: 'let x = 2;' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Save Changes'));
+    });
+    expect(global.fetch).toHaveBeenCalled();
   });
 });

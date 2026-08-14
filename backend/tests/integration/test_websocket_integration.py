@@ -26,7 +26,7 @@ except ImportError:
 from unittest.mock import MagicMock, AsyncMock
 
 from core.auth import create_access_token
-from tests.property_tests.conftest import db_session
+from tests.property_tests.conftest import db_engine, db_session
 
 
 # =============================================================================
@@ -36,6 +36,14 @@ from tests.property_tests.conftest import db_session
 def get_ws_uri(token: str, path: str = "/ws") -> str:
     """Get WebSocket URI for testing."""
     return f"ws://localhost:8000{path}?token={token}"
+
+
+@pytest.fixture(autouse=True)
+def enable_ws_dev_token(monkeypatch):
+    """Current security model: dev-token bypass requires BOTH an explicit
+    ALLOW_WS_DEV_TOKEN=true opt-in AND a non-production ENVIRONMENT."""
+    monkeypatch.setenv("ALLOW_WS_DEV_TOKEN", "true")
+    monkeypatch.setenv("ENVIRONMENT", "development")
 
 
 @pytest.fixture

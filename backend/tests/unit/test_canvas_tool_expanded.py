@@ -588,7 +588,7 @@ class TestCanvasComponents:
                 mock_resolver.resolve_agent_for_request = AsyncMock(return_value=(None, {}))
 
                 mock_factory = Mock()
-                mock_factory.get_governance_service = Mock()
+                mock_factory.get_governance_service = Mock(return_value=Mock())
 
                 # Mock database for audit tracking
                 mock_db = Mock()
@@ -601,7 +601,9 @@ class TestCanvasComponents:
                 mock_db_session.__exit__ = Mock(return_value=False)
 
                 with patch('tools.canvas_tool.AgentContextResolver', return_value=mock_resolver):
-                    with patch('tools.canvas_tool.ServiceFactory', return_value=mock_factory):
+                    # ServiceFactory is imported lazily inside canvas_tool
+                    # functions from core.service_factory, so patch it there.
+                    with patch('core.service_factory.ServiceFactory', mock_factory):
                         with patch('core.database.get_db_session', return_value=mock_db_session):
                             result = await present_specialized_canvas(
                                 user_id="user-1",
@@ -686,7 +688,9 @@ class TestCanvasComponents:
             mock_db_session.__exit__ = Mock(return_value=False)
 
             with patch('tools.canvas_tool.AgentContextResolver', return_value=mock_resolver):
-                with patch('tools.canvas_tool.ServiceFactory', return_value=mock_factory):
+                # ServiceFactory is imported lazily inside canvas_tool
+                # functions from core.service_factory, so patch it there.
+                with patch('core.service_factory.ServiceFactory', mock_factory):
                     with patch('core.database.get_db_session', return_value=mock_db_session):
                         # Present HTML-rich markdown (HTML component)
                         result = await present_markdown(

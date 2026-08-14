@@ -32,8 +32,37 @@ from core.models import (
     TriggerSource,
     User,
     UserRole,
+    UserStatus,
     Tenant,
 )
+
+
+def _blocked_trigger(
+    agent_id: str,
+    agent_name: str,
+    tenant_id: str,
+    block_reason: str,
+    trigger_context: dict,
+) -> BlockedTriggerContext:
+    """Build a schema-valid BlockedTriggerContext.
+
+    Mirrors how core/trigger_interceptor.py constructs blocked triggers:
+    ``reason``/``context`` are now ``block_reason``/``trigger_context`` and
+    agent_name / maturity / confidence / routing_decision are NOT NULL.
+    """
+    return BlockedTriggerContext(
+        id=str(uuid.uuid4()),
+        agent_id=agent_id,
+        agent_name=agent_name,
+        agent_maturity_at_block=AgentStatus.STUDENT.value,
+        confidence_score_at_block=0.4,
+        trigger_type=trigger_context.get("action_type", "automated"),
+        trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+        trigger_context=trigger_context,
+        routing_decision="training",
+        block_reason=block_reason,
+        tenant_id=tenant_id,
+    )
 
 
 class TestTrainingProposalWorkflow:
@@ -59,6 +88,7 @@ class TestTrainingProposalWorkflow:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -77,14 +107,12 @@ class TestTrainingProposalWorkflow:
         db_session.add(agent)
         db_session.commit()
 
-        blocked_trigger = BlockedTriggerContext(
-            id=str(uuid.uuid4()),
+        blocked_trigger = _blocked_trigger(
             agent_id=agent.id,
-            trigger_type="automated",
-            trigger_source=TriggerSource.WORKFLOW.value,
-            reason="Agent is in STUDENT maturity level",
-            context={"action_type": "data_analysis"},
+            agent_name=agent.name,
             tenant_id=tenant_id,
+            block_reason="Agent is in STUDENT maturity level",
+            trigger_context={"action_type": "data_analysis"},
         )
         db_session.add(blocked_trigger)
         db_session.commit()
@@ -126,6 +154,7 @@ class TestTrainingProposalWorkflow:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -133,7 +162,8 @@ class TestTrainingProposalWorkflow:
         agent = AgentRegistry(
             id="student_agent_2",
             name="Student Agent",
-            category="data_analysis",
+            # Category with a known capability-gap mapping so gaps are identified
+            category="Operations",
             module_path="test.module",
             class_name="TestClass",
             status=AgentStatus.STUDENT.value,
@@ -144,14 +174,12 @@ class TestTrainingProposalWorkflow:
         db_session.add(agent)
         db_session.commit()
 
-        blocked_trigger = BlockedTriggerContext(
-            id=str(uuid.uuid4()),
+        blocked_trigger = _blocked_trigger(
             agent_id=agent.id,
-            trigger_type="automated",
-            trigger_source=TriggerSource.WORKFLOW.value,
-            reason="Agent lacks data analysis capabilities",
-            context={"action_type": "complex_analysis", "required_modules": ["pandas", "numpy"]},
+            agent_name=agent.name,
             tenant_id=tenant_id,
+            block_reason="Agent lacks data analysis capabilities",
+            trigger_context={"action_type": "complex_analysis", "required_modules": ["pandas", "numpy"]},
         )
         db_session.add(blocked_trigger)
         db_session.commit()
@@ -189,6 +217,7 @@ class TestTrainingProposalWorkflow:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -207,14 +236,12 @@ class TestTrainingProposalWorkflow:
         db_session.add(agent)
         db_session.commit()
 
-        blocked_trigger = BlockedTriggerContext(
-            id=str(uuid.uuid4()),
+        blocked_trigger = _blocked_trigger(
             agent_id=agent.id,
-            trigger_type="automated",
-            trigger_source=TriggerSource.WORKFLOW.value,
-            reason="Student agent blocked",
-            context={"action_type": "basic_task"},
+            agent_name=agent.name,
             tenant_id=tenant_id,
+            block_reason="Student agent blocked",
+            trigger_context={"action_type": "basic_task"},
         )
         db_session.add(blocked_trigger)
         db_session.commit()
@@ -252,6 +279,7 @@ class TestTrainingProposalWorkflow:
             email="admin@example.com",
             first_name="Admin", last_name="User",
             role=UserRole.ADMIN.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -275,6 +303,7 @@ class TestTrainingProposalWorkflow:
             tenant_id=tenant_id,
             user_id=user.id,
             agent_id=agent.id,
+            agent_name=agent.name,  # denormalized onto TrainingSession (NOT NULL)
             proposal_type=ProposalType.WORKFLOW.value,
             proposal_data={
                 "training_modules": ["basics"],
@@ -311,6 +340,7 @@ class TestTrainingProposalWorkflow:
             email="admin@example.com",
             first_name="Admin", last_name="User",
             role=UserRole.ADMIN.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -334,6 +364,7 @@ class TestTrainingProposalWorkflow:
             tenant_id=tenant_id,
             user_id=user.id,
             agent_id=agent.id,
+            agent_name=agent.name,  # denormalized onto TrainingSession (NOT NULL)
             proposal_type=ProposalType.WORKFLOW.value,
             proposal_data={"training_modules": ["basics"]},
             status=ProposalStatus.PENDING_APPROVAL.value,
@@ -343,14 +374,24 @@ class TestTrainingProposalWorkflow:
 
         service = StudentTrainingService(db_session)
 
-        # Act & Assert
-        with pytest.raises(ValueError, match="not found"):
-            # Reject method not implemented in current version
-            # This test documents expected behavior
-            await service.reject_training(
+        # Act — rejection now lives on ProposalService (the shared proposal
+        # state machine); StudentTrainingService only handles the approve path.
+        from core.proposal_service import ProposalService
+
+        await ProposalService(db_session).reject_proposal(
+            proposal_id=proposal.id,
+            user_id=user.id,
+            reason="Insufficient justification"
+        )
+
+        # Assert
+        db_session.refresh(proposal)
+        assert proposal.status == ProposalStatus.REJECTED.value
+        # A rejected proposal can no longer be approved for training
+        with pytest.raises(ValueError, match="PENDING_APPROVAL"):
+            await service.approve_training(
                 proposal_id=proposal.id,
                 user_id=user.id,
-                reason="Insufficient justification"
             )
 
     @pytest.mark.asyncio
@@ -365,19 +406,18 @@ class TestTrainingProposalWorkflow:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
         db_session.commit()
 
-        blocked_trigger = BlockedTriggerContext(
-            id=str(uuid.uuid4()),
+        blocked_trigger = _blocked_trigger(
             agent_id="nonexistent_agent",
-            trigger_type="automated",
-            trigger_source=TriggerSource.WORKFLOW.value,
-            reason="Agent not found",
-            context={},
+            agent_name="Unknown",
             tenant_id=tenant_id,
+            block_reason="Agent not found",
+            trigger_context={},
         )
         db_session.add(blocked_trigger)
         db_session.commit()
@@ -400,6 +440,7 @@ class TestTrainingProposalWorkflow:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -419,14 +460,12 @@ class TestTrainingProposalWorkflow:
         db_session.commit()
 
         # Minimal context
-        blocked_trigger = BlockedTriggerContext(
-            id=str(uuid.uuid4()),
+        blocked_trigger = _blocked_trigger(
             agent_id=agent.id,
-            trigger_type="automated",
-            trigger_source=TriggerSource.WORKFLOW.value,
-            reason="Student agent blocked",
-            context={},  # Empty context
+            agent_name=agent.name,
             tenant_id=tenant_id,
+            block_reason="Student agent blocked",
+            trigger_context={},  # Empty context
         )
         db_session.add(blocked_trigger)
         db_session.commit()
@@ -463,6 +502,7 @@ class TestTrainingProposalWorkflow:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -495,14 +535,12 @@ class TestTrainingProposalWorkflow:
         )
 
         # Create first proposal
-        blocked_trigger_1 = BlockedTriggerContext(
-            id=str(uuid.uuid4()),
+        blocked_trigger_1 = _blocked_trigger(
             agent_id=agent.id,
-            trigger_type="automated",
-            trigger_source=TriggerSource.WORKFLOW.value,
-            reason="First trigger",
-            context={"action": "task1"},
+            agent_name=agent.name,
             tenant_id=tenant_id,
+            block_reason="First trigger",
+            trigger_context={"action": "task1"},
         )
         db_session.add(blocked_trigger_1)
         db_session.commit()
@@ -510,14 +548,12 @@ class TestTrainingProposalWorkflow:
         proposal_1 = await service.create_training_proposal(blocked_trigger_1)
 
         # Create second proposal
-        blocked_trigger_2 = BlockedTriggerContext(
-            id=str(uuid.uuid4()),
+        blocked_trigger_2 = _blocked_trigger(
             agent_id=agent.id,
-            trigger_type="automated",
-            trigger_source=TriggerSource.WORKFLOW.value,
-            reason="Second trigger",
-            context={"action": "task2"},
+            agent_name=agent.name,
             tenant_id=tenant_id,
+            block_reason="Second trigger",
+            trigger_context={"action": "task2"},
         )
         db_session.add(blocked_trigger_2)
         db_session.commit()
@@ -552,6 +588,7 @@ class TestTrainingDurationEstimation:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -563,8 +600,7 @@ class TestTrainingDurationEstimation:
             module_path="test.module",
             class_name="TestClass",
             status=AgentStatus.STUDENT.value,
-            confidence_score=0.4,
-            episode_count=5,  # Low episode count
+            confidence_score=0.4,  # low experience signal
             user_id=user.id,
             tenant_id=tenant_id,
         )
@@ -597,6 +633,7 @@ class TestTrainingDurationEstimation:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -615,6 +652,32 @@ class TestTrainingDurationEstimation:
                 tenant_id=tenant_id,
             )
             db_session.add(similar_agent)
+
+        # Completed training history for the first similar agent so the
+        # duration estimator has real historical data to draw on.
+        history_proposal = AgentProposal(
+            id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
+            user_id=user.id,
+            agent_id="similar_agent_0",
+            agent_name="Similar Agent 0",
+            proposal_type=ProposalType.WORKFLOW.value,
+            proposal_data={"training_modules": ["basics"]},
+            status=ProposalStatus.EXECUTED.value,
+        )
+        db_session.add(history_proposal)
+
+        history_session = TrainingSession(
+            id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
+            proposal_id=history_proposal.id,
+            agent_id="similar_agent_0",
+            agent_name="Similar Agent 0",
+            status="completed",
+            supervisor_id=user.id,
+            duration_seconds=3600 * 8,
+        )
+        db_session.add(history_session)
 
         agent = AgentRegistry(
             id="student_agent_9",
@@ -656,6 +719,7 @@ class TestTrainingDurationEstimation:
             email="admin@example.com",
             first_name="Admin", last_name="User",
             role=UserRole.ADMIN.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -679,6 +743,7 @@ class TestTrainingDurationEstimation:
             tenant_id=tenant_id,
             user_id=user.id,
             agent_id=agent.id,
+            agent_name=agent.name,  # denormalized onto TrainingSession (NOT NULL)
             proposal_type=ProposalType.WORKFLOW.value,
             proposal_data={
                 "training_modules": ["basics"],
@@ -714,6 +779,7 @@ class TestTrainingDurationEstimation:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -766,6 +832,7 @@ class TestTrainingDurationEstimation:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -778,7 +845,6 @@ class TestTrainingDurationEstimation:
             class_name="TestClass",
             status=AgentStatus.STUDENT.value,
             confidence_score=0.4,
-            episode_count=0,
             user_id=user.id,
             tenant_id=tenant_id,
         )
@@ -811,6 +877,7 @@ class TestTrainingDurationEstimation:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -858,6 +925,7 @@ class TestTrainingDurationEstimation:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -902,6 +970,7 @@ class TestTrainingDurationEstimation:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -914,7 +983,6 @@ class TestTrainingDurationEstimation:
             class_name="TestClass",
             status=AgentStatus.STUDENT.value,
             confidence_score=0.5,
-            episode_count=10,
             user_id=user.id,
             tenant_id=tenant_id,
         )
@@ -959,6 +1027,7 @@ class TestTrainingSessionManagement:
             email="admin@example.com",
             first_name="Admin", last_name="User",
             role=UserRole.ADMIN.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -982,6 +1051,7 @@ class TestTrainingSessionManagement:
             tenant_id=tenant_id,
             user_id=user.id,
             agent_id=agent.id,
+            agent_name=agent.name,  # denormalized onto TrainingSession (NOT NULL)
             proposal_type=ProposalType.WORKFLOW.value,
             proposal_data={
                 "training_modules": ["basics"],
@@ -1018,6 +1088,7 @@ class TestTrainingSessionManagement:
             email="admin@example.com",
             first_name="Admin", last_name="User",
             role=UserRole.ADMIN.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -1041,6 +1112,7 @@ class TestTrainingSessionManagement:
             tenant_id=tenant_id,
             user_id=user.id,
             agent_id=agent.id,
+            agent_name=agent.name,  # denormalized onto TrainingSession (NOT NULL)
             proposal_type=ProposalType.WORKFLOW.value,
             proposal_data={"training_modules": ["basics"]},
             status=ProposalStatus.APPROVED.value,
@@ -1064,16 +1136,26 @@ class TestTrainingSessionManagement:
         service = StudentTrainingService(db_session)
 
         # Act
-        outcome = await service.complete_training(
-            session_id=session.id,
+        outcome = TrainingOutcome(
             performance_score=0.85,
             supervisor_feedback="Excellent progress",
+            errors_count=0,
+            tasks_completed=9,
+            total_tasks=10,
+            capabilities_developed=["basic_workflow"],
+            capability_gaps_remaining=[],
+        )
+        result = await service.complete_training_session(
+            session_id=session.id,
+            outcome=outcome,
         )
 
         # Assert
-        assert outcome is not None
-        assert outcome.performance_score == 0.85
-        assert outcome.supervisor_feedback == "Excellent progress"
+        assert result is not None
+        assert result["performance_score"] == 0.85
+        db_session.refresh(session)
+        assert session.supervisor_feedback == "Excellent progress"
+        assert session.status == "completed"
 
     @pytest.mark.asyncio
     async def test_training_session_failure_handling(self, db_session: Session):
@@ -1087,6 +1169,7 @@ class TestTrainingSessionManagement:
             email="admin@example.com",
             first_name="Admin", last_name="User",
             role=UserRole.ADMIN.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -1110,6 +1193,7 @@ class TestTrainingSessionManagement:
             tenant_id=tenant_id,
             user_id=user.id,
             agent_id=agent.id,
+            agent_name=agent.name,  # denormalized onto TrainingSession (NOT NULL)
             proposal_type=ProposalType.WORKFLOW.value,
             proposal_data={"training_modules": ["basics"]},
             status=ProposalStatus.APPROVED.value,
@@ -1133,15 +1217,23 @@ class TestTrainingSessionManagement:
         service = StudentTrainingService(db_session)
 
         # Act
-        outcome = await service.complete_training(
-            session_id=session.id,
-            performance_score=0.3,  # Poor performance
+        outcome = TrainingOutcome(
+            performance_score=0.2,  # Poor performance (< 0.3 → minimal boost)
             supervisor_feedback="Did not meet objectives",
+            errors_count=4,
+            tasks_completed=3,
+            total_tasks=10,
+            capabilities_developed=[],
+            capability_gaps_remaining=["basic_workflow", "error_handling"],
+        )
+        result = await service.complete_training_session(
+            session_id=session.id,
+            outcome=outcome,
         )
 
         # Assert
-        assert outcome is not None
-        assert outcome.performance_score == 0.3
+        assert result is not None
+        assert result["performance_score"] == 0.2
         # Agent should remain at STUDENT level
         db_session.refresh(agent)
         assert agent.status == AgentStatus.STUDENT.value
@@ -1158,6 +1250,7 @@ class TestTrainingSessionManagement:
             email="admin@example.com",
             first_name="Admin", last_name="User",
             role=UserRole.ADMIN.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -1181,6 +1274,7 @@ class TestTrainingSessionManagement:
             tenant_id=tenant_id,
             user_id=user.id,
             agent_id=agent.id,
+            agent_name=agent.name,  # denormalized onto TrainingSession (NOT NULL)
             proposal_type=ProposalType.WORKFLOW.value,
             proposal_data={"training_modules": ["basics"]},
             status=ProposalStatus.APPROVED.value,
@@ -1204,13 +1298,23 @@ class TestTrainingSessionManagement:
         service = StudentTrainingService(db_session)
 
         # Act
-        outcome = await service.complete_training(
-            session_id=session.id,
+        outcome = TrainingOutcome(
             performance_score=0.7,
             supervisor_feedback="Good progress but needs more practice",
+            errors_count=1,
+            tasks_completed=8,
+            total_tasks=10,
+            capabilities_developed=["data_analysis"],
+            capability_gaps_remaining=["complex_analysis"],
+        )
+        result = await service.complete_training_session(
+            session_id=session.id,
+            outcome=outcome,
         )
 
         # Assert
-        assert outcome is not None
-        assert outcome.capabilities_developed is not None
-        assert outcome.capability_gaps_remaining is not None
+        assert result is not None
+        assert result["capabilities_developed"] == ["data_analysis"]
+        db_session.refresh(session)
+        assert session.capabilities_developed == ["data_analysis"]
+        assert session.capability_gaps_remaining == ["complex_analysis"]

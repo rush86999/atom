@@ -85,55 +85,98 @@ def backfill_service(db):
     return MemoryBackfillService(db=db)
 
 
+class FakeAsyncRedis:
+    """
+    Minimal async Redis stub covering the commands BackfillJobQueue uses.
+
+    Keeps data in plain dicts so unit tests exercise the queue's real logic
+    (including bytes encoding/decoding) without requiring a live Redis server.
+    Values are stored as bytes, mirroring the real client (decode_responses=False).
+    """
+
+    def __init__(self):
+        self._data = {}    # SET/GET keys -> bytes
+        self._hashes = {}  # HSET/HGETALL keys -> {bytes field: bytes value}
+        self._lists = {}   # RPUSH/LLEN keys -> [bytes]
+
+    @staticmethod
+    def _encode(value) -> bytes:
+        return value if isinstance(value, bytes) else str(value).encode()
+
+    async def set(self, name, value):
+        self._data[name] = self._encode(value)
+
+    async def get(self, name):
+        return self._data.get(name)
+
+    async def hset(self, name, mapping=None, key=None, value=None):
+        h = self._hashes.setdefault(name, {})
+        if mapping:
+            for k, v in mapping.items():
+                h[self._encode(k)] = self._encode(v)
+
+    async def hgetall(self, name):
+        return dict(self._hashes.get(name, {}))
+
+    async def rpush(self, name, *values):
+        self._lists.setdefault(name, []).extend(self._encode(v) for v in values)
+
+    async def incr(self, name):
+        current = int(self._data.get(name, b"0")) + 1
+        self._data[name] = str(current).encode()
+        return current
+
+    async def expire(self, name, ttl):
+        return True
+
+    async def delete(self, *names):
+        removed = 0
+        for name in names:
+            hit = False
+            for store in (self._data, self._hashes, self._lists):
+                if name in store:
+                    del store[name]
+                    hit = True
+            removed += 1 if hit else 0
+        return removed
+
+    async def llen(self, name):
+        return len(self._lists.get(name, []))
+
+    async def blpop(self, name, timeout=0):
+        lst = self._lists.get(name)
+        if lst:
+            return [self._encode(name), lst.pop(0)]
+        return None
+
+    async def scan_iter(self, match=None):
+        import fnmatch
+        keys = list(self._data) + list(self._hashes) + list(self._lists)
+        for key in keys:
+            if match is None or fnmatch.fnmatch(key, match):
+                yield key
+
+    async def close(self):
+        pass
+
+    async def aclose(self):
+        pass
+
+
 @pytest.fixture(scope="function")
-def job_queue(event_loop):
+def job_queue():
     """
     Create backfill job queue for testing.
 
-    Cleans up Redis state after each test to prevent test isolation issues.
+    Uses an in-memory FakeAsyncRedis client so tests are hermetic: each test
+    gets a fresh queue and no live Redis server is required.
     """
-    queue = get_backfill_job_queue()
-
-    yield queue
-
-    # Cleanup: Clear all test data from Redis
-    async def cleanup_redis():
-        try:
-            # Get client and clear all test-related keys
-            client = await queue.get_client()
-
-            # Clear all keys matching test patterns
-            # Use scan to find all matching keys efficiently
-            async for key in client.scan_iter(match="job:queue:test-tenant-*"):
-                await client.delete(key)
-
-            async for key in client.scan_iter(match="job:data:entity_type:*"):
-                await client.delete(key)
-
-            async for key in client.scan_iter(match="job:data:node_migration:*"):
-                await client.delete(key)
-
-            async for key in client.scan_iter(match="job:data:ttl_cleanup:*"):
-                await client.delete(key)
-
-            async for key in client.scan_iter(match="job:status:*"):
-                await client.delete(key)
-
-            async for key in client.scan_iter(match="job:progress:*"):
-                await client.delete(key)
-
-            async for key in client.scan_iter(match="job:retry:*"):
-                await client.delete(key)
-
-            # Close connection
-            await queue.close()
-
-        except Exception as e:
-            # Log but don't fail test if cleanup fails
-            print(f"Warning: Redis cleanup failed: {e}")
-
-    # Run async cleanup
-    event_loop.run_until_complete(cleanup_redis())
+    queue = BackfillJobQueue(redis_url="redis://test-local:6379/0")
+    queue._client = FakeAsyncRedis()
+    pool = MagicMock()
+    pool.disconnect = AsyncMock()
+    queue._pool = pool
+    return queue
 
 
 @pytest.fixture

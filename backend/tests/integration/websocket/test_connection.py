@@ -15,12 +15,20 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 from core.auth import create_access_token
-from tests.property_tests.conftest import db_session
+from tests.property_tests.conftest import db_engine, db_session
 
 
 # =============================================================================
 # Test Fixtures
 # =============================================================================
+
+@pytest.fixture(autouse=True)
+def enable_ws_dev_token(monkeypatch):
+    """Current security model: dev-token bypass requires BOTH an explicit
+    ALLOW_WS_DEV_TOKEN=true opt-in AND a non-production ENVIRONMENT."""
+    monkeypatch.setenv("ALLOW_WS_DEV_TOKEN", "true")
+    monkeypatch.setenv("ENVIRONMENT", "development")
+
 
 @pytest.fixture
 def mock_websocket():
@@ -200,8 +208,13 @@ class TestWebSocketAuthentication:
         from core.websockets import manager
         from tests.factories.user_factory import UserFactory
 
-        # Given: User with valid token
-        user = UserFactory(email="ws_valid@example.com", _session=db_session)
+        # Given: ACTIVE user with valid token (WS auth rejects non-ACTIVE users)
+        from core.models import UserStatus
+        user = UserFactory(
+            email="ws_valid@example.com",
+            status=UserStatus.ACTIVE.value,
+            _session=db_session
+        )
         db_session.add(user)
         db_session.commit()
 

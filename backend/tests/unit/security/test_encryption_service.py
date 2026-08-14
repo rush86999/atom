@@ -104,14 +104,20 @@ class TestPasswordHashing:
         assert verify_password(password, hashed) is True
 
     def test_verify_very_long_password(self):
-        """Test password verification handles very long password."""
-        # Bcrypt has 72-byte limit, password should be truncated
+        """Passwords over the 72-byte bcrypt limit are rejected (fail closed).
+
+        get_password_hash() deliberately raises instead of silently truncating:
+        bcrypt truncation past 72 bytes makes distinct long passwords collide.
+        """
         long_password = "a" * 100
 
-        hashed = get_password_hash(long_password)
+        with pytest.raises(ValueError, match="72-byte"):
+            get_password_hash(long_password)
 
-        # Should verify correctly (truncated to 71 bytes)
-        assert verify_password(long_password, hashed) is True
+        # A password at exactly the 72-byte bcrypt limit still round-trips
+        max_password = "a" * 72
+        hashed = get_password_hash(max_password)
+        assert verify_password(max_password, hashed) is True
 
     def test_hash_empty_string(self):
         """Test hashing empty string works."""
@@ -120,16 +126,18 @@ class TestPasswordHashing:
         assert hashed is not None
         assert len(hashed) == 60
 
-    def test_hash_truncates_to_71_bytes(self):
-        """Test password is truncated to 71 bytes for bcrypt limit."""
-        # Create password longer than 71 bytes
-        long_password = "a" * 100
+    def test_hash_at_72_byte_boundary(self):
+        """Password at the 72-byte bcrypt boundary hashes normally."""
+        # One byte over the limit must raise; at the limit it must work
+        with pytest.raises(ValueError, match="72-byte"):
+            get_password_hash("a" * 73)
 
-        hashed = get_password_hash(long_password)
+        boundary_password = "a" * 72
+        hashed = get_password_hash(boundary_password)
 
-        # Should not raise error
         assert hashed is not None
         assert len(hashed) == 60
+        assert verify_password(boundary_password, hashed) is True
 
 
 class TestEncryptionDecryption:

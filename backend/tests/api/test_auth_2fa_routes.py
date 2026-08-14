@@ -9,6 +9,7 @@ Tests for two-factor authentication endpoints including:
 """
 
 import pytest
+from fastapi import Request
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch, AsyncMock
 from sqlalchemy.orm import Session
@@ -35,7 +36,17 @@ class TestAuth2FARoutes:
     @pytest.fixture
     def client(self, mock_user):
         """Create test client with auth override."""
+        from api.auth_2fa_routes import totp_rate_limit
+
         app.dependency_overrides[get_current_user] = lambda: mock_user
+        # The 2FA code endpoints share a module-level 5/min limiter; this file
+        # posts to /enable and /disable more than 5 times, so bypass it (same
+        # idea as the login_rate_limit override in test_auth_routes_enhanced,
+        # but here totp_rate_limit is a real Depends() — the override must
+        # annotate Request or FastAPI treats it as a required query param).
+        def no_limit(request: Request):
+            return None
+        app.dependency_overrides[totp_rate_limit] = no_limit
         try:
             yield TestClient(app)
         finally:

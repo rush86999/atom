@@ -54,7 +54,7 @@ from core.auth import (
     SECRET_KEY,
     ALGORITHM
 )
-from core.models import User, MobileDevice
+from core.models import User, MobileDevice, UserStatus
 from tests.factories.user_factory import UserFactory, AdminUserFactory
 
 
@@ -128,7 +128,9 @@ class TestAuthEndpointsMobile:
         hashed_password = get_password_hash("MobilePass123!")
         user = UserFactory(
             email="mobile@example.com",
-            hashed_password=hashed_password
+            hashed_password=hashed_password,
+            status=UserStatus.ACTIVE.value,
+            _session=db_session
         )
         db_session.add(user)
         db_session.commit()
@@ -153,7 +155,9 @@ class TestAuthEndpointsMobile:
         hashed_password = get_password_hash("DevicePass123!")
         user = UserFactory(
             email="deviceuser@example.com",
-            hashed_password=hashed_password
+            hashed_password=hashed_password,
+            status=UserStatus.ACTIVE.value,
+            _session=db_session
         )
         db_session.add(user)
         db_session.commit()
@@ -176,7 +180,11 @@ class TestAuthEndpointsMobile:
 
     def test_mobile_login_rejects_invalid_credentials(self, client: TestClient, db_session: Session):
         """Test mobile login rejects invalid credentials."""
-        user = UserFactory(email="mobileuser@example.com")
+        user = UserFactory(
+            email="mobileuser@example.com",
+            status=UserStatus.ACTIVE.value,
+            _session=db_session
+        )
         db_session.add(user)
         db_session.commit()
 
@@ -292,7 +300,9 @@ class TestAuthEndpointsBiometric:
         hashed_password = get_password_hash("MissingDevice123!")
         user = UserFactory(
             email="missingdevice@example.com",
-            hashed_password=hashed_password
+            hashed_password=hashed_password,
+            status=UserStatus.ACTIVE.value,
+            _session=db_session
         )
         db_session.add(user)
         db_session.commit()
@@ -311,7 +321,9 @@ class TestAuthEndpointsBiometric:
         hashed_password = get_password_hash("InvalidPlatform123!")
         user = UserFactory(
             email="invalidplatform@example.com",
-            hashed_password=hashed_password
+            hashed_password=hashed_password,
+            status=UserStatus.ACTIVE.value,
+            _session=db_session
         )
         db_session.add(user)
         db_session.commit()
@@ -331,7 +343,9 @@ class TestAuthEndpointsBiometric:
         hashed_password = get_password_hash("DeviceInfo123!")
         user = UserFactory(
             email="deviceinfo@example.com",
-            hashed_password=hashed_password
+            hashed_password=hashed_password,
+            status=UserStatus.ACTIVE.value,
+            _session=db_session
         )
         db_session.add(user)
         db_session.commit()

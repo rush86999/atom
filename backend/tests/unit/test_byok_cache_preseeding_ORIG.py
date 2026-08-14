@@ -40,7 +40,6 @@ from core.governance_cache import GovernanceCache
 from core.llm.cache_aware_router import CacheAwareRouter
 from core.llm.cognitive_tier_system import CognitiveTier
 from core.models import AgentRegistry, AgentStatus, User, UserRole
-from core.database import SessionLocal
 
 
 # =============================================================================
@@ -70,18 +69,13 @@ def client(app):
 
 
 @pytest.fixture
-def db():
-    """Create database session."""
-    from core.database import SessionLocal
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-@pytest.fixture
 def sample_agent(db):
+    """Create sample agent for governance pre-seeding.
+
+    Uses the per-test `db` fixture from tests/unit/conftest.py (fresh temp
+    SQLite with all tables). The previous SessionLocal-based fixture bound to
+    the mock in-memory database where no tables exist.
+    """
     """Create sample agent for governance pre-seeding."""
     import uuid
     agent = AgentRegistry(
@@ -366,7 +360,8 @@ class TestPreseedGovernanceCache:
     @pytest.mark.asyncio
     async def test_caches_common_actions(self, db, sample_agent):
         """RED: Test that common agent actions are cached."""
-        with patch('core.byok_cache_preseeding.get_governance_cache') as mock_get_cache:
+        with patch('core.byok_cache_preseeding.get_governance_cache') as mock_get_cache, \
+             patch('core.byok_cache_preseeding.SessionLocal', return_value=db):
 
             mock_cache = Mock(spec=GovernanceCache)
             mock_cache.get_stats.return_value = {
@@ -387,7 +382,8 @@ class TestPreseedGovernanceCache:
     @pytest.mark.asyncio
     async def test_caches_common_directories(self, db, sample_agent):
         """RED: Test that common directories are cached."""
-        with patch('core.byok_cache_preseeding.get_governance_cache') as mock_get_cache:
+        with patch('core.byok_cache_preseeding.get_governance_cache') as mock_get_cache, \
+             patch('core.byok_cache_preseeding.SessionLocal', return_value=db):
 
             mock_cache = Mock(spec=GovernanceCache)
             mock_cache.get_stats.return_value = {"size": 30, "hit_rate": 95.0}
@@ -405,7 +401,8 @@ class TestPreseedGovernanceCache:
     @pytest.mark.asyncio
     async def test_returns_cache_stats(self, db, sample_agent):
         """RED: Test that cache statistics are returned."""
-        with patch('core.byok_cache_preseeding.get_governance_cache') as mock_get_cache:
+        with patch('core.byok_cache_preseeding.get_governance_cache') as mock_get_cache, \
+             patch('core.byok_cache_preseeding.SessionLocal', return_value=db):
 
             mock_cache = Mock(spec=GovernanceCache)
             mock_cache.get_stats.return_value = {

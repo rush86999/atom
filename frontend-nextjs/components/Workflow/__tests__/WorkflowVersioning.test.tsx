@@ -425,3 +425,326 @@ describe('WorkflowVersioning', () => {
     expect(screen.queryByText('v1.0.0')).not.toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Extended coverage: collapse/refresh, badge variants, parametric diff,
+// merge flow, and network-error paths
+// ---------------------------------------------------------------------------
+describe('WorkflowVersioning (extended coverage)', () => {
+  // NOTE: jest.config.js sets restoreMocks:true, which detaches describe-scope
+  // spies after every test — create a fresh console.error spy per test.
+  let errorSpy: jest.SpyInstance;
+  let logSpy: jest.SpyInstance;
+  beforeEach(() => {
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.clearAllMocks();
+    server.resetHandlers();
+    server.use(...defaultHandlers);
+  });
+  afterEach(() => {
+    errorSpy.mockRestore();
+    logSpy.mockRestore();
+  });
+
+  const renderAndSettle = async () => {
+    render(<WorkflowVersioning workflowId="wf-1" />);
+    await screen.findByText('v1.0.0');
+    await new Promise((r) => setTimeout(r, 50));
+  };
+
+  const expand = (version: string) => {
+    fireEvent.click(screen.getByText(version));
+  };
+
+  test('collapsing an expanded version hides the details', async () => {
+    await renderAndSettle();
+
+    expand('v1.0.0');
+    await waitFor(() => {
+      expect(screen.getByText('View Details')).toBeInTheDocument();
+    });
+
+    expand('v1.0.0');
+    await waitFor(() => {
+      expect(screen.queryByText('View Details')).not.toBeInTheDocument();
+    });
+  });
+
+  test('Refresh button re-fetches workflow data', async () => {
+    await renderAndSettle();
+
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('v1.0.0')).toBeInTheDocument();
+    });
+  });
+
+  test('View Details selects the version for rollback context', async () => {
+    await renderAndSettle();
+
+    // v2.0.0 is the active version, so its Rollback button is disabled;
+    // use v1.0.0 for the dialog flow and cover View Details on it too.
+    expand('v1.0.0');
+    fireEvent.click((await screen.findAllByRole('button', { name: /view details/i }))[0]);
+    fireEvent.click(screen.getByRole('button', { name: /rollback/i }));
+
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => {
+      expect(dialog.textContent).toContain('Rollback the workflow to version v1.0.0');
+    });
+  });
+
+  test('renders all version-type and change-type badge variants', async () => {
+    const variedVersions = [
+      ...versions,
+      {
+        workflow_id: 'wf-1',
+        version: 'v2.1.0',
+        version_type: 'patch',
+        change_type: 'dependency',
+        created_at: '2024-03-01T12:00:00Z',
+        created_by: 'user3',
+        commit_message: 'Patch version',
+        tags: [],
+        parent_version: 'v2.0.0',
+        branch_name: 'main',
+        checksum: 'aaa',
+        is_active: false,
+      },
+      {
+        workflow_id: 'wf-1',
+        version: 'v2.2.0',
+        version_type: 'hotfix',
+        change_type: 'parametric',
+        created_at: '2024-04-01T12:00:00Z',
+        created_by: 'user3',
+        commit_message: 'Hotfix version',
+        tags: [],
+        parent_version: 'v2.1.0',
+        branch_name: 'main',
+        checksum: 'bbb',
+        is_active: false,
+      },
+      {
+        workflow_id: 'wf-1',
+        version: 'v3.0.0-beta',
+        version_type: 'beta',
+        change_type: 'metadata',
+        created_at: '2024-05-01T12:00:00Z',
+        created_by: 'user3',
+        commit_message: 'Beta version',
+        tags: [],
+        parent_version: 'v2.2.0',
+        branch_name: 'main',
+        checksum: 'ccc',
+        is_active: false,
+      },
+      {
+        workflow_id: 'wf-1',
+        version: 'v3.0.0-alpha',
+        version_type: 'alpha',
+        change_type: 'structural',
+        created_at: '2024-06-01T12:00:00Z',
+        created_by: 'user3',
+        commit_message: 'Alpha version',
+        tags: [],
+        parent_version: 'v3.0.0-beta',
+        branch_name: 'main',
+        checksum: 'ddd',
+        is_active: false,
+      },
+    ];
+
+    server.use(
+      rest.get('/api/v1/workflows/wf-1/versions', (req, res, ctx) => {
+        return res(ctx.status(200), ctx.json(variedVersions));
+      })
+    );
+
+    await renderAndSettle();
+
+    for (const label of ['patch', 'hotfix', 'beta', 'alpha', 'major', 'minor']) {
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    }
+    for (const label of ['dependency', 'parametric', 'metadata', 'structural']) {
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    }
+  });
+
+  test('renders parametric change details in the compare tab', async () => {
+    const user = userEvent.setup();
+    server.use(
+      rest.get('/api/v1/workflows/wf-1/versions/compare', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json({
+            ...diff,
+            impact_level: 'critical',
+            parametric_changes: {
+              step_send_email: { to: 'new@example.com', retries: 3 },
+            },
+          })
+        );
+      })
+    );
+
+    render(<WorkflowVersioning workflowId="wf-1" />);
+    await screen.findByText('v1.0.0');
+
+    fireEvent.click(screen.getByRole('button', { name: /compare/i }));
+    await screen.findByText('Version Comparison');
+
+    const [fromSelect, toSelect] = screen.getAllByRole('combobox');
+    await user.click(fromSelect);
+    await user.click(await screen.findByText('v1.0.0 - Initial version'));
+    await user.click(toSelect);
+    await user.click(await screen.findByText('v2.0.0 - Second version'));
+    fireEvent.click(screen.getByRole('button', { name: /compare versions/i }));
+
+    expect(await screen.findByText(/CRITICAL IMPACT/i)).toBeInTheDocument();
+    expect(screen.getByText('Parameter Changes')).toBeInTheDocument();
+    expect(screen.getByText('Step: step_send_email')).toBeInTheDocument();
+    expect(screen.getByText(/"retries": 3/)).toBeInTheDocument();
+  });
+
+  test('merges a branch from the branches tab pull-request action', async () => {
+    let mergeBody: any = null;
+    server.use(
+      rest.post('/api/v1/workflows/wf-1/branches/merge', (req, res, ctx) => {
+        mergeBody = req.body as any;
+        return res(ctx.status(200), ctx.json({ success: true }));
+      })
+    );
+
+    render(<WorkflowVersioning workflowId="wf-1" />);
+    await screen.findByText('v1.0.0');
+
+    fireEvent.click(screen.getByRole('button', { name: /branches/i }));
+    // feature-x row's pull-request button presets source/target (it does NOT
+    // open the dialog; the main-row button is disabled, so pick an enabled one)
+    const prButton = Array.from(document.querySelectorAll('.lucide-git-pull-request'))
+      .map((svg) => (svg as HTMLElement).closest('button'))
+      .find((btn) => btn && !(btn as HTMLButtonElement).disabled) as HTMLElement;
+    fireEvent.click(prButton);
+    fireEvent.click(screen.getByRole('button', { name: /merge branches/i }));
+    await screen.findByRole('dialog');
+
+    const mergeButtons = screen.getAllByRole('button', { name: /merge branch/i });
+    fireEvent.click(mergeButtons[mergeButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(mergeBody).toEqual(
+        expect.objectContaining({
+          source_branch: 'feature-x',
+          target_branch: 'main',
+        })
+      );
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  test('logs fetch errors when the versions endpoint fails', async () => {
+    server.use(
+      rest.get('/api/v1/workflows/wf-1/versions', (req, res) => res.networkError('boom'))
+    );
+
+    render(<WorkflowVersioning workflowId="wf-1" />);
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Error fetching workflow data:', expect.anything());
+    });
+  });
+
+  test('logs errors when metrics and diff fetches fail', async () => {
+    const user = userEvent.setup();
+    server.use(
+      rest.get('/api/v1/workflows/wf-1/versions/v1.0.0/metrics', (req, res) =>
+        res.networkError('boom')
+      ),
+      rest.get('/api/v1/workflows/wf-1/versions/compare', (req, res) =>
+        res.networkError('boom')
+      )
+    );
+
+    render(<WorkflowVersioning workflowId="wf-1" />);
+    await screen.findByText('v1.0.0');
+
+    expand('v1.0.0');
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Error fetching version metrics:', expect.anything());
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /compare/i }));
+    await screen.findByText('Version Comparison');
+    const [fromSelect, toSelect] = screen.getAllByRole('combobox');
+    await user.click(fromSelect);
+    await user.click(await screen.findByText('v1.0.0 - Initial version'));
+    await user.click(toSelect);
+    await user.click(await screen.findByText('v2.0.0 - Second version'));
+    fireEvent.click(screen.getByRole('button', { name: /compare versions/i }));
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Error fetching version diff:', expect.anything());
+    });
+  });
+
+  test('logs errors when rollback, branch create and merge fail', async () => {
+    server.use(
+      rest.post('/api/v1/workflows/wf-1/rollback', (req, res) => res.networkError('boom')),
+      rest.post('/api/v1/workflows/wf-1/branches', (req, res) => res.networkError('boom')),
+      rest.post('/api/v1/workflows/wf-1/branches/merge', (req, res) => res.networkError('boom'))
+    );
+
+    render(<WorkflowVersioning workflowId="wf-1" />);
+    await screen.findByText('v1.0.0');
+
+    // rollback failure (the dialog stays open on failure — cancel it after)
+    expand('v1.0.0');
+    fireEvent.click(screen.getByRole('button', { name: /rollback/i }));
+    await screen.findByRole('dialog');
+    fireEvent.change(screen.getByLabelText(/reason for rollback/i), {
+      target: { value: 'Because' },
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: /rollback/i })[1]);
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Error during rollback:', expect.anything());
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    // branch creation failure (the row is still expanded from above)
+    fireEvent.click(screen.getByRole('button', { name: /create branch/i }));
+    await screen.findByRole('dialog');
+    fireEvent.change(screen.getByLabelText(/branch name/i), {
+      target: { value: 'feature/fail' },
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: /create branch/i })[1]);
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Error creating branch:', expect.anything());
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    // merge failure
+    fireEvent.click(screen.getByRole('button', { name: /branches/i }));
+    const prBtn = Array.from(document.querySelectorAll('.lucide-git-pull-request'))
+      .map((svg) => (svg as HTMLElement).closest('button'))
+      .find((btn) => btn && !(btn as HTMLButtonElement).disabled) as HTMLElement;
+    fireEvent.click(prBtn);
+    fireEvent.click(screen.getByRole('button', { name: /merge branches/i }));
+    await screen.findByRole('dialog');
+    const mergeButtons = screen.getAllByRole('button', { name: /merge branch/i });
+    fireEvent.click(mergeButtons[mergeButtons.length - 1]);
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Error during merge:', expect.anything());
+    });
+  });
+});

@@ -131,13 +131,16 @@ class TestProcessDocument:
     async def test_process_document_bytes(self, mock_converter):
         """Test processing document from bytes."""
         from core.docling_processor import DoclingDocumentProcessor
-        processor = DoclingDocumentProcessor()
 
+        # Configure the converter mock BEFORE creating the processor: the
+        # converter instance is created in __init__ (_init_converter).
         mock_instance = MagicMock()
         mock_result = MagicMock()
         mock_result.document.export_to_markdown.return_value = "# Test\n\nContent"
         mock_instance.convert.return_value = mock_result
         mock_converter.return_value = mock_instance
+
+        processor = DoclingDocumentProcessor()
 
         result = await processor.process_document(
             source=b"PDF content",
@@ -154,7 +157,6 @@ class TestProcessDocument:
     async def test_process_document_path(self, mock_converter, tmp_path):
         """Test processing document from file path."""
         from core.docling_processor import DoclingDocumentProcessor
-        processor = DoclingDocumentProcessor()
 
         # Create test file
         test_file = tmp_path / "test.pdf"
@@ -165,6 +167,8 @@ class TestProcessDocument:
         mock_result.document.export_to_markdown.return_value = "File content"
         mock_instance.convert.return_value = mock_result
         mock_converter.return_value = mock_instance
+
+        processor = DoclingDocumentProcessor()
 
         result = await processor.process_document(
             source=str(test_file),
@@ -179,7 +183,6 @@ class TestProcessDocument:
     async def test_process_document_with_file_name(self, mock_converter):
         """Test processing with file name for context."""
         from core.docling_processor import DoclingDocumentProcessor
-        processor = DoclingDocumentProcessor()
 
         mock_instance = MagicMock()
         mock_result = MagicMock()
@@ -187,6 +190,8 @@ class TestProcessDocument:
         mock_result.document.pages = [MagicMock(), MagicMock()]  # 2 pages
         mock_instance.convert.return_value = mock_result
         mock_converter.return_value = mock_instance
+
+        processor = DoclingDocumentProcessor()
 
         result = await processor.process_document(
             source=b"content",
@@ -207,7 +212,6 @@ class TestProcessPDF:
     async def test_process_pdf_basic(self, mock_converter):
         """Test basic PDF processing."""
         from core.docling_processor import DoclingDocumentProcessor
-        processor = DoclingDocumentProcessor()
 
         mock_instance = MagicMock()
         mock_result = MagicMock()
@@ -215,6 +219,8 @@ class TestProcessPDF:
         mock_result.document.pages = [MagicMock()]
         mock_instance.convert.return_value = mock_result
         mock_converter.return_value = mock_instance
+
+        processor = DoclingDocumentProcessor()
 
         result = await processor.process_pdf(b"PDF data")
 
@@ -228,13 +234,14 @@ class TestProcessPDF:
     async def test_process_pdf_with_ocr_disabled(self, mock_converter):
         """Test PDF processing with OCR disabled."""
         from core.docling_processor import DoclingDocumentProcessor
-        processor = DoclingDocumentProcessor(enable_ocr=False)
 
         mock_instance = MagicMock()
         mock_result = MagicMock()
         mock_result.document.export_to_markdown.return_value = "Content"
         mock_instance.convert.return_value = mock_result
         mock_converter.return_value = mock_instance
+
+        processor = DoclingDocumentProcessor(enable_ocr=False)
 
         result = await processor.process_pdf(b"PDF data", use_ocr=False)
 
@@ -387,14 +394,21 @@ class TestGlobalFunctions:
     @patch('core.docling_processor.DoclingDocumentProcessor')
     def test_get_docling_processor(self, mock_processor_class):
         """Test getting global processor instance."""
+        import core.docling_processor as docling_module
         from core.docling_processor import get_docling_processor
 
-        mock_instance = MagicMock()
-        mock_processor_class.return_value = mock_instance
+        # Reset the module-level singleton so this test observes the patched
+        # class instead of an instance cached by an earlier test.
+        docling_module._docling_processor = None
+        try:
+            mock_instance = MagicMock()
+            mock_processor_class.return_value = mock_instance
 
-        processor = get_docling_processor()
+            processor = get_docling_processor()
 
-        assert processor == mock_instance
+            assert processor == mock_instance
+        finally:
+            docling_module._docling_processor = None
 
     @patch('core.docling_processor.DOCLING_AVAILABLE', True)
     def test_is_docling_available(self):
@@ -420,11 +434,12 @@ class TestErrorHandling:
     async def test_process_document_error(self, mock_converter):
         """Test error handling during document processing."""
         from core.docling_processor import DoclingDocumentProcessor
-        processor = DoclingDocumentProcessor()
 
         mock_instance = MagicMock()
         mock_instance.convert.side_effect = Exception("Processing failed")
         mock_converter.return_value = mock_instance
+
+        processor = DoclingDocumentProcessor()
 
         result = await processor.process_document(b"content")
 
@@ -437,10 +452,11 @@ class TestErrorHandling:
     async def test_unsupported_source_type(self, mock_converter):
         """Test handling of unsupported source type."""
         from core.docling_processor import DoclingDocumentProcessor
-        processor = DoclingDocumentProcessor()
 
         mock_instance = MagicMock()
         mock_converter.return_value = mock_instance
+
+        processor = DoclingDocumentProcessor()
 
         result = await processor.process_document(
             source=12345,  # Invalid type

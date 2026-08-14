@@ -280,7 +280,7 @@ class TestRedisIntegration:
         """Test Redis connection initialization."""
         from core.agent_communication import AgentEventBus
 
-        with patch('core.agent_communication.redis.from_url') as mock_from_url:
+        with patch('core.agent_communication.redis.from_url', new=AsyncMock()) as mock_from_url:
             mock_redis = MagicMock()
             mock_from_url.return_value = mock_redis
 
@@ -288,6 +288,7 @@ class TestRedisIntegration:
             await bus._ensure_redis()
 
             assert bus._redis == mock_redis
+            assert bus._pubsub == mock_redis.pubsub.return_value
 
     @pytest.mark.asyncio
     async def test_publish_to_redis(self, event_bus):
@@ -309,15 +310,23 @@ class TestRedisIntegration:
         from core.agent_communication import AgentEventBus
 
         with patch('core.agent_communication.REDIS_AVAILABLE', True):
-            bus = AgentEventBus(redis_url="redis://localhost")
+            with patch('core.agent_communication.redis.from_url', new=AsyncMock()) as mock_from_url:
+                mock_redis = MagicMock()
+                mock_redis.close = AsyncMock()
+                mock_from_url.return_value = mock_redis
 
-            mock_pubsub = MagicMock()
-            mock_pubsub.psubscribe = AsyncMock()
-            bus._pubsub = mock_pubsub
+                mock_pubsub = MagicMock()
+                mock_pubsub.psubscribe = AsyncMock()
+                mock_pubsub.close = AsyncMock()
+                mock_redis.pubsub.return_value = mock_pubsub
 
-            await bus.subscribe_to_redis()
+                bus = AgentEventBus(redis_url="redis://localhost")
+                await bus.subscribe_to_redis()
 
-            mock_pubsub.psubscribe.assert_called_once_with("agent_events:*")
+                mock_pubsub.psubscribe.assert_called_once_with("agent_events:*")
+
+                # Clean up the background listener task started by subscribe_to_redis
+                await bus.close_redis()
 
     @pytest.mark.asyncio
     async def test_close_redis(self):

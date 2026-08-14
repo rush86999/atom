@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 import uuid
 from fastapi import Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
@@ -57,7 +57,10 @@ class CreateSessionRequest(BaseModel):
 
 class NavigateRequest(BaseModel):
     session_id: str
-    url: str
+    # BUG FIX: an empty URL is meaningless for navigation but was accepted by
+    # the schema and surfaced downstream as a 200 with success=False instead
+    # of a 422 validation error (the documented contract for empty input).
+    url: str = Field(..., min_length=1)
     wait_until: str = "load"
     agent_id: Optional[str] = None
 
@@ -78,7 +81,9 @@ class FillFormRequest(BaseModel):
 
 class ClickRequest(BaseModel):
     session_id: str
-    selector: str
+    # BUG FIX: empty selector was accepted and turned into a 200 with
+    # success=False instead of the documented 422 validation error.
+    selector: str = Field(..., min_length=1)
     wait_for: Optional[str] = None
     agent_id: Optional[str] = None
 
@@ -91,7 +96,9 @@ class ExtractTextRequest(BaseModel):
 
 class ExecuteScriptRequest(BaseModel):
     session_id: str
-    script: str
+    # BUG FIX: empty script was accepted and turned into a 200 with
+    # success=False instead of the documented 422 validation error.
+    script: str = Field(..., min_length=1)
     agent_id: Optional[str] = None
 
 

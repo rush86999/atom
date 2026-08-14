@@ -30,6 +30,7 @@ from core.models import (
     SupervisionStatus,
     User,
     UserRole,
+    UserStatus,
     Tenant,
 )
 
@@ -57,6 +58,7 @@ class TestSupervisionControls:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -108,6 +110,7 @@ class TestSupervisionControls:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -166,6 +169,7 @@ class TestSupervisionControls:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -218,6 +222,7 @@ class TestSupervisionControls:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -273,6 +278,7 @@ class TestSupervisionControls:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -333,6 +339,7 @@ class TestSupervisionControls:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -411,6 +418,7 @@ class TestInterventionTracking:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -467,6 +475,7 @@ class TestInterventionTracking:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -525,6 +534,7 @@ class TestInterventionTracking:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -588,6 +598,7 @@ class TestSupervisionMonitoring:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -634,6 +645,7 @@ class TestSupervisionMonitoring:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -698,6 +710,7 @@ class TestSupervisionMonitoring:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -772,6 +785,7 @@ class TestSupervisionCompletion:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -833,6 +847,7 @@ class TestSupervisionCompletion:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -887,6 +902,7 @@ class TestSupervisionCompletion:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -953,6 +969,7 @@ class TestSupervisionEdgeCases:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -1016,6 +1033,7 @@ class TestSupervisionEdgeCases:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -1044,6 +1062,7 @@ class TestSupervisionEdgeCases:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)

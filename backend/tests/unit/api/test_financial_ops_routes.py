@@ -16,7 +16,7 @@ Test Pattern: FastAPI TestClient with comprehensive mocking
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 from datetime import datetime
 
@@ -30,13 +30,27 @@ def app():
     """Create test FastAPI app with financial ops routes."""
     from fastapi import FastAPI
 
-    # Mock dependencies
-    with patch('core.api_governance'):
-        with patch('core.financial_ops_engine.cost_detector'):
-            from api.financial_ops_routes import router
-            app = FastAPI()
-            app.include_router(router)
-            return app
+    from core.auth import get_current_user
+    from core.database import get_db
+
+    # Mock dependencies. Note: patching the module object 'core.api_governance'
+    # fails unless the submodule was already imported somewhere else (patch
+    # requires the attribute to exist on the parent package), so only the
+    # concrete engine dependencies are patched here; route-level governance
+    # is patched per-test via 'api.financial_ops_routes.*'.
+    with patch('core.financial_ops_engine.cost_detector'):
+        from api.financial_ops_routes import router
+        app = FastAPI()
+        app.include_router(router)
+
+    # The router enforces authentication on every endpoint (C1 fix); supply a
+    # deterministic test user and session instead of real credentials.
+    test_user = Mock()
+    test_user.id = "test-user-123"
+    test_user.role = "user"
+    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_db] = lambda: MagicMock()
+    return app
 
 
 @pytest.fixture
@@ -52,10 +66,10 @@ def client(app):
 class TestCostLeakDetection:
     """Tests for subscription cost management endpoints"""
 
-    @patch('api.financial_ops_routes.cost_detector')
+    @patch('core.financial_ops_engine.cost_detector')
     @patch('api.financial_ops_routes.require_governance')
     def test_add_subscription_success(self, mock_governance, mock_detector, client):
-        """RED: Test successfully adding subscription for cost tracking."""
+        """Test successfully adding subscription for cost tracking."""
         # Setup mocks
         mock_governance.return_value = lambda f: f  # Pass-through decorator
         mock_detector.add_subscription = Mock()
@@ -75,12 +89,13 @@ class TestCostLeakDetection:
         )
 
         # Assert
-        # May fail due to governance decorator complexity
-        assert response.status_code in [200, 500]
+        assert response.status_code == 200
+        assert response.json() == {"status": "added", "id": "sub-001"}
+        mock_detector.add_subscription.assert_called_once()
 
-    @patch('api.financial_ops_routes.cost_detector')
+    @patch('core.financial_ops_engine.cost_detector')
     def test_get_savings_report(self, mock_detector, client):
-        """RED: Test getting cost savings report."""
+        """Test getting cost savings report."""
         # Setup mock
         mock_detector.get_savings_report.return_value = {
             "monthly_savings": 1500.00,
@@ -92,7 +107,12 @@ class TestCostLeakDetection:
         response = client.get("/api/financial-ops/cost/savings-report")
 
         # Assert
-        assert response.status_code in [200, 500]
+        assert response.status_code == 200
+        assert response.json() == {
+            "monthly_savings": 1500.00,
+            "subscriptions_cancelled": 3,
+            "cost_leaks_found": 12
+        }
 
 
 # =============================================================================
@@ -102,9 +122,10 @@ class TestCostLeakDetection:
 class TestBudgetGuardrails:
     """Tests for budget limit and spend check endpoints"""
 
+    @patch('core.financial_ops_engine.budget_guardrails')
     @patch('api.financial_ops_routes.require_governance')
-    def test_set_budget_limit(self, mock_governance, client):
-        """RED: Test setting budget limit for category."""
+    def test_set_budget_limit(self, mock_governance, mock_guardrails, client):
+        """Test setting budget limit for category."""
         # Setup mock
         mock_governance.return_value = lambda f: f
 
@@ -120,13 +141,15 @@ class TestBudgetGuardrails:
         )
 
         # Assert
-        assert response.status_code in [200, 500, 422]
+        assert response.status_code == 200
+        assert response.json() == {"status": "set", "category": "marketing"}
+        mock_guardrails.set_limit.assert_called_once()
 
-    @patch('api.financial_ops_routes.cost_detector')
-    def test_check_spend_against_budget(self, mock_detector, client):
-        """RED: Test checking spend against budget limits."""
+    @patch('core.financial_ops_engine.budget_guardrails')
+    def test_check_spend_against_budget(self, mock_guardrails, client):
+        """Test checking spend against budget limits."""
         # Setup mock
-        mock_detector.check_spend.return_value = {
+        mock_guardrails.check_spend.return_value = {
             "allowed": True,
             "remaining_budget": 2500.00,
             "warning": False
@@ -134,7 +157,7 @@ class TestBudgetGuardrails:
 
         # Act
         response = client.post(
-            "/api/financial-ops/budget/check-spend",
+            "/api/financial-ops/budget/check",
             json={
                 "category": "marketing",
                 "amount": 1500.00
@@ -142,7 +165,15 @@ class TestBudgetGuardrails:
         )
 
         # Assert
-        assert response.status_code in [200, 500, 422]
+        assert response.status_code == 200
+        assert response.json() == {
+            "allowed": True,
+            "remaining_budget": 2500.00,
+            "warning": False
+        }
+        mock_guardrails.check_spend.assert_called_once_with(
+            "marketing", 1500.00, None, None
+        )
 
 
 # =============================================================================

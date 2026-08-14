@@ -7,7 +7,17 @@ Focus: OAuth context management, token refresh, validation, provider-specific fl
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def _utc_now():
+    """Timezone-aware UTC now.
+
+    _is_token_expired() normalizes naive timestamps to UTC, so tests must
+    build aware UTC values (naive local times would be misread by the
+    UTC offset of the machine running the tests).
+    """
+    return datetime.now(timezone.utc)
 
 import core.oauth_handler as oauth_handler_module
 
@@ -40,7 +50,7 @@ def valid_connection():
     return {
         "access_token": "test_access_token_123",
         "refresh_token": "test_refresh_token_456",
-        "expires_at": (datetime.now() + timedelta(hours=1)).isoformat(),
+        "expires_at": (_utc_now() + timedelta(hours=1)).isoformat(),
         "provider": "google",
         "user_id": "user123"
     }
@@ -52,7 +62,7 @@ def expired_connection():
     return {
         "access_token": "expired_access_token",
         "refresh_token": "valid_refresh_token",
-        "expires_at": (datetime.now() - timedelta(minutes=10)).isoformat(),
+        "expires_at": (_utc_now() - timedelta(minutes=10)).isoformat(),
         "provider": "google",
         "user_id": "user123"
     }
@@ -63,7 +73,7 @@ def connection_no_refresh():
     """Connection without refresh token."""
     return {
         "access_token": "test_access_token",
-        "expires_at": (datetime.now() + timedelta(hours=1)).isoformat(),
+        "expires_at": (_utc_now() + timedelta(hours=1)).isoformat(),
         "provider": "google",
         "user_id": "user123"
     }
@@ -171,19 +181,20 @@ class TestTokenRetrieval:
         new_token_data = {
             "access_token": "new_access_token",
             "refresh_token": "new_refresh_token",
-            "expires_at": (datetime.now() + timedelta(hours=1)).isoformat()
+            "expires_at": (_utc_now() + timedelta(hours=1)).isoformat()
         }
 
-        # OAuthUserContext._refresh_token resolves `oauth_handler` lazily via
-        # `from core.oauth_handler import oauth_handler`, so patch the attribute
-        # onto the core.oauth_handler module itself
-        mock_handler = Mock()
-        mock_handler.refresh_token = AsyncMock(return_value=new_token_data)
-        with patch.object(oauth_handler_module, "oauth_handler", mock_handler, create=True):
+        # OAuthUserContext._refresh_token imports OAuthHandler lazily from
+        # core.oauth_handler and calls handler.refresh_access_token(refresh_token)
+        mock_handler = MagicMock()
+        mock_handler.refresh_access_token = AsyncMock(return_value=new_token_data)
+        with patch.object(oauth_handler_module, "OAuthHandler", return_value=mock_handler):
             token = await context.get_access_token()
 
             # Should have attempted refresh
-            mock_handler.refresh_token.assert_called_once()
+            mock_handler.refresh_access_token.assert_called_once_with(
+                "valid_refresh_token"
+            )
             # Token should be from new data or old if refresh failed
             assert token is not None
             assert token == "new_access_token"
@@ -213,7 +224,7 @@ class TestTokenValidation:
         """Test expiry check with valid token."""
         context = OAuthUserContext(user_id="user123", provider="google")
         connection = {
-            "expires_at": (datetime.now() + timedelta(hours=1)).isoformat()
+            "expires_at": (_utc_now() + timedelta(hours=1)).isoformat()
         }
 
         assert context._is_token_expired(connection) is False
@@ -222,7 +233,7 @@ class TestTokenValidation:
         """Test expiry check with expired token."""
         context = OAuthUserContext(user_id="user123", provider="google")
         connection = {
-            "expires_at": (datetime.now() - timedelta(minutes=10)).isoformat()
+            "expires_at": (_utc_now() - timedelta(minutes=10)).isoformat()
         }
 
         assert context._is_token_expired(connection) is True
@@ -231,7 +242,7 @@ class TestTokenValidation:
         """Test expiry check with token expiring in < 5 minutes."""
         context = OAuthUserContext(user_id="user123", provider="google")
         connection = {
-            "expires_at": (datetime.now() + timedelta(minutes=2)).isoformat()
+            "expires_at": (_utc_now() + timedelta(minutes=2)).isoformat()
         }
 
         assert context._is_token_expired(connection) is True
@@ -247,7 +258,7 @@ class TestTokenValidation:
         """Test expiry check with datetime object (not string)."""
         context = OAuthUserContext(user_id="user123", provider="google")
         connection = {
-            "expires_at": datetime.now() + timedelta(hours=1)
+            "expires_at": _utc_now() + timedelta(hours=1)
         }
 
         assert context._is_token_expired(connection) is False
@@ -256,7 +267,7 @@ class TestTokenValidation:
         """Test expiry check with Unix timestamp."""
         context = OAuthUserContext(user_id="user123", provider="google")
         connection = {
-            "expires_at": (datetime.now() + timedelta(hours=1)).timestamp()
+            "expires_at": (_utc_now() + timedelta(hours=1)).timestamp()
         }
 
         assert context._is_token_expired(connection) is False
@@ -288,19 +299,22 @@ class TestTokenRefresh:
         new_token_data = {
             "access_token": "new_access_token",
             "refresh_token": "new_refresh_token",
-            "expires_at": (datetime.now() + timedelta(hours=1)).isoformat()
+            "expires_at": (_utc_now() + timedelta(hours=1)).isoformat()
         }
 
-        # OAuthUserContext._refresh_token resolves `oauth_handler` lazily via
-        # `from core.oauth_handler import oauth_handler`, so patch the attribute
-        # onto the core.oauth_handler module itself
-        mock_handler = Mock()
-        mock_handler.refresh_token = AsyncMock(return_value=new_token_data)
-        with patch.object(oauth_handler_module, "oauth_handler", mock_handler, create=True):
+        # OAuthUserContext._refresh_token imports OAuthHandler lazily from
+        # core.oauth_handler and calls handler.refresh_access_token(refresh_token)
+        mock_handler = MagicMock()
+        mock_handler.refresh_access_token = AsyncMock(return_value=new_token_data)
+        with patch.object(oauth_handler_module, "OAuthHandler", return_value=mock_handler):
             result = await context._refresh_token(expired_connection)
 
             assert result["access_token"] == "new_access_token"
-            mock_handler.refresh_token.assert_called_once()
+            mock_handler.refresh_access_token.assert_called_once_with(
+                "valid_refresh_token"
+            )
+            # The refreshed token data is persisted via ConnectionService
+            mock_connection_service.update_connection.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_refresh_token_no_refresh_token(
@@ -322,9 +336,9 @@ class TestTokenRefresh:
         context = OAuthUserContext(user_id="user123", provider="google")
 
         # Mock refresh to return None or empty
-        mock_handler = Mock()
-        mock_handler.refresh_token = AsyncMock(return_value=None)
-        with patch.object(oauth_handler_module, "oauth_handler", mock_handler, create=True):
+        mock_handler = MagicMock()
+        mock_handler.refresh_access_token = AsyncMock(return_value=None)
+        with patch.object(oauth_handler_module, "OAuthHandler", return_value=mock_handler):
             result = await context._refresh_token(expired_connection)
 
             # Should return original connection unchanged
@@ -337,9 +351,9 @@ class TestTokenRefresh:
         """Test exception handling in token refresh."""
         context = OAuthUserContext(user_id="user123", provider="google")
 
-        mock_handler = Mock()
-        mock_handler.refresh_token = AsyncMock(side_effect=Exception("Refresh failed"))
-        with patch.object(oauth_handler_module, "oauth_handler", mock_handler, create=True):
+        mock_handler = MagicMock()
+        mock_handler.refresh_access_token = AsyncMock(side_effect=Exception("Refresh failed"))
+        with patch.object(oauth_handler_module, "OAuthHandler", return_value=mock_handler):
             result = await context._refresh_token(expired_connection)
 
             # Should return original connection on error
@@ -723,7 +737,7 @@ class TestEdgeCases:
         """Test multiple token expiry checks work correctly."""
         context = OAuthUserContext(user_id="user123", provider="google")
         connection = {
-            "expires_at": (datetime.now() + timedelta(minutes=6)).isoformat()
+            "expires_at": (_utc_now() + timedelta(minutes=6)).isoformat()
         }
 
         # First check - should not be expired
@@ -731,7 +745,7 @@ class TestEdgeCases:
 
         # Modify to expiring soon
         connection["expires_at"] = (
-            datetime.now() + timedelta(minutes=4)
+            _utc_now() + timedelta(minutes=4)
         ).isoformat()
 
         # Second check - should be expired

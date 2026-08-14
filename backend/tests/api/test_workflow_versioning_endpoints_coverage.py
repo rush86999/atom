@@ -12,7 +12,9 @@ Test Structure:
 """
 
 import pytest
+import inspect
 from unittest.mock import Mock, patch, MagicMock, AsyncMock
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
@@ -32,10 +34,42 @@ from core.workflow_versioning_system import (
 )
 from core.models import User
 
+import backend.api.workflow_versioning_endpoints as versioning_module
+
 
 # ============================================================================
 # Fixtures
 # ============================================================================
+
+@pytest.fixture
+def test_app(db_session):
+    """FastAPI app hosting the workflow versioning router.
+
+    ``get_current_user`` is overridden with a shim that delegates to the
+    module-level attribute at request time, so tests can control auth via
+    ``patch("backend.api.workflow_versioning_endpoints.get_current_user")``.
+    """
+    app = FastAPI()
+    app.include_router(versioning_module.router)
+
+    original_get_current_user = versioning_module.get_current_user
+
+    async def _override_current_user():
+        current = versioning_module.get_current_user
+        if current is original_get_current_user:
+            # No patch installed by the test: behave like an unauthenticated request
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        result = current()
+        if inspect.isawaitable(result):
+            result = await result
+        return result
+
+    app.dependency_overrides[original_get_current_user] = _override_current_user
+
+    yield app
+
+    app.dependency_overrides.clear()
+
 
 @pytest.fixture
 def versioning_client(test_app):
@@ -71,6 +105,8 @@ def mock_workflow_version():
     version.branch_name = "main"
     version.checksum = "abc123"
     version.is_active = True
+    version.metadata = {}
+    version.workflow_data = {}
     return version
 
 
@@ -119,6 +155,7 @@ def mock_branch():
 def mock_version_diff():
     """Mock version diff."""
     return {
+        "workflow_id": "workflow-1",
         "from_version": "1.0.0",
         "to_version": "1.1.0",
         "impact_level": "MODERATE",
@@ -375,9 +412,8 @@ class TestWorkflowVersioningEndpoints:
         assert response.impact_level == "MODERATE"
         assert response.added_steps_count == 2
 
-    @patch("backend.api.workflow_versioning_endpoints.get_workflow_data")
     def test_get_workflow_data_from_file(
-        self, mock_get_data, temp_workflow_file
+        self, temp_workflow_file
     ):
         """Test get_workflow_data loads from workflows.json."""
         # Patch the workflows file path

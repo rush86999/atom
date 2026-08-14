@@ -1,423 +1,222 @@
 """
-TDD Tests for LLM Registry Endpoints
+Tests for the LLM Registry services.
 
-Tests for /api/llm-registry/* endpoints that provide model registry management,
-provider health monitoring, and quality score synchronization.
+The former /api/llm-registry/* router (api/llm_registry_routes.py) was deleted
+as dead code (no frontend consumer, no backend importer), so these tests were
+ported onto the surviving service layer with the same intent:
 
-Endpoints tested:
-- GET /api/llm-registry/provider-health - Provider health status
-- GET /api/llm-registry/models/by-quality - Filter models by quality
-- GET /api/llm-registry/models/search - Search models
-- GET /api/llm-registry/providers/list - List all providers
-- POST /api/llm-registry/sync-quality - Sync quality scores
+- Provider health monitoring -> core.llm.registry.provider_health.ProviderHealthService
+- Model quality filtering  -> core.llm.registry.queries.get_models_by_quality_range
 
-Run: pytest tests/api/test_llm_registry_endpoints.py -v
+The pre-existing permanently-skipped endpoint tests (search/sync/providers
+list) were removed together with the module they targeted; they asserted
+nothing while skipped.
 """
 
+import json
+import uuid
+
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, AsyncMock, patch
-from datetime import datetime
-from typing import Dict, Any, List
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+import core.llm.registry.models  # noqa: F401  (registers LLMModel on Base)
+from core.database import Base
+from core.llm.registry.models import LLMModel
+from core.llm.registry.provider_health import ProviderHealthService
+from core.llm.registry.queries import get_models_by_quality_range
 
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
-@pytest.fixture(scope="function")
-def registry_app() -> FastAPI:
-    """Create FastAPI app with LLM Registry routes for testing."""
-    from api.llm_registry_routes import router as registry_router
-    
-    app = FastAPI()
-    app.include_router(registry_router)
-    return app
+class FakeCache:
+    """In-memory stand-in for UniversalCacheService."""
 
+    def __init__(self):
+        self.store = {}
 
-@pytest.fixture(scope="function")
-def registry_client(registry_app: FastAPI) -> TestClient:
-    """Create TestClient for LLM Registry endpoint tests."""
-    return TestClient(registry_app)
+    async def get_async(self, key):
+        return self.store.get(key)
+
+    async def set_async(self, key, value, ttl=None):
+        self.store[key] = value
 
 
 @pytest.fixture
-def mock_provider_health_service() -> MagicMock:
-    """Create mock provider health service."""
-    service = MagicMock()
-    service.get_all_health = AsyncMock(return_value={
-        "openai": {
-            "state": "healthy",
-            "success_count": 1234,
-            "error_count": 12,
-            "consecutive_failures": 0,
-            "avg_latency_ms": 245.5,
-            "last_success_ts": datetime.utcnow().isoformat(),
-            "last_error_ts": None,
-            "success_rate": 0.99
-        },
-        "anthropic": {
-            "state": "healthy",
-            "success_count": 890,
-            "error_count": 5,
-            "consecutive_failures": 0,
-            "avg_latency_ms": 312.3,
-            "last_success_ts": datetime.utcnow().isoformat(),
-            "last_error_ts": None,
-            "success_rate": 0.99
-        },
-        "google": {
-            "state": "degraded",
-            "success_count": 500,
-            "error_count": 50,
-            "consecutive_failures": 2,
-            "avg_latency_ms": 450.0,
-            "last_success_ts": datetime.utcnow().isoformat(),
-            "last_error_ts": datetime.utcnow().isoformat(),
-            "success_rate": 0.91
-        },
-        "deepseek": {
-            "state": "healthy",
-            "success_count": 2000,
-            "error_count": 10,
-            "consecutive_failures": 0,
-            "avg_latency_ms": 180.2,
-            "last_success_ts": datetime.utcnow().isoformat(),
-            "last_error_ts": None,
-            "success_rate": 0.995
-        }
+def fake_cache():
+    return FakeCache()
+
+
+@pytest.fixture
+def provider_health_service(fake_cache):
+    return ProviderHealthService(cache_service=fake_cache)
+
+
+def _seed_health(cache, provider, **metrics):
+    cache.store[f"llm_registry:provider_health:{provider}"] = json.dumps({
+        "current_state": metrics.get("state", "healthy"),
+        "success_count": metrics.get("success_count", 0),
+        "error_count": metrics.get("error_count", 0),
+        "consecutive_failures": metrics.get("consecutive_failures", 0),
+        "consecutive_successes": metrics.get("consecutive_successes", 0),
+        "last_success_ts": metrics.get("last_success_ts"),
+        "last_error_ts": metrics.get("last_error_ts"),
+        "avg_latency_ms": metrics.get("avg_latency_ms"),
     })
-    return service
 
 
 @pytest.fixture
-def mock_model_catalog() -> List[Dict[str, Any]]:
-    """Create mock model catalog data."""
-    return [
-        {
-            "id": "gpt-4o",
-            "provider": "openai",
-            "name": "GPT-4o",
-            "quality_score": 95.5,
-            "capabilities": ["tools", "vision", "json_mode"],
-            "max_tokens": 128000,
-            "input_cost_per_token": 0.000005,
-            "output_cost_per_token": 0.000015
-        },
-        {
-            "id": "gpt-4o-mini",
-            "provider": "openai",
-            "name": "GPT-4o Mini",
-            "quality_score": 82.0,
-            "capabilities": ["tools", "json_mode"],
-            "max_tokens": 128000,
-            "input_cost_per_token": 0.00000015,
-            "output_cost_per_token": 0.0000006
-        },
-        {
-            "id": "claude-3-5-sonnet",
-            "provider": "anthropic",
-            "name": "Claude 3.5 Sonnet",
-            "quality_score": 94.0,
-            "capabilities": ["tools", "vision", "json_mode"],
-            "max_tokens": 200000,
-            "input_cost_per_token": 0.000003,
-            "output_cost_per_token": 0.000015
-        },
-        {
-            "id": "deepseek-chat",
-            "provider": "deepseek",
-            "name": "DeepSeek V3",
-            "quality_score": 88.5,
-            "capabilities": ["tools", "json_mode"],
-            "max_tokens": 128000,
-            "input_cost_per_token": 0.00000014,
-            "output_cost_per_token": 0.00000028
-        },
-        {
-            "id": "gemini-1.5-pro",
-            "provider": "google",
-            "name": "Gemini 1.5 Pro",
-            "quality_score": 91.0,
-            "capabilities": ["tools", "vision", "video"],
-            "max_tokens": 2000000,
-            "input_cost_per_token": 0.00000125,
-            "output_cost_per_token": 0.000005
-        }
-    ]
+def registry_db():
+    """Dedicated in-memory session with the llm_models table created."""
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine, tables=[LLMModel.__table__])
+    session = sessionmaker(bind=engine)()
+    yield session
+    session.close()
+    engine.dispose()
 
 
 @pytest.fixture
-def mock_db_session(mock_model_catalog) -> MagicMock:
-    """Create mock database session."""
-    db = MagicMock()
-    
-    # Mock ModelCatalog query
-    mock_model_class = MagicMock()
-    mock_model_class.provider = "provider"
-    
-    # Mock distinct query for providers
-    db.query().distinct().all.return_value = [
-        ("openai",), ("anthropic",), ("google",), ("deepseek",)
+def seed_models(registry_db):
+    """Seed a small model catalog spanning quality tiers."""
+    catalog = [
+        ("gpt-4o", "openai", 95.5, ["tools", "vision", "json_mode"]),
+        ("gpt-4o-mini", "openai", 82.0, ["tools", "json_mode"]),
+        ("claude-3-5-sonnet", "anthropic", 94.0, ["tools", "vision", "json_mode"]),
+        ("deepseek-chat", "deepseek", 88.5, ["tools", "json_mode"]),
+        ("gemini-1-5-pro", "google", 91.0, ["tools", "vision", "video"]),
+        ("legacy-model", "openai", 99.0, ["tools"]),  # deprecated -> excluded
     ]
-    
-    return db
+    for model_name, provider, quality, caps in catalog:
+        registry_db.add(LLMModel(
+            id=str(uuid.uuid4()),  # str: UUID column round-trips as CHAR on SQLite
+            tenant_id="default",
+            provider=provider,
+            model_name=model_name,
+            quality_score=quality,
+            capabilities=caps,
+            is_deprecated=(model_name == "legacy-model"),
+        ))
+    registry_db.commit()
+    return catalog
 
 
 # ============================================================================
-# GET /api/llm-registry/provider-health - Provider Health
+# Provider Health
 # ============================================================================
 
 class TestProviderHealth:
-    """Tests for GET /api/llm-registry/provider-health endpoint."""
+    """Tests for ProviderHealthService.get_all_health (provider health)."""
 
-    def test_get_provider_health_all(self, registry_client, mock_provider_health_service):
+    @pytest.mark.asyncio
+    async def test_get_provider_health_all(self, provider_health_service, fake_cache):
         """Test getting health for all default providers."""
-        with patch('api.llm_registry_routes.ProviderHealthService', return_value=mock_provider_health_service):
-            response = registry_client.get("/api/llm-registry/provider-health")
-            
-            assert response.status_code == 200
-            data = response.json()
-            
-            assert "providers" in data
-            assert "timestamp" in data
-            assert len(data["providers"]) >= 4  # At least default providers
-            
-            # Check structure of provider health
-            openai_health = data["providers"].get("openai", {})
-            assert openai_health.get("state") == "healthy"
-            assert "success_count" in openai_health
-            assert "avg_latency_ms" in openai_health
+        _seed_health(fake_cache, "openai", success_count=1234, error_count=12,
+                     avg_latency_ms=245.5)
+        _seed_health(fake_cache, "anthropic", success_count=890, error_count=5,
+                     avg_latency_ms=312.3)
+        _seed_health(fake_cache, "google", state="degraded", success_count=500,
+                     error_count=50, consecutive_failures=2, avg_latency_ms=450.0)
+        _seed_health(fake_cache, "deepseek", success_count=2000, error_count=10,
+                     avg_latency_ms=180.2)
 
-    def test_get_provider_health_specific(self, registry_client, mock_provider_health_service):
-        """Test getting health for specific providers."""
-        # Configure mock to return health for all providers
-        async def mock_get_all_health(provider_list):
-            # Return health for requested providers only
-            return {
-                'openai': {'state': 'healthy', 'success_count': 100, 'error_count': 12, 'consecutive_failures': 0, 'avg_latency_ms': 245.5},
-                'anthropic': {'state': 'healthy', 'success_count': 200, 'error_count': 5, 'consecutive_failures': 0, 'avg_latency_ms': 312.3}
-            }
-        
-        mock_provider_health_service.get_all_health = mock_get_all_health
-        
-        with patch('api.llm_registry_routes.ProviderHealthService', return_value=mock_provider_health_service):
-            response = registry_client.get(
-                "/api/llm-registry/provider-health?providers=openai,anthropic"
-            )
-            
-            assert response.status_code == 200
-            data = response.json()
-            
-            assert len(data["providers"]) == 2
-            assert "openai" in data["providers"]
-            assert "anthropic" in data["providers"]
+        default_providers = ['openai', 'anthropic', 'google', 'meta',
+                             'mistral', 'cohere', 'deepseek']
+        health = await provider_health_service.get_all_health(default_providers)
 
-    def test_get_provider_health_single(self, registry_client, mock_provider_health_service):
-        """Test getting health for single provider."""
-        async def mock_get_all_health(provider_list):
-            return {
-                'deepseek': {'state': 'healthy', 'success_count': 150, 'error_count': 10, 'consecutive_failures': 0, 'avg_latency_ms': 180.2}
-            }
-        
-        mock_provider_health_service.get_all_health = mock_get_all_health
-        
-        with patch('api.llm_registry_routes.ProviderHealthService', return_value=mock_provider_health_service):
-            response = registry_client.get(
-                "/api/llm-registry/provider-health?providers=deepseek"
-            )
-            
-            assert response.status_code == 200
-            data = response.json()
-            
-            assert len(data["providers"]) == 1
-            assert "deepseek" in data["providers"]
-            assert data["providers"]["deepseek"]["state"] == "healthy"
+        assert len(health) >= 4  # At least the seeded providers
+
+        openai_health = health["openai"]
+        assert openai_health["state"] == "healthy"
+        assert openai_health["success_count"] == 1234
+        assert "avg_latency_ms" in openai_health
+
+        # Degraded provider is surfaced with its state
+        assert health["google"]["state"] == "degraded"
+
+    @pytest.mark.asyncio
+    async def test_get_provider_health_specific(self, provider_health_service, fake_cache):
+        """Test getting health for specific providers only."""
+        _seed_health(fake_cache, "openai", success_count=100, error_count=12,
+                     avg_latency_ms=245.5)
+        _seed_health(fake_cache, "anthropic", success_count=200, error_count=5,
+                     avg_latency_ms=312.3)
+
+        health = await provider_health_service.get_all_health(["openai", "anthropic"])
+
+        assert len(health) == 2
+        assert "openai" in health
+        assert "anthropic" in health
+
+    @pytest.mark.asyncio
+    async def test_get_provider_health_single(self, provider_health_service, fake_cache):
+        """Test getting health for a single provider."""
+        _seed_health(fake_cache, "deepseek", success_count=150, error_count=10,
+                     avg_latency_ms=180.2)
+
+        health = await provider_health_service.get_all_health(["deepseek"])
+
+        assert len(health) == 1
+        assert "deepseek" in health
+        assert health["deepseek"]["state"] == "healthy"
 
 
 # ============================================================================
-# GET /api/llm-registry/models/by-quality - Filter by Quality
+# Model quality filtering
 # ============================================================================
 
 class TestModelsByQuality:
-    """Tests for GET /api/llm-registry/models/by-quality endpoint."""
+    """Tests for get_models_by_quality_range (model quality filtering)."""
 
-    def test_get_models_by_quality_range(self, registry_client, mock_model_catalog):
+    def test_get_models_by_quality_range(self, registry_db, seed_models):
         """Test filtering models by quality score range."""
-        mock_models = [MagicMock(**model) for model in mock_model_catalog]
-        mock_models[0].to_dict = lambda: mock_model_catalog[0]
-        mock_models[1].to_dict = lambda: mock_model_catalog[1]
+        models = get_models_by_quality_range(
+            registry_db, tenant_id="default",
+            min_quality=80.0, max_quality=100.0, limit=10
+        )
 
-        with patch('core.llm.registry.queries.get_models_by_quality_range', return_value=mock_models[:2]):
-            response = registry_client.get(
-                "/api/llm-registry/models/by-quality?min_quality=80&max_quality=100&limit=10"
-            )
+        assert 1 <= len(models) <= 10
+        assert all(80.0 <= float(m.quality_score) <= 100.0 for m in models)
+        # Sorted by quality_score DESC
+        scores = [float(m.quality_score) for m in models]
+        assert scores == sorted(scores, reverse=True)
+        # Deprecated models are excluded
+        assert all(m.model_name != "legacy-model" for m in models)
 
-            assert response.status_code == 200
-            data = response.json()
+    def test_get_models_by_quality_with_capabilities(self, registry_db, seed_models):
+        """Test filtering by quality then narrowing by capabilities."""
+        models = get_models_by_quality_range(
+            registry_db, tenant_id="default",
+            min_quality=80, max_quality=100
+        )
 
-            assert "models" in data
-            assert "count" in data
-            assert "min_quality" in data
-            assert "max_quality" in data
-            assert data["min_quality"] == 80.0
-            assert data["max_quality"] == 100.0
+        # Capability narrowing (the deleted route performed this client-side)
+        required = ["tools", "vision"]
+        filtered = [m for m in models if all(c in (m.capabilities or []) for c in required)]
 
-    def test_get_models_by_quality_with_capabilities(self, registry_client, mock_model_catalog):
-        """Test filtering models by quality and capabilities."""
-        mock_models = [MagicMock(**model) for model in mock_model_catalog]
-        for i, model in enumerate(mock_models):
-            model.to_dict = lambda m=i: mock_model_catalog[m]
-            model.capabilities = mock_model_catalog[i]["capabilities"]
+        assert len(filtered) >= 1
+        for m in filtered:
+            assert "tools" in m.capabilities
+            assert "vision" in m.capabilities
 
-        with patch('core.llm.registry.queries.get_models_by_quality_range', return_value=mock_models):
-            response = registry_client.get(
-                "/api/llm-registry/models/by-quality?min_quality=80&capabilities=tools,vision"
-            )
+    def test_get_models_by_quality_narrow_range(self, registry_db, seed_models):
+        """Test filtering with a narrow quality range."""
+        models = get_models_by_quality_range(
+            registry_db, tenant_id="default",
+            min_quality=93, max_quality=96
+        )
 
-            assert response.status_code == 200
-            data = response.json()
-
-            # Should filter to models with both tools and vision
-            assert data["count"] >= 1
-
-    def test_get_models_by_quality_narrow_range(self, registry_client, mock_model_catalog):
-        """Test filtering with narrow quality range."""
-        mock_models = [MagicMock(**model) for model in mock_model_catalog if model["quality_score"] > 93]
-        for i, model in enumerate(mock_models):
-            model.to_dict = lambda m=model: m
-
-        with patch('core.llm.registry.queries.get_models_by_quality_range', return_value=mock_models):
-            response = registry_client.get(
-                "/api/llm-registry/models/by-quality?min_quality=93&max_quality=96"
-            )
-
-            assert response.status_code == 200
-            data = response.json()
-
-            assert data["count"] >= 1
-
-
-# ============================================================================
-# GET /api/llm-registry/models/search - Search Models
-# ============================================================================
-
-class TestSearchModels:
-    """Tests for GET /api/llm-registry/models/search endpoint."""
-
-    def test_search_by_query(self, registry_client, mock_model_catalog):
-        """Test searching models by name query."""
-        # Skip - search_models function missing from core.llm.registry.queries
-        pytest.skip("Missing search_models function in core.llm.registry.queries")
-
-    def test_search_by_provider(self, registry_client, mock_model_catalog):
-        """Test searching models by provider."""
-        # Skip - search_models function missing from core.llm.registry.queries
-        pytest.skip("Missing search_models function in core.llm.registry.queries")
-
-    def test_search_by_capabilities(self, registry_client, mock_model_catalog):
-        """Test searching models by capabilities."""
-        # Skip - search_models function missing from core.llm.registry.queries
-        pytest.skip("Missing search_models function in core.llm.registry.queries")
-
-    def test_search_combined_filters(self, registry_client, mock_model_catalog):
-        """Test searching with multiple filters."""
-        # Skip - search_models function missing from core.llm.registry.queries
-        pytest.skip("Missing search_models function in core.llm.registry.queries")
-
-
-# ============================================================================
-# GET /api/llm-registry/providers/list - List Providers
-# ============================================================================
-
-class TestListProviders:
-    """Tests for GET /api/llm-registry/providers/list endpoint."""
-
-    def test_list_providers_with_health(self, registry_client, mock_provider_health_service):
-        """Test listing providers with health status."""
-        # Skip due to DB initialization issues in test environment
-        pytest.skip("Database model initialization issue in test environment")
-
-    def test_list_providers_without_health(self, registry_client):
-        """Test listing providers without health status."""
-        # Skip due to DB initialization issues in test environment
-        pytest.skip("Database model initialization issue in test environment")
-
-
-# ============================================================================
-# POST /api/llm-registry/sync-quality - Sync Quality Scores
-# ============================================================================
-
-class TestSyncQuality:
-    """Tests for POST /api/llm-registry/sync-quality endpoint."""
-
-    def test_sync_quality_lmsys(self, registry_client):
-        """Test syncing quality scores from LMSYS."""
-        # Skip due to DB initialization issues in test environment
-        pytest.skip("Database model initialization issue in test environment")
-
-    def test_sync_quality_heuristic(self, registry_client):
-        """Test syncing quality scores with heuristic method."""
-        # Skip due to DB initialization issues in test environment
-        pytest.skip("Database model initialization issue in test environment")
-
-    def test_sync_quality_auto(self, registry_client):
-        """Test syncing quality scores with auto method."""
-        # Skip due to DB initialization issues in test environment
-        pytest.skip("Database model initialization issue in test environment")
-
-    def test_sync_quality_invalid_source(self, registry_client):
-        """Test syncing with invalid source parameter."""
-        # Skip due to DB initialization issues in test environment
-        pytest.skip("Database model initialization issue in test environment")
-
-    def test_sync_quality_force_refresh(self, registry_client):
-        """Test syncing with force_refresh flag."""
-        # Skip due to DB initialization issues in test environment
-        pytest.skip("Database model initialization issue in test environment")
-
-
-# ============================================================================
-# Integration Tests
-# ============================================================================
-
-class TestRegistryIntegration:
-    """Integration tests for LLM Registry endpoints."""
-
-    def test_provider_health_workflow(self, registry_client, mock_provider_health_service):
-        """Test complete provider health monitoring workflow."""
-        # Skip - complex mocking required
-        pytest.skip("Complex mocking requirements")
-
-    def test_model_discovery_workflow(self, registry_client, mock_model_catalog):
-        """Test model discovery workflow."""
-        # Skip - complex mocking required
-        pytest.skip("Complex mocking requirements")
-
-
-# ============================================================================
-# Edge Cases
-# ============================================================================
-
-class TestRegistryEdgeCases:
-    """Edge case tests for LLM Registry endpoints."""
-
-    def test_empty_provider_health(self, registry_client):
-        """Test provider health with no providers."""
-        # Skip - complex mocking required
-        pytest.skip("Complex mocking requirements")
-
-    def test_quality_range_boundary(self, registry_client, mock_model_catalog):
-        """Test quality filtering at boundary values."""
-        # Skip - complex mocking required
-        pytest.skip("Complex mocking requirements")
-
-    def test_search_no_results(self, registry_client):
-        """Test search with no matching results."""
-        # Skip - search_models function missing
-        pytest.skip("Missing search_models function in core.llm.registry.queries")
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+        assert len(models) >= 1
+        assert all(93 <= float(m.quality_score) <= 96 for m in models)
+        # gpt-4o (95.5) and claude-3-5-sonnet (94.0) fall in range; the
+        # deprecated 99.0 model must not leak in even though it is high.
+        names = {m.model_name for m in models}
+        assert "gpt-4o" in names
+        assert "legacy-model" not in names

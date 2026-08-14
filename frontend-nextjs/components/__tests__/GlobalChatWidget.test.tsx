@@ -373,3 +373,326 @@ describe('GlobalChatWidget', () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Extended coverage: feedback, regenerate, close, network failures
+// ---------------------------------------------------------------------------
+describe('GlobalChatWidget (extended coverage)', () => {
+  let errorSpy: jest.SpyInstance;
+  let postedMessages: any[];
+
+  const sendChatMessage = async (text: string) => {
+    fireEvent.change(screen.getByPlaceholderText(/Ask ATOM to schedule meetings/), {
+      target: { value: text },
+    });
+    fireEvent.keyDown(screen.getByPlaceholderText(/Ask ATOM to schedule meetings/), {
+      key: 'Enter',
+    });
+    await screen.findByText('I created the task for you.');
+  };
+
+  beforeEach(() => {
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    postedMessages = [];
+    wsState.isConnected = false;
+    wsState.lastMessage = null;
+    localStorage.clear();
+
+    server.resetHandlers();
+    server.use(
+      rest.post('/api/chat/message', async (req, res, ctx) => {
+        postedMessages.push(req.body);
+        return res(
+          ctx.status(200),
+          ctx.json({
+            success: true,
+            message: 'I created the task for you.',
+            model: 'deepseek-v4',
+            provider: 'opencode-go',
+            suggested_actions: [],
+          })
+        );
+      }
+      ),
+      rest.get('/api/chat/history/:sid', (req, res, ctx) => {
+        return res(ctx.status(200), ctx.json({ messages: [] }));
+      })
+    );
+
+    mockApiGet.mockResolvedValue({ status: 200, data: [] });
+    mockApiPost.mockResolvedValue({ data: { success: true } });
+  });
+
+  afterEach(() => {
+    errorSpy.mockRestore();
+  });
+
+  it('submits thumbs up feedback with model identity', async () => {
+    render(<GlobalChatWidget />);
+    openChat();
+    await screen.findByText('ATOM Assistant');
+
+    await sendChatMessage('Rate this');
+
+    // The welcome message also renders feedback controls; target the reply (last).
+    fireEvent.click(screen.getAllByRole('button', { name: 'Thumbs up' }).pop()!);
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/chat/feedback',
+        expect.objectContaining({
+          feedback: 'thumbs_up',
+          model: 'deepseek-v4',
+          provider: 'opencode-go',
+        })
+      );
+    });
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Helpful' })
+      );
+    });
+  });
+
+  it('submits thumbs down feedback and a correction comment', async () => {
+    render(<GlobalChatWidget />);
+    openChat();
+    await screen.findByText('ATOM Assistant');
+
+    await sendChatMessage('Rate badly');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Thumbs down' }).pop()!);
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Flagged' })
+      );
+    });
+
+    // open the comment box and submit a correction
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add comment' }).pop()!);
+    const commentBox = await screen.findByPlaceholderText(
+      /What was wrong or how can I improve/i
+    );
+    fireEvent.change(commentBox, { target: { value: 'Wrong answer' } });
+    fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/chat/feedback',
+        expect.objectContaining({ feedback: 'thumbs_down', comment: 'Wrong answer' })
+      );
+    });
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Correction Received' })
+      );
+    });
+  });
+
+  it('logs feedback failures without a toast', async () => {
+    mockApiPost.mockRejectedValueOnce(new Error('feedback down'));
+
+    render(<GlobalChatWidget />);
+    openChat();
+    await screen.findByText('ATOM Assistant');
+    await sendChatMessage('Feedback will fail');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Thumbs up' }).pop()!);
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Feedback failed', expect.anything());
+    });
+    expect(
+      mockToast.mock.calls.some((c: any[]) => c[0]?.title === 'Helpful')
+    ).toBe(false);
+  });
+
+  it('regenerates the previous exchange and records a negative signal', async () => {
+    render(<GlobalChatWidget />);
+    openChat();
+    await screen.findByText('ATOM Assistant');
+
+    await sendChatMessage('Regenerate me');
+
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Regenerate response' }).pop()!
+    );
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/chat/feedback',
+        expect.objectContaining({ feedback: 'thumbs_down', comment: 'regenerated' })
+      );
+    });
+    // the original prompt is re-sent
+    await waitFor(() => {
+      expect(postedMessages.length).toBe(2);
+    });
+    expect((postedMessages[1] as any).message).toBe('Regenerate me');
+  });
+
+  it('closes the popover via the header X button', async () => {
+    render(<GlobalChatWidget />);
+    openChat();
+    await screen.findByText('ATOM Assistant');
+
+    const closeButton = document
+      .querySelector('.lucide-x')
+      ?.closest('button') as HTMLElement;
+    fireEvent.click(closeButton);
+
+    await waitFor(() => {
+      expect(screen.queryByText('ATOM Assistant')).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows an error toast when the approval decision API fails', async () => {
+    mockApiGet.mockResolvedValue({
+      status: 200,
+      data: [{ id: 'p-9', action_type: 'delete_file', reason: 'Dangerous' }],
+    });
+    mockApiPost.mockResolvedValue({ data: { success: false, error: 'nope' } });
+
+    render(<GlobalChatWidget />);
+    openChat();
+
+    fireEvent.click(await screen.findByRole('button', { name: /approve/i }));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Error', description: 'Error: nope' })
+      );
+    });
+  });
+
+  it('shows an error toast when the approval decision POST rejects', async () => {
+    mockApiGet.mockResolvedValue({
+      status: 200,
+      data: [{ id: 'p-8', action_type: 'delete_file', reason: 'Dangerous' }],
+    });
+    mockApiPost.mockRejectedValue(new Error('network down'));
+
+    render(<GlobalChatWidget />);
+    openChat();
+
+    fireEvent.click(await screen.findByRole('button', { name: /reject/i }));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Error', description: 'Error: network down' })
+      );
+    });
+  });
+
+  it('logs an error when the pending approvals fetch rejects', async () => {
+    mockApiGet.mockRejectedValue(new Error('approvals down'));
+
+    render(<GlobalChatWidget />);
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to fetch pending approvals:',
+        expect.anything()
+      );
+    });
+  });
+
+  it('treats a failed message POST as an error bubble', async () => {
+    server.use(
+      rest.post('/api/chat/message', (req, res) => res.networkError('boom'))
+    );
+
+    render(<GlobalChatWidget />);
+    openChat();
+    await screen.findByText('ATOM Assistant');
+
+    fireEvent.change(screen.getByPlaceholderText(/Ask ATOM to schedule meetings/), {
+      target: { value: 'Will fail' },
+    });
+    fireEvent.keyDown(screen.getByPlaceholderText(/Ask ATOM to schedule meetings/), {
+      key: 'Enter',
+    });
+
+    expect(
+      await screen.findByText('Sorry, I encountered an error. Please try again.')
+    ).toBeInTheDocument();
+  });
+
+  it('falls back to the welcome message when history fetch fails at the network level', async () => {
+    localStorage.setItem('atom_chat_session_id', 'sess-netfail');
+    server.use(
+      rest.get('/api/chat/history/:sid', (req, res) => res.networkError('boom'))
+    );
+
+    render(<GlobalChatWidget />);
+    openChat();
+
+    expect(
+      await screen.findByText(/Hi! I am your Universal ATOM Assistant/)
+    ).toBeInTheDocument();
+  });
+
+  it('keeps messages unchanged when an agent step arrives while a user message is last', async () => {
+    // Make the chat POST hang so the last message stays the user's message.
+    let resolvePost: () => void = () => {};
+    server.use(
+      rest.post('/api/chat/message', (req, res, ctx) => {
+        return res(ctx.delay(5000), ctx.json({ success: true, message: 'late' }));
+      })
+    );
+
+    const { rerender } = render(<GlobalChatWidget />);
+    openChat();
+    await screen.findByText('ATOM Assistant');
+
+    fireEvent.change(screen.getByPlaceholderText(/Ask ATOM to schedule meetings/), {
+      target: { value: 'Pending message' },
+    });
+    fireEvent.keyDown(screen.getByPlaceholderText(/Ask ATOM to schedule meetings/), {
+      key: 'Enter',
+    });
+
+    expect(await screen.findByText('Pending message')).toBeInTheDocument();
+
+    wsState.lastMessage = {
+      type: 'agent_step_update',
+      step: { step: 1, thought: 'Ignored thought' },
+    };
+    rerender(<GlobalChatWidget />);
+
+    await new Promise((r) => setTimeout(r, 100));
+    // The step could not attach to a user message, so no reasoning toggle appears.
+    expect(
+      screen.queryByRole('button', { name: /reasoning process/i })
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('Pending message')).toBeInTheDocument();
+
+    resolvePost();
+  });
+
+  it('clears a pending approval when the API reports an empty queue', async () => {
+    // First loads show a pending approval, then re-opening clears it.
+    // (The effect runs on mount too, so the queue must stay non-empty until
+    // the popover has opened.)
+    mockApiGet.mockResolvedValue({
+      status: 200,
+      data: [{ id: 'p-5', action_type: 'send_email', reason: 'Needs approval' }],
+    });
+
+    render(<GlobalChatWidget />);
+    openChat();
+    expect(await screen.findByText('Approval Required')).toBeInTheDocument();
+
+    mockApiGet.mockResolvedValue({ status: 200, data: [] });
+
+    const closeButton = document
+      .querySelector('.lucide-x')
+      ?.closest('button') as HTMLElement;
+    fireEvent.click(closeButton);
+    openChat();
+
+    await waitFor(() => {
+      expect(screen.queryByText('Approval Required')).not.toBeInTheDocument();
+    });
+  });
+});

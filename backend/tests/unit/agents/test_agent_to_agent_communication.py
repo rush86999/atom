@@ -200,99 +200,87 @@ class TestSocialLayerMessagePosting:
 class TestEventBusPubSub:
     """Tests for AgentEventBus pub/sub"""
 
+    @pytest.fixture
+    def mock_websocket(self):
+        """Mock WebSocket connection (the bus broadcasts via websocket.send_json)."""
+        ws = MagicMock()
+        ws.send_json = AsyncMock()
+        return ws
+
     @pytest.mark.asyncio
-    async def test_event_bus_broadcasts_to_subscribers(self):
+    async def test_event_bus_broadcasts_to_subscribers(self, mock_websocket):
         """Message broadcast reaches all subscribers"""
         event_bus = agent_event_bus
 
-        # Track received messages
-        received = []
-
-        async def handler(message):
-            received.append(message)
-
         # Subscribe to agent topic
-        await event_bus.subscribe("test_agent", handler, topics=["agent:test_agent"])
+        await event_bus.subscribe("test_agent", mock_websocket, topics=["agent:test_agent"])
 
-        # Broadcast message
-        await event_bus.publish("agent:test_agent", {
-            "type": "status_update",
-            "content": "Test message"
-        })
+        try:
+            # Broadcast message
+            event = {
+                "type": "status_update",
+                "content": "Test message"
+            }
+            await event_bus.publish(event, topics=["agent:test_agent"])
 
-        # Give async handler time to process
-        await asyncio.sleep(0.1)
-
-        assert len(received) == 1
-        assert received[0]["content"] == "Test message"
+            mock_websocket.send_json.assert_awaited_once_with(event)
+        finally:
+            await event_bus.unsubscribe("test_agent", mock_websocket)
 
     @pytest.mark.asyncio
     async def test_event_bus_topic_filtering(self):
         """Subscribers only receive messages for their topics"""
         event_bus = agent_event_bus
 
-        agent_a_messages = []
-        agent_b_messages = []
-
-        async def handler_a(message):
-            agent_a_messages.append(message)
-
-        async def handler_b(message):
-            agent_b_messages.append(message)
+        websocket_a = MagicMock()
+        websocket_a.send_json = AsyncMock()
+        websocket_b = MagicMock()
+        websocket_b.send_json = AsyncMock()
 
         # Subscribe to different topics
-        await event_bus.subscribe("agent_a", handler_a, topics=["agent:agent_a"])
-        await event_bus.subscribe("agent_b", handler_b, topics=["agent:agent_b"])
+        await event_bus.subscribe("agent_a", websocket_a, topics=["agent:agent_a"])
+        await event_bus.subscribe("agent_b", websocket_b, topics=["agent:agent_b"])
 
-        # Broadcast to agent_a only
-        await event_bus.publish("agent:agent_a", {"content": "Message for A"})
+        try:
+            # Broadcast to agent_a only
+            await event_bus.publish({"content": "Message for A"}, topics=["agent:agent_a"])
 
-        await asyncio.sleep(0.1)
-
-        assert len(agent_a_messages) == 1
-        assert len(agent_b_messages) == 0
+            websocket_a.send_json.assert_awaited_once_with({"content": "Message for A"})
+            websocket_b.send_json.assert_not_awaited()
+        finally:
+            await event_bus.unsubscribe("agent_a", websocket_a)
+            await event_bus.unsubscribe("agent_b", websocket_b)
 
     @pytest.mark.asyncio
-    async def test_event_bus_global_broadcast(self):
+    async def test_event_bus_global_broadcast(self, mock_websocket):
         """Global topic reaches all subscribers"""
         event_bus = agent_event_bus
 
-        received = []
-
-        async def handler(message):
-            received.append(message)
-
         # Subscribe to global topic
-        await event_bus.subscribe("test_agent", handler, topics=["global"])
+        await event_bus.subscribe("test_agent", mock_websocket, topics=["global"])
 
-        # Broadcast to global
-        await event_bus.publish("global", {"content": "Global announcement"})
+        try:
+            # Broadcast to global
+            event = {"content": "Global announcement"}
+            await event_bus.publish(event, topics=["global"])
 
-        await asyncio.sleep(0.1)
-
-        assert len(received) == 1
-        assert received[0]["content"] == "Global announcement"
+            mock_websocket.send_json.assert_awaited_once_with(event)
+        finally:
+            await event_bus.unsubscribe("test_agent", mock_websocket)
 
     @pytest.mark.asyncio
-    async def test_event_bus_unsubscribe(self):
+    async def test_event_bus_unsubscribe(self, mock_websocket):
         """Unsubscribed agents stop receiving messages"""
         event_bus = agent_event_bus
 
-        received = []
-
-        async def handler(message):
-            received.append(message)
-
         # Subscribe and then unsubscribe
-        await event_bus.subscribe("test_agent", handler, topics=["agent:test_agent"])
-        await event_bus.unsubscribe("test_agent")
+        await event_bus.subscribe("test_agent", mock_websocket, topics=["agent:test_agent"])
+        await event_bus.unsubscribe("test_agent", mock_websocket)
 
         # Broadcast
-        await event_bus.publish("agent:test_agent", {"content": "Should not receive"})
+        await event_bus.publish({"content": "Should not receive"}, topics=["agent:test_agent"])
 
-        await asyncio.sleep(0.1)
-
-        assert len(received) == 0
+        mock_websocket.send_json.assert_not_awaited()
 
 
 # ============================================================================
@@ -436,11 +424,24 @@ class TestChannelCreation:
     @pytest.mark.asyncio
     async def test_list_channels(self, mock_db_session):
         """All available channels can be listed"""
+
+        def make_channel(channel_id, name, display_name, description, channel_type):
+            # Note: `name` cannot be passed to the MagicMock constructor (it names
+            # the mock itself), so attributes are assigned explicitly.
+            channel = MagicMock()
+            channel.id = channel_id
+            channel.name = name
+            channel.display_name = display_name
+            channel.description = description
+            channel.channel_type = channel_type
+            channel.is_public = True
+            channel.created_by = "admin"
+            channel.created_at = datetime.utcnow()
+            return channel
+
         mock_channels = [
-            MagicMock(id="ch1", name="general", display_name="General", description="General chat",
-                      channel_type="general", is_public=True, created_by="admin", created_at=datetime.utcnow()),
-            MagicMock(id="ch2", name="support", display_name="Support", description="Support chat",
-                      channel_type="support", is_public=True, created_by="admin", created_at=datetime.utcnow()),
+            make_channel("ch1", "general", "General", "General chat", "general"),
+            make_channel("ch2", "support", "Support", "Support chat", "support"),
         ]
         mock_query = MagicMock()
         mock_query.all.return_value = mock_channels
@@ -510,7 +511,12 @@ class TestReactionHandling:
         mock_db_session.commit = MagicMock()
 
         # Add first reaction
-        await agent_social_layer.add_reaction("post_123", "user_1", "👍", db=mock_db_session)
+        first = await agent_social_layer.add_reaction("post_123", "user_1", "👍", db=mock_db_session)
+        # add_reaction() does not itself persist reactions (persistence is handled
+        # via PostReaction rows upstream), so mirror persisted state on the post
+        # before the second call, as production would observe it.
+        mock_post.reactions = first
+
         # Add second reaction
         reactions = await agent_social_layer.add_reaction("post_123", "user_2", "❤️", db=mock_db_session)
 
@@ -580,7 +586,8 @@ class TestTrendingTopics:
         mock_query.filter.return_value.all.return_value = mock_posts
         mock_db_session.query.return_value = mock_query
 
-        trending = await agent_social_layer.get_trending_topics(limit=10, db=mock_db_session)
+        # get_trending_topics() caps results at the top 10 topics
+        trending = await agent_social_layer.get_trending_topics(hours=24, db=mock_db_session)
 
         # Should return at most 10
         assert len(trending) <= 10

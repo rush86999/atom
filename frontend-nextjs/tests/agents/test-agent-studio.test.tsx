@@ -20,20 +20,24 @@ jest.mock('axios', () => {
 });
 const axios = require('axios');
 
-// Mock useToast
+// Mock useToast (stable instance so tests can assert calls; a fresh jest.fn()
+// per render would make toast assertions impossible)
+const mockToast = jest.fn();
 jest.mock('@/components/ui/use-toast', () => ({
   useToast: () => ({
-    toast: jest.fn()
+    toast: mockToast
   })
 }));
 
-// Mock useWebSocket
+// Mock useWebSocket with a mutable state object so extended tests can inject
+// WebSocket messages (agent_step_update / hitl_* / agent_status_change).
+const mockWsState = {
+  isConnected: true,
+  lastMessage: null as any,
+  subscribe: jest.fn()
+};
 jest.mock('@/hooks/useWebSocket', () => ({
-  useWebSocket: () => ({
-    isConnected: true,
-    lastMessage: null,
-    subscribe: jest.fn()
-  })
+  useWebSocket: () => mockWsState
 }));
 
 describe('AgentStudio Component', () => {
@@ -994,5 +998,352 @@ describe('AgentStudio Component', () => {
         expect(screen.getByRole('button', { name: /create new agent/i })).toBeInTheDocument();
       });
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended coverage: WebSocket trace updates, update flow, run variants,
+// feedback/HITL error paths, schedule fields
+// ---------------------------------------------------------------------------
+describe('AgentStudio (extended coverage)', () => {
+  const agentsData = () => ({
+    data: [
+      {
+        id: 'agent-1',
+        name: 'Test Agent',
+        category: 'Operations',
+        description: 'Test description',
+        status: 'active',
+        configuration: {
+          system_prompt: 'You are helpful',
+          tools: '*',
+          scheduled_task: 'Old task'
+        },
+        schedule_config: { active: false, cron_expression: '0 9 * * *' }
+      }
+    ]
+  });
+
+  let errorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockWsState.lastMessage = null;
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    axios.get.mockResolvedValue(agentsData());
+    axios.post.mockResolvedValue({ data: { success: true } });
+    axios.put.mockResolvedValue({ data: { success: true } });
+  });
+
+  afterEach(() => {
+    errorSpy.mockRestore();
+  });
+
+  // Opens the edit dialog and returns a re-render helper that always produces
+  // a fresh element (rerendering the identical element reference bails out).
+  const openEditDialog = async () => {
+    const makeTree = () => <AgentStudio />;
+    const view = render(makeTree());
+    await screen.findByText('Test Agent');
+
+    const configureButtons = screen
+      .getAllByRole('button')
+      .filter((btn) => btn.textContent === 'Configure');
+    fireEvent.click(configureButtons[0]);
+    await screen.findByPlaceholderText(/enter a task to run/i);
+
+    return {
+      ...view,
+      rerenderFresh: () => view.rerender(makeTree())
+    };
+  };
+
+  const runTask = async (input = 'Test task') => {
+    fireEvent.change(screen.getByPlaceholderText(/enter a task to run/i), {
+      target: { value: input }
+    });
+    const playButtons = screen
+      .getAllByRole('button')
+      .filter((btn) => btn.querySelector('.lucide-play'));
+    fireEvent.click(playButtons[0]);
+  };
+
+  test('updates an existing agent via PUT', async () => {
+    const view = await openEditDialog();
+
+    fireEvent.click(screen.getByRole('button', { name: /save agent/i }));
+
+    await waitFor(() => {
+      expect(axios.put).toHaveBeenCalledWith(
+        '/api/agents/agent-1',
+        expect.objectContaining({ name: 'Test Agent', category: 'Operations' })
+      );
+    });
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Updated', variant: 'success' })
+      );
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    view.unmount();
+  });
+
+  test('edits the system prompt, schedule fields and saves', async () => {
+    const view = await openEditDialog();
+
+    fireEvent.change(screen.getByDisplayValue('You are helpful'), {
+      target: { value: 'You are a wizard' }
+    });
+
+    // toggle schedule on
+    fireEvent.click(screen.getByRole('switch'));
+    fireEvent.change(screen.getByPlaceholderText('0 9 * * *'), {
+      target: { value: '30 8 * * 1' }
+    });
+    fireEvent.change(screen.getByPlaceholderText(/generate daily summary/i), {
+      target: { value: 'Weekly report task' }
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /save agent/i }));
+
+    await waitFor(() => {
+      expect(axios.put).toHaveBeenCalledWith(
+        '/api/agents/agent-1',
+        expect.objectContaining({
+          configuration: expect.objectContaining({
+            system_prompt: 'You are a wizard',
+            scheduled_task: 'Weekly report task'
+          }),
+          schedule_config: { active: true, cron_expression: '30 8 * * 1' }
+        })
+      );
+    });
+    view.unmount();
+  });
+
+  test('stringifies object run results without steps', async () => {
+    axios.post.mockResolvedValue({
+      data: { status: 'completed', result: { odd: 'shape' } }
+    });
+    const view = await openEditDialog();
+
+    await runTask();
+
+    expect(await screen.findByText(/"odd": "shape"/)).toBeInTheDocument();
+    view.unmount();
+  });
+
+  test('renders plain string run results', async () => {
+    axios.post.mockResolvedValue({
+      data: { status: 'completed', result: 'plain output' }
+    });
+    const view = await openEditDialog();
+
+    await runTask();
+
+    expect(await screen.findByText('plain output')).toBeInTheDocument();
+    view.unmount();
+  });
+
+  test('reports run failures', async () => {
+    axios.post.mockRejectedValue(new Error('run exploded'));
+    const view = await openEditDialog();
+
+    await runTask();
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Run Failed', variant: 'error' })
+      );
+    });
+    expect(await screen.findByText('Error occurred.')).toBeInTheDocument();
+    view.unmount();
+  });
+
+  test('rejects a pending HITL action and reports API failures', async () => {
+    axios.post.mockResolvedValue({
+      data: {
+        status: 'completed',
+        result: {
+          steps: [
+            {
+              type: 'hitl_paused',
+              action_id: 'action-9',
+              action: { tool: 'email' },
+              reason: 'Needs sign-off',
+              status: 'pending'
+            }
+          ]
+        }
+      }
+    });
+    const view = await openEditDialog();
+
+    await runTask('Send email');
+    await screen.findByText(/human approval required/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /reject/i }));
+    await waitFor(() => {
+      expect(axios.post).toHaveBeenCalledWith('/api/agents/approvals/action-9', {
+        decision: 'rejected'
+      });
+    });
+
+    // API failure path
+    axios.post.mockRejectedValue(new Error('nope'));
+    fireEvent.click(screen.getByRole('button', { name: /approve/i }));
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ description: 'Failed to submit decision' })
+      );
+    });
+    view.unmount();
+  });
+
+  test('submits feedback corrections and reports submission failures', async () => {
+    axios.post.mockResolvedValue({
+      data: {
+        status: 'completed',
+        result: {
+          steps: [
+            { step: 1, thought: 'Bad thought', action: { tool: 'x' }, output: 'Bad output' }
+          ],
+          final_output: 'Done'
+        }
+      }
+    });
+    const view = await openEditDialog();
+
+    await runTask();
+    await screen.findByText('Step 1');
+
+    fireEvent.click(
+      screen.getAllByRole('button').filter((b) => b.querySelector('.lucide-thumbs-down'))[0]
+    );
+    await screen.findByText('Provide Feedback');
+
+    fireEvent.change(
+      screen.getByPlaceholderText(/explain what the agent should have done/i),
+      { target: { value: 'Do it correctly' } }
+    );
+    fireEvent.click(screen.getByRole('button', { name: /submit correction/i }));
+
+    await waitFor(() => {
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/agents/agent-1/feedback',
+        expect.objectContaining({ user_correction: 'Do it correctly' })
+      );
+    });
+
+    // failure path
+    axios.post.mockRejectedValue(new Error('feedback down'));
+    fireEvent.click(
+      screen.getAllByRole('button').filter((b) => b.querySelector('.lucide-thumbs-down'))[0]
+    );
+    await screen.findByPlaceholderText(/explain what the agent should have done/i);
+    fireEvent.click(screen.getByRole('button', { name: /submit correction/i }));
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ description: 'Failed to submit feedback' })
+      );
+    });
+
+    // cancel closes the dialog (the edit dialog also has a Cancel button —
+    // the feedback dialog is portaled later, so take the last match)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel' }).pop()!);
+    await waitFor(() => {
+      expect(screen.queryByText('Provide Feedback')).not.toBeInTheDocument();
+    });
+    view.unmount();
+  });
+
+  test('appends, dedupes and completes WS agent steps during a live run', async () => {
+    // Keep the run in-flight so isRunning stays true for WS updates.
+    axios.post.mockImplementation(() => new Promise(() => {}));
+
+    const view = await openEditDialog();
+    await runTask('Live task');
+
+    // step arrives over WS
+    mockWsState.lastMessage = {
+      type: 'agent_step_update',
+      agent_id: 'agent-1',
+      step: { step: 1, thought: 'First thought', output: 'First output' }
+    };
+    view.rerenderFresh();
+
+    expect(await screen.findByText('First thought')).toBeInTheDocument();
+
+    // duplicate step (same step + output) is ignored
+    mockWsState.lastMessage = {
+      type: 'agent_step_update',
+      agent_id: 'agent-1',
+      step: { step: 1, thought: 'First thought', output: 'First output' }
+    };
+    view.rerenderFresh();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getAllByText('First thought').length).toBe(1);
+
+    // same step number with new output updates in place
+    mockWsState.lastMessage = {
+      type: 'agent_step_update',
+      agent_id: 'agent-1',
+      step: { step: 1, output: 'Updated output' }
+    };
+    view.rerenderFresh();
+    expect(await screen.findByText('Updated output')).toBeInTheDocument();
+    expect(screen.queryByText('First output')).not.toBeInTheDocument();
+
+    // status change completes the run: runResult is only rendered when the
+    // trace is empty, so assert the run finished via the re-enabled play
+    // button (it is disabled while isRunning).
+    mockWsState.lastMessage = {
+      type: 'agent_status_change',
+      agent_id: 'agent-1',
+      status: 'success',
+      result: { output: 'WS final output' }
+    };
+    view.rerenderFresh();
+
+    await waitFor(() => {
+      const play = screen
+        .getAllByRole('button')
+        .find((btn) => btn.querySelector('.lucide-play'));
+      expect(play).toBeEnabled();
+    });
+    view.unmount();
+  });
+
+  test('handles WS hitl_paused and hitl_decision messages during a live run', async () => {
+    axios.post.mockImplementation(() => new Promise(() => {}));
+
+    const view = await openEditDialog();
+    await runTask('Needs approval');
+
+    mockWsState.lastMessage = {
+      type: 'hitl_paused',
+      agent_id: 'agent-1',
+      action_id: 'ws-action-1',
+      tool: 'delete_file',
+      reason: 'Destructive action'
+    };
+    view.rerenderFresh();
+
+    expect(await screen.findByText(/human approval required/i)).toBeInTheDocument();
+    expect(screen.getByText(/destructive action/i)).toBeInTheDocument();
+
+    mockWsState.lastMessage = {
+      type: 'hitl_decision',
+      action_id: 'ws-action-1',
+      decision: 'approved'
+    };
+    view.rerenderFresh();
+
+    await waitFor(() => {
+      expect(screen.getByText('APPROVED')).toBeInTheDocument();
+    });
+    view.unmount();
   });
 });

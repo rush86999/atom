@@ -322,9 +322,7 @@ export function useChatMemory(config: UseChatMemoryConfig): UseChatMemoryReturn 
     // Utilities
     hasRelevantContext,
     contextRelevanceScore,
-
-    // Expose auto-store for external use
-    // Note: This is not in the public interface but available internally
+    autoStoreMessage,
   } as UseChatMemoryReturn & { autoStoreMessage: typeof autoStoreMessage };
 }
 

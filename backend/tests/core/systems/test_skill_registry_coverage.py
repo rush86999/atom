@@ -18,6 +18,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, AsyncMock, patch
 from sqlalchemy.orm import Session
 
+import frontmatter
 from core.skill_registry_service import SkillRegistryService
 from core.models import SkillExecution, EpisodeSegment
 
@@ -60,7 +61,8 @@ class TestSkillRegistryInit:
 class TestSkillImport:
     """Test skill import methods."""
 
-    def test_import_skill_prompt_only(self):
+    @pytest.mark.asyncio
+    async def test_import_skill_prompt_only(self):
         """Cover import of prompt-only skill."""
         db = MagicMock(spec=Session)
         db.add = MagicMock()
@@ -76,7 +78,7 @@ description: A test skill
 This is a test skill body.
 """
 
-        with patch('core.skill_registry_service.frontmatter.loads') as mock_frontmatter:
+        with patch.object(frontmatter, 'loads') as mock_frontmatter:
             post = MagicMock()
             post.metadata = {
                 'name': 'Test Skill',
@@ -85,13 +87,13 @@ This is a test skill body.
             post.content = 'This is a test skill body.'
             mock_frontmatter.return_value = post
 
-            with patch.object(registry._scanner, 'scan_skill', return_value={'risk_level': 'LOW'}):
+            with patch.object(registry._scanner, 'scan_skill', new=AsyncMock(return_value={'risk_level': 'LOW'})):
                 with patch.object(registry._parser, '_auto_fix_metadata', return_value=post.metadata):
                     with patch.object(registry._parser, '_extract_packages', return_value=[]):
                         with patch.object(registry._parser, '_extract_node_packages', return_value=[]):
                             with patch.object(registry._parser, '_extract_package_manager', return_value='npm'):
                                 with patch.object(registry._parser, '_detect_skill_type', return_value='prompt_only'):
-                                    result = registry.import_skill(
+                                    result = await registry.import_skill(
                                         source="raw_content",
                                         content=skill_content
                                     )
@@ -101,7 +103,8 @@ This is a test skill body.
             assert db.add.called
             assert db.commit.called
 
-    def test_import_skill_python_with_packages(self):
+    @pytest.mark.asyncio
+    async def test_import_skill_python_with_packages(self):
         """Cover import of Python skill with packages."""
         db = MagicMock(spec=Session)
         db.add = MagicMock()
@@ -122,7 +125,7 @@ def calculate(data):
 ```
 """
 
-        with patch('core.skill_registry_service.frontmatter.loads') as mock_frontmatter:
+        with patch.object(frontmatter, 'loads') as mock_frontmatter:
             post = MagicMock()
             post.metadata = {
                 'name': 'Python Calculator',
@@ -131,13 +134,13 @@ def calculate(data):
             post.content = '```python\ndef calculate(data):\n    return numpy.sum(data)\n```'
             mock_frontmatter.return_value = post
 
-            with patch.object(registry._scanner, 'scan_skill', return_value={'risk_level': 'MEDIUM'}):
+            with patch.object(registry._scanner, 'scan_skill', new=AsyncMock(return_value={'risk_level': 'MEDIUM'})):
                 with patch.object(registry._parser, '_auto_fix_metadata', return_value=post.metadata):
                     with patch.object(registry._parser, '_extract_packages', return_value=['numpy==1.21.0', 'pandas>=1.3.0']):
                         with patch.object(registry._parser, '_extract_node_packages', return_value=[]):
                             with patch.object(registry._parser, '_extract_package_manager', return_value='pip'):
                                 with patch.object(registry._parser, '_detect_skill_type', return_value='python_code'):
-                                    result = registry.import_skill(
+                                    result = await registry.import_skill(
                                         source="raw_content",
                                         content=skill_content
                                     )
@@ -146,7 +149,8 @@ def calculate(data):
             assert result['skill_name'] == 'Python Calculator'
             assert 'packages' in result['metadata']
 
-    def test_import_skill_npm_with_packages(self):
+    @pytest.mark.asyncio
+    async def test_import_skill_npm_with_packages(self):
         """Cover import of Node.js skill with npm packages."""
         db = MagicMock(spec=Session)
         db.add = MagicMock()
@@ -169,7 +173,7 @@ function format(code) {
 ```
 """
 
-        with patch('core.skill_registry_service.frontmatter.loads') as mock_frontmatter:
+        with patch.object(frontmatter, 'loads') as mock_frontmatter:
             post = MagicMock()
             post.metadata = {
                 'name': 'Node.js Formatter',
@@ -179,13 +183,13 @@ function format(code) {
             post.content = '```javascript\nfunction format(code) {\n    return prettier.format(code);\n}\n```'
             mock_frontmatter.return_value = post
 
-            with patch.object(registry._scanner, 'scan_skill', return_value={'risk_level': 'LOW'}):
+            with patch.object(registry._scanner, 'scan_skill', new=AsyncMock(return_value={'risk_level': 'LOW'})):
                 with patch.object(registry._parser, '_auto_fix_metadata', return_value=post.metadata):
                     with patch.object(registry._parser, '_extract_packages', return_value=[]):
                         with patch.object(registry._parser, '_extract_node_packages', return_value=['prettier@^3.0.0', 'eslint@8.0.0']):
                             with patch.object(registry._parser, '_extract_package_manager', return_value='npm'):
                                 with patch.object(registry._parser, '_detect_skill_type', return_value='python_code'):
-                                    result = registry.import_skill(
+                                    result = await registry.import_skill(
                                         source="raw_content",
                                         content=skill_content
                                     )
@@ -193,7 +197,8 @@ function format(code) {
             assert result['status'] == 'Active'
             assert 'node_packages' in result['metadata']
 
-    def test_import_skill_failure_rollback(self):
+    @pytest.mark.asyncio
+    async def test_import_skill_failure_rollback(self):
         """Cover database rollback on import failure."""
         db = MagicMock(spec=Session)
         db.rollback = MagicMock()
@@ -202,9 +207,9 @@ function format(code) {
 
         skill_content = "invalid content"
 
-        with patch('core.skill_registry_service.frontmatter.loads', side_effect=Exception("Parse error")):
+        with patch.object(frontmatter, 'loads', side_effect=Exception("Parse error")):
             with pytest.raises(Exception):
-                registry.import_skill(
+                await registry.import_skill(
                     source="raw_content",
                     content=skill_content
                 )
@@ -423,80 +428,120 @@ class TestSkillPromotion:
 class TestPackagePermissionChecks:
     """Test package permission checking for Python and npm."""
 
-    def test_python_package_permission_allowed(self):
-        """Cover allowed Python package permission."""
+    def _make_registry_with_skill(self, packages, node_packages=None, skill_type='python_code'):
         db = MagicMock(spec=Session)
-
-        registry = SkillRegistryService(db)
-
-        # Mock governance service to allow package
-        with patch.object(registry._governance, 'get_agent_capabilities', return_value={'maturity_level': 'AUTONOMOUS'}):
-            with patch('core.skill_registry_service.PackageGovernanceService') as mock_gov_class:
-                mock_gov = MagicMock()
-                mock_gov_class.return_value = mock_gov
-                mock_gov.check_package_permission.return_value = {'allowed': True}
-
-                # This should not raise an exception
-                mock_gov.check_package_permission.assert_not_called()  # Not called without packages
-
-    def test_python_package_permission_denied(self):
-        """Cover denied Python package permission."""
-        db = MagicMock(spec=Session)
+        db.add = MagicMock()
+        db.commit = MagicMock()
+        db.rollback = MagicMock()
 
         registry = SkillRegistryService(db)
 
         skill = {
+            'skill_id': 'skill-123',
             'skill_name': 'Test Skill',
-            'skill_type': 'python_code',
+            'skill_type': skill_type,
             'status': 'Active',
             'sandbox_enabled': True,
-            'skill_id': 'test-id',
             'skill_metadata': {
-                'packages': ['malicious-package==1.0.0']
+                'packages': packages,
+                'node_packages': node_packages or [],
+                'package_manager': 'npm',
             },
             'skill_body': '```python\npass\n```'
         }
+        return db, registry, skill
 
-        with patch.object(registry._governance, 'get_agent_capabilities', return_value={'maturity_level': 'AUTONOMOUS'}):
-            with patch('core.skill_registry_service.PackageGovernanceService') as mock_gov_class:
-                mock_gov = MagicMock()
-                mock_gov_class.return_value = mock_gov
-                mock_gov.check_package_permission.return_value = {
-                    'allowed': False,
-                    'reason': 'Security risk detected'
-                }
+    @pytest.mark.asyncio
+    async def test_python_package_permission_allowed(self):
+        """Cover allowed Python package permission."""
+        db, registry, skill = self._make_registry_with_skill(['numpy==1.21.0'])
 
-                # Mock execution record
-                db.add = MagicMock()
-                db.commit = MagicMock()
-                db.rollback = MagicMock()
+        with patch.object(registry, 'get_skill', return_value=skill):
+            with patch.object(registry._governance, 'get_agent_capabilities', return_value={'maturity_level': 'AUTONOMOUS'}):
+                with patch('core.package_governance_service.PackageGovernanceService') as mock_gov_class:
+                    mock_gov = MagicMock()
+                    mock_gov_class.return_value = mock_gov
+                    mock_gov.check_package_permission.return_value = {'allowed': True}
 
-                with patch.object(registry, '_execute_python_skill_with_packages', side_effect=ValueError("Package permission denied")):
-                    # This would be tested in execute_skill integration test
-                    pass
+                    with patch.object(
+                        registry, '_execute_python_skill_with_packages',
+                        new=AsyncMock(return_value='ok')
+                    ):
+                        with patch.object(
+                            registry, '_create_execution_episode',
+                            new=AsyncMock(return_value='episode-1')
+                        ):
+                            result = await registry.execute_skill(
+                                skill_id='skill-123',
+                                inputs={'x': 1},
+                                agent_id='test-agent'
+                            )
 
-    def test_npm_package_permission_allowed(self):
+                    mock_gov.check_package_permission.assert_called_once()
+                    assert mock_gov.check_package_permission.call_args[1]['package_name'] == 'numpy'
+                    assert result['success'] is True
+                    assert result['result'] == 'ok'
+
+    @pytest.mark.asyncio
+    async def test_python_package_permission_denied(self):
+        """Cover denied Python package permission."""
+        db, registry, skill = self._make_registry_with_skill(['malicious-package==1.0.0'])
+
+        with patch.object(registry, 'get_skill', return_value=skill):
+            with patch.object(registry._governance, 'get_agent_capabilities', return_value={'maturity_level': 'AUTONOMOUS'}):
+                with patch('core.package_governance_service.PackageGovernanceService') as mock_gov_class:
+                    mock_gov = MagicMock()
+                    mock_gov_class.return_value = mock_gov
+                    mock_gov.check_package_permission.return_value = {
+                        'allowed': False,
+                        'reason': 'Security risk detected'
+                    }
+
+                    with pytest.raises(ValueError, match="Package permission denied"):
+                        await registry.execute_skill(
+                            skill_id='skill-123',
+                            inputs={},
+                            agent_id='test-agent'
+                        )
+
+                    mock_gov.check_package_permission.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_npm_package_permission_allowed(self):
         """Cover allowed npm package permission."""
-        db = MagicMock(spec=Session)
+        db, registry, skill = self._make_registry_with_skill(
+            ['numpy==1.21.0'], node_packages=['lodash@4.17.21']
+        )
 
-        registry = SkillRegistryService(db)
+        with patch.object(registry, 'get_skill', return_value=skill):
+            with patch.object(registry._governance, 'get_agent_capabilities', return_value={'maturity_level': 'AUTONOMOUS'}):
+                with patch('core.package_governance_service.PackageGovernanceService') as mock_gov_class:
+                    mock_gov = MagicMock()
+                    mock_gov_class.return_value = mock_gov
+                    mock_gov.check_package_permission.return_value = {'allowed': True}
 
-        with patch.object(registry._governance, 'get_agent_capabilities', return_value={'maturity_level': 'AUTONOMOUS'}):
-            with patch('core.skill_registry_service.PackageGovernanceService') as mock_gov_class:
-                mock_gov = MagicMock()
-                mock_gov_class.return_value = mock_gov
-                mock_gov.check_package_permission.return_value = {'allowed': True}
+                    with patch.object(
+                        registry, '_execute_nodejs_skill_with_packages',
+                        new=AsyncMock(return_value='formatted')
+                    ):
+                        with patch.object(
+                            registry, '_create_execution_episode',
+                            new=AsyncMock(return_value='episode-2')
+                        ):
+                            result = await registry.execute_skill(
+                                skill_id='skill-123',
+                                inputs={'code': 'x'},
+                                agent_id='test-agent'
+                            )
 
-                # Mock governance integration
-                result = mock_gov.check_package_permission(
-                    agent_id='test-agent',
-                    package_name='lodash',
-                    version='4.17.21',
-                    package_type='npm',
-                    db=db
-                )
-
-                assert result['allowed'] is True
+                    npm_calls = [
+                        c for c in mock_gov.check_package_permission.call_args_list
+                        if c[1].get('package_type') == 'npm'
+                    ]
+                    assert len(npm_calls) == 1
+                    assert npm_calls[0][1]['package_name'] == 'lodash'
+                    assert npm_calls[0][1]['version'] == '4.17.21'
+                    assert result['success'] is True
 
 
 class TestNpmPackageParsing:
@@ -664,7 +709,7 @@ class TestDynamicSkillLoading:
         db = MagicMock(spec=Session)
         registry = SkillRegistryService(db)
 
-        with patch('core.skill_registry_service.get_global_loader') as mock_loader_func:
+        with patch('core.skill_dynamic_loader.get_global_loader') as mock_loader_func:
             mock_loader = MagicMock()
             mock_loader_func.return_value = mock_loader
 
@@ -684,7 +729,7 @@ class TestDynamicSkillLoading:
         db = MagicMock(spec=Session)
         registry = SkillRegistryService(db)
 
-        with patch('core.skill_registry_service.get_global_loader') as mock_loader_func:
+        with patch('core.skill_dynamic_loader.get_global_loader') as mock_loader_func:
             mock_loader = MagicMock()
             mock_loader_func.return_value = mock_loader
 
@@ -701,7 +746,7 @@ class TestDynamicSkillLoading:
         db = MagicMock(spec=Session)
         registry = SkillRegistryService(db)
 
-        with patch('core.skill_registry_service.get_global_loader') as mock_loader_func:
+        with patch('core.skill_dynamic_loader.get_global_loader') as mock_loader_func:
             mock_loader = MagicMock()
             mock_loader_func.return_value = mock_loader
 

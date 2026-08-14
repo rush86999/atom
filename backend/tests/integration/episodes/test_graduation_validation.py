@@ -57,15 +57,52 @@ def sample_user(test_db):
     return user
 
 
+def _make_agent(agent_id, name, status, description):
+    """Build an AgentRegistry row satisfying current NOT NULL columns."""
+    return AgentRegistry(
+        id=agent_id,
+        name=name,
+        status=status,
+        description=description,
+        category="Operations",
+        module_path="core.test_module",
+        class_name="TestClass",
+        tenant_id="default",
+    )
+
+
+def _make_episode(episode_id, agent_id, task_description, maturity,
+                  human_intervention_count=0, constitutional_score=0.9,
+                  started_at=None, success=True):
+    """Build an AgentEpisode row satisfying current NOT NULL columns."""
+    now = started_at or datetime.now()
+    return Episode(
+        id=episode_id,
+        agent_id=agent_id,
+        tenant_id="default",
+        task_description=task_description,
+        maturity_at_time=maturity,
+        outcome="success" if success else "failure",
+        success=success,
+        status="completed",
+        started_at=now,
+        completed_at=now + timedelta(hours=1),
+        duration_seconds=3600,
+        topics=["test"],
+        entities=[],
+        importance_score=0.7,
+        human_intervention_count=human_intervention_count,
+        constitutional_score=constitutional_score,
+        decay_score=1.0,
+        access_count=0,
+    )
+
+
 @pytest.fixture
 def student_agent(test_db):
     """Create STUDENT level agent."""
-    agent = AgentRegistry(
-        id="agent-student-001",
-        name="StudentAgent",
-        status=AgentStatus.STUDENT,
-        description="Student agent for graduation testing"
-    )
+    agent = _make_agent("agent-student-001", "StudentAgent", AgentStatus.STUDENT,
+                        "Student agent for graduation testing")
     test_db.add(agent)
     test_db.commit()
     return agent
@@ -74,12 +111,8 @@ def student_agent(test_db):
 @pytest.fixture
 def intern_agent(test_db):
     """Create INTERN level agent."""
-    agent = AgentRegistry(
-        id="agent-intern-001",
-        name="InternAgent",
-        status=AgentStatus.INTERN,
-        description="Intern agent for graduation testing"
-    )
+    agent = _make_agent("agent-intern-001", "InternAgent", AgentStatus.INTERN,
+                        "Intern agent for graduation testing")
     test_db.add(agent)
     test_db.commit()
     return agent
@@ -88,12 +121,8 @@ def intern_agent(test_db):
 @pytest.fixture
 def supervised_agent(test_db):
     """Create SUPERVISED level agent."""
-    agent = AgentRegistry(
-        id="agent-supervised-001",
-        name="SupervisedAgent",
-        status=AgentStatus.SUPERVISED,
-        description="Supervised agent for graduation testing"
-    )
+    agent = _make_agent("agent-supervised-001", "SupervisedAgent", AgentStatus.SUPERVISED,
+                        "Supervised agent for graduation testing")
     test_db.add(agent)
     test_db.commit()
     return agent
@@ -105,29 +134,16 @@ def episodes_for_student_to_intern(test_db, student_agent, sample_user):
     now = datetime.now()
     episodes = []
 
-    # STUDENT->INTERN: 10 episodes, 50% intervention rate, 0.70 constitutional score
+    # STUDENT->INTERN: >=10 episodes, <=50% intervention rate, >=0.70 constitutional score
     for i in range(12):  # 12 episodes (more than minimum 10)
-        episode = Episode(
-            id=f"episode-student-{i}",
-            title=f"Student Learning Episode {i}",
-            description=f"Learning task {i}",
-            summary=f"Completed learning task {i}",
-            agent_id=student_agent.id,
-            user_id=sample_user.id,
-            workspace_id="default",
-            topics=["learning", "training"],
-            entities=[],
-            importance_score=0.7,
-            status="completed",
-            started_at=now - timedelta(days=i * 2),
-            ended_at=now - timedelta(days=i * 2) + timedelta(hours=1),
-            duration_seconds=3600,
-            maturity_at_time="STUDENT",
-            human_intervention_count=1 if i % 2 == 0 else 0,  # ~50% intervention rate
-            human_edits=[],
+        episode = _make_episode(
+            f"episode-student-{i}",
+            student_agent.id,
+            f"Student Learning Episode {i}",
+            "STUDENT",
+            human_intervention_count=1 if i % 2 == 0 else 0,  # 50% intervention rate
             constitutional_score=0.75,  # Above 0.70 threshold
-            decay_score=1.0,
-            access_count=5
+            started_at=now - timedelta(days=i * 2),
         )
         test_db.add(episode)
         episodes.append(episode)
@@ -142,30 +158,17 @@ def episodes_for_intern_to_supervised(test_db, intern_agent, sample_user):
     now = datetime.now()
     episodes = []
 
-    # INTERN->SUPERVISED: 25 episodes, 20% intervention rate, 0.85 constitutional score
-    for i in range(28):  # 28 episodes (more than minimum 25)
-        episode = Episode(
-            id=f"episode-intern-{i}",
-            title=f"Intern Practice Episode {i}",
-            description=f"Practice task {i}",
-            summary=f"Completed practice task {i}",
-            agent_id=intern_agent.id,
-            user_id=sample_user.id,
-            workspace_id="default",
-            topics=["practice", "automation"],
-            entities=[],
-            importance_score=0.8,
-            status="completed",
-            started_at=now - timedelta(days=i),
-            ended_at=now - timedelta(days=i) + timedelta(hours=1),
-            duration_seconds=3600,
-            maturity_at_time="INTERN",
+    # INTERN->SUPERVISED: >=25 episodes, <=20% intervention rate, >=0.85 constitutional score
+    for i in range(30):  # 30 episodes with exactly 1-in-5 intervention rate
+        episode = _make_episode(
+            f"episode-intern-{i}",
+            intern_agent.id,
+            f"Intern Practice Episode {i}",
+            "INTERN",
             # 20% intervention rate = 1 in 5 episodes
             human_intervention_count=1 if i % 5 == 0 else 0,
-            human_edits=[],
             constitutional_score=0.88,  # Above 0.85 threshold
-            decay_score=1.0,
-            access_count=8
+            started_at=now - timedelta(days=i),
         )
         test_db.add(episode)
         episodes.append(episode)
@@ -180,29 +183,16 @@ def episodes_for_supervised_to_autonomous(test_db, supervised_agent, sample_user
     now = datetime.now()
     episodes = []
 
-    # SUPERVISED->AUTONOMOUS: 50 episodes, 0% intervention rate, 0.95 constitutional score
+    # SUPERVISED->AUTONOMOUS: >=50 episodes, 0% intervention rate, >=0.95 constitutional score
     for i in range(52):  # 52 episodes (more than minimum 50)
-        episode = Episode(
-            id=f"episode-supervised-{i}",
-            title=f"Supervised Execution Episode {i}",
-            description=f"Execution task {i}",
-            summary=f"Completed execution task {i}",
-            agent_id=supervised_agent.id,
-            user_id=sample_user.id,
-            workspace_id="default",
-            topics=["execution", "automation"],
-            entities=[],
-            importance_score=0.9,
-            status="completed",
-            started_at=now - timedelta(days=i * 0.5),
-            ended_at=now - timedelta(days=i * 0.5) + timedelta(hours=1),
-            duration_seconds=3600,
-            maturity_at_time="SUPERVISED",
+        episode = _make_episode(
+            f"episode-supervised-{i}",
+            supervised_agent.id,
+            f"Supervised Execution Episode {i}",
+            "SUPERVISED",
             human_intervention_count=0,  # 0% intervention rate required
-            human_edits=[],
             constitutional_score=0.96,  # Above 0.95 threshold
-            decay_score=1.0,
-            access_count=10
+            started_at=now - timedelta(days=i * 0.5),
         )
         test_db.add(episode)
         episodes.append(episode)
@@ -238,7 +228,8 @@ class TestGraduationExamExecution:
             mock_executor = Mock()
             mock_executor.execute_in_sandbox = AsyncMock(return_value=mock_sandbox_result)
 
-            with patch('core.agent_graduation_service.get_sandbox_executor', return_value=mock_executor):
+            # run_graduation_exam imports the executor lazily from core.sandbox_executor
+            with patch('core.sandbox_executor.get_sandbox_executor', return_value=mock_executor):
                 # Run graduation exam with edge case episodes
                 edge_case_ids = [ep.id for ep in episodes_for_student_to_intern[:3]]
 
@@ -276,7 +267,14 @@ class TestGraduationExamExecution:
             mock_executor = Mock()
             mock_executor.execute_in_sandbox = AsyncMock(return_value=mock_sandbox_result)
 
-            with patch('core.agent_graduation_service.get_sandbox_executor', return_value=mock_executor):
+            # The exam only replays episodes that exist; create one to be graded.
+            test_db.add(_make_episode("episode-1", supervised_agent.id,
+                                      "Episode requiring intervention", "SUPERVISED",
+                                      human_intervention_count=1))
+            test_db.commit()
+
+            # run_graduation_exam imports the executor lazily from core.sandbox_executor
+            with patch('core.sandbox_executor.get_sandbox_executor', return_value=mock_executor):
                 result = await service.run_graduation_exam(
                     agent_id=supervised_agent.id,
                     edge_case_episodes=["episode-1"]
@@ -284,7 +282,7 @@ class TestGraduationExamExecution:
 
                 assert result["passed"] is False
                 assert len(result["results"]) == 1
-                assert result["results"][0]["interventions"] > 0
+                assert len(result["results"][0]["interventions"]) > 0
 
     @pytest.mark.asyncio
     async def test_graduation_exam_with_safety_violations(self, test_db, supervised_agent):
@@ -307,7 +305,13 @@ class TestGraduationExamExecution:
             mock_executor = Mock()
             mock_executor.execute_in_sandbox = AsyncMock(return_value=mock_sandbox_result)
 
-            with patch('core.agent_graduation_service.get_sandbox_executor', return_value=mock_executor):
+            # The exam only replays episodes that exist; create one to be graded.
+            test_db.add(_make_episode("episode-2", supervised_agent.id,
+                                      "Episode with safety violation", "SUPERVISED"))
+            test_db.commit()
+
+            # run_graduation_exam imports the executor lazily from core.sandbox_executor
+            with patch('core.sandbox_executor.get_sandbox_executor', return_value=mock_executor):
                 result = await service.run_graduation_exam(
                     agent_id=supervised_agent.id,
                     edge_case_episodes=["episode-2"]
@@ -336,26 +340,9 @@ class TestConstitutionalValidation:
             service.lancedb = mock_lancedb
 
             # Create episode with segments
-            episode = Episode(
-                id="episode-compliant-001",
-                title="Compliant Episode",
-                description="Follows all rules",
-                summary="Compliant execution",
-                agent_id=supervised_agent.id,
-                user_id=sample_user.id,
-                workspace_id="default",
-                topics=["compliance"],
-                entities=[],
-                importance_score=0.9,
-                status="completed",
-                started_at=datetime.now() - timedelta(days=1),
-                ended_at=datetime.now() - timedelta(days=1) + timedelta(hours=1),
-                maturity_at_time="SUPERVISED",
-                human_intervention_count=0,
-                constitutional_score=0.98,
-                decay_score=1.0,
-                access_count=10
-            )
+            episode = _make_episode("episode-compliant-001", supervised_agent.id,
+                                    "Compliant Episode", "SUPERVISED",
+                                    constitutional_score=0.98)
             test_db.add(episode)
 
             # Add compliant segments
@@ -384,7 +371,8 @@ class TestConstitutionalValidation:
                 "checked_actions": 3
             })
 
-            with patch('core.agent_graduation_service.ConstitutionalValidator', return_value=mock_validator):
+            # validate_constitutional_compliance imports the validator lazily
+            with patch('core.constitutional_validator.ConstitutionalValidator', return_value=mock_validator):
                 result = await service.validate_constitutional_compliance(episode.id)
 
                 assert result["compliant"] is True
@@ -403,26 +391,10 @@ class TestConstitutionalValidation:
             service.lancedb = mock_lancedb
 
             # Create non-compliant episode
-            episode = Episode(
-                id="episode-noncompliant-001",
-                title="Non-Compliant Episode",
-                description="Violates rules",
-                summary="Non-compliant execution",
-                agent_id=supervised_agent.id,
-                user_id=sample_user.id,
-                workspace_id="default",
-                topics=["violation"],
-                entities=[],
-                importance_score=0.5,
-                status="completed",
-                started_at=datetime.now() - timedelta(days=1),
-                ended_at=datetime.now() - timedelta(days=1) + timedelta(hours=1),
-                maturity_at_time="SUPERVISED",
-                human_intervention_count=2,
-                constitutional_score=0.65,
-                decay_score=1.0,
-                access_count=5
-            )
+            episode = _make_episode("episode-noncompliant-001", supervised_agent.id,
+                                    "Non-Compliant Episode", "SUPERVISED",
+                                    human_intervention_count=2,
+                                    constitutional_score=0.65)
             test_db.add(episode)
 
             # Add non-compliant segments
@@ -454,7 +426,8 @@ class TestConstitutionalValidation:
                 "checked_actions": 3
             })
 
-            with patch('core.agent_graduation_service.ConstitutionalValidator', return_value=mock_validator):
+            # validate_constitutional_compliance imports the validator lazily
+            with patch('core.constitutional_validator.ConstitutionalValidator', return_value=mock_validator):
                 result = await service.validate_constitutional_compliance(episode.id)
 
                 assert result["compliant"] is False
@@ -471,26 +444,9 @@ class TestConstitutionalValidation:
             service.lancedb = mock_lancedb
 
             # Create episode with no segments
-            episode = Episode(
-                id="episode-no-segments-001",
-                title="No Segments Episode",
-                description="No segments to validate",
-                summary="Empty episode",
-                agent_id=supervised_agent.id,
-                user_id="test-user",
-                workspace_id="default",
-                topics=["test"],
-                entities=[],
-                importance_score=0.5,
-                status="completed",
-                started_at=datetime.now() - timedelta(days=1),
-                ended_at=datetime.now() - timedelta(days=1) + timedelta(hours=1),
-                maturity_at_time="SUPERVISED",
-                human_intervention_count=0,
-                constitutional_score=None,
-                decay_score=1.0,
-                access_count=0
-            )
+            episode = _make_episode("episode-no-segments-001", supervised_agent.id,
+                                    "No Segments Episode", "SUPERVISED",
+                                    constitutional_score=None)
             test_db.add(episode)
             test_db.commit()
 
@@ -542,25 +498,14 @@ class TestReadinessScoreCalculation:
         # Create only 5 episodes (need 10)
         now = datetime.now()
         for i in range(5):
-            episode = Episode(
-                id=f"episode-few-{i}",
-                title=f"Episode {i}",
-                description="Test",
-                summary="Test",
-                agent_id=student_agent.id,
-                user_id="test-user",
-                workspace_id="default",
-                topics=["test"],
-                entities=[],
-                importance_score=0.7,
-                status="completed",
-                started_at=now - timedelta(days=i),
-                ended_at=now - timedelta(days=i) + timedelta(hours=1),
-                maturity_at_time="STUDENT",
+            episode = _make_episode(
+                f"episode-few-{i}",
+                student_agent.id,
+                f"Episode {i}",
+                "STUDENT",
                 human_intervention_count=0,
                 constitutional_score=0.9,
-                decay_score=1.0,
-                access_count=0
+                started_at=now - timedelta(days=i),
             )
             test_db.add(episode)
         test_db.commit()
@@ -585,25 +530,14 @@ class TestReadinessScoreCalculation:
         # Create episodes with 60% intervention rate (need <50%)
         now = datetime.now()
         for i in range(15):
-            episode = Episode(
-                id=f"episode-high-intervention-{i}",
-                title=f"Episode {i}",
-                description="Test",
-                summary="Test",
-                agent_id=intern_agent.id,
-                user_id="test-user",
-                workspace_id="default",
-                topics=["test"],
-                entities=[],
-                importance_score=0.7,
-                status="completed",
-                started_at=now - timedelta(days=i),
-                ended_at=now - timedelta(days=i) + timedelta(hours=1),
-                maturity_at_time="INTERN",
+            episode = _make_episode(
+                f"episode-high-intervention-{i}",
+                intern_agent.id,
+                f"Episode {i}",
+                "INTERN",
                 human_intervention_count=1,  # 100% intervention rate
                 constitutional_score=0.9,
-                decay_score=1.0,
-                access_count=0
+                started_at=now - timedelta(days=i),
             )
             test_db.add(episode)
         test_db.commit()

@@ -3,12 +3,13 @@ Coverage + bug-hunt tests for ``core/condition_monitoring_service.py``.
 
 The production ``ConditionMonitor`` / ``ConditionAlert`` models are Phase 265
 stubs that lack the fields/attributes the service reads/writes
-(``ConditionMonitor.status``/``.agent_id`` columns and the
-``ConditionAlertStatus.PENDING``/``.SENT``/``.FAILED`` enum members do not
-exist on the stubs). So the model classes referenced by the service are
-replaced with MagicMock stand-ins for the duration of every test, the DB
-``Session`` is mocked, and the condition checker + agent integration gateway
-are patched so there is no real DB / network IO.
+(``ConditionMonitor.status``/``.agent_id`` are not persisted columns and the
+service tracks alert state with plain string statuses — no
+``ConditionAlertStatus`` enum is imported any more). So the model classes
+referenced by the service are replaced with MagicMock stand-ins for the
+duration of every test, the DB ``Session`` is mocked, and the condition
+checker + agent integration gateway are patched so there is no real DB /
+network IO.
 """
 from __future__ import annotations
 
@@ -23,8 +24,9 @@ import core.condition_monitoring_service as cms_module
 from core.condition_monitoring_service import ConditionMonitoringService
 
 
-# A stand-in for the (stubbed) ConditionAlertStatus enum. The real model is a
-# plain table missing the PENDING/SENT/FAILED members the service uses.
+# A stand-in for the string statuses the service writes onto alerts
+# ("pending" / "sent" / "failed"). The service no longer imports a
+# ConditionAlertStatus enum — statuses are plain strings.
 class _FakeAlertStatus(str, Enum):
     PENDING = "pending"
     SENT = "sent"
@@ -90,8 +92,7 @@ def _stub_model_classes():
     (``ConditionAlert.triggered_at >= ...``) and instantiation all work without
     the real (stub) schema."""
     with patch.object(cms_module, "ConditionMonitor", _FakeModel), \
-         patch.object(cms_module, "ConditionAlert", _FakeModel), \
-         patch.object(cms_module, "ConditionAlertStatus", _FakeAlertStatus):
+         patch.object(cms_module, "ConditionAlert", _FakeModel):
         yield
 
 
@@ -136,6 +137,18 @@ def _make_monitor(
     m.composite_conditions = composite_conditions
     m.governance_metadata = {}
     m.check_interval_seconds = 300
+    # The stub model persists the rich config inside the JSON condition_config
+    # column (exactly what create_monitor writes). _hydrate_config restores the
+    # plain attributes from this dict after a DB (re)fetch.
+    m.condition_config = {
+        "threshold_config": m.threshold_config,
+        "platforms": m.platforms,
+        "check_interval_seconds": m.check_interval_seconds,
+        "alert_template": m.alert_template,
+        "composite_logic": m.composite_logic,
+        "composite_conditions": m.composite_conditions,
+        "governance_metadata": m.governance_metadata,
+    }
     return m
 
 
@@ -346,12 +359,13 @@ class TestMonitorQueries:
         q.filter.return_value = q
         q.order_by.return_value = q
         q.limit.return_value = q
-        q.all.return_value = ["m1", "m2"]
+        m1, m2 = _make_monitor(id_="m1"), _make_monitor(id_="m2")
+        q.all.return_value = [m1, m2]
         db = MagicMock()
         db.query.return_value = q
         s = _svc(db)
         out = s.get_monitors(agent_id="a1", condition_type="inbox_volume", status="active", limit=10)
-        assert out == ["m1", "m2"]
+        assert out == [m1, m2]
         # agent_id + condition_type + status filters all applied (3 .filter calls)
         assert q.filter.call_count == 3
 
@@ -379,11 +393,15 @@ class TestMonitorQueries:
         q.filter.return_value = q
         q.order_by.return_value = q
         q.limit.return_value = q
-        q.all.return_value = ["a1"]
+        alert_row = MagicMock()
+        alert_row.message = "alert body"
+        q.all.return_value = [alert_row]
         db = MagicMock()
         db.query.return_value = q
-        out = _svc(db).get_alerts(monitor_id="m1", status="pending", limit=5)
-        assert out == ["a1"]
+        # The stub alert model has no status column — the service maps
+        # resolved/unresolved onto the persisted is_resolved flag.
+        out = _svc(db).get_alerts(monitor_id="m1", status="unresolved", limit=5)
+        assert out == [alert_row]
         assert q.filter.call_count == 2  # monitor_id + status
 
     def test_get_alerts_no_filters(self):

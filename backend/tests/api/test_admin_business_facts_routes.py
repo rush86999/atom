@@ -36,6 +36,9 @@ from core.models import UserRole
 # Import BusinessFact from agent_world_model
 from core.agent_world_model import BusinessFact
 
+# Import BusinessFact from agent_world_model
+from core.agent_world_model import BusinessFact
+
 
 # ============================================================================
 # Test Database Setup

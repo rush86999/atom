@@ -356,13 +356,15 @@ class TestJSONBSupport:
 
     def test_entity_type_jsonb_storage(self, postgresql_db: Session):
         """Test storing JSON schema in JSONB column."""
+        if postgresql_db is None:
+            pytest.skip("PostgreSQL unavailable")
         # Create a tenant first (required foreign key)
         from core.models import Tenant
         tenant = Tenant(
             id="test_tenant",
             name="Test Tenant",
             subdomain="test",
-            domain="test.com"
+            custom_domain="test.com"
         )
         postgresql_db.add(tenant)
         postgresql_db.commit()
@@ -396,13 +398,15 @@ class TestJSONBSupport:
 
     def test_entity_type_jsonb_query(self, postgresql_db: Session):
         """Test querying JSONB column."""
+        if postgresql_db is None:
+            pytest.skip("PostgreSQL unavailable")
         # Create a tenant first (required foreign key)
         from core.models import Tenant
         tenant = Tenant(
             id="test_tenant",
             name="Test Tenant",
             subdomain="test",
-            domain="test.com"
+            custom_domain="test.com"
         )
         postgresql_db.add(tenant)
         postgresql_db.commit()

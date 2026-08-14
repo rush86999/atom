@@ -980,7 +980,7 @@ class EpisodeService:
             and_(
                 AgentEpisode.agent_id == agent_id,
                 AgentEpisode.tenant_id == tenant_id,
-                cast(AgentEpisode.metadata_json["episode_type"], String) == "meta_agent_proposal"
+                AgentEpisode.metadata_json["episode_type"].as_string() == "meta_agent_proposal"
             )
         ).all()
 
@@ -1781,8 +1781,8 @@ class EpisodeService:
             and_(
                 AgentEpisode.agent_id == agent_id,
                 AgentEpisode.tenant_id == tenant_id,
-                cast(AgentEpisode.metadata_json["skill_type"], String) == "openclaw",
-                cast(AgentEpisode.metadata_json["skill_id"], String) == skill_id
+                AgentEpisode.metadata_json["skill_type"].as_string() == "openclaw",
+                AgentEpisode.metadata_json["skill_id"].as_string() == skill_id
             )
         ).order_by(AgentEpisode.started_at.desc()).limit(limit).all()
 
@@ -1860,7 +1860,7 @@ class EpisodeService:
             and_(
                 AgentEpisode.agent_id == agent_id,
                 AgentEpisode.tenant_id == tenant_id,
-                cast(AgentEpisode.metadata_json["skill_type"], String) == "openclaw"
+                AgentEpisode.metadata_json["skill_type"].as_string() == "openclaw"
             )
         ).order_by(AgentEpisode.started_at.desc()).limit(limit).all()
 
@@ -1927,7 +1927,7 @@ class EpisodeService:
             and_(
                 AgentEpisode.agent_id == agent_id,
                 AgentEpisode.tenant_id == tenant_id,
-                cast(AgentEpisode.metadata_json["skill_type"], String) == "openclaw"
+                AgentEpisode.metadata_json["skill_type"].as_string() == "openclaw"
             )
         ).count()
 
@@ -2047,7 +2047,7 @@ class EpisodeService:
             and_(
                 AgentEpisode.agent_id == agent_id,
                 AgentEpisode.tenant_id == tenant_id,
-                cast(AgentEpisode.metadata_json["episode_type"], String) == "meta_agent_proposal"
+                AgentEpisode.metadata_json["episode_type"].as_string() == "meta_agent_proposal"
             )
         )
 

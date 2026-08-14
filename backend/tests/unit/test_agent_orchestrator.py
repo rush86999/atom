@@ -77,7 +77,7 @@ class TestAgentOrchestratorInit:
         assert orchestrator.model == "quality"
         assert orchestrator.max_loops == 10
         assert orchestrator.history == []
-        assert "autonomous AI agent" in orchestrator.system_instruction.lower()
+        assert "autonomous ai agent" in orchestrator.system_instruction.lower()
 
     def test_initialization_with_custom_params(self, mock_llm_service):
         """RED: Test initialization with custom parameters."""
@@ -284,7 +284,7 @@ class TestAgentOrchestratorRun:
         )
 
         assert result.status == "failed"
-        assert "error" in result.lower()
+        assert "error" in result.error.lower()
         assert result.error is not None
 
     @pytest.mark.asyncio

@@ -27,6 +27,7 @@ from sqlalchemy.pool import StaticPool
 # fake UserRole, breaking 86 downstream test files at collection time)
 from api.admin.business_facts_routes import router, FactResponse, FactCreateRequest, FactUpdateRequest
 from core.models import UserRole
+from core.agent_world_model import BusinessFact
 
 
 # ============================================================================

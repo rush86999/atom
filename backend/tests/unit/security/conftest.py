@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 try:
     from freezegun import freeze_time
@@ -31,7 +32,7 @@ from core.auth import (
     create_mobile_token
 )
 from core.database import get_db, Base
-from core.models import User
+from core.models import User, UserStatus
 # ActiveToken and RevokedToken don't exist in core.models - removed
 # from core.models import ActiveToken, RevokedToken
 from tests.factories.user_factory import UserFactory, AdminUserFactory
@@ -46,10 +47,16 @@ def db_session():
     Note: ActiveToken and RevokedToken models don't exist in core.models.
     Token management tests may need to be updated.
     """
-    # Use in-memory SQLite for fast, isolated tests
+    # Use in-memory SQLite for fast, isolated tests.
+    # StaticPool keeps a single shared connection so the schema created here
+    # is visible to every thread: TestClient runs endpoint code in a portal
+    # thread, and with the default per-thread pool that thread would get its
+    # own empty in-memory database ("no such table" errors). Same approach as
+    # core.database uses for ATOM_MOCK_DATABASE.
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
         echo=False
     )
 
@@ -100,10 +107,16 @@ def client(db_session: Session):
 
 @pytest.fixture(scope="function")
 def test_user_with_password(db_session: Session):
-    """Create user with known password for testing."""
+    """Create user with known password for testing.
+
+    Status is pinned to ACTIVE: get_current_user (and login) reject
+    non-ACTIVE accounts, and UserFactory picks a random status otherwise,
+    which made every token issued from this fixture flaky.
+    """
     user = UserFactory(
         email="auth@test.com",
         hashed_password=get_password_hash("KnownPassword123!"),
+        status=UserStatus.ACTIVE.value,
         _session=db_session
     )
     return user
