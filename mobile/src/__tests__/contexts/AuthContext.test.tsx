@@ -1104,3 +1104,683 @@ describe('Device Registration', () => {
     });
   });
 });
+
+// ============================================================================
+// Coverage Wave Additions (branch completion)
+// ============================================================================
+
+describe('Coverage Wave Additions', () => {
+  test('should reuse existing device token on login', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    (SecureStore.getItemAsync as jest.Mock).mockResolvedValue('existing_device_token');
+    const onResult = jest.fn();
+
+    const Wrapper = () => {
+      const { login } = useAuth();
+      React.useEffect(() => {
+        login({ email: 'test@example.com', password: 'password' }).then(onResult);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text testID="done">done</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({ success: true });
+    }, { timeout: 5000 });
+
+    // Existing token reused — no device id generated
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/auth/mobile/login'),
+      expect.objectContaining({
+        body: expect.stringContaining('existing_device_token'),
+      })
+    );
+  });
+
+  test('should return error detail for 400 login response', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ detail: 'Invalid email format' }),
+    });
+
+    const Wrapper = () => {
+      const { login } = useAuth();
+      React.useEffect(() => {
+        login({ email: 'bad', password: 'x' }).then(onResult);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({
+        success: false,
+        error: 'Invalid email format',
+      });
+    });
+  });
+
+  test('should return generic message for 400 login without detail', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({}),
+    });
+
+    const Wrapper = () => {
+      const { login } = useAuth();
+      React.useEffect(() => {
+        login({ email: 'bad', password: 'x' }).then(onResult);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({
+        success: false,
+        error: 'Invalid request. Please check your input.',
+      });
+    });
+  });
+
+  test('should return rate-limit message for 429 login response', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      json: async () => ({}),
+    });
+
+    const Wrapper = () => {
+      const { login } = useAuth();
+      React.useEffect(() => {
+        login({ email: 'a@b.com', password: 'x' }).then(onResult);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({
+        success: false,
+        error: 'Too many login attempts. Please try again later.',
+      });
+    });
+  });
+
+  test('should return server error message for 500+ login response', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: async () => ({}),
+    });
+
+    const Wrapper = () => {
+      const { login } = useAuth();
+      React.useEffect(() => {
+        login({ email: 'a@b.com', password: 'x' }).then(onResult);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({
+        success: false,
+        error: 'Server error. Please try again later.',
+      });
+    });
+  });
+
+  test('should return status-based message for other login errors', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 418,
+      json: async () => ({}),
+    });
+
+    const Wrapper = () => {
+      const { login } = useAuth();
+      React.useEffect(() => {
+        login({ email: 'a@b.com', password: 'x' }).then(onResult);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({
+        success: false,
+        error: 'Login failed (status: 418)',
+      });
+    });
+  });
+
+  test('should login successfully without refresh token in response', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        access_token: 'token_no_refresh',
+        user: { id: 'u1' },
+      }),
+    });
+
+    const Wrapper = () => {
+      const { login } = useAuth();
+      React.useEffect(() => {
+        login({ email: 'a@b.com', password: 'x' }).then(onResult);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({ success: true });
+    });
+
+    // refresh token NOT stored
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(
+      'atom_refresh_token',
+      expect.anything()
+    );
+  });
+
+  test('should login successfully without user in response', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        access_token: 'token_no_user',
+        refresh_token: 'rt',
+      }),
+    });
+
+    const Wrapper = () => {
+      const { login } = useAuth();
+      React.useEffect(() => {
+        login({ email: 'a@b.com', password: 'x' }).then(onResult);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({ success: true });
+    });
+
+    expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(
+      'atom_user_data',
+      expect.anything()
+    );
+  });
+
+  test('should return network error message from login catch', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('connection refused'));
+
+    const Wrapper = () => {
+      const { login } = useAuth();
+      React.useEffect(() => {
+        login({ email: 'a@b.com', password: 'x' }).then(onResult);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({
+        success: false,
+        error: 'connection refused',
+      });
+    });
+  });
+
+  test('should return default network error when message is missing', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error());
+
+    const Wrapper = () => {
+      const { login } = useAuth();
+      React.useEffect(() => {
+        login({ email: 'a@b.com', password: 'x' }).then(onResult);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({
+        success: false,
+        error: 'Network error',
+      });
+    });
+  });
+
+  test('should clear local state when backend logout call fails', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const LogoutComponent = () => {
+      const { isAuthenticated, logout } = useAuth();
+      React.useEffect(() => {
+        // First authenticate, then log out with failing backend call
+        (async () => {
+          await loginViaFetch();
+          logout();
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text testID="auth">{isAuthenticated.toString()}</Text>;
+    };
+
+    const loginViaFetch = async () => {
+      (SecureStore.getItemAsync as jest.Mock).mockResolvedValueOnce(mockAccessToken);
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            access_token: mockAccessToken,
+            refresh_token: mockRefreshToken,
+            user: mockUser,
+          }),
+        })
+        // Backend logout fails
+        .mockRejectedValueOnce(new Error('logout endpoint down'));
+    };
+
+    const { getByTestId } = render(
+      <AuthProvider>
+        <LogoutComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(getByTestId('auth').props.children).toBe('false');
+    }, { timeout: 5000 });
+
+    expect(SecureStore.deleteItemAsync).toHaveBeenCalled();
+    consoleWarnSpy.mockRestore();
+  });
+
+  test('should clear local state when token read fails during logout', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (SecureStore.getItemAsync as jest.Mock).mockRejectedValue(new Error('keychain unavailable'));
+
+    const LogoutComponent = () => {
+      const { isAuthenticated, logout } = useAuth();
+      React.useEffect(() => {
+        logout();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text testID="auth">{isAuthenticated.toString()}</Text>;
+    };
+
+    const { getByTestId } = render(
+      <AuthProvider>
+        <LogoutComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(getByTestId('auth').props.children).toBe('false');
+    }, { timeout: 5000 });
+
+    // Even with failure, local state cleared
+    expect(SecureStore.deleteItemAsync).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
+  test('should swallow token-clear failures during init cleanup', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    // Init reads fail → initializeAuth catch → clearTokens → delete fails too
+    (SecureStore.getItemAsync as jest.Mock).mockRejectedValue(new Error('keychain down'));
+    (SecureStore.deleteItemAsync as jest.Mock).mockRejectedValue(new Error('delete failed'));
+
+    const InitComponent = () => {
+      const { isLoading } = useAuth();
+      return <Text testID="loading">{isLoading.toString()}</Text>;
+    };
+
+    const { getByTestId } = render(
+      <AuthProvider>
+        <InitComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(getByTestId('loading').props.children).toBe('false');
+    }, { timeout: 5000 });
+
+    // No unhandled rejection — init completed with loading false
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
+  test('should return backend detail for biometric registration failure', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(mockAccessToken);
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ detail: 'Biometric already registered' }),
+    });
+
+    const Wrapper = () => {
+      const { registerBiometric } = useAuth();
+      React.useEffect(() => {
+        registerBiometric('pubkey123').then(onResult);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({
+        success: false,
+        error: 'Biometric already registered',
+      });
+    });
+  });
+
+  test('should return generic message for biometric registration failure without detail', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (SecureStore.getItemAsync as jest.Mock).mockImplementation((key: string) =>
+      Promise.resolve(key === 'atom_access_token' ? mockAccessToken : null)
+    );
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    });
+
+    const Wrapper = () => {
+      const { registerBiometric } = useAuth();
+      React.useEffect(() => {
+        registerBiometric('pubkey123').then(onResult);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({
+        success: false,
+        error: 'Registration failed',
+      });
+    });
+  });
+
+  test('should return default network error for biometric registration catch', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(mockAccessToken);
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error());
+
+    const Wrapper = () => {
+      const { registerBiometric } = useAuth();
+      React.useEffect(() => {
+        registerBiometric('pubkey123').then(onResult);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({
+        success: false,
+        error: 'Network error',
+      });
+    });
+  });
+
+  test('should fail device registration when device info unavailable', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const onResult = jest.fn();
+    (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(mockAccessToken);
+    // AsyncStorage read fails → secureGet rejects → loadDeviceInfo catch →
+    // deviceInfo stays null
+    (AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('storage down'));
+
+    const Wrapper = () => {
+      const { registerDevice, deviceInfo } = useAuth();
+      const [attempted, setAttempted] = React.useState(false);
+      React.useEffect(() => {
+        if (!attempted) {
+          registerDevice('push_token').then(onResult);
+          setAttempted(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [attempted]);
+      return <Text testID="di">{deviceInfo ? 'has' : 'none'}</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({
+        success: false,
+        error: 'Device info not available',
+      });
+    }, { timeout: 5000 });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  test('should return backend detail for device registration failure', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (SecureStore.getItemAsync as jest.Mock).mockImplementation((key: string) =>
+      Promise.resolve(key === 'atom_access_token' ? mockAccessToken : null)
+    );
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ detail: 'Invalid device token' }),
+    });
+
+    const Wrapper = () => {
+      const { registerDevice, deviceInfo } = useAuth();
+      const [attempted, setAttempted] = React.useState(false);
+      React.useEffect(() => {
+        if (!attempted && deviceInfo) {
+          registerDevice('push_token').then(onResult);
+          setAttempted(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [attempted, deviceInfo]);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({
+        success: false,
+        error: 'Invalid device token',
+      });
+    }, { timeout: 5000 });
+  });
+
+  test('should return generic message for device registration failure without detail', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (SecureStore.getItemAsync as jest.Mock).mockImplementation((key: string) =>
+      Promise.resolve(key === 'atom_access_token' ? mockAccessToken : null)
+    );
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    });
+
+    const Wrapper = () => {
+      const { registerDevice, deviceInfo } = useAuth();
+      const [attempted, setAttempted] = React.useState(false);
+      React.useEffect(() => {
+        if (!attempted && deviceInfo) {
+          registerDevice('push_token').then(onResult);
+          setAttempted(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [attempted, deviceInfo]);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({
+        success: false,
+        error: 'Registration failed',
+      });
+    }, { timeout: 5000 });
+  });
+
+  test('should return network error for device registration catch', async () => {
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    const onResult = jest.fn();
+    (SecureStore.getItemAsync as jest.Mock).mockImplementation((key: string) =>
+      Promise.resolve(key === 'atom_access_token' ? mockAccessToken : null)
+    );
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('network down'));
+
+    const Wrapper = () => {
+      const { registerDevice, deviceInfo } = useAuth();
+      const [attempted, setAttempted] = React.useState(false);
+      React.useEffect(() => {
+        if (!attempted && deviceInfo) {
+          registerDevice('push_token').then(onResult);
+          setAttempted(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [attempted, deviceInfo]);
+      return <Text>w</Text>;
+    };
+    render(
+      <AuthProvider>
+        <Wrapper />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith({
+        success: false,
+        error: 'network down',
+      });
+    }, { timeout: 5000 });
+  });
+});

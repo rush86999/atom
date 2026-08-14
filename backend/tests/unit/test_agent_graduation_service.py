@@ -32,15 +32,10 @@ from core.models import (
 # Test Fixtures
 # =============================================================================
 
-@pytest.fixture
-def db():
-    """Create database session."""
-    from core.database import SessionLocal
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Note: the `db` fixture comes from tests/unit/conftest.py — a fresh temp
+# SQLite database with all tables created per test. Binding to the global
+# SessionLocal here previously broke tests because the mock in-memory
+# database has no tables.
 
 
 @pytest.fixture
@@ -367,15 +362,39 @@ class TestGenerateRecommendation:
 class TestRunGraduationExam:
     """Tests for run_graduation_exam method."""
 
+    def _create_episode(self, db, agent, episode_id, description):
+        """Insert a minimal episode row for sandbox replay."""
+        episode = Episode(
+            id=episode_id,
+            agent_id=agent.id,
+            tenant_id="default",
+            maturity_at_time="STUDENT",
+            outcome="success",
+            task_description=description,
+        )
+        db.add(episode)
+        db.commit()
+        return episode
+
     @pytest.mark.asyncio
     async def test_runs_exam_with_edge_cases(self, db, student_agent):
-        """RED: Test exam execution with edge case episodes."""
+        """Test exam execution with edge case episodes."""
         service = AgentGraduationService(db)
 
-        with patch('core.agent_graduation_service.get_graduation_exam_executor') as mock_executor:
-            mock_executor_instance = mock_executor.return_value
-            mock_executor_instance.execute_agent = AsyncMock(
-                return_value={"success": True, "results": []}
+        self._create_episode(db, student_agent, "episode-1", "Edge case 1")
+        self._create_episode(db, student_agent, "episode-2", "Edge case 2")
+
+        sandbox_result = Mock(
+            passed=True,
+            interventions=0,
+            safety_violations=[],
+            replayed_actions=[],
+        )
+
+        with patch('core.sandbox_executor.get_sandbox_executor') as mock_get_executor:
+            mock_executor_instance = mock_get_executor.return_value
+            mock_executor_instance.execute_in_sandbox = AsyncMock(
+                return_value=sandbox_result
             )
 
             edge_cases = ["episode-1", "episode-2"]
@@ -384,18 +403,34 @@ class TestRunGraduationExam:
                 edge_case_episodes=edge_cases
             )
 
-            # Should have results
-            assert "success" in result or "exam_results" in result
+            mock_executor_instance.execute_in_sandbox.assert_awaited()
+
+        # Documented contract: passed/results/score
+        assert "passed" in result
+        assert "results" in result
+        assert "score" in result
+        assert result["passed"] is True
+        assert result["score"] == 100.0
+        assert [r["episode_id"] for r in result["results"]] == edge_cases
 
     @pytest.mark.asyncio
     async def test_handles_exam_failure(self, db, student_agent):
-        """RED: Test handling of exam failure."""
+        """Test that a failed sandbox exam is reported, not raised."""
         service = AgentGraduationService(db)
 
-        with patch('core.agent_graduation_service.get_graduation_exam_executor') as mock_executor:
-            mock_executor_instance = mock_executor.return_value
-            mock_executor_instance.execute_agent = AsyncMock(
-                side_effect=Exception("Sandbox execution failed")
+        self._create_episode(db, student_agent, "episode-1", "Edge case 1")
+
+        sandbox_result = Mock(
+            passed=False,
+            interventions=2,
+            safety_violations=["policy:taxonomy"],
+            replayed_actions=[],
+        )
+
+        with patch('core.sandbox_executor.get_sandbox_executor') as mock_get_executor:
+            mock_executor_instance = mock_get_executor.return_value
+            mock_executor_instance.execute_in_sandbox = AsyncMock(
+                return_value=sandbox_result
             )
 
             edge_cases = ["episode-1"]
@@ -404,8 +439,10 @@ class TestRunGraduationExam:
                 edge_case_episodes=edge_cases
             )
 
-            # Should handle error gracefully
-            assert "error" in result or "success" in result
+        # Failed exam is reflected in the result, not raised as an error
+        assert result["passed"] is False
+        assert result["score"] == 0.0
+        assert result["results"][0]["safety_violations"] == ["policy:taxonomy"]
 
 
 # =============================================================================

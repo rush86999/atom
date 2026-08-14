@@ -640,7 +640,7 @@ await act(async () => {
 
   describe('Extended Validation', () => {
     it('should flag a mismatch when password changes after confirm was entered', async () => {
-      const { getByPlaceholderText, getByText, queryByText } = render(
+      const { getByPlaceholderText, getByText, queryByText, getByTestId } = render(
         <RegisterScreen navigation={mockNavigation as any} />
       );
 
@@ -877,3 +877,71 @@ await act(async () => {
     });
   });
 });
+
+  // ============================================================================
+  // Coverage Wave Additions (onBlur / onSubmitEditing handlers)
+  // ============================================================================
+
+  describe('Input Focus and Blur Handlers', () => {
+    const { RegisterScreen: RegisterScreenLocal } = require('../../../screens/auth/RegisterScreen');
+    const Screen = RegisterScreenLocal;
+
+    it('should mark all fields touched when blurred', () => {
+      const { getByPlaceholderText, getByTestId } = render(
+        <Screen navigation={mockNavigation as any} />
+      );
+
+      fireEvent(getByPlaceholderText('Full Name'), 'blur');
+      fireEvent(getByPlaceholderText('Email'), 'blur');
+      fireEvent(getByPlaceholderText('Password'), 'blur');
+      fireEvent(getByTestId('confirm-password-input'), 'blur');
+
+      // Blur alone does not create errors, but the form still renders
+      expect(getByPlaceholderText('Full Name')).toBeTruthy();
+    });
+
+    it('should show validation errors once fields are touched and invalid', () => {
+      const { getByPlaceholderText, getByText, queryByText, getByTestId } = render(
+        <Screen navigation={mockNavigation as any} />
+      );
+
+      // Empty full name, invalid email
+      fireEvent.changeText(getByPlaceholderText('Email'), 'not-an-email');
+      fireEvent(getByPlaceholderText('Full Name'), 'blur');
+      fireEvent(getByPlaceholderText('Email'), 'blur');
+
+      expect(queryByText('Please enter your full name')).toBeNull(); // touched, no errors set yet
+      // Now submit to run validation
+      fireEvent.press(getByTestId('sign-up-button'));
+
+      expect(getByText('Please enter your full name')).toBeTruthy();
+      expect(getByText('Please enter a valid email')).toBeTruthy();
+    });
+
+    it('should move focus to the next field when the return key is pressed', () => {
+      const { getByPlaceholderText } = render(
+        <Screen navigation={mockNavigation as any} />
+      );
+
+      // These invoke the refs' focus() — must not throw and must not crash
+      expect(() => {
+        fireEvent(getByPlaceholderText('Full Name'), 'submitEditing');
+        fireEvent(getByPlaceholderText('Email'), 'submitEditing');
+        fireEvent(getByPlaceholderText('Password'), 'submitEditing');
+      }).not.toThrow();
+    });
+
+    it('should show mismatch error when confirm password blur follows a password change', () => {
+      const { getByPlaceholderText, getByText, getByTestId } = render(
+        <Screen navigation={mockNavigation as any} />
+      );
+
+      fireEvent.changeText(getByPlaceholderText('Password'), 'strongPass1!');
+      fireEvent.changeText(getByPlaceholderText('Confirm Password'), 'strongPass2!');
+      fireEvent(getByPlaceholderText('Confirm Password'), 'blur');
+      fireEvent(getByPlaceholderText('Password'), 'blur');
+
+      fireEvent.press(getByTestId('sign-up-button'));
+      expect(getByText('Passwords do not match')).toBeTruthy();
+    });
+  });

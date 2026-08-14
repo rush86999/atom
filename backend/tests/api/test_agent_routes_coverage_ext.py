@@ -508,17 +508,23 @@ def test_replace_agent_whitespace_category_rejected(admin_user, client, agent):
 
 
 # ============================================================================
-# POST /custom - schedule integration + missing config
+# POST /custom - schedule integration + optional configuration
 # ============================================================================
 
 def test_create_custom_agent_missing_configuration(admin_user, client):
-    """configuration is required -> 422 when omitted."""
+    """configuration is optional -> omitting it still creates the agent.
+
+    CustomAgentRequest.configuration is Optional (None default), and the
+    verified e2e flow (tests/e2e_ui/tests/test_agent_creation.py) posts
+    {"name", "category"} without configuration and expects success — so the
+    old "required -> 422" premise of this test contradicted the contract.
+    """
     _set_user(admin_user)
     resp = client.post(
         "/api/agents/custom",
         json={"name": "No Config", "category": "cat"},
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 201
 
 
 # ============================================================================

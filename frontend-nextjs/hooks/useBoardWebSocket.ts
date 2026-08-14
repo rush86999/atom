@@ -74,7 +74,7 @@ export function useBoardWebSocket(
           kind: 'invalidate',
           taskIds: msg.data && (msg.data as any).task_id
             ? [(msg.data as any).task_id]
-            : msg.data && (msg.data as any).task
+            : msg.data && (msg.data as any).task && (msg.data as any).task.id
             ? [(msg.data as any).task.id]
             : undefined,
         });

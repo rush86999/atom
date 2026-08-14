@@ -55,6 +55,7 @@ async def get_dashboard_data(
 async def run_simulation(
     request: SimulationRequest,
     http_request: Request,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):

@@ -190,8 +190,12 @@ class TestWorkflowTracking:
             # Verify events were tracked
             events = engine.get_recent_events(limit=10)
 
-            completion_events = [e for e in events if e.event_type == "failed"]
+            completion_events = [
+                e for e in events
+                if e.event_type == "workflow_completed" and e.status == "failed"
+            ]
             assert len(completion_events) > 0
+            assert completion_events[0].error_message == "Timeout occurred"
 
         finally:
             Path(db_path).unlink(missing_ok=True)
@@ -349,7 +353,7 @@ class TestResourceTracking:
                 workflow_id="test-wf",
                 cpu_usage=75.5,
                 memory_usage=512.0,
-                execution_id="exec-1"
+                step_id="step-1"
             )
 
             # Verify resource usage was tracked
@@ -374,7 +378,9 @@ class TestResourceTracking:
                 workflow_id="test-wf",
                 cpu_usage=95.0,
                 memory_usage=4096.0,
-                execution_id="exec-1"
+                step_id="step-1",
+                disk_io=1_500_000,
+                network_io=2_500_000
             )
 
             metrics = engine.get_performance_metrics("test-wf")
@@ -571,6 +577,7 @@ class TestAlertFunctionality:
                 description="Error rate exceeds 10%",
                 severity=AlertSeverity.HIGH,
                 condition={"error_rate": {"gt": 0.1}},
+                metric_name="failed_executions",
                 notification_channels=["email", "slack"]
             )
 
@@ -595,7 +602,8 @@ class TestAlertFunctionality:
                     name=f"Alert {severity.value}",
                     description=f"Test alert for {severity}",
                     severity=severity,
-                    condition={"test": {"eq": 1}}
+                    condition={"test": {"eq": 1}},
+                    metric_name="test_metric"
                 )
 
                 assert alert.severity == severity
@@ -617,7 +625,8 @@ class TestAlertFunctionality:
                     name=f"Alert {i}",
                     description=f"Test alert {i}",
                     severity=AlertSeverity.LOW,
-                    condition={"test": {"eq": i}}
+                    condition={"test": {"eq": i}},
+                    metric_name="test_metric"
                 )
 
             # List all alerts
@@ -641,7 +650,8 @@ class TestAlertFunctionality:
                 name="To Delete",
                 description="This will be deleted",
                 severity=AlertSeverity.LOW,
-                condition={"test": {"eq": 1}}
+                condition={"test": {"eq": 1}},
+                metric_name="test_metric"
             )
 
             # Delete the alert

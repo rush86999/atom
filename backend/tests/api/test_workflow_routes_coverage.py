@@ -412,7 +412,9 @@ class TestWorkflowRoutesCoverage:
 
         mock_orchestrator.execute_workflow = AsyncMock(return_value=mock_context)
 
-        with patch('api.workflow_template_routes.get_orchestrator', return_value=lambda: mock_orchestrator):
+        # get_orchestrator is imported locally from advanced_workflow_orchestrator
+        # inside the endpoint, so patch it at its source module
+        with patch('advanced_workflow_orchestrator.get_orchestrator', return_value=mock_orchestrator):
             response = test_client.post("/api/workflow-templates/tpl_123/execute")
 
         # May fail due to async complexity, but should not crash
@@ -433,7 +435,9 @@ class TestWorkflowRoutesCoverage:
 
         mock_orchestrator.execute_workflow = AsyncMock(return_value=mock_context)
 
-        with patch('api.workflow_template_routes.get_orchestrator', return_value=lambda: mock_orchestrator):
+        # get_orchestrator is imported locally from advanced_workflow_orchestrator
+        # inside the endpoint, so patch it at its source module
+        with patch('advanced_workflow_orchestrator.get_orchestrator', return_value=mock_orchestrator):
             response = test_client.post(
                 "/api/workflow-templates/tpl_123/execute",
                 json={"param1": "value1", "param2": "value2"}

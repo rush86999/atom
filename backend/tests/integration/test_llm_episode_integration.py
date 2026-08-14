@@ -3,11 +3,35 @@ Integration tests for LLM canvas summary generation in episodes.
 
 Tests end-to-end episode creation with LLM-generated canvas context,
 quality validation, and fallback behavior.
+
+Ported to the current schema/API:
+- CanvasAudit business fields (canvas_type, metadata) now live flat inside
+  ``details_json``; the action column is ``action_type``.
+- ``EpisodeSegmentationService(byok_handler=...)`` adapts the handler's
+  ``generate_response`` to the ``generate`` interface CanvasSummaryService
+  calls.
+- On LLM failure the extraction is marked ``summary_source="metadata"`` and
+  ``summary_verification="unverified"``.
+- ``CanvasSummaryService`` takes ``llm_service=`` (no byok_handler kwarg).
 """
 
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta
+
+
+def _canvas_audit_mock(canvas_id, canvas_type, action, details):
+    """Build a CanvasAudit mock matching the current flat details_json schema."""
+    from core.models import CanvasAudit
+
+    payload = {"canvas_type": canvas_type, **details}
+    return Mock(
+        spec=CanvasAudit,
+        id=canvas_id,
+        canvas_id=f"{canvas_id}-fk",
+        action_type=action,
+        details_json=payload,
+    )
 
 
 class TestLLMEpisodeIntegration:
@@ -54,19 +78,15 @@ class TestLLMEpisodeIntegration:
         self, segmentation_service, mock_byok_handler, db_session
     ):
         """Test episode creation uses LLM-generated canvas summary"""
-        from core.models import CanvasAudit
-
-        # Create mock canvas audit
-        mock_canvas = Mock(
-            spec=CanvasAudit,
-            id="canvas-1",
-            canvas_type="sheets",
-            action="present",
-            audit_metadata={
+        mock_canvas = _canvas_audit_mock(
+            "canvas-1",
+            "sheets",
+            "present",
+            {
                 "revenue": "1200000",
                 "growth": "15",
                 "components": [{"type": "line_chart"}]
-            }
+            },
         )
 
         # Extract context with LLM
@@ -81,13 +101,13 @@ class TestLLMEpisodeIntegration:
         assert len(result["presentation_summary"]) > 20
         # Check that critical data was extracted
         assert "critical_data_points" in result
+        assert result["critical_data_points"].get("revenue") == "1200000"
 
     @pytest.mark.asyncio
     async def test_llm_fallback_on_error(
         self, segmentation_service, db_session
     ):
         """Test episode creation falls back to metadata on LLM error"""
-        from core.models import CanvasAudit
         import asyncio
 
         # Mock BYOK handler that fails
@@ -101,13 +121,11 @@ class TestLLMEpisodeIntegration:
             from core.episode_segmentation_service import EpisodeSegmentationService
             service = EpisodeSegmentationService(db_session, byok_handler=failing_handler)
 
-        # Create mock canvas audit
-        mock_canvas = Mock(
-            spec=CanvasAudit,
-            id="canvas-2",
-            canvas_type="terminal",
-            action="present",
-            audit_metadata={"command": "pytest", "exit_code": "0"}
+        mock_canvas = _canvas_audit_mock(
+            "canvas-2",
+            "terminal",
+            "present",
+            {"command": "pytest", "exit_code": "0"},
         )
 
         # Should fallback to metadata-style summary
@@ -115,10 +133,11 @@ class TestLLMEpisodeIntegration:
             canvas_audit=mock_canvas
         )
 
-        # The implementation marks it as "llm" source even when using fallback
-        # but the summary content itself is metadata-style
-        assert result["summary_source"] == "llm"  # Implementation keeps source as "llm"
-        assert "terminal" in result["canvas_type"]
+        # The current implementation marks fallback summaries as
+        # metadata-sourced and unverified
+        assert result["summary_source"] == "metadata"
+        assert result["summary_verification"] == "unverified"
+        assert result["canvas_type"] == "terminal"
         # Verify it's a metadata-style summary (shorter, factual)
         assert len(result["presentation_summary"]) < 200  # Metadata summaries are shorter
 
@@ -127,8 +146,6 @@ class TestLLMEpisodeIntegration:
         self, segmentation_service, mock_byok_handler
     ):
         """Test that all 7 canvas types generate valid summaries"""
-        from core.models import CanvasAudit
-
         canvas_types = [
             ("generic", {"content": "test"}),
             ("docs", {"word_count": 500, "title": "Spec"}),
@@ -140,12 +157,8 @@ class TestLLMEpisodeIntegration:
         ]
 
         for canvas_type, metadata in canvas_types:
-            mock_canvas = Mock(
-                spec=CanvasAudit,
-                id=f"canvas-{canvas_type}",
-                canvas_type=canvas_type,
-                action="present",
-                audit_metadata=metadata
+            mock_canvas = _canvas_audit_mock(
+                f"canvas-{canvas_type}", canvas_type, "present", metadata
             )
 
             result = await segmentation_service._extract_canvas_context_llm(
@@ -155,25 +168,22 @@ class TestLLMEpisodeIntegration:
             assert result["canvas_type"] == canvas_type
             assert "presentation_summary" in result
             assert len(result["presentation_summary"]) > 20
-            assert "summary_source" in result
+            assert result["summary_source"] == "llm"
 
     @pytest.mark.asyncio
     async def test_summary_quality_validation(
         self, segmentation_service, mock_byok_handler
     ):
         """Test LLM summaries meet quality thresholds"""
-        from core.models import CanvasAudit
-
-        mock_canvas = Mock(
-            spec=CanvasAudit,
-            id="canvas-quality",
-            canvas_type="orchestration",
-            action="present",
-            audit_metadata={
+        mock_canvas = _canvas_audit_mock(
+            "canvas-quality",
+            "orchestration",
+            "present",
+            {
                 "workflow_id": "wf-budget",
                 "approval_amount": 100000,
                 "approvers": ["manager", "director"]
-            }
+            },
         )
 
         result = await segmentation_service._extract_canvas_context_llm(
@@ -199,18 +209,15 @@ class TestLLMEpisodeIntegration:
         self, segmentation_service, mock_byok_handler
     ):
         """Test that critical data points are extracted"""
-        from core.models import CanvasAudit
-
-        mock_canvas = Mock(
-            spec=CanvasAudit,
-            id="canvas-critical",
-            canvas_type="sheets",
-            action="submit",
-            audit_metadata={
+        mock_canvas = _canvas_audit_mock(
+            "canvas-critical",
+            "sheets",
+            "submit",
+            {
                 "revenue": "5000000",
                 "growth": "25",
                 "components": [{"type": "bar_chart"}, {"type": "data_table"}]
-            }
+            },
         )
 
         result = await segmentation_service._extract_canvas_context_llm(
@@ -233,17 +240,11 @@ class TestLLMEpisodeIntegration:
         self, segmentation_service, mock_byok_handler
     ):
         """Test user interaction is correctly mapped"""
-        from core.models import CanvasAudit
-
         interactions = ["present", "submit", "close", "update", "execute"]
 
         for action in interactions:
-            mock_canvas = Mock(
-                spec=CanvasAudit,
-                id=f"canvas-{action}",
-                canvas_type="generic",
-                action=action,
-                audit_metadata={}
+            mock_canvas = _canvas_audit_mock(
+                f"canvas-{action}", "generic", action, {}
             )
 
             result = await segmentation_service._extract_canvas_context_llm(
@@ -262,7 +263,7 @@ class TestSemanticRichnessMetrics:
         """Test semantic richness scoring algorithm"""
         from core.llm.canvas_summary_service import CanvasSummaryService
 
-        service = CanvasSummaryService(byok_handler=Mock())
+        service = CanvasSummaryService(llm_service=Mock())
 
         # Rich summary (business context + intent + decision)
         rich = (
@@ -275,12 +276,11 @@ class TestSemanticRichnessMetrics:
         # Poor summary (minimal information)
         poor = "Agent presented form with chart."
 
-        # Score richness - Note: _calculate_semantic_richness doesn't exist yet
-        # We'll add it in Task 3
-        # For now, just verify the summaries differ
-        assert len(rich) > len(poor)
-        assert "$" in rich
-        assert "%" in rich
+        rich_score = service._calculate_semantic_richness(rich)
+        poor_score = service._calculate_semantic_richness(poor)
+
+        assert rich_score > 0.5  # Rich summaries score high
+        assert poor_score < rich_score  # Poor summaries score lower
 
 
 class TestHallucinationDetection:
@@ -290,32 +290,23 @@ class TestHallucinationDetection:
         """Test hallucination detection catches fabricated facts"""
         from core.llm.canvas_summary_service import CanvasSummaryService
 
-        service = CanvasSummaryService(byok_handler=Mock())
+        service = CanvasSummaryService(llm_service=Mock())
 
-        # Note: _detect_hallucination doesn't exist yet
-        # We'll add it in Task 3
-        # For now, verify the concept
         summary = "Agent presented workflow wf-999 with $1M approval."  # Wrong ID
         canvas_state = {"workflow_id": "wf-123", "approval_amount": "50000"}
 
-        # Verify concept: summary contains facts not in state
-        assert "wf-999" in summary
-        assert "wf-999" not in str(canvas_state)
-        assert "1M" in summary
-        assert "1M" not in str(canvas_state)
+        assert service._detect_hallucination(summary, canvas_state) is True
 
     def test_no_hallucination_accurate_summary(self):
         """Test no hallucination when summary matches state"""
         from core.llm.canvas_summary_service import CanvasSummaryService
 
-        service = CanvasSummaryService(byok_handler=Mock())
+        service = CanvasSummaryService(llm_service=Mock())
 
         summary = "Agent presented workflow wf-123 with $50K approval."
         canvas_state = {"workflow_id": "wf-123", "approval_amount": "50000"}
 
-        # All facts in state
-        assert "wf-123" in summary
-        assert "wf-123" in str(canvas_state)
+        assert service._detect_hallucination(summary, canvas_state) is False
 
 
 class TestConsistencyValidation:
@@ -326,12 +317,12 @@ class TestConsistencyValidation:
         """Test same canvas state generates consistent summary"""
         from core.llm.canvas_summary_service import CanvasSummaryService
 
-        mock_byok = Mock()
-        mock_byok.generate_response = AsyncMock(
+        mock_llm = Mock()
+        mock_llm.generate = AsyncMock(
             return_value="Agent presented workflow wf-123 with $50K approval."
         )
 
-        service = CanvasSummaryService(byok_handler=mock_byok)
+        service = CanvasSummaryService(llm_service=mock_llm)
 
         canvas_state = {"workflow_id": "wf-123", "approval_amount": "50000"}
 

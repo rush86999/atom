@@ -12,8 +12,11 @@ from core.office_service import OfficeService
 
 
 @pytest.fixture
-def temp_dir():
+def temp_dir(monkeypatch):
     with tempfile.TemporaryDirectory() as tmp:
+        # Office operations are confined to ATOM_OFFICE_DIR (path-traversal
+        # containment) — allow the test's temp directory.
+        monkeypatch.setenv("ATOM_OFFICE_DIR", tmp)
         yield tmp
 
 

@@ -27,18 +27,32 @@ from datetime import datetime
 
 @pytest.fixture
 def app():
-    """Create test FastAPI app with JIT verification routes."""
+    """Create test FastAPI app with JIT verification routes.
+
+    The router binds its auth dependencies (``Depends(get_current_user)``,
+    ``Depends(require_role(...))``) at decoration time, so patching module
+    attributes after import has no effect on requests. FastAPI's
+    ``dependency_overrides`` is applied at request time and works regardless
+    of whether the route module was already imported by another test.
+
+    The previous fixture wrapped the import in ``patch('core.auth')`` etc.,
+    which raises AttributeError ("module 'core' does not have the attribute
+    'auth'") whenever those submodules have not been imported yet, making the
+    fixture fail depending on import order.
+    """
     from fastapi import FastAPI
 
-    # Mock dependencies to avoid import issues
-    with patch('core.auth'):
-        with patch('core.security.rbac'):
-            with patch('core.jit_verification_cache'):
-                with patch('core.jit_verification_worker'):
-                    from api.admin.jit_verification_routes import router
-                    app = FastAPI()
-                    app.include_router(router)
-                    return app
+    from core.auth import get_current_user
+    from core.models import UserRole
+    from api.admin.jit_verification_routes import router
+
+    app = FastAPI()
+    app.include_router(router)
+
+    admin_user = Mock(id="admin-123", role=UserRole.ADMIN.value)
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+
+    return app
 
 
 @pytest.fixture
@@ -64,16 +78,19 @@ class TestCacheStatistics:
         mock_role.return_value = lambda f: f
 
         mock_cache_instance = Mock()
+        # UnifiedCache.get_stats() returns {"l1": {...}, "l2_enabled": bool}
         mock_cache_instance.get_stats.return_value = {
-            "l1_verification_cache_size": 1250,
-            "l1_query_cache_size": 340,
-            "l1_verification_hits": 4500,
-            "l1_verification_misses": 1200,
-            "l1_verification_hit_rate": 78.9,
-            "l1_query_hits": 8900,
-            "l1_query_misses": 1100,
-            "l1_query_hit_rate": 89.0,
-            "l1_evictions": 45,
+            "l1": {
+                "l1_verification_cache_size": 1250,
+                "l1_query_cache_size": 340,
+                "l1_verification_hits": 4500,
+                "l1_verification_misses": 1200,
+                "l1_verification_hit_rate": 78.9,
+                "l1_query_hits": 8900,
+                "l1_query_misses": 1100,
+                "l1_query_hit_rate": 89.0,
+                "l1_evictions": 45
+            },
             "l2_enabled": True
         }
         mock_cache.return_value = mock_cache_instance
@@ -121,7 +138,7 @@ class TestCitationVerification:
 
         # Act
         response = client.post(
-            "/api/admin/governance/jit/verify",
+            "/api/admin/governance/jit/verify-citations",
             json={
                 "citations": [
                     "s3://atom-docs/policy.pdf#page4",
@@ -139,7 +156,7 @@ class TestCitationVerification:
         """RED: Test verification with invalid citation URL."""
         # Act
         response = client.post(
-            "/api/admin/governance/jit/verify",
+            "/api/admin/governance/jit/verify-citations",
             json={
                 "citations": ["invalid-url-format"],
                 "force_refresh": False
@@ -192,7 +209,8 @@ class TestWorkerMetrics:
         """RED: Test starting JIT verification worker."""
         # Setup mocks
         mock_role.return_value = lambda f: f
-        mock_start.return_value = True
+        # start_jit_verification_worker() resolves to the worker instance
+        mock_start.return_value = Mock(workspace_id="default", check_interval=300)
 
         # Act
         response = client.post("/api/admin/governance/jit/worker/start")

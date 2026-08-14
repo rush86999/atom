@@ -63,10 +63,13 @@ export default async function handler(
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 1);
 
-        // Store token in database
+        // Store only the SHA-256 hash of the token; the raw token exists solely
+        // in the emailed link (BUG FIX: was storing the raw token in
+        // token_hash, so a DB leak would have enabled direct account takeover).
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
         await query(
             'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
-            [user.id, token, expiresAt]
+            [user.id, tokenHash, expiresAt]
         );
 
         // Send email with reset link

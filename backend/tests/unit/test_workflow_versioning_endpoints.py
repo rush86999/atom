@@ -11,11 +11,23 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-# Mock the versioning system modules before importing
+# Mock the versioning system modules before importing.
+# ROOT FIX: the previous version of this block replaced sys.modules entries
+# with MagicMocks and never restored them, which permanently broke every
+# later `import backend.*` in the same process (e.g.
+# backend.api.workflow_versioning_endpoints used by the api coverage suites).
+# The mocks are only needed while importing the router below, so we restore
+# sys.modules to its prior state immediately afterwards.
 import sys
-sys.modules['backend'] = MagicMock()
-sys.modules['backend.core'] = MagicMock()
-sys.modules['backend.core.workflow_versioning_system'] = MagicMock()
+
+_MISSING = object()
+_POISON = {
+    'backend': MagicMock(),
+    'backend.core': MagicMock(),
+    'backend.core.workflow_versioning_system': MagicMock(),
+}
+_SAVED_MODULES = {name: sys.modules.get(name, _MISSING) for name in _POISON}
+sys.modules.update(_POISON)
 
 from core.workflow_versioning_system import (
     Branch,
@@ -39,6 +51,13 @@ except Exception as e:
     from fastapi import APIRouter
     router = APIRouter()
     app.include_router(router)
+
+# Restore sys.modules so the real `backend` package stays importable
+for _name, _original in _SAVED_MODULES.items():
+    if _original is _MISSING:
+        sys.modules.pop(_name, None)
+    else:
+        sys.modules[_name] = _original
 
 
 @pytest.fixture
@@ -358,7 +377,7 @@ class TestUtilityEndpoints:
     @patch('api.workflow_versioning_endpoints.get_current_user')
     def test_get_version_summary_success(
         self, mock_get_user, mock_versioning_system,
-        client, mock_version, mock_user
+        client, mock_version, mock_user, monkeypatch
     ):
         """Test getting version summary"""
         mock_get_user.return_value = mock_user
@@ -366,12 +385,14 @@ class TestUtilityEndpoints:
             return_value=[mock_version]
         )
 
-        # Mock router.success_response
+        # Mock router.success_response (monkeypatch auto-restores the original
+        # method on teardown; the previous bare assignment leaked the MagicMock
+        # onto the shared router instance used by the main API app)
         if hasattr(router, 'success_response'):
-            router.success_response = MagicMock(return_value={
+            monkeypatch.setattr(router, 'success_response', MagicMock(return_value={
                 "data": {"test": "data"},
                 "message": "Success"
-            })
+            }))
 
         if hasattr(router, 'prefix'):
             response = client.get(
@@ -380,13 +401,13 @@ class TestUtilityEndpoints:
             )
             assert response.status_code in [200, 401]
 
-    def test_health_check_success(self, client):
+    def test_health_check_success(self, client, monkeypatch):
         """Test versioning system health check"""
         if hasattr(router, 'success_response'):
-            router.success_response = MagicMock(return_value={
+            monkeypatch.setattr(router, 'success_response', MagicMock(return_value={
                 "data": {"versioning_system": "operational"},
                 "message": "Versioning system is healthy"
-            })
+            }))
 
             response = client.get("/api/v1/workflows/versioning/health")
             assert response.status_code in [200, 503]
@@ -401,14 +422,14 @@ class TestErrorHandling:
     @patch('api.workflow_versioning_endpoints.get_current_user')
     def test_get_version_not_found(
         self, mock_get_user, mock_versioning_system,
-        client, mock_user
+        client, mock_user, monkeypatch
     ):
         """Test getting a non-existent version"""
         mock_get_user.return_value = mock_user
         mock_versioning_system.get_version = AsyncMock(return_value=None)
 
         if hasattr(router, 'not_found_error'):
-            router.not_found_error = MagicMock(side_effect=Exception("Not found"))
+            monkeypatch.setattr(router, 'not_found_error', MagicMock(side_effect=Exception("Not found")))
 
             if hasattr(router, 'prefix'):
                 response = client.get("/api/v1/workflows/test_workflow/versions/999.0.0")
@@ -425,18 +446,18 @@ class TestVersionDeletion:
     @patch('api.workflow_versioning_endpoints.get_current_user')
     def test_delete_workflow_version_success(
         self, mock_get_user, mock_versioning_system,
-        client, mock_user
+        client, mock_user, monkeypatch
     ):
         """Test soft-deleting a workflow version"""
         mock_get_user.return_value = mock_user
         mock_versioning_system.delete_version = AsyncMock(return_value=True)
 
         if hasattr(router, 'validation_error'):
-            router.validation_error = MagicMock(side_effect=Exception("Validation error"))
-            router.success_response = MagicMock(return_value={
+            monkeypatch.setattr(router, 'validation_error', MagicMock(side_effect=Exception("Validation error")))
+            monkeypatch.setattr(router, 'success_response', MagicMock(return_value={
                 "data": {"deleted_at": datetime.utcnow().isoformat()},
                 "message": "Version marked as deleted"
-            })
+            }))
 
             if hasattr(router, 'prefix'):
                 response = client.delete(

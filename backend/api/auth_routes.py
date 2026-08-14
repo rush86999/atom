@@ -11,10 +11,10 @@ Provides mobile-specific authentication endpoints:
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.auth import (
@@ -40,10 +40,16 @@ router = BaseAPIRouter(prefix="/api/auth", tags=["Authentication"])
 # ============================================================================
 
 class MobileLoginRequest(BaseModel):
-    email: str
+    # BUG FIX: email accepted unbounded input (a 10k-char email flowed into
+    # the user lookup instead of being rejected with 422). Cap at 254, the
+    # RFC 5321 practical limit for an email address.
+    email: str = Field(..., max_length=254)
     password: str
     device_token: str
-    platform: str  # ios, android
+    # BUG FIX: platform was a free-form string, so arbitrary values (e.g.
+    # "invalid_platform") were accepted and stored on the MobileDevice row.
+    # Push notifications only work for the two documented platforms.
+    platform: Literal["ios", "android"]
     device_info: Optional[Dict[str, Any]] = None
 
 
@@ -81,7 +87,10 @@ class BiometricAuthResponse(BaseModel):
 
 
 class RefreshTokenRequest(BaseModel):
-    refresh_token: str
+    # BUG FIX: an empty refresh_token passed schema validation and surfaced
+    # as a 401 "Invalid refresh token" from the JWT decoder instead of the
+    # documented 422 validation error.
+    refresh_token: str = Field(..., min_length=1)
 
 
 class DeviceInfoResponse(BaseModel):

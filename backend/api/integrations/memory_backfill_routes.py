@@ -133,6 +133,10 @@ async def trigger_backfill(
             message=f"Backfill {'started' if result.get('success') else 'failed'} for {integration_id}"
         )
 
+    except HTTPException:
+        # Preserve documented 4xx (e.g. start_date > end_date) — the broad
+        # except below would otherwise re-wrap it as a 500.
+        raise
     except ValueError as e:
         logger.error(f"Invalid date format: {e}")
         raise HTTPException(status_code=400, detail="Internal error")
@@ -267,6 +271,10 @@ async def trigger_all_backfills(
             message=result.get("message", "Backfill triggered")
         )
 
+    except HTTPException:
+        # Preserve documented 4xx (e.g. start_date > end_date) — the broad
+        # except below would otherwise re-wrap it as a 500.
+        raise
     except ValueError as e:
         logger.error(f"Invalid date format: {e}")
         raise HTTPException(status_code=400, detail="Internal error")

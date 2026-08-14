@@ -228,10 +228,11 @@ class TestCanvasHistory:
         data = response.json()
         assert "history" in data or "events" in data or "audits" in data
 
-    def test_history_not_found(self, client, db):
-        with patch("tools.canvas_crud_tool.read_canvas",
-                   new=AsyncMock(return_value={"success": False,
-                                               "error": "missing"})):
+    def test_history_not_found(self, client, db, user):
+        # Current route verifies canvas existence/ownership via the Canvas
+        # model (BUG-071); a missing canvas must yield 404.
+        with patch("core.database.get_db_session") as mock_session:
+            mock_session.return_value.__enter__.return_value = db
             response = client.get("/api/canvas/ghost/history")
         assert response.status_code == 404
 

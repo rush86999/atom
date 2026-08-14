@@ -327,19 +327,30 @@ class TestRealTimeWebhooksTDD:
     @patch("api.routes.webhooks.ingestion_webhooks.webhook_queue.enqueue_ingestion_job")
     def test_gmail_webhook_success(self, mock_enqueue, client, mock_db_setup):
         """Gmail Pub/Sub notification processing and user connection mapping."""
+    @patch("api.routes.webhooks.ingestion_webhooks.webhook_queue.enqueue_ingestion_job")
+    def test_gmail_webhook_success(self, mock_enqueue, client, mock_db_setup, monkeypatch):
+        """Gmail Pub/Sub notification processing and user connection mapping."""
         mock_enqueue.return_value = "job_gmail_abc"
-        
+
+        # Gmail webhooks fail closed unless GMAIL_WEBHOOK_VERIFY_TOKEN is set
+        # and supplied via the `token` query parameter (Google Pub/Sub pattern)
+        monkeypatch.setenv("GMAIL_WEBHOOK_VERIFY_TOKEN", "gmail_verify_token_123")
+
         payload_dict = {
             "emailAddress": "gmail_user@example.com",
             "historyId": "999888"
         }
         body_bytes = json.dumps(payload_dict).encode("utf-8")
-        
+
         headers = {
             "Content-Type": "application/json"
         }
-        
-        response = client.post("/api/webhooks/gmail/events", content=body_bytes, headers=headers)
+
+        response = client.post(
+            "/api/webhooks/gmail/events?token=gmail_verify_token_123",
+            content=body_bytes,
+            headers=headers,
+        )
         assert response.status_code == 200
         assert response.json() == {"status": "enqueued", "job_id": "job_gmail_abc"}
         mock_enqueue.assert_called_once()
@@ -408,16 +419,20 @@ class TestRealTimeWebhooksTDD:
     # =========================================================================
 
     @patch("api.routes.webhooks.ingestion_webhooks.webhook_queue.enqueue_ingestion_job")
-    def test_gmail_pubsub_base64_webhook_success(self, mock_enqueue, client, mock_db_setup):
+    def test_gmail_pubsub_base64_webhook_success(self, mock_enqueue, client, mock_db_setup, monkeypatch):
         """Gmail Pub/Sub base64 wrapped payload processing and connection mapping."""
         mock_enqueue.return_value = "job_gmail_pubsub_abc"
+
+        # Gmail webhooks fail closed unless GMAIL_WEBHOOK_VERIFY_TOKEN is set
+        # and supplied via the `token` query parameter (Google Pub/Sub pattern)
+        monkeypatch.setenv("GMAIL_WEBHOOK_VERIFY_TOKEN", "gmail_verify_token_123")
 
         # Construct inner JSON payload
         inner_payload = {
             "emailAddress": "gmail_user@example.com",
             "historyId": "999888"
         }
-        
+
         # Base64 encode the inner payload
         import base64
         base64_str = base64.b64encode(json.dumps(inner_payload).encode("utf-8")).decode("utf-8")
@@ -429,13 +444,17 @@ class TestRealTimeWebhooksTDD:
                 "messageId": "msg_12345"
             }
         }
-        
+
         body_bytes = json.dumps(pubsub_payload).encode("utf-8")
         headers = {
             "Content-Type": "application/json"
         }
-        
-        response = client.post("/api/webhooks/gmail/events", content=body_bytes, headers=headers)
+
+        response = client.post(
+            "/api/webhooks/gmail/events?token=gmail_verify_token_123",
+            content=body_bytes,
+            headers=headers,
+        )
         assert response.status_code == 200
         assert response.json() == {"status": "enqueued", "job_id": "job_gmail_pubsub_abc"}
         
@@ -2918,10 +2937,13 @@ class TestRollbackAndResilience:
         db_session.add(entity)
         db_session.commit()
 
-        # Send delete webhook
+        # Send delete webhook. Tenant resolution is by external ID (the
+        # TenantIntegration external_id above) — the tenant_id query param is
+        # intentionally NOT trusted (cross-tenant injection hardening).
         payload_dict = {
             "event": "MESSAGE_DELETE",
-            "id": target_msg_id
+            "id": target_msg_id,
+            "guild_id": "discord_server_123"
         }
         
         headers = {
@@ -2941,11 +2963,24 @@ class TestRollbackAndResilience:
     def test_tombstone_recording_on_delete(self, mock_enqueue, client, db_session):
         tenant_id = "tenant_123"
         from core.models import WebhookTombstone
-        
+
+        # Tenant resolution requires a TenantIntegration mapped to the
+        # discord guild external ID (query-param tenant_id is not trusted)
+        from core.models import TenantIntegration
+        integration = TenantIntegration(
+            tenant_id=tenant_id,
+            connector_id="discord",
+            external_id="discord_server_123",
+            is_active=True
+        )
+        db_session.add(integration)
+        db_session.commit()
+
         # Send delete webhook for non-existent resource
         payload_dict = {
             "event": "MESSAGE_DELETE",
-            "id": "non_existent_msg"
+            "id": "non_existent_msg",
+            "guild_id": "discord_server_123"
         }
         
         headers = {
@@ -2969,7 +3004,18 @@ class TestRollbackAndResilience:
     def test_tombstone_enforcement_on_create(self, mock_enqueue, client, db_session):
         tenant_id = "tenant_123"
         from core.models import WebhookTombstone
-        
+
+        # Tenant resolution requires a TenantIntegration mapped to the
+        # discord guild external ID (query-param tenant_id is not trusted)
+        from core.models import TenantIntegration
+        integration = TenantIntegration(
+            tenant_id=tenant_id,
+            connector_id="discord",
+            external_id="discord_server_123",
+            is_active=True
+        )
+        db_session.add(integration)
+
         # Write tombstone to DB
         tombstone = WebhookTombstone(
             tenant_id=tenant_id,
@@ -2983,7 +3029,8 @@ class TestRollbackAndResilience:
         payload_dict = {
             "event": "MESSAGE_CREATE",
             "id": "tombstoned_msg",
-            "content": "Should be ignored"
+            "content": "Should be ignored",
+            "guild_id": "discord_server_123"
         }
         
         headers = {
@@ -3017,7 +3064,10 @@ class TestRollbackAndResilience:
             tenant_id=tenant_id,
             connector_id="slack",
             external_id="team_123",
-            is_active=True
+            is_active=True,
+            # The Slack webhook verifies HMAC against the tenant's configured
+            # signing secret and rejects tenants without one (401 otherwise)
+            config={"slack_signing_secret": "slack_secret_123"}
         )
         db_session.add(integration)
         db_session.flush()
@@ -3038,13 +3088,18 @@ class TestRollbackAndResilience:
                 }
             }
         }
-        
+
+        body_bytes = json.dumps(payload_dict).encode("utf-8")
+        signature = hmac.new(b"slack_secret_123", body_bytes, hashlib.sha256).hexdigest()
+
         headers = {
             "Content-Type": "application/json",
-            "Host": "test-subdomain.localhost"
+            "Host": "test-subdomain.localhost",
+            "X-Slack-Request-Timestamp": "123456789",
+            "X-Slack-Signature": signature
         }
-        
-        response = client.post("/api/webhooks/slack/events", json=payload_dict, headers=headers)
+
+        response = client.post("/api/webhooks/slack/events", content=body_bytes, headers=headers)
         assert response.status_code == 200
         assert response.json()["status"] == "enqueued"
         assert response.json()["job_id"] == "job_999"

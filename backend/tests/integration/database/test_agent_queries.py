@@ -10,6 +10,8 @@ Tests cover:
 Coverage target: All query patterns tested with actual database
 """
 
+import uuid
+
 import pytest
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
@@ -445,7 +447,7 @@ class TestAgentRelationshipQueries:
                 agent_id=agent.id,
                 workspace_id="default",
                 status="completed",
-                input_data={"execution": i}
+                input_summary=f"Execution {i}"
             )
             db_session.add(execution)
         db_session.commit()
@@ -477,7 +479,7 @@ class TestAgentRelationshipQueries:
             agent_id=agent.id,
             workspace_id="default",
             status="completed",
-            input_data={}
+            input_summary="Test execution"
         )
         db_session.add(execution)
         db_session.commit()
@@ -485,9 +487,12 @@ class TestAgentRelationshipQueries:
         # Create feedback
         feedback = AgentFeedback(
             agent_id=agent.id,
-            execution_id=execution.id,
-            rating=5,
-            feedback="Excellent work!"
+            agent_execution_id=execution.id,
+            user_id=str(uuid.uuid4()),
+            original_output="The original agent output",
+            user_correction="Excellent work!",
+            feedback_type="rating",
+            rating=5
         )
         db_session.add(feedback)
         db_session.commit()
@@ -527,7 +532,7 @@ class TestAgentRelationshipQueries:
             agent_id=agent1.id,
             workspace_id="default",
             status="completed",
-            input_data={}
+            input_summary="Test execution"
         )
         db_session.add(execution)
         db_session.commit()
@@ -570,7 +575,7 @@ class TestAgentRelationshipQueries:
                 agent_id=agent1.id,
                 workspace_id="default",
                 status="completed",
-                input_data={}
+                input_summary="Test execution"
             )
             db_session.add(execution)
 
@@ -579,7 +584,7 @@ class TestAgentRelationshipQueries:
                 agent_id=agent2.id,
                 workspace_id="default",
                 status="completed",
-                input_data={}
+                input_summary="Test execution"
             )
             db_session.add(execution)
         db_session.commit()
@@ -613,7 +618,7 @@ class TestAgentRelationshipQueries:
             agent_id=agent.id,
             workspace_id="default",
             status="completed",
-            input_data={}
+            input_summary="Test execution"
         )
         db_session.add(execution)
         db_session.commit()
@@ -623,9 +628,12 @@ class TestAgentRelationshipQueries:
         for rating in ratings:
             feedback = AgentFeedback(
                 agent_id=agent.id,
-                execution_id=execution.id,
-                rating=rating,
-                feedback=f"Rating {rating}"
+                agent_execution_id=execution.id,
+                user_id=str(uuid.uuid4()),
+                original_output=f"Output {rating}",
+                user_correction=f"Rating {rating}",
+                feedback_type="rating",
+                rating=rating
             )
             db_session.add(feedback)
         db_session.commit()

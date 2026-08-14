@@ -370,7 +370,9 @@ class TestDebugModeBypass:
 
 class _FakeRevoked:
     def __init__(self, reason="logout"):
-        self.revocation_reason = reason
+        # Model column is `reason` (not `revocation_reason`) -- see the
+        # RevokedToken model and the wave 75 fix in jwt_verifier.
+        self.reason = reason
         self.revoked_at = "2026-01-01T00:00:00Z"
 
 

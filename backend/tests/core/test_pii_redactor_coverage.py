@@ -14,6 +14,7 @@ Security-bug tests carry a ``BUG:`` docstring (TDD).
 from __future__ import annotations
 
 import logging
+import re
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
@@ -35,10 +36,44 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+# The bundled spacy model (en_core_web_lg) has broken static vectors in this
+# environment, so AnalyzerEngine.analyze() raises for every text and redact()
+# would silently degrade to the regex fallback. To exercise the real Presidio
+# pipeline (allowlist filtering, operators, placeholder rendering, audit log)
+# deterministically, the analyzer is stubbed with these regex-backed results.
+_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+_PHONE_RE = re.compile(r"\(\d{3}\) \d{3}-\d{4}")
+_CARD_RE = re.compile(r"\b(?:\d{4}[-\s]?){3}\d{4}\b")
+
+
+def fake_analyze(text, language=None, entities=None, **kwargs):
+    """Deterministic stand-in for AnalyzerEngine.analyze()."""
+    from presidio_analyzer import RecognizerResult
+
+    results = []
+    for m in _EMAIL_RE.finditer(text):
+        results.append(
+            RecognizerResult(entity_type="EMAIL_ADDRESS", start=m.start(), end=m.end(), score=1.0)
+        )
+    for m in _PHONE_RE.finditer(text):
+        results.append(
+            RecognizerResult(entity_type="PHONE_NUMBER", start=m.start(), end=m.end(), score=1.0)
+        )
+    for m in _CARD_RE.finditer(text):
+        results.append(
+            RecognizerResult(entity_type="CREDIT_CARD", start=m.start(), end=m.end(), score=1.0)
+        )
+    return results
+
+
 @pytest.fixture
 def redactor():
     """Fresh PIIRedactor (not the module singleton) per test."""
-    return PIIRedactor()
+    r = PIIRedactor()
+    patcher = patch.object(r.analyzer, "analyze", side_effect=fake_analyze)
+    patcher.start()
+    yield r
+    patcher.stop()
 
 
 # ---------------------------------------------------------------------------
@@ -87,7 +122,8 @@ class TestAllowlist:
 
     def test_custom_allowlist_in_constructor(self):
         r = PIIRedactor(allowlist=["safe@company.io"])
-        result = r.redact("Reach safe@company.io")
+        with patch.object(r.analyzer, "analyze", side_effect=fake_analyze):
+            result = r.redact("Reach safe@company.io")
         assert "safe@company.io" in result.redacted_text
 
     def test_non_allowlisted_email_still_redacted(self, redactor):
@@ -247,12 +283,16 @@ class TestConvenienceFunctions:
         assert "two@env.io" in r.allowlist
 
     def test_redact_pii_returns_string(self):
-        out = redact_pii("mail me at test@example.com")
+        r = get_pii_redactor()
+        with patch.object(r.analyzer, "analyze", side_effect=fake_analyze):
+            out = redact_pii("mail me at test@example.com")
         assert isinstance(out, str)
         assert "test@example.com" not in out
 
     def test_check_for_pii_structure(self):
-        info = check_for_pii("mail me at test@example.com")
+        r = get_pii_redactor()
+        with patch.object(r.analyzer, "analyze", side_effect=fake_analyze):
+            info = check_for_pii("mail me at test@example.com")
         assert info["has_pii"] is True
         assert "EMAIL_ADDRESS" in info["types"]
         assert info["count"] >= 1

@@ -8,7 +8,7 @@ from core.agent_graduation_service import (
     AgentGraduationService,
     
 )
-from core.sandbox_executor import SandboxExecutor
+from core.sandbox_executor import GraduationExamSandboxExecutor, SandboxExecutor
 from core.models import AgentRegistry, AgentStatus, Episode, EpisodeSegment, SupervisionSession, SkillExecution
 
 
@@ -210,7 +210,8 @@ class TestSandboxExecutor:
         """Handle exam execution with nonexistent agent."""
         mock_db.query.return_value.filter.return_value.first.return_value = None
 
-        executor = SandboxExecutor(mock_db)
+        # execute_exam lives on GraduationExamSandboxExecutor
+        executor = GraduationExamSandboxExecutor(mock_db)
         result = await executor.execute_exam(
             agent_id="nonexistent",
             target_maturity="INTERN"
@@ -256,17 +257,13 @@ class TestGraduationExam:
     @pytest.mark.asyncio
     async def test_run_graduation_exam_no_edge_cases(self, graduation_service, mock_db):
         """Handle exam with no edge cases."""
-        # Mock sandbox executor
-        with patch('core.agent_graduation_service.SandboxExecutor') as mock_executor_class:
+        # run_graduation_exam resolves the executor via get_sandbox_executor
+        with patch('core.sandbox_executor.get_sandbox_executor') as mock_get_executor:
             mock_executor = Mock()
-            mock_executor.execute_exam = AsyncMock(return_value={
-                "success": True,
-                "score": 0.0,
-                "constitutional_compliance": 0.0,
-                "passed": False,
-                "constitutional_violations": []
-            })
-            mock_executor_class.return_value = mock_executor
+            mock_executor.execute_in_sandbox = AsyncMock(return_value=Mock(
+                passed=True, interventions=0, safety_violations=0, replayed_actions=[]
+            ))
+            mock_get_executor.return_value = mock_executor
 
             result = await graduation_service.run_graduation_exam(
                 agent_id="agent-123",
@@ -274,6 +271,9 @@ class TestGraduationExam:
             )
 
             assert result["total_cases"] == 0
+            assert result["passed"] is True
+            assert result["score"] == 0
+            mock_executor.execute_in_sandbox.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_execute_graduation_exam_integration(self, graduation_service, mock_db):
@@ -333,11 +333,12 @@ class TestAgentPromotion:
 
         mock_db.query.return_value.filter.return_value.first.return_value = agent
 
-        result = await graduation_service.promote_agent(
-            agent_id="agent-123",
-            new_maturity="SUPERVISED",
-            validated_by="user-123"
-        )
+        with patch('core.agent_graduation_service.flag_modified'):
+            result = await graduation_service.promote_agent(
+                agent_id="agent-123",
+                new_maturity="SUPERVISED",
+                validated_by="user-123"
+            )
 
         assert result is True
         assert agent.status == AgentStatus.SUPERVISED

@@ -311,17 +311,20 @@ def get_index_usage_stats(
         'row_count': None,
     }
 
-    # Extract timing information
+    # Extract timing information. The guard matches case-insensitively but
+    # PostgreSQL emits "Execution Time:" / "Planning Time:" — split on the
+    # lowercased line so real EXPLAIN output parses (previously every real
+    # line hit the IndexError and timings stayed None).
     for line in explain_output.split('\n'):
         if 'execution time' in line.lower():
             try:
-                time_str = line.split('execution time: ')[1].split(' ms')[0]
+                time_str = line.lower().split('execution time: ')[1].split(' ms')[0]
                 stats['execution_time'] = float(time_str)
             except (IndexError, ValueError):
                 pass
         if 'planning time' in line.lower():
             try:
-                time_str = line.split('planning time: ')[1].split(' ms')[0]
+                time_str = line.lower().split('planning time: ')[1].split(' ms')[0]
                 stats['planning_time'] = float(time_str)
             except (IndexError, ValueError):
                 pass

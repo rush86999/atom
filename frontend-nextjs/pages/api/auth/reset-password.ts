@@ -54,10 +54,13 @@ export default async function handler(
         }
 
         // Direct DB query (original implementation)
-        // Validate token
+        // Validate token — look up by SHA-256 hash (BUG FIX: was comparing the
+        // raw token against token_hash; must match how forgot-password stores it)
+        const crypto = await import('crypto');
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
         const tokenResult = await query(
             'SELECT user_id, expires_at, is_used FROM password_reset_tokens WHERE token_hash = $1',
-            [token]
+            [tokenHash]
         );
 
         if (tokenResult.rows.length === 0) {
@@ -88,7 +91,7 @@ export default async function handler(
         // Mark token as used
         await query(
             'UPDATE password_reset_tokens SET is_used = TRUE WHERE token_hash = $1',
-            [token]
+            [tokenHash]
         );
 
         return res.status(200).json({

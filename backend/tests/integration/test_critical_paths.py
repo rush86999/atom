@@ -381,7 +381,7 @@ class TestEpisodeCreationFlow:
         msg1 = ChatMessage(
             id=str(uuid.uuid4()),
             conversation_id=session.id,
-            workspace_id=str(uuid.uuid4()),
+            tenant_id="default",
             content="Message 1",
             role="user",
             created_at=datetime.utcnow() - timedelta(minutes=35)
@@ -389,7 +389,7 @@ class TestEpisodeCreationFlow:
         msg2 = ChatMessage(
             id=str(uuid.uuid4()),
             conversation_id=session.id,
-            workspace_id=str(uuid.uuid4()),
+            tenant_id="default",
             content="Message 2",
             role="assistant",
             created_at=datetime.utcnow() - timedelta(minutes=30)
@@ -414,7 +414,7 @@ class TestEpisodeCreationFlow:
         msg3 = ChatMessage(
             id=str(uuid.uuid4()),
             conversation_id=session.id,
-            workspace_id=str(uuid.uuid4()),
+            tenant_id="default",
             content="Message 3",
             role="user",
             created_at=datetime.utcnow()  # 30 min after msg2
@@ -451,7 +451,7 @@ class TestEpisodeCreationFlow:
         msg1 = ChatMessage(
             id=str(uuid.uuid4()),
             conversation_id=session.id,
-            workspace_id=str(uuid.uuid4()),
+            tenant_id="default",
             content="What's the weather like today?",
             role="user",
             created_at=datetime.utcnow()
@@ -459,7 +459,7 @@ class TestEpisodeCreationFlow:
         msg2 = ChatMessage(
             id=str(uuid.uuid4()),
             conversation_id=session.id,
-            workspace_id=str(uuid.uuid4()),
+            tenant_id="default",
             content="It's sunny and 75 degrees.",
             role="assistant",
             created_at=datetime.utcnow() + timedelta(seconds=5)
@@ -467,7 +467,7 @@ class TestEpisodeCreationFlow:
         msg3 = ChatMessage(
             id=str(uuid.uuid4()),
             conversation_id=session.id,
-            workspace_id=str(uuid.uuid4()),
+            tenant_id="default",
             content="Who won the game last night?",  # Topic switch
             role="user",
             created_at=datetime.utcnow() + timedelta(seconds=10)
@@ -511,11 +511,11 @@ class TestEpisodeCreationFlow:
         db_session.commit()
         db_session.refresh(agent)
 
-        # Create episode
+        # Create episode (AgentEpisode has no user_id/title columns;
+        # task_description carries the human-readable label)
         episode = EpisodeFactory(
             agent_id=agent.id,
-            user_id=user.id,
-            title="Test Episode",
+            task_description="Test Episode",
             _session=db_session
         )
         db_session.add(episode)
@@ -578,8 +578,7 @@ class TestEpisodeCreationFlow:
 
         episode = EpisodeFactory(
             agent_id=agent.id,
-            user_id=user.id,
-            title="Vector Test Episode",
+            task_description="Vector Test Episode",
             _session=db_session
         )
         db_session.add(episode)
@@ -643,7 +642,7 @@ class TestEpisodeCreationFlow:
         single_msg = ChatMessage(
             id=str(uuid.uuid4()),
             conversation_id=session.id,
-            workspace_id=str(uuid.uuid4()),
+            tenant_id="default",
             content="Single message",
             role="user",
             created_at=datetime.utcnow()
@@ -676,16 +675,12 @@ class TestEpisodeCreationFlow:
         # Create episodes with different topics
         episode1 = EpisodeFactory(
             agent_id=agent.id,
-            user_id=user.id,
-            title="Weather Discussion",
-            summary="Discussion about today's weather forecast",
+            task_description="Weather Discussion",
             _session=db_session
         )
         episode2 = EpisodeFactory(
             agent_id=agent.id,
-            user_id=user.id,
-            title="Sports Game",
-            summary="Analysis of last night's basketball game",
+            task_description="Sports Game",
             _session=db_session
         )
         db_session.add_all([episode1, episode2])
@@ -697,7 +692,7 @@ class TestEpisodeCreationFlow:
         ).all()
 
         assert len(agent_episodes) == 2, "Should retrieve both episodes"
-        titles = [ep.title for ep in agent_episodes]
+        titles = [ep.task_description for ep in agent_episodes]
         assert "Weather Discussion" in titles, "Should include weather episode"
         assert "Sports Game" in titles, "Should include sports episode"
 
@@ -743,7 +738,7 @@ class TestCanvasPresentationFlow:
             agent_id=agent.id,
             user_id=user.id,
             canvas_type="line_chart",
-            action="create",
+            action_type="create",
             _session=db_session
         )
         db_session.add(line_chart_audit)
@@ -754,7 +749,7 @@ class TestCanvasPresentationFlow:
             agent_id=agent.id,
             user_id=user.id,
             canvas_type="bar_chart",
-            action="create",
+            action_type="create",
             _session=db_session
         )
         db_session.add(bar_chart_audit)
@@ -765,7 +760,7 @@ class TestCanvasPresentationFlow:
             agent_id=agent.id,
             user_id=user.id,
             canvas_type="pie_chart",
-            action="create",
+            action_type="create",
             _session=db_session
         )
         db_session.add(pie_chart_audit)
@@ -776,7 +771,7 @@ class TestCanvasPresentationFlow:
             agent_id=agent.id,
             user_id=user.id,
             canvas_type="markdown",
-            action="create",
+            action_type="create",
             _session=db_session
         )
         db_session.add(markdown_audit)
@@ -788,7 +783,8 @@ class TestCanvasPresentationFlow:
         ).all()
         assert len(all_audits) == 4, "Should have 4 canvas audit entries"
 
-        canvas_types = [(audit.details_json or {}).get("canvas_type") for audit in all_audits]
+        # canvas_type is a real indexed column on CanvasAudit now
+        canvas_types = [audit.canvas_type for audit in all_audits]
         assert "line_chart" in canvas_types, "Should include line chart"
         assert "bar_chart" in canvas_types, "Should include bar chart"
         assert "pie_chart" in canvas_types, "Should include pie chart"
@@ -832,19 +828,17 @@ class TestCanvasPresentationFlow:
             agent_id=agent.id,
             user_id=user.id,
             canvas_type="line_chart",
-            component_type="chart",
-            component_name="line_chart",
-            action="create",
-            metadata={"canvas_config": test_data},
+            action_type="create",
+            details_json={"canvas_config": test_data},
             _session=db_session
         )
         db_session.add(canvas_audit)
         db_session.commit()
         db_session.refresh(canvas_audit)
 
-        # Verify data stored correctly in metadata
-        assert canvas_audit.metadata["canvas_config"]["data"]["labels"] == ["Jan", "Feb", "Mar"]
-        assert canvas_audit.metadata["canvas_config"]["data"]["datasets"][0]["data"] == [100, 150, 200]
+        # Verify data stored correctly in details_json
+        assert canvas_audit.details_json["canvas_config"]["data"]["labels"] == ["Jan", "Feb", "Mar"]
+        assert canvas_audit.details_json["canvas_config"]["data"]["datasets"][0]["data"] == [100, 150, 200]
 
     def test_form_data_validation_and_submission(self, db_session: Session):
         """
@@ -882,10 +876,8 @@ class TestCanvasPresentationFlow:
             agent_id=agent.id,
             user_id=user.id,
             canvas_type="form",
-            component_type="form",
-            component_name="form",
-            action="create",
-            metadata={"form_config": form_config},
+            action_type="create",
+            details_json={"form_config": form_config},
             _session=db_session
         )
         db_session.add(canvas_audit)
@@ -897,10 +889,8 @@ class TestCanvasPresentationFlow:
             agent_id=agent.id,
             user_id=user.id,
             canvas_type="form",
-            component_type="form",
-            component_name="form",
-            action="submit",
-            metadata={
+            action_type="form_submit",
+            details_json={
                 "form_data": {
                     "email": "test@example.com",
                     "name": "Test User"
@@ -914,11 +904,11 @@ class TestCanvasPresentationFlow:
         # Verify submission recorded
         submissions = db_session.query(CanvasAudit).filter(
             CanvasAudit.canvas_id == canvas_audit.canvas_id,
-            CanvasAudit.action == "submit"
+            CanvasAudit.action_type == "form_submit"
         ).all()
 
         assert len(submissions) == 1, "Should have 1 submission"
-        assert submissions[0].metadata["form_data"]["email"] == "test@example.com"
+        assert submissions[0].details_json["form_data"]["email"] == "test@example.com"
 
     def test_governance_enforcement_on_canvas(self, db_session: Session):
         """
@@ -980,7 +970,7 @@ class TestCanvasPresentationFlow:
             agent_id=autonomous_agent.id,
             user_id=user.id,
             canvas_type="form",
-            action="create",
+            action_type="create",
             _session=db_session
         )
         db_session.add(canvas_audit)
@@ -1022,7 +1012,7 @@ class TestCanvasPresentationFlow:
             agent_id=agent.id,
             user_id=user.id,
             canvas_type="line_chart",
-            action="create",
+            action_type="create",
             _session=db_session
         )
         db_session.add(create_audit)
@@ -1034,7 +1024,7 @@ class TestCanvasPresentationFlow:
             agent_id=agent.id,
             user_id=user.id,
             canvas_type="line_chart",
-            action="update",
+            action_type="update",
             _session=db_session
         )
         db_session.add(update_audit)
@@ -1077,7 +1067,7 @@ class TestCanvasPresentationFlow:
             agent_id=agent.id,
             user_id=user.id,
             canvas_type="line_chart",
-            action="create",
+            action_type="create",
             _session=db_session
         )
         db_session.add(canvas_audit)
@@ -1481,7 +1471,6 @@ class TestCrossCuttingConcerns:
         # Create episode (episode creation flow) for same agent
         episode = EpisodeFactory(
             agent_id=agent.id,
-            user_id=user.id,
             _session=db_session
         )
         db_session.add(episode)
@@ -1492,7 +1481,7 @@ class TestCrossCuttingConcerns:
             agent_id=agent.id,
             user_id=user.id,
             canvas_type="line_chart",
-            action="create",
+            action_type="create",
             _session=db_session
         )
         db_session.add(canvas_audit)
@@ -1538,7 +1527,6 @@ class TestCrossCuttingConcerns:
         # Create episode
         episode = EpisodeFactory(
             agent_id=agent.id,
-            user_id=user.id,
             _session=db_session
         )
         db_session.add(episode)
@@ -1551,7 +1539,7 @@ class TestCrossCuttingConcerns:
             agent_id=agent.id,
             user_id=user.id,
             canvas_type="line_chart",
-            action="create",
+            action_type="create",
             _session=db_session
         )
         db_session.add(canvas_audit)
@@ -1597,7 +1585,6 @@ class TestCrossCuttingConcerns:
         # Continue to episode creation (should work independently)
         episode = EpisodeFactory(
             agent_id=agent.id,
-            user_id=user.id,
             _session=db_session
         )
         db_session.add(episode)
@@ -1639,7 +1626,6 @@ class TestCrossCuttingConcerns:
         # Operation 2: Create episode (simulating concurrent access)
         episode = EpisodeFactory(
             agent_id=agent.id,
-            user_id=user.id,
             _session=db_session
         )
         db_session.add(episode)
@@ -1650,7 +1636,7 @@ class TestCrossCuttingConcerns:
             agent_id=agent.id,
             user_id=user.id,
             canvas_type="line_chart",
-            action="create",
+            action_type="create",
             _session=db_session
         )
         db_session.add(canvas_audit)

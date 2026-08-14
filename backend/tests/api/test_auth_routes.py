@@ -410,8 +410,10 @@ class TestMobileTokenRefresh:
                 }
             )
 
-            # Should fail with validation error
-            assert response.status_code in [400, 422]
+            # A wrong-type token is an auth failure: the route contract
+            # (docstring: "Raises: 401: Invalid refresh token") returns 401,
+            # same as the undecodable-token case above.
+            assert response.status_code == 401
 
 
 # ============================================================================
@@ -630,20 +632,32 @@ class TestSecurityValidation:
             "123"
         ]
 
-        for invalid_platform in invalid_platforms:
-            response = client.post(
-                "/api/auth/mobile/login",
-                json={
-                    "email": "test@example.com",
-                    "password": "password",
-                    "device_token": "token",
-                    "platform": invalid_platform
-                }
-            )
+        # Mock auth so the credential check (401 for the nonexistent
+        # test@example.com user) doesn't mask what this test exercises:
+        # how the route handles the platform field itself.
+        with patch('api.auth_routes.authenticate_mobile_user') as mock_auth:
+            mock_auth.return_value = {
+                "access_token": "test_access_token",
+                "refresh_token": "test_refresh_token",
+                "expires_at": "2026-02-14T00:00:00Z",
+                "token_type": "bearer",
+                "user": {"id": "user_id", "email": "test@example.com"}
+            }
 
-            # Platform validation is implementation-dependent
-            # Should either accept or reject with validation error
-            assert response.status_code in [200, 400, 422]
+            for invalid_platform in invalid_platforms:
+                response = client.post(
+                    "/api/auth/mobile/login",
+                    json={
+                        "email": "test@example.com",
+                        "password": "password",
+                        "device_token": "token",
+                        "platform": invalid_platform
+                    }
+                )
+
+                # Platform validation is implementation-dependent
+                # Should either accept or reject with validation error
+                assert response.status_code in [200, 400, 422]
 
     def test_biometric_public_key_format_validation(self, client: TestClient, test_user: User, test_device: MobileDevice):
         """Test biometric registration handles public keys of any format

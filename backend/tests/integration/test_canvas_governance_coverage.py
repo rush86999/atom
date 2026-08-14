@@ -33,21 +33,33 @@ from core.database import SessionLocal
 
 @pytest.fixture
 def db():
-    """Create a test database session using atom_dev.db with migration applied."""
+    """Create a real SQLite database with the full schema.
+
+    Uses a temp-file database (real engine, real SQL) instead of the
+    dev atom_dev.db file, which does not reliably contain the schema.
+    """
+    import os
+    import tempfile
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+    from core.database import Base
 
-    # Use the actual atom_dev.db database that has our migration
-    engine = create_engine('sqlite:///./atom_dev.db', connect_args={"check_same_thread": False})
-    SessionLocal = sessionmaker(bind=engine)
+    fd, db_path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
 
-    db = SessionLocal()
+    SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+    session = SessionLocal()
     try:
-        yield db
+        yield session
     finally:
-        db.close()
-        # Clean up
-        db.rollback()
+        session.close()
+        engine.dispose()
+        try:
+            os.unlink(db_path)
+        except OSError:
+            pass
 
 
 @pytest.fixture
@@ -78,7 +90,7 @@ def workspace(db: Session, user: User):
 
 @pytest.fixture
 def autonomous_agent(db: Session, workspace: Workspace):
-    """Create AUTONOMOUS agent."""
+    """Create AUTONOMOUS agent (maturity is encoded in status)."""
     agent = AgentRegistry(
         id=f"test_coverage_autonomous_agent_{uuid.uuid4()}",
         name="Test Coverage Autonomous Agent",
@@ -87,7 +99,6 @@ def autonomous_agent(db: Session, workspace: Workspace):
         class_name="TestAgent",
         status=AgentStatus.AUTONOMOUS.value,
         confidence_score=0.95,
-        maturity_level="AUTONOMOUS",
         workspace_id=workspace.id,
     )
     db.add(agent)
@@ -97,16 +108,15 @@ def autonomous_agent(db: Session, workspace: Workspace):
 
 @pytest.fixture
 def student_agent(db: Session, workspace: Workspace):
-    """Create STUDENT agent."""
+    """Create STUDENT agent (maturity is encoded in status)."""
     agent = AgentRegistry(
         id=f"test_coverage_student_agent_{uuid.uuid4()}",
         name="Test Coverage Student Agent",
         category="testing",
         module_path="agents.test_agent",
         class_name="TestAgent",
-        status=AgentStatus.ACTIVE.value,
+        status=AgentStatus.STUDENT.value,
         confidence_score=0.3,
-        maturity_level="STUDENT",
         workspace_id=workspace.id,
     )
     db.add(agent)
@@ -174,6 +184,9 @@ class TestAgentGovernanceRealDatabase:
         result = service.enforce_action(
             agent_id=autonomous_agent.id,
             action_type="delete",
+            # "delete" is high-complexity: the autonomous guardrail requires
+            # an advanced model in the action details for such actions
+            action_details={"model_name": "gpt-4"},
         )
 
         assert result["proceed"] is True
@@ -191,23 +204,24 @@ class TestAgentGovernanceRealDatabase:
         assert result["status"] == "BLOCKED"
 
     def test_get_agent_returns_agent(self, db: Session, autonomous_agent: AgentRegistry):
-        """Test getting agent from database."""
+        """Test getting agent maturity from the database via the service."""
         service = AgentGovernanceService(db, workspace_id=autonomous_agent.workspace_id)
 
-        agent = service.get_agent(autonomous_agent.id)
+        # get_agent() was replaced by get_agent_capabilities(), which returns
+        # the agent's maturity level and confidence from the database
+        capabilities = service.get_agent_capabilities(autonomous_agent.id)
 
-        assert agent is not None
-        assert agent.id == autonomous_agent.id
-        assert agent.maturity_level == "AUTONOMOUS"
+        assert capabilities is not None
+        assert capabilities["maturity_level"] == AgentStatus.AUTONOMOUS.value
 
-    def test_list_agents_returns_list(self, db: Session, workspace: Workspace):
+    def test_list_agents_returns_list(self, db: Session, workspace: Workspace, autonomous_agent: AgentRegistry, student_agent: AgentRegistry):
         """Test listing agents from database."""
         service = AgentGovernanceService(db, workspace_id=workspace.id)
 
         agents = service.list_agents()
 
         assert isinstance(agents, list)
-        assert len(agents) >= 2  # We created autonomous_agent and student_agent
+        assert len(agents) >= 2  # autonomous_agent and student_agent fixtures
 
 
 # ============================================================================
@@ -233,7 +247,7 @@ class TestCanvasRealDatabase:
         db.commit()
 
         # Verify it was saved
-        retrieved = db.query(Canvas).filter(Canvas.id == "test_coverage_canvas").first()
+        retrieved = db.query(Canvas).filter(Canvas.id == canvas.id).first()
         assert retrieved is not None
         assert retrieved.name == "Test Coverage Canvas"
         assert retrieved.canvas_type == "chart"
@@ -259,7 +273,7 @@ class TestCanvasRealDatabase:
         db.commit()
 
         # Verify update
-        retrieved = db.query(Canvas).filter(Canvas.id == "test_coverage_canvas_update").first()
+        retrieved = db.query(Canvas).filter(Canvas.id == canvas.id).first()
         assert retrieved.name == "Updated Title"
         assert retrieved.content["text"] == "updated"
 

@@ -55,12 +55,21 @@ export default async function handler(
       });
     }
 
+    // BUG FIX: `${action}ed` produced "deleteed" for the delete action — use a
+    // proper past-tense map instead of blind suffixing.
+    const pastTense: Record<string, string> = {
+      list: 'listed',
+      create: 'created',
+      update: 'updated',
+      delete: 'deleted',
+    };
+
     return res.status(200).json({
       ok: true,
       action,
       result: data.result,
       environment_variables: data.environment_variables,
-      message: `Successfully ${action}ed environment variable${key ? ` ${key}` : 's'}`
+      message: `Successfully ${pastTense[action] ?? action} environment variable${key ? ` ${key}` : 's'}`
     });
 
   } catch (error) {

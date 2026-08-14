@@ -29,7 +29,7 @@ class TestBlueprintLoading:
         """Test blueprint generation for valid goal."""
         # Arrange
         mock_llm = Mock(spec=LLMService)
-        mock_llm.generate_response = AsyncMock(return_value=json.dumps({
+        mock_llm.generate = AsyncMock(return_value=json.dumps({
             "architecture_name": "Test Workflow",
             "description": "A test workflow",
             "execution_mode": "one-off",
@@ -56,14 +56,14 @@ class TestBlueprintLoading:
         assert "blueprint_id" in blueprint
         assert len(blueprint["nodes"]) == 1
         assert blueprint["nodes"][0]["id"] == "step_1"
-        mock_llm.generate_response.assert_called_once()
+        mock_llm.generate.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_blueprint_with_trigger_node(self, db_session: Session):
         """Test blueprint generation for recurring automation with trigger."""
         # Arrange
         mock_llm = Mock(spec=LLMService)
-        mock_llm.generate_response = AsyncMock(return_value=json.dumps({
+        mock_llm.generate = AsyncMock(return_value=json.dumps({
             "architecture_name": "Recurring Automation",
             "description": "Automated daily report",
             "execution_mode": "recurring_automation",
@@ -103,7 +103,7 @@ class TestBlueprintLoading:
         """Test blueprint generation identifies missing capabilities."""
         # Arrange
         mock_llm = Mock(spec=LLMService)
-        mock_llm.generate_response = AsyncMock(return_value=json.dumps({
+        mock_llm.generate = AsyncMock(return_value=json.dumps({
             "architecture_name": "Advanced Workflow",
             "description": "Workflow with missing skills",
             "execution_mode": "one-off",
@@ -140,7 +140,7 @@ class TestBlueprintLoading:
         """Test fallback blueprint when LLM fails."""
         # Arrange
         mock_llm = Mock(spec=LLMService)
-        mock_llm.generate_response = AsyncMock(side_effect=Exception("LLM service unavailable"))
+        mock_llm.generate = AsyncMock(side_effect=Exception("LLM service unavailable"))
 
         queen = QueenAgent(db_session, mock_llm)
 
@@ -158,7 +158,7 @@ class TestBlueprintLoading:
         """Test fallback when LLM returns invalid JSON."""
         # Arrange
         mock_llm = Mock(spec=LLMService)
-        mock_llm.generate_response = AsyncMock(return_value="Invalid JSON response")
+        mock_llm.generate = AsyncMock(return_value="Invalid JSON response")
 
         queen = QueenAgent(db_session, mock_llm)
 
@@ -575,7 +575,7 @@ class TestEdgeCases:
         """Test blueprint generation with empty goal."""
         # Arrange
         mock_llm = Mock(spec=LLMService)
-        mock_llm.generate_response = AsyncMock(return_value=json.dumps({
+        mock_llm.generate = AsyncMock(return_value=json.dumps({
             "architecture_name": "Basic Sequential Architecture",
             "description": "Fallback for empty goal",
             "nodes": [
@@ -605,7 +605,7 @@ class TestEdgeCases:
         """Test blueprint generation when LLM returns JSON in markdown code block."""
         # Arrange
         mock_llm = Mock(spec=LLMService)
-        mock_llm.generate_response = AsyncMock(return_value='''```json
+        mock_llm.generate = AsyncMock(return_value='''```json
         {
             "architecture_name": "Markdown Wrapped JSON",
             "description": "Test",
@@ -629,7 +629,7 @@ class TestEdgeCases:
         """Test blueprint generation with custom tenant ID."""
         # Arrange
         mock_llm = Mock(spec=LLMService)
-        mock_llm.generate_response = AsyncMock(return_value=json.dumps({
+        mock_llm.generate = AsyncMock(return_value=json.dumps({
             "architecture_name": "Tenant Workflow",
             "description": "Test",
             "nodes": [],
@@ -644,9 +644,9 @@ class TestEdgeCases:
 
         # Assert
         assert blueprint is not None
-        mock_llm.generate_response.assert_called_once()
+        mock_llm.generate.assert_called_once()
         # Verify tenant_id was passed to LLM
-        call_args = mock_llm.generate_response.call_args
+        call_args = mock_llm.generate.call_args
         assert call_args[1]["tenant_id"] == "custom_tenant"
 
     def test_init_with_skill_creator(self, db_session: Session):
@@ -677,7 +677,7 @@ class TestIntegration:
         """Test complete flow from goal to blueprint."""
         # Arrange
         mock_llm = Mock(spec=LLMService)
-        mock_llm.generate_response = AsyncMock(return_value=json.dumps({
+        mock_llm.generate = AsyncMock(return_value=json.dumps({
             "architecture_name": "E2E Test Workflow",
             "description": "End-to-end test",
             "execution_mode": "one-off",

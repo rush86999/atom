@@ -6,14 +6,33 @@ Tests cover:
 - INTERN agent access
 - SUPERVISED agent access
 - AUTONOMOUS agent access
+
+Ported to the current API surface: browser actions live under
+``/api/browser/<action>`` with ``session_id`` in the request body (the old
+``/api/browser/{session_id}/<action>`` path layout no longer exists), and
+the tool functions imported into ``api.browser_routes`` are
+``browser_fill_form`` / ``browser_close_session`` etc.
 """
+import uuid
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from tests.factories.agent_factory import StudentAgentFactory, InternAgentFactory, SupervisedAgentFactory, AutonomousAgentFactory
-from core.models import BrowserSession
-from unittest.mock import Mock, patch
-import uuid
+from tests.factories.agent_factory import (
+    StudentAgentFactory,
+    InternAgentFactory,
+    SupervisedAgentFactory,
+    AutonomousAgentFactory,
+)
+from core.models import BrowserAudit, BrowserSession
+
+
+def _agent(factory, db_session: Session):
+    """Create a committed agent visible to the API's DB session."""
+    agent = factory(_session=db_session)
+    db_session.commit()
+    return agent
 
 
 class TestStudentAgentAccess:
@@ -21,9 +40,7 @@ class TestStudentAgentAccess:
 
     def test_student_blocked_from_browser_session(self, client: TestClient, auth_token: str, db_session: Session):
         """Test STUDENT agents blocked from browser sessions."""
-        student = StudentAgentFactory()
-        db_session.add(student)
-        db_session.commit()
+        student = _agent(StudentAgentFactory, db_session)
 
         response = client.post(
             "/api/browser/session/create",
@@ -35,19 +52,18 @@ class TestStudentAgentAccess:
         )
 
         # STUDENT blocked from browser automation (action complexity 2)
-        assert response.status_code in [403, 404, 405]
+        assert response.status_code == 403
 
     def test_student_blocked_from_navigation(self, client: TestClient, auth_token: str, db_session: Session):
         """Test STUDENT agents blocked from browser navigation."""
-        student = StudentAgentFactory()
-        db_session.add(student)
-        db_session.commit()
+        student = _agent(StudentAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
         response = client.post(
-            f"/api/browser/{session_id}/navigate",
+            "/api/browser/navigate",
             json={
+                "session_id": session_id,
                 "url": "https://example.com",
                 "agent_id": student.id
             },
@@ -55,24 +71,22 @@ class TestStudentAgentAccess:
         )
 
         # STUDENT blocked from navigation
-        assert response.status_code in [403, 404, 405]
+        assert response.status_code == 403
 
     def test_student_blocked_from_screenshot(self, client: TestClient, auth_token: str, db_session: Session):
         """Test STUDENT agents blocked from screenshots."""
-        student = StudentAgentFactory()
-        db_session.add(student)
-        db_session.commit()
+        student = _agent(StudentAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
         response = client.post(
-            f"/api/browser/{session_id}/screenshot",
-            params={"agent_id": student.id},
+            "/api/browser/screenshot",
+            json={"session_id": session_id, "agent_id": student.id},
             headers={"Authorization": f"Bearer {auth_token}"}
         )
 
         # STUDENT blocked from screenshots
-        assert response.status_code in [403, 404, 405]
+        assert response.status_code == 403
 
 
 class TestInternAgentAccess:
@@ -80,11 +94,9 @@ class TestInternAgentAccess:
 
     def test_intern_can_create_browser_session(self, client: TestClient, auth_token: str, db_session: Session):
         """Test INTERN agents can create browser sessions."""
-        intern = InternAgentFactory()
-        db_session.add(intern)
-        db_session.commit()
+        intern = _agent(InternAgentFactory, db_session)
 
-        with patch('api.browser_routes.browser_create_session') as mock_create:
+        with patch('api.browser_routes.browser_create_session', new_callable=AsyncMock) as mock_create:
             mock_create.return_value = {
                 "success": True,
                 "session_id": "intern-session-123"
@@ -100,22 +112,22 @@ class TestInternAgentAccess:
             )
 
             # INTERN can use browser (action complexity 2)
-            assert response.status_code in [200, 201, 404, 405]
+            assert response.status_code == 200
+            assert response.json()["success"] is True
 
     def test_intern_can_navigate(self, client: TestClient, auth_token: str, db_session: Session):
         """Test INTERN agents can navigate browser."""
-        intern = InternAgentFactory()
-        db_session.add(intern)
-        db_session.commit()
+        intern = _agent(InternAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
-        with patch('api.browser_routes.browser_navigate') as mock_navigate:
-            mock_navigate.return_value = {"success": True}
+        with patch('api.browser_routes.browser_navigate', new_callable=AsyncMock) as mock_navigate:
+            mock_navigate.return_value = {"success": True, "url": "https://example.com"}
 
             response = client.post(
-                f"/api/browser/{session_id}/navigate",
+                "/api/browser/navigate",
                 json={
+                    "session_id": session_id,
                     "url": "https://example.com",
                     "agent_id": intern.id
                 },
@@ -123,54 +135,53 @@ class TestInternAgentAccess:
             )
 
             # INTERN can navigate
-            assert response.status_code in [200, 201, 404, 405]
+            assert response.status_code == 200
+            assert response.json()["success"] is True
 
     def test_intern_can_take_screenshot(self, client: TestClient, auth_token: str, db_session: Session):
         """Test INTERN agents can take screenshots."""
-        intern = InternAgentFactory()
-        db_session.add(intern)
-        db_session.commit()
+        intern = _agent(InternAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
-        with patch('api.browser_routes.browser_screenshot') as mock_screenshot:
+        with patch('api.browser_routes.browser_screenshot', new_callable=AsyncMock) as mock_screenshot:
             mock_screenshot.return_value = {
                 "success": True,
                 "screenshot": "base64image"
             }
 
             response = client.post(
-                f"/api/browser/{session_id}/screenshot",
-                params={"agent_id": intern.id},
+                "/api/browser/screenshot",
+                json={"session_id": session_id, "agent_id": intern.id},
                 headers={"Authorization": f"Bearer {auth_token}"}
             )
 
             # INTERN can take screenshots
-            assert response.status_code in [200, 201, 404, 405]
+            assert response.status_code == 200
+            assert response.json()["success"] is True
 
     def test_intern_can_fill_forms(self, client: TestClient, auth_token: str, db_session: Session):
         """Test INTERN agents can fill forms."""
-        intern = InternAgentFactory()
-        db_session.add(intern)
-        db_session.commit()
+        intern = _agent(InternAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
-        with patch('api.browser_routes.browser_fill') as mock_fill:
+        with patch('api.browser_routes.browser_fill_form', new_callable=AsyncMock) as mock_fill:
             mock_fill.return_value = {"success": True}
 
             response = client.post(
-                f"/api/browser/{session_id}/fill",
+                "/api/browser/fill-form",
                 json={
-                    "selector": "#email",
-                    "value": "intern@example.com",
+                    "session_id": session_id,
+                    "selectors": {"#email": "intern@example.com"},
                     "agent_id": intern.id
                 },
                 headers={"Authorization": f"Bearer {auth_token}"}
             )
 
             # INTERN can fill forms (read-only action)
-            assert response.status_code in [200, 201, 404, 405]
+            assert response.status_code == 200
+            assert response.json()["success"] is True
 
 
 class TestSupervisedAgentAccess:
@@ -178,11 +189,9 @@ class TestSupervisedAgentAccess:
 
     def test_supervised_can_create_browser_session(self, client: TestClient, auth_token: str, db_session: Session):
         """Test SUPERVISED agents can create browser sessions."""
-        supervised = SupervisedAgentFactory()
-        db_session.add(supervised)
-        db_session.commit()
+        supervised = _agent(SupervisedAgentFactory, db_session)
 
-        with patch('api.browser_routes.browser_create_session') as mock_create:
+        with patch('api.browser_routes.browser_create_session', new_callable=AsyncMock) as mock_create:
             mock_create.return_value = {
                 "success": True,
                 "session_id": "supervised-session-123"
@@ -198,22 +207,22 @@ class TestSupervisedAgentAccess:
             )
 
             # SUPERVISED can create sessions
-            assert response.status_code in [200, 201, 404, 405]
+            assert response.status_code == 200
+            assert response.json()["success"] is True
 
     def test_supervised_can_click_elements(self, client: TestClient, auth_token: str, db_session: Session):
         """Test SUPERVISED agents can click elements."""
-        supervised = SupervisedAgentFactory()
-        db_session.add(supervised)
-        db_session.commit()
+        supervised = _agent(SupervisedAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
-        with patch('api.browser_routes.browser_click') as mock_click:
+        with patch('api.browser_routes.browser_click', new_callable=AsyncMock) as mock_click:
             mock_click.return_value = {"success": True}
 
             response = client.post(
-                f"/api/browser/{session_id}/click",
+                "/api/browser/click",
                 json={
+                    "session_id": session_id,
                     "selector": "#submit-button",
                     "agent_id": supervised.id
                 },
@@ -221,22 +230,22 @@ class TestSupervisedAgentAccess:
             )
 
             # SUPERVISED can click (state-changing action)
-            assert response.status_code in [200, 201, 404, 405]
+            assert response.status_code == 200
+            assert response.json()["success"] is True
 
     def test_supervised_can_submit_forms(self, client: TestClient, auth_token: str, db_session: Session):
         """Test SUPERVISED agents can submit forms."""
-        supervised = SupervisedAgentFactory()
-        db_session.add(supervised)
-        db_session.commit()
+        supervised = _agent(SupervisedAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
-        with patch('api.browser_routes.browser_click') as mock_click:
+        with patch('api.browser_routes.browser_click', new_callable=AsyncMock) as mock_click:
             mock_click.return_value = {"success": True}
 
             response = client.post(
-                f"/api/browser/{session_id}/click",
+                "/api/browser/click",
                 json={
+                    "session_id": session_id,
                     "selector": "button[type='submit']",
                     "agent_id": supervised.id
                 },
@@ -244,7 +253,8 @@ class TestSupervisedAgentAccess:
             )
 
             # SUPERVISED can submit forms
-            assert response.status_code in [200, 201, 404, 405]
+            assert response.status_code == 200
+            assert response.json()["success"] is True
 
 
 class TestAutonomousAgentAccess:
@@ -252,53 +262,50 @@ class TestAutonomousAgentAccess:
 
     def test_autonomous_full_browser_access(self, client: TestClient, auth_token: str, db_session: Session):
         """Test AUTONOMOUS agents have full browser access."""
-        autonomous = AutonomousAgentFactory()
-        db_session.add(autonomous)
-        db_session.commit()
+        autonomous = _agent(AutonomousAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
         # Test multiple actions
         actions = [
             ("navigate", {"url": "https://example.com"}),
-            ("fill", {"selector": "#email", "value": "auto@example.com"}),
+            ("fill-form", {"selectors": {"#email": "auto@example.com"}}),
             ("click", {"selector": "#submit"}),
-            ("screenshot", {})
+            ("screenshot", {}),
         ]
 
         for action, params in actions:
-            with patch(f'api.browser_routes.browser_{action}') as mock_action:
+            with patch(f'api.browser_routes.browser_{action.replace("-", "_")}', new_callable=AsyncMock) as mock_action:
                 mock_action.return_value = {"success": True}
 
                 response = client.post(
-                    f"/api/browser/{session_id}/{action}",
-                    json={**params, "agent_id": autonomous.id} if action != "screenshot" else {},
-                    params={"agent_id": autonomous.id} if action == "screenshot" else {},
+                    f"/api/browser/{action}",
+                    json={"session_id": session_id, "agent_id": autonomous.id, **params},
                     headers={"Authorization": f"Bearer {auth_token}"}
                 )
 
                 # AUTONOMOUS should have full access
-                assert response.status_code in [200, 201, 404, 405]
+                assert response.status_code == 200
+                assert response.json()["success"] is True
 
     def test_autonomous_can_close_sessions(self, client: TestClient, auth_token: str, db_session: Session):
         """Test AUTONOMOUS agents can close sessions."""
-        autonomous = AutonomousAgentFactory()
-        db_session.add(autonomous)
-        db_session.commit()
+        autonomous = _agent(AutonomousAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
-        with patch('api.browser_routes.browser_close_session') as mock_close:
+        with patch('api.browser_routes.browser_close_session', new_callable=AsyncMock) as mock_close:
             mock_close.return_value = {"success": True}
 
             response = client.post(
-                f"/api/browser/{session_id}/close",
-                params={"agent_id": autonomous.id},
+                "/api/browser/session/close",
+                json={"session_id": session_id, "agent_id": autonomous.id},
                 headers={"Authorization": f"Bearer {auth_token}"}
             )
 
             # AUTONOMOUS can close sessions
-            assert response.status_code in [200, 204, 404, 405]
+            assert response.status_code == 200
+            assert response.json()["success"] is True
 
 
 class TestBrowserActionComplexity:
@@ -306,68 +313,64 @@ class TestBrowserActionComplexity:
 
     def test_browser_navigation_complexity_2(self, client: TestClient, auth_token: str, db_session: Session):
         """Test browser navigation is complexity 2 (INTERN+)."""
-        intern = InternAgentFactory()
-        student = StudentAgentFactory()
-        db_session.add_all([intern, student])
-        db_session.commit()
+        intern = _agent(InternAgentFactory, db_session)
+        student = _agent(StudentAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
         # INTERN should be allowed
-        with patch('api.browser_routes.browser_navigate') as mock_navigate:
+        with patch('api.browser_routes.browser_navigate', new_callable=AsyncMock) as mock_navigate:
             mock_navigate.return_value = {"success": True}
 
             intern_response = client.post(
-                f"/api/browser/{session_id}/navigate",
-                json={"url": "https://example.com", "agent_id": intern.id},
+                "/api/browser/navigate",
+                json={"session_id": session_id, "url": "https://example.com", "agent_id": intern.id},
                 headers={"Authorization": f"Bearer {auth_token}"}
             )
 
             # STUDENT should be blocked
             student_response = client.post(
-                f"/api/browser/{session_id}/navigate",
-                json={"url": "https://example.com", "agent_id": student.id},
+                "/api/browser/navigate",
+                json={"session_id": session_id, "url": "https://example.com", "agent_id": student.id},
                 headers={"Authorization": f"Bearer {auth_token}"}
             )
 
-            # Verify governance enforced
-            assert intern_response.status_code in [200, 201, 404, 405]
-            assert student_response.status_code in [403, 404, 405]
+        # Verify governance enforced
+        assert intern_response.status_code == 200
+        assert student_response.status_code == 403
 
     def test_screenshot_complexity_2(self, client: TestClient, auth_token: str, db_session: Session):
         """Test screenshot is complexity 2 (INTERN+)."""
-        intern = InternAgentFactory()
-        db_session.add(intern)
-        db_session.commit()
+        intern = _agent(InternAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
-        with patch('api.browser_routes.browser_screenshot') as mock_screenshot:
+        with patch('api.browser_routes.browser_screenshot', new_callable=AsyncMock) as mock_screenshot:
             mock_screenshot.return_value = {"success": True}
 
             response = client.post(
-                f"/api/browser/{session_id}/screenshot",
-                params={"agent_id": intern.id},
+                "/api/browser/screenshot",
+                json={"session_id": session_id, "agent_id": intern.id},
                 headers={"Authorization": f"Bearer {auth_token}"}
             )
 
             # INTERN+ can take screenshots
-            assert response.status_code in [200, 201, 404, 405]
+            assert response.status_code == 200
+            assert response.json()["success"] is True
 
     def test_form_submit_complexity_3(self, client: TestClient, auth_token: str, db_session: Session):
         """Test form submission is complexity 3 (SUPERVISED+)."""
-        supervised = SupervisedAgentFactory()
-        db_session.add(supervised)
-        db_session.commit()
+        supervised = _agent(SupervisedAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
-        with patch('api.browser_routes.browser_click') as mock_click:
+        with patch('api.browser_routes.browser_click', new_callable=AsyncMock) as mock_click:
             mock_click.return_value = {"success": True}
 
             response = client.post(
-                f"/api/browser/{session_id}/click",
+                "/api/browser/click",
                 json={
+                    "session_id": session_id,
                     "selector": "button[type='submit']",
                     "agent_id": supervised.id
                 },
@@ -375,7 +378,8 @@ class TestBrowserActionComplexity:
             )
 
             # SUPERVISED+ can submit forms
-            assert response.status_code in [200, 201, 404, 405]
+            assert response.status_code == 200
+            assert response.json()["success"] is True
 
 
 class TestBrowserAuditTrail:
@@ -383,12 +387,11 @@ class TestBrowserAuditTrail:
 
     def test_browser_session_creates_audit(self, client: TestClient, auth_token: str, db_session: Session):
         """Test browser sessions create audit records."""
-        agent = InternAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
+        agent = _agent(InternAgentFactory, db_session)
 
-        with patch('api.browser_routes.browser_create_session') as mock_create:
-            session_id = str(uuid.uuid4())
+        session_id = str(uuid.uuid4())
+
+        with patch('api.browser_routes.browser_create_session', new_callable=AsyncMock) as mock_create:
             mock_create.return_value = {
                 "success": True,
                 "session_id": session_id
@@ -403,42 +406,47 @@ class TestBrowserAuditTrail:
                 headers={"Authorization": f"Bearer {auth_token}"}
             )
 
-            if response.status_code in [200, 201]:
-                # Check audit record created
-                audit = db_session.query(BrowserSession).filter(
-                    BrowserSession.session_id == session_id
-                ).first()
+            assert response.status_code == 200
 
-                # Audit may or may not be created based on implementation
-                assert audit is not None or audit is None
+            # The route persists a BrowserSession record for the created session
+            record = db_session.query(BrowserSession).filter(
+                BrowserSession.session_id == session_id
+            ).first()
+            assert record is not None
+            assert record.agent_id == agent.id
 
     def test_browser_actions_logged(self, client: TestClient, auth_token: str, db_session: Session):
         """Test browser actions are logged."""
-        agent = InternAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
+        agent = _agent(InternAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
-        with patch('api.browser_routes.browser_navigate') as mock_navigate:
+        with patch('api.browser_routes.browser_navigate', new_callable=AsyncMock) as mock_navigate:
             mock_navigate.return_value = {
                 "success": True,
                 "url": "https://example.com"
             }
 
             response = client.post(
-                f"/api/browser/{session_id}/navigate",
+                "/api/browser/navigate",
                 json={
+                    "session_id": session_id,
                     "url": "https://example.com",
                     "agent_id": agent.id
                 },
                 headers={"Authorization": f"Bearer {auth_token}"}
             )
 
-            # Action should be logged
-            if response.status_code in [200, 201]:
-                # Verify audit trail
-                assert True  # Audit logging implementation dependent
+            assert response.status_code == 200
+
+            # Every browser action writes a BrowserAudit entry
+            audits = db_session.query(BrowserAudit).filter(
+                BrowserAudit.session_id == session_id
+            ).all()
+            assert len(audits) >= 1
+            assert audits[0].action == "navigate"
+            assert audits[0].success is True
+            assert audits[0].governance_check_passed is True
 
 
 class TestBrowserSecurity:
@@ -446,22 +454,21 @@ class TestBrowserSecurity:
 
     def test_blocked_urls(self, client: TestClient, auth_token: str, db_session: Session):
         """Test blocked URLs cannot be accessed."""
-        agent = AutonomousAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
+        agent = _agent(AutonomousAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
         # Try to navigate to blocked URL (e.g., internal network)
-        with patch('api.browser_routes.browser_navigate') as mock_navigate:
+        with patch('api.browser_routes.browser_navigate', new_callable=AsyncMock) as mock_navigate:
             mock_navigate.return_value = {
                 "success": False,
                 "error": "URL blocked by security policy"
             }
 
             response = client.post(
-                f"/api/browser/{session_id}/navigate",
+                "/api/browser/navigate",
                 json={
+                    "session_id": session_id,
                     "url": "http://localhost:8080/admin",
                     "agent_id": agent.id
                 },
@@ -469,27 +476,26 @@ class TestBrowserSecurity:
             )
 
             # Should block internal URLs
-            if response.status_code in [200, 201]:
-                data = response.json()
-                assert data.get("success") is False or "blocked" in str(data).lower()
+            assert response.status_code == 200
+            data = response.json()
+            assert data.get("success") is False or "blocked" in str(data).lower()
 
     def test_file_access_blocked(self, client: TestClient, auth_token: str, db_session: Session):
         """Test file:// URLs are blocked."""
-        agent = AutonomousAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
+        agent = _agent(AutonomousAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
-        with patch('api.browser_routes.browser_navigate') as mock_navigate:
+        with patch('api.browser_routes.browser_navigate', new_callable=AsyncMock) as mock_navigate:
             mock_navigate.return_value = {
                 "success": False,
                 "error": "file:// URLs blocked"
             }
 
             response = client.post(
-                f"/api/browser/{session_id}/navigate",
+                "/api/browser/navigate",
                 json={
+                    "session_id": session_id,
                     "url": "file:///etc/passwd",
                     "agent_id": agent.id
                 },
@@ -497,7 +503,9 @@ class TestBrowserSecurity:
             )
 
             # Should block file:// URLs
-            assert response.status_code in [200, 201, 400, 404, 405]
+            assert response.status_code in [200, 400]
+            data = response.json()
+            assert data.get("success") is False
 
 
 class TestBrowserResourceLimits:
@@ -505,37 +513,34 @@ class TestBrowserResourceLimits:
 
     def test_session_timeout(self, client: TestClient, auth_token: str, db_session: Session):
         """Test browser sessions timeout after inactivity."""
-        agent = InternAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
+        agent = _agent(InternAgentFactory, db_session)
 
         session_id = str(uuid.uuid4())
 
         # Simulate session timeout
-        with patch('api.browser_routes.browser_close_session') as mock_close:
+        with patch('api.browser_routes.browser_close_session', new_callable=AsyncMock) as mock_close:
             mock_close.return_value = {
                 "success": True,
                 "reason": "timeout"
             }
 
             response = client.post(
-                f"/api/browser/{session_id}/close",
-                json={"reason": "timeout"},
+                "/api/browser/session/close",
+                json={"session_id": session_id, "agent_id": agent.id},
                 headers={"Authorization": f"Bearer {auth_token}"}
             )
 
-            assert response.status_code in [200, 204, 404, 405]
+            assert response.status_code == 200
+            assert response.json()["success"] is True
 
     def test_concurrent_session_limit(self, client: TestClient, auth_token: str, db_session: Session):
         """Test concurrent browser session limits."""
-        agent = InternAgentFactory()
-        db_session.add(agent)
-        db_session.commit()
+        agent = _agent(InternAgentFactory, db_session)
 
         # Try to create multiple sessions
         session_ids = []
         for i in range(10):
-            with patch('api.browser_routes.browser_create_session') as mock_create:
+            with patch('api.browser_routes.browser_create_session', new_callable=AsyncMock) as mock_create:
                 session_id = str(uuid.uuid4())
                 session_ids.append(session_id)
                 mock_create.return_value = {
@@ -553,4 +558,4 @@ class TestBrowserResourceLimits:
                 )
 
                 # May limit concurrent sessions
-                assert response.status_code in [200, 201, 404, 405, 429]
+                assert response.status_code in [200, 201, 429]

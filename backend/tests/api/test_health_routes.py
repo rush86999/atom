@@ -350,37 +350,58 @@ class TestHealthEdgeCases:
 # ============================================================================
 
 class TestDatabaseFailureScenarios:
-    """Tests for database failure scenarios."""
+    """Tests for database failure scenarios.
+
+    _check_database never raises — it converts timeouts/SQLAlchemy/unexpected
+    errors into {"healthy": False, ...} (see api/health_routes.py). These tests
+    exercise the readiness contract through that same shape: an unhealthy
+    database check must yield a 503 not_ready response.
+    """
 
     def test_database_timeout(self, api_test_client: TestClient, monkeypatch):
         """Test readiness probe handles database timeout."""
-        async def mock_db_timeout():
-            raise asyncio.TimeoutError("Database query timeout")
-
-        with patch("api.health_routes._check_database", side_effect=mock_db_timeout):
+        with patch(
+            "api.health_routes._check_database",
+            new=AsyncMock(return_value={
+                "healthy": False,
+                "message": "Database timeout after 5s",
+                "latency_ms": 5000,
+            }),
+        ):
             response = api_test_client.get("/health/ready")
             # Should handle timeout gracefully
-            assert response.status_code in [503, 500]
+            assert response.status_code == 503
+            assert response.json()["detail"]["checks"]["database"]["healthy"] is False
 
     def test_database_connection_error(self, api_test_client: TestClient, monkeypatch):
         """Test readiness probe handles database connection errors."""
-        async def mock_db_error():
-            raise SQLAlchemyError("Connection refused")
-
-        with patch("api.health_routes._check_database", side_effect=mock_db_error):
+        with patch(
+            "api.health_routes._check_database",
+            new=AsyncMock(return_value={
+                "healthy": False,
+                "message": "Database error",
+                "latency_ms": 0,
+            }),
+        ):
             response = api_test_client.get("/health/ready")
             # Should handle connection error gracefully
-            assert response.status_code in [503, 500]
+            assert response.status_code == 503
+            assert response.json()["detail"]["checks"]["database"]["healthy"] is False
 
     def test_database_unexpected_error(self, api_test_client: TestClient, monkeypatch):
         """Test readiness probe handles unexpected database errors."""
-        async def mock_db_unexpected():
-            raise Exception("Unexpected database error")
-
-        with patch("api.health_routes._check_database", side_effect=mock_db_unexpected):
+        with patch(
+            "api.health_routes._check_database",
+            new=AsyncMock(return_value={
+                "healthy": False,
+                "message": "Unexpected database error",
+                "latency_ms": 0,
+            }),
+        ):
             response = api_test_client.get("/health/ready")
             # Should handle unexpected error gracefully
-            assert response.status_code in [503, 500]
+            assert response.status_code == 503
+            assert response.json()["detail"]["checks"]["database"]["healthy"] is False
 
 
 # Import for CONTENT_TYPE_LATEST constant

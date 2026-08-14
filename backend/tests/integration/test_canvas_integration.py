@@ -30,8 +30,8 @@ class TestCanvasCreation:
             "title": "Test Canvas"
         })
 
-        # Endpoint should either require auth (401) or not exist (404)
-        assert response.status_code in [401, 403, 404]
+        # Endpoint should either require auth (401) or not accept POST (404/405)
+        assert response.status_code in [401, 403, 404, 405]
 
     def test_create_canvas_with_valid_token(self, client: TestClient, auth_token: str):
         """Test canvas creation with valid authentication."""
@@ -45,8 +45,9 @@ class TestCanvasCreation:
             headers={"Authorization": f"Bearer {auth_token}"}
         )
 
-        # Note: This endpoint may not exist in the current implementation
-        # The test verifies the expected behavior
+        # Note: No POST /api/canvas/create route exists in the current API
+        # (the path matches /api/canvas/{canvas_id} for other methods, so
+        # FastAPI answers 405 Method Not Allowed rather than 404)
         assert response.status_code in [201, 200, 404, 405]
 
     def test_present_canvas_with_agent(self, client: TestClient, auth_token: str, db_session: Session):
@@ -60,7 +61,7 @@ class TestCanvasCreation:
             id=str(uuid.uuid4()),
             agent_id=agent.id,
             user_id=canvas.user_id,
-            canvas_id=canvas.id,
+            canvas_id=canvas.canvas_id,
             tenant_id='default',
             action_type='present',
             details_json={'component_type': 'generic'},
@@ -68,10 +69,11 @@ class TestCanvasCreation:
         db_session.add(audit)
         db_session.commit()
 
-        # Verify audit trail created
+        # Verify audit trail created (CanvasAuditFactory assigns its own
+        # canvas_id; the manual audit reuses it)
         created_audit = db_session.query(CanvasAudit).filter(
-            CanvasAudit.canvas_id == canvas.id,
-            CanvasAudit.action == "present"
+            CanvasAudit.canvas_id == canvas.canvas_id,
+            CanvasAudit.action_type == "present"
         ).first()
         assert created_audit is not None
 
@@ -92,7 +94,7 @@ class TestCanvasForms:
         """Test form submission with valid data."""
         canvas = CanvasAuditFactory(
             canvas_type="form",
-            component_name="test_form",
+            details_json={"component_name": "test_form"},
             _session=db_session
         )
         db_session.commit()
@@ -153,7 +155,7 @@ class TestCanvasCharts:
         )
 
         # Note: Chart creation endpoint may not be fully implemented
-        assert response.status_code in [201, 200, 404]
+        assert response.status_code in [201, 200, 404, 405]
 
     def test_chart_data_validation(self, client: TestClient, auth_token: str):
         """Test chart data is validated."""
@@ -170,7 +172,7 @@ class TestCanvasCharts:
         )
 
         # Should validate input
-        assert response.status_code in [400, 422, 404]
+        assert response.status_code in [400, 422, 404, 405]
 
     def test_supported_chart_types(self, client: TestClient, auth_token: str):
         """Test all supported chart types."""
@@ -191,8 +193,8 @@ class TestCanvasCharts:
                 headers={"Authorization": f"Bearer {auth_token}"}
             )
 
-            # Accept 404 as endpoint may not exist
-            assert response.status_code in [201, 200, 404], \
+            # Accept 404/405 as endpoint may not exist
+            assert response.status_code in [201, 200, 404, 405], \
                 f"Chart type {chart_type} failed with status {response.status_code}"
 
 
@@ -218,13 +220,13 @@ class TestCanvasSheets:
         )
 
         # Sheet creation endpoint may not exist
-        assert response.status_code in [201, 200, 404]
+        assert response.status_code in [201, 200, 404, 405]
 
     def test_sheet_cell_update(self, client: TestClient, auth_token: str, db_session: Session):
         """Test updating sheet cell."""
         sheet = CanvasAuditFactory(
             canvas_type="sheet",
-            audit_metadata={"data": {"rows": [["A1", "B1"]]}},
+            details_json={"data": {"rows": [["A1", "B1"]]}},
             _session=db_session
         )
         db_session.commit()
@@ -239,7 +241,7 @@ class TestCanvasSheets:
         )
 
         # Sheet update endpoint may not exist
-        assert response.status_code in [200, 202, 404]
+        assert response.status_code in [200, 202, 404, 405]
 
 
 class TestCanvasAuditTrail:
@@ -269,7 +271,7 @@ class TestCanvasAuditTrail:
         ).all()
 
         assert len(audits) > 0
-        assert any(a.action == "present" for a in audits)
+        assert any(a.action_type == "present" for a in audits)
 
     def test_canvas_audit_includes_agent_context(self, client: TestClient, auth_token: str, db_session: Session):
         """Test canvas audit includes agent context."""
@@ -323,7 +325,7 @@ class TestCanvasAuditTrail:
         ).all()
 
         assert len(audits) >= len(actions)
-        recorded_actions = {a.action for a in audits}
+        recorded_actions = {a.action_type for a in audits}
         assert recorded_actions.issuperset(set(actions))
 
 
@@ -365,7 +367,7 @@ class TestMultiAgentCanvasCoordination:
         # Verify both agents in audit
         audits = db_session.query(CanvasAudit).filter(
             CanvasAudit.canvas_id == canvas.id,
-            CanvasAudit.action == "present"
+            CanvasAudit.action_type == "present"
         ).all()
 
         agent_ids = {a.agent_id for a in audits}
@@ -448,9 +450,9 @@ class TestMultiAgentCanvasCoordination:
         ).all()
 
         recorded_modes = {
-            a.audit_metadata.get("collaboration_mode")
+            (a.details_json or {}).get("collaboration_mode")
             for a in audits
-            if a.audit_metadata and "collaboration_mode" in a.audit_metadata
+            if a.details_json and "collaboration_mode" in a.details_json
         }
         assert recorded_modes.issuperset(set(collaboration_modes))
 
@@ -487,18 +489,20 @@ class TestCanvasTypeSupport:
         for comp_type in component_types:
             audit = CanvasAuditFactory(
                 canvas_type="generic",
-                component_type=comp_type,
+                details_json={"component_type": comp_type},
                 _session=db_session
             )
 
         db_session.commit()
 
-        # Verify all component types recorded
+        # Verify all component types recorded (component_type now lives in
+        # the per-action details_json payload)
         audits = db_session.query(CanvasAudit).filter(
-            CanvasAudit.component_type.in_(component_types)
+            CanvasAudit.canvas_type == "generic"
         ).all()
 
-        assert len(audits) >= len(component_types)
+        recorded = {(a.details_json or {}).get("component_type") for a in audits}
+        assert recorded.issuperset(set(component_types))
 
 
 class TestCanvasAuditMetadata:
@@ -515,7 +519,7 @@ class TestCanvasAuditMetadata:
 
         audit = CanvasAuditFactory(
             canvas_type="form",
-            audit_metadata=metadata,
+            details_json=metadata,
             _session=db_session
         )
         db_session.commit()
@@ -526,8 +530,8 @@ class TestCanvasAuditMetadata:
         ).first()
 
         assert retrieved is not None
-        assert retrieved.audit_metadata == metadata
-        assert retrieved.audit_metadata["form_fields"] == 3
+        assert retrieved.details_json == metadata
+        assert retrieved.details_json["form_fields"] == 3
 
     def test_audit_metadata_with_complex_data(self, client: TestClient, auth_token: str, db_session: Session):
         """Test audit metadata with nested structures."""
@@ -551,7 +555,7 @@ class TestCanvasAuditMetadata:
 
         audit = CanvasAuditFactory(
             canvas_type="chart",
-            audit_metadata=complex_metadata,
+            details_json=complex_metadata,
             _session=db_session
         )
         db_session.commit()
@@ -561,4 +565,4 @@ class TestCanvasAuditMetadata:
             CanvasAudit.id == audit.id
         ).first()
 
-        assert retrieved.audit_metadata["chart_config"]["datasets"][0]["data"] == [1, 2, 3]
+        assert retrieved.details_json["chart_config"]["datasets"][0]["data"] == [1, 2, 3]

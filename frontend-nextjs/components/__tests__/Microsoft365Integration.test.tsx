@@ -30,8 +30,11 @@ import {
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import Microsoft365Integration from '@/components/Microsoft365Integration';
+import { useToast } from '@/components/ui/use-toast';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
+
+const getToastMock = (): jest.Mock => (useToast as jest.Mock)().toast;
 
 const m365Handlers = [
   rest.get('/api/integrations/microsoft365/health', (req, res, ctx) => {
@@ -885,6 +888,451 @@ describe('Microsoft365Integration', () => {
       await waitFor(() => {
         expect(screen.getAllByText('0 unread').length).toBeGreaterThan(0);
       });
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended coverage: error paths, rich badges, compose cc/importance, and
+// attendees in the event dialog
+// ---------------------------------------------------------------------------
+describe('Microsoft365Integration (extended coverage)', () => {
+  // NOTE: jest.config.js sets restoreMocks:true, which detaches describe-scope
+  // spies after every test — create a fresh console.error spy per test.
+  let errorSpy: jest.SpyInstance;
+  beforeEach(() => {
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+  const richMessages = [
+    {
+      id: 'e1',
+      subject: 'Urgent Alert',
+      sender: { emailAddress: { name: 'Alice', address: 'alice@example.com' } },
+      bodyPreview: 'Needs attention',
+      isRead: false,
+      importance: 'high',
+      hasAttachments: true,
+      receivedDateTime: '2024-01-15T10:00:00Z',
+      webLink: 'https://outlook.example.com/e1',
+    },
+    {
+      id: 'e2',
+      subject: 'FYI Newsletter',
+      sender: { emailAddress: { name: 'Bob', address: 'bob@example.com' } },
+      bodyPreview: 'Low priority',
+      isRead: true,
+      importance: 'low',
+      receivedDateTime: '2024-01-14T10:00:00Z',
+    },
+    {
+      id: 'e3',
+      subject: 'Normal Note',
+      sender: { emailAddress: { name: 'Carol', address: 'carol@example.com' } },
+      bodyPreview: 'Normal priority',
+      isRead: true,
+      importance: 'normal',
+      receivedDateTime: '2024-01-13T10:00:00Z',
+    },
+  ];
+
+  const richTeams = [
+    {
+      id: 't1',
+      displayName: 'Private Squad',
+      description: 'Confidential team',
+      visibility: 'private',
+      isArchived: true,
+      createdDateTime: '2024-01-01T00:00:00Z',
+      webUrl: 'https://teams.example.com/t1',
+      channels: [{ id: 'c1' }, { id: 'c2' }, { id: 'c3' }],
+    },
+    {
+      id: 't2',
+      displayName: 'Public Crew',
+      description: 'Open team',
+      visibility: 'public',
+      isArchived: false,
+      createdDateTime: '2024-01-02T00:00:00Z',
+      webUrl: 'https://teams.example.com/t2',
+    },
+  ];
+
+  const longBody = 'x'.repeat(250);
+
+  const richEvents = [
+    {
+      id: 'ev1',
+      subject: 'Long Meeting',
+      body: { contentType: 'text', content: longBody },
+      start: { dateTime: futureDate },
+      end: { dateTime: futureDate },
+      location: { displayName: 'Room 5' },
+      isOnlineMeeting: false,
+    },
+  ];
+
+  // NOTE: MSW resolves handlers in the order passed to server.use(), so the
+  // data-rich overrides must come BEFORE the base m365Handlers.
+  const richHandlers = [
+    rest.get('/api/integrations/microsoft365/outlook/messages', (req, res, ctx) => {
+      return res(ctx.status(200), ctx.json({ messages: richMessages }));
+    }),
+    rest.get('/api/integrations/microsoft365/teams', (req, res, ctx) => {
+      return res(ctx.status(200), ctx.json({ teams: richTeams }));
+    }),
+    rest.get('/api/integrations/microsoft365/calendar/events', (req, res, ctx) => {
+      return res(ctx.status(200), ctx.json({ events: richEvents }));
+    }),
+    ...m365Handlers,
+  ];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    server.resetHandlers();
+    server.use(...richHandlers);
+  });
+
+  const settle = async (text: RegExp) => {
+    await screen.findByText(text);
+    await new Promise((r) => setTimeout(r, 50));
+  };
+
+  test('renders email badges (New, importance, attachments) and opens links', async () => {
+    const openSpy = jest.fn();
+    window.open = openSpy as any;
+
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    expect(screen.getByText('New')).toBeInTheDocument();
+    expect(screen.getByText('high')).toBeInTheDocument();
+    expect(screen.getByText('low')).toBeInTheDocument();
+    expect(screen.getByText('normal')).toBeInTheDocument();
+    expect(screen.getByText('Has attachments')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Urgent Alert'));
+    expect(openSpy).toHaveBeenCalledWith('https://outlook.example.com/e1', '_blank');
+  });
+
+  test('renders team visibility, archived badge and channel count', async () => {
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Teams' }));
+
+    expect(await screen.findByText('Private Squad')).toBeInTheDocument();
+    expect(screen.getByText('Public Crew')).toBeInTheDocument();
+    expect(screen.getByText('private')).toBeInTheDocument();
+    expect(screen.getByText('public')).toBeInTheDocument();
+    expect(screen.getByText('Archived')).toBeInTheDocument();
+    expect(screen.getByText('3 channels')).toBeInTheDocument();
+  });
+
+  test('truncates long event descriptions over 200 chars', async () => {
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: /calendar/i }));
+
+    expect(await screen.findByText('Long Meeting')).toBeInTheDocument();
+    const truncated = screen.getByText((content, element) => {
+      return element?.textContent === longBody.substring(0, 200) + '...';
+    });
+    expect(truncated).toBeInTheDocument();
+  });
+
+  test('composes an email with cc and high importance', async () => {
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: /compose email/i }));
+    const dialog = document.getElementById('dialog-content') as HTMLElement;
+
+    fireEvent.change(
+      dialog.querySelector('input[placeholder="recipient@example.com, recipient2@example.com"]')!,
+      { target: { value: 'to@example.com' } }
+    );
+    fireEvent.change(dialog.querySelector('input[placeholder="cc@example.com"]')!, {
+      target: { value: 'cc@example.com' },
+    });
+    fireEvent.change(dialog.querySelector('input[placeholder="Email subject"]')!, {
+      target: { value: 'Subject line' },
+    });
+    fireEvent.change(dialog.querySelector('textarea')!, {
+      target: { value: 'Body text' },
+    });
+
+    // Pick importance = High via the Radix Select (keyboard-opened)
+    const importanceTrigger = dialog.querySelector('button[role="combobox"]')!;
+    fireEvent.keyDown(importanceTrigger, { key: 'ArrowDown' });
+    const highOption = await waitFor(() => {
+      const found = Array.from(document.querySelectorAll('[role="option"]')).find(
+        (i) => i.textContent === 'High'
+      );
+      if (!found) throw new Error('High option not found');
+      return found as HTMLElement;
+    });
+    fireEvent.click(highOption);
+
+    const sendButton = Array.from(dialog.querySelectorAll('button')).find((b) =>
+      /send email/i.test(b.textContent || '')
+    )!;
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Success', description: 'Email sent successfully' })
+      );
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  test('shows error toast when sending an email fails', async () => {
+    server.use(
+      rest.post('/api/integrations/microsoft365/emails/send', (req, res) =>
+        res.networkError('boom')
+      )
+    );
+
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: /compose email/i }));
+    const dialog = document.getElementById('dialog-content') as HTMLElement;
+
+    fireEvent.change(
+      dialog.querySelector('input[placeholder="recipient@example.com, recipient2@example.com"]')!,
+      { target: { value: 'to@example.com' } }
+    );
+    fireEvent.change(dialog.querySelector('input[placeholder="Email subject"]')!, {
+      target: { value: 'Subject' },
+    });
+    fireEvent.change(dialog.querySelector('textarea')!, {
+      target: { value: 'Body' },
+    });
+    const sendButton = Array.from(dialog.querySelectorAll('button')).find((b) =>
+      /send email/i.test(b.textContent || '')
+    )!;
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Error', description: 'Failed to send email' })
+      );
+    });
+  });
+
+  test('creates an event with attendees and shows failure toast on error', async () => {
+    server.use(
+      rest.post('/api/integrations/microsoft365/calendars/create', (req, res) =>
+        res.networkError('boom')
+      )
+    );
+
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: /calendar/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /create event/i })[0]);
+    const dialog = document.getElementById('dialog-content') as HTMLElement;
+
+    fireEvent.change(dialog.querySelector('input[placeholder="Event subject"]')!, {
+      target: { value: 'Sync' },
+    });
+    fireEvent.change(
+      dialog.querySelector('input[placeholder="attendee@example.com, attendee2@example.com"]')!,
+      { target: { value: 'a@example.com, b@example.com' } }
+    );
+    const timeInputs = dialog.querySelectorAll('input[type="datetime-local"]');
+    fireEvent.change(timeInputs[0], { target: { value: '2026-09-20T09:00' } });
+    fireEvent.change(timeInputs[1], { target: { value: '2026-09-20T10:00' } });
+    const createButton = Array.from(dialog.querySelectorAll('button')).filter((b) =>
+      /create event/i.test(b.textContent || '')
+    );
+    fireEvent.click(createButton[createButton.length - 1]);
+
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Error',
+          description: 'Failed to create calendar event',
+        })
+      );
+    });
+  });
+
+  test('shows toasts for delete success and delete failure', async () => {
+    jest.spyOn(window, 'confirm').mockReturnValue(true);
+    server.use(
+      rest.delete('/api/integrations/microsoft365/outlook/messages/:id', (req, res, ctx) => {
+        return res(ctx.status(200), ctx.json({ success: true }));
+      })
+    );
+
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    const trashButtons = document.querySelectorAll('.lucide-trash-2');
+    fireEvent.click(trashButtons[0].closest('button') as HTMLElement);
+
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Success', description: 'Item deleted successfully' })
+      );
+    });
+
+    // Now a failing delete
+    getToastMock().mockClear();
+    server.use(
+      rest.delete('/api/integrations/microsoft365/outlook/messages/:id', (req, res) =>
+        res.networkError('boom')
+      )
+    );
+    const trashButtons2 = document.querySelectorAll('.lucide-trash-2');
+    fireEvent.click(trashButtons2[0].closest('button') as HTMLElement);
+
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Error', description: 'Failed to delete item' })
+      );
+    });
+  });
+
+  test('automation tab: empty worksheet name shows error toast; auto-reply works', async () => {
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: /automation/i }));
+    await screen.findByText(/advanced automation control/i);
+
+    // empty sheet name -> validation toast
+    fireEvent.click(screen.getByRole('button', { name: /^run$/i }));
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Error', description: 'Name required' })
+      );
+    });
+
+    // trigger auto-reply
+    getToastMock().mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /trigger auto-reply/i }));
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Success', description: 'Bot replied to thread' })
+      );
+    });
+  });
+
+  test('webhooks: selecting a different resource updates the subscription payload', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: /webhooks/i }));
+    await screen.findByRole('button', { name: /enable notifications/i });
+
+    // Pick "Calendar Events" via the Radix Select (keyboard-opened)
+    const resourceTrigger = document
+      .getElementById('webhook-resource')
+      ?.closest('button') as HTMLElement;
+    fireEvent.keyDown(resourceTrigger, { key: 'ArrowDown' });
+    const eventsOption = await waitFor(() => {
+      const found = Array.from(document.querySelectorAll('[role="option"]')).find(
+        (i) => i.textContent === 'Calendar Events'
+      );
+      if (!found) throw new Error('Calendar Events option not found');
+      return found as HTMLElement;
+    });
+    fireEvent.click(eventsOption);
+
+    fetchSpy.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /enable notifications/i }));
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/integrations/microsoft365/subscriptions'),
+        expect.objectContaining({ method: 'POST' })
+      );
+    });
+    const bodyCall = fetchSpy.mock.calls.find(([url]) =>
+      String(url).includes('/subscriptions')
+    );
+    expect(String(bodyCall![1]!.body)).toContain('me/events');
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Success',
+          description: 'Webhook subscription created!',
+        })
+      );
+    });
+  });
+
+  test('logs errors when loads fail and health check throws', async () => {
+    const netFail = (path: string) => rest.get(path, (req, res) => res.networkError('boom'));
+    server.use(
+      netFail('/api/integrations/microsoft365/user'),
+      netFail('/api/integrations/microsoft365/calendar/events'),
+      netFail('/api/integrations/microsoft365/teams')
+    );
+
+    render(<Microsoft365Integration />);
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Failed to load user profile:', expect.anything());
+      expect(errorSpy).toHaveBeenCalledWith('Failed to load calendars:', expect.anything());
+      expect(errorSpy).toHaveBeenCalledWith('Failed to load teams:', expect.anything());
+    });
+  });
+
+  test('shows error toast when email loading fails', async () => {
+    server.use(
+      rest.get('/api/integrations/microsoft365/outlook/messages', (req, res) =>
+        res.networkError('boom')
+      )
+    );
+
+    render(<Microsoft365Integration />);
+
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Error',
+          description: 'Failed to load emails from Microsoft 365',
+        })
+      );
+    });
+  });
+
+  test('treats health check network failure as disconnected', async () => {
+    server.use(
+      rest.get('/api/integrations/microsoft365/health', (req, res) =>
+        res.networkError('boom')
+      )
+    );
+
+    render(<Microsoft365Integration />);
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Health check failed:', expect.anything());
+      expect(
+        screen.getByRole('button', { name: /connect microsoft 365 account/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  test('clicking Refresh Status re-runs the health check', async () => {
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: /refresh status/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Connected')).toBeInTheDocument();
     });
   });
 });

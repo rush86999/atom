@@ -321,8 +321,10 @@ class TestSecurityConfig:
         with patch.dict(os.environ, {"ENVIRONMENT": "production"}):
             security_config = SecurityConfig()
 
-            # Should log critical error but still use default
-            assert security_config.secret_key == "atom-secret-key-change-in-production"
+            # Bug 14 fix: the default key is REPLACED with a random key in
+            # production (fail-closed — never keep the known public default).
+            assert security_config.secret_key != "atom-secret-key-change-in-production"
+            assert len(security_config.secret_key) > 20
 
     def test_generate_secret_key_in_development(self):
         """Test generating secret key in development if not set."""
@@ -699,12 +701,14 @@ class TestATOMConfig:
         assert "Database URL is required" in validation["issues"]
 
     def test_validate_default_secret_key_in_production(self):
-        """Test validation warns about default secret key in production."""
+        """Test validation is clean after the fail-closed key replacement."""
         with patch.dict(os.environ, {"ENVIRONMENT": "production"}):
             atom_config = ATOMConfig()
             validation = atom_config.validate()
 
-            assert "Secret key must be set in production" in validation["issues"]
+            # Bug 14 fix: the default key was replaced with a random key at
+            # construction, so validate() must NOT report the secret-key issue.
+            assert "Secret key must be set in production" not in validation["issues"]
 
     def test_from_file_success(self):
         """Test loading config from JSON file."""

@@ -161,6 +161,17 @@ if pool_size:
         "pool_recycle": 3600
     })
 
+# BUG FIX: `poolclass` was computed above but never passed to create_engine,
+# so in-memory SQLite (ATOM_MOCK_DATABASE=true) silently fell back to
+# SingletonThreadPool — one private connection per thread. Each thread then
+# saw its own EMPTY database (no tables), breaking any TestClient request
+# (served on a portal thread) against data set up by test fixtures. Pass the
+# StaticPool class when one was selected; the "QueuePool" values in the
+# file-sqlite/postgres branches are names only and are left as-is (QueuePool
+# is SQLAlchemy's default once pool_size is set).
+if poolclass is not None and not isinstance(poolclass, str):
+    engine_kwargs["poolclass"] = poolclass
+
 engine = create_engine(DATABASE_URL, **engine_kwargs)
 
 # Create session with production settings

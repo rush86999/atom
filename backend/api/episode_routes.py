@@ -515,8 +515,23 @@ async def get_episode_feedback(
 
     GET /api/episodes/{episode_id}/feedback/list
     """
+    episode = db.query(Episode).filter(Episode.id == episode_id).first()
+    if not episode:
+        raise router.error_response(
+            error_code="EPISODE_NOT_FOUND",
+            message="Episode not found",
+            status_code=404
+        )
+
+    # AgentFeedback has no episode_id column — the linkage is the episode's
+    # feedback_ids list (mirror of submit_episode_feedback). Querying
+    # AgentFeedback.episode_id previously 500'd every request.
+    linked_ids = list(episode.feedback_ids or [])
+    if not linked_ids:
+        return router.success_response(data={"feedbacks": [], "count": 0})
+
     feedbacks = db.query(AgentFeedback).filter(
-        AgentFeedback.episode_id == episode_id
+        AgentFeedback.id.in_(linked_ids)
     ).order_by(AgentFeedback.created_at.desc()).all()
 
     return router.success_response(

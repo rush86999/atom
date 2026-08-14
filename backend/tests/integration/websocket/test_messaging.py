@@ -12,12 +12,20 @@ import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
-from tests.property_tests.conftest import db_session
+from tests.property_tests.conftest import db_engine, db_session
 
 
 # =============================================================================
 # Test Fixtures
 # =============================================================================
+
+@pytest.fixture(autouse=True)
+def enable_ws_dev_token(monkeypatch):
+    """Current security model: dev-token bypass requires BOTH an explicit
+    ALLOW_WS_DEV_TOKEN=true opt-in AND a non-production ENVIRONMENT."""
+    monkeypatch.setenv("ALLOW_WS_DEV_TOKEN", "true")
+    monkeypatch.setenv("ENVIRONMENT", "development")
+
 
 @pytest.fixture
 def cleanup_websocket_manager():
@@ -85,12 +93,16 @@ class TestSendAndReceiveMessage:
         """Test sending message to specific user."""
         from core.websockets import manager
 
-        # Given: Two connected users
+        # Given: Two connected users. The dev-token bypass maps every
+        # connection to the shared "dev-user", so the second user is
+        # registered through the manager's own registration path.
+        from core.websockets import manager
+
         ws1, user1 = connected_websocket
         ws2 = MagicMock()
-        ws2.accept = AsyncMock()
         ws2.send_json = AsyncMock()
-        user2 = await manager.connect(ws2, "dev-token")
+        manager.user_connections["other-user"] = [ws2]
+        manager.subscribe(ws2, "user:other-user")
 
         # When: Send message to user1 only
         test_message = {"type": "private", "content": "Private message"}
@@ -171,8 +183,10 @@ class TestMultipleClients:
             user = await manager.connect(ws, "dev-token")
             clients.append((ws, user))
 
-        # Then: All clients should be connected
-        assert len(manager.user_connections) == 5  # All "dev-user" but different connections
+        # Then: All clients should be connected (dev-token maps all
+        # connections to the shared "dev-user", so 5 sockets registered)
+        assert sum(len(conns) for conns in manager.user_connections.values()) == 5
+        assert len(manager.user_connections["dev-user"]) == 5
 
     @pytest.mark.asyncio(mode="auto")
     async def test_broadcast_to_all_clients_in_channel(self, cleanup_websocket_manager):
@@ -224,16 +238,17 @@ class TestMultipleClients:
         """Test multiple clients don't interfere with each other."""
         from core.websockets import manager
 
-        # Given: Two users
+        # Given: Two users. The dev-token bypass maps every connection to
+        # the shared "dev-user", so the second user is registered directly.
         ws1 = MagicMock()
         ws1.accept = AsyncMock()
         ws1.send_json = AsyncMock()
         user1 = await manager.connect(ws1, "dev-token")
 
         ws2 = MagicMock()
-        ws2.accept = AsyncMock()
         ws2.send_json = AsyncMock()
-        user2 = await manager.connect(ws2, "dev-token")
+        manager.user_connections["other-user"] = [ws2]
+        manager.subscribe(ws2, "user:other-user")
 
         # When: Send message to user1
         await manager.send_personal_message(user1.id, {"type": "private", "to": "user1"})
@@ -350,16 +365,17 @@ class TestPrivateMessages:
         """Test private message only reaches target user."""
         from core.websockets import manager
 
-        # Given: Two users
+        # Given: Two users. The dev-token bypass maps every connection to
+        # the shared "dev-user", so the second user is registered directly.
         ws1 = MagicMock()
         ws1.accept = AsyncMock()
         ws1.send_json = AsyncMock()
         user1 = await manager.connect(ws1, "dev-token")
 
         ws2 = MagicMock()
-        ws2.accept = AsyncMock()
         ws2.send_json = AsyncMock()
-        user2 = await manager.connect(ws2, "dev-token")
+        manager.user_connections["other-user"] = [ws2]
+        manager.subscribe(ws2, "user:other-user")
 
         # When: Send private message to user1
         private_msg = {

@@ -1,92 +1,126 @@
 /**
- * Tests for Database Utilities
- *
- * Tests the PostgreSQL connection pool and query function
+ * Tests for Database Utilities — comprehensive coverage of pool
+ * configuration (prod/dev, DATABASE_URL present/absent), the mock-pool
+ * fallback, global pool reuse, and query error handling.
  */
 
-import { query } from '../db';
-
-// Mock pg Pool
-jest.mock('pg', () => {
-  const mockQuery = jest.fn();
-  const mockConnect = jest.fn();
-  const mockPool = {
-    query: mockQuery,
-    connect: mockConnect,
-    on: jest.fn(),
-  };
-
-  return {
-    Pool: jest.fn(() => mockPool),
-  };
-});
+const mockPoolQuery = jest.fn();
+const mockPoolInstance = {
+  query: mockPoolQuery,
+  on: jest.fn(),
+  connect: jest.fn(),
+};
+jest.mock('pg', () => ({
+  Pool: jest.fn(() => mockPoolInstance),
+}));
 
 import { Pool } from 'pg';
+const MockPool = Pool as unknown as jest.Mock;
 
-describe('Database Utilities', () => {
+const originalEnv = { ...process.env };
+const originalPostgresPool = (global as any).postgresPool;
+
+const loadDb = (env: Record<string, string | undefined>) => {
+  for (const [k, v] of Object.entries(env)) {
+    if (v === undefined) delete process.env[k];
+    else process.env[k] = v;
+  }
+  let loaded: any;
+  jest.isolateModules(() => {
+    loaded = require('../db');
+  });
+  return loaded;
+};
+
+describe('lib/db', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    MockPool.mockImplementation(() => mockPoolInstance);
+    delete (global as any).postgresPool;
+    process.env = { ...originalEnv };
+    delete process.env.DATABASE_URL;
+    delete process.env.DB_SSL_REJECT_UNAUTHORIZED;
+    process.env.NODE_ENV = 'test';
   });
 
-  describe('query function', () => {
-    it('should export query function', () => {
-      expect(query).toBeDefined();
-      expect(typeof query).toBe('function');
-    });
-
-    it('should accept SQL text and optional params', async () => {
-      // In test environment, DATABASE_URL is likely not set, so query will use mock pool
-      const mockQuery = jest.fn().mockResolvedValue({ rows: [] });
-
-      // We can't easily test the query execution without proper DB setup
-      // But we can verify the function exists and has the right signature
-      expect(() => query('SELECT 1')).toBeDefined();
-      expect(() => query('SELECT $1', [1])).toBeDefined();
-    });
-
-    it('should handle query errors gracefully', async () => {
-      // The query function should throw errors in production
-      // but handle them with logging
-      const mockQuery = jest.fn().mockRejectedValue(new Error('DB error'));
-
-      // In development without DATABASE_URL, query will use mock pool
-      // which throws an error
-      await expect(query('SELECT 1')).rejects.toThrow();
-    });
+  afterEach(() => {
+    process.env = { ...originalEnv };
+    delete (global as any).postgresPool;
+    if (originalPostgresPool) (global as any).postgresPool = originalPostgresPool;
   });
 
-  describe('Pool configuration', () => {
-    it('should use DATABASE_URL from env when set', () => {
-      const originalUrl = process.env.DATABASE_URL;
-      process.env.DATABASE_URL = 'postgresql://test';
-
-      expect(process.env.DATABASE_URL).toBe('postgresql://test');
-
-      process.env.DATABASE_URL = originalUrl;
-    });
-
-    it('should handle missing DATABASE_URL gracefully', () => {
-      const originalUrl = process.env.DATABASE_URL;
-      delete process.env.DATABASE_URL;
-
-      expect(process.env.DATABASE_URL).toBeUndefined();
-
-      process.env.DATABASE_URL = originalUrl;
-    });
+  it('creates a real pool with SSL in production', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.DATABASE_URL = 'postgresql://prod:5432/db';
+    const db = loadDb({});
+    expect(db.query).toBeDefined();
+    expect(MockPool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        connectionString: 'postgresql://prod:5432/db',
+        ssl: { rejectUnauthorized: true },
+        connectionTimeoutMillis: 2000,
+      }),
+    );
   });
 
-  describe('Error handling', () => {
-    it('should log database errors', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+  it('honors DB_SSL_REJECT_UNAUTHORIZED=false in production', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.DATABASE_URL = 'postgresql://prod:5432/db';
+    process.env.DB_SSL_REJECT_UNAUTHORIZED = 'false';
+    loadDb({});
+    expect(MockPool).toHaveBeenCalledWith(
+      expect.objectContaining({ ssl: { rejectUnauthorized: false } }),
+    );
+  });
 
-      await query('SELECT 1').catch(() => {
-        // Expected to fail without DATABASE_URL
-      });
+  it('creates a pool with an undefined connection string in production without DATABASE_URL', () => {
+    process.env.NODE_ENV = 'production';
+    const db = loadDb({});
+    expect(db.query).toBeDefined();
+    expect(MockPool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        connectionString: undefined,
+        ssl: { rejectUnauthorized: true },
+      }),
+    );
+  });
 
-      // Should log error
-      expect(consoleSpy).toHaveBeenCalled();
+  it('reuses the global pool in development', () => {
+    process.env.NODE_ENV = 'development';
+    process.env.DATABASE_URL = 'postgresql://dev:5432/db';
+    loadDb({});
+    loadDb({});
+    expect(MockPool).toHaveBeenCalledTimes(1);
+  });
 
-      consoleSpy.mockRestore();
+  it('uses the mock pool in development without DATABASE_URL', async () => {
+    process.env.NODE_ENV = 'development';
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const db = loadDb({});
+    expect(warnSpy).toHaveBeenCalled();
+    await expect(db.query('SELECT 1')).rejects.toThrow('Database not connected');
+  });
+
+  it('returns pool.query results', async () => {
+    process.env.DATABASE_URL = 'postgresql://x:5432/db';
+    const db = loadDb({});
+    mockPoolQuery.mockResolvedValue({ rows: [{ id: 1 }] });
+    await expect(db.query('SELECT * FROM users WHERE id = $1', [1])).resolves.toEqual({
+      rows: [{ id: 1 }],
+    });
+    expect(mockPoolQuery).toHaveBeenCalledWith('SELECT * FROM users WHERE id = $1', [1]);
+  });
+
+  it('logs and re-throws query errors', async () => {
+    process.env.DATABASE_URL = 'postgresql://x:5432/db';
+    const db = loadDb({});
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockPoolQuery.mockRejectedValue(new Error('connection refused'));
+    await expect(db.query('SELECT broken', ['p'])).rejects.toThrow('connection refused');
+    expect(errorSpy).toHaveBeenCalledWith('❌ Database connection error:', {
+      message: 'connection refused',
+      query: 'SELECT broken',
+      params: ['p'],
     });
   });
 });

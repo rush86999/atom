@@ -75,6 +75,13 @@ class TestCanvasAPIRoutes:
     def canvas_client(self, api_test_client):
         """Create authenticated client for canvas endpoints."""
         from core.models import User
+        from core.database import engine, Base
+
+        # The canvas governance/context endpoints query agent_registry and
+        # canvas tables on the app's engine; under ATOM_MOCK_DATABASE=true the
+        # in-memory engine starts empty (main_api_app skips table creation in
+        # test mode), which turned these requests into 500s.
+        Base.metadata.create_all(bind=engine, checkfirst=True)
 
         user = User(id="user-252", email="user@test.com", role="user", first_name="Test", last_name="User", status="active")
 

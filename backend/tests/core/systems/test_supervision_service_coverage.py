@@ -13,7 +13,7 @@ Following Phase 197 patterns:
 import uuid
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from core.supervision_service import (
@@ -30,6 +30,7 @@ from core.models import (
     SupervisionStatus,
     User,
     UserRole,
+    UserStatus,
     Tenant,
 )
 
@@ -57,6 +58,7 @@ class TestSupervisionControls:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -108,6 +110,7 @@ class TestSupervisionControls:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -142,17 +145,19 @@ class TestSupervisionControls:
             guidance="Pause to review",
         )
 
-        # Act - Resume execution
+        # Act - Resume execution. The current intervention vocabulary is
+        # pause/correct/terminate: a "correct" intervention returns the
+        # session to the running state (session.status stays RUNNING).
         result = await service.intervene(
             session_id=session.id,
-            intervention_type="resume",
+            intervention_type="correct",
             guidance="Continue execution",
         )
 
         # Assert
         assert result.success is True
         assert result.session_state == "running"
-        assert "resumed" in result.message.lower() or "continue" in result.message.lower()
+        assert "continuing" in result.message.lower()
 
     @pytest.mark.asyncio
     async def test_supervision_correct_action(self, db_session: Session):
@@ -166,6 +171,7 @@ class TestSupervisionControls:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -218,6 +224,7 @@ class TestSupervisionControls:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -273,6 +280,7 @@ class TestSupervisionControls:
             email="test@example.com",
             first_name="Test", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -333,6 +341,7 @@ class TestSupervisionControls:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -375,8 +384,8 @@ class TestSupervisionControls:
 
         result3 = await service.intervene(
             session_id=session.id,
-            intervention_type="resume",
-            guidance="Resume execution",
+            intervention_type="pause",
+            guidance="Second pause",
         )
 
         # Assert - All interventions should succeed
@@ -411,6 +420,7 @@ class TestInterventionTracking:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -467,6 +477,7 @@ class TestInterventionTracking:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -525,6 +536,7 @@ class TestInterventionTracking:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -588,6 +600,7 @@ class TestSupervisionMonitoring:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -634,6 +647,7 @@ class TestSupervisionMonitoring:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -661,14 +675,16 @@ class TestSupervisionMonitoring:
             supervisor_id=user.id,
         )
 
-        # Create execution
+        # Create execution. The monitor only sees executions started AFTER the
+        # supervision session (session.started_at is a UTC server default), so
+        # use a naive UTC timestamp safely in the future on any host timezone.
         execution = AgentExecution(
             id=str(uuid.uuid4()),
             agent_id=agent.id,
             status="running",
             input_summary="Test input",
             output_summary="Test output",
-            started_at=datetime.now(),
+            started_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=5),
         )
         db_session.add(execution)
         db_session.commit()
@@ -698,6 +714,7 @@ class TestSupervisionMonitoring:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -725,14 +742,15 @@ class TestSupervisionMonitoring:
             supervisor_id=user.id,
         )
 
-        # Create completed execution
+        # Create completed execution. started_at must be after the session's
+        # UTC server-default timestamp so the monitor's query can see it.
         execution = AgentExecution(
             id=str(uuid.uuid4()),
             agent_id=agent.id,
             status="completed",
             input_summary="Test input",
             output_summary="Test output",
-            started_at=datetime.now(),
+            started_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=5),
         )
         db_session.add(execution)
         db_session.commit()
@@ -772,6 +790,7 @@ class TestSupervisionCompletion:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -833,6 +852,7 @@ class TestSupervisionCompletion:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -887,6 +907,7 @@ class TestSupervisionCompletion:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -953,6 +974,7 @@ class TestSupervisionEdgeCases:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -1016,6 +1038,7 @@ class TestSupervisionEdgeCases:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)
@@ -1044,6 +1067,7 @@ class TestSupervisionEdgeCases:
             email="supervisor@example.com",
             first_name="Supervisor", last_name="User",
             role=UserRole.MEMBER.value,
+            status=UserStatus.ACTIVE.value,  # users.status is NOT NULL
             tenant_id=tenant_id,
         )
         db_session.add(user)

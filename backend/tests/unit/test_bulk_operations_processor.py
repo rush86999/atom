@@ -338,10 +338,12 @@ class TestBatchProcessing:
         )
 
         items = await mock_processor._prepare_items(operation)
+        # Same chunking expression as IntegrationBulkProcessor._process_job:
+        # empty input produces zero batches (the batch loop simply never runs)
         batches = [items[i:i + 10] for i in range(0, len(items), 10)]
 
-        assert len(batches) == 1
-        assert len(batches[0]) == 0
+        assert items == []
+        assert len(batches) == 0
 
     @pytest.mark.asyncio
     async def test_single_item_batch(self, mock_processor):
@@ -377,7 +379,9 @@ class TestErrorHandling:
             operation=BulkOperation(
                 integration_id="asana",
                 operation_type="create",
-                items=[]
+                # 4 total items across 2 batches; after the first batch of 2
+                # results the computed progress is 50%.
+                items=[{"name": f"Task {i}"} for i in range(4)]
             ),
             status=OperationStatus.RUNNING,
             created_at=datetime.now(timezone.utc)

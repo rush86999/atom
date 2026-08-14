@@ -64,15 +64,20 @@ class TestConnectionRoutes:
     @patch('api.connection_routes.connection_service')
     def test_list_connections_filter_by_integration(self, mock_service, client, mock_user):
         """Test listing connections filtered by integration."""
+        # Response rows must satisfy ConnectionResponse (id/name/integration_id/status)
         mock_service.get_connections.return_value = [
-            {"id": "conn-1", "integration_id": "slack"}
+            {"id": "conn-1", "name": "Slack Connection",
+             "integration_id": "slack", "status": "active"}
         ]
 
         response = client.get("/api/v1/connections/", params={"integration_id": "slack"})
 
-        # Query parameters may or may not work depending on FastAPI setup
-        # Accept both 200 (works) and 422 (validation issue with query params)
-        assert response.status_code in [200, 422, 405]
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert all(conn["integration_id"] == "slack" for conn in data)
+        # The filter must be forwarded to the service
+        mock_service.get_connections.assert_called_once_with(mock_user.id, "slack")
     @patch('api.connection_routes.connection_service')
     @patch('api.connection_routes.get_db')
     def test_delete_connection_success(self, mock_get_db, mock_service, client, mock_user):

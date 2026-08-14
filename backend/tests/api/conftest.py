@@ -567,6 +567,20 @@ def mock_mobile_device() -> MagicMock:
 
 
 @pytest.fixture(scope="function")
+def db(db_session: Session) -> Generator[Session, None, None]:
+    """
+    Database session for API tests that build their own FastAPI app and
+    override get_db with this session.
+
+    Legacy name kept for the many test files that inject `db: Session`
+    (test_canvas_routes.py, test_device_capabilities.py, test_episode_routes.py,
+    test_browser_routes.py, test_device_websocket.py, ...). Delegates to the
+    shared db_session fixture from tests/conftest.py for isolation.
+    """
+    yield db_session
+
+
+@pytest.fixture(scope="function")
 def test_user_with_device(db_session: Session) -> tuple:
     """
     Create test User with associated MobileDevice.

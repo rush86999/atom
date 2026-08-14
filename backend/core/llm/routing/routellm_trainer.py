@@ -31,6 +31,14 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+# Intent one-hot feature names, derived from the intent detector's categories
+# so the predictor feature contract can never drift from the detector.
+from core.llm.intent_detector import INTENT_CATEGORIES
+
+INTENT_FEATURE_NAMES: Tuple[str, ...] = tuple(
+    f"intent_{c}" for c in INTENT_CATEGORIES
+)
+
 # Import preference collector
 try:
     from core.llm.routing.preference_collector import (
@@ -114,6 +122,10 @@ class FeatureExtractor:
 
     def __init__(self):
         """Initialize feature extractor"""
+        # The predictor feature contract. Intent one-hots are appended (never
+        # inserted) so estimators persisted under the earlier 10-feature
+        # contract can keep predicting via n_features_in_-truncation in
+        # PerModelRouter.predict_satisfaction.
         self.feature_names = [
             "log_tokens",
             "token_bucket",
@@ -125,6 +137,7 @@ class FeatureExtractor:
             "has_code",
             "has_numbers",
             "avg_word_length",
+            *INTENT_FEATURE_NAMES,
         ]
 
     def extract_features(self, examples: List[TrainingExample]) -> np.ndarray:
@@ -142,17 +155,12 @@ class FeatureExtractor:
 
         features = []
         for example in examples:
+            # Build the vector from the contract (feature_names), not a
+            # hardcoded list — this is how the intent one-hots enter training.
+            # Missing keys (e.g. pre-intent persisted rows) default to 0.
             feature_vector = [
-                example.prompt_features.get("log_tokens", 0),
-                example.prompt_features.get("token_bucket", 0),
-                example.prompt_features.get("task_code", 0),
-                example.prompt_features.get("task_analysis", 0),
-                example.prompt_features.get("task_reasoning", 0),
-                example.prompt_features.get("task_chat", 0),
-                example.prompt_features.get("task_general", 0),
-                example.prompt_features.get("has_code", 0),
-                example.prompt_features.get("has_numbers", 0),
-                example.prompt_features.get("avg_word_length", 0),
+                example.prompt_features.get(name, 0)
+                for name in self.feature_names
             ]
             features.append(feature_vector)
 

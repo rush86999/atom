@@ -585,7 +585,7 @@ class TestDeepLinkStats:
         entries = [
             DeepLinkAudit(
                 id="stats-1",
-                user_id="user-1",
+                user_id="deeplink-test-user",  # stats are scoped to the authenticated user
                 agent_id="agent-123",
                 resource_type="agent",
                 resource_id="agent-123",
@@ -596,7 +596,7 @@ class TestDeepLinkStats:
             ),
             DeepLinkAudit(
                 id="stats-2",
-                user_id="user-2",
+                user_id="deeplink-test-user",
                 agent_id="agent-123",
                 resource_type="workflow",
                 resource_id="workflow-1",
@@ -653,7 +653,7 @@ class TestDeepLinkStats:
         for source in ['external', 'mobile_app', 'browser']:
             entry = DeepLinkAudit(
                 id=f"stats-source-{source}",
-                user_id="user-1",
+                user_id="deeplink-test-user",  # stats are user-scoped
                 resource_type="agent",
                 resource_id="agent-1",
                 action="trigger",
@@ -680,7 +680,7 @@ class TestDeepLinkStats:
         for i in range(5):
             entry = DeepLinkAudit(
                 id=f"stats-agent-{i}",
-                user_id="user-1",
+                user_id="deeplink-test-user",  # stats are user-scoped
                 agent_id="agent-123",
                 resource_type="agent",
                 resource_id="agent-123",
@@ -713,7 +713,7 @@ class TestDeepLinkStats:
         # Create entries with different timestamps
         recent_entry = DeepLinkAudit(
             id="stats-recent",
-            user_id="user-1",
+            user_id="deeplink-test-user",  # stats are user-scoped
             resource_type="agent",
             resource_id="agent-1",
             action="trigger",
@@ -724,7 +724,7 @@ class TestDeepLinkStats:
         )
         old_entry = DeepLinkAudit(
             id="stats-old",
-            user_id="user-1",
+            user_id="deeplink-test-user",  # stats are user-scoped
             resource_type="agent",
             resource_id="agent-2",
             action="trigger",
@@ -902,9 +902,12 @@ class TestDeepLinkErrorPaths:
                     "source": "external"
                 }
             )
-            # The production code raises router.validation_error when success=False
-            # but then tries to format it as an error, which causes 500
-            assert response.status_code in [400, 500]
+            # The route maps a service failure to router.validation_error
+            # (VALIDATION_ERROR, HTTP 422)
+            assert response.status_code == 422
+            error_body = response.json().get("detail", response.json())
+            assert error_body["success"] is False
+            assert error_body["error"]["code"] == "VALIDATION_ERROR"
             data = response.json()
             # Error should mention failure
 
@@ -935,11 +938,14 @@ class TestDeepLinkErrorPaths:
                 "resource_id": "123"
             }
         )
-        # Production code raises router.validation_error which returns 400
-        # but the try/except wraps it in a 500 error
-        assert response.status_code in [400, 500]
+        # The route maps invalid resource types to router.validation_error
+        # (VALIDATION_ERROR, HTTP 422) and lists the valid types
+        assert response.status_code == 422
         data = response.json()
-        # Error should list valid types
+        error_body = data.get("detail", data)
+        assert error_body["success"] is False
+        assert error_body["error"]["code"] == "VALIDATION_ERROR"
+        assert error_body["error"]["details"]["valid_types"] == ['agent', 'workflow', 'canvas', 'tool']
 
     def test_generate_missing_resource_type(self, deeplink_client):
         """Test POST /api/deeplinks/generate without resource_type returns 422."""

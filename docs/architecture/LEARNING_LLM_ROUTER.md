@@ -1,6 +1,6 @@
 # Learning-Based LLM Router
 
-> **Last Updated**: July 12, 2026
+> **Last Updated**: Aug 14, 2026
 >
 > **Status**: Fully implemented and wired end-to-end. Flag-gated
 > (`ATOM_LEARNING_ROUTER`, default **off**) — when off, behavior is identical
@@ -100,11 +100,17 @@ Double-checked locking for thread safety.
 Without the singleton, every call constructed a throwaway router and predictors
 were trained and immediately garbage-collected — the engine was inert.
 
-**Predictor cache key dimensions:** `f"{tenant_id}:{task_type}:{intent}"`. The
-third dimension (intent) comes from the [intent detector](COGNITIVE_TIER_SYSTEM.md#intent-detection-domain-classifier)
-and lets per-model predictors learn intent-specific preferences (e.g. DeepSeek wins
-coding intents even within the same `task_type`). When intent is not detected, it
-defaults to `"_"` — no behavior change from the pre-intent two-dimensional key.
+**Predictor cache key dimensions:** `f"{tenant_id}:{task_type}"` (two
+dimensions). An earlier revision used a three-dimensional key
+(`{tenant}:{task}:{intent}`), but the feedback pipeline
+(`RoutingFeedback` / `llm_routing_feedback`) carries no intent column, so
+training never wrote that key — the live path always missed ("cold start") and
+ATOM_LEARNING_ROUTER=true never re-ranked. The two-part key keeps predictors
+tenant/task-scoped, consistent between route-time lookup and training-side
+writes. Predictors are globally loaded from disk (one `per_model/` directory),
+so each `PerModelRouter` instance has access to all models' estimators; the
+cache key controls which *retrain trigger* applies, not which predictors are
+visible.
 
 ### Per-model predictors (`core/llm/routing/per_model_router.py`)
 
@@ -281,20 +287,24 @@ replace the per-model predictors — both contribute. For each
 2. **Execution latency** (response speed).
 3. **Token/execution cost**.
 
-Each metric is updated with standard bias-corrected EMA:
+Each metric is updated with standard EMA:
 
-$$S_{t+1} = \alpha \cdot x_{t+1} + (1 - \alpha) \cdot S_t \quad\text{then divided by } 1 - (1-\alpha)^n$$
+$$S_{t+1} = \alpha \cdot x_{t+1} + (1 - \alpha) \cdot S_t$$
 
 Where:
 - $\alpha$ is the smoothing weight, configurable via `ATOM_EMA_ALPHA`
   (default `0.2`). Higher = more responsive to recent outcomes; lower = more
   stable. Valid range $(0, 1]$.
-- The $1 - (1-\alpha)^n$ divisor is **bias correction**: a freshly-seeded EMA
-  is biased toward its first sample (the recurrence weights the seed by
-  $(1-\alpha)^n$). Dividing out that factor recovers the true running mean, so
-  early values don't mis-rank models while samples accumulate.
-- `n` is the per-key sample count (now actually tracked and surfaced in the
-  dashboard — previously it was read but never written, always reporting 1).
+- `n` is the per-key sample count (tracked per metric and surfaced in the
+  dashboard).
+
+> **Note on bias correction:** An earlier revision applied Adam-style bias
+> correction (`raw / (1 - (1-α)^n)`) to counter early-value clustering near
+> the seed. This was removed because routing telemetry is non-stationary
+> (outages, drift, seasonal patterns) — the correction is only valid for
+> stationary processes and produced impossible values (e.g. success > 1.0)
+> and distorted latency. The mild early clustering self-corrects as samples
+> accumulate, which is strictly safer than over-correcting.
 
 This provides zero-token-overhead routing input based strictly on historical
 empirical evidence, with the ML predictor providing the longer-horizon view.

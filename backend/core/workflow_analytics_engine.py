@@ -1681,7 +1681,8 @@ class WorkflowAnalyticsEngine:
         """, (
             alert.alert_id, alert.name, alert.description, alert.severity.value,
             json.dumps(alert.condition) if not isinstance(alert.condition, str) else alert.condition,
-            str(alert.threshold_value), alert.metric_name,
+            str(alert.threshold_value) if alert.threshold_value is not None else None,
+            alert.metric_name,
             alert.workflow_id, alert.step_id, json.dumps(alert.notification_channels)
         ))
 

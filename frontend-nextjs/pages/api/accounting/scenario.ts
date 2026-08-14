@@ -10,7 +10,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { workspace_id = 'default', scenario_description = '' } = req.query;
 
     try {
-        const url = `${BACKEND_URL}/api/ai-accounting/scenario?workspace_id=${workspace_id}&scenario_description=${encodeURIComponent(scenario_description as str)}`;
+        // BUG FIX: was `as str` (invalid TypeScript type, TS2304) — changed to `as string`.
+        const url = `${BACKEND_URL}/api/ai-accounting/scenario?workspace_id=${workspace_id}&scenario_description=${encodeURIComponent(scenario_description as string)}`;
 
         const response = await fetch(url, {
             method: 'POST',

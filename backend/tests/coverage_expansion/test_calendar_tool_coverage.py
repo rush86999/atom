@@ -19,6 +19,50 @@ from typing import Dict, Any
 from tools.calendar_tool import CalendarTool
 
 
+@pytest.fixture(autouse=True)
+def governance_agents():
+    """Create the agent rows the governance permission check looks up.
+
+    CalendarTool._check_calendar_permission queries AgentRegistry for the
+    agent_id passed to run() ("agent-123", "student-agent", "intern-agent"
+    throughout this suite); without the rows every action is denied before
+    the mocked Google Calendar service is reached.
+    """
+    from core.database import SessionLocal
+    from core.models import AgentRegistry
+
+    session = SessionLocal()
+    agents = [
+        AgentRegistry(
+            id="agent-123",
+            name="Calendar Test Agent",
+            status="autonomous",  # maturity_level aliases status
+            category="Operations",
+            module_path="core.test_agents",
+            class_name="CalendarTestAgent",
+        ),
+        AgentRegistry(
+            id="student-agent",
+            name="Calendar Student Agent",
+            status="student",
+            category="Operations",
+            module_path="core.test_agents",
+            class_name="CalendarStudentAgent",
+        ),
+        AgentRegistry(
+            id="intern-agent",
+            name="Calendar Intern Agent",
+            status="intern",
+            category="Operations",
+            module_path="core.test_agents",
+            class_name="CalendarInternAgent",
+        ),
+    ]
+    session.add_all(agents)
+    session.commit()
+    session.close()
+
+
 class TestCalendarToolCoverage:
     """Coverage expansion for CalendarTool class."""
 
@@ -49,7 +93,8 @@ class TestCalendarToolCoverage:
         """Successfully get calendar events."""
         tool = CalendarTool()
 
-        mock_gcal_service.get_events.return_value = [
+        # google_calendar_service methods are awaited by CalendarTool
+        mock_gcal_service.get_events = AsyncMock(return_value=[
             {
                 "id": "event-1",
                 "summary": "Team Meeting",
@@ -62,7 +107,7 @@ class TestCalendarToolCoverage:
                 "start": {"dateTime": "2026-04-12T12:00:00"},
                 "end": {"dateTime": "2026-04-12T12:30:00"}
             }
-        ]
+        ])
 
         result = await tool.run(
             action="get_events",
@@ -79,18 +124,20 @@ class TestCalendarToolCoverage:
 
     @pytest.mark.asyncio
     async def test_get_events_student_blocked(self):
-        """Student agents blocked from reading calendar."""
+        """Student agents blocked from reading events."""
         tool = CalendarTool()
 
-        result = await tool.run(
-            action="get_events",
-            user_id="user-123",
-            agent_id="student-agent",
-            maturity_level="STUDENT"
-        )
+        # Current contract: run() raises PermissionError when governance
+        # denies the action (see docstring of CalendarTool.run).
+        with pytest.raises(PermissionError) as exc_info:
+            await tool.run(
+                action="get_events",
+                user_id="user-123",
+                agent_id="student-agent",
+                maturity_level="STUDENT"
+            )
 
-        assert result["success"] == False
-        assert "maturity" in result["error"].lower() or "permission" in result["error"].lower()
+        assert "maturity" in str(exc_info.value).lower()
 
     # Test: Check conflicts (read operation - INTERN+)
     @patch('tools.calendar_tool.google_calendar_service')
@@ -99,7 +146,13 @@ class TestCalendarToolCoverage:
         """Check for conflicts when none exist."""
         tool = CalendarTool()
 
-        mock_gcal_service.get_events.return_value = []
+        # Current API: check_conflicts delegates to the service's own
+        # check_conflicts coroutine and returns its dict.
+        mock_gcal_service.check_conflicts = AsyncMock(return_value={
+            "success": True,
+            "has_conflicts": False,
+            "conflicts": []
+        })
 
         result = await tool.run(
             action="check_conflicts",
@@ -119,14 +172,20 @@ class TestCalendarToolCoverage:
         """Check for conflicts when events overlap."""
         tool = CalendarTool()
 
-        mock_gcal_service.get_events.return_value = [
-            {
-                "id": "existing-event",
-                "summary": "Existing Meeting",
-                "start": {"dateTime": "2026-04-12T14:30:00"},
-                "end": {"dateTime": "2026-04-12T15:30:00"}
-            }
-        ]
+        # Current API: check_conflicts delegates to the service's own
+        # check_conflicts coroutine and returns its dict.
+        mock_gcal_service.check_conflicts = AsyncMock(return_value={
+            "success": True,
+            "has_conflicts": True,
+            "conflicts": [
+                {
+                    "id": "existing-event",
+                    "summary": "Existing Meeting",
+                    "start": {"dateTime": "2026-04-12T14:30:00"},
+                    "end": {"dateTime": "2026-04-12T15:30:00"}
+                }
+            ]
+        })
 
         result = await tool.run(
             action="check_conflicts",
@@ -148,19 +207,19 @@ class TestCalendarToolCoverage:
         """Successfully create calendar event."""
         tool = CalendarTool()
 
-        mock_gcal_service.create_event.return_value = {
+        mock_gcal_service.create_event = AsyncMock(return_value={
             "id": "new-event-123",
             "summary": "New Meeting",
             "start": {"dateTime": "2026-04-12T16:00:00"},
             "end": {"dateTime": "2026-04-12T17:00:00"}
-        }
+        })
 
         result = await tool.run(
             action="create_event",
             user_id="user-123",
             agent_id="agent-123",
             maturity_level="SUPERVISED",
-            summary="New Meeting",
+            title="New Meeting",
             start_time="2026-04-12T16:00:00",
             end_time="2026-04-12T17:00:00",
             description="Team sync"
@@ -175,18 +234,20 @@ class TestCalendarToolCoverage:
         """Intern agents blocked from creating events."""
         tool = CalendarTool()
 
-        result = await tool.run(
-            action="create_event",
-            user_id="user-123",
-            agent_id="intern-agent",
-            maturity_level="INTERN",
-            summary="Meeting",
-            start_time="2026-04-12T16:00:00",
-            end_time="2026-04-12T17:00:00"
-        )
+        # Current contract: run() raises PermissionError when governance
+        # denies the action (see docstring of CalendarTool.run).
+        with pytest.raises(PermissionError) as exc_info:
+            await tool.run(
+                action="create_event",
+                user_id="user-123",
+                agent_id="intern-agent",
+                maturity_level="INTERN",
+                summary="Meeting",
+                start_time="2026-04-12T16:00:00",
+                end_time="2026-04-12T17:00:00"
+            )
 
-        assert result["success"] == False
-        assert "maturity" in result["error"].lower() or "permission" in result["error"].lower()
+        assert "maturity" in str(exc_info.value).lower()
 
     # Test: Update event (write operation - SUPERVISED+)
     @patch('tools.calendar_tool.google_calendar_service')
@@ -195,12 +256,12 @@ class TestCalendarToolCoverage:
         """Successfully update calendar event."""
         tool = CalendarTool()
 
-        mock_gcal_service.update_event.return_value = {
+        mock_gcal_service.update_event = AsyncMock(return_value={
             "id": "event-123",
             "summary": "Updated Meeting",
             "start": {"dateTime": "2026-04-12T17:00:00"},
             "end": {"dateTime": "2026-04-12T18:00:00"}
-        }
+        })
 
         result = await tool.run(
             action="update_event",
@@ -208,9 +269,11 @@ class TestCalendarToolCoverage:
             agent_id="agent-123",
             maturity_level="SUPERVISED",
             event_id="event-123",
-            summary="Updated Meeting",
-            start_time="2026-04-12T17:00:00",
-            end_time="2026-04-12T18:00:00"
+            updates={
+                "summary": "Updated Meeting",
+                "start_time": "2026-04-12T17:00:00",
+                "end_time": "2026-04-12T18:00:00"
+            }
         )
 
         assert result["success"] == True
@@ -223,7 +286,7 @@ class TestCalendarToolCoverage:
         """Successfully delete calendar event."""
         tool = CalendarTool()
 
-        mock_gcal_service.delete_event.return_value = True
+        mock_gcal_service.delete_event = AsyncMock(return_value=True)
 
         result = await tool.run(
             action="delete_event",
@@ -234,7 +297,7 @@ class TestCalendarToolCoverage:
         )
 
         assert result["success"] == True
-        assert result["deleted"] == True
+        assert result["action"] == "delete_event"
 
     # Test: List upcoming events
     @patch('tools.calendar_tool.google_calendar_service')
@@ -246,14 +309,14 @@ class TestCalendarToolCoverage:
         now = datetime.now()
         tomorrow = now + timedelta(days=1)
 
-        mock_gcal_service.get_events.return_value = [
+        mock_gcal_service.get_events = AsyncMock(return_value=[
             {
                 "id": "event-1",
                 "summary": "Tomorrow's Meeting",
                 "start": {"dateTime": tomorrow.isoformat()},
                 "end": {"dateTime": (tomorrow + timedelta(hours=1)).isoformat()}
             }
-        ]
+        ])
 
         result = await tool.run(
             action="get_events",
@@ -316,7 +379,7 @@ class TestCalendarToolErrorHandling:
             user_id="user-123",
             agent_id="agent-123",
             maturity_level="SUPERVISED",
-            summary="Meeting"
+            title="Meeting"
             # Missing: start_time, end_time
         )
 
@@ -327,7 +390,7 @@ class TestCalendarToolErrorHandling:
     @pytest.mark.asyncio
     async def test_get_events_api_error(self, mock_gcal_service, calendar_tool):
         """Handle API errors gracefully."""
-        mock_gcal_service.get_events.side_effect = Exception("API Error")
+        mock_gcal_service.get_events = AsyncMock(side_effect=Exception("API Error"))
 
         result = await calendar_tool.run(
             action="get_events",
@@ -342,14 +405,14 @@ class TestCalendarToolErrorHandling:
     @pytest.mark.asyncio
     async def test_create_event_api_error(self, mock_gcal_service, calendar_tool):
         """Handle API errors on event creation."""
-        mock_gcal_service.create_event.side_effect = Exception("Authentication failed")
+        mock_gcal_service.create_event = AsyncMock(side_effect=Exception("Authentication failed"))
 
         result = await calendar_tool.run(
             action="create_event",
             user_id="user-123",
             agent_id="agent-123",
             maturity_level="SUPERVISED",
-            summary="Meeting",
+            title="Meeting",
             start_time="2026-04-12T16:00:00",
             end_time="2026-04-12T17:00:00"
         )
@@ -361,7 +424,7 @@ class TestCalendarToolErrorHandling:
     @pytest.mark.asyncio
     async def test_update_event_not_found(self, mock_gcal_service, calendar_tool):
         """Update non-existent event."""
-        mock_gcal_service.update_event.side_effect = Exception("Event not found")
+        mock_gcal_service.update_event = AsyncMock(side_effect=Exception("Event not found"))
 
         result = await calendar_tool.run(
             action="update_event",
@@ -378,7 +441,7 @@ class TestCalendarToolErrorHandling:
     @pytest.mark.asyncio
     async def test_delete_event_not_found(self, mock_gcal_service, calendar_tool):
         """Delete non-existent event."""
-        mock_gcal_service.delete_event.return_value = False
+        mock_gcal_service.delete_event = AsyncMock(return_value=False)
 
         result = await calendar_tool.run(
             action="delete_event",
@@ -403,25 +466,26 @@ class TestCalendarToolGovernance:
     @pytest.mark.asyncio
     async def test_student_blocked_from_all_operations(self, calendar_tool):
         """Student agents blocked from all calendar operations."""
-        read_result = await calendar_tool.run(
-            action="get_events",
-            user_id="user-123",
-            agent_id="student-agent",
-            maturity_level="STUDENT"
-        )
+        # Current contract: run() raises PermissionError when governance
+        # denies the action (see docstring of CalendarTool.run).
+        with pytest.raises(PermissionError):
+            await calendar_tool.run(
+                action="get_events",
+                user_id="user-123",
+                agent_id="student-agent",
+                maturity_level="STUDENT"
+            )
 
-        write_result = await calendar_tool.run(
-            action="create_event",
-            user_id="user-123",
-            agent_id="student-agent",
-            maturity_level="STUDENT",
-            summary="Meeting",
-            start_time="2026-04-12T16:00:00",
-            end_time="2026-04-12T17:00:00"
-        )
-
-        assert read_result["success"] == False
-        assert write_result["success"] == False
+        with pytest.raises(PermissionError):
+            await calendar_tool.run(
+                action="create_event",
+                user_id="user-123",
+                agent_id="student-agent",
+                maturity_level="STUDENT",
+                summary="Meeting",
+                start_time="2026-04-12T16:00:00",
+                end_time="2026-04-12T17:00:00"
+            )
 
     @pytest.mark.asyncio
     async def test_internet_allowed_read_only(self, calendar_tool):

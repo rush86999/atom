@@ -464,11 +464,26 @@ class DebugQuery:
                 words = question_lower.split()
                 for word in words:
                     if word.startswith("agent-") or word.startswith("browser-"):
-                        return await self.get_component_health(
+                        health = await self.get_component_health(
                             "agent" if "agent-" in word else "browser",
                             word,
                             "1h",
                         )
+                        # Wrap in the answer shape documented for ask()
+                        # (answer/confidence/evidence) like every other
+                        # branch — returning the raw health dict broke the
+                        # method's contract.
+                        return {
+                            "answer": (
+                                f"{word} is {health.get('status', 'unknown')} "
+                                f"(health score {health.get('health_score', 0)}, "
+                                f"{health.get('error_events', 0)} errors in "
+                                f"{health.get('total_events', 0)} events)"
+                            ),
+                            "confidence": 0.9,
+                            "evidence": [health],
+                            "related_insights": health.get("insights", []),
+                        }
 
             elif "error" in question_lower:
                 # Error explanation query
@@ -566,18 +581,24 @@ class DebugQuery:
         """Parse time range string to datetime."""
         now = datetime.now(timezone.utc)
 
-        if time_range.endswith("h"):
-            hours = int(time_range[:-1])
-            return now - timedelta(hours=hours)
-        elif time_range.endswith("d"):
-            days = int(time_range[:-1])
-            return now - timedelta(days=days)
-        elif time_range.endswith("m"):
-            minutes = int(time_range[:-1])
-            return now - timedelta(minutes=minutes)
-        else:
-            # Default to 1 hour
-            return now - timedelta(hours=1)
+        try:
+            if time_range.endswith("h"):
+                hours = int(time_range[:-1])
+                return now - timedelta(hours=hours)
+            elif time_range.endswith("d"):
+                days = int(time_range[:-1])
+                return now - timedelta(days=days)
+            elif time_range.endswith("m"):
+                minutes = int(time_range[:-1])
+                return now - timedelta(minutes=minutes)
+        except ValueError:
+            # Non-numeric prefix (e.g. "invalid" ends in 'd' but "invali"
+            # is not an int) — fall through to the default below instead
+            # of raising.
+            pass
+
+        # Default to 1 hour
+        return now - timedelta(hours=1)
 
     def _insight_to_dict(self, insight: DebugInsight) -> Dict[str, Any]:
         """Convert insight to dictionary."""

@@ -57,7 +57,7 @@ def db_session():
 
 
 @pytest.fixture
-def client(db_session):
+def client(db_session, test_user):
     """Create TestClient for workspace routes with test database."""
     from fastapi import FastAPI
     from core.base_routes import BaseAPIRouter
@@ -73,7 +73,11 @@ def client(db_session):
             pass
 
     from core.database import get_db
+    from core.auth import get_current_user
     app.dependency_overrides[get_db] = override_get_db
+    # R54: all workspace endpoints authenticate via get_current_user and
+    # scope ownership to the token user — act as the seeded test user.
+    app.dependency_overrides[get_current_user] = lambda: test_user
 
     return TestClient(app)
 
@@ -568,37 +572,46 @@ class TestListUnifiedWorkspaces:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        assert "items" in data["data"]
-        assert data["data"]["total"] == 3
+        # success_list_response: items in "data", count in "metadata"
+        assert isinstance(data["data"], list)
+        assert len(data["data"]) == 3
+        assert data["metadata"]["total"] == 3
 
-    def test_list_workspaces_by_user(self, client, db_session):
-        """Test listing workspaces filtered by user."""
-        # Create workspaces for different users
-        user1_workspace = UnifiedWorkspace(
-            user_id="user-1",
-            name="User 1 Workspace",
+    def test_list_workspaces_by_user(self, client, test_user, db_session):
+        """Test listing is scoped to the authenticated user (R54).
+
+        The list endpoint always filters by the token user; a client-supplied
+        user_id query param must not leak other users' workspaces.
+        """
+        # Create workspaces for the authenticated user and another user
+        own_workspace = UnifiedWorkspace(
+            user_id=test_user.id,
+            name="Own Workspace",
             slack_workspace_id="T111111",
             platform_count=1,
             member_count=0
         )
-        user2_workspace = UnifiedWorkspace(
+        other_workspace = UnifiedWorkspace(
             user_id="user-2",
             name="User 2 Workspace",
             slack_workspace_id="T222222",
             platform_count=1,
             member_count=0
         )
-        db_session.add_all([user1_workspace, user2_workspace])
+        db_session.add_all([own_workspace, other_workspace])
         db_session.commit()
 
-        # List workspaces for user-1
-        response = client.get("/api/v1/workspaces/unified?user_id=user-1")
+        # Try to request another user's workspaces via the query param
+        response = client.get("/api/v1/workspaces/unified?user_id=user-2")
 
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        assert data["data"]["total"] == 1
-        assert data["data"]["items"][0]["user_id"] == "user-1"
+        # R54: response is always scoped to the authenticated user
+        assert len(data["data"]) == 1
+        assert data["metadata"]["total"] == 1
+        assert data["data"][0]["user_id"] == test_user.id
+        assert data["data"][0]["name"] == "Own Workspace"
 
     def test_list_workspaces_empty(self, client):
         """Test listing workspaces when none exist."""
@@ -607,8 +620,8 @@ class TestListUnifiedWorkspaces:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        assert data["data"]["total"] == 0
-        assert data["data"]["items"] == []
+        assert data["data"] == []
+        assert data["metadata"]["total"] == 0
 
     def test_list_workspaces_pagination_structure(self, client, test_user, db_session):
         """Test that list response has proper structure."""
@@ -626,8 +639,8 @@ class TestListUnifiedWorkspaces:
 
         assert response.status_code == 200
         data = response.json()
-        assert "items" in data["data"]
-        assert "total" in data["data"]
+        assert isinstance(data["data"], list)
+        assert "total" in data["metadata"]
         assert "message" in data
 
 
@@ -702,8 +715,10 @@ class TestDeleteUnifiedWorkspace:
 class TestWorkspaceHelper:
     """Test suite for workspace helper functions."""
 
-    def test_workspace_to_dict_structure(self, client, test_user, db_session):
+    def test_workspace_to_dict_structure(self, test_user, db_session):
         """Test that _workspace_to_dict returns proper structure."""
+        from api.workspace_routes import _workspace_to_dict
+
         workspace = UnifiedWorkspace(
             user_id=test_user.id,
             name="Helper Test",
@@ -718,11 +733,7 @@ class TestWorkspaceHelper:
         db_session.commit()
         db_session.refresh(workspace)
 
-        response = client.get(f"/api/v1/workspaces/unified/{workspace.id}")
-
-        assert response.status_code == 200
-        data = response.json()
-        workspace_dict = data["data"]
+        workspace_dict = _workspace_to_dict(workspace)
 
         # Verify all expected fields
         expected_fields = [
@@ -735,8 +746,10 @@ class TestWorkspaceHelper:
         for field in expected_fields:
             assert field in workspace_dict, f"Missing field: {field}"
 
-    def test_workspace_to_dict_with_null_platforms(self, client, test_user, db_session):
+    def test_workspace_to_dict_with_null_platforms(self, test_user, db_session):
         """Test workspace dict with only some platforms."""
+        from api.workspace_routes import _workspace_to_dict
+
         workspace = UnifiedWorkspace(
             user_id=test_user.id,
             name="Partial Platforms",
@@ -748,11 +761,7 @@ class TestWorkspaceHelper:
         db_session.commit()
         db_session.refresh(workspace)
 
-        response = client.get(f"/api/v1/workspaces/unified/{workspace.id}")
-
-        assert response.status_code == 200
-        data = response.json()
-        workspace_dict = data["data"]
+        workspace_dict = _workspace_to_dict(workspace)
 
         assert workspace_dict["slack_workspace_id"] == "T777777"
         assert workspace_dict["discord_guild_id"] is None
@@ -796,7 +805,6 @@ class TestErrorHandling:
             name="Error State Test",
             slack_workspace_id="T999999",
             sync_status="error",
-            last_sync_error="Connection timeout",
             platform_count=1,
             member_count=0
         )

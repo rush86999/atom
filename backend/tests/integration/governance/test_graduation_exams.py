@@ -4,7 +4,7 @@ Integration tests for Agent Graduation Service exam execution and constitutional
 Tests the graduation exam execution, constitutional compliance validation,
 intervention rate calculations, and readiness score calculations.
 
-Coverage target: agent_graduation_service.py lines 253-285 and constitutional validation logic
+Coverage target: agent_graduation_service.py exam execution and constitutional validation logic
 """
 
 import pytest
@@ -21,6 +21,42 @@ from core.models import (
     User,
     UserRole,
 )
+
+DEFAULT_TENANT = "default"
+
+
+def _make_episode(agent_id, index, maturity, interventions=0,
+                  constitutional=0.9, success=True, days_ago=None):
+    """Build an AgentEpisode row on the current schema (agent_episodes)."""
+    started = datetime.now() - timedelta(days=days_ago if days_ago is not None else index + 1)
+    return Episode(
+        id=f"episode-exam-{agent_id}-{index}",
+        agent_id=agent_id,
+        tenant_id=DEFAULT_TENANT,
+        task_description=f"Exam preparation episode {index}",
+        maturity_at_time=maturity,
+        outcome="success" if success else "failure",
+        success=success,
+        status="completed",
+        started_at=started,
+        completed_at=started + timedelta(hours=1),
+        duration_seconds=3600,
+        human_intervention_count=interventions,
+        constitutional_score=constitutional,
+        confidence_score=0.5,
+        topics=["training"],
+        entities=[],
+        importance_score=0.7,
+        decay_score=1.0,
+        access_count=0,
+    )
+
+
+def _mock_exam_executor(payload):
+    """Mock GraduationExamSandboxExecutor whose execute_exam returns payload."""
+    executor = MagicMock()
+    executor.execute_exam = AsyncMock(return_value=payload)
+    return executor
 
 
 @pytest.fixture(scope="function")
@@ -41,6 +77,7 @@ def student_agent(db_session: Session):
         status=AgentStatus.STUDENT.value,
         confidence_score=0.4,
         configuration={},
+        tenant_id=DEFAULT_TENANT,
     )
     db_session.add(agent)
     db_session.commit()
@@ -60,6 +97,7 @@ def intern_agent(db_session: Session):
         status=AgentStatus.INTERN.value,
         confidence_score=0.6,
         configuration={},
+        tenant_id=DEFAULT_TENANT,
     )
     db_session.add(agent)
     db_session.commit()
@@ -68,7 +106,7 @@ def intern_agent(db_session: Session):
 
 
 class TestGraduationExamExecution:
-    """Test graduation exam execution with SandboxExecutor."""
+    """Test graduation exam execution with the graduation exam sandbox executor."""
 
     @pytest.mark.asyncio
     async def test_execute_graduation_exam_for_student_to_intern(
@@ -78,35 +116,27 @@ class TestGraduationExamExecution:
         Test executing graduation exam for STUDENT → INTERN transition.
 
         Covers: Graduation exam execution logic
-        Lines: ~253-285 in agent_graduation_service.py
         """
         # Create episodes to meet minimum requirement (10 episodes for STUDENT→INTERN)
         for i in range(10):
-            episode = Episode(
-                agent_id=student_agent.id,
-                agent_name=student_agent.name,
-                episode_type="training",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=11-i),
-                ended_at=datetime.now() - timedelta(days=10-i),
-                segment_count=1,
-                metadata_json={"interventions": 0}  # 50% intervention rate = 5 interventions max
-            )
+            episode = _make_episode(student_agent.id, i, AgentStatus.STUDENT.value,
+                                    interventions=0, constitutional=0.90)
             db_session.add(episode)
         db_session.commit()
 
-        # Mock SandboxExecutor
-        mock_executor = MagicMock()
-        mock_executor.execute_exam.return_value = {
+        # Mock graduation exam executor
+        mock_executor = _mock_exam_executor({
             "success": True,
             "score": 0.85,
             "constitutional_compliance": 0.90,
             "passed": True
-        }
+        })
 
-        with patch('core.agent_graduation_service.SandboxExecutor', return_value=mock_executor):
+        with patch('core.agent_graduation_service.get_graduation_exam_executor',
+                   return_value=mock_executor):
             result = await graduation_service.execute_graduation_exam(
                 agent_id=student_agent.id,
+                workspace_id=DEFAULT_TENANT,
                 target_maturity=AgentStatus.INTERN.value
             )
 
@@ -126,30 +156,25 @@ class TestGraduationExamExecution:
         """
         # Create episodes to meet requirement (25 episodes for INTERN→SUPERVISED)
         for i in range(25):
-            episode = Episode(
-                agent_id=intern_agent.id,
-                agent_name=intern_agent.name,
-                episode_type="operational",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=26-i),
-                ended_at=datetime.now() - timedelta(days=25-i),
-                segment_count=1,
-                metadata_json={"interventions": i % 5}  # 20% intervention rate
-            )
+            episode = _make_episode(intern_agent.id, i, AgentStatus.INTERN.value,
+                                    # 20% intervention rate
+                                    interventions=1 if i % 5 == 0 else 0,
+                                    constitutional=0.88)
             db_session.add(episode)
         db_session.commit()
 
-        mock_executor = MagicMock()
-        mock_executor.execute_exam.return_value = {
+        mock_executor = _mock_exam_executor({
             "success": True,
             "score": 0.88,
             "constitutional_compliance": 0.92,
             "passed": True
-        }
+        })
 
-        with patch('core.agent_graduation_service.SandboxExecutor', return_value=mock_executor):
+        with patch('core.agent_graduation_service.get_graduation_exam_executor',
+                   return_value=mock_executor):
             result = await graduation_service.execute_graduation_exam(
                 agent_id=intern_agent.id,
+                workspace_id=DEFAULT_TENANT,
                 target_maturity=AgentStatus.SUPERVISED.value
             )
 
@@ -167,31 +192,24 @@ class TestGraduationExamExecution:
         """
         # Create minimal episodes
         for i in range(10):
-            episode = Episode(
-                agent_id=student_agent.id,
-                agent_name=student_agent.name,
-                episode_type="training",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=11-i),
-                ended_at=datetime.now() - timedelta(days=10-i),
-                segment_count=1,
-                metadata_json={}
-            )
+            episode = _make_episode(student_agent.id, i, AgentStatus.STUDENT.value,
+                                    interventions=0, constitutional=0.68)
             db_session.add(episode)
         db_session.commit()
 
         # Mock exam that fails
-        mock_executor = MagicMock()
-        mock_executor.execute_exam.return_value = {
+        mock_executor = _mock_exam_executor({
             "success": True,
             "score": 0.65,  # Below 0.70 threshold
             "constitutional_compliance": 0.68,
             "passed": False
-        }
+        })
 
-        with patch('core.agent_graduation_service.SandboxExecutor', return_value=mock_executor):
+        with patch('core.agent_graduation_service.get_graduation_exam_executor',
+                   return_value=mock_executor):
             result = await graduation_service.execute_graduation_exam(
                 agent_id=student_agent.id,
+                workspace_id=DEFAULT_TENANT,
                 target_maturity=AgentStatus.INTERN.value
             )
 
@@ -204,31 +222,28 @@ class TestGraduationExamExecution:
         self, graduation_service, student_agent, db_session
     ):
         """
-        Test graduation exam rejected due to insufficient episode count.
+        Test graduation exam does not pass with insufficient episode count.
 
         Covers: Episode count validation
         """
-        # Create only 5 episodes (need 10 for STUDENT→INTERN)
+        # Create only 5 episodes (need 10 for STUDENT→INTERN); every episode
+        # also required an intervention so the exam cannot scrape a pass.
         for i in range(5):
-            episode = Episode(
-                agent_id=student_agent.id,
-                agent_name=student_agent.name,
-                episode_type="training",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=6-i),
-                ended_at=datetime.now() - timedelta(days=5-i),
-                segment_count=1,
-                metadata_json={}
-            )
+            episode = _make_episode(student_agent.id, i, AgentStatus.STUDENT.value,
+                                    interventions=1, constitutional=0.5)
             db_session.add(episode)
         db_session.commit()
 
-        # Should raise error or return failure
-        with pytest.raises((ValueError, Exception)):
-            await graduation_service.execute_graduation_exam(
-                agent_id=student_agent.id,
-                target_maturity=AgentStatus.INTERN.value
-            )
+        # Run against the real exam executor (no mocking)
+        result = await graduation_service.execute_graduation_exam(
+            agent_id=student_agent.id,
+            workspace_id=DEFAULT_TENANT,
+            target_maturity=AgentStatus.INTERN.value
+        )
+
+        assert result["exam_completed"] is True
+        assert result["passed"] is False
+        assert "insufficient_episode_count" in result["constitutional_violations"]
 
 
 class TestConstitutionalComplianceValidation:
@@ -245,35 +260,25 @@ class TestConstitutionalComplianceValidation:
         """
         # Create episodes with high compliance (0.95+)
         for i in range(10):
-            episode = Episode(
-                agent_id=student_agent.id,
-                agent_name=student_agent.name,
-                episode_type="training",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=11-i),
-                ended_at=datetime.now() - timedelta(days=10-i),
-                segment_count=1,
-                metadata_json={
-                    "constitutional_compliance": 0.95,
-                    "interventions": 0
-                }
-            )
+            episode = _make_episode(student_agent.id, i, AgentStatus.STUDENT.value,
+                                    interventions=0, constitutional=0.95)
             db_session.add(episode)
         db_session.commit()
 
         # Mock exam
-        mock_executor = MagicMock()
-        mock_executor.execute_exam.return_value = {
+        mock_executor = _mock_exam_executor({
             "success": True,
             "score": 0.90,
             "constitutional_compliance": 0.95,
             "passed": True,
             "constitutional_violations": []
-        }
+        })
 
-        with patch('core.agent_graduation_service.SandboxExecutor', return_value=mock_executor):
+        with patch('core.agent_graduation_service.get_graduation_exam_executor',
+                   return_value=mock_executor):
             result = await graduation_service.execute_graduation_exam(
                 agent_id=student_agent.id,
+                workspace_id=DEFAULT_TENANT,
                 target_maturity=AgentStatus.INTERN.value
             )
 
@@ -290,34 +295,24 @@ class TestConstitutionalComplianceValidation:
         Covers: Constitutional compliance threshold enforcement
         """
         for i in range(10):
-            episode = Episode(
-                agent_id=student_agent.id,
-                agent_name=student_agent.name,
-                episode_type="training",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=11-i),
-                ended_at=datetime.now() - timedelta(days=10-i),
-                segment_count=1,
-                metadata_json={
-                    "constitutional_compliance": 0.65,  # Below 0.70 threshold
-                    "interventions": 0
-                }
-            )
+            episode = _make_episode(student_agent.id, i, AgentStatus.STUDENT.value,
+                                    interventions=0, constitutional=0.65)
             db_session.add(episode)
         db_session.commit()
 
-        mock_executor = MagicMock()
-        mock_executor.execute_exam.return_value = {
+        mock_executor = _mock_exam_executor({
             "success": True,
             "score": 0.85,
             "constitutional_compliance": 0.65,  # Below threshold
             "passed": False,
             "constitutional_violations": ["unauthorized_data_access", "privacy_violation"]
-        }
+        })
 
-        with patch('core.agent_graduation_service.SandboxExecutor', return_value=mock_executor):
+        with patch('core.agent_graduation_service.get_graduation_exam_executor',
+                   return_value=mock_executor):
             result = await graduation_service.execute_graduation_exam(
                 agent_id=student_agent.id,
+                workspace_id=DEFAULT_TENANT,
                 target_maturity=AgentStatus.INTERN.value
             )
 
@@ -335,16 +330,8 @@ class TestConstitutionalComplianceValidation:
         Covers: Violation reporting in exam results
         """
         for i in range(10):
-            episode = Episode(
-                agent_id=student_agent.id,
-                agent_name=student_agent.name,
-                episode_type="training",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=11-i),
-                ended_at=datetime.now() - timedelta(days=10-i),
-                segment_count=1,
-                metadata_json={"interventions": i}
-            )
+            episode = _make_episode(student_agent.id, i, AgentStatus.STUDENT.value,
+                                    interventions=i, constitutional=0.60)
             db_session.add(episode)
         db_session.commit()
 
@@ -354,18 +341,19 @@ class TestConstitutionalComplianceValidation:
             "bypass_governance"
         ]
 
-        mock_executor = MagicMock()
-        mock_executor.execute_exam.return_value = {
+        mock_executor = _mock_exam_executor({
             "success": True,
             "score": 0.75,
             "constitutional_compliance": 0.60,
             "passed": False,
             "constitutional_violations": violations
-        }
+        })
 
-        with patch('core.agent_graduation_service.SandboxExecutor', return_value=mock_executor):
+        with patch('core.agent_graduation_service.get_graduation_exam_executor',
+                   return_value=mock_executor):
             result = await graduation_service.execute_graduation_exam(
                 agent_id=student_agent.id,
+                workspace_id=DEFAULT_TENANT,
                 target_maturity=AgentStatus.INTERN.value
             )
 
@@ -387,29 +375,23 @@ class TestInterventionRateCalculation:
         """
         # Create episodes with 50% intervention rate (5 out of 10)
         for i in range(10):
-            episode = Episode(
-                agent_id=student_agent.id,
-                agent_name=student_agent.name,
-                episode_type="training",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=11-i),
-                ended_at=datetime.now() - timedelta(days=10-i),
-                segment_count=1,
-                metadata_json={"interventions": 1 if i < 5 else 0}
-            )
+            episode = _make_episode(student_agent.id, i, AgentStatus.STUDENT.value,
+                                    interventions=1 if i < 5 else 0,
+                                    constitutional=0.75)
             db_session.add(episode)
         db_session.commit()
 
         # Calculate readiness score
         readiness = await graduation_service.calculate_readiness_score(
             agent_id=student_agent.id,
-            target_maturity=AgentStatus.INTERN.value
+            target_maturity="INTERN"
         )
 
-        # 40% episode count, 30% intervention, 30% constitutional
-        assert 0.0 <= readiness <= 1.0
-        # With 50% interventions, should still meet requirements
-        assert readiness >= 0.5
+        score = readiness["score"]  # 0-100 scale
+        assert 0.0 <= score <= 100.0
+        assert readiness["intervention_rate"] <= 0.5
+        # With 50% interventions (the allowed maximum), readiness stays reasonable
+        assert score >= 50
 
     @pytest.mark.asyncio
     async def test_intervention_rate_intern_to_supervised(
@@ -422,25 +404,19 @@ class TestInterventionRateCalculation:
         """
         # Create episodes with 20% intervention rate (5 out of 25)
         for i in range(25):
-            episode = Episode(
-                agent_id=intern_agent.id,
-                agent_name=intern_agent.name,
-                episode_type="operational",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=26-i),
-                ended_at=datetime.now() - timedelta(days=25-i),
-                segment_count=1,
-                metadata_json={"interventions": 1 if i % 5 == 0 else 0}
-            )
+            episode = _make_episode(intern_agent.id, i, AgentStatus.INTERN.value,
+                                    interventions=1 if i % 5 == 0 else 0,
+                                    constitutional=0.85)
             db_session.add(episode)
         db_session.commit()
 
         readiness = await graduation_service.calculate_readiness_score(
             agent_id=intern_agent.id,
-            target_maturity=AgentStatus.SUPERVISED.value
+            target_maturity="SUPERVISED"
         )
 
-        assert 0.0 <= readiness <= 1.0
+        assert 0.0 <= readiness["score"] <= 100.0
+        assert readiness["intervention_rate"] <= 0.2
 
     @pytest.mark.asyncio
     async def test_intervention_rate_too_high_failure(
@@ -453,30 +429,25 @@ class TestInterventionRateCalculation:
         """
         # Create episodes with 70% intervention rate (exceeds 50% max)
         for i in range(10):
-            episode = Episode(
-                agent_id=student_agent.id,
-                agent_name=student_agent.name,
-                episode_type="training",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=11-i),
-                ended_at=datetime.now() - timedelta(days=10-i),
-                segment_count=1,
-                metadata_json={"interventions": 1 if i < 7 else 0}  # 7 out of 10
-            )
+            episode = _make_episode(student_agent.id, i, AgentStatus.STUDENT.value,
+                                    interventions=1 if i < 7 else 0,  # 7 out of 10
+                                    constitutional=0.9)
             db_session.add(episode)
         db_session.commit()
 
         readiness = await graduation_service.calculate_readiness_score(
             agent_id=student_agent.id,
-            target_maturity=AgentStatus.INTERN.value
+            target_maturity="INTERN"
         )
 
-        # High intervention rate should lower readiness score
-        assert readiness < 0.7  # Should fail
+        # High intervention rate should lower readiness score and block readiness
+        assert readiness["score"] < 70
+        assert readiness["ready"] is False
+        assert any("intervention" in gap.lower() for gap in readiness["gaps"])
 
 
 class TestReadinessScoreCalculation:
-    """Test readiness score calculation (40% episodes, 30% intervention, 30% constitutional)."""
+    """Test readiness score calculation (weighted episode-derived factors)."""
 
     @pytest.mark.asyncio
     async def test_readiness_score_all_factors_excellent(
@@ -489,35 +460,20 @@ class TestReadinessScoreCalculation:
         """
         # Create perfect episodes
         for i in range(15):  # More than minimum 10
-            episode = Episode(
-                agent_id=student_agent.id,
-                agent_name=student_agent.name,
-                episode_type="training",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=16-i),
-                ended_at=datetime.now() - timedelta(days=15-i),
-                segment_count=1,
-                metadata_json={
-                    "interventions": 0,  # 0% intervention rate
-                    "constitutional_compliance": 0.95
-                }
-            )
+            episode = _make_episode(student_agent.id, i, AgentStatus.STUDENT.value,
+                                    interventions=0,  # 0% intervention rate
+                                    constitutional=0.95)
             db_session.add(episode)
         db_session.commit()
 
-        # Mock constitutional compliance
-        with patch('core.agent_graduation_service.SandboxExecutor') as mock_executor:
-            mock_executor_instance = MagicMock()
-            mock_executor_instance.calculate_compliance.return_value = 0.95
-            mock_executor.return_value = mock_executor_instance
+        readiness = await graduation_service.calculate_readiness_score(
+            agent_id=student_agent.id,
+            target_maturity="INTERN"
+        )
 
-            readiness = await graduation_service.calculate_readiness_score(
-                agent_id=student_agent.id,
-                target_maturity=AgentStatus.INTERN.value
-            )
-
-        # Should have high readiness score
-        assert readiness >= 0.80
+        # Excellent episodes should clear the STUDENT→INTERN readiness threshold
+        assert readiness["score"] >= 70
+        assert readiness["ready"] is True
 
     @pytest.mark.asyncio
     async def test_readiness_score_mixed_factors(
@@ -530,29 +486,19 @@ class TestReadinessScoreCalculation:
         """
         # Create episodes with mixed performance
         for i in range(10):
-            episode = Episode(
-                agent_id=student_agent.id,
-                agent_name=student_agent.name,
-                episode_type="training",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=11-i),
-                ended_at=datetime.now() - timedelta(days=10-i),
-                segment_count=1,
-                metadata_json={
-                    "interventions": 1 if i < 4 else 0,  # 40% intervention rate
-                    "constitutional_compliance": 0.75 + (i * 0.02)
-                }
-            )
+            episode = _make_episode(student_agent.id, i, AgentStatus.STUDENT.value,
+                                    interventions=1 if i < 4 else 0,  # 40% intervention rate
+                                    constitutional=0.75 + (i * 0.02))
             db_session.add(episode)
         db_session.commit()
 
         readiness = await graduation_service.calculate_readiness_score(
             agent_id=student_agent.id,
-            target_maturity=AgentStatus.INTERN.value
+            target_maturity="INTERN"
         )
 
         # Should be moderate readiness
-        assert 0.5 <= readiness <= 0.8
+        assert 50 <= readiness["score"] <= 80
 
     @pytest.mark.asyncio
     async def test_readiness_score_breakdown(
@@ -564,27 +510,20 @@ class TestReadinessScoreCalculation:
         Covers: Detailed readiness reporting
         """
         for i in range(12):
-            episode = Episode(
-                agent_id=student_agent.id,
-                agent_name=student_agent.name,
-                episode_type="training",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=13-i),
-                ended_at=datetime.now() - timedelta(days=12-i),
-                segment_count=1,
-                metadata_json={"interventions": i % 3}
-            )
+            episode = _make_episode(student_agent.id, i, AgentStatus.STUDENT.value,
+                                    interventions=i % 3, constitutional=0.8)
             db_session.add(episode)
         db_session.commit()
 
         readiness = await graduation_service.calculate_readiness_score(
             agent_id=student_agent.id,
-            target_maturity=AgentStatus.INTERN.value
+            target_maturity="INTERN"
         )
 
-        # Readiness should be a number
-        assert isinstance(readiness, (int, float))
-        assert 0.0 <= readiness <= 1.0
+        # Readiness score is a number on the 0-100 scale plus a breakdown dict
+        assert isinstance(readiness["score"], (int, float))
+        assert 0.0 <= readiness["score"] <= 100.0
+        assert "breakdown" in readiness
 
 
 class TestExamScenarios:
@@ -609,6 +548,7 @@ class TestExamScenarios:
             status=AgentStatus.SUPERVISED.value,
             confidence_score=0.8,
             configuration={},
+            tenant_id=DEFAULT_TENANT,
         )
         db_session.add(agent)
         db_session.commit()
@@ -616,30 +556,24 @@ class TestExamScenarios:
 
         # Create 50 episodes (required for SUPERVISED→AUTONOMOUS)
         for i in range(50):
-            episode = Episode(
-                agent_id=agent.id,
-                agent_name=agent.name,
-                episode_type="operational",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=51-i),
-                ended_at=datetime.now() - timedelta(days=50-i),
-                segment_count=1,
-                metadata_json={"interventions": 0}  # 0% interventions required
-            )
+            episode = _make_episode(agent.id, i, AgentStatus.SUPERVISED.value,
+                                    interventions=0,  # 0% interventions required
+                                    constitutional=0.96)
             db_session.add(episode)
         db_session.commit()
 
-        mock_executor = MagicMock()
-        mock_executor.execute_exam.return_value = {
+        mock_executor = _mock_exam_executor({
             "success": True,
             "score": 0.95,
             "constitutional_compliance": 0.98,
             "passed": True
-        }
+        })
 
-        with patch('core.agent_graduation_service.SandboxExecutor', return_value=mock_executor):
+        with patch('core.agent_graduation_service.get_graduation_exam_executor',
+                   return_value=mock_executor):
             result = await graduation_service.execute_graduation_exam(
                 agent_id=agent.id,
+                workspace_id=DEFAULT_TENANT,
                 target_maturity=AgentStatus.AUTONOMOUS.value
             )
 
@@ -656,27 +590,21 @@ class TestExamScenarios:
         Covers: Exception handling in exam execution
         """
         for i in range(10):
-            episode = Episode(
-                agent_id=student_agent.id,
-                agent_name=student_agent.name,
-                episode_type="training",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=11-i),
-                ended_at=datetime.now() - timedelta(days=10-i),
-                segment_count=1,
-                metadata_json={}
-            )
+            episode = _make_episode(student_agent.id, i, AgentStatus.STUDENT.value,
+                                    interventions=0, constitutional=0.8)
             db_session.add(episode)
         db_session.commit()
 
         # Mock executor that raises exception
         mock_executor = MagicMock()
-        mock_executor.execute_exam.side_effect = Exception("Executor failure")
+        mock_executor.execute_exam = AsyncMock(side_effect=Exception("Executor failure"))
 
-        with patch('core.agent_graduation_service.SandboxExecutor', return_value=mock_executor):
+        with patch('core.agent_graduation_service.get_graduation_exam_executor',
+                   return_value=mock_executor):
             with pytest.raises(Exception):
                 await graduation_service.execute_graduation_exam(
                     agent_id=student_agent.id,
+                    workspace_id=DEFAULT_TENANT,
                     target_maturity=AgentStatus.INTERN.value
                 )
 
@@ -690,49 +618,44 @@ class TestExamScenarios:
         Covers: Exam attempt history
         """
         for i in range(10):
-            episode = Episode(
-                agent_id=student_agent.id,
-                agent_name=student_agent.name,
-                episode_type="training",
-                status="completed",
-                started_at=datetime.now() - timedelta(days=11-i),
-                ended_at=datetime.now() - timedelta(days=10-i),
-                segment_count=1,
-                metadata_json={}
-            )
+            episode = _make_episode(student_agent.id, i, AgentStatus.STUDENT.value,
+                                    interventions=0, constitutional=0.8)
             db_session.add(episode)
         db_session.commit()
 
         # First attempt - fail
-        mock_executor = MagicMock()
-        mock_executor.execute_exam.return_value = {
+        mock_executor = _mock_exam_executor({
             "success": True,
             "score": 0.65,
             "constitutional_compliance": 0.68,
             "passed": False,
             "attempt": 1
-        }
+        })
 
-        with patch('core.agent_graduation_service.SandboxExecutor', return_value=mock_executor):
+        with patch('core.agent_graduation_service.get_graduation_exam_executor',
+                   return_value=mock_executor):
             result1 = await graduation_service.execute_graduation_exam(
                 agent_id=student_agent.id,
+                workspace_id=DEFAULT_TENANT,
                 target_maturity=AgentStatus.INTERN.value
             )
 
         assert result1["passed"] is False
 
         # Second attempt - pass
-        mock_executor.execute_exam.return_value = {
+        mock_executor.execute_exam = AsyncMock(return_value={
             "success": True,
             "score": 0.85,
             "constitutional_compliance": 0.90,
             "passed": True,
             "attempt": 2
-        }
+        })
 
-        with patch('core.agent_graduation_service.SandboxExecutor', return_value=mock_executor):
+        with patch('core.agent_graduation_service.get_graduation_exam_executor',
+                   return_value=mock_executor):
             result2 = await graduation_service.execute_graduation_exam(
                 agent_id=student_agent.id,
+                workspace_id=DEFAULT_TENANT,
                 target_maturity=AgentStatus.INTERN.value
             )
 

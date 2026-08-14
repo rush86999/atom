@@ -7,7 +7,7 @@ and error handling for unsupported formats.
 
 import asyncio
 import io
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
@@ -572,10 +572,12 @@ class TestAutoDocumentIngestionSync:
         from core.auto_document_ingestion import AutoDocumentIngestionService, IngestionSettings
         service = AutoDocumentIngestionService()
 
-        # Set up settings with recent sync
+        # Set up settings with recent sync. last_sync is stored timezone-aware
+        # (the service writes datetime.now(timezone.utc)); a naive datetime
+        # would crash the elapsed-time comparison.
         settings = service.get_settings("google_drive")
         settings.enabled = True
-        settings.last_sync = datetime.utcnow()
+        settings.last_sync = datetime.now(timezone.utc)
         settings.sync_frequency_minutes = 60
 
         result = await service.sync_integration("google_drive")

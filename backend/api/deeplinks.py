@@ -392,7 +392,12 @@ async def get_deeplink_stats(
         by_source[source] = count
 
     # Top agents by usage
-    top_agents_query = _base_query().join(
+    # NOTE: with_entities() selects (agent_id, name) tuples — a plain
+    # query(DeepLinkAudit).join() returns ORM entities that cannot be
+    # unpacked, which 500'd /stats whenever agent-linked audit rows existed.
+    top_agents_query = _base_query().with_entities(
+        DeepLinkAudit.agent_id, AgentRegistry.name
+    ).join(
         AgentRegistry, DeepLinkAudit.agent_id == AgentRegistry.id
     ).filter(
         DeepLinkAudit.agent_id.isnot(None)

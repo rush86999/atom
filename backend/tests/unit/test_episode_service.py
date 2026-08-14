@@ -1,36 +1,37 @@
 """
 Comprehensive Unit Tests for Episode Service
 
-Target: core/episode_service.py (1,990 lines, <20% coverage → 80%+ target)
+Target: core/episode_service.py
 
 Test Coverage Areas:
 1. Episode Creation (10 tests)
-2. Episode Segmentation (12 tests)
-3. Temporal Retrieval (10 tests)
-4. Semantic Retrieval (12 tests)
-5. Sequential Retrieval (8 tests)
-6. Contextual Retrieval (8 tests)
-7. Hybrid Storage (10 tests)
-8. Integration Tests (12 tests)
-9. Edge Cases (8 tests)
+2. Episode Retrieval (7 tests)
+3. Graduation Readiness (4 tests)
+4. Feedback System / RLHF (4 tests)
+5. Canvas Integration (3 tests)
+6. Skill Performance (2 tests)
+7. LanceDB Integration (2 tests)
+8. Edge Cases (6 tests)
 
-Total: 90 test functions
+The service persists through a real (temp-file) SQLite session created by the
+``db`` fixture in tests/unit/conftest.py; LanceDB and the embedding service are
+mocked so no external services are required. Methods that are ``async`` in
+production are driven with ``asyncio.run``.
 """
 
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime, timedelta, timezone
-from sqlalchemy.orm import Session
-from sqlalchemy import text
 import asyncio
-import json
 
-from core.episode_service import EpisodeService, ReadinessResponse, ReadinessThresholds, DetailLevel
+from core.episode_service import (
+    EpisodeService, ReadinessResponse, ReadinessThresholds, DetailLevel,
+    PROGRESSIVE_QUERIES
+)
 from core.models import (
     AgentEpisode, AgentExecution, AgentRegistry, EpisodeOutcome,
     AgentStatus, GraduationExam, Episode, EpisodeSegment, CanvasAudit
 )
-from core.database import get_db
 
 
 # ========================================================================
@@ -38,25 +39,22 @@ from core.database import get_db
 # =========================================================================
 
 @pytest.fixture
-def db_session():
-    """Mock database session."""
-    db = Mock()
-    db.add = Mock()
-    db.commit = Mock()
-    db.rollback = Mock()
-    db.query = Mock()
-    db.flush = Mock()
-    db.refresh = Mock()
+def db_session(db):
+    """Real SQLite session (tables created by tests/unit/conftest.py)."""
     return db
 
 
 @pytest.fixture
 def mock_lancedb():
-    """Mock LanceDB service."""
+    """Mock LanceDB service.
+
+    ``EpisodeService.archive_episode_to_cold_storage`` calls ``add_episode``
+    synchronously, so the mock must be a plain Mock (not an AsyncMock).
+    """
     lancedb = Mock()
     lancedb.connect = Mock(return_value=True)
     lancedb.get_or_create_episodes_table = Mock()
-    lancedb.add_episode = AsyncMock(return_value=True)
+    lancedb.add_episode = Mock(return_value=True)
     lancedb.search_episodes = Mock(return_value=[])
     return lancedb
 
@@ -67,14 +65,15 @@ def mock_embedding_service():
     embedding = Mock()
     embedding.get_embedding_dimension = Mock(return_value=384)
     embedding.embed_text = Mock(return_value=[0.1] * 384)
+    embedding.generate_embedding = AsyncMock(return_value=[0.1] * 384)
     return embedding
 
 
 @pytest.fixture
-def episode_service(db_session, mock_embedding_service):
+def episode_service(db_session, mock_embedding_service, mock_lancedb):
     """Create episode service with mocked dependencies."""
     service = EpisodeService(db_session, embedding_service=mock_embedding_service)
-    service.lancedb = mock_lancedb()
+    service.lancedb = mock_lancedb
     return service
 
 
@@ -85,8 +84,11 @@ def test_agent(db_session):
         id="test-agent-1",
         name="TestAgent",
         category="test",
+        module_path="test.module",
+        class_name="TestAgent",
         status=AgentStatus.INTERN.value,
-        confidence_score=0.6
+        confidence_score=0.6,
+        tenant_id="default"
     )
     db_session.add(agent)
     db_session.commit()
@@ -96,14 +98,17 @@ def test_agent(db_session):
 
 @pytest.fixture
 def test_execution(db_session, test_agent):
-    """Create a test agent execution."""
+    """Create a test agent execution (current AgentExecution schema)."""
     execution = AgentExecution(
         id="test-execution-1",
         agent_id=test_agent.id,
+        tenant_id="default",
         status="completed",
-        task_description="Test task",
-        input_data={"query": "test"},
-        output_data={"result": "success"},
+        input_summary="Test task",
+        result_summary="success",
+        output_summary="success",
+        metadata_json={"query": "test"},
+        human_intervention_count=0,
         started_at=datetime.now(timezone.utc) - timedelta(hours=1),
         completed_at=datetime.now(timezone.utc)
     )
@@ -111,6 +116,47 @@ def test_execution(db_session, test_agent):
     db_session.commit()
     db_session.refresh(execution)
     return execution
+
+
+# ========================================================================
+# Helpers
+# =========================================================================
+
+class _FakeRow:
+    """Mimics a SQLAlchemy row object (exposes ``_mapping``)."""
+
+    def __init__(self, mapping):
+        self._mapping = mapping
+
+
+class _FakeResult:
+    """Mimics a SQLAlchemy result with ``fetchall``."""
+
+    def __init__(self, rows):
+        self._rows = rows
+
+    def fetchall(self):
+        return self._rows
+
+
+def _stub_progressive_query(db_session, rows):
+    """Stub the Postgres-only progressive-detail SQL.
+
+    ``recall_episodes_with_detail`` executes raw SQL that uses JSONB operators
+    (``->>``, ``jsonb_array_length``), which SQLite cannot run. Only those
+    exact query templates are stubbed; every other statement (including the
+    tenant ownership check) still hits the real SQLite session, so agent
+    scoping and ORM loading stay covered.
+    """
+    real_execute = db_session.execute
+    progressive_sql = {q.strip() for q in PROGRESSIVE_QUERIES.values()}
+
+    def execute(statement, *args, **kwargs):
+        if str(statement).strip() in progressive_sql:
+            return _FakeResult([_FakeRow(r) for r in rows])
+        return real_execute(statement, *args, **kwargs)
+
+    db_session.execute = execute
 
 
 # ========================================================================
@@ -122,19 +168,26 @@ class TestEpisodeCreation:
 
     def test_create_episode_from_execution_success(self, db_session, test_execution, episode_service):
         """Test successful episode creation from execution."""
-        episode = episode_service.create_episode_from_execution(
+        episode = asyncio.run(episode_service.create_episode_from_execution(
             execution_id=test_execution.id,
             task_description="Test episode creation",
-            outcome=EpisodeOutcome.SUCCESS,
+            outcome=EpisodeOutcome.SUCCESS.value,
             success=True
-        )
+        ))
 
         assert episode is not None
         assert episode.id is not None
         assert episode.agent_id == test_execution.agent_id
+        assert episode.execution_id == test_execution.id
         assert episode.task_description == "Test episode creation"
         assert episode.outcome == EpisodeOutcome.SUCCESS.value
         assert episode.success == True
+
+        # Episode is persisted
+        stored = db_session.query(AgentEpisode).filter(
+            AgentEpisode.id == episode.id
+        ).one()
+        assert stored.outcome == EpisodeOutcome.SUCCESS.value
 
     def test_create_episode_with_context(self, db_session, test_execution, episode_service):
         """Test episode creation with context variables."""
@@ -144,13 +197,13 @@ class TestEpisodeCreation:
             "workspace_id": "workspace-1"
         }
 
-        episode = episode_service.create_episode_from_execution(
+        episode = asyncio.run(episode_service.create_episode_from_execution(
             execution_id=test_execution.id,
             task_description="Test with context",
-            outcome=EpisodeOutcome.SUCCESS,
+            outcome=EpisodeOutcome.SUCCESS.value,
             success=True,
-            context=context
-        )
+            metadata=context
+        ))
 
         assert episode.metadata_json is not None
         assert episode.metadata_json.get("user_id") == "test-user"
@@ -158,44 +211,45 @@ class TestEpisodeCreation:
 
     def test_create_episode_with_agent_id(self, db_session, test_execution, episode_service):
         """Test episode creation linked to agent."""
-        episode = episode_service.create_episode_from_execution(
+        episode = asyncio.run(episode_service.create_episode_from_execution(
             execution_id=test_execution.id,
             task_description="Test agent linkage",
-            outcome=EpisodeOutcome.SUCCESS,
+            outcome=EpisodeOutcome.SUCCESS.value,
             success=True
-        )
+        ))
 
         assert episode.agent_id == test_execution.agent_id
         assert episode.maturity_at_time is not None
+        assert episode.maturity_at_time == AgentStatus.INTERN.value
 
     def test_create_episode_invalid_agent_id(self, db_session, episode_service):
         """Test episode creation with invalid agent ID."""
         with pytest.raises(ValueError):
-            episode_service.create_episode_from_execution(
+            asyncio.run(episode_service.create_episode_from_execution(
                 execution_id="non-existent-execution",
                 task_description="Test invalid agent",
-                outcome=EpisodeOutcome.SUCCESS,
+                outcome=EpisodeOutcome.SUCCESS.value,
                 success=True
-            )
+            ))
 
     def test_create_episode_duplicate_id(self, db_session, test_execution, episode_service):
         """Test handling of duplicate episode ID."""
         # First episode
-        episode1 = episode_service.create_episode_from_execution(
+        episode1 = asyncio.run(episode_service.create_episode_from_execution(
             execution_id=test_execution.id,
             task_description="First episode",
-            outcome=EpisodeOutcome.SUCCESS,
+            outcome=EpisodeOutcome.SUCCESS.value,
             success=True
-        )
+        ))
 
         # Attempt to create duplicate - should handle gracefully
         # (actual implementation may create new episode with different ID)
-        episode2 = episode_service.create_episode_from_execution(
+        episode2 = asyncio.run(episode_service.create_episode_from_execution(
             execution_id=test_execution.id,
             task_description="Second episode",
-            outcome=EpisodeOutcome.SUCCESS,
+            outcome=EpisodeOutcome.SUCCESS.value,
             success=True
-        )
+        ))
 
         assert episode1.id != episode2.id
 
@@ -207,13 +261,13 @@ class TestEpisodeCreation:
             "visual_elements": ["bar-chart", "legend"]
         }
 
-        episode = episode_service.create_episode_from_execution(
+        episode = asyncio.run(episode_service.create_episode_from_execution(
             execution_id=test_execution.id,
             task_description="Test with metadata",
-            outcome=EpisodeOutcome.SUCCESS,
+            outcome=EpisodeOutcome.SUCCESS.value,
             success=True,
             metadata=metadata
-        )
+        ))
 
         assert episode.metadata_json is not None
         assert episode.metadata_json.get("canvas_type") == "chart"
@@ -223,12 +277,12 @@ class TestEpisodeCreation:
         import time
 
         start = time.time()
-        episode = episode_service.create_episode_from_execution(
+        episode = asyncio.run(episode_service.create_episode_from_execution(
             execution_id=test_execution.id,
             task_description="Performance test",
-            outcome=EpisodeOutcome.SUCCESS,
+            outcome=EpisodeOutcome.SUCCESS.value,
             success=True
-        )
+        ))
         duration = (time.time() - start) * 1000  # Convert to ms
 
         assert episode is not None
@@ -236,12 +290,12 @@ class TestEpisodeCreation:
 
     def test_create_episode_with_failure_outcome(self, db_session, test_execution, episode_service):
         """Test episode creation with failure outcome."""
-        episode = episode_service.create_episode_from_execution(
+        episode = asyncio.run(episode_service.create_episode_from_execution(
             execution_id=test_execution.id,
             task_description="Failed task",
-            outcome=EpisodeOutcome.FAILURE,
+            outcome=EpisodeOutcome.FAILURE.value,
             success=False
-        )
+        ))
 
         assert episode.outcome == EpisodeOutcome.FAILURE.value
         assert episode.success == False
@@ -253,32 +307,34 @@ class TestEpisodeCreation:
             {"type": "policy", "description": "Policy violation"}
         ]
 
-        episode = episode_service.create_episode_from_execution(
+        episode = asyncio.run(episode_service.create_episode_from_execution(
             execution_id=test_execution.id,
             task_description="Task with violations",
-            outcome=EpisodeOutcome.FAILURE,
+            outcome=EpisodeOutcome.FAILURE.value,
             success=False,
             constitutional_violations=violations
-        )
+        ))
 
-        assert episode.constitutional_violations is not None
-        assert len(episode.constitutional_violations) == 2
+        # Violations are folded into the constitutional compliance score
+        # (2 unspecified-severity violations default to "low" = 0.1 penalty each)
+        assert episode.constitutional_score is not None
+        assert episode.constitutional_score == pytest.approx(0.8)
 
     def test_create_episode_auto_id_generation(self, db_session, test_execution, episode_service):
         """Test automatic episode ID generation."""
-        episode = episode_service.create_episode_from_execution(
+        episode = asyncio.run(episode_service.create_episode_from_execution(
             execution_id=test_execution.id,
             task_description="Test auto ID",
-            outcome=EpisodeOutcome.SUCCESS,
+            outcome=EpisodeOutcome.SUCCESS.value,
             success=True
-        )
+        ))
 
         assert episode.id is not None
         assert len(episode.id) > 0
 
 
 # ========================================================================
-# 2. Episode Retrieval Tests (20 tests)
+# 2. Episode Retrieval Tests
 # =========================================================================
 
 class TestEpisodeRetrieval:
@@ -293,7 +349,7 @@ class TestEpisodeRetrieval:
                 agent_id=test_agent.id,
                 tenant_id="default",
                 task_description=f"Task {i}",
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 outcome="success",
                 success=True,
                 status="active"
@@ -306,7 +362,8 @@ class TestEpisodeRetrieval:
             tenant_id="default"
         )
 
-        assert len(episodes) <= 10  # Default limit
+        assert len(episodes) == 5
+        assert len(episodes) <= 50  # Default limit
 
     def test_get_agent_episodes_with_limit(self, db_session, test_agent, episode_service):
         """Test retrieving episodes with custom limit."""
@@ -317,7 +374,7 @@ class TestEpisodeRetrieval:
                 agent_id=test_agent.id,
                 tenant_id="default",
                 task_description=f"Task {i}",
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 outcome="success",
                 success=True,
                 status="active"
@@ -351,7 +408,7 @@ class TestEpisodeRetrieval:
                 agent_id=test_agent.id,
                 tenant_id="default",
                 task_description=f"Success task {i}",
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 outcome="success",
                 success=True,
                 status="active"
@@ -364,7 +421,7 @@ class TestEpisodeRetrieval:
                 agent_id=test_agent.id,
                 tenant_id="default",
                 task_description=f"Failure task {i}",
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 outcome="failure",
                 success=False,
                 status="active"
@@ -389,7 +446,7 @@ class TestEpisodeRetrieval:
             agent_id=test_agent.id,
             tenant_id="default",
             task_description="Summary test",
-            maturity_at_time="INTERN",
+            maturity_at_time="intern",
             outcome="success",
             success=True,
             status="active",
@@ -401,17 +458,44 @@ class TestEpisodeRetrieval:
         db_session.add(episode)
         db_session.commit()
 
-        episodes = episode_service.recall_episodes_with_detail(
+        # The progressive-detail SQL uses Postgres JSONB operators, so serve
+        # the rows the query would produce for the episode created above.
+        _stub_progressive_query(db_session, [{
+            "id": episode.id,
+            "agent_id": test_agent.id,
+            "task_description": episode.task_description,
+            "outcome": episode.outcome,
+            "success": episode.success,
+            "constitutional_score": episode.constitutional_score,
+            "human_intervention_count": episode.human_intervention_count,
+            "started_at": episode.started_at,
+            "completed_at": episode.completed_at,
+            "canvas_type": "chart",
+            "presentation_summary": "Test summary",
+            "has_errors": False,
+        }])
+
+        episodes = asyncio.run(episode_service.recall_episodes_with_detail(
             agent_id=test_agent.id,
             tenant_id="default",
             detail_level=DetailLevel.SUMMARY,
             limit=10
-        )
+        ))
 
         assert len(episodes) > 0
         # Summary detail should include basic fields
-        assert episodes[0].get("id") is not None
+        assert episodes[0].get("id") == episode.id
         assert episodes[0].get("task_description") is not None
+        assert episodes[0].get("canvas_type") == "chart"
+
+        # Tenant ownership check is enforced against the real session
+        other_tenant = asyncio.run(episode_service.recall_episodes_with_detail(
+            agent_id=test_agent.id,
+            tenant_id="not-our-tenant",
+            detail_level=DetailLevel.SUMMARY,
+            limit=10
+        ))
+        assert other_tenant == []
 
     def test_recall_episodes_with_standard_detail(self, db_session, test_agent, episode_service):
         """Test recalling episodes with STANDARD detail level."""
@@ -420,7 +504,7 @@ class TestEpisodeRetrieval:
             agent_id=test_agent.id,
             tenant_id="default",
             task_description="Standard test",
-            maturity_at_time="INTERN",
+            maturity_at_time="intern",
             outcome="success",
             success=True,
             status="active",
@@ -434,12 +518,22 @@ class TestEpisodeRetrieval:
         db_session.add(episode)
         db_session.commit()
 
-        episodes = episode_service.recall_episodes_with_detail(
+        _stub_progressive_query(db_session, [{
+            "id": episode.id,
+            "task_description": episode.task_description,
+            "canvas_type": "chart",
+            "presentation_summary": "Test summary",
+            "visual_elements": ["bar-chart"],
+            "critical_data_points": [{"x": 1, "y": 2}],
+            "has_errors": False,
+        }])
+
+        episodes = asyncio.run(episode_service.recall_episodes_with_detail(
             agent_id=test_agent.id,
             tenant_id="default",
             detail_level=DetailLevel.STANDARD,
             limit=10
-        )
+        ))
 
         assert len(episodes) > 0
         # Standard detail should include visual elements
@@ -454,7 +548,7 @@ class TestEpisodeRetrieval:
                 agent_id=test_agent.id,
                 tenant_id="default",
                 task_description=f"Performance test {i}",
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 outcome="success",
                 success=True,
                 status="active"
@@ -462,14 +556,19 @@ class TestEpisodeRetrieval:
             db_session.add(episode)
         db_session.commit()
 
+        _stub_progressive_query(db_session, [
+            {"id": f"episode-perf-{i}", "task_description": f"Performance test {i}"}
+            for i in range(10)
+        ])
+
         import time
         start = time.time()
-        episodes = episode_service.recall_episodes_with_detail(
+        episodes = asyncio.run(episode_service.recall_episodes_with_detail(
             agent_id=test_agent.id,
             tenant_id="default",
             detail_level=DetailLevel.SUMMARY,
             limit=10
-        )
+        ))
         duration = (time.time() - start) * 1000
 
         assert len(episodes) == 10
@@ -477,7 +576,7 @@ class TestEpisodeRetrieval:
 
 
 # ========================================================================
-# 3. Graduation Readiness Tests (15 tests)
+# 3. Graduation Readiness Tests
 # =========================================================================
 
 class TestGraduationReadiness:
@@ -514,6 +613,7 @@ class TestGraduationReadiness:
         assert readiness.agent_id == test_agent.id
         assert readiness.current_level == AgentStatus.INTERN.value
         assert isinstance(readiness.readiness_score, float)
+        assert readiness.episodes_analyzed == 10
 
     def test_get_graduation_readiness_insufficient_episodes(self, db_session, test_agent, episode_service):
         """Test graduation readiness with insufficient episodes."""
@@ -551,7 +651,7 @@ class TestGraduationReadiness:
                 agent_id=test_agent.id,
                 tenant_id="default",
                 task_description=f"Success {i}",
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 outcome="success",
                 success=True,
                 status="active"
@@ -564,7 +664,7 @@ class TestGraduationReadiness:
                 agent_id=test_agent.id,
                 tenant_id="default",
                 task_description=f"Failure {i}",
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 outcome="failure",
                 success=False,
                 status="active"
@@ -578,10 +678,12 @@ class TestGraduationReadiness:
             limit=10
         )
 
+        assert len(episodes) == 10
+
         metrics = episode_service.calculate_readiness_metrics(episodes)
 
-        assert metrics["success_rate"] == 0.7
-        assert metrics["total_episodes"] == 10
+        assert metrics["success_rate"] == pytest.approx(0.7)
+        assert metrics["episodes_by_outcome"] == {"success": 7, "failure": 3}
 
     def test_calculate_readiness_metrics_intervention_rate(self, db_session, test_agent, episode_service):
         """Test calculating intervention rate."""
@@ -592,7 +694,7 @@ class TestGraduationReadiness:
                 agent_id=test_agent.id,
                 tenant_id="default",
                 task_description=f"Task {i}",
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 outcome="success",
                 success=True,
                 human_intervention_count=0,
@@ -606,7 +708,7 @@ class TestGraduationReadiness:
                 agent_id=test_agent.id,
                 tenant_id="default",
                 task_description=f"Task {i+5}",
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 outcome="success",
                 success=True,
                 human_intervention_count=1,
@@ -624,7 +726,8 @@ class TestGraduationReadiness:
         metrics = episode_service.calculate_readiness_metrics(episodes)
 
         # 50% intervention rate
-        assert metrics["zero_intervention_ratio"] == 0.5
+        assert metrics["zero_intervention_ratio"] == pytest.approx(0.5)
+        assert metrics["total_interventions"] == 5
 
     def test_get_graduation_readiness_performance_benchmark(self, db_session, test_agent, episode_service):
         """Test graduation readiness calculation performance (target: <200ms)."""
@@ -635,7 +738,7 @@ class TestGraduationReadiness:
                 agent_id=test_agent.id,
                 tenant_id="default",
                 task_description=f"Task {i}",
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 outcome="success",
                 success=True,
                 constitutional_score=0.85,
@@ -661,7 +764,7 @@ class TestGraduationReadiness:
 
 
 # ========================================================================
-# 4. Feedback System Tests (10 tests)
+# 4. Feedback System Tests (RLHF)
 # =========================================================================
 
 class TestFeedbackSystem:
@@ -674,7 +777,7 @@ class TestFeedbackSystem:
             agent_id=test_agent.id,
             tenant_id="default",
             task_description="Feedback test",
-            maturity_at_time="INTERN",
+            maturity_at_time="intern",
             outcome="success",
             success=True,
             status="active"
@@ -682,15 +785,24 @@ class TestFeedbackSystem:
         db_session.add(episode)
         db_session.commit()
 
-        updated = episode_service.update_episode_feedback(
+        feedback_id = episode_service.update_episode_feedback(
             episode_id=episode.id,
             feedback_score=1.0,
-            feedback_comment="Excellent work!",
-            user_id="test-user"
+            feedback_notes="Excellent work!",
+            provider_id="test-user"
         )
 
-        assert updated is not None
-        assert updated.aggregate_feedback_score == 1.0
+        assert feedback_id is not None
+
+        feedback = episode_service.get_episode_feedback(episode.id)
+        assert len(feedback) == 1
+        assert feedback[0]["feedback_score"] == 1.0
+        assert feedback[0]["feedback_notes"] == "Excellent work!"
+
+        # Episode metadata carries the feedback reference
+        db_session.refresh(episode)
+        assert episode.metadata_json["feedback_id"] == feedback_id
+        assert episode.metadata_json["feedback_score"] == 1.0
 
     def test_update_episode_feedback_negative(self, db_session, test_agent, episode_service):
         """Test updating episode with negative feedback."""
@@ -699,7 +811,7 @@ class TestFeedbackSystem:
             agent_id=test_agent.id,
             tenant_id="default",
             task_description="Negative feedback test",
-            maturity_at_time="INTERN",
+            maturity_at_time="intern",
             outcome="failure",
             success=False,
             status="active"
@@ -707,15 +819,18 @@ class TestFeedbackSystem:
         db_session.add(episode)
         db_session.commit()
 
-        updated = episode_service.update_episode_feedback(
+        feedback_id = episode_service.update_episode_feedback(
             episode_id=episode.id,
             feedback_score=-1.0,
-            feedback_comment="Incorrect approach",
-            user_id="test-user"
+            feedback_notes="Incorrect approach",
+            provider_id="test-user"
         )
 
-        assert updated is not None
-        assert updated.aggregate_feedback_score == -1.0
+        assert feedback_id is not None
+
+        feedback = episode_service.get_episode_feedback(episode.id)
+        assert len(feedback) == 1
+        assert feedback[0]["feedback_score"] == -1.0
 
     def test_get_episode_feedback(self, db_session, test_agent, episode_service):
         """Test retrieving episode feedback."""
@@ -724,7 +839,7 @@ class TestFeedbackSystem:
             agent_id=test_agent.id,
             tenant_id="default",
             task_description="Get feedback test",
-            maturity_at_time="INTERN",
+            maturity_at_time="intern",
             outcome="success",
             success=True,
             status="active"
@@ -736,31 +851,41 @@ class TestFeedbackSystem:
         episode_service.update_episode_feedback(
             episode_id=episode.id,
             feedback_score=0.8,
-            feedback_comment="Good job",
-            user_id="test-user"
+            feedback_notes="Good job",
+            provider_id="test-user"
         )
 
         feedback = episode_service.get_episode_feedback(episode.id)
 
         assert feedback is not None
-        assert feedback["score"] == 0.8
+        assert len(feedback) == 1
+        assert feedback[0]["feedback_score"] == 0.8
 
     def test_get_domain_feedback_metrics(self, db_session, test_agent, episode_service):
         """Test retrieving feedback metrics for domain."""
-        # Create episodes with feedback
+        # Create episodes with feedback tagged to a capability domain
         for i in range(5):
             episode = AgentEpisode(
                 id=f"episode-feedback-{i}",
                 agent_id=test_agent.id,
                 tenant_id="default",
                 task_description=f"Task {i}",
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 outcome="success",
                 success=True,
-                aggregate_feedback_score=0.5 + (i * 0.1),
                 status="active"
             )
             db_session.add(episode)
+        db_session.commit()
+
+        for i in range(5):
+            episode_service.update_episode_feedback(
+                episode_id=f"episode-feedback-{i}",
+                feedback_score=0.5 + (i * 0.1),
+                feedback_notes=f"Feedback {i}",
+                provider_id="test-user",
+                capability_domain="test"
+            )
         db_session.commit()
 
         metrics = episode_service.get_domain_feedback_metrics(
@@ -770,12 +895,13 @@ class TestFeedbackSystem:
         )
 
         assert metrics is not None
-        assert "avg_feedback_score" in metrics
-        assert "total_feedback_count" in metrics
+        assert metrics["feedback_count"] == 5
+        assert metrics["avg_rating"] == pytest.approx(0.7)
+        assert "trend" in metrics
 
 
 # ========================================================================
-# 5. Canvas Integration Tests (10 tests)
+# 5. Canvas Integration Tests
 # =========================================================================
 
 class TestCanvasIntegration:
@@ -783,13 +909,15 @@ class TestCanvasIntegration:
 
     def test_extract_canvas_metadata(self, db_session, test_execution, episode_service):
         """Test extracting canvas metadata from execution."""
-        metadata = episode_service._extract_canvas_metadata(
+        metadata = asyncio.run(episode_service._extract_canvas_metadata(
             execution_id=test_execution.id,
             task_description="Test canvas metadata"
-        )
+        ))
 
         assert metadata is not None
         assert isinstance(metadata, dict)
+        # The test execution carries no canvas context
+        assert metadata == {}
 
     def test_link_canvas_actions_to_episode(self, db_session, test_agent, episode_service):
         """Test linking canvas actions to episode."""
@@ -798,7 +926,7 @@ class TestCanvasIntegration:
             agent_id=test_agent.id,
             tenant_id="default",
             task_description="Canvas link test",
-            maturity_at_time="INTERN",
+            maturity_at_time="intern",
             outcome="success",
             success=True,
             status="active"
@@ -807,13 +935,18 @@ class TestCanvasIntegration:
         db_session.commit()
 
         canvas_action_ids = ["action-1", "action-2", "action-3"]
-        updated = episode_service.link_canvas_actions_to_episode(
+        linked = asyncio.run(episode_service.link_canvas_actions_to_episode(
             episode_id=episode.id,
             canvas_action_ids=canvas_action_ids
-        )
+        ))
 
-        assert updated is not None
-        assert updated.canvas_action_count == 3
+        assert linked is True
+
+        stored = db_session.query(AgentEpisode).filter(
+            AgentEpisode.id == episode.id
+        ).one()
+        assert stored.metadata_json["canvas_action_ids"] == canvas_action_ids
+        assert len(stored.metadata_json["canvas_action_ids"]) == 3
 
     def test_get_canvas_actions_for_episode(self, db_session, test_agent, episode_service):
         """Test retrieving canvas actions for episode."""
@@ -822,11 +955,12 @@ class TestCanvasIntegration:
             agent_id=test_agent.id,
             tenant_id="default",
             task_description="Canvas actions test",
-            maturity_at_time="INTERN",
+            maturity_at_time="intern",
             outcome="success",
             success=True,
             status="active",
-            canvas_action_count=2
+            canvas_action_count=2,
+            metadata_json={"canvas_action_ids": ["canvas-audit-0", "canvas-audit-1"]}
         )
         db_session.add(episode)
 
@@ -835,6 +969,7 @@ class TestCanvasIntegration:
             audit = CanvasAudit(
                 id=f"canvas-audit-{i}",
                 canvas_id=f"canvas-{i}",
+                tenant_id="default",
                 agent_id=test_agent.id,
                 action_type="present",
                 details_json={
@@ -847,10 +982,13 @@ class TestCanvasIntegration:
         actions = episode_service.get_canvas_actions_for_episode(episode.id)
 
         assert actions is not None
+        assert len(actions) == 2
+        assert {a["id"] for a in actions} == {"canvas-audit-0", "canvas-audit-1"}
+        assert all(a["action_type"] == "present" for a in actions)
 
 
 # ========================================================================
-# 6. Skill Performance Tests (8 tests)
+# 6. Skill Performance Tests
 # =========================================================================
 
 class TestSkillPerformance:
@@ -858,18 +996,18 @@ class TestSkillPerformance:
 
     def test_get_skill_performance_stats(self, db_session, test_agent, episode_service):
         """Test retrieving skill performance statistics."""
-        # Create episodes with skill usage
+        # Create episodes with skill usage (skill_type marks OpenClaw runs)
         for i in range(5):
             episode = AgentEpisode(
                 id=f"episode-skill-{i}",
                 agent_id=test_agent.id,
                 tenant_id="default",
                 task_description=f"Skill task {i}",
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 outcome="success",
                 success=True,
                 status="active",
-                metadata_json={"skill_id": "data-analysis"}
+                metadata_json={"skill_type": "openclaw", "skill_id": "data-analysis"}
             )
             db_session.add(episode)
         db_session.commit()
@@ -882,7 +1020,10 @@ class TestSkillPerformance:
         )
 
         assert stats is not None
-        assert stats.get("total_uses") == 5
+        assert stats.skill_id == "data-analysis"
+        assert stats.total_executions == 5
+        assert stats.successful_executions == 5
+        assert stats.success_rate == pytest.approx(1.0)
 
     def test_get_agent_skill_usage(self, db_session, test_agent, episode_service):
         """Test retrieving agent skill usage history."""
@@ -894,11 +1035,11 @@ class TestSkillPerformance:
                 agent_id=test_agent.id,
                 tenant_id="default",
                 task_description=f"{skill} task",
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 outcome="success",
                 success=True,
                 status="active",
-                metadata_json={"skill_id": skill}
+                metadata_json={"skill_type": "openclaw", "skill_id": skill}
             )
             db_session.add(episode)
         db_session.commit()
@@ -911,10 +1052,12 @@ class TestSkillPerformance:
 
         assert usage is not None
         assert len(usage) == 3
+        assert {u.skill_id for u in usage} == set(skills)
+        assert all(u.execution_count == 1 for u in usage)
 
 
 # ========================================================================
-# 7. LanceDB Integration Tests (7 tests)
+# 7. LanceDB Integration Tests
 # =========================================================================
 
 class TestLanceDBIntegration:
@@ -927,7 +1070,7 @@ class TestLanceDBIntegration:
             agent_id=test_agent.id,
             tenant_id="default",
             task_description="Archive test",
-            maturity_at_time="INTERN",
+            maturity_at_time="intern",
             outcome="success",
             success=True,
             status="active"
@@ -935,22 +1078,21 @@ class TestLanceDBIntegration:
         db_session.add(episode)
         db_session.commit()
 
-        result = episode_service.archive_episode_to_cold_storage(episode.id)
+        result = asyncio.run(episode_service.archive_episode_to_cold_storage(episode.id))
 
         assert result is True
         mock_lancedb.add_episode.assert_called_once()
+        archived_episode, embedding = mock_lancedb.add_episode.call_args[0]
+        assert archived_episode.id == episode.id
 
     def test_lancedb_connection_failure(self, db_session, test_agent, episode_service):
         """Test handling LanceDB connection failure."""
-        # Mock connection failure
-        episode_service.lancedb.connect = Mock(return_value=False)
-
         episode = AgentEpisode(
             id="episode-conn-fail",
             agent_id=test_agent.id,
             tenant_id="default",
             task_description="Connection failure test",
-            maturity_at_time="INTERN",
+            maturity_at_time="intern",
             outcome="success",
             success=True,
             status="active"
@@ -958,14 +1100,22 @@ class TestLanceDBIntegration:
         db_session.add(episode)
         db_session.commit()
 
-        # Should handle gracefully
-        result = episode_service.archive_episode_to_cold_storage(episode.id)
+        # Force a cold-storage connection failure: no cached client and the
+        # freshly initialised one fails to connect.
+        episode_service.lancedb = None
+        with patch("core.episode_service.LanceDBService") as mock_lancedb_cls:
+            mock_lancedb_cls.return_value.connect.return_value = False
+
+            # Should handle gracefully
+            result = asyncio.run(episode_service.archive_episode_to_cold_storage(episode.id))
+
+        mock_lancedb_cls.return_value.connect.assert_called_once()
         # Service should continue without LanceDB
         assert result is False or result is None
 
 
 # ========================================================================
-# 8. Edge Case Tests (10 tests)
+# 8. Edge Case Tests
 # =========================================================================
 
 class TestEdgeCases:
@@ -980,7 +1130,7 @@ class TestEdgeCases:
             agent_id=test_agent.id,
             tenant_id="default",
             task_description=unicode_text,
-            maturity_at_time="INTERN",
+            maturity_at_time="intern",
             outcome="success",
             success=True,
             status="active",
@@ -996,6 +1146,8 @@ class TestEdgeCases:
         )
 
         assert len(retrieved) > 0
+        assert retrieved[0].task_description == unicode_text
+        assert retrieved[0].metadata_json["unicode_field"] == "日本語テスト"
 
     def test_episode_with_special_characters(self, db_session, test_agent, episode_service):
         """Test episode with special characters."""
@@ -1006,7 +1158,7 @@ class TestEdgeCases:
             agent_id=test_agent.id,
             tenant_id="default",
             task_description=special_text,
-            maturity_at_time="INTERN",
+            maturity_at_time="intern",
             outcome="success",
             success=True,
             status="active"
@@ -1021,6 +1173,7 @@ class TestEdgeCases:
         )
 
         assert len(retrieved) > 0
+        assert retrieved[0].task_description == special_text
 
     def test_episode_with_null_metadata(self, db_session, test_agent, episode_service):
         """Test episode with null metadata."""
@@ -1029,7 +1182,7 @@ class TestEdgeCases:
             agent_id=test_agent.id,
             tenant_id="default",
             task_description="Null metadata test",
-            maturity_at_time="INTERN",
+            maturity_at_time="intern",
             outcome="success",
             success=True,
             status="active",
@@ -1054,7 +1207,7 @@ class TestEdgeCases:
             agent_id=test_agent.id,
             tenant_id="default",
             task_description="",
-            maturity_at_time="INTERN",
+            maturity_at_time="intern",
             outcome="success",
             success=True,
             status="active"
@@ -1069,6 +1222,7 @@ class TestEdgeCases:
         )
 
         assert len(retrieved) > 0
+        assert retrieved[0].task_description == ""
 
     def test_concurrent_episode_creation(self, db_session, test_agent, episode_service):
         """Test concurrent episode creation."""
@@ -1078,7 +1232,7 @@ class TestEdgeCases:
                 agent_id=test_agent.id,
                 tenant_id="default",
                 task_description=f"Concurrent task {i}",
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 outcome="success",
                 success=True,
                 status="active"
@@ -1095,6 +1249,13 @@ class TestEdgeCases:
 
         assert len(episodes) == 10
 
+        retrieved = episode_service.get_agent_episodes(
+            agent_id=test_agent.id,
+            tenant_id="default",
+            limit=10
+        )
+        assert len(retrieved) == 10
+
     def test_episode_with_very_long_content(self, db_session, test_agent, episode_service):
         """Test episode with very long content (>1MB)."""
         long_content = "x" * (1_000_000 + 1)  # >1MB
@@ -1104,7 +1265,7 @@ class TestEdgeCases:
             agent_id=test_agent.id,
             tenant_id="default",
             task_description=long_content[:1000],  # Truncate for task description
-            maturity_at_time="INTERN",
+            maturity_at_time="intern",
             outcome="success",
             success=True,
             status="active",
@@ -1120,3 +1281,4 @@ class TestEdgeCases:
         )
 
         assert len(retrieved) > 0
+        assert len(retrieved[0].metadata_json["long_field"]) == len(long_content)

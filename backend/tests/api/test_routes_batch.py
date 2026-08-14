@@ -373,7 +373,7 @@ class TestAuthRoutes:
 
             response = client.post("/api/auth/mobile/login", json=request_data)
 
-            assert response.status_code == 422  # Validation error for invalid credentials
+            assert response.status_code == 401  # Unauthorized for invalid credentials
 
     def test_register_biometric_success(self, db_session: Session, client: TestClient):
         """Test biometric registration initiation"""

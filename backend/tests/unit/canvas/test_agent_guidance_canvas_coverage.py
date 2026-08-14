@@ -182,10 +182,15 @@ class TestOperationLifecycle:
             total_steps=10
         )
 
-        # Verify tracker was created
+        # Verify tracker was created (db.add is also called later for the
+        # CanvasAudit entry, so pick the AgentOperationTracker from the calls)
         mock_db.add.assert_called()
-        call_args = mock_db.add.call_args[0][0]
-        assert call_args.total_steps == 10
+        trackers = [
+            call.args[0] for call in mock_db.add.call_args_list
+            if isinstance(call.args[0], AgentOperationTracker)
+        ]
+        assert len(trackers) == 1
+        assert trackers[0].total_steps == 10
 
     @pytest.mark.asyncio
     async def test_start_operation_governance_check(
@@ -380,14 +385,16 @@ class TestContextManagement:
 
     @pytest.mark.asyncio
     async def test_context_with_metadata(
-        self, guidance_system, mock_db, mock_operation_tracker, mock_ws_manager
+        self, guidance_system, mock_db, mock_agent, mock_ws_manager
     ):
         """Test context can include metadata."""
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_operation_tracker
+        # start_operation looks up the agent first; the tracker is created
+        # inside the call (the mock_operation_tracker is not queried here).
+        mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
 
         await guidance_system.start_operation(
             user_id="user-1",
-            agent_id="agent-1",
+            agent_id=mock_agent.id,
             operation_type="test",
             context={},
             metadata={"key": "value"}
@@ -395,6 +402,12 @@ class TestContextManagement:
 
         # Should create tracker with metadata
         mock_db.add.assert_called()
+        trackers = [
+            call.args[0] for call in mock_db.add.call_args_list
+            if isinstance(call.args[0], AgentOperationTracker)
+        ]
+        assert len(trackers) == 1
+        assert trackers[0].operation_metadata == {"key": "value"}
 
 
 # ============================================================================

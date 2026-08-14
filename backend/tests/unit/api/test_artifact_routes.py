@@ -24,9 +24,22 @@ except ImportError:
     pytest.skip("artifact_routes not available", allow_module_level=True)
 
 @pytest.fixture
-def app():
+def app(db):
+    from unittest.mock import Mock
+
+    from core.database import get_db
+    from core.security_dependencies import get_current_user
+
     app = FastAPI()
     app.include_router(router)
+
+    # Artifact endpoints require authentication; supply a deterministic
+    # test user and the per-test database session from tests/unit/conftest.py
+    # (fresh temp SQLite with the artifact tables created).
+    test_user = Mock()
+    test_user.id = "test-user-123"
+    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_db] = lambda: db
     return app
 
 @pytest.fixture
@@ -37,12 +50,14 @@ class TestArtifactUpload:
     """Tests for artifact upload operations"""
 
     def test_upload_artifact(self, client):
-        response = client.post("/api/artifacts/upload", json={"name": "test.txt", "content": "base64data"})
+        response = client.post("/api/artifacts/", json={"name": "test.txt", "type": "text", "content": "base64data"})
         assert response.status_code in [200, 400, 401, 404, 500]
 
     def test_upload_artifact_missing_data(self, client):
-        response = client.post("/api/artifacts/upload", json={"name": "test.txt"})
-        assert response.status_code in [200, 400, 422]
+        # ArtifactCreate requires name, type and content; posting without
+        # them must be rejected with a validation error (422)
+        response = client.post("/api/artifacts/", json={"name": "test.txt"})
+        assert response.status_code == 422
 
 class TestArtifactRetrieval:
     """Tests for artifact retrieval"""

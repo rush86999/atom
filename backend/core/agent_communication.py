@@ -90,11 +90,13 @@ class AgentEventBus:
         self._subscribers[agent_id].add(websocket)
 
         # Subscribe to topics
-        if topics:
-            for topic in topics:
-                if topic not in self._topics:
-                    self._topics[topic] = set()
-                self._topics[topic].add(agent_id)
+        # Default per docstring: agents are subscribed to the "global" topic
+        if topics is None:
+            topics = ["global"]
+        for topic in topics:
+            if topic not in self._topics:
+                self._topics[topic] = set()
+            self._topics[topic].add(agent_id)
 
         logger.info(f"Agent {agent_id} subscribed to event bus (topics: {topics})")
 

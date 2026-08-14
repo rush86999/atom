@@ -33,8 +33,12 @@ class TestSystemSurface:
         assert "name" in data or "docs" in data, f"Root payload unexpected: {data}"
 
     def test_openapi_schema_available(self, real_auth_client):
-        """GET /openapi.json returns the OpenAPI schema (docs surface)."""
-        resp = real_auth_client.get("/openapi.json")
+        """GET /api/v1/openapi.json returns the OpenAPI schema (docs surface).
+
+        The full app prefixes the docs surface under /api/v1 (see
+        main_api_app.py FastAPI(docs_url="/api/v1/docs", ...)).
+        """
+        resp = real_auth_client.get("/api/v1/openapi.json")
         assert resp.status_code == 200, f"OpenAPI: {resp.status_code}"
         data = resp.json()
         assert "paths" in data, f"OpenAPI missing paths: {data.keys()}"
@@ -66,13 +70,18 @@ class TestSystemSurface:
 class TestAuthEndpoints:
 
     def test_test_auth_endpoint(self, registered_user):
-        """GET /api/auth/test-auth verifies the token (smoke test of auth)."""
+        """GET /api/auth/me verifies the token (smoke test of auth).
+
+        The /api/auth/test-auth route only exists in the enterprise auth
+        router (mounted by minimal_app.py); the full app exposes the same
+        token-verification smoke via GET /api/auth/me.
+        """
         client, email, password, token = registered_user
-        resp = client.get("/api/auth/test-auth",
+        resp = client.get("/api/auth/me",
                           headers={"Authorization": f"Bearer {token}"})
         # 200 (valid token) or 401 (endpoint rejects) — both prove reachable.
         assert resp.status_code in (200, 401), \
-            f"test-auth: {resp.status_code} {resp.text}"
+            f"auth/me: {resp.status_code} {resp.text}"
 
     def test_mobile_refresh_reachable(self, registered_user):
         """POST /api/auth/mobile/refresh is reachable (may reject bad token)."""
@@ -297,9 +306,13 @@ class TestChatSessionEndpoints:
 class TestSchedulerEndpoints:
 
     def test_scheduler_reload(self, registered_user):
-        """POST /api/scheduler/reload is reachable."""
+        """POST /api/v1/workflows/scheduler/reload is reachable.
+
+        The scheduler reload route lives on the live workflow router
+        (core/workflow_endpoints.py), mounted at /api/v1/workflows.
+        """
         client, email, password, token = registered_user
-        resp = client.post("/api/scheduler/reload",
+        resp = client.post("/api/v1/workflows/scheduler/reload",
                            headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code in (200, 403, 500), \
             f"Scheduler reload: {resp.status_code} {resp.text}"

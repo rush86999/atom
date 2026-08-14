@@ -222,11 +222,15 @@ class TestCachedCapabilityLookups:
         - No hardcoded model lists
         - No runtime pattern matching
         """
-        # Add capabilities to cache
+        # Add capabilities to cache. The fetcher's on-disk cache may not
+        # contain the sample models (its catalog changes over time), so seed
+        # them the same way a fresh pricing fetch would.
         capabilities = pricing_fetcher._infer_capabilities(sample_model_data)
         for model_name, caps in capabilities.items():
-            if model_name in pricing_fetcher.pricing_cache:
-                pricing_fetcher.pricing_cache[model_name].update(caps)
+            entry = pricing_fetcher.pricing_cache.setdefault(
+                model_name, dict(sample_model_data[model_name])
+            )
+            entry.update(caps)
 
         # Lookup from cache (no pattern matching)
         gpt4o_caps = pricing_fetcher.pricing_cache.get("gpt-4o", {})

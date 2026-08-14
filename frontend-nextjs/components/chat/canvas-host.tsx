@@ -47,7 +47,11 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
             if (action === "close") {
                 setState(null);
             } else {
-                const content = typeof data === 'string' ? data : (data.content || JSON.stringify(data, null, 2));
+                // BUG FIX: `data` can be undefined for data-less canvas messages
+                // (e.g. an empty status panel). Reading `data.content` crashed the
+                // effect, which also made CanvasContent's "No data to display"
+                // guard unreachable. Use optional chaining instead.
+                const content = typeof data === 'string' ? data : (data?.content || JSON.stringify(data, null, 2));
                 localContentRef.current = content;
 
                 setState({

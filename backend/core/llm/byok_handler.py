@@ -2362,17 +2362,20 @@ class BYOKHandler:
 
         Only re-orders the existing list — never adds or removes candidates.
         Returns the original list unchanged when the learning router is off,
-        when no predictor exists for this tenant/task (cold start), or on any
-        error. ``options`` is a list of ``(provider_id, model)`` tuples from
+        when no learned signal exists (no predictor AND no EMA history), or on
+        any error. ``options`` is a list of ``(provider_id, model)`` tuples from
         ``get_ranked_providers``.
 
-        ``intent`` is accepted for observability/forward-compat but is NOT part
-        of the predictor cache key: training (record_feedback) carries no
-        intent dimension, so an intent-scoped key would never hit a trained
-        predictor (the live path was dead whenever ATOM_LEARNING_ROUTER=true).
-        Predictors are tenant/task-scoped, matching the route() path.
+        ``intent`` is NOT part of the predictor cache key: training
+        (record_feedback) carries no intent dimension, so an intent-scoped key
+        would never hit a trained predictor (the live path was dead whenever
+        ATOM_LEARNING_ROUTER=true). Predictors are tenant/task-scoped, matching
+        the route() path. Intent still enters the *feature vector* (one-hot
+        ``intent_*`` features) so per-model predictors learn intent-specific
+        satisfaction within the tenant/task bucket — train/serve consistent
+        because the same features are stashed with the decision and recovered
+        at feedback time.
         """
-        del intent  # kept for call-site compatibility; not part of the key
         if not options or len(options) <= 1:
             # Re-ranking needs at least 2 candidates to matter. Single-provider
             # setups yield 1 — log so operators can diagnose why learning had
@@ -2402,18 +2405,34 @@ class BYOKHandler:
             # ("cold start") and ATOM_LEARNING_ROUTER=true never re-ranked —
             # the feature was inert in the production path. The 2-part key
             # keeps predictors tenant/task-scoped, consistent with route().
+            # Intent still steers routing as one-hot FEATURES (below), which
+            # the feedback pipeline DOES carry (stashed prompt_features).
             cache_key = f"{self.tenant_id or 'default'}:{self._adapt_task_type(task_type)}"
             per_model = learning_router._per_model_routers.get(cache_key)
-            if per_model is None:
-                return options  # cold start — no predictor for this tenant/task
 
-            # Build the prompt features once (the 10-feature contract).
+            # EMA can steer even when NO predictor bucket exists yet (full cold
+            # start): the EMA term is evaluated per-candidate below, and the
+            # learned_any check decides whether any signal exists at all. This
+            # used to early-return here, which made the documented cold-start
+            # handoff (EMA carries while predictors are cold) dead on the live
+            # path. Only skip when neither predictors nor EMA could contribute.
+            from core.llm.learning_router_registry import ema_router_enabled
+
+            use_ema = ema_router_enabled()
+            if per_model is None and not use_ema:
+                return options  # nothing learned available for this tenant/task
+
+            # Build the prompt features once (the 16-feature contract: 10
+            # baseline + 6 intent one-hots). The synthetic request object
+            # mirrors RoutingRequest without conversation_context — the
+            # extractor reads both defensively (getattr), so this can't throw.
             estimated_tokens = max(1, len(prompt) // 4)
             features = learning_router._extract_request_features(
                 type("RR", (), {
                     "task_type": self._adapt_task_type(task_type),
                     "estimated_tokens": estimated_tokens,
                     "requires_reasoning": False,
+                    "intent": intent,
                 })()
             )
 
@@ -2424,9 +2443,6 @@ class BYOKHandler:
             # the predictor and ignored EMA entirely, so the EMA flag had zero
             # effect on production routing. Now EMA drives re-ranking during
             # cold-start (no/weak predictor) and hands off as predictors mature.
-            from core.llm.learning_router_registry import ema_router_enabled
-
-            use_ema = ema_router_enabled()
             tenant = self.tenant_id or "default"
             task = self._adapt_task_type(task_type)
             ema_weight = getattr(learning_router, "_EMA_SCORE_WEIGHT", 0.3)
@@ -2434,16 +2450,20 @@ class BYOKHandler:
             scored = []
             learned_any = False
             for idx, (provider_id, model) in enumerate(options):
-                satisfaction = per_model.predict_satisfaction(model, features)
-                if satisfaction is None:
-                    # No predictor for this model.
+                if per_model is None:
                     confidence = 0.0
                     pred_term = 0.0
                 else:
-                    confidence = per_model.confidence(model)
-                    pred_term = confidence * satisfaction
-                    if confidence > 0:
-                        learned_any = True
+                    satisfaction = per_model.predict_satisfaction(model, features)
+                    if satisfaction is None:
+                        # No predictor for this model.
+                        confidence = 0.0
+                        pred_term = 0.0
+                    else:
+                        confidence = per_model.confidence(model)
+                        pred_term = confidence * satisfaction
+                        if confidence > 0:
+                            learned_any = True
 
                 # EMA / online term. Even when the predictor is cold
                 # (confidence≈0), observed telemetry can still steer ranking.
@@ -2492,22 +2512,41 @@ class BYOKHandler:
             logger.debug(f"Learning-router re-rank skipped (non-fatal): {e}")
             return options
 
-    def _stash_decision_features(self, prompt: str, task_type: Optional[str]) -> Optional[str]:
+    def _stash_decision_features(
+        self, prompt: str, task_type: Optional[str], intent: Optional[str] = None
+    ) -> Optional[str]:
         """Stash this request's prompt features and return a decision id.
 
         Paths that DON'T re-rank (structured output, streaming) previously
         recorded outcome feedback with a random id, so record_feedback could
         never recover the real prompt features — predictors for those paths
         trained on constant task-level defaults (Bug 2). This mints a
-        routing_result_id and stashes the same 10-feature vector the predictor
+        routing_result_id and stashes the same feature vector the predictor
         contract expects, so feedback from these paths also trains on real
         features. No-op (returns None) when the learning router is off or on
         any error — callers pass the id through and feedback degrades to the
         random-id path unchanged.
+
+        ``intent`` (when given) is encoded as one-hot intent_* features in the
+        stashed vector so these paths' predictors learn intent-specific
+        satisfaction too. When None, best-effort intent detection runs on the
+        prompt (mirrors generate_response) — any failure leaves intent unset
+        (all-zero intent features).
         """
         if os.getenv("ATOM_LEARNING_ROUTER", "false").lower() != "true":
             return None
         try:
+            if intent is None:
+                try:
+                    from core.llm.intent_detector import get_intent_detector
+
+                    _ir = get_intent_detector().detect(prompt)
+                    if _ir.category is not None and _ir.confidence >= 0.5:
+                        intent = _ir.category
+                except Exception:
+                    logger.debug(
+                        "Intent detection failed; continuing without", exc_info=True
+                    )
             from core.llm.learning_router_registry import get_learning_router_instance
 
             learning_router = get_learning_router_instance()
@@ -2519,6 +2558,7 @@ class BYOKHandler:
                     "task_type": self._adapt_task_type(task_type),
                     "estimated_tokens": estimated_tokens,
                     "requires_reasoning": False,
+                    "intent": intent,
                 })()
             )
             # Stash via the router's thread-safe helper (concurrent handlers on

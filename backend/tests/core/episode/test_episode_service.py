@@ -718,8 +718,9 @@ class TestEpisodeRetrieval:
     @pytest.mark.asyncio
     async def test_recall_episodes_summary_level(self, service, mock_db):
         """Test recalling episodes with summary detail level"""
-        # Setup mock
-        mock_db.execute = AsyncMock()
+        # Setup mock — EpisodeService uses a synchronous Session, so
+        # db.execute() returns a CursorResult directly (no await).
+        mock_db.execute = Mock()
         mock_db.execute.return_value.scalar_one_or_none = Mock(return_value=1)
         mock_db.execute.return_value.fetchall = Mock(return_value=[])
 
@@ -738,8 +739,9 @@ class TestEpisodeRetrieval:
     @pytest.mark.asyncio
     async def test_recall_episodes_standard_level(self, service, mock_db):
         """Test recalling episodes with standard detail level"""
-        # Setup mock
-        mock_db.execute = AsyncMock()
+        # Setup mock — EpisodeService uses a synchronous Session, so
+        # db.execute() returns a CursorResult directly (no await).
+        mock_db.execute = Mock()
         mock_db.execute.return_value.scalar_one_or_none = Mock(return_value=1)
         mock_db.execute.return_value.fetchall = Mock(return_value=[])
 

@@ -291,7 +291,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     )
 
 
-async def atom_exception_handler(request: Request, exc: AtomException) -> JSONResponse:
+async def atom_exception_handler(request: Request, exc: "AtomException") -> JSONResponse:
     """
     Exception handler for AtomException hierarchy.
 
@@ -410,10 +410,15 @@ def handle_not_found(
         if not agent:
             raise handle_not_found("Agent", agent_id)
     """
+    # Merge resource identity into caller-provided details rather than
+    # discarding it (details or default dropped extra fields).
+    merged_details = dict(details or {})
+    merged_details.setdefault("resource_type", resource_type)
+    merged_details.setdefault("resource_id", resource_id)
     return api_error(
         ErrorCode.RESOURCE_NOT_FOUND,
         f"{resource_type} with ID '{resource_id}' not found",
-        details=details or {"resource_type": resource_type, "resource_id": resource_id},
+        details=merged_details,
         status_code=404
     )
 
@@ -438,10 +443,13 @@ def handle_permission_denied(
         if not user.can_delete(agent):
             raise handle_permission_denied("delete", "Agent")
     """
+    merged_details = dict(details or {})
+    merged_details.setdefault("action", action)
+    merged_details.setdefault("resource_type", resource_type)
     return api_error(
         ErrorCode.PERMISSION_DENIED,
         f"You don't have permission to {action} this {resource_type}",
-        details=details or {"action": action, "resource_type": resource_type},
+        details=merged_details,
         status_code=403
     )
 

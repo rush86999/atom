@@ -205,7 +205,8 @@ def test_camera_snap_intern_agent(
         "agent_id": mock_intern_agent.id
     }
 
-    with patch('tools.device_tool.device_camera_snap') as mock_camera:
+    # Router imports the tool into its own namespace, so patch there
+    with patch('api.device_capabilities.device_camera_snap') as mock_camera:
         mock_camera.return_value = {
             "success": True,
             "file_path": "/tmp/camera_snap.jpg"
@@ -234,7 +235,7 @@ def test_camera_snap_governance_blocked(
         "resolution": "1920x1080"
     }
 
-    with patch('tools.device_tool.device_camera_snap') as mock_camera:
+    with patch('api.device_capabilities.device_camera_snap') as mock_camera:
         mock_camera.return_value = {
             "success": False,
             "governance_blocked": True,
@@ -270,7 +271,7 @@ def test_screen_record_start_supervised_agent(
         "agent_id": mock_supervised_agent.id
     }
 
-    with patch('tools.device_tool.device_screen_record_start') as mock_record:
+    with patch('api.device_capabilities.device_screen_record_start') as mock_record:
         mock_record.return_value = {
             "success": True,
             "session_id": "record-session-123"
@@ -297,7 +298,7 @@ def test_screen_record_stop(
         "session_id": mock_device_session.session_id
     }
 
-    with patch('tools.device_tool.device_screen_record_stop') as mock_stop:
+    with patch('api.device_capabilities.device_screen_record_stop') as mock_stop:
         mock_stop.return_value = {
             "success": True,
             "file_path": "/tmp/recording.mp4",
@@ -332,7 +333,7 @@ def test_get_location_intern_agent(
         "agent_id": mock_intern_agent.id
     }
 
-    with patch('tools.device_tool.device_get_location') as mock_location:
+    with patch('api.device_capabilities.device_get_location') as mock_location:
         mock_location.return_value = {
             "success": True,
             "latitude": 37.7749,
@@ -370,7 +371,7 @@ def test_send_notification_intern_agent(
         "agent_id": mock_intern_agent.id
     }
 
-    with patch('tools.device_tool.device_send_notification') as mock_notify:
+    with patch('api.device_capabilities.device_send_notification') as mock_notify:
         mock_notify.return_value = {
             "success": True
         }
@@ -405,7 +406,7 @@ def test_execute_command_autonomous_agent(
         "agent_id": mock_autonomous_agent.id
     }
 
-    with patch('tools.device_tool.device_execute_command') as mock_exec:
+    with patch('api.device_capabilities.device_execute_command') as mock_exec:
         mock_exec.return_value = {
             "success": True,
             "exit_code": 0,
@@ -457,19 +458,24 @@ def test_get_device_info_success(
     global _current_test_user
     _current_test_user = mock_user
 
-    with patch('tools.device_tool.get_device_info') as mock_info:
+    with patch('api.device_capabilities.get_device_info') as mock_info:
         mock_info.return_value = {
+            "id": mock_device_node.id,
             "device_id": mock_device_node.device_id,
             "name": "Test Device",
+            "node_type": "mobile",
             "status": "online",
-            "platform": "ios"
+            "platform": "ios",
+            "capabilities": ["camera", "location", "notifications"]
         }
 
         response = client.get(f"/api/devices/{mock_device_node.device_id}")
 
         assert response.status_code == 200
         data = response.json()
-        assert "success" in data
+        assert data["device_id"] == mock_device_node.device_id
+        assert data["name"] == "Test Device"
+        assert data["status"] == "online"
 
 
 # ============================================================================
@@ -553,8 +559,8 @@ def test_get_device_info_ownership_denied(
 
     response = client.get(f"/api/devices/{device_id}")
 
-    # Returns 500 due to error handling catching 403
-    assert response.status_code == 500
+    # Ownership violation is re-raised as the intended 403 HTTPException
+    assert response.status_code == 403
 
 
 def test_get_device_audit_not_found(client: TestClient, mock_user: User):
@@ -592,8 +598,8 @@ def test_get_device_audit_ownership_denied(
 
     response = client.get(f"/api/devices/{device_id}/audit")
 
-    # Returns 500 due to error handling catching 403
-    assert response.status_code == 500
+    # Ownership violation is re-raised as the intended 403 HTTPException
+    assert response.status_code == 403
 
 
 def test_get_device_audit_with_limit(
@@ -675,7 +681,7 @@ def test_camera_snap_websocket_unavailable(
         "agent_id": mock_intern_agent.id
     }
 
-    with patch('tools.device_tool.device_camera_snap') as mock_camera:
+    with patch('api.device_capabilities.device_camera_snap') as mock_camera:
         mock_camera.return_value = {
             "success": False,
             "error": "Device WebSocket module not available"

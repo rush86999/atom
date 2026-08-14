@@ -43,15 +43,21 @@ class TestSecurityConfig:
 
     @patch('core.config.logger')
     def test_default_secret_key_warning_in_production(self, mock_logger):
-        """Test that default SECRET_KEY logs error in production"""
-        with patch.dict(os.environ, {'ENVIRONMENT': 'production'}, clear=False):
+        """Test that default SECRET_KEY logs critical error in production"""
+        with patch.dict(
+            os.environ,
+            {'ENVIRONMENT': 'production'},
+            clear=False,
+        ):
             config = SecurityConfig()
 
-            # Should log error about using default key
-            assert mock_logger.error.called
+            # Bug 14 fix: the default key is REPLACED with a random key in
+            # production (fail-closed). Verify a critical log records it.
+            assert config.secret_key != "atom-secret-key-change-in-production"
+            assert mock_logger.critical.called
             assert any(
-                "CRITICAL" in str(call) and "default SECRET_KEY" in str(call)
-                for call in mock_logger.error.call_args_list
+                "SECRET_KEY" in str(call)
+                for call in mock_logger.critical.call_args_list
             )
 
     def test_automatic_key_generation_in_development(self, monkeypatch):
@@ -152,18 +158,25 @@ class TestSecurityValidation:
     @patch('core.config.logger')
     def test_validate_security_issues_production_default_key(self, mock_logger):
         """Test validation catches default key in production"""
+        # Bug 14 fix: in production the default key is replaced with a random
+        # key at construction (fail-closed), so ATOMConfig.validate() must
+        # NOT report the secret-key issue anymore.
         with patch.dict(os.environ, {'ENVIRONMENT': 'production'}, clear=False):
-            config = SecurityConfig()
+            from core.config import ATOMConfig
+            config = ATOMConfig()
             issues = config.validate()
 
-            # In production with default key, should have issues
-            # But we can't easily test this without setting SECRET_KEY
-            # Just verify the validate() method exists and returns expected structure
             assert 'valid' in issues
             assert isinstance(issues['issues'], list)
+            secret_key_issues = [
+                issue for issue in issues['issues']
+                if 'Secret key' in issue
+            ]
+            assert len(secret_key_issues) == 0
 
     def test_validate_security_passes_with_custom_key(self):
         """Test validation passes with custom key"""
+        from core.config import ATOMConfig
         with patch.dict(
             os.environ,
             {
@@ -172,7 +185,7 @@ class TestSecurityValidation:
             },
             clear=False
         ):
-            config = SecurityConfig()
+            config = ATOMConfig()
             issues = config.validate()
 
             # Verify structure

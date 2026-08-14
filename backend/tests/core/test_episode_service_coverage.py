@@ -1077,7 +1077,8 @@ class TestCreateEpisodeFromExecution:
 class TestRecallEpisodes:
     @pytest.mark.asyncio
     async def test_agent_not_owned_returns_empty(self, service):
-        async def fake_execute(stmt, params=None):
+        # db.execute is synchronous (W35 fix) — stub it with a plain function.
+        def fake_execute(stmt, params=None):
             res = Mock()
             res.scalar_one_or_none.return_value = None
             return res
@@ -1090,7 +1091,7 @@ class TestRecallEpisodes:
     async def test_returns_rows(self, service):
         call_count = {"n": 0}
 
-        async def fake_execute(stmt, params=None):
+        def fake_execute(stmt, params=None):
             call_count["n"] += 1
             res = Mock()
             if call_count["n"] == 1:
@@ -1111,7 +1112,7 @@ class TestRecallEpisodes:
     async def test_returns_rows_full_detail(self, service):
         call_count = {"n": 0}
 
-        async def fake_execute(stmt, params=None):
+        def fake_execute(stmt, params=None):
             call_count["n"] += 1
             res = Mock()
             if call_count["n"] == 1:
@@ -1129,7 +1130,7 @@ class TestRecallEpisodes:
     @pytest.mark.asyncio
     async def test_unknown_detail_level_falls_back_to_summary(self, service):
         # Default query is SUMMARY when an unknown level is passed.
-        async def fake_execute(stmt, params=None):
+        def fake_execute(stmt, params=None):
             res = Mock()
             res.scalar_one_or_none.return_value = "a1"
             res.fetchall.return_value = []

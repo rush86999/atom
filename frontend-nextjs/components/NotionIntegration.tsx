@@ -1077,14 +1077,21 @@ const NotionIntegration: React.FC = () => {
                             <Select
                                 value={databaseForm.parent_id}
                                 onValueChange={(value) =>
-                                    setDatabaseForm({ ...databaseForm, parent_id: value })
+                                    // BUG FIX: Radix Select throws on empty-string SelectItem
+                                    // values, which crashed the Create Database dialog on open.
+                                    // Use a sentinel value for "Workspace Root" and normalize it
+                                    // back to "" (workspace root) when selected.
+                                    setDatabaseForm({
+                                        ...databaseForm,
+                                        parent_id: value === "__workspace__" ? "" : value,
+                                    })
                                 }
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Workspace Root" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Workspace Root</SelectItem>
+                                    <SelectItem value="__workspace__">Workspace Root</SelectItem>
                                     {databases.map((db) => (
                                         <SelectItem key={db.id} value={db.id}>
                                             Inside: {getDatabaseTitle(db)}
