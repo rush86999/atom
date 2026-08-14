@@ -156,6 +156,9 @@ class ObservationFilterService:
                 except Exception:
                     embeddings = []
             if not embeddings:  # fallback to per-item if batch unsupported/failed
+                # batch_fn may return None (unsupported) — re-bind to a list
+                # before appending, otherwise the fallback itself crashes.
+                embeddings = []
                 for t in obs_texts:
                     emb = await self.llm.generate_embedding(text=t)
                     embeddings.append(emb)

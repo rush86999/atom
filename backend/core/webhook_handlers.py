@@ -71,7 +71,12 @@ class SlackWebhookHandler:
 
         # Verify signature
         try:
-            basestring = f"v0:{timestamp}".encode() + body
+            # Slack spec: HMAC-SHA256 over b"v0:{timestamp}:{body}" — the
+            # colon between timestamp and body is load-bearing; omitting it
+            # produces a different digest than Slack signs, rejecting every
+            # legitimate webhook (and diverging from
+            # core.webhook_security.verify_slack_webhook).
+            basestring = f"v0:{timestamp}:".encode() + body
             expected_signature = "v0=" + hmac.new(
                 self.signing_secret.encode(),
                 basestring,

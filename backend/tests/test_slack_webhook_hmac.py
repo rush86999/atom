@@ -34,13 +34,18 @@ class TestSlackWebhookHmac:
         assert result is False, "Forged signature was accepted"
 
     def test_accepts_valid_signature_when_secret_configured(self, monkeypatch):
-        """A correctly-computed signature MUST be accepted."""
+        """A correctly-computed signature MUST be accepted.
+
+        Slack's spec signs ``v0:{timestamp}:{body}`` — the colon between
+        timestamp and body is load-bearing (W85C fixed a bug where the handler
+        omitted it and rejected every legitimate webhook).
+        """
         monkeypatch.setenv("ENVIRONMENT", "development")
         secret = "my-secret"
         handler = SlackWebhookHandler(signing_secret=secret)
         timestamp = "1234567890"
         body = b'{"type":"event_callback"}'
-        basestring = f"v0:{timestamp}".encode() + body
+        basestring = f"v0:{timestamp}:".encode() + body
         valid_sig = "v0=" + hmac.new(secret.encode(), basestring, hashlib.sha256).hexdigest()
         result = handler.verify_signature(timestamp, valid_sig, body)
         assert result is True

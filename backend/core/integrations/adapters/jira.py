@@ -278,7 +278,7 @@ class JiraAdapter:
                 response = await client.get(
                     f"{self.base_url}/issue/{issue_key}",
                     headers={
-                        "Authorization": f"Bearer {self.access_token}"
+                        "Authorization": f"Bearer {self._access_token}"
                     }
                 )
                 response.raise_for_status()

@@ -6,6 +6,7 @@ Executions are queued and auto-executed when users return online.
 """
 
 import logging
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 import uuid
@@ -436,10 +437,10 @@ class SupervisedQueueService:
         execution = AgentExecution(
             id=str(uuid.uuid4()),
             agent_id=queue_entry.agent_id,
-            user_id=queue_entry.user_id,
-            agent_name=agent.name,
+            tenant_id=queue_entry.tenant_id,
             status="running",
-            input_data=queue_entry.execution_context,
+            input_summary=json.dumps(queue_entry.execution_context, default=str),
+            triggered_by="queue",
             started_at=datetime.now(timezone.utc)
         )
 
