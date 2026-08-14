@@ -140,7 +140,8 @@ class DaemonManager:
                 env=env,
                 stdout=log_file,
                 stderr=subprocess.STDOUT,
-                start_new_session=True  # Detach from parent process
+                start_new_session=True,  # Detach from parent process
+                cwd=str(Path(__file__).parent.parent)  # backend dir: main_api_app lives there
             )
         except Exception as e:
             log_file.close()
@@ -258,11 +259,12 @@ class DaemonManager:
             }
 
         try:
+            import time
             process = psutil.Process(pid)
             return {
                 "running": True,
                 "pid": pid,
-                "uptime_seconds": process.cpu_times().system,
+                "uptime_seconds": time.time() - process.create_time(),
                 "memory_mb": process.memory_info().rss / 1024 / 1024,
                 "cpu_percent": process.cpu_percent(interval=0.1),
                 "status": "running"

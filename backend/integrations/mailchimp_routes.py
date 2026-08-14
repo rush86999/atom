@@ -5,6 +5,9 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from core.auth import get_current_user
+from core.models import User
+
 from .mailchimp_service import MailchimpService
 
 # Configure logging
@@ -45,6 +48,7 @@ async def get_audiences(
     access_token: str = Query(..., description="Access Token"),
     server_prefix: str = Query(..., description="Server Prefix (e.g. us1)"),
     limit: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
 ):
     """Get Mailchimp audiences"""
     audiences = await mailchimp_service.get_audiences(access_token, server_prefix, limit)
@@ -56,6 +60,7 @@ async def get_campaigns(
     server_prefix: str = Query(..., description="Server Prefix (e.g. us1)"),
     limit: int = Query(10, ge=1, le=100),
     status: Optional[str] = Query(None, description="Filter by status"),
+    current_user: User = Depends(get_current_user),
 ):
     """Get Mailchimp campaigns"""
     campaigns = await mailchimp_service.get_campaigns(access_token, server_prefix, limit, status)
@@ -65,6 +70,7 @@ async def get_campaigns(
 async def get_account_info(
     access_token: str = Query(..., description="Access Token"),
     server_prefix: str = Query(..., description="Server Prefix (e.g. us1)"),
+    current_user: User = Depends(get_current_user),
 ):
     """Get Mailchimp account info"""
     info = await mailchimp_service.get_account_info(access_token, server_prefix)

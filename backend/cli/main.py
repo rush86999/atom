@@ -149,7 +149,7 @@ def daemon(port: int, host: str, workers: int, host_mount: bool, dev: bool, fore
     if foreground:
         # Run in foreground mode (not daemon)
         click.echo(click.style("⚡ Starting Atom OS in foreground mode...", fg="yellow"))
-        start(port, host, workers, host_mount, dev)
+        start.callback(port, host, workers, host_mount, dev)
     else:
         # Run as daemon
         try:
@@ -342,14 +342,13 @@ def preseed_cache(preseed_all: bool, pricing: bool, models: bool, governance: bo
 
     async def run_preseed():
         # If no specific option selected, default to --all
-        if not any([preseed_all, pricing, models, governance]):
-            preseed_all = True
+        run_all = preseed_all or not any([pricing, models, governance])
 
         click.echo(click.style("🔄 BYOK Cache Pre-seeding", fg="blue", bold=True))
         click.echo("")
 
         try:
-            if preseed_all:
+            if run_all:
                 results = await preseed_all_caches(
                     workspace_id=workspace,
                     verbose=verbose

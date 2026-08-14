@@ -1,8 +1,11 @@
 from datetime import datetime
 import logging
 from typing import Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +54,8 @@ async def quickbooks_status(user_id: str = "test_user"):
     }
 
 @router.post("/search")
-async def quickbooks_search(request: QuickbooksSearchRequest):
+async def quickbooks_search(request: QuickbooksSearchRequest,
+                            current_user: User = Depends(get_current_user)):
     """Search Quickbooks content"""
     logger.info(f"Searching Quickbooks for: {request.query}")
 
@@ -72,7 +76,8 @@ async def quickbooks_search(request: QuickbooksSearchRequest):
     )
 
 @router.get("/items")
-async def list_quickbooks_items(user_id: str = "test_user"):
+async def list_quickbooks_items(user_id: str = "test_user",
+                                current_user: User = Depends(get_current_user)):
     """List Quickbooks items"""
     return {
         "ok": True,

@@ -22,6 +22,22 @@ class EmailFollowUpEngine:
     def __init__(self, days_threshold: int = 3):
         self.days_threshold = days_threshold
 
+    @staticmethod
+    def _normalize_ts(ts) -> Optional[datetime]:
+        """Coerce a timestamp to a naive datetime for safe comparison.
+
+        Handles ISO strings, timezone-aware datetimes (converted to local
+        naive), and None/missing values (returned as None so callers can
+        skip the record instead of crashing on mixed-type comparisons).
+        """
+        if ts is None:
+            return None
+        if isinstance(ts, str):
+            ts = datetime.fromisoformat(ts)
+        if ts.tzinfo is not None:
+            ts = ts.astimezone().replace(tzinfo=None)
+        return ts
+
     async def detect_missing_replies(self, 
                                    sent_messages: List[Dict[str, Any]], 
                                    received_messages: List[Dict[str, Any]]) -> List[FollowUpCandidate]:
@@ -34,9 +50,7 @@ class EmailFollowUpEngine:
         # In a real implementation, we would group by thread_id or subject/recipient
         # For mock, we'll assume sent_messages are all potential items
         for msg in sent_messages:
-            sent_at = msg.get("sent_at", now)
-            if isinstance(sent_at, str):
-                sent_at = datetime.fromisoformat(sent_at)
+            sent_at = self._normalize_ts(msg.get("sent_at")) or now
             
             days_diff = (now - sent_at).days
             
@@ -47,7 +61,10 @@ class EmailFollowUpEngine:
                 msg_id = msg.get("id")
                 
                 for received in received_messages:
-                    if received.get("thread_id") == msg.get("thread_id") and received.get("received_at") > sent_at:
+                    received_at = self._normalize_ts(received.get("received_at"))
+                    if (received_at is not None
+                            and received.get("thread_id") == msg.get("thread_id")
+                            and received_at > sent_at):
                         has_reply = True
                         break
                 

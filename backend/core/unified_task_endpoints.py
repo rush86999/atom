@@ -31,7 +31,16 @@ router = APIRouter(prefix="/api/v1/tasks", tags=["unified_tasks"])
 project_router = APIRouter(prefix="/api/v1/projects", tags=["unified_projects"])
 
 # Configuration
-ASANA_ACCESS_TOKEN = "2/1211551477617044/1211959900544452:04904fb3621a011e810dc1c21ef41890"
+# NOTE (W104-7): a real Asana personal-access token was previously hardcoded
+# here (CWE-798) and used for every Asana call. The token must be treated as
+# compromised and ROTATED. Calls now read ASANA_ACCESS_TOKEN from the
+# environment (same convention as workflow_engine.py / asana_routes.py);
+# without it, Asana calls fail over to the local mock store.
+ASANA_ACCESS_TOKEN = os.getenv("ASANA_ACCESS_TOKEN", "")
+if not ASANA_ACCESS_TOKEN:
+    logger.warning(
+        "ASANA_ACCESS_TOKEN env var not set — Asana operations will fall back to local mock data"
+    )
 ASANA_WORKSPACE_GID = "1211551477617056"
 ASANA_DEFAULT_PROJECT_GID = "1211551443885526"  # Cross-functional project plan
 
@@ -353,7 +362,8 @@ async def update_task(task_id: str, updates: UpdateTaskRequest, current_user: An
     raise HTTPException(status_code=404, detail="Task not found")
 
 @router.delete("/{task_id}", response_model=Dict[str, Any])
-async def delete_task(task_id: str):
+async def delete_task(task_id: str, current_user: Any = Depends(get_current_user)):
+    """Delete a task (user-gated — W104-8: was previously unauthenticated)."""
     global MOCK_TASKS
     task_to_delete = next((t for t in MOCK_TASKS if t.id == task_id), None)
     if not task_to_delete:

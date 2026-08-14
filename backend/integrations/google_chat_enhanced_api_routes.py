@@ -6,15 +6,21 @@ Exposes GoogleChatEnhancedService via FastAPI
 import asyncio
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from integrations.google_chat_enhanced_service import google_chat_enhanced_service
+from core.auth import get_current_user
+from core.models import User
+from integrations.google_chat_enhanced_service import GoogleChatEnhancedService
 from integrations.universal_webhook_bridge import universal_webhook_bridge
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/google_chat", tags=["Google Chat"])
+
+# Initialize service (singleton instantiation mirrors the xero/mailchimp
+# route pattern; the service module itself does not export an instance)
+google_chat_service = GoogleChatEnhancedService()
 
 class GoogleChatMessageRequest(BaseModel):
     space_name: str
@@ -24,12 +30,7 @@ class GoogleChatMessageRequest(BaseModel):
 @router.get("/health")
 async def google_chat_health():
     """Google Chat health check"""
-    try:
-        # Mocking for now, as service status check might not be implemented
-        return {"status": "healthy", "service": "Google Chat"}
-    except Exception as e:
-        logger.error(f"Google Chat health check failed: {e}")
-        return {"status": "unhealthy", "error": str(e)}
+    return {"status": "healthy", "service": "Google Chat"}
 
 @router.post("/webhook")
 async def google_chat_webhook(request: Request):
@@ -45,13 +46,14 @@ async def google_chat_webhook(request: Request):
     return {"status": "ok"}
 
 @router.post("/send")
-async def send_google_chat_message(request: GoogleChatMessageRequest):
+async def send_google_chat_message(request: GoogleChatMessageRequest,
+                                   current_user: User = Depends(get_current_user)):
     """Send a Google Chat message"""
     try:
-        result = await google_chat_enhanced_service.send_message(
-            space_name=request.space_name,
+        result = await google_chat_service.send_message(
+            space_id=request.space_name,
             text=request.text,
-            thread_name=request.thread_name
+            thread_id=request.thread_name
         )
         return {"success": True, "result": result}
     except Exception as e:
@@ -59,11 +61,7 @@ async def send_google_chat_message(request: GoogleChatMessageRequest):
         raise HTTPException(status_code=500, detail="Internal error")
 
 @router.get("/spaces")
-async def list_google_chat_spaces():
+async def list_google_chat_spaces(current_user: User = Depends(get_current_user)):
     """List Google Chat spaces"""
-    try:
-        # This would use the service to list spaces
-        return {"spaces": []}
-    except Exception as e:
-        logger.error(f"Failed to list Google Chat spaces: {e}")
-        raise HTTPException(status_code=500, detail="Internal error")
+    # This would use the service to list spaces
+    return {"spaces": []}

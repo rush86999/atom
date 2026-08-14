@@ -5,6 +5,7 @@ from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator, Workflo
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from typing_extensions import Literal
 
 from core.auth_endpoints import get_current_user
 from core.database import get_db
@@ -15,9 +16,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/workflows/approvals", tags=["Workflow Approvals"])
 
 class ApprovalResponse(BaseModel):
-    decision: str # "approve" or "reject"
+    decision: Literal["approve", "reject"] # "approve" or "reject"
     step_id: str
     comments: Optional[str] = None
+
+def _safe_json(value: Optional[str]) -> Dict[str, Any]:
+    """Parse persisted JSON safely — a corrupt row must not 500 the list."""
+    if not value:
+        return {}
+    try:
+        return json.loads(value)
+    except (ValueError, TypeError):
+        return {}
 
 @router.get("/pending")
 async def get_pending_approvals(db: Session = Depends(get_db), user = Depends(get_current_user)):
@@ -28,7 +38,7 @@ async def get_pending_approvals(db: Session = Depends(get_db), user = Depends(ge
     
     results = []
     for p in pending:
-        context_data = json.loads(p.context) if p.context else {}
+        context_data = _safe_json(p.context)
         # Find which step is actually waiting
         waiting_steps = [
             sid for sid, res in context_data.get("results", {}).items() 
@@ -40,8 +50,8 @@ async def get_pending_approvals(db: Session = Depends(get_db), user = Depends(ge
             "workflow_id": p.workflow_id,
             "status": p.status,
             "waiting_steps": waiting_steps,
-            "input_data": json.loads(p.input_data) if p.input_data else {},
-            "created_at": p.created_at.isoformat()
+            "input_data": _safe_json(p.input_data),
+            "created_at": p.created_at.isoformat() if p.created_at else None
         })
         
     return results

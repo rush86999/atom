@@ -144,8 +144,14 @@ class SpendAggregationService:
 
             tenant.current_spend_usd = spend_data["total_spend_usd"]
             
-            # Lifetime spend (since creation)
+            # Lifetime spend (since creation).
+            # NOTE (W104-2): created_at is UTC (func.now()) while `today` is
+            # local — for tenants created after ~17:00 local the UTC date is
+            # the NEXT day, producing an inverted [start > end] range that
+            # silently returned 0.0 lifetime spend. Clamp to today.
             lifetime_start = tenant.created_at.date() if tenant.created_at else date(2025, 1, 1)
+            if lifetime_start > today:
+                lifetime_start = today
             lifetime_spend = self.get_total_spend(tenant_id=tenant_id, start_date=lifetime_start, end_date=today)
             tenant.total_spend_usd = lifetime_spend["total_spend_usd"]
 

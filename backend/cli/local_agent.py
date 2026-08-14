@@ -130,6 +130,7 @@ asyncio.run(run_local_agent())
 
     # Start process
     import subprocess
+    process = None
     try:
         process = subprocess.Popen(
             cmd,
@@ -151,6 +152,11 @@ asyncio.run(run_local_agent())
         click.echo("Stop agent:  atom-os local-agent stop")
 
     except Exception as e:
+        if process is not None:
+            try:
+                process.terminate()
+            except Exception:
+                pass
         click.echo(click.style(f"✗ Failed to start local agent: {e}", fg="red"))
         sys.exit(1)
 

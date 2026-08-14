@@ -1,8 +1,11 @@
 from datetime import datetime
 import logging
 from typing import Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +48,8 @@ async def monday_status(user_id: str = "test_user"):
     }
 
 @router.post("/search")
-async def monday_search(request: MondaySearchRequest):
+async def monday_search(request: MondaySearchRequest,
+                        current_user: User = Depends(get_current_user)):
     """Search Monday boards and items"""
     return {
         "ok": True,

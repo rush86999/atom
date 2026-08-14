@@ -1,8 +1,11 @@
 from datetime import datetime
 import logging
 from typing import Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from core.auth import get_current_user
+from core.models import User
 
 from .xero_service import XeroService
 
@@ -45,7 +48,10 @@ async def xero_auth_callback(auth_request: XeroAuthRequest):
         raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/tenants")
-async def get_tenants(access_token: str = Query(..., description="Access Token")):
+async def get_tenants(
+    access_token: str = Query(..., description="Access Token"),
+    current_user: User = Depends(get_current_user),
+):
     """Get connected Xero tenants"""
     tenants = await xero_service.get_tenants(access_token)
     return {"ok": True, "data": tenants}
@@ -54,7 +60,8 @@ async def get_tenants(access_token: str = Query(..., description="Access Token")
 async def list_invoices(
     access_token: str = Query(..., description="Access Token"),
     tenant_id: str = Query(..., description="Xero Tenant ID"),
-    limit: int = Query(20, ge=1, le=100)
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
 ):
     """List Xero invoices"""
     invoices = await xero_service.get_invoices(access_token, tenant_id, limit)
@@ -64,7 +71,8 @@ async def list_invoices(
 async def list_contacts(
     access_token: str = Query(..., description="Access Token"),
     tenant_id: str = Query(..., description="Xero Tenant ID"),
-    limit: int = Query(20, ge=1, le=100)
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
 ):
     """List Xero contacts"""
     contacts = await xero_service.get_contacts(access_token, tenant_id, limit)

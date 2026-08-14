@@ -313,6 +313,13 @@ class Tenant(Base):
     budget_limit_usd = Column(Float, nullable=True)
     metadata_json = Column(JSONColumn, nullable=True, default=dict)
 
+    # Spend rollup fields written by core/spend_aggregation_service.py
+    # update_tenant_spend (wave 104: these were missing, so the aggregate
+    # spend assignments were silently dropped on commit while the service
+    # reported success — budget enforcement re-reads through this path).
+    current_spend_usd = Column(Float, nullable=False, default=0.0)
+    total_spend_usd = Column(Float, nullable=False, default=0.0)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

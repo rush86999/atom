@@ -3,6 +3,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 import json
 import logging
+import numbers
 from typing import Any, Dict, List, Optional
 from sqlalchemy import or_, select
 
@@ -107,8 +108,12 @@ class StakeholderEngagementEngine:
         try:
             # Query LanceDB for interactions with this person
             # We look for records where sender or recipient matches the email
+            # NOTE (W104-3): the email is interpolated into the filter string,
+            # so single quotes are escaped (doubled) to prevent a bare quote
+            # from breaking (or injecting into) the query.
+            escaped_email = email.replace("'", "''")
             results = memory_manager.connections_table.search().where(
-                f"(sender = '{email}' OR recipient = '{email}')"
+                f"(sender = '{escaped_email}' OR recipient = '{escaped_email}')"
             ).limit(100).to_pandas()
             
             if not results.empty:
@@ -124,11 +129,15 @@ class StakeholderEngagementEngine:
                 }
             
             last_ts = results.iloc[0]["timestamp"]
-            # LanceDB/Arrow timestamps might need conversion
-            if isinstance(last_ts, (int, float)):
-                last_interaction = datetime.fromtimestamp(last_ts / 1000000.0) # Assume microsecs
+            # LanceDB/Arrow timestamps might need conversion. Use numbers.Real
+            # so numpy scalars (int64/float64 from to_pandas()) are covered —
+            # isinstance(int, float) misses them (W104-6).
+            if isinstance(last_ts, numbers.Real):
+                last_interaction = datetime.fromtimestamp(float(last_ts) / 1000000.0, tz=timezone.utc)
             else:
                 last_interaction = last_ts
+                if last_interaction.tzinfo is None:
+                    last_interaction = last_interaction.replace(tzinfo=timezone.utc)
                 
             days_since = (datetime.now(timezone.utc) - last_interaction).days
             

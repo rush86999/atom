@@ -332,10 +332,17 @@ class MultiHopExpander:
                 if limit_reached:
                     break
 
-                # Early termination if enabled
+                # Early termination if enabled. Every node in next_level
+                # already passed the per-node relevance filter, so its average
+                # can never be below min_relevance_score (the old comparison
+                # was unreachable — dead code). Stop instead when the average
+                # cannot survive one more hop: a child scores at most
+                # avg * decay, so once avg < min_relevance / decay no child
+                # can pass the filter on the next hop.
                 if self.config.enable_early_termination and next_level:
                     avg_relevance = sum(n.relevance_score for n in next_level) / len(next_level)
-                    if avg_relevance < self.config.min_relevance_score:
+                    decay = self.config.relevance_decay if self.config.relevance_decay > 0 else 1.0
+                    if avg_relevance < self.config.min_relevance_score / decay:
                         logger.debug(f"Early termination at hop {hop}: avg relevance {avg_relevance:.2f}")
                         break
 

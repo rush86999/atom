@@ -6,6 +6,156 @@
 
 ---
 
+## Session 2026-08-13 (wave 104 — 8 never-tested core modules to 100%; 207 new tests, 8 real bugs fixed)
+
+**Files**: `core/unified_task_endpoints.py`, `core/self_evolution_service.py`, `core/user_context_manager.py`, `core/spend_aggregation_service.py`, `core/stakeholder_engine.py`, `core/intervention_service.py`, `core/knowledge_query_endpoints.py`, `core/email_followup_engine.py` — new wave tests `tests/test_covpush_w104_{unified_tasks,self_evolution,user_context,spend_aggregation,stakeholder,intervention,knowledge_query,email_followup}.py` (**207 new tests**). None had a ≥95% tracker entry; **all 8 baselines were 0%** (`--cov` on the w97-era suites: module never imported). After: **100% × 8** (TOTAL 752 stmts / 0 missing, target ≥95% met).
+
+**Bugs fixed (TDD RED→GREEN — failing test first, source then patched)**:
+
+1. **`models.py` Tenant spend columns missing (SECURITY-adjacent, W104-1)**: `update_tenant_spend` assigned `tenant.current_spend_usd` / `tenant.total_spend_usd`, but the Tenant model declared **neither column** — the assignments were **SILENTLY DROPPED on commit** (exact wave-99 `billing_email` bug class) while the service reported success; `budget_enforcement_service` + `api/admin/budget_routes` re-read spend *through this path*, so enforcement effectively saw $0. Added both columns (`Float, nullable=False, default=0.0`) to `core/models.py` (wave-99 precedent: model-only, no migration — the alembic chain is still broken with 7 heads). RED: fresh-session reload of a tenant after `update_tenant_spend` showed `AttributeError`/0.0.
+2. **`spend_aggregation_service.py` inverted lifetime range (W104-2)**: `lifetime_start = tenant.created_at.date()` — `created_at` is **UTC** (`func.now()`) while `end_date=today` is **local** — for tenants created after ~17:00 local (UTC date = next day) the range was inverted `[start > end]` and **lifetime spend always returned 0.0**. Now clamped to `today`. RED: fresh-session `total_spend_usd == 0.0` while current-spend persisted.
+3. **`stakeholder_engine.py` LanceDB filter injection (W104-3, CWE-89-adjacent)**: `f"(sender = '{email}' OR recipient = '{email}')"` interpolated the raw email — a single quote (e.g. `o'brien@x.com`) injected a bare quote and broke the query. Now `email.replace("'", "''")` before interpolation. RED: escaped-where-arg assertion.
+4. **`stakeholder_engine.py` numeric-timestamp crash (W104-6)**: `calculate_engagement` converted microsecond timestamps with naive `datetime.fromtimestamp(...)` then subtracted from **UTC-aware** `datetime.now(timezone.utc)` → `TypeError: can't subtract offset-naive and offset-aware` → engagement always errored for numeric data (silent-stakeholder detection dead). Also `isinstance(last_ts, (int, float))` misses **numpy scalars** (`int64`/`float64` from `to_pandas()`), so even the numeric branch was dead for real LanceDB data. Now `numbers.Real` + UTC-aware conversion (numeric AND naive-datetime branches). RED: `interaction_count` KeyError (error dict) on int/float/np timestamps.
+5. **`email_followup_engine.py` aware-timestamp crash (W104-4)**: `now` (naive) minus a **timezone-aware** `sent_at` (e.g. ISO `+00:00` strings, the natural format from email APIs) → `TypeError` on every message → follow-up detection dead. Now all timestamps normalized to naive via `_normalize_ts`. RED: 3 aware-timestamp tests.
+6. **`email_followup_engine.py` missing `received_at` crash (W104-5)**: a received message **without a `received_at` key** (or with an ISO string) crashed the whole loop with `TypeError: '>' not supported between 'NoneType'/'str' and 'datetime'` — one malformed row killed all detection. Now `None`/str handled; missing timestamps are skipped. RED: `test_received_without_received_at`, `test_string_received_at_compared`.
+7. **`unified_task_endpoints.py` hardcoded Asana PAT (W104-7, CWE-798 — CRITICAL)**: a **real Asana personal-access token** (`2/1211551477617044/...`) was hardcoded at module level and used for every Asana call. Now read from `ASANA_ACCESS_TOKEN` env (repo convention: `workflow_engine.py`, `asana_routes.py`, `asana_real_service.py`); unset → warning + Asana calls fail over to the local mock store (same graceful behavior as an API error). **The leaked token has shipped in git history — it MUST be ROTATED** (BFG/filter-repo scrub + revoke in Asana). RED: reload-with-env assertions + source-leak guard.
+8. **`unified_task_endpoints.py` DELETE /api/v1/tasks/{id} unauthenticated (W104-8)**: the delete endpoint had **no `get_current_user` dependency** — any anonymous caller could delete tasks (only POST/PUT were gated). Now user-gated. RED: `test_delete_task_anonymous_401` (200 → 401).
+
+**Coverage deltas** (measured `--cov=<module> --cov-report=term-missing`, wave-104 files, single pytest process):
+
+| Module | Before | After (w104 alone) | Stmts | Remaining uncovered |
+|---|---|---|---|---|
+| `core/unified_task_endpoints.py` | 0% | **100%** | 218 | — |
+| `core/self_evolution_service.py` | 0% | **100%** | 107 | — |
+| `core/user_context_manager.py` | 0% | **100%** | 106 | — |
+| `core/spend_aggregation_service.py` | 0% | **100%** | 78 | — |
+| `core/stakeholder_engine.py` | 0% | **100%** | 91 | — |
+| `core/intervention_service.py` | 0% | **100%** | 60 | — |
+| `core/knowledge_query_endpoints.py` | 0% | **100%** | 49 | — |
+| `core/email_followup_engine.py` | 0% | **100%** | 43 | — |
+
+Combined wave run: **207 passed / 0 failed; TOTAL 752 stmts / 0 missing / 100% × 8**.
+
+**Pre-existing failure documented (NOT from this wave)**: `test_active_intervention_service.py::TestIntegrationAvailability::test_outlook_requires_user_id` **fails when run in the same process as `test_covpush_w82_intervention.py`** — verified identical (`1 failed, 52 passed`) on the git-stash pristine baseline; passes when the file runs alone. Same order-pollution class the w82 session documented.
+
+**Evidence** (each `cd backend && PYTHONPATH=/Users/rushiparikh/projects/atom/backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time — RAM control):
+1. RED proofs: `AttributeError: 'Tenant' object has no attribute 'current_spend_usd'` (W104-1); lifetime `0.0 == 5.0` fresh-session reload (W104-2); escaped-where assertion (W104-3); `TypeError: can't subtract offset-naive and offset-aware` + `'numpy.int64' object has no attribute 'tzinfo'` (W104-6); `TypeError: can't subtract...` / `'>' not supported between 'NoneType' and 'datetime'` (W104-4/5); token-reload assertions `'2/1211551477...' == 'env-token-123'` + source-leak guard (W104-7); `200 == 401` anon delete (W104-8).
+2. Wave run (8 files, one process, `--cov` all 8) → **207 passed / 0 failed, 100% × 8**.
+3. Regression: wave + `test_budget_enforcement_service` (SpendAggregationService consumer) → **28 passed / 1 skipped**; wave-intervention + `test_covpush_w82_intervention` + `test_active_intervention_service` → 69 passed / 1 failed (the documented pre-existing w82-order failure; w104 + active_intervention alone → **44 passed / 0 failed**); `test_covpush_w98_asana_real` (env-token behavior) → **39 passed**.
+4. mypy (`MYPYPATH=backend`, `--follow-imports=skip`, 5 touched sources): **5 errors — identical to the stash baseline** (all pre-existing `models.py` no-redef/implicit-Optional classes); 0 new.
+
+---
+
+## Session 2026-08-13 (wave 107 — byok_handler 99% → 100%; probe-audit of the big-module cluster, 7 new tests, 1 dead-code bug fixed)
+
+**Probe** (given): `pytest tests/test_covpush_w{92_chat_routes,63_byok_endpoints,64l_world_model,57_byok_handler_a..e,41_meta_loop,41b_meta_tools,42_meta_toolgov,60_meta_agent,meta,30_meta_agent,32_meta_agent,44_meta_agent_governance,44b_meta_agent_execute}.py --cov=core.atom_meta_agent --cov=core.byok_handler --cov=core.agent_world_model --cov=integrations.chat_routes` → **583 passed**. Per-module: `atom_meta_agent` **100%** (1022 stmts / 0), `chat_routes` **100%** (300 / 0) — both already at target. The probe's other two numbers were measurement artifacts, not real gaps:
+- `--cov=core.byok_handler` → "module never imported": **no such module** — the handler lives at `core/llm/byok_handler.py` (per CLAUDE.md). Re-measured with the correct path over the full 18-suite byok cluster (w57 a–e, w64j a/b, legacy `test_byok_handler{,,_extended_coverage}`, `covpush_byok{,,_gen,_bigfour,w81}`, `bughunt_byok`, `bughunt_core_workhorses`, `opencode_go_provider`, `unit/test_byok_handler{,,_expanded}`): **99%** (1689 stmts / 16 missing: 17-19, 24-26, 71-81, 975, 1784, 1803).
+- `--cov=core.agent_world_model` showed 23% because the probe omitted its own suites; with the full world-model cluster (`w38` + `w20` + `w25` + `w64l` + `test_agent_world_model` + `test_world_model` + `phase29` + `bughunt_core_workhorses`): **100%** (820 / 0, 246 passed).
+
+**New tests**: `tests/test_covpush_w107_byok_handler.py` (**7 tests**) closing byok_handler's last 16 lines — ImportError fallbacks (17-19/24-26 via a fresh-name `exec_module` of the file with `builtins.__import__` blocked for openai/instructor), `_run_coroutine_sync`'s running-loop branch (71-81: background credential loop + thread, incl. TimeoutError), `_load_local_providers` no-rows early return (975), the valid `cognitive_tier` override path (`complexity = QueryComplexity.COMPLEX`, 1803), and two behavior-pin tests for the Free-plan no-keys path. Fully mocked, zero LLM spend, no network/DB. Also fixed the measured-line 1784 → now covered by direct removal (see bug row).
+
+**Bug fixed (TDD RED→GREEN — the new test failed RED first)**:
+
+1. **`core/llm/byok_handler.py` (old lines 1779-1784, `generate_response`) — dead Phase-59 free-plan restriction (W107-1)**: the block
+   ```python
+   if is_managed and tenant_plan.lower() == "free" and task_type != "agentic":
+       if not self.clients:
+           return "🚨 PLAN RESTRICTION: ..."
+   ```
+   was **unreachable**: the `if not self.clients:` gate at line 1720 already returns ("LLM Client not initialized") for every no-clients request, so `not self.clients` is always False by the time line 1783 evaluates — the plan-restriction message could never fire (dead feature; the delivered behavior is the earlier gate's message). RED: `test_free_plan_no_clients_gets_not_initialized` (asserted restriction message unreachable → the test documents the REAL delivered message). GREEN: removed the dead branch (net -3 executable statements, behavior identical — verified by `test_free_plan_with_own_keys_proceeds`: a Free-plan user with own clients still proceeds and completes a generation).
+
+**Coverage deltas** (each `cd backend && PYTHONPATH=/Users/rushiparikh/projects/atom/backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time):
+
+| Module | Before | After | Stmts | Remaining uncovered |
+|---|---|---|---|---|
+| `core/atom_meta_agent.py` | 100% (probe) | 100% | 1022 | — |
+| `integrations/chat_routes.py` | 100% (probe) | 100% | 300 | — |
+| `core/agent_world_model.py` | 100% (full cluster) | 100% | 820 | — |
+| `core/llm/byok_handler.py` | 99% | **100%** | 1686 | — |
+
+**Evidence**:
+1. Combined 19-file byok probe (18 suites + w107, `rm -f .coverage` first): `--cov=core.llm.byok_handler` → **958 passed / 0 failed, 1686 stmts / 0 missing (100%)**.
+2. Isolation run (18 suites, w107 deselected): 99% / 6 missing (17-19, 24-26) → exactly the lines the exec test covers; confirms the source edit itself broke nothing.
+3. `pytest tests/test_covpush_w107_byok_handler.py` standalone: 7/7 passed.
+4. mypy `core/llm/byok_handler.py` (follow-imports=skip): 33 errors — identical to the documented pre-existing baseline (CLAUDE.md); 0 new.
+5. **Measurement note**: one combined run initially reported 83%/292-missing; that was a **stale-`.coverage` artifact** (pytest-cov combined the previous run's data, measured against the pre-edit line table — impossible mixed report, e.g. except-head missing while its body covered). Re-running after `rm -f .coverage` gave the clean 100%. Add `rm -f .coverage` before verification runs.
+
+---
+
+**Files**: `cli/local_agent.py`, `cli/init.py`, `cli/enable.py` (requested) + `cli/daemon.py`, `cli/main.py` (largest untested executable CLI modules, per `ls backend/cli/*.py` — these are ALL the cli modules) — new wave tests `tests/test_covpush_w106_{local_agent,init,enable,daemon,main}.py` (**145 new tests**). None had a ≥95% tracker entry; baselines (import-only via a temp driver test): local_agent 19%, init 19%, enable 17%, daemon 21%, main 26%. After: **100% × 5** (TOTAL 839 stmts / 0 missing, target ≥95% met). Fully mocked (subprocess/os.kill/psutil/click CliRunner, no network, no LLM spend, no real daemons/documents/`.env` writes — all cwd-sensitive commands run in `CliRunner.isolated_filesystem()`).
+
+**Bugs fixed (TDD RED→GREEN — failing test first, source then patched)**:
+
+1. **`cli/main.py` `preseed-cache` command always crashes (CRITICAL, W106-1)**: `run_preseed()` reassigned the outer parameter (`preseed_all = True` inside the closure) while also reading it in `any([preseed_all, pricing, models, governance])` — Python treats the reassigned name as a closure-local, so EVERY invocation raised `UnboundLocalError: cannot access local variable 'preseed_all'` (the `--all`, `--pricing`, `--models`, `--governance` flags AND the no-flag default all crashed; command was 100% dead). Fixed by computing `run_all = preseed_all or not any([pricing, models, governance])` before the branch. RED: `test_preseed_defaults_to_all` + 4 flag tests (all UnboundLocalError before, pass after).
+2. **`cli/main.py` `daemon --foreground` always crashes (CRITICAL, W106-2)**: line 152 called `start(port, host, workers, host_mount, dev)` where `start` is the **click.Command object** (the `@click.command()` decorator replaced the function), not the plain function → `TypeError: 'int' object is not iterable` on every `daemon --foreground` invocation (Command.__call__ → main(args=8000) treats the int port as the args iterable). Fixed by invoking the original callback: `start.callback(port, host, workers, host_mount, dev)`. RED: `test_daemon_foreground` (TypeError before, uvicorn.run asserted after).
+3. **`cli/local_agent.py` orphaned subprocess on PID-write failure (W106-3)**: `local-agent start` spawned the background process via `subprocess.Popen` and only THEN wrote the PID file; if the PID write failed (e.g. read-only/blocked path) the generic `except` reported failure and `sys.exit(1)` while the freshly-spawned process kept running untracked (no PID file, no kill). Now the process is tracked and `process.terminate()`-d in the except branch (mirrors the daemon.py pattern), with a nested guard so a failing terminate still exits cleanly. RED: `test_start_pid_write_failure_terminates_orphan` (`proc.terminate` never called before).
+4. **`cli/daemon.py` uptime metric is CPU time, not uptime (W106-4)**: `get_status()` reported `"uptime_seconds": process.cpu_times().system` — CPU system time (~0 for a fresh daemon, unbounded CPU-usage growth for busy ones), which the CLI prints as "Uptime: Ns" and `main.py status` surfaces. The docstring's own example promises wall-clock uptime. Now `time.time() - process.create_time()`. RED: `test_status_full_uptime_is_wall_clock` (asserted 1234.5s, source returned 5.0).
+
+**Coverage deltas** (measured `pytest <5 new files> --cov=<module> --cov-report=term-missing`, single pytest process):
+
+| Module | Before | After | Stmts | Remaining uncovered |
+|---|---|---|---|---|
+| `cli/local_agent.py` | 19% | **100%** | 168 | — |
+| `cli/init.py` | 19% | **100%** | 96 | — |
+| `cli/enable.py` | 17% | **100%** | 127 | — |
+| `cli/daemon.py` | 21% | **100%** | 113 | — |
+| `cli/main.py` | 26% | **100%** | 335 | — |
+| TOTAL | 21% | **100%** | 839 | 0 |
+
+Combined wave runs: **145/145 passed** (all 5 new files, one pytest process); cross-check with `test_covpush_w68b_services.py` + `test_covpush_w101_okta.py` → **297/297 passed** (incl. psutil-ImportError reload fallback test restored after itself). Note: click 8.3 removed `CliRunner(mix_stderr=...)` and click 8.3 groups exit 2 (help) on no-args — tests encode the actual 8.3 behavior.
+
+**Evidence** (each `cd backend && PYTHONPATH=/Users/rushiparikh/projects/atom/backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time — RAM control):
+1. RED proofs: `test_start_pid_write_failure_terminates_orphan`, `test_start_pins_cwd_to_backend`, `test_status_full_uptime_is_wall_clock` (daemon), `test_preseed_defaults_to_all`/`--pricing`/`--models`/`--governance`/`test_preseed_exception` (UnboundLocalError), `test_daemon_foreground` (TypeError).
+2. `pytest tests/test_covpush_w106_{local_agent,daemon,init,enable,main}.py --cov=cli.{local_agent,init,enable,daemon,main}` → 145 passed / 0 failed; TOTAL 839 stmts, 0 missing (100% × 5).
+3. Regression: same 5 files + `test_covpush_w68b_services.py` + `test_covpush_w101_okta.py` → 297 passed / 0 failed.
+
+---
+
+## Session 2026-08-13 (wave 105 — 8 never-tested integration route modules to 100%; 116 new tests, 7 real bugs fixed)
+
+**Files**: `integrations/xero_routes.py`, `integrations/zendesk_routes.py`, `integrations/quickbooks_routes.py`, `integrations/jira_routes.py`, `integrations/mailchimp_routes.py`, `integrations/workflow_approval_routes.py`, `integrations/monday_routes.py`, `integrations/google_chat_enhanced_api_routes.py` — new wave tests `tests/test_covpush_w105_{xero,zendesk,quickbooks,jira,mailchimp,workflow_approval,monday,google_chat_enhanced_api}_routes.py` (**116 new tests**). None had a ≥95% tracker entry (rg returned nothing); baselines: all 8 were **0%** (`--cov` run on the w102 suite — `module never imported` for all 8). After: **100% × 8** (TOTAL 299 stmts / 0 missing, target ≥95% met).
+
+**Bugs fixed (TDD RED→GREEN — failing test first, source then patched)**:
+
+1. **`google_chat_enhanced_api_routes.py` unimportable (CRITICAL, W105-1)**: line 12 did `from integrations.google_chat_enhanced_service import google_chat_enhanced_service`, but that singleton **never existed** (module-level instantiation commented out at `google_chat_enhanced_service.py:1125`) → `ImportError` on import → lazy registry silently dropped the router (`load_integration('google_chat')` → None) and all `/api/google_chat/*` routes were dead. Fixed by importing the `GoogleChatEnhancedService` class and instantiating the module-level `google_chat_service` (mirrors the xero/mailchimp route pattern). RED: collection `ImportError` on the google_chat test file.
+2. **`google_chat_enhanced_api_routes.py` /send always 500 (CRITICAL, W105-2)**: `send_google_chat_message` called `send_message(space_name=…, thread_name=…)` but the service signature is `send_message(space_id, text, thread_id=None, …)` → `TypeError` on every call → the endpoint ALWAYS returned 500 "Internal error" even after fix #1. Now maps `space_id=request.space_name, thread_id=request.thread_name` in the handler (wire contract unchanged). RED: `TestSendMessage::test_success` (500 before, 200 after).
+3. **Anonymous data-access routes × 14 (SECURITY, W105-3…W105-9)**: the following endpoints had NO authentication — anonymous users could read Xero invoices/contacts/tenants (xero), Mailchimp audiences/campaigns/account (mailchimp), and invoke the search/item surfaces (zendesk, quickbooks, jira, monday, google_chat send/spaces) with any leaked access_token:
+   - `xero_routes.py`: `GET /tenants`, `GET /invoices`, `GET /contacts` → `current_user: User = Depends(get_current_user)`
+   - `mailchimp_routes.py`: `GET /audiences`, `GET /campaigns`, `GET /account` → auth
+   - `zendesk_routes.py`: `POST /search`, `GET /items` → auth
+   - `quickbooks_routes.py`: `POST /search`, `GET /items` → auth
+   - `jira_routes.py`: `POST /search`, `GET /items` → auth
+   - `monday_routes.py`: `POST /search` → auth
+   - `google_chat_enhanced_api_routes.py`: `POST /send`, `GET /spaces` → auth
+   All anonymous-401 tests were RED (200) before the fix. `/auth/url`, `/callback`, `/status`, `/health`, `/webhook` stay public per the wave-98/102 dropbox/box convention (OAuth flow + inbound webhook).
+4. **`workflow_approval_routes.py` corrupt-row 500 (W105-10)**: `GET /pending` ran raw `json.loads(p.context)`/`json.loads(p.input_data)` — one row with malformed (non-JSON) persisted data raised `ValueError` and took down the ENTIRE pending-approvals list with an unhandled 500. Now parsed via a fail-safe `_safe_json()` helper (bad JSON → `{}`). RED: `test_malformed_context_json`, `test_malformed_input_data_json` (500 before, 200 with `waiting_steps: []`/`{}` after).
+5. **`workflow_approval_routes.py` NULL created_at 500 (W105-11)**: `p.created_at.isoformat()` raised `AttributeError` on rows with NULL `created_at` → same whole-list 500. Now `p.created_at.isoformat() if p.created_at else None`. RED: `test_null_created_at` (500 before, 200 with `created_at: None` after).
+6. **`workflow_approval_routes.py` unvalidated decision silently REJECTS (W105-12)**: `decision: str` accepted any string — a typo like `"maybe"` fell through the `approve` branch into the `else` and **cancelled the workflow execution** (FAILED + rejected-by-user). Now `decision: Literal["approve", "reject"]` → garbage decisions 422. RED: `test_bad_decision_422` (200 + FAILED status before, 422 after).
+7. **`google_chat_enhanced_api_routes.py` dead try/except blocks (W105-13)**: `/health` and `/spaces` wrapped single unconditional returns in `try/except` whose except branches were unreachable (6 dead stmts). Removed the wrappers (behavior identical) to reach 100%.
+
+**Coverage deltas** (measured `pytest <8 new files> --cov=<module> --cov-report=term-missing`, single pytest process):
+
+| Module | Before | After | Stmts | Remaining uncovered |
+|---|---|---|---|---|
+| `integrations/xero_routes.py` | 0% | **100%** | 43 | — |
+| `integrations/zendesk_routes.py` | 0% | **100%** | 34 | — |
+| `integrations/quickbooks_routes.py` | 0% | **100%** | 34 | — |
+| `integrations/jira_routes.py` | 0% | **100%** | 34 | — |
+| `integrations/mailchimp_routes.py` | 0% | **100%** | 40 | — |
+| `integrations/workflow_approval_routes.py` | 0% | **100%** | 52 | — |
+| `integrations/monday_routes.py` | 0% | **100%** | 24 | — |
+| `integrations/google_chat_enhanced_api_routes.py` | 0% (unimportable) | **100%** | 38 | — |
+
+Combined wave runs: **116/116 passed** (all 8 new files, one pytest process). Regression: `tests/test_bughunt_intgr_d.py` → 46 passed / 8 failed, and the **identical 8 failures reproduce with the wave changes stashed** (pre-existing, e.g. `test_reject_path_fails_execution` needs a `workflow_executions` table its fixture DB lacks; `TestStrELeaks`/`TestAIRoutesAuth`/`TestWorkflowAutomationRoutesAuth` failures are unrelated env/auth-suite issues) — zero regression introduced. mypy on the 8 route files: no errors in changed files (single "found twice under different module names" warning is the known environment path quirk).
+
+**Evidence** (each `cd backend && PYTHONPATH=/Users/rushiparikh/projects/atom/backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time — RAM control):
+1. RED proofs: xero 3 anon-401 failures; zendesk/quickbooks/jira 2 each; mailchimp 3; monday 1; workflow_approval 4 (2 malformed-JSON + NULL created_at + bad-decision); google_chat collection `ImportError: cannot import name 'google_chat_enhanced_service'`.
+2. `pytest tests/test_covpush_w105_*.py --cov=<8 modules>` → 116 passed / 0 failed; TOTAL 299 stmts, 0 missing (100% × 8).
+3. Regression: `pytest tests/test_bughunt_intgr_d.py` → 8 failed with AND without the wave (stash A/B) — pre-existing.
+4. mypy: no errors in the 8 route files.
+
+---
+
 ## Session 2026-08-13 (wave 103 — 6 core subpackage modules to 100%; 187 new tests, 8 real bugs fixed)
 
 **Files**: `core/security/rbac.py`, `core/security/auth_rate_limit.py`, `core/privsec/local_only_guard.py`, `core/orchestration/workflow_composer.py`, `core/orchestration/workflow_templates.py`, `core/memory/memory_consolidation_service.py` (+ bug-fix regression coverage for `core/privsec/audit_logger.py`) — new wave tests `tests/test_covpush_w103_{rbac,auth_rate_limit,local_only_guard,workflow_composer,workflow_templates,memory_consolidation,audit_logger}.py` (**187 new tests**). None had a ≥95% tracker entry; baselines: rbac 44%, auth_rate_limit 60% (via `tests/test_auth_routes_coverage.py`), local_only_guard 93% (via `tests/test_local_only_guard.py`), workflow_composer 86% (via `tests/test_enhanced_orchestration.py`), workflow_templates 62%, memory_consolidation_service 64%. After: **100% × 6** (TOTAL 590 stmts / 0 missing, target ≥95% met).
