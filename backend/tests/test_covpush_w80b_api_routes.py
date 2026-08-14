@@ -2591,19 +2591,22 @@ class TestWfHTTPExceptionPropagation:
     """Every handler's `except HTTPException: raise` guard re-raises
     documented 4xx instead of rewrapping as 500 (R84 pattern)."""
 
-    @pytest.mark.parametrize("path,method", [
-        ("/api/workflows/wf-1/debug/sessions", "get_active_debug_sessions"),
-        ("/api/workflows/wf-1/debug/breakpoints", "get_breakpoints"),
-        ("/api/workflows/debug/traces/t1/complete", "complete_trace"),
-        ("/api/workflows/executions/ex-1/traces", "get_execution_traces"),
-        ("/api/workflows/debug/sessions/s1/variables", "get_watch_variables"),
-        ("/api/workflows/debug/traces/t1/variables", "get_variables_for_trace"),
+    @pytest.mark.parametrize("http_method,path,method", [
+        ("get", "/api/workflows/wf-1/debug/sessions", "get_active_debug_sessions"),
+        ("get", "/api/workflows/wf-1/debug/breakpoints", "get_breakpoints"),
+        ("put", "/api/workflows/debug/traces/t1/complete", "complete_trace"),
+        ("get", "/api/workflows/executions/ex-1/traces", "get_execution_traces"),
+        ("get", "/api/workflows/debug/sessions/s1/variables", "get_watch_variables"),
+        ("get", "/api/workflows/debug/traces/t1/variables", "get_variables_for_trace"),
     ])
-    def test_http_exception_propagates(self, monkeypatch, user, path, method):
+    def test_http_exception_propagates(self, monkeypatch, user, http_method, path, method):
         d = _wf_debugger()
         getattr(d, method).side_effect = HTTPException(422, "bad input")
         client = _wf_client(monkeypatch, MagicMock(), d)
-        resp = client.get(path)
+        if http_method == "put":
+            resp = client.put(path, json={})
+        else:
+            resp = client.get(path)
         assert resp.status_code == 422
 
     def test_add_breakpoint_http_exception_propagates(self, monkeypatch, user):
