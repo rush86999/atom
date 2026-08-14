@@ -12,15 +12,22 @@ Implements:
 """
 
 import logging
+import re
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, cast
 from jsonschema import validate, ValidationError
 
 logger = logging.getLogger(__name__)
+
+# W103: placeholders like ${param} may be embedded anywhere in a value
+# ("summarize ${req}"), not only as the whole value. The previous
+# startswith("${")/endswith("}") check silently skipped embedded
+# placeholders — steps instantiated with literal "${req}" text.
+_PARAM_PATTERN = re.compile(r"\$\{([A-Za-z0-9_]+)\}")
 
 
 # ============================================================================
@@ -234,11 +241,22 @@ class WorkflowTemplate:
             }
 
             # Substitute parameters in step
-            for key, value in step.get("parameters", {}).items():
-                if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
-                    param_name = value[2:-2]
-                    if param_name in params:
-                        step["parameters"][key] = params[param_name]
+            step_params = cast(Dict[str, Any], step.get("parameters", {}))
+            for key, value in list(step_params.items()):
+                if isinstance(value, str) and "${" in value:
+                    whole = _PARAM_PATTERN.fullmatch(value)
+                    if whole and whole.group(1) in params:
+                        # Whole-value placeholder keeps the param's type
+                        step_params[key] = params[whole.group(1)]
+                    else:
+                        step_params[key] = _PARAM_PATTERN.sub(
+                            lambda m: (
+                                str(params[m.group(1)])
+                                if m.group(1) in params
+                                else m.group(0)  # unresolved → left as-is
+                            ),
+                            value,
+                        )
 
             workflow["steps"].append(step)
 

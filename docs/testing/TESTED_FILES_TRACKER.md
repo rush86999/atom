@@ -6,6 +6,150 @@
 
 ---
 
+## Session 2026-08-13 (wave 103 — 6 core subpackage modules to 100%; 187 new tests, 8 real bugs fixed)
+
+**Files**: `core/security/rbac.py`, `core/security/auth_rate_limit.py`, `core/privsec/local_only_guard.py`, `core/orchestration/workflow_composer.py`, `core/orchestration/workflow_templates.py`, `core/memory/memory_consolidation_service.py` (+ bug-fix regression coverage for `core/privsec/audit_logger.py`) — new wave tests `tests/test_covpush_w103_{rbac,auth_rate_limit,local_only_guard,workflow_composer,workflow_templates,memory_consolidation,audit_logger}.py` (**187 new tests**). None had a ≥95% tracker entry; baselines: rbac 44%, auth_rate_limit 60% (via `tests/test_auth_routes_coverage.py`), local_only_guard 93% (via `tests/test_local_only_guard.py`), workflow_composer 86% (via `tests/test_enhanced_orchestration.py`), workflow_templates 62%, memory_consolidation_service 64%. After: **100% × 6** (TOTAL 590 stmts / 0 missing, target ≥95% met).
+
+**Bugs fixed (TDD RED→GREEN — failing test first, source then patched)**:
+
+1. **`rbac.py` privilege inversion (SECURITY, W103-1)**: `_ROLE_LEVELS` was keyed by plain role strings and MISSING the real `UserRole` members `team_lead`, `viewer`, `guest` (all resolved to level 0 → **TEAM_LEAD users were DENIED from MEMBER+-level endpoints**, the exact privilege-inversion class the H1 fix was meant to prevent), while carrying dead `"intern"`/`"student"` entries (those are *maturity levels*, not roles). Hierarchy now keyed on the `UserRole` enum members directly: `guest < viewer < member < team_lead < workspace_admin < admin < owner < super_admin` (str-enum lookup still matches raw DB strings). Bonus: the 403 `detail` leaked the enum repr `"Required role: UserRole.ADMIN"` instead of `admin` — now `required_role.value`. RED: `test_team_lead_on_member_allowed`, `test_viewer_on_guest_allowed`, `test_member_on_guest_allowed`, `test_workspace_admin_on_team_lead_allowed`, `test_member_denied_on_admin` (message), `test_denial_message_mentions_required_role` — 6 failing → 19/19 after fix.
+2. **`audit_logger.py` same-day rotation (W103-2, SECURITY-adjacent)**: `rotate_audit_logs` compared a **naive local** mtime (`datetime.fromtimestamp(st_mtime)`) against an aware **UTC** `today` — in any timezone behind UTC (e.g. PDT) the evening's live audit log was gzip-compressed as "yesterday" mid-day and the handler recreated (silent rotation-boundary loss; same bug class as the W71C `cleanup_old_audit_logs` fix). Now `datetime.fromtimestamp(mtime, tz=timezone.utc)`. RED: the pre-existing `tests/test_covpush_w71c_webhooks2.py::TestPrivsecAuditLogger::test_rotate_same_day_noop` failed ~21:30 PDT (UTC date = next day) and only passed in local-morning hours; new deterministic tests pin the mtime so they fail at ANY wall-clock time against the buggy code.
+3. **`audit_logger.py` duplicate-handler accumulation (W103-3)**: `_setup_file_handler` attached a NEW FileHandler after every rotation without detaching the old one — a *closed* FileHandler silently re-opens its `baseFilename` on the next emit, so after N rotations **every audit entry was written N times** (duplicated lines, growing unbounded; also polluted test reloads). Now detaches all handlers on the dedicated `atom.audit` logger before attaching the fresh one. RED: `test_writes_after_rotation_land_in_fresh_log` (2 identical u2 lines in the live log).
+4. **`workflow_composer.py` cycle DoS (W103-4)**: `_get_max_depth` (BFS) had **no visited tracking** → a cyclic composition tree (a→b→a) enqueued the same nodes forever; `_validate_composition` calls `_get_max_depth` BEFORE `_detect_cycles`, so **any cyclic tree hung `validate()` indefinitely** instead of reporting the cycle. Now cycle-safe via object-identity visited set (node_id may be duplicated across distinct nodes — dataclass default `""`). RED: `test_cycle_detected` timed out (pytest-timeout) on the old code.
+5. **`workflow_composer.py` RecursionError on cyclic trees (W103-5)**: `_validate_primitives` recursed with no visited guard — a cyclic composition reached it AFTER `_detect_cycles` reported the cycle and still died with `RecursionError` (masking the cycle diagnosis). Converted to an iterative, cycle-safe pre-order walk. RED: `test_cycle_detected` `RecursionError: maximum recursion depth exceeded`.
+6. **`workflow_composer.py` leaf-duration undercount (W103-6)**: `_estimate_duration` gave SEQUENCE/LOOP `sum(children)` with **no base-duration fallback** — leaf SEQUENCE nodes (and empty LOOP bodies) estimated **0ms** (only PARALLEL had the `else base_duration` guard), so single-step and leaf-heavy workflows reported 0 estimated duration. Now `sum(...) or base_duration` for both. RED: `test_single_primitive` (0.0 ≠ 1000.0), `test_sequence_sums_children`, `test_loop_multiplies_children`, `test_duration_stored_on_node`, `test_parallel_takes_max`.
+7. **`workflow_templates.py` embedded-placeholder substitution dead (W103-7)**: `instantiate` only substituted values that were EXACTLY `"${name}"` (`startswith("${")`/`endswith("}")`) — embedded placeholders like `"summarize ${req}"` (the documented feature, `instantiate` is uncalled dead code) were **silently left literal**. Now regex-based (`\$\{([A-Za-z0-9_]+)\}`): whole-value placeholders keep the param's raw type; embedded placeholders interpolate; unresolved placeholders stay as-is. RED: `test_parameter_substitution_in_steps`, `test_unresolved_placeholder_passthrough`.
+8. **`memory_consolidation_service.py` status lied (W103-8)**: `get_consolidation_status()["pomdp_available"]` reported the live module global `POMDP_AVAILABLE`, not THIS instance's wiring — a degraded service (init failure) advertised `pomdp_available=True` while every POMDP method silently no-oped. Now reports `memory_manager is not None and pomdp_consolidation is not None`. RED: `test_status_never_consolidated`.
+
+**Coverage deltas** (measured `coverage run -m pytest <wave + related existing files>` per module, single pytest process):
+
+| Module | Before | After | Stmts | Remaining uncovered |
+|---|---|---|---|---|
+| `core/security/rbac.py` | 44% | **100%** | 17 | — |
+| `core/security/auth_rate_limit.py` | 60% | **100%** | 57 | — |
+| `core/privsec/local_only_guard.py` | 93% | **100%** | 82 | — |
+| `core/orchestration/workflow_composer.py` | 86% | **100%** | 191 | — |
+| `core/orchestration/workflow_templates.py` | 62% | **100%** | 177 | — |
+| `core/memory/memory_consolidation_service.py` | 64% | **100%** | 157 | — |
+
+Combined wave runs: **184/184** new files alone; **312 passed** wave + `test_local_only_guard` + `test_enhanced_orchestration` + `test_memory_consolidation`; **235 passed** `test_covpush_w103_audit_logger` + `test_covpush_w71c_webhooks2` (previously 1 FAILED — now green) + `test_auth_routes_coverage` (rbac regression) + `test_covpush_w64b_pomdp` (module-reload cross-check). mypy (`--follow-imports=skip`) on the 5 touched sources: **11 → 5 errors** (all pre-existing classes; the workflow_templates union errors vanished via a `cast`).
+
+**Evidence** (each `cd backend && PYTHONPATH=/Users/rushiparikh/projects/atom/backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time — RAM control):
+1. RED proofs: rbac 6 failing tests; audit_logger deterministic same-day test failing at 21:30 PDT; w71c `test_rotate_same_day_noop` failing pre-fix; composer `test_cycle_detected` hanging (pytest-timeout) + RecursionError + 0ms-duration failures; templates substitution failures; status-lie failure.
+2. `pytest tests/test_covpush_w103_*.py` (7 files, one process) → 184 passed / 0 failed.
+3. Wave + related existing suites (one process) → 312 passed; bug-regression bundle → 235 passed (0 failed).
+4. Coverage: `coverage run -m pytest … && coverage report -m --include=<module>` → 100% × 6 (590 stmts, 0 missing).
+
+---
+
+## Session 2026-08-13 (wave 101 — 6 never-tested integration service modules to 100%; 152 new tests, 7 real bugs fixed)
+
+**Files**: `integrations/zoho_projects_service.py`, `integrations/freshdesk_routes.py`, `integrations/zoho_mail_service.py`, `integrations/openclaw_service.py`, `integrations/okta_service.py`, `integrations/marketing_unified_service.py` — new wave tests `tests/test_covpush_w101_{zoho_projects,freshdesk,zoho_mail,openclaw,okta,marketing_unified}.py` (**152 new tests**). Baselines: all 6 were **0%** (verified with `--cov` on the w97 run — `module never imported` warnings for all 6). After: **100% × 6** (TOTAL 525 stmts / 0 missing, target ≥95% met).
+
+**Bugs fixed (TDD RED→GREEN — failing test first, source then patched)**:
+
+1. **`freshdesk_routes.py` unimportable (CRITICAL)**: line 12 did `from .freshdesk_service import get_freshdesk_service`, but that factory **never existed** — the module raised `ImportError` on import, so the lazy registry dropped the router (`core.lazy_integration_registry.load_integration('freshdesk')` → None) and all `/freshdesk/*` routes 404'd. Added `get_freshdesk_service()` to `freshdesk_service.py`: builds a `FreshdeskService` from `FRESHDESK_API_KEY`/`FRESHDESK_DOMAIN` env, or returns `None` when either is missing (**fail-closed** → routes 503 "Freshdesk not configured"). RED: collection `ImportError` on the freshdesk test file; registry smoke now returns the router (10 routes).
+2. **`zoho_projects_service.py` phantom model column (CRITICAL)**: `sync_to_postgres_cache` did `filter_by(tenant_id=workspace_id, ...)` and `IntegrationMetric(tenant_id=...)`, but the model declares **no `tenant_id` column** (`core/models.py:2646` — `workspace_id` only) → `TypeError: 'tenant_id' is an invalid keyword argument` on every sync, so the metrics cache never populated. Both call sites now use `workspace_id=` — RED: `test_success_with_portal_id` (TypeError before, rows persisted after).
+3. **`zoho_projects_service.py` / `zoho_mail_service.py` access_token never stored**: `__init__` did not set `self.access_token` (unlike `zoho_books_service`), yet `health_check`/`execute_operation` read it via `getattr`/`or self.access_token` — health always reported "no access token configured" and the execute fallback hit `AttributeError`. Added `self.access_token = config.get("access_token")` to both — RED: `test_healthy_with_token`, `test_get_accounts_op_falls_back_to_self_token`.
+4. **str(e) leak × 10 (7 files)**: `execute_operation` in zoho_projects (line 64), zoho_mail (line 66), openclaw (line 56), okta (line 125), marketing_unified (line 75) returned `str(exc)` in the error envelope; `sync_to_postgres_cache` inner/outer paths in zoho_projects (194/201) and zoho_mail (160/167) leaked `str(e)`; `openclaw_service.send_message` surfaced the raw httpx error text as the public message (line 104); `openclaw_service.health_check` (line 139) and `okta_service.health_check` (line 92) leaked `str(e)` into health responses; `freshdesk_routes.py /health` (line 68) leaked `str(e)`. All now log the detail server-side and return generic messages ("Zoho Projects operation failed", "…metrics sync failed", "Zoho Projects PostgreSQL cache sync failed", "Failed to send message to OpenClaw", "OpenClaw health check failed", "Okta health check failed", "Marketing Unified operation failed", "health check failed") — RED: one generic-envelope/no-leak test per leak site.
+
+**Not a bug (documented)**: `okta_service.list_users` returns mock-labeled stub data when `OKTA_API_TOKEN`/`OKTA_ORG_URL` are unset (`"status": "ACTIVE (MOCK)"`) — deliberate mock-mode fallback flagged by `check_health` (`mode: mock`); left in place, behavior covered.
+
+**Coverage deltas** (measured with `--cov=<module> --cov-report=term-missing`, w101 files, single pytest process):
+
+| Module | Before | After (w101 alone) | Stmts | Remaining uncovered |
+|---|---|---|---|---|
+| `integrations/zoho_projects_service.py` | 0% | **100%** | 124 | — |
+| `integrations/freshdesk_routes.py` | 0% (unimportable) | **100%** | 129 | — |
+| `integrations/zoho_mail_service.py` | 0% | **100%** | 102 | — |
+| `integrations/openclaw_service.py` | 0% | **100%** | 68 | — |
+| `integrations/okta_service.py` | 0% | **100%** | 60 | — |
+| `integrations/marketing_unified_service.py` | 0% | **100%** | 42 | — |
+
+Combined w101 run: **152 passed / 0 failed; TOTAL 525 stmts / 0 missing / 100%**.
+
+**Evidence** (each `cd backend && PYTHONPATH=/Users/rushiparikh/projects/atom/backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time — RAM control):
+1. RED proofs: freshdesk test file → collection `ImportError` (missing factory); zoho_projects sync tests → `TypeError: 'tenant_id' is an invalid keyword argument` (phantom column) + generic-envelope failures (str(e) leaks) × 10 sites.
+2. Combined w101 run (single process, 6 files, `--cov` all 6 modules) → 152 passed / 0 failed, 100% × 6.
+3. Partner regression: w101 (6 files) + `test_covpush_w97_zoho_books.py` in ONE process → **136 passed / 0 failed** (w97 books pattern regression).
+4. Registry smoke: `core.lazy_integration_registry.load_integration('freshdesk')` now returns the router (10 routes); `get_freshdesk_service()` returns None without env (fail-closed) and a configured service with env.
+5. mypy (from repo root, `MYPYPATH=backend`): no new error categories vs the w97 baseline (`zoho_books_service` carries the same pre-existing `config=None` default + `or`-chain arg-type errors); `freshdesk_routes.py` clean (0 errors).
+
+---
+
+## Session 2026-08-13 (wave 100 — 6 never-tested integration modules to ≥99%; 202 new tests, 6 real bugs fixed)
+
+**Files**: `integrations/zoom_routes.py`, `integrations/plaid_routes.py`, `integrations/oauth_config.py`, `integrations/microsoft365_routes.py`, `integrations/outlook_integration.py`, `integrations/teams_routes.py` — new wave tests `tests/test_covpush_w100_{zoom_routes,plaid_routes,oauth_config,m365_routes,outlook_integration,teams_routes}.py` (**202 new tests**). Baselines: all 6 were **0%** (verified with `--cov` on the w98 run — `module never imported` warnings for all 6). After: zoom 100%, plaid 100%, oauth_config 100%, m365 100%, outlook_integration 99%, teams 100% (TOTAL 625 stmts / 1 missing).
+
+**Bugs fixed (TDD RED→GREEN — failing test first, source then patched)**:
+
+1. **Route modules unimportable (CRITICAL)**: `integrations/zoom_routes.py:14` (`from integrations.zoom_service import zoom_service`) and `integrations/plaid_routes.py:13` (`from .plaid_service import plaid_service`) imported module-level singletons that **never existed** — both files raised `ImportError` on import, so the lazy registry silently dropped them (`load_integration` returns None) and `/api/zoom/v1/*` + `/api/plaid/*` simply 404'd. Added the missing singletons `zoom_service = ZoomService()` (zoom_service.py, EOF) and `plaid_service = PlaidService()` (plaid_service.py, EOF, replacing the "Singleton instance removed" comment) following the dropbox_service pattern — RED: collection ImportError on both test files.
+2. **Auth missing (CRITICAL)**: `integrations/zoom_routes.py` — `POST /meetings`, `GET /meetings`, `GET /users`, `GET /recordings` had NO authentication — anyone could create meetings and read meetings/users/recordings. `current_user: User = Depends(get_current_user)` added to all 4 (`/auth/url`, `/callback`, `/status`, `/health` stay public per the wave-93/98 convention) — RED: `test_anonymous_401` × 4 (200 before, 401 after).
+3. **Auth missing (CRITICAL)**: `integrations/plaid_routes.py` — `link/token/create`, `item/public_token/exchange`, `accounts/get`, `accounts/balance/get`, `transactions/get`, `identity/get`, `item/remove` had NO authentication — anyone could burn the platform's Plaid quota, exchange stolen public tokens, and read arbitrary linked accounts/transactions/identity. Auth added to all 7 (`/auth/url`, `/callback`, `/status`, `/health` stay public) — RED: `test_anonymous_401` × 7 (200 before, 401 after).
+4. **Auth missing (CRITICAL)**: `integrations/microsoft365_routes.py` — every data route (`/user`, `/teams`, `/teams/{id}/channels`, `/outlook/messages`, `/calendar/events`, `/services/status`, 3 DELETE endpoints, 4 `/execute` endpoints, `/files/{id}`, `/teams/{id}/channels/{id}/messages/{id}`, `/subscriptions`) had NO authentication (the sibling `microsoft365_service` router already auths everything). Auth added to all 15; `/health`, `/capabilities`, `/webhook` (Graph validation-token handshake) stay public — RED: `test_anonymous_401` × 15 (200 before, 401 after).
+5. **`teams_routes.py` adaptive-card dispatch crash (CRITICAL)**: line 158 called `teams_dispatcher.dispatch(action_id, payload, user_info)` but `MessagingActionDispatcher` exposes only async `dispatch_action(platform, tenant_id, user_id, action_id, payload)` — every signed adaptive-card action raised `AttributeError` → 500 (Teams would retry forever). Now `await teams_dispatcher.dispatch_action(...)` with proper args, wrapped in try/except that logs + returns the empty Teams reply on dispatch failure — RED: `test_adaptive_card_dispatches` (500 before), `test_dispatch_failure_degrades` (500 before).
+6. **`teams_routes.py` `_RateLimiter.check` TypeError**: the pruning step `{k: v for k, v in self._hits.items() if v > cutoff}` compared each key's *list of timestamps* against the float cutoff → `TypeError` on the **2nd webhook from the same IP** (the limiter then 500'd every subsequent webhook). Fixed to prune per-key lists (`[t for t in v if t > cutoff]`) — RED: `TestRateLimiter` × 3 + every webhook test after the first (500 before, 200/401/400 after).
+7. **`zoom_routes.py` GET /meetings missing generic handler**: service failures leaked an uncaught exception (no `except Exception` → 500 with non-JSON body). Added the standard `logger.error` + `HTTPException(500, "Internal error")` handler — RED: `test_service_failure_500` (empty/HTML body before).
+8. **`zoom_service.py`/`plaid_service.py` sync `health_check` awaited**: routes do `await zoom_service.health_check()` / `await plaid_service.health_check()` but both services declared sync `def health_check` → `TypeError: object dict can't be used in 'await' expression` on every `/health` (zoom fell into the unhealthy fallback; plaid 500'd). Converted both to `async def health_check` (codebase convention: airtable/box/calendly/discord/google_drive are async) — RED: `TestHealth::test_real_healthy` (missing `is_mock` key), plaid `test_health_healthy` (500).
+
+**No auth bug in** `oauth_config.py` (pure config manager — env-driven credential loading) **and** `outlook_integration.py` (pure service class; `requests` fully mocked; the 99% line-81 miss is an intentionally-dead constant branch `if 'outlook' == 'teams':` inside `_get_user_endpoint` — always False, same dead-code family as the always-true `'outlook' in ['teams','outlook']` in the sibling builders; left in place).
+
+**Coverage deltas** (measured with `--cov=<module> --cov-report=term-missing`, w100 files):
+
+| Module | Before | After (w100 alone) | Stmts | Remaining uncovered |
+|---|---|---|---|---|
+| `integrations/zoom_routes.py` | 0% (unimportable) | **100%** | 107 | — |
+| `integrations/plaid_routes.py` | 0% (unimportable) | **100%** | 113 | — |
+| `integrations/oauth_config.py` | 0% | **100%** | 81 | — |
+| `integrations/microsoft365_routes.py` | 0% | **100%** | 115 | — (incl. dead `Microsoft365ServiceMock` stub via instantiation test) |
+| `integrations/outlook_integration.py` | 0% | **99%** | 120 | line 81 = dead constant branch `if 'outlook' == 'teams':` (never True) in `_get_user_endpoint`; harmless, left in place |
+| `integrations/teams_routes.py` | 0% | **100%** | 89 | — |
+
+Combined w100 run: **202 passed / 0 failed; TOTAL 625 stmts / 1 missing / 99%** (all six ≥99%, target ≥95% met).
+
+**Evidence** (each `cd backend && PYTHONPATH=/Users/rushiparikh/projects/atom/backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time — RAM control):
+1. RED proofs: zoom/plaid test files → collection `ImportError` (singleton missing); teams → `TestRateLimiter` × 3 + webhook suite failures (TypeError/AttributeError before fix); m365 → `test_anonymous_401` × 15 (200 before); zoom → anon-401 × 4 + health `KeyError 'is_mock'` + meetings 500 non-JSON.
+2. Combined w100 run (single process, 6 files, `--cov` all 6 modules) → 202 passed / 0 failed, 100% × 5, 99% × 1.
+3. Partner regression: w100 (6 files) + `test_covpush_w98_shopify_routes.py` + `test_covpush_w92_outlook_routes.py` in ONE process → **324 passed / 0 failed**.
+4. Registry smoke: `core.lazy_integration_registry.load_integration` now returns the zoom/plaid/teams/microsoft365 routers (zoom+plaid were `None`/ImportError before the singleton fix).
+5. mypy: on the 6 target modules (from repo root, `MYPYPATH=backend`) — no new error categories vs the stashed clean baseline; remaining errors are pre-existing env artifacts (`jose` stubs, `pgvector` stub, dual-module discovery) plus pre-existing `str | None` arg-type mismatches that only surface now the modules resolve.
+
+---
+
+## Session 2026-08-13 (wave 102 — 6 integration route modules to 100%; 115 new tests, 4 real bugs fixed)
+
+**Files**: `integrations/box_routes.py`, `integrations/sendgrid_routes.py`, `integrations/onedrive_routes.py`, `integrations/bitbucket_routes.py`, `integrations/google_drive_routes.py`, `integrations/google_calendar_routes.py` — new wave tests `tests/test_covpush_w102_{box_routes,sendgrid_routes,onedrive_routes,bitbucket_routes,gdrive_routes,gcal_routes}.py` (**115 new tests**). Baselines: all 6 were **0%** (verified with `--cov` on the w98 run — `module never imported` warnings for all 6). All six now **100%** (TOTAL 307 stmts / 0 missing).
+
+**Bugs fixed (TDD RED→GREEN — failing test first, source then patched)** — same auth bug class as waves 93/98, extended to four more route modules:
+1. **Auth missing (CRITICAL)**: `integrations/box_routes.py` — **all 5 data/action routes had NO authentication**: `GET /files`, `GET /files/{file_id}`, `GET /download/{file_id}`, `POST /folders`, `POST /search` returned Box file contents / created folders for any caller holding a leaked `access_token` (passed as a URL query param). `current_user: User = Depends(get_current_user)` now required on all 5 (`/auth/url`, `/status`, `/health` stay public per the wave-93 dropbox convention) — RED: `test_anonymous_401` × 5 (200 before, 401 after).
+2. **Auth missing (CRITICAL)**: `integrations/bitbucket_routes.py` — `GET /workspaces`, `GET /repositories`, `POST /search` had NO authentication — anonymous users could list workspaces/repositories and search code in the tenant's Bitbucket account. `get_current_user` added to all 3 (`/auth/url`, `/auth/callback`, `/status`, `/health` stay public) — RED: `test_anonymous_401` × 3 (200 before, 401 after).
+3. **Auth missing (CRITICAL)**: `integrations/onedrive_routes.py` — `GET /files`, `POST /search`, `GET /files/{file_id}`, `GET /files/{file_id}/download` had NO authentication — anonymous users could list/search/read/download any OneDrive file. `get_current_user` added to all 4 (`/auth`, `/health`, `/capabilities` stay public) — RED: `test_anonymous_401` × 4 (200 before, 401 after).
+4. **Auth missing (CRITICAL)**: `integrations/google_drive_routes.py` — same 4 endpoints (`/files`, `/search`, `/files/{file_id}`, `/files/{file_id}/download`) had NO authentication — anonymous Google Drive read/download. `get_current_user` added to all 4 — RED: `test_anonymous_401` × 4 (200 before, 401 after).
+
+**No auth bug in** `sendgrid_routes.py` (all 4 routes are static/OAuth-flow metadata: `/auth/url` returns a static URL, `/callback` is a mock, `/status`+`/health` return static capability flags; `SendGridService.send_email` is not wired to any route — unit-tested directly with mocked `httpx.AsyncClient`, covering disabled-flag / unconfigured-key / sent-202-with-`X-Message-Id` / API-error→HTTPException) **and** `google_calendar_routes.py` (all 4 routes are OAuth-flow/static: `/auth/url`, the `/callback` redirect that exchanges the user's own code — public by design like the wave-93 dropbox `/callback` — `/status`, `/health`).
+
+**Coverage deltas** (measured with `--cov=<module> --cov-report=term-missing`, w102 files):
+
+| Module | Before | After (w102 alone) | Stmts | Remaining uncovered |
+|---|---|---|---|---|
+| `integrations/box_routes.py` | 0% | **100%** | 70 | — |
+| `integrations/bitbucket_routes.py` | 0% | **100%** | 60 | — |
+| `integrations/onedrive_routes.py` | 0% | **100%** | 47 | — (incl. dead `OneDriveServiceMock` stub via instantiation test) |
+| `integrations/google_drive_routes.py` | 0% | **100%** | 47 | — (incl. dead `GoogleDriveServiceMock` stub via instantiation test) |
+| `integrations/sendgrid_routes.py` | 0% | **100%** | 39 | — |
+| `integrations/google_calendar_routes.py` | 0% | **100%** | 44 | — |
+
+Combined w102 run: **115 passed / 0 failed; TOTAL 307 stmts / 0 missing / 100%**.
+
+**Evidence** (each `cd backend && PYTHONPATH=/Users/rushiparikh/projects/atom/backend venv/bin/python -m pytest -p no:cacheprovider -q`, ONE process at a time — RAM control):
+1. RED proofs: `test_covpush_w102_box_routes.py` before fix → `5 failed, 23 passed` — `assert 200 == 401` at lines 123/159/181/212/254; bitbucket/onedrive/gdrive anon tests identical (200 before, 401 after).
+2. Combined w102 run (single process, 6 files, `--cov` all 6 modules) → 115 passed / 0 failed, 100% × 6.
+3. Partner regression: w102 (6 files) + `test_covpush_w98_airtable_routes.py` + `test_covpush_w93_dropbox.py` in ONE process → **192 passed / 0 failed**.
+4. Registry smoke: `core.lazy_integration_registry.INTEGRATION_REGISTRY` loads all 6 routers — authed-route counts box=5, bitbucket=3, onedrive=4, google_drive=4, google_calendar=0 (public by design), sendgrid=0 (public by design).
+5. mypy: `--explicit-package-bases` on the 4 changed route files → **zero new errors** vs the stashed clean baseline (the 2 bitbucket `str | None` arg-type errors at 109/124 are pre-existing — they existed at 100/114 before the change, line numbers merely shifted; 219 pre-existing errors in service deps untouched).
+
+---
+
 ## Session 2026-08-13 (wave 99 — whatsapp manager/db-setup + reasoning routes + 3 tools to ~100%; 228 new tests, 5 real bugs fixed)
 
 **Files**: `integrations/whatsapp_service_manager.py`, `integrations/whatsapp_database_setup.py`, `api/reasoning_routes.py`, `tools/smarthome_tool.py`, `tools/media_tool.py`, `tools/platform_management_tool.py` — new wave tests `tests/test_covpush_w99_{whatsapp_manager,whatsapp_db,reasoning_routes,tool_smarthome,tool_media,tool_platform_mgmt}.py` (**228 new tests**).

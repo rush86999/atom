@@ -84,12 +84,13 @@ class OktaService(IntegrationService):
                 "version": "1.0.0",
             }
         except Exception as e:
+            logger.error(f"Okta health check failed: {e}")
             return {
                 "ok": False,
                 "status": "unhealthy",
                 "healthy": False,
                 "service": "okta",
-                "error": str(e),
+                "error": "Okta health check failed",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
@@ -122,7 +123,8 @@ class OktaService(IntegrationService):
             else:
                 raise NotImplementedError(f"Operation {operation} not supported for Okta")
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logger.error(f"Okta operation {operation} failed: {e}")
+            return {"success": False, "error": "Okta operation failed"}
 
 # Global instance removed - use IntegrationRegistry instead
 # okta_service = OktaService()

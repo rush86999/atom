@@ -719,6 +719,17 @@ def create_freshdesk_service(api_key: str, domain: str, **kwargs) -> FreshdeskSe
     return FreshdeskService(tenant_id="system", config=config)
 
 
+def get_freshdesk_service() -> Optional[FreshdeskService]:
+    """Return a FreshdeskService configured from FRESHDESK_API_KEY /
+    FRESHDESK_DOMAIN environment variables, or None when credentials are
+    missing (fail-closed: routers respond 503 instead of guessing)."""
+    api_key = os.getenv("FRESHDESK_API_KEY")
+    domain = os.getenv("FRESHDESK_DOMAIN")
+    if not api_key or not domain:
+        return None
+    return create_freshdesk_service(api_key, domain)
+
+
 # Utility functions for integration
 async def test_freshdesk_connection(api_key: str, domain: str) -> bool:
     """Test Freshdesk API connection"""

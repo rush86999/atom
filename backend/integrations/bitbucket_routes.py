@@ -6,8 +6,11 @@ Uses the real bitbucket_service.py for all operations
 from datetime import datetime
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from core.auth import get_current_user
+from core.models import User
 
 from .bitbucket_service import BitbucketService
 
@@ -83,7 +86,10 @@ async def bitbucket_health():
 
 
 @router.get("/workspaces")
-async def list_workspaces(access_token: str):
+async def list_workspaces(
+    access_token: str,
+    current_user: User = Depends(get_current_user),
+):
     """List Bitbucket workspaces"""
     try:
         workspaces = bitbucket_service.get_workspaces(access_token)
@@ -94,7 +100,10 @@ async def list_workspaces(access_token: str):
 
 
 @router.get("/repositories")
-async def list_repositories(access_token: str, workspace: Optional[str] = None):
+async def list_repositories(
+    access_token: str, workspace: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+):
     """List Bitbucket repositories"""
     try:
         repos = bitbucket_service.get_repositories(access_token, workspace)
@@ -106,8 +115,9 @@ async def list_repositories(access_token: str, workspace: Optional[str] = None):
 
 @router.post("/search")
 async def bitbucket_search(
-    request: BitbucketSearchRequest, 
-    access_token: str = Query(..., description="OAuth access token")
+    request: BitbucketSearchRequest,
+    access_token: str = Query(..., description="OAuth access token"),
+    current_user: User = Depends(get_current_user),
 ):
     """Search Bitbucket code"""
     try:

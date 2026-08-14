@@ -115,13 +115,21 @@ class AuditLogger:
 
     def _setup_file_handler(self):
         """Setup separate file handler for audit logs."""
+        audit_logger = logging.getLogger('atom.audit')
+        # W103: rotation calls this again with a new FileHandler. Any handler
+        # attached previously stays on the logger, and a *closed* FileHandler
+        # silently re-opens its baseFilename on the next emit — so after N
+        # rotations every audit entry was written N times (duplicated lines
+        # in the live log, growing unbounded). Detach old handlers first.
+        for handler in list(audit_logger.handlers):
+            audit_logger.removeHandler(handler)
         self._audit_handler = logging.FileHandler(self._log_path)
         self._audit_handler.setFormatter(
             logging.Formatter('%(message)s')  # JSON only, no prefix
         )
 
         # Create audit-specific logger
-        self._audit_logger = logging.getLogger('atom.audit')
+        self._audit_logger = audit_logger
         self._audit_logger.addHandler(self._audit_handler)
         self._audit_logger.setLevel(logging.INFO)
         self._audit_logger.propagate = False  # Don't propagate to root logger
@@ -391,7 +399,13 @@ class AuditLogger:
             return
 
         # Get current log file modification time
-        mtime = datetime.fromtimestamp(self._log_path.stat().st_mtime)
+        # W103: mtime must be UTC-aware to compare against the UTC `today`.
+        # Naive local mtime vs UTC date rotated same-day logs whenever the
+        # local timezone lagged UTC (e.g. PDT evenings) — the log was gzip'd
+        # as "yesterday" and the handler recreated mid-day.
+        mtime = datetime.fromtimestamp(
+            self._log_path.stat().st_mtime, tz=timezone.utc
+        )
 
         # If log is from yesterday, rotate it
         if mtime.date() < today:

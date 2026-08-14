@@ -260,12 +260,12 @@ class WorkflowComposer:
             elif node.primitive == CompositionPrimitive.SEQUENCE:
                 # Sequence: sum of children
                 child_durations = [estimate(child) for child in node.children]
-                duration = sum(child_durations)
+                duration = sum(child_durations) or base_duration
             elif node.primitive == CompositionPrimitive.LOOP:
                 # Loop: iterations * child duration
                 iterations = node.config.get("iterations", 10)
                 child_durations = [estimate(child) for child in node.children]
-                duration = sum(child_durations) * iterations
+                duration = (sum(child_durations) or base_duration) * iterations
 
             # Add custom duration if specified
             if "duration_ms" in node.config:
@@ -301,11 +301,23 @@ class WorkflowComposer:
         """Get maximum depth of composition tree.
 
         Iterative BFS to avoid RecursionError on deep composition trees.
+        W103: cycle-safe — tracks visited node ids. Previously a cyclic
+        composition (a→b→a) enqueued the same nodes forever and hung
+        `_validate_composition` (which calls this BEFORE `_detect_cycles`),
+        so any cyclic tree became a validation DoS instead of an error.
+        Depth is a node attribute, so first-visit bookkeeping is exact.
         """
         max_depth = root.depth
+        visited: set = set()
         queue: list = [root]
         while queue:
             node = queue.pop(0)
+            # Key on object identity: node_id may be duplicated (e.g. the
+            # dataclass default "") across distinct nodes, and cycles are
+            # only ever same-object re-reaches in composed trees.
+            if id(node) in visited:
+                continue
+            visited.add(id(node))
             max_depth = max(max_depth, node.depth)
             queue.extend(node.children)
         return max_depth
@@ -344,20 +356,33 @@ class WorkflowComposer:
         return cycles
 
     def _validate_primitives(self, root: CompositionNode, errors: List[str]) -> None:
-        """Validate primitive usage"""
-        # Check for required children
-        if root.primitive == CompositionPrimitive.PARALLEL:
-            if len(root.children) < 2:
-                errors.append(f"Parallel primitive {root.node_id} requires at least 2 children")
+        """Validate primitive usage.
 
-        # Check loop configuration
-        if root.primitive == CompositionPrimitive.LOOP:
-            if not root.loop_condition:
-                errors.append(f"Loop primitive {root.node_id} requires condition")
+        W103: converted from naive recursion to an iterative, cycle-safe
+        walk — the recursive version had no visited guard, so a cyclic
+        composition (a→b→a) reached this after `_detect_cycles` reported
+        the cycle and STILL died with RecursionError instead of yielding
+        the validation error (masking the cycle diagnosis entirely).
+        """
+        visited: set = set()
+        stack: list = [root]
+        while stack:
+            node = stack.pop()
+            if id(node) in visited:
+                continue
+            visited.add(id(node))
 
-        # Recursively validate children
-        for child in root.children:
-            self._validate_primitives(child, errors)
+            # Check for required children
+            if node.primitive == CompositionPrimitive.PARALLEL:
+                if len(node.children) < 2:
+                    errors.append(f"Parallel primitive {node.node_id} requires at least 2 children")
+
+            # Check loop configuration
+            if node.primitive == CompositionPrimitive.LOOP:
+                if not node.loop_condition:
+                    errors.append(f"Loop primitive {node.node_id} requires condition")
+
+            stack.extend(node.children)
 
     def decompose(self, workflow: ComposedWorkflow) -> List[Tuple[CompositionPrimitive, Dict[str, Any]]]:
         """

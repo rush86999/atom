@@ -409,7 +409,7 @@ class PlaidService(IntegrationService):
                 detail="Internal error"
             )
 
-    def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> Dict[str, Any]:
         """Synchronous health check for Plaid service"""
         import requests
         try:
@@ -517,4 +517,6 @@ class PlaidService(IntegrationService):
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
-# Singleton instance removed - use IntegrationRegistry for per-tenant instances
+# Global service instance - imported by integrations.plaid_routes
+# (per-tenant instances still available via IntegrationRegistry)
+plaid_service = PlaidService()

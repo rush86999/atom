@@ -19,6 +19,7 @@ class ZohoMailService(IntegrationService):
         self.base_url = "https://mail.zoho.com/api/v1"
         self.client_id = config.get("client_id") or os.getenv("ZOHO_CLIENT_ID")
         self.client_secret = config.get("client_secret") or os.getenv("ZOHO_CLIENT_SECRET")
+        self.access_token = config.get("access_token")
         self.client = httpx.AsyncClient(timeout=30.0)
 
     # ---- IntegrationService abstract-method implementations ----
@@ -63,7 +64,8 @@ class ZohoMailService(IntegrationService):
                 "supported": ['get_accounts', 'get_recent_inbox'],
             }
         except Exception as exc:
-            return {"success": False, "error": str(exc)}
+            logger.error(f"Zoho Mail operation failed: {exc}")
+            return {"success": False, "error": "Zoho Mail operation failed"}
 
     async def get_accounts(self, access_token: str) -> List[Dict[str, Any]]:
         """Get Zoho Mail accounts"""
@@ -157,14 +159,14 @@ class ZohoMailService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Zoho Mail metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Zoho Mail metrics sync failed"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Zoho Mail PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Zoho Mail PostgreSQL cache sync failed"}
 
     async def full_sync(self, user_id: str, access_token: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Zoho Mail"""

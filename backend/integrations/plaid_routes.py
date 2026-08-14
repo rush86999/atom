@@ -6,11 +6,13 @@ Uses the real plaid_service.py for all banking operations
 from datetime import datetime
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 # Import the real Plaid service
 from .plaid_service import plaid_service
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +45,8 @@ class AccessTokenRequest(BaseModel):
 
 
 @router.post("/link/token/create")
-async def create_link_token(request: LinkTokenRequest):
+async def create_link_token(request: LinkTokenRequest,
+                                 current_user: User = Depends(get_current_user)):
     """Create a Link token for Plaid Link initialization"""
     try:
         result = await plaid_service.create_link_token(
@@ -65,7 +68,8 @@ async def create_link_token(request: LinkTokenRequest):
 
 
 @router.post("/item/public_token/exchange")
-async def exchange_public_token(request: PublicTokenExchangeRequest):
+async def exchange_public_token(request: PublicTokenExchangeRequest,
+                                     current_user: User = Depends(get_current_user)):
     """Exchange a public token for an access token"""
     try:
         result = await plaid_service.exchange_public_token(request.public_token)
@@ -82,7 +86,8 @@ async def exchange_public_token(request: PublicTokenExchangeRequest):
 
 
 @router.post("/accounts/get")
-async def get_accounts(request: AccessTokenRequest):
+async def get_accounts(request: AccessTokenRequest,
+                            current_user: User = Depends(get_current_user)):
     """Get accounts for a connected item"""
     try:
         result = await plaid_service.get_accounts(request.access_token)
@@ -99,7 +104,8 @@ async def get_accounts(request: AccessTokenRequest):
 
 
 @router.post("/accounts/balance/get")
-async def get_balance(request: AccessTokenRequest):
+async def get_balance(request: AccessTokenRequest,
+                           current_user: User = Depends(get_current_user)):
     """Get real-time balance for accounts"""
     try:
         result = await plaid_service.get_balance(request.access_token)
@@ -116,7 +122,8 @@ async def get_balance(request: AccessTokenRequest):
 
 
 @router.post("/transactions/get")
-async def get_transactions(request: TransactionsRequest):
+async def get_transactions(request: TransactionsRequest,
+                                current_user: User = Depends(get_current_user)):
     """Get transactions for an item"""
     try:
         result = await plaid_service.get_transactions(
@@ -139,7 +146,8 @@ async def get_transactions(request: TransactionsRequest):
 
 
 @router.post("/identity/get")
-async def get_identity(request: AccessTokenRequest):
+async def get_identity(request: AccessTokenRequest,
+                            current_user: User = Depends(get_current_user)):
     """Get identity information for accounts"""
     try:
         result = await plaid_service.get_identity(request.access_token)
@@ -156,7 +164,8 @@ async def get_identity(request: AccessTokenRequest):
 
 
 @router.post("/item/remove")
-async def remove_item(request: AccessTokenRequest):
+async def remove_item(request: AccessTokenRequest,
+                           current_user: User = Depends(get_current_user)):
     """Remove an item (disconnect bank connection)"""
     try:
         result = await plaid_service.remove_item(request.access_token)

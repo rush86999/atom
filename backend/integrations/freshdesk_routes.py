@@ -65,7 +65,8 @@ async def freshdesk_health():
         result = await service.health_check()
         return {"ok": result.get("status") == "healthy", **result}
     except Exception as e:
-        return {"ok": False, "status": "unhealthy", "error": str(e), "timestamp": datetime.now().isoformat()}
+        logger.error(f"Freshdesk health check failed: {e}")
+        return {"ok": False, "status": "unhealthy", "error": "health check failed", "timestamp": datetime.now().isoformat()}
 
 
 @router.get("/tickets")

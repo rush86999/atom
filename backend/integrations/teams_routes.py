@@ -6,10 +6,12 @@ import base64
 from datetime import datetime
 import logging
 from typing import Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
+from core.auth import get_current_user
 from core.messaging_action_dispatcher import MessagingActionDispatcher
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,10 @@ class _RateLimiter:
         import time
         now = time.time()
         cutoff = now - self.window
-        self._hits = {k: v for k, v in self._hits.items() if v > cutoff}
+        self._hits = {
+            k: [t for t in v if t > cutoff]
+            for k, v in self._hits.items()
+        }
         if len(self._hits.get(key, [])) >= self.limit:
             return False
         self._hits.setdefault(key, []).append(now)
@@ -84,7 +89,8 @@ async def teams_status(user_id: str = "test_user"):
     }
 
 @router.post("/search")
-async def teams_search(request: TeamsSearchRequest):
+async def teams_search(request: TeamsSearchRequest,
+                       current_user: User = Depends(get_current_user)):
     """Search Teams content"""
     logger.info(f"Searching Teams for: {request.query}")
 
@@ -154,7 +160,16 @@ async def teams_webhook(request: Request):
         action_id = action_value.get("action_id", "")
         if action_id:
             user_info = {"id": payload.get("from", {}).get("id", "unknown")}
-            # Dispatch to interactive agent handler securely 
-            teams_dispatcher.dispatch(action_id, payload, user_info)
+            # Dispatch to interactive agent handler securely
+            try:
+                await teams_dispatcher.dispatch_action(
+                    platform="teams",
+                    tenant_id=payload.get("tenant_id", "default"),
+                    user_id=user_info.get("id", "unknown"),
+                    action_id=action_id,
+                    payload=payload,
+                )
+            except Exception as e:
+                logger.error(f"Teams action dispatch failed: {e}")
 
     return {"type": "message", "text": ""}

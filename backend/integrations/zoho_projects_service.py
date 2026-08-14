@@ -19,6 +19,7 @@ class ZohoProjectsService(IntegrationService):
         self.base_url = "https://projectsapi.zoho.com/restapi/v1"
         self.client_id = config.get("client_id") or os.getenv("ZOHO_CLIENT_ID")
         self.client_secret = config.get("client_secret") or os.getenv("ZOHO_CLIENT_SECRET")
+        self.access_token = config.get("access_token")
         self.client = httpx.AsyncClient(timeout=30.0)
 
     # ---- IntegrationService abstract-method implementations ----
@@ -61,7 +62,8 @@ class ZohoProjectsService(IntegrationService):
                 "supported": ['get_portals'],
             }
         except Exception as exc:
-            return {"success": False, "error": str(exc)}
+            logger.error(f"Zoho Projects operation failed: {exc}")
+            return {"success": False, "error": "Zoho Projects operation failed"}
 
     async def get_portals(self, access_token: str) -> List[Dict[str, Any]]:
         """Get connected Zoho Projects portals"""
@@ -167,7 +169,7 @@ class ZohoProjectsService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="zoho_projects",
                         metric_key=key
                     ).first()
@@ -177,7 +179,7 @@ class ZohoProjectsService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="zoho_projects",
                             metric_key=key,
                             value=float(value),
@@ -191,14 +193,14 @@ class ZohoProjectsService(IntegrationService):
             except Exception as e:
                 logger.error(f"Error saving Zoho Projects metrics to Postgres: {e}")
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                return {"success": False, "error": "Zoho Projects metrics sync failed"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Zoho Projects PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Zoho Projects PostgreSQL cache sync failed"}
 
     async def full_sync(self, workspace_id: str, access_token: str, portal_id: str = None) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Zoho Projects"""

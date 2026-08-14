@@ -6,9 +6,11 @@ from pydantic import BaseModel
 logger = logging.getLogger(__name__)
 
 from datetime import datetime, timezone
-from fastapi import Request
+from fastapi import Depends, Request
 
+from core.auth import get_current_user
 from core.mock_mode import get_mock_mode_manager
+from core.models import User
 from core.token_storage import token_storage
 from integrations.auth_handler_zoom import zoom_auth_handler
 from integrations.zoom_service import zoom_service
@@ -110,7 +112,8 @@ async def zoom_health(user_id: str = "test_user"):
         }
 
 @router.post("/meetings")
-async def create_zoom_meeting(meeting: ZoomMeetingRequest):
+async def create_zoom_meeting(meeting: ZoomMeetingRequest,
+                              current_user: User = Depends(get_current_user)):
     """Create a Zoom meeting"""
     try:
         # Ensure we have a valid access token
@@ -142,7 +145,8 @@ async def create_zoom_meeting(meeting: ZoomMeetingRequest):
 
 
 @router.get("/meetings")
-async def list_zoom_meetings(user_id: str = "me", type: str = "scheduled", page_size: int = 30):
+async def list_zoom_meetings(user_id: str = "me", type: str = "scheduled", page_size: int = 30,
+                             current_user: User = Depends(get_current_user)):
     """List Zoom meetings"""
     try:
         access_token = await zoom_auth_handler.ensure_valid_token()
@@ -165,8 +169,13 @@ async def list_zoom_meetings(user_id: str = "me", type: str = "scheduled", page_
         }
     except HTTPException:
         raise
+    except Exception as e:
+        logger.error(f"Failed to list Zoom meetings: {e}")
+        raise HTTPException(status_code=500, detail="Internal error")
+
 @router.get("/users")
-async def list_zoom_users(status: str = "active", page_size: int = 30):
+async def list_zoom_users(status: str = "active", page_size: int = 30,
+                          current_user: User = Depends(get_current_user)):
     """List Zoom users"""
     try:
         access_token = await zoom_auth_handler.ensure_valid_token()
@@ -194,7 +203,8 @@ async def list_zoom_users(status: str = "active", page_size: int = 30):
 
 
 @router.get("/recordings")
-async def list_zoom_recordings(user_id: str = "me", from_date: str = None, to_date: str = None, page_size: int = 30):
+async def list_zoom_recordings(user_id: str = "me", from_date: str = None, to_date: str = None, page_size: int = 30,
+                               current_user: User = Depends(get_current_user)):
     """List Zoom recordings"""
     try:
         access_token = await zoom_auth_handler.ensure_valid_token()

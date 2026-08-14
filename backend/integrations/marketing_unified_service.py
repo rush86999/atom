@@ -72,7 +72,7 @@ class MarketingUnifiedService(IntegrationService):
                 return {"success": False, "error": f"Unknown operation: {operation}"}
         except Exception as e:
             logger.error(f"Error executing Marketing Unified operation {operation}: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Marketing Unified operation failed"}
 
     async def get_campaign_performance(self, platform: MarketingPlatform) -> Dict[str, Any]:
         """Fetches ROI and conversion data for marketing campaigns."""

@@ -461,7 +461,13 @@ class MemoryConsolidationService:
         return {
             "last_consolidation": self._last_consolidation.isoformat() if self._last_consolidation else None,
             "in_progress": self._consolidation_in_progress,
-            "pomdp_available": POMDP_AVAILABLE,
+            # W103: report THIS instance's POMDP wiring, not the module
+            # global — a degraded service (init failure / flag flipped
+            # after import) previously advertised pomdp_available=True
+            # while every POMDP method silently no-oped.
+            "pomdp_available": (
+                self.memory_manager is not None and self.pomdp_consolidation is not None
+            ),
             "memory_statistics": self.memory_manager.get_memory_statistics() if self.memory_manager else {},
         }
 

@@ -6,8 +6,11 @@ It handles API endpoints for file operations, authentication, and search.
 """
 
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from core.auth import get_current_user
+from core.models import User
 
 from .onedrive_service import (
     OneDriveAuthResponse,
@@ -45,6 +48,7 @@ async def list_onedrive_files(
     folder_id: Optional[str] = None,
     page_size: int = 100,
     page_token: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
 ):
     """List files from OneDrive."""
     result = await onedrive_service.list_files(
@@ -56,7 +60,10 @@ async def list_onedrive_files(
 
 
 @onedrive_router.post("/search")
-async def search_onedrive_files(request: OneDriveSearchRequest, access_token: str):
+async def search_onedrive_files(
+    request: OneDriveSearchRequest, access_token: str,
+    current_user: User = Depends(get_current_user),
+):
     """Search files in OneDrive."""
     result = await onedrive_service.search_files(
         access_token, request.query, request.pageSize, request.pageToken
@@ -67,7 +74,10 @@ async def search_onedrive_files(request: OneDriveSearchRequest, access_token: st
 
 
 @onedrive_router.get("/files/{file_id}")
-async def get_onedrive_file_metadata(file_id: str, access_token: str):
+async def get_onedrive_file_metadata(
+    file_id: str, access_token: str,
+    current_user: User = Depends(get_current_user),
+):
     """Get metadata for a specific OneDrive file."""
     result = await onedrive_service.get_file_metadata(access_token, file_id)
     if result["status"] == "error":
@@ -76,7 +86,10 @@ async def get_onedrive_file_metadata(file_id: str, access_token: str):
 
 
 @onedrive_router.get("/files/{file_id}/download")
-async def download_onedrive_file(file_id: str, access_token: str):
+async def download_onedrive_file(
+    file_id: str, access_token: str,
+    current_user: User = Depends(get_current_user),
+):
     """Get download URL for a OneDrive file."""
     result = await onedrive_service.download_file(access_token, file_id)
     if result["status"] == "error":

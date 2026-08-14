@@ -53,7 +53,8 @@ class OpenClawService(IntegrationService):
             else:
                 raise NotImplementedError(f"Operation {operation} not supported")
         except Exception as e:
-            return {"success": False, "error": str(e), "details": {}}
+            logger.error(f"OpenClaw operation failed: {e}")
+            return {"success": False, "error": "OpenClaw operation failed", "details": {}}
 
     async def close(self):
         """Close the HTTP client connection"""
@@ -101,7 +102,7 @@ class OpenClawService(IntegrationService):
             return response.json()
         except httpx.HTTPError as e:
             logger.error(f"Failed to send message to OpenClaw: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Failed to send message to OpenClaw"}
 
     def health_check(self) -> Dict[str, Any]:
         """Check if OpenClaw webhook URL is reachable"""
@@ -132,10 +133,11 @@ class OpenClawService(IntegrationService):
                 "last_check": datetime.now(timezone.utc).isoformat()
             }
         except Exception as e:
+            logger.error(f"OpenClaw health check failed: {e}")
             return {
                 "healthy": False,
                 "status": "unreachable",
                 "service": "openclaw",
-                "error": str(e),
+                "error": "OpenClaw health check failed",
                 "last_check": datetime.now(timezone.utc).isoformat()
             }

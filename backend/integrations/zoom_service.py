@@ -265,7 +265,7 @@ class ZoomService(IntegrationService):
             "supports_webhooks": True
         }
 
-    def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> Dict[str, Any]:
         """Health check for Zoom service"""
         try:
             return {
@@ -424,3 +424,7 @@ class ZoomService(IntegrationService):
                 status_code=400,
                 detail="Internal error"
             )
+
+
+# Global service instance - imported by integrations.zoom_routes
+zoom_service = ZoomService()

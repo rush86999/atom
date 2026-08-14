@@ -6,8 +6,11 @@ It handles API endpoints for Teams, Outlook, Calendar, and other Microsoft 365 s
 """
 
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from core.auth import get_current_user
+from core.models import User
 
 from .microsoft365_service import (
     Microsoft365AuthResponse,
@@ -53,7 +56,8 @@ async def microsoft365_auth(user_id: str):
 
 
 @microsoft365_router.get("/user")
-async def get_microsoft365_user(access_token: str):
+async def get_microsoft365_user(access_token: str,
+                                  current_user: User = Depends(get_current_user)):
     """Get Microsoft 365 user profile."""
     result = await microsoft365_service.get_user_profile(access_token)
     if result["status"] == "error":
@@ -62,7 +66,8 @@ async def get_microsoft365_user(access_token: str):
 
 
 @microsoft365_router.get("/teams")
-async def list_microsoft365_teams(access_token: str):
+async def list_microsoft365_teams(access_token: str,
+                                    current_user: User = Depends(get_current_user)):
     """List Microsoft Teams."""
     result = await microsoft365_service.list_teams(access_token)
     if result["status"] == "error":
@@ -71,7 +76,8 @@ async def list_microsoft365_teams(access_token: str):
 
 
 @microsoft365_router.get("/teams/{team_id}/channels")
-async def list_microsoft365_channels(team_id: str, access_token: str):
+async def list_microsoft365_channels(team_id: str, access_token: str,
+                                       current_user: User = Depends(get_current_user)):
     """List channels in a Microsoft Team."""
     result = await microsoft365_service.list_channels(access_token, team_id)
     if result["status"] == "error":
@@ -81,7 +87,8 @@ async def list_microsoft365_channels(team_id: str, access_token: str):
 
 @microsoft365_router.get("/outlook/messages")
 async def get_microsoft365_messages(
-    access_token: str, folder_id: str = "inbox", top: int = 10
+    access_token: str, folder_id: str = "inbox", top: int = 10,
+    current_user: User = Depends(get_current_user),
 ):
     """Get Outlook messages."""
     result = await microsoft365_service.get_outlook_messages(
@@ -93,7 +100,8 @@ async def get_microsoft365_messages(
 
 
 @microsoft365_router.get("/calendar/events")
-async def get_microsoft365_events(access_token: str, start_date: str, end_date: str):
+async def get_microsoft365_events(access_token: str, start_date: str, end_date: str,
+                                     current_user: User = Depends(get_current_user)):
     """Get calendar events."""
     result = await microsoft365_service.get_calendar_events(
         access_token, start_date, end_date
@@ -104,7 +112,8 @@ async def get_microsoft365_events(access_token: str, start_date: str, end_date: 
 
 
 @microsoft365_router.get("/services/status")
-async def get_microsoft365_service_status(access_token: str):
+async def get_microsoft365_service_status(access_token: str,
+                                            current_user: User = Depends(get_current_user)):
     """Get Microsoft 365 service status."""
     result = await microsoft365_service.get_service_status(access_token)
     if result["status"] == "error":
@@ -156,7 +165,8 @@ async def microsoft365_capabilities():
 
 
 @microsoft365_router.delete("/outlook/messages/{message_id}")
-async def delete_microsoft365_message(message_id: str, access_token: str):
+async def delete_microsoft365_message(message_id: str, access_token: str,
+                                         current_user: User = Depends(get_current_user)):
     """Delete an Outlook message."""
     result = await microsoft365_service.delete_item(access_token, "message", message_id)
     if result["status"] == "error":
@@ -165,7 +175,8 @@ async def delete_microsoft365_message(message_id: str, access_token: str):
 
 
 @microsoft365_router.delete("/calendar/events/{event_id}")
-async def delete_microsoft365_event(event_id: str, access_token: str):
+async def delete_microsoft365_event(event_id: str, access_token: str,
+                                       current_user: User = Depends(get_current_user)):
     """Delete a calendar event."""
     result = await microsoft365_service.delete_item(access_token, "event", event_id)
     if result["status"] == "error":
@@ -174,31 +185,36 @@ async def delete_microsoft365_event(event_id: str, access_token: str):
 
 
 @microsoft365_router.post("/excel/execute")
-async def execute_excel_action(request: Microsoft365ActionRequest, access_token: str):
+async def execute_excel_action(request: Microsoft365ActionRequest, access_token: str,
+                                   current_user: User = Depends(get_current_user)):
     """Execute generic Excel action."""
     return await microsoft365_service.execute_excel_action(access_token, request.action, request.params)
 
 
 @microsoft365_router.post("/teams/execute")
-async def execute_teams_action(request: Microsoft365ActionRequest, access_token: str):
+async def execute_teams_action(request: Microsoft365ActionRequest, access_token: str,
+                                   current_user: User = Depends(get_current_user)):
     """Execute generic Teams action."""
     return await microsoft365_service.execute_teams_action(access_token, request.action, request.params)
 
 
 @microsoft365_router.post("/outlook/execute")
-async def execute_outlook_action(request: Microsoft365ActionRequest, access_token: str):
+async def execute_outlook_action(request: Microsoft365ActionRequest, access_token: str,
+                                     current_user: User = Depends(get_current_user)):
     """Execute generic Outlook action."""
     return await microsoft365_service.execute_outlook_action(access_token, request.action, request.params)
 
 
 @microsoft365_router.post("/onedrive/execute")
-async def execute_onedrive_action(request: Microsoft365ActionRequest, access_token: str):
+async def execute_onedrive_action(request: Microsoft365ActionRequest, access_token: str,
+                                     current_user: User = Depends(get_current_user)):
     """Execute generic OneDrive action."""
     return await microsoft365_service.execute_onedrive_action(access_token, request.action, request.params)
 
 
 @microsoft365_router.delete("/files/{item_id}")
-async def delete_microsoft365_file(item_id: str, access_token: str):
+async def delete_microsoft365_file(item_id: str, access_token: str,
+                                       current_user: User = Depends(get_current_user)):
     """Delete a file from OneDrive."""
     result = await microsoft365_service.delete_item(access_token, "file", item_id)
     if result["status"] == "error":
@@ -207,7 +223,8 @@ async def delete_microsoft365_file(item_id: str, access_token: str):
 
 
 @microsoft365_router.delete("/teams/{team_id}/channels/{channel_id}/messages/{message_id}")
-async def delete_microsoft365_team_message(team_id: str, channel_id: str, message_id: str, access_token: str):
+async def delete_microsoft365_team_message(team_id: str, channel_id: str, message_id: str, access_token: str,
+                                              current_user: User = Depends(get_current_user)):
     """Delete a Teams message."""
     result = await microsoft365_service.delete_item(
         access_token, 
@@ -222,7 +239,8 @@ async def delete_microsoft365_team_message(team_id: str, channel_id: str, messag
 
 @microsoft365_router.post("/subscriptions")
 async def create_microsoft365_subscription(
-    subscription: Microsoft365SubscriptionRequest, access_token: str
+    subscription: Microsoft365SubscriptionRequest, access_token: str,
+    current_user: User = Depends(get_current_user),
 ):
     """Create a webhook subscription."""
     result = await microsoft365_service.create_subscription(

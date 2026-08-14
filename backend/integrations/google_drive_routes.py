@@ -6,8 +6,11 @@ It handles API endpoints for file operations, authentication, and search.
 """
 
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from core.auth import get_current_user
+from core.models import User
 
 from .google_drive_service import (
     GoogleDriveAuthResponse,
@@ -45,6 +48,7 @@ async def list_google_drive_files(
     folder_id: Optional[str] = None,
     page_size: int = 100,
     page_token: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
 ):
     """List files from Google Drive."""
     result = await google_drive_service.list_files(
@@ -57,7 +61,8 @@ async def list_google_drive_files(
 
 @google_drive_router.post("/search")
 async def search_google_drive_files(
-    request: GoogleDriveSearchRequest, access_token: str
+    request: GoogleDriveSearchRequest, access_token: str,
+    current_user: User = Depends(get_current_user),
 ):
     """Search files in Google Drive."""
     result = await google_drive_service.search_files(
@@ -69,7 +74,10 @@ async def search_google_drive_files(
 
 
 @google_drive_router.get("/files/{file_id}")
-async def get_google_drive_file_metadata(file_id: str, access_token: str):
+async def get_google_drive_file_metadata(
+    file_id: str, access_token: str,
+    current_user: User = Depends(get_current_user),
+):
     """Get metadata for a specific Google Drive file."""
     result = await google_drive_service.get_file_metadata(access_token, file_id)
     if result["status"] == "error":
@@ -78,7 +86,10 @@ async def get_google_drive_file_metadata(file_id: str, access_token: str):
 
 
 @google_drive_router.get("/files/{file_id}/download")
-async def download_google_drive_file(file_id: str, access_token: str):
+async def download_google_drive_file(
+    file_id: str, access_token: str,
+    current_user: User = Depends(get_current_user),
+):
     """Get download URL for a Google Drive file."""
     result = await google_drive_service.download_file(access_token, file_id)
     if result["status"] == "error":
