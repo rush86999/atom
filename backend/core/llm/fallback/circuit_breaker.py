@@ -31,7 +31,7 @@ class CircuitBreakerOpenError(Exception):
     def __init__(self, state: CircuitBreakerState, last_failure: Optional[str] = None):
         self.state = state
         self.last_failure = last_failure
-        message = f"Circuit breaker is {state.value}"
+        message = f"Circuit breaker is {getattr(state, 'value', state)}"
         if last_failure:
             message += f" (last failure: {last_failure})"
         super().__init__(message)
@@ -230,7 +230,7 @@ class CircuitBreaker:
                 if elapsed >= self.recovery_timeout:
                     # Transition to HALF_OPEN to test recovery
                     self._transition_to(CircuitBreakerState.HALF_OPEN)
-                    self._half_open_call_count = 0
+                    self._half_open_call_count = 1
                     logger.info(
                         f"Circuit breaker transitioned to HALF_OPEN "
                         f"after {elapsed:.1f}s"
@@ -240,7 +240,10 @@ class CircuitBreaker:
 
         if self._state == CircuitBreakerState.HALF_OPEN:
             # Allow limited calls in HALF_OPEN state
-            return self._half_open_call_count < self.half_open_max_calls
+            if self._half_open_call_count >= self.half_open_max_calls:
+                return False
+            self._half_open_call_count += 1
+            return True
 
         return False
 
