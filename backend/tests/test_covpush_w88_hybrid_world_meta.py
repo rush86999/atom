@@ -499,7 +499,7 @@ async def test_hybrid_fetch_notion_direct(ing, monkeypatch):
         {"id": "p1", "title": "P", "url": "u", "created_time": "c",
          "last_edited_time": "e", "archived": False}])
     notion.get_block_children = MagicMock(return_value={"results": [{}]})
-    notion.search_databases_in_workspace = MagicMock(return_value=["db1"])
+    notion.search_databases_in_workspace = MagicMock(return_value=[{"id": "db1"}])
     notion.get_database = MagicMock(return_value={
         "title": [{"plain_text": "DB"}], "created_time": "c",
         "last_edited_time": "e", "properties": {"a": 1}})
@@ -589,6 +589,7 @@ async def test_hybrid_zoho_multi_app_all_entities(ing, monkeypatch):
     adapter.get_items = AsyncMock(return_value=[{"id": "it"}])
     adapter.get_sales_orders = AsyncMock(return_value=[{"id": "so"}])
     adapter.get_tasks = AsyncMock(return_value=[{"id": "tk"}])
+    adapter.ensure_token = AsyncMock()
     _zoho_env(monkeypatch, token, adapter)
     c = cfg("zoho", entity_types=["crm_leads", "crm_deals", "books_invoices",
                                   "inventory_items", "inventory_sales_orders",
@@ -796,6 +797,11 @@ async def test_hybrid_run_scheduled_syncs_and_stop(ing, monkeypatch):
     # error branch inside loop
     ing._running = True
     ing.sync_integration_data = AsyncMock(side_effect=RuntimeError("x"))
+
+    async def stop_sleep(s):
+        ing._running = False
+
+    monkeypatch.setattr(hybrid_mod, "asyncio", SimpleNamespace(sleep=stop_sleep))
     await ing.run_scheduled_syncs()
     ing.stop()
     assert ing._running is False

@@ -297,8 +297,10 @@ class SkillParser:
 
         # Check for scoped packages (@scope/name or @scope/name@version)
         if package.startswith('@'):
-            # Scoped package must have at least @scope/name
-            if '/' not in package[1:]:  # Check for scope/name after the initial @
+            # Scoped package must have at least @scope/name — require a
+            # non-empty name after the slash ("@scope/" alone is invalid).
+            after_scope = package[1:].split('/', 1)
+            if len(after_scope) != 2 or not after_scope[0] or not after_scope[1]:
                 return False
             return True
 

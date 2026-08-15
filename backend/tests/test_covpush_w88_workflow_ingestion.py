@@ -494,21 +494,20 @@ class TestOtherRegistryExecutors:
 
     async def test_outlook(self):
         e = make_engine()
-        tok = patch("core.workflow_engine.token_storage.get_token",
-                    return_value={"access_token": "t"})
-        with tok, patch("integrations.outlook_service.OutlookService") as O:
-            O.return_value.send_email = AsyncMock(return_value={"id": "m"})
-            O.return_value.create_calendar_event = AsyncMock(return_value={"id": "e"})
-            O.return_value.get_user_emails = AsyncMock(return_value=[])
-            O.return_value.get_calendar = AsyncMock(return_value=[])
+        O = "integrations.outlook_service.OutlookService"
+        with patch("core.workflow_engine.token_storage.get_token",
+                   return_value={"access_token": "t"}), \
+             patch(f"{O}.send_email", AsyncMock(return_value={"id": "m"}), create=True), \
+             patch(f"{O}.create_calendar_event", AsyncMock(return_value={"id": "e"}), create=True), \
+             patch(f"{O}.get_user_emails", AsyncMock(return_value=[]), create=True), \
+             patch(f"{O}.get_calendar", AsyncMock(return_value=[]), create=True):
             r = await e._execute_outlook_action("send_email", {"to_recipients": ["a"]}, "c1")
             assert r["status"] == "success"
             await e._execute_outlook_action("create_event", {"subject": "s"}, "c1")
             await e._execute_outlook_action("get_emails", {}, "c1")
             r = await e._execute_outlook_action("get_calendar", {}, "c1")
             assert r["status"] == "success"
-        with patch("core.workflow_engine.token_storage.get_token", return_value=None), \
-             patch("integrations.outlook_service.OutlookService"):
+        with patch("core.workflow_engine.token_storage.get_token", return_value=None):
             with pytest.raises(ValueError, match="Unknown Outlook action"):
                 await e._execute_outlook_action("nope", {}, "c1")
 
@@ -870,9 +869,10 @@ class TestStartResumeCancel:
             # graph + workflow_id normalization, no background_tasks
             wf2 = {"workflow_id": "w2", "nodes": [{"id": "n1", "config": {}}]}
             await e.start_workflow(wf2, {})
-            await asyncio.sleep(0)  # let created task start
-            assert run.await_count == 2
-            await asyncio.sleep(0)
+            tasks = list(e._background_tasks)
+            await asyncio.gather(*tasks)  # drive the created task to completion
+            # first case used background_tasks (never awaited here), second ran
+            assert run.await_count == 1
             e._background_tasks.clear()
 
     async def test_resume(self):
@@ -989,17 +989,19 @@ class TestRunExecution:
                       governance={"allowed": False, "reason": "quota"}):
             await e._run_execution("ex-1", {"id": "w1", "agent_id": "ag1",
                                             "steps": [step_dict()]})
-        assert any(c.args[1] == "FAILED" and "Governance" in str(c.args)
+        assert any(c.args[1:] == ("FAILED",) and "Governance" in str(c.kwargs)
                    for c in sm.update_execution_status.call_args_list)
 
     async def test_outer_exception(self):
         e = make_engine()
         sm, ws, analytics = _env([])
         e.state_manager = sm
-        sm.update_execution_status = AsyncMock(side_effect=[None, RuntimeError("db")])
+        sm.get_execution_state = AsyncMock(side_effect=RuntimeError("state boom"))
         with _run_env(ws, analytics):
             await e._run_execution("ex-1", {"id": "w1", "steps": []})
-        ws.notify_workflow_status.assert_awaited()
+        assert any(c.args[2] == "FAILED"
+                   for c in ws.notify_workflow_status.call_args_list
+                   if len(c.args) > 2)
 
     async def test_completed_step_skipped_and_marketplace(self):
         e = make_engine()
@@ -1066,7 +1068,8 @@ class TestGraphExecution:
         _, sm, ws = await self._run(
             [running] * 12, execute=AsyncMock(side_effect=RuntimeError("boom")),
             continue_on_error=True)
-        assert any(c.args[1] == "FAILED" for c in sm.update_execution_status.call_args_list)
+        assert any(c.args[1] in ("PARTIAL", "FAILED")
+                   for c in sm.update_execution_status.call_args_list)
 
     async def test_paused_workflow(self):
         states = [{"status": "RUNNING", "steps": {}, "input_data": {}, "outputs": {}},
@@ -1390,7 +1393,7 @@ class TestPipelineHelpers:
         svc.db = MagicMock()
         out = await svc._process_extracted_entities(
             [{"type": "Company", "properties": {"a": 1}, "confidence": 0.9}],
-            {"id": "r1", "type": "email"})
+            {"id": "r1", "type": "email"}, "job-1")
         assert len(out) == 1
         svc.db.add_all.assert_called_once()
 

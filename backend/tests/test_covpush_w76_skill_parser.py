@@ -130,9 +130,12 @@ class TestValidateNpmFormat:
         assert parser._validate_npm_package_format("pkg@>=1.2.3") is True
         assert parser._validate_npm_package_format("pkg@<2.0.0") is True
 
-    def test_scoped_package_without_version_rejected(self):
-        # "@scope/name" has no second @ -> invalid per current rules
-        assert parser._validate_npm_package_format("@scope/name") is False
+    def test_scoped_package_without_version_accepted(self):
+        # "@scope/name" (no version) is VALID npm syntax — installs latest.
+        # Contract updated in wave 85: bare scoped names are accepted;
+        # only "@scope/" with nothing after the slash is rejected.
+        assert parser._validate_npm_package_format("@scope/name") is True
+        assert parser._validate_npm_package_format("@scope/") is False
 
     def test_scoped_package_with_version_accepted(self):
         assert parser._validate_npm_package_format("@scope/name@1.0.0") is True
