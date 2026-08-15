@@ -64,11 +64,13 @@ class TestWeakCryptographyFixes:
 
     def test_unified_message_processor_uses_sha256(self):
         """
-        Test that unified message processor uses SHA256.
+        Test that content deduplication uses SHA256.
 
-        GREEN PHASE: After the fix, SHA256 should be used instead of MD5.
+        GREEN PHASE: After the fix, SHA256 is used instead of MD5. The former
+        core/unified_message_processor.py was consolidated into
+        core/llm/compression/session_dedup.py (exact-match dedup index).
         """
-        with open('/Users/rushiparikh/projects/atom/backend/core/unified_message_processor.py', 'r') as f:
+        with open('/Users/rushiparikh/projects/atom/backend/core/llm/compression/session_dedup.py', 'r') as f:
             source = f.read()
 
         # Verify the fix - SHA256 is used for content hashing

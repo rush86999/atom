@@ -28,14 +28,17 @@ class TestContextWindowBoundaries:
     @pytest.mark.parametrize("prompt_length,context_window,should_truncate", [
         (100, 4096, False),      # Well under limit
         (1000, 4096, False),     # Under limit
-        (12000, 4096, True),     # Just over limit (~3 chars/token)
+        (16384, 4096, False),    # Exactly at limit (4096 tokens * 4 chars/token)
+        (16385, 4096, True),     # One char over the limit
         (20000, 4096, True),     # Way over limit
-        (16000, 4096, True),     # 4x over limit
         (100000, 4096, True),   # 100K chars
     ])
     def test_context_window_boundaries(self, prompt_length, context_window, should_truncate):
         """
         BOUNDARY: Test context window truncation at exact boundaries.
+
+        BYOKHandler.truncate_to_context approximates 1 token ≈ 4 characters
+        (max_chars = (context_window - reserve_tokens) * 4).
 
         Common bug: Off-by-one error causes truncation one token too early/late.
         """

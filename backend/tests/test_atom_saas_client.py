@@ -623,7 +623,11 @@ class TestWebSocketConnection:
 
         fake_ws = FakeWS(['{"type": "ping"}', '{"type": "skill_update"}'])
 
-        with patch('core.atom_saas_client.websockets.connect', return_value=fake_ws):
+        # connect_websocket imports websockets INSIDE the method
+        # (core/atom_saas_client.py:425), so the module attribute
+        # core.atom_saas_client.websockets does not exist — patch the real
+        # websockets.connect with an AsyncMock (it is awaited).
+        with patch('websockets.connect', new_callable=AsyncMock, return_value=fake_ws):
             client = AtomAgentOSMarketplaceClient(
                 config=AtomSaaSConfig(
                     ws_url="wss://test.com/api",

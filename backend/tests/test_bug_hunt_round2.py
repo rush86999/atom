@@ -212,18 +212,32 @@ class TestUnifiedBcryptTruncation:
         )
 
     def test_long_password_roundtrip_both_paths(self):
-        """72+ byte password hashes cross-verify between both paths."""
+        """core.auth is fail-closed for >72-byte passwords (documented in
+        core/auth.py:76-80: bcrypt silently truncates past 72 bytes, causing
+        entropy loss — long passwords are REJECTED, not truncated). The
+        enterprise path truncates to 71 bytes; both paths agree for every
+        password the system accepts (<= 71 bytes)."""
         from core.auth import get_password_hash, verify_password
         from core.enterprise_auth_service import EnterpriseAuthService
 
         svc = EnterpriseAuthService()
+
+        # core.auth rejects over-length passwords (fail-closed).
         long_pw = "a" * 80  # Exceeds bcrypt 72-byte limit
+        with pytest.raises(ValueError):
+            get_password_hash(long_pw)
 
-        hash_core = get_password_hash(long_pw)
-        assert svc.verify_password(long_pw, hash_core) is True
-
+        # Enterprise path truncates; its own roundtrip still works.
         hash_ent = svc.hash_password(long_pw)
-        assert verify_password(long_pw, hash_ent) is True
+        assert svc.verify_password(long_pw, hash_ent) is True
+
+        # Cross-verification holds for any password the system accepts
+        # (<= 71 bytes: both truncation schemes are identity there).
+        ok_pw = "b" * 71
+        hash_core = get_password_hash(ok_pw)
+        assert svc.verify_password(ok_pw, hash_core) is True
+        hash_ent = svc.hash_password(ok_pw)
+        assert verify_password(ok_pw, hash_ent) is True
 
 
 if __name__ == "__main__":

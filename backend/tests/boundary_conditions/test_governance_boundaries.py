@@ -76,6 +76,9 @@ class TestGovernanceCacheSizeBoundaries:
         # Get from empty cache
         result = cache.get("nonexistent", "action")
         assert result is None
+
+        # Re-fetch stats: the miss above must be counted
+        stats = cache.get_stats()
         assert stats["misses"] == 1
 
     @pytest.mark.parametrize("hit_count,miss_count,expected_rate", [

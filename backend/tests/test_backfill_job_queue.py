@@ -285,15 +285,17 @@ class TestRetryLogic:
         mock_redis.get.return_value = b"1"  # First retry
         mock_redis.hgetall.return_value = {
             b"job_type": b"entity_type_backfill",
-            b"json_schema": b'{"type": "object"}',
+            b"json_schema": b"invalid json {",  # Invalid JSON -> _execute_job raises -> retry path
             b"tenant_id": b"tenant-001"
         }
 
         # Act
         await job_queue.process_job_with_retry(job_id)
 
-        # Assert
+        # Assert - _execute_job raised, retry_count (1) < max_retries (4):
+        # status -> RETRYING and retry counter incremented
         assert mock_redis.incr.called  # Retry count incremented
+        assert mock_redis.expire.called  # Retry delay scheduled
 
     @pytest.mark.asyncio
     async def test_no_retry_on_permanent_failure(self, job_queue, mock_redis):
@@ -321,14 +323,14 @@ class TestRetryLogic:
         mock_redis.get.return_value = b"2"
         mock_redis.hgetall.return_value = {
             b"job_type": b"entity_type_backfill",
-            b"json_schema": b'{"type": "object"}',
+            b"json_schema": b"invalid json {",  # Invalid JSON -> raises -> retry path
             b"tenant_id": b"tenant-001"
         }
 
         # Act
         await job_queue.process_job_with_retry(job_id)
 
-        # Assert
+        # Assert - retry_count (2) < max_retries (4) -> counter incremented
         mock_redis.incr.assert_called_with(f"job:retry:{job_id}")
 
     @pytest.mark.asyncio
@@ -346,15 +348,16 @@ class TestRetryLogic:
         mock_redis.get.return_value = b"0"  # First retry
         mock_redis.hgetall.return_value = {
             b"job_type": b"entity_type_backfill",
-            b"json_schema": b'{"type": "object"}',
+            b"json_schema": b"invalid json {",  # Invalid JSON -> raises -> retry path
             b"tenant_id": b"tenant-001"
         }
 
         # Act
         await job_queue.process_job_with_retry(job_id)
 
-        # Assert - First retry should use delay at index 0 (60 seconds)
-        assert mock_redis.expire.called
+        # Assert - first retry uses delay at index 0 (60 seconds):
+        # retry_delays[min(retry_count=0, len-1)] == 60
+        mock_redis.expire.assert_called_with(f"job:data:{job_id}", 60)
 
 
 # ============================================================================

@@ -77,7 +77,8 @@ class TestWorkflowApprovalRoutes:
             error = None
 
         fake_db = mock.MagicMock()
-        fake_db.query.return_value.filter.return_value.first.return_value = FakeExec()
+        exec_instance = FakeExec()
+        fake_db.query.return_value.filter.return_value.first.return_value = exec_instance
 
         resp = asyncio.run(
             wf_mod.respond_to_approval(
@@ -90,8 +91,8 @@ class TestWorkflowApprovalRoutes:
             )
         )
         assert resp["status"] == "cancelled"
-        assert FakeExec.status == "FAILED"
-        assert "nope" in FakeExec.error
+        assert exec_instance.status == "FAILED"
+        assert "nope" in exec_instance.error
         fake_db.commit.assert_called_once()
 
 
@@ -733,10 +734,11 @@ class TestAIRoutesAuth:
             from core.auth import create_access_token
             from core.models import User
 
-            # build a minimal fake user
+            # build a minimal fake user (username is not a User column)
             user = User(
-                id="user-1", username="tester", email="t@t.com",
+                id="user-1", email="t@t.com",
                 status="active", role="admin",
+                first_name="Test", last_name="User",
             )
             # default override: allow access
             def fake_get_current_user():

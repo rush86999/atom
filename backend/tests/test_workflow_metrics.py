@@ -1,286 +1,297 @@
 """
 Tests for Workflow Analytics Metrics
+
+NOTE (Session 2026-08-15, wave 120): the old `/api/analytics/workflows/{id}/metrics`
+endpoint was removed; the workflow metrics surface is now
+`GET /api/analytics/dashboard/workflow/{workflow_id}/performance` (auth-gated,
+`core/workflow_analytics_engine.py`), which computes from the `workflow_events`
+table in `analytics.db` — NOT from `agent_executions`. Rewritten against the
+current contract: seeded `workflow_events` rows + authenticated client.
 """
 
 import pytest
+import sqlite3
+import uuid
 from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
 
-from core.database import get_db_session
-from core.models import AgentExecution
+from core.auth import create_access_token, get_password_hash
+from core.database import SessionLocal
+from core.models import User, UserStatus
 from main_api_app import app
+
+ANALYTICS_DB = "analytics.db"
+EVENT_ID_PREFIX = "wfmetrics-"
+
+
+def _seed_event(workflow_id: str, execution_id: str, event_type: str, minutes_ago: int, **kw):
+    """Insert one workflow_events row (ISO timestamps; string compare in the engine)."""
+    conn = sqlite3.connect(ANALYTICS_DB)
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            INSERT INTO workflow_events
+                (event_id, workflow_id, execution_id, user_id, event_type, timestamp,
+                 duration_ms, status, error_message)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                f"{EVENT_ID_PREFIX}{uuid.uuid4().hex}",
+                workflow_id,
+                execution_id,
+                "wfmetrics-test-user",
+                event_type,
+                (datetime.now() - timedelta(minutes=minutes_ago)).isoformat(),
+                kw.get("duration_ms"),
+                kw.get("status"),
+                kw.get("error_message"),
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _cleanup_events():
+    """Remove all seeded rows (teardown — keep analytics.db free of test data)."""
+    conn = sqlite3.connect(ANALYTICS_DB)
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM workflow_events WHERE event_id LIKE ?", (f"{EVENT_ID_PREFIX}%",))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@pytest.fixture(autouse=True)
+def _cleanup():
+    yield
+    _cleanup_events()
+
+
+@pytest.fixture
+def client():
+    """Create test client"""
+    return TestClient(app)
+
+
+@pytest.fixture
+def auth_headers():
+    """Create a real user + JWT so the auth-gated analytics endpoint responds."""
+    db = SessionLocal()
+    try:
+        user = User(
+            email=f"wfmetrics-{uuid.uuid4().hex[:10]}@example.com",
+            hashed_password=get_password_hash("password123"),
+            first_name="Metrics",
+            last_name="Test",
+            role="member",
+            status=UserStatus.ACTIVE.value,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        token = create_access_token(data={"sub": user.id})
+        return {"Authorization": f"Bearer {token}"}
+    finally:
+        db.close()
+
+
+@pytest.fixture
+def sample_workflow_id():
+    """Unique workflow id per test (the engine caches metrics per workflow+window)."""
+    return f"wfmetrics-wf-{uuid.uuid4().hex[:10]}"
+
+
+@pytest.fixture
+def sample_executions(sample_workflow_id):
+    """Seed 5 completed + 1 failed + 1 started-only executions in workflow_events."""
+    for i in range(5):
+        exec_id = f"exec-success-{i}"
+        _seed_event(sample_workflow_id, exec_id, "workflow_started", minutes_ago=120 - i)
+        _seed_event(
+            sample_workflow_id, exec_id, "workflow_completed",
+            minutes_ago=115 - i, duration_ms=300000, status="completed",
+        )
+    _seed_event(sample_workflow_id, "exec-failed-1", "workflow_started", minutes_ago=60)
+    _seed_event(
+        sample_workflow_id, "exec-failed-1", "workflow_completed",
+        minutes_ago=58, duration_ms=120000, status="failed", error_message="boom",
+    )
+    # Started but never completed (in-flight at query time)
+    _seed_event(sample_workflow_id, "exec-inflight-1", "workflow_started", minutes_ago=30)
+    return sample_workflow_id
 
 
 class TestWorkflowMetrics:
     """Test workflow metrics endpoint returns real data"""
 
-    @pytest.fixture
-    def client(self):
-        """Create test client"""
-        return TestClient(app)
-
-    @pytest.fixture
-    def db(self):
-        """Create database session"""
-        db = get_db_session()
-        try:
-            yield db
-        finally:
-            db.close()
-
-    @pytest.fixture
-    def sample_executions(self, db):
-        """Create sample executions for testing"""
-        workflow_id = "test-workflow-123"
-
-        # Create successful executions
-        for i in range(5):
-            exec = AgentExecution(
-                id=f"exec-success-{i}",
-                agent_id="agent-1",
-                session_id="session-1",
-                task_description=f"Task {i}",
-                status="completed",
-                started_at=datetime.now() - timedelta(hours=2),
-                completed_at=datetime.now() - timedelta(hours=2, minutes=-5),
-                result_summary=f"Task {i} completed",
-                metadata_json={"workflow_id": workflow_id}
-            )
-            db.add(exec)
-
-        # Create failed execution
-        exec_failed = AgentExecution(
-            id="exec-failed-1",
-            agent_id="agent-1",
-            session_id="session-1",
-            task_description="Failed task",
-            status="failed",
-            started_at=datetime.now() - timedelta(hours=1),
-            completed_at=datetime.now() - timedelta(hours=1, minutes=-2),
-            metadata_json={"workflow_id": workflow_id}
-        )
-        db.add(exec_failed)
-
-        # Create cancelled execution
-        exec_cancelled = AgentExecution(
-            id="exec-cancelled-1",
-            agent_id="agent-1",
-            session_id="session-1",
-            task_description="Cancelled task",
-            status="cancelled",
-            started_at=datetime.now() - timedelta(minutes=30),
-            completed_at=datetime.now() - timedelta(minutes=29),
-            metadata_json={"workflow_id": workflow_id}
-        )
-        db.add(exec_cancelled)
-
-        db.commit()
-
-        yield workflow_id
-
-        # Cleanup
-        db.query(AgentExecution).filter(
-            AgentExecution.metadata_json["workflow_id"].astext == workflow_id
-        ).delete()
-        db.commit()
-
-    def test_workflow_metrics_success_response(self, client, sample_executions):
+    def test_workflow_metrics_success_response(self, client, auth_headers, sample_executions):
         """Test endpoint returns success response"""
-        workflow_id = sample_executions
-
-        response = client.get(f"/api/analytics/workflows/{workflow_id}/metrics")
+        response = client.get(
+            f"/api/analytics/dashboard/workflow/{sample_executions}/performance?time_window=24h",
+            headers=auth_headers,
+        )
 
         assert response.status_code == 200
         data = response.json()
 
         assert "success" in data
         assert data["success"] is True
-        assert "metrics" in data
+        assert "data" in data
+        assert "metrics" in data["data"]
 
-    def test_workflow_metrics_contains_summary(self, client, sample_executions):
+    def test_workflow_metrics_contains_summary(self, client, auth_headers, sample_executions):
         """Test metrics contain summary information"""
-        workflow_id = sample_executions
-
-        response = client.get(f"/api/analytics/workflows/{workflow_id}/metrics")
+        response = client.get(
+            f"/api/analytics/dashboard/workflow/{sample_executions}/performance?time_window=24h",
+            headers=auth_headers,
+        )
         data = response.json()
 
-        metrics = data["metrics"]
+        metrics = data["data"]["metrics"]
 
         # Verify summary section
-        assert "summary" in metrics
-        summary = metrics["summary"]
+        for key in [
+            "total_executions",
+            "successful_executions",
+            "failed_executions",
+            "success_rate",
+            "average_duration_ms",
+            "median_duration_ms",
+            "p95_duration_ms",
+            "p99_duration_ms",
+            "error_rate",
+        ]:
+            assert key in metrics
 
-        assert "total_runs" in summary
-        assert "successful_runs" in summary
-        assert "failed_runs" in summary
-        assert "cancelled_runs" in summary
-        assert "success_rate" in summary
-
-    def test_workflow_metrics_calculates_correct_counts(self, client, sample_executions):
+    def test_workflow_metrics_calculates_correct_counts(self, client, auth_headers, sample_executions):
         """Test metrics calculate correct execution counts"""
-        workflow_id = sample_executions
-
-        response = client.get(f"/api/analytics/workflows/{workflow_id}/metrics")
+        response = client.get(
+            f"/api/analytics/dashboard/workflow/{sample_executions}/performance?time_window=24h",
+            headers=auth_headers,
+        )
         data = response.json()
 
-        summary = data["metrics"]["summary"]
+        metrics = data["data"]["metrics"]
 
-        # We created 5 successful, 1 failed, 1 cancelled
-        assert summary["total_runs"] == 7
-        assert summary["successful_runs"] == 5
-        assert summary["failed_runs"] == 1
-        assert summary["cancelled_runs"] == 1
+        # We created 7 started, 5 completed-ok, 1 completed-failed
+        assert metrics["total_executions"] == 7
+        assert metrics["successful_executions"] == 5
+        assert metrics["failed_executions"] == 1
 
-    def test_workflow_metrics_calculates_success_rate(self, client, sample_executions):
-        """Test metrics calculate correct success rate"""
-        workflow_id = sample_executions
-
-        response = client.get(f"/api/analytics/workflows/{workflow_id}/metrics")
+    def test_workflow_metrics_calculates_success_rate(self, client, auth_headers, sample_executions):
+        """Test metrics calculate correct success rate (percentage)"""
+        response = client.get(
+            f"/api/analytics/dashboard/workflow/{sample_executions}/performance?time_window=24h",
+            headers=auth_headers,
+        )
         data = response.json()
 
-        summary = data["metrics"]["summary"]
+        metrics = data["data"]["metrics"]
 
-        # Success rate = 5/7 ≈ 0.714
-        expected_rate = 5 / 7
-        assert abs(summary["success_rate"] - expected_rate) < 0.01
+        # Success rate = 5/7 as a percentage
+        expected_rate = round(5 / 7 * 100, 2)
+        assert abs(metrics["success_rate"] - expected_rate) < 0.01
 
-    def test_workflow_metrics_contains_performance(self, client, sample_executions):
-        """Test metrics contain performance information"""
-        workflow_id = sample_executions
-
-        response = client.get(f"/api/analytics/workflows/{workflow_id}/metrics")
+    def test_workflow_metrics_contains_performance(self, client, auth_headers, sample_executions):
+        """Test metrics contain duration statistics"""
+        response = client.get(
+            f"/api/analytics/dashboard/workflow/{sample_executions}/performance?time_window=24h",
+            headers=auth_headers,
+        )
         data = response.json()
 
-        metrics = data["metrics"]
+        metrics = data["data"]["metrics"]
 
-        # Verify performance section
-        assert "performance" in metrics
-        performance = metrics["performance"]
+        # Average duration of completed events: (5 * 300000 + 120000) / 6
+        expected_avg = (5 * 300000 + 120000) / 6
+        assert abs(metrics["average_duration_ms"] - expected_avg) < 1.0
+        assert metrics["median_duration_ms"] > 0
 
-        assert "avg_duration_seconds" in performance
-        assert "min_duration_seconds" in performance
-        assert "max_duration_seconds" in performance
-        assert "total_duration_seconds" in performance
-
-    def test_workflow_metrics_calculates_durations(self, client, sample_executions):
-        """Test metrics calculate correct durations"""
-        workflow_id = sample_executions
-
-        response = client.get(f"/api/analytics/workflows/{workflow_id}/metrics")
-        data = response.json()
-
-        performance = data["metrics"]["performance"]
-
-        # All successful executions should have durations (~5 minutes each)
-        assert performance["avg_duration_seconds"] > 0
-        assert performance["min_duration_seconds"] > 0
-        assert performance["max_duration_seconds"] > 0
-        assert performance["total_duration_seconds"] > 0
-
-        # Max should be >= min
-        assert performance["max_duration_seconds"] >= performance["min_duration_seconds"]
-
-    def test_workflow_metrics_time_window_filter(self, client, sample_executions):
+    def test_workflow_metrics_time_window_filter(self, client, auth_headers, sample_executions):
         """Test time window parameter filters correctly"""
-        workflow_id = sample_executions
-
-        # Query with 1h window (should exclude some older executions)
+        # 4 of the 7 started events are older than 1h (120/119/118/117/116... min)
+        # -> the 1h window should exclude them.
         response = client.get(
-            f"/api/analytics/workflows/{workflow_id}/metrics?time_window=1h"
+            f"/api/analytics/dashboard/workflow/{sample_executions}/performance?time_window=1h",
+            headers=auth_headers,
         )
         data = response.json()
 
-        summary = data["metrics"]["summary"]
+        metrics = data["data"]["metrics"]
 
-        # Should have fewer executions in 1h window
-        assert summary["total_runs"] < 7
+        assert metrics["total_executions"] < 7
 
-    def test_workflow_metrics_timestamps(self, client, sample_executions):
-        """Test metrics include timestamp information"""
-        workflow_id = sample_executions
-
-        response = client.get(f"/api/analytics/workflows/{workflow_id}/metrics")
-        data = response.json()
-
-        metrics = data["metrics"]
-
-        # Verify timestamps
-        assert "timestamps" in metrics
-        timestamps = metrics["timestamps"]
-
-        assert "first_run" in timestamps
-        assert "last_run" in timestamps
-
-        # Should have actual timestamps
-        assert timestamps["first_run"] is not None
-        assert timestamps["last_run"] is not None
-
-    def test_workflow_metrics_specific_metrics(self, client, sample_executions):
-        """Test requesting specific metric names"""
-        workflow_id = sample_executions
-
+    def test_workflow_metrics_identifies_workflow(self, client, auth_headers, sample_executions):
+        """Test metrics include the workflow identity"""
         response = client.get(
-            f"/api/analytics/workflows/{workflow_id}/metrics?metric_names=total_runs&metric_names=success_rate"
+            f"/api/analytics/dashboard/workflow/{sample_executions}/performance?time_window=24h",
+            headers=auth_headers,
         )
         data = response.json()
 
-        metrics = data["metrics"]
+        assert data["data"]["workflow_id"] == sample_executions
+        assert data["data"]["workflow_name"] == sample_executions
 
-        # Should include requested_metrics section
-        assert "requested_metrics" in metrics
+    def test_workflow_metrics_error_breakdown(self, client, auth_headers, sample_executions):
+        """Test metrics include the common-errors breakdown"""
+        response = client.get(
+            f"/api/analytics/dashboard/workflow/{sample_executions}/performance?time_window=24h",
+            headers=auth_headers,
+        )
+        data = response.json()
 
-        requested = metrics["requested_metrics"]
-        assert "total_runs" in requested
-        assert "success_rate" in requested
+        common_errors = data["data"]["common_errors"]
+        assert isinstance(common_errors, list)
+        assert any(e.get("error") == "boom" for e in common_errors)
 
-    def test_workflow_metrics_nonexistent_workflow(self, client):
-        """Test metrics for non-existent workflow"""
-        workflow_id = "nonexistent-workflow"
+    def test_workflow_metrics_nonexistent_workflow(self, client, auth_headers):
+        """Test metrics for non-existent workflow -> 200 with zeroed metrics
+        (the engine always returns a populated PerformanceMetrics object)."""
+        workflow_id = f"nonexistent-{uuid.uuid4().hex[:8]}"
 
-        response = client.get(f"/api/analytics/workflows/{workflow_id}/metrics")
+        response = client.get(
+            f"/api/analytics/dashboard/workflow/{workflow_id}/performance?time_window=24h",
+            headers=auth_headers,
+        )
 
-        # Should still return 200, but with zero metrics
         assert response.status_code == 200
         data = response.json()
+        metrics = data["data"]["metrics"]
+        assert metrics["total_executions"] == 0
+        assert metrics["successful_executions"] == 0
+        assert metrics["success_rate"] == 0.0
 
-        summary = data["metrics"]["summary"]
-        assert summary["total_runs"] == 0
-        assert summary["successful_runs"] == 0
-        assert summary["success_rate"] == 0.0
-
-    def test_workflow_metrics_different_time_windows(self, client, sample_executions):
-        """Test different time window options"""
-        workflow_id = sample_executions
-
-        time_windows = ["1h", "24h", "7d", "30d"]
-
-        for window in time_windows:
+    def test_workflow_metrics_different_time_windows(self, client, auth_headers, sample_executions):
+        """Test different time window options are accepted"""
+        for window in ["1h", "24h", "7d", "30d"]:
             response = client.get(
-                f"/api/analytics/workflows/{workflow_id}/metrics?time_window={window}"
+                f"/api/analytics/dashboard/workflow/{sample_executions}/performance?time_window={window}",
+                headers=auth_headers,
             )
 
             assert response.status_code == 200
             data = response.json()
+            assert data["data"]["metrics"]["total_executions"] > 0
 
-            # Verify time_window is reflected in response
-            assert data["metrics"]["time_window"] == window
-
-    def test_workflow_metrics_performance_aggregation(self, client, sample_executions):
-        """Test performance metrics are properly aggregated"""
-        workflow_id = sample_executions
-
-        response = client.get(f"/api/analytics/workflows/{workflow_id}/metrics")
+    def test_workflow_metrics_performance_aggregation(self, client, auth_headers, sample_executions):
+        """Test duration aggregation is consistent"""
+        response = client.get(
+            f"/api/analytics/dashboard/workflow/{sample_executions}/performance?time_window=24h",
+            headers=auth_headers,
+        )
         data = response.json()
 
-        performance = data["metrics"]["performance"]
+        metrics = data["data"]["metrics"]
+        avg = metrics["average_duration_ms"]
+        median = metrics["median_duration_ms"]
 
-        # Verify aggregation makes sense
-        # Average should be between min and max
-        avg = performance["avg_duration_seconds"]
-        min_dur = performance["min_duration_seconds"]
-        max_dur = performance["max_duration_seconds"]
-
-        assert min_dur <= avg <= max_dur
+        # Both aggregate measures of the same completed durations must be
+        # within the seeded range [120000, 300000].
+        assert 120000 <= avg <= 300000
+        assert 120000 <= median <= 300000
 
 
 class TestWorkflowMetricsEdgeCases:
@@ -291,40 +302,55 @@ class TestWorkflowMetricsEdgeCases:
         """Create test client"""
         return TestClient(app)
 
-    def test_empty_workflow_metrics(self, client):
-        """Test metrics when workflow has no executions"""
-        workflow_id = "empty-workflow"
+    def test_empty_workflow_metrics(self, client, auth_headers):
+        """Test metrics when workflow has no executions -> 200 with zeroed metrics"""
+        workflow_id = f"empty-{uuid.uuid4().hex[:8]}"
 
-        response = client.get(f"/api/analytics/workflows/{workflow_id}/metrics")
+        response = client.get(
+            f"/api/analytics/dashboard/workflow/{workflow_id}/performance?time_window=24h",
+            headers=auth_headers,
+        )
 
         assert response.status_code == 200
         data = response.json()
+        metrics = data["data"]["metrics"]
+        assert metrics["total_executions"] == 0
+        assert metrics["success_rate"] == 0.0
+        assert metrics["average_duration_ms"] == 0
 
-        summary = data["metrics"]["summary"]
-        assert summary["total_runs"] == 0
-        assert summary["success_rate"] == 0.0
-
-        performance = data["metrics"]["performance"]
-        assert performance["avg_duration_seconds"] == 0
-        assert performance["min_duration_seconds"] == 0
-        assert performance["max_duration_seconds"] == 0
-
-    def test_invalid_time_window(self, client):
-        """Test with invalid time window"""
-        workflow_id = "test-workflow"
-
-        response = client.get(
-            f"/api/analytics/workflows/{workflow_id}/metrics?time_window=invalid"
+    def test_invalid_time_window(self, client, auth_headers, sample_workflow_id):
+        """Test with invalid time window -> defaults to 24h, still 200"""
+        _seed_event(sample_workflow_id, "exec-1", "workflow_started", minutes_ago=5)
+        _seed_event(
+            sample_workflow_id, "exec-1", "workflow_completed",
+            minutes_ago=4, duration_ms=1000, status="completed",
         )
 
-        # Should default to 24h or handle gracefully
+        response = client.get(
+            f"/api/analytics/dashboard/workflow/{sample_workflow_id}/performance?time_window=invalid",
+            headers=auth_headers,
+        )
+
         assert response.status_code == 200
 
-    def test_workflow_id_with_special_characters(self, client):
-        """Test workflow ID with special characters"""
-        workflow_id = "workflow-with-special_chars.123"
+    def test_workflow_metrics_requires_auth(self, client, sample_workflow_id):
+        """Test metrics endpoint is auth-gated"""
+        _seed_event(sample_workflow_id, "exec-1", "workflow_started", minutes_ago=5)
 
-        response = client.get(f"/api/analytics/workflows/{workflow_id}/metrics")
+        response = client.get(
+            f"/api/analytics/dashboard/workflow/{sample_workflow_id}/performance"
+        )
+
+        assert response.status_code in [401, 403]
+
+    def test_workflow_id_with_special_characters(self, client, auth_headers):
+        """Test workflow ID with special characters"""
+        workflow_id = f"workflow-with-special_chars.{uuid.uuid4().hex[:6]}"
+
+        response = client.get(
+            f"/api/analytics/dashboard/workflow/{workflow_id}/performance",
+            headers=auth_headers,
+        )
 
         # Should handle without error
         assert response.status_code in [200, 404]

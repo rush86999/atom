@@ -115,14 +115,35 @@ class TestAgentBudgetGate:
         agent.tenant_id = "tenant-1"
         return agent
 
-    @pytest.mark.asyncio
-    async def test_gate_returns_allowed_when_budget_ok(self, agent_with_budget, monkeypatch):
-        """When budget allows, the gate returns allowed=True (loop continues)."""
-        async def fake_check(*a, **kw):
-            return {"allowed": True, "reason": None, "enforcement_mode": "soft_stop"}
+    @pytest.fixture
+    def fake_budget_service_factory(self):
+        """Build a fake BudgetEnforcementService usable with `with ... as svc:`.
 
-        fake_svc = Mock()
-        fake_svc.check_budget_before_action = AsyncMock(side_effect=fake_check)
+        The real gate (core/atom_meta_agent.py:_check_budget_before_react)
+        wraps the service in a context manager (`with BudgetEnforcementService() as svc:`),
+        so the fake must support __enter__/__exit__ and return ITSELF from
+        __enter__ — otherwise the delegation raises TypeError and the gate
+        fail-opens (allowed=True) for the wrong reason.
+        """
+        def _build(check_result):
+            fake_svc = Mock()
+            fake_svc.__enter__ = Mock(return_value=fake_svc)
+            fake_svc.__exit__ = Mock(return_value=False)
+            if isinstance(check_result, Exception):
+                fake_svc.check_budget_before_action = AsyncMock(side_effect=check_result)
+            else:
+                fake_svc.check_budget_before_action = AsyncMock(return_value=check_result)
+            return fake_svc
+        return _build
+
+    @pytest.mark.asyncio
+    async def test_gate_returns_allowed_when_budget_ok(self, agent_with_budget, monkeypatch, fake_budget_service_factory):
+        """When budget allows, the gate returns allowed=True (loop continues)."""
+        fake_svc = fake_budget_service_factory({
+            "allowed": True,
+            "reason": None,
+            "enforcement_mode": "soft_stop",
+        })
         monkeypatch.setattr(
             "core.budget_enforcement_service.BudgetEnforcementService",
             lambda *a, **kw: fake_svc,
@@ -130,19 +151,16 @@ class TestAgentBudgetGate:
 
         result = await agent_with_budget._check_budget_before_react()
         assert result["allowed"] is True
+        fake_svc.check_budget_before_action.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_gate_returns_denied_under_hard_stop(self, agent_with_budget, monkeypatch):
+    async def test_gate_returns_denied_under_hard_stop(self, agent_with_budget, monkeypatch, fake_budget_service_factory):
         """When hard_stop denies, the gate returns allowed=False (loop should break)."""
-        async def fake_check(*a, **kw):
-            return {
-                "allowed": False,
-                "reason": "Budget exceeded. All operations halted immediately.",
-                "enforcement_mode": "hard_stop",
-            }
-
-        fake_svc = Mock()
-        fake_svc.check_budget_before_action = AsyncMock(side_effect=fake_check)
+        fake_svc = fake_budget_service_factory({
+            "allowed": False,
+            "reason": "Budget exceeded. All operations halted immediately.",
+            "enforcement_mode": "hard_stop",
+        })
         monkeypatch.setattr(
             "core.budget_enforcement_service.BudgetEnforcementService",
             lambda *a, **kw: fake_svc,
@@ -151,16 +169,16 @@ class TestAgentBudgetGate:
         result = await agent_with_budget._check_budget_before_react()
         assert result["allowed"] is False
         assert "Budget exceeded" in result["reason"]
+        fake_svc.check_budget_before_action.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_gate_fails_open_on_exception(self, agent_with_budget, monkeypatch):
+    async def test_gate_fails_open_on_exception(self, agent_with_budget, monkeypatch, fake_budget_service_factory):
         """If the budget service raises, the gate fails OPEN (allowed=True).
 
         This matches the existing convention in BudgetEnforcementService — we
         never block on an inability to compute spend.
         """
-        fake_svc = Mock()
-        fake_svc.check_budget_before_action = AsyncMock(side_effect=RuntimeError("DB down"))
+        fake_svc = fake_budget_service_factory(RuntimeError("DB down"))
         monkeypatch.setattr(
             "core.budget_enforcement_service.BudgetEnforcementService",
             lambda *a, **kw: fake_svc,

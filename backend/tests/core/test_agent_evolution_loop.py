@@ -123,17 +123,31 @@ class TestGuardrailValidation:
 
     @pytest.mark.asyncio
     async def test_depth_limit_via_governance(self):
-        """Test that validate_evolution_directive in governance service blocks deep history."""
+        """Test that validate_evolution_directive blocks self-referential
+        mutation of the agent's own safety/harness config (the current
+        governance contract; the former evolution_history-depth check was
+        removed from validate_evolution_directive — depth limiting now lives
+        in get_ancestor_lineage's max_depth traversal)."""
         db = MagicMock()
         from core.agent_governance_service import AgentGovernanceService
         svc = AgentGovernanceService(db)
 
-        evolved_config = {
+        # Mutating a protected harness/safety key is a self-referential
+        # mutation and must be rejected.
+        mutated_config = {
             "system_prompt": "normal prompt",
-            "evolution_history": [{"x": i} for i in range(51)],  # 51 > max 50
+            "sandbox_config": {"enable": True},  # protected key mutation
         }
-        result = await svc.validate_evolution_directive(evolved_config, "tenant-1")
+        result = await svc.validate_evolution_directive(mutated_config, "tenant-1")
         assert result is False
+
+        # Carrying forward the allowed harness_patches delivery key passes.
+        allowed_config = {
+            "system_prompt": "normal prompt",
+            "harness_patches": [{"patch": "x"}],
+        }
+        result = await svc.validate_evolution_directive(allowed_config, "tenant-1")
+        assert result is True
 
 
 class TestConfigDiff:

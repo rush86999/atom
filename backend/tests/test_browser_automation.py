@@ -929,19 +929,25 @@ class TestBrowserToolCoverage:
             mock_manager.return_value = mock_mgr_instance
 
             with tempfile.TemporaryDirectory() as tmpdir:
-                file_path = os.path.join(tmpdir, "test-screenshot.png")
+                # Security hardening (tools/browser_tool.py:750) rejects
+                # ABSOLUTE paths and parent-dir traversal — screenshots are
+                # confined to SCREENSHOT_DIR. Use a relative path confined
+                # to a SCREENSHOT_DIR pointing at the tmpdir.
+                relative_path = "test-screenshot.png"
 
-                result = await browser_screenshot(
-                    session_id="test-session",
-                    path=file_path,
-                    full_page=False,
-                    user_id="user-1"
-                )
+                with patch.dict(os.environ, {"SCREENSHOT_DIR": tmpdir}):
+                    result = await browser_screenshot(
+                        session_id="test-session",
+                        path=relative_path,
+                        full_page=False,
+                        user_id="user-1"
+                    )
 
+                expected_path = os.path.normpath(os.path.join(tmpdir, relative_path))
                 assert result["success"] is True
-                assert result["path"] == file_path
+                assert result["path"] == expected_path
                 assert result["size_bytes"] == len(b"fake-image-bytes")
-                assert os.path.exists(file_path)
+                assert os.path.exists(expected_path)
 
     @pytest.mark.asyncio
     async def test_browser_fill_form_with_select_element(self):

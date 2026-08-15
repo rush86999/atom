@@ -9,8 +9,10 @@ from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
 import uuid
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from core.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +166,15 @@ class ErrorResponse(BaseModel):
 
 # Create router
 # Auth Type: Internal
-router = APIRouter(prefix="/workflows", tags=["Workflow Automation"])
+# R120: gate the whole router — every endpoint was anonymous (test-step,
+# whatsapp/automate, enhanced intelligence/optimization/monitoring): an
+# unauthenticated caller could trigger WhatsApp automation and consume LLM
+# analysis. Mirrors the R69 workflow trigger-path auth sweep.
+router = APIRouter(
+    prefix="/workflows",
+    tags=["Workflow Automation"],
+    dependencies=[Depends(get_current_user)],
+)
 
 @router.get("/auth/url")
 async def get_auth_url():

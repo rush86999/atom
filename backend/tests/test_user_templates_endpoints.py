@@ -240,12 +240,23 @@ class TestTemplateSharing:
 
 # Template Validation Tests
 class TestTemplateValidation:
-    """Test template validation"""
+    """Test template validation against the real API contract.
+
+    There is no POST /api/user/templates/validate route (the router registers
+    create/list/stats/{id}... only — a POST to /validate returns 405). The
+    app's actual validation contract is ``CreateTemplateRequest`` in
+    api/user_templates_endpoints.py — the same Pydantic model FastAPI uses to
+    reject invalid payloads with 422. These tests validate against it directly.
+    """
 
     def test_template_validation_success(self, client, db_session, test_user):
         """Test template validation with valid schema"""
         template_data = {
             "name": "Valid Template",
+            "description": "A valid template",
+            "category": "automation",
+            "complexity": "intermediate",
+            "template_json": {"steps": []},
             "parameters": [
                 {
                     "name": "param1",
@@ -262,40 +273,43 @@ class TestTemplateValidation:
             ]
         }
 
-        with patch('api.user_templates_endpoints.get_db', return_value=db_session), \
-             patch('api.user_templates_endpoints.get_current_user', return_value=test_user):
+        from pydantic import ValidationError
+        from api.user_templates_endpoints import CreateTemplateRequest
 
-            response = client.post("/api/user/templates/validate", json=template_data)
+        # Payload must validate against the real create contract (no exception)
+        try:
+            validated = CreateTemplateRequest.model_validate(template_data)
+        except ValidationError:
+            pytest.fail("Valid template payload failed CreateTemplateRequest validation")
 
-            # Verify response
-            assert response.status_code in [200, 401]
+        assert validated.name == "Valid Template"
 
     def test_template_validation_invalid_schema(self, client, db_session, test_user):
         """Test template validation with invalid schema"""
         invalid_data = {
-            "name": "",  # Empty name should fail
-            "parameters": "invalid",  # Should be array
+            "name": "",  # Empty name fails min_length=1
+            "description": "Invalid template",
+            "category": "automation",
+            "complexity": "intermediate",
+            "template_json": {"steps": []},
         }
 
-        with patch('api.user_templates_endpoints.get_db', return_value=db_session), \
-             patch('api.user_templates_endpoints.get_current_user', return_value=test_user):
+        from pydantic import ValidationError
+        from api.user_templates_endpoints import CreateTemplateRequest
 
-            response = client.post("/api/user/templates/validate", json=invalid_data)
-
-            # Verify validation error
-            assert response.status_code in [400, 422, 401]
+        with pytest.raises(ValidationError):
+            CreateTemplateRequest.model_validate(invalid_data)
 
     def test_template_validation_missing_fields(self, client, db_session, test_user):
         """Test template validation with missing required fields"""
         incomplete_data = {
             "name": "Incomplete Template"
-            # Missing required fields
+            # Missing required fields (description, category, complexity,
+            # template_json are all required by CreateTemplateRequest)
         }
 
-        with patch('api.user_templates_endpoints.get_db', return_value=db_session), \
-             patch('api.user_templates_endpoints.get_current_user', return_value=test_user):
+        from pydantic import ValidationError
+        from api.user_templates_endpoints import CreateTemplateRequest
 
-            response = client.post("/api/user/templates/validate", json=incomplete_data)
-
-            # Verify validation error
-            assert response.status_code in [400, 422, 401]
+        with pytest.raises(ValidationError):
+            CreateTemplateRequest.model_validate(incomplete_data)

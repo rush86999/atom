@@ -1956,7 +1956,15 @@ try:
     try:
         from api.feedback_analytics import router as feedback_analytics_router
 
-        app.include_router(feedback_analytics_router, tags=["feedback-analytics"])
+        # Router declares NO in-router prefix (its paths are "/", "/agent/{agent_id}",
+        # "/trends"), so the include MUST supply the documented /api/feedback/analytics
+        # prefix — otherwise the routes land at bare "/", "/agent/{agent_id}", "/trends"
+        # (shadowed by root) and every /api/feedback/analytics/* call 404s.
+        app.include_router(
+            feedback_analytics_router,
+            prefix="/api/feedback/analytics",
+            tags=["feedback-analytics"],
+        )
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load feedback analytics routes (skipping): {e}")
 

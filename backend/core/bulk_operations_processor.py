@@ -153,6 +153,15 @@ class IntegrationBulkProcessor:
     async def _process_job(self, job: BulkJob):
         """Process a single bulk job"""
         try:
+            # A job cancelled while still queued (PENDING) must not execute —
+            # otherwise the CANCELLED status set by cancel_job is immediately
+            # overwritten below and the job runs anyway (side effects).
+            if job.status == OperationStatus.CANCELLED:
+                job.completed_at = datetime.now(timezone.utc)
+                await self._save_job_results(job)
+                logger.info(f"Cancelled bulk job {job.job_id} before processing")
+                return
+
             job.status = OperationStatus.RUNNING
             job.started_at = datetime.now(timezone.utc)
 

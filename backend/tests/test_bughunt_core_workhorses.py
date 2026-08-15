@@ -90,8 +90,12 @@ class TestStreamChatAgentResolutionBug:
         with patch("core.agent_context_resolver.AgentContextResolver") as res_cls, \
              patch("core.agent_governance_service.AgentGovernanceService") as gov_cls, \
              patch("core.database.get_db_session") as db, \
-             patch("core.atom_agent_endpoints.LLMService") as llm_cls, \
+             patch("core.llm_service.LLMService") as llm_cls, \
              patch("core.websockets.manager") as ws:
+            # NOTE: chat_stream_agent re-imports LLMService locally
+            # (`from core.llm_service import LLMService` inside the function),
+            # so the patch must target core.llm_service, not
+            # core.atom_agent_endpoints.
             resolver = self._make_resolver_stub()
             res_cls.return_value = resolver
 
@@ -118,7 +122,12 @@ class TestStreamChatAgentResolutionBug:
             llm = Mock()
             llm.analyze_query_complexity = Mock(return_value="low")
             llm.get_optimal_provider = Mock(return_value=("openai", "gpt-4o"))
-            llm.stream_completion = AsyncMock(return_value=iter(["hi", " there"]))
+
+            async def fake_stream(**kwargs):
+                for token in ["hi", " there"]:
+                    yield token
+
+            llm.stream_completion = fake_stream
             llm_cls.return_value = llm
 
             ws.broadcast = AsyncMock()

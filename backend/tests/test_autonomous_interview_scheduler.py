@@ -22,11 +22,15 @@ async def test_autonomous_interview_scheduler_workflow():
         "request_text": "Please schedule an interview for john.doe@example.com for the Frontend Engineer role with Alice and Bob."
     }
     
+    # NOTE: the generate_final_zoom_link step (ZOOM_INTEGRATION) is routed
+    # through STEP_TYPE_TO_CONNECTOR → _execute_registry_step (which shadows
+    # the dedicated _execute_zoom_integration method), so the registry seam is
+    # patched and asserted instead.
     with patch.object(orchestrator, '_execute_nlu_analysis', new_callable=AsyncMock) as mock_nlu, \
          patch.object(orchestrator, '_execute_api_call', new_callable=AsyncMock) as mock_api, \
          patch.object(orchestrator, '_execute_email_send', new_callable=AsyncMock) as mock_email, \
          patch.object(orchestrator, '_execute_delay', new_callable=AsyncMock) as mock_delay, \
-         patch.object(orchestrator, '_execute_zoom_integration', new_callable=AsyncMock) as mock_zoom:
+         patch.object(orchestrator, '_execute_registry_step', new_callable=AsyncMock) as mock_registry:
         
         # 1. extract_interview_request
         # 3. draft_proposal_email
@@ -73,10 +77,11 @@ async def test_autonomous_interview_scheduler_workflow():
             return {"status": "waiting_approval", "message": "Paused waiting for candidate reply."}
         mock_delay.side_effect = delay_result
         
-        # 7. generate_final_zoom_link
-        async def zoom_result(*args, **kwargs):
+        # 7. generate_final_zoom_link (dispatched via the integration registry)
+        async def registry_side_effect(connector_id, *args, **kwargs):
+            assert connector_id == "zoom"
             return {"status": "completed", "join_url": "https://zoom.us/j/interview_123"}
-        mock_zoom.side_effect = zoom_result
+        mock_registry.side_effect = registry_side_effect
         
         # Run workflow
         result = await orchestrator.execute_workflow(workflow_id, input_data)
@@ -87,7 +92,7 @@ async def test_autonomous_interview_scheduler_workflow():
         assert mock_api.call_count == 1
         mock_email.assert_called_once()
         mock_delay.assert_called_once()
-        mock_zoom.assert_not_called()
+        mock_registry.assert_not_called()
         
         execution_id = result.workflow_id
         # Webhook receives email, injects it into context, and calls resume
@@ -97,7 +102,7 @@ async def test_autonomous_interview_scheduler_workflow():
         
         assert resume_result.status == WorkflowStatus.COMPLETED
         assert mock_nlu.call_count == 3
-        mock_zoom.assert_called_once()
+        mock_registry.assert_called_once()  # Zoom link generated via registry on resume
         assert mock_api.call_count == 2
         print("Autonomous Interview Scheduler Test: PASSED")
 

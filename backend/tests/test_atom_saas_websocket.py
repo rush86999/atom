@@ -310,10 +310,12 @@ class TestWebSocketMessageHandlers:
 
         with SessionLocal() as db:
             # Create test skill cache with existing ratings data
+            # (tenant_id is NOT NULL and the client writes tenant_id="default")
             skill_cache = SkillCache(
                 skill_id=skill_id,
                 skill_data={"name": "Test Skill", "average_rating": 4.0, "rating_count": 5},
-                expires_at=datetime.now(timezone.utc)
+                expires_at=datetime.now(timezone.utc),
+                tenant_id="default"
             )
             db.add(skill_cache)
             db.commit()
@@ -358,11 +360,12 @@ class TestWebSocketMessageHandlers:
         skill_id = f"skill_delete_{uuid.uuid4().hex[:8]}"
 
         with SessionLocal() as db:
-            # Create test skill cache
+            # Create test skill cache (tenant_id is NOT NULL; client writes "default")
             skill_cache = SkillCache(
                 skill_id=skill_id,
                 skill_data={"name": "Test Skill"},
-                expires_at=datetime.now(timezone.utc)
+                expires_at=datetime.now(timezone.utc),
+                tenant_id="default"
             )
             db.add(skill_cache)
             db.commit()
@@ -468,11 +471,12 @@ class TestWebSocketIntegration:
         client._connected = True
 
         with SessionLocal() as db:
-            # Create test skill
+            # Create test skill (tenant_id is NOT NULL; client writes "default")
             skill_cache = SkillCache(
                 skill_id="skill_to_delete",
                 skill_data={"name": "Delete Me"},
-                expires_at=datetime.now(timezone.utc)
+                expires_at=datetime.now(timezone.utc),
+                tenant_id="default"
             )
             db.add(skill_cache)
             db.commit()

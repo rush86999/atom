@@ -84,7 +84,11 @@ class TestLoginErrors:
         assert response.status_code == 422
 
     def test_login_422_invalid_email_format(self, auth_client):
-        """Test login returns 422 for bad email syntax."""
+        """Test login with bad email syntax is not rejected as 422.
+
+        The endpoint treats email as an opaque string and returns 401 for any
+        unknown email (anti-enumeration: identical response for unknown user
+        vs wrong password)."""
         response = auth_client.post(
             "/api/auth/mobile/login",
             json={
@@ -95,8 +99,7 @@ class TestLoginErrors:
             }
         )
 
-        # May accept any string as email (validation depends on implementation) or 500 if DB doesn't exist
-        assert response.status_code in [200, 400, 422, 500]
+        assert response.status_code == 401
 
     def test_login_429_rate_limited(self, auth_client):
         """Test login returns 429 after too many attempts."""
@@ -174,7 +177,8 @@ class TestRegistrationErrors:
         assert response.status_code in [200, 401, 400, 422, 500]
 
     def test_register_422_invalid_email(self, auth_client):
-        """Test registration returns 422 for bad email format."""
+        """Login with a malformed email returns 401 (opaque string lookup;
+        no email-format validation on this endpoint)."""
         response = auth_client.post(
             "/api/auth/mobile/login",
             json={
@@ -185,8 +189,7 @@ class TestRegistrationErrors:
             }
         )
 
-        # Email validation depends on implementation or 500 if DB doesn't exist
-        assert response.status_code in [200, 400, 422, 500]
+        assert response.status_code == 401
 
     def test_register_422_missing_fields(self, auth_client):
         """Test registration returns 422 for incomplete data."""

@@ -177,42 +177,58 @@ class TestActionComplexityBoundaries:
         # (assuming other governance checks pass)
         assert mock_agent.status == minimum_maturity
 
+    def _confidence_update_agent(self, confidence_score, initial_status):
+        """Build a mock agent + mock DB for AgentGovernanceService._update_confidence_score."""
+        from core.agent_governance_service import AgentGovernanceService
+
+        agent = Mock()
+        agent.id = "agent-1"
+        agent.name = "Agent 1"
+        agent.confidence_score = confidence_score
+        agent.status = initial_status
+
+        mock_db = Mock()
+        mock_db.query.return_value.filter.return_value.first.return_value = agent
+
+        service = AgentGovernanceService(mock_db, workspace_id="default")
+        return service, agent
+
     def test_complexity_below_threshold(self):
         """
-        BOUNDARY: Test action complexity just below threshold.
+        BOUNDARY: Test confidence just below the SUPERVISED threshold maps to INTERN.
 
-        Common bug: Agent with maturity just below threshold is incorrectly blocked.
+        Drives the REAL confidence→maturity mapping in
+        core/agent_governance_service.py:_update_confidence_score
+        (>=0.9 AUTONOMOUS, >=0.7 SUPERVISED, >=0.5 INTERN, else STUDENT).
+        A 0.6 confidence agent must land on INTERN — the boundary the
+        original test targeted (no phantom `get_status_for_confidence`).
         """
-        # INTERN agent (confidence 0.6) should be able to do
-        # complexity level 1 and 2 actions, but not 3 or 4
-        intern_confidence = 0.6
-        expected_status = AgentStatus.INTERN.value
+        # 0.59 + 0.01 (low-impact positive boost) = 0.60 -> INTERN
+        service, agent = self._confidence_update_agent(0.59, AgentStatus.STUDENT.value)
 
-        from core.agent_graduation_service import AgentGraduationService
-        mock_db = Mock()
-        service = AgentGraduationService(mock_db)
+        service._update_confidence_score("agent-1", positive=True, impact_level="low")
 
-        status = service.get_status_for_confidence(intern_confidence)
-
-        assert status == expected_status
+        assert round(agent.confidence_score, 4) == 0.6
+        assert agent.status == AgentStatus.INTERN.value, (
+            "0.6 confidence must map to INTERN (>= 0.5, < 0.7)"
+        )
 
     def test_exactly_at_complexity_threshold(self):
         """
-        BOUNDARY: Test agent exactly at complexity threshold.
+        BOUNDARY: Test agent exactly at the SUPERVISED threshold (0.7).
 
-        Common bug: Boundary condition uses wrong comparison operator.
+        Common bug: using '< 0.7' instead of '<= 0.7' demotes the exact
+        threshold value to INTERN.
         """
-        # Agent at 0.7 (SUPERVISED) should be able to do
-        # complexity level 3 actions
-        supervised_confidence = 0.7
+        # 0.69 + 0.01 (low-impact positive boost) = 0.70 exactly -> SUPERVISED
+        service, agent = self._confidence_update_agent(0.69, AgentStatus.INTERN.value)
 
-        from core.agent_graduation_service import AgentGraduationService
-        mock_db = Mock()
-        service = AgentGraduationService(mock_db)
+        service._update_confidence_score("agent-1", positive=True, impact_level="low")
 
-        status = service.get_status_for_confidence(supervised_confidence)
-
-        assert status == AgentStatus.SUPERVISED.value
+        assert round(agent.confidence_score, 4) == 0.7
+        assert agent.status == AgentStatus.SUPERVISED.value, (
+            "0.7 must map to SUPERVISED (>= 0.7, < 0.9)"
+        )
 
 
 class TestGraduationCriteriaBoundaries:
@@ -224,46 +240,53 @@ class TestGraduationCriteriaBoundaries:
     - SUPERVISED → AUTONOMOUS: 50 episodes, 0% intervention, 0.95 constitutional
     """
 
-    @pytest.mark.parametrize("episode_count,intervention_rate,constitutional_score,can_graduate", [
-        # STUDENT → INTERN boundaries
-        (9, 0.49, 0.69, False),      # Just below all thresholds
-        (10, 0.50, 0.70, True),      # Exact all thresholds
-        (11, 0.51, 0.71, True),      # Just above all thresholds
+    @pytest.mark.parametrize("target_maturity,episode_count,intervention_rate,constitutional_score,can_graduate", [
+        # STUDENT → INTERN boundaries (criteria: 10 episodes, <= 0.50 intervention, >= 0.70 constitutional)
+        ("INTERN", 9, 0.49, 0.69, False),      # Just below all thresholds
+        ("INTERN", 10, 0.50, 0.70, True),      # Exact all thresholds
+        ("INTERN", 11, 0.49, 0.71, True),      # Above episodes & constitutional, below intervention
 
-        # INTERN → SUPERVISED boundaries
-        (24, 0.19, 0.84, False),    # Just below all thresholds
-        (25, 0.20, 0.85, True),     # Exact all thresholds
-        (26, 0.21, 0.86, True),     # Just above all thresholds
+        # INTERN → SUPERVISED boundaries (criteria: 25 episodes, <= 0.20 intervention, >= 0.85 constitutional)
+        ("SUPERVISED", 24, 0.19, 0.84, False),    # Just below all thresholds
+        ("SUPERVISED", 25, 0.20, 0.85, True),     # Exact all thresholds
+        ("SUPERVISED", 26, 0.19, 0.86, True),     # Above episodes & constitutional, below intervention
 
-        # SUPERVISED → AUTONOMOUS boundaries
-        (49, 0.01, 0.94, False),    # Just below all thresholds
-        (50, 0.00, 0.95, True),     # Exact all thresholds
-        (51, 0.00, 0.96, True),     # Just above all thresholds
+        # SUPERVISED → AUTONOMOUS boundaries (criteria: 50 episodes, <= 0.00 intervention, >= 0.95 constitutional)
+        ("AUTONOMOUS", 49, 0.01, 0.94, False),    # Just below all thresholds
+        ("AUTONOMOUS", 50, 0.00, 0.95, True),     # Exact all thresholds
+        ("AUTONOMOUS", 51, 0.00, 0.96, True),     # Just above all thresholds
     ])
     def test_graduation_criteria_boundaries(
         self,
+        target_maturity,
         episode_count,
         intervention_rate,
         constitutional_score,
         can_graduate
     ):
         """
-        BOUNDARY: Test graduation criteria at exact threshold values.
+        BOUNDARY: Test graduation criteria at exact threshold values against the
+        REAL criteria table (AgentGraduationService.CRITERIA).
 
         CRITICAL: Episode count uses INCLUSIVE boundary (>=), intervention rate uses EXCLUSIVE (<=).
         Constitutional score uses INCLUSIVE boundary (>=).
 
         Common bug: Using wrong comparison operator causes premature or delayed graduation.
         """
+        from core.agent_graduation_service import AgentGraduationService
+
+        # Use the real per-level criteria from the service (app contract)
+        criteria = AgentGraduationService.CRITERIA[target_maturity]
+
         # Test STUDENT → INTERN criteria
-        meets_episodes = episode_count >= 10
-        meets_intervention = intervention_rate <= 0.50  # Lower is better
-        meets_constitutional = constitutional_score >= 0.70
+        meets_episodes = episode_count >= criteria["min_episodes"]
+        meets_intervention = intervention_rate <= criteria["max_intervention_rate"]  # Lower is better
+        meets_constitutional = constitutional_score >= criteria["min_constitutional_score"]
 
         result = meets_episodes and meets_intervention and meets_constitutional
 
         assert result == can_graduate, (
-            f"Graduation check failed for episodes={episode_count}, "
+            f"Graduation check failed for {target_maturity}: episodes={episode_count}, "
             f"intervention={intervention_rate}, constitutional={constitutional_score}. "
             f"Expected {can_graduate}, got {result}."
         )

@@ -220,6 +220,49 @@ class TwilioService(IntegrationService):
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return Twilio integration capabilities."""
+        return {
+            "operations": [
+                {
+                    "id": "send_sms",
+                    "name": "Send SMS",
+                    "description": "Send an SMS message",
+                    "complexity": 2,
+                    "required_params": ["to", "body"],
+                },
+                {
+                    "id": "get_messages",
+                    "name": "Get Messages",
+                    "description": "List SMS messages",
+                    "complexity": 1,
+                },
+                {
+                    "id": "make_call",
+                    "name": "Make Call",
+                    "description": "Initiate a phone call",
+                    "complexity": 2,
+                    "required_params": ["to", "twiml_url"],
+                },
+                {
+                    "id": "get_calls",
+                    "name": "Get Calls",
+                    "description": "List call records",
+                    "complexity": 1,
+                },
+                {
+                    "id": "get_account_info",
+                    "name": "Get Account Info",
+                    "description": "Fetch account details",
+                    "complexity": 1,
+                },
+            ],
+            "required_params": ["account_sid", "auth_token"],
+            "optional_params": ["phone_number"],
+            "rate_limits": {"requests_per_minute": 60},
+            "supports_webhooks": True,
+        }
+
     async def execute_operation(
         self,
         operation: str,

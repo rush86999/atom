@@ -156,7 +156,7 @@ class UniversalWebhookBridge:
 
         except Exception as e:
             logger.error(f"Error in Universal Bridge ({platform}): {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": "Failed to process incoming message"}
 
     def _standardize_message(self, platform: str, data: Dict[str, Any]) -> Optional[UnifiedIncomingMessage]:
         """Standardize platform-specific data into UnifiedIncomingMessage"""

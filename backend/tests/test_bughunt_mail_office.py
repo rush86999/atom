@@ -50,6 +50,7 @@ def test_gmail_fetch_recent_messages_ingests_without_typeerror():
         "integrations.atom_communication_ingestion_pipeline.get_ingestion_pipeline"
     ) as gp:
         pipe = Mock()
+        pipe.ingest_message = AsyncMock(return_value=True)
         gp.return_value = pipe
         result = asyncio.run(svc.fetch_recent_messages("u1", max_results=5))
 
@@ -250,14 +251,21 @@ def test_ms365_get_service_status_exists():
 
 
 def test_ms365_services_status_route_returns_200():
-    """The /services/status router handler must not blow up."""
+    """The /services/status router handler must not blow up. The router now
+    requires session auth at the router level (R38-40 anon sweep), so the
+    test overrides get_current_user."""
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+    from types import SimpleNamespace
 
     from integrations.microsoft365_service import microsoft365_router
+    from core.auth import get_current_user
 
     app = FastAPI()
     app.include_router(microsoft365_router)
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        id="u1", role="member"
+    )
     client = TestClient(app, raise_server_exceptions=False)
 
     with patch(

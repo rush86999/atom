@@ -144,13 +144,11 @@ class TestAsanaTokenRefresh:
     @pytest.mark.asyncio
     async def test_get_access_token_auto_refresh(self, mock_token_storage):
         """Test that get_access_token automatically refreshes expired tokens"""
-        # Import the module after setting up mocks
-        import sys
-        sys.modules['consolidated.integrations.asana_routes'] = None
-
+        # The module is already imported by the tests above; import the
+        # cached module and patch its module-level names.
         from consolidated.integrations import asana_routes
 
-        with patch('core.token_storage.TokenStorage', return_value=mock_token_storage):
+        with patch.object(asana_routes, 'TokenStorage', return_value=mock_token_storage):
             with patch.object(asana_routes, '_refresh_asana_token') as mock_refresh:
                 # Mock successful refresh
                 mock_refresh.return_value = {

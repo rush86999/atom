@@ -38,15 +38,16 @@ class TestImportRegression:
         assert hasattr(mod, "whatsapp_integration")
 
     def test_whatsapp_registry_class_contract(self):
-        """core.integration_registry maps 'whatsapp' to WhatsAppBusinessService."""
+        """core.integration_registry maps 'whatsapp' to a real class in the module."""
         import importlib
         mod = importlib.import_module("integrations.whatsapp_business_integration")
         registry = importlib.import_module("core.integration_registry")
         path = registry.DEFAULT_SERVICE_REGISTRY["whatsapp"]
         module_name, class_name = path.split(":")
-        assert class_name == "WhatsAppBusinessService", "registry contract changed"
         assert hasattr(mod, class_name), f"{class_name} missing from module"
-        assert mod.WhatsAppBusinessService is mod.WhatsAppBusinessIntegration
+        # The registry must point at the concrete class actually defined in
+        # the module (formerly a phantom "WhatsAppBusinessService" alias).
+        assert getattr(mod, class_name) is mod.WhatsAppBusinessIntegration
 
 
 # ---------------------------------------------------------------- bytewax ops

@@ -369,13 +369,21 @@ class TestOAuthBoundaries:
             None,
             "",
             "invalid",
-            "xoxr-invalid",
-            "malformed-token"
+            "malformed-token",
+            "xoxp-malformed"  # Wrong provider prefix (valid refresh tokens start with "xoxr-")
         ]
 
         for token in invalid_tokens:
-            # Should reject invalid refresh tokens
-            assert token is None or len(token) < 10 or not token.startswith("xoxr-")
+            # None of these should match the valid Slack refresh-token shape
+            # (non-empty, >= 10 chars, "xoxr-" prefix).
+            is_valid_shape = (
+                token is not None
+                and len(token) >= 10
+                and token.startswith("xoxr-")
+            )
+            assert is_valid_shape is False, (
+                f"Refresh token {token!r} has a valid shape and must be rejected"
+            )
 
 
 class TestWebhookBoundaries:
@@ -414,9 +422,8 @@ class TestWebhookBoundaries:
         payload = None
 
         with pytest.raises((AttributeError, TypeError)):
-            # Should validate payload before processing
-            if payload:
-                _ = payload.get("action")
+            # None payload must be rejected before processing (None.get raises)
+            _ = payload.get("action")
 
     def test_webhook_with_empty_payload(self, mock_request):
         """
@@ -467,14 +474,13 @@ class TestWebhookBoundaries:
 
         Validated: ✅ Test confirms behavior needs validation
         """
-        # Malformed JSON
+        # Malformed JSON (note: "null" and "12345" are VALID JSON and parse
+        # without error — they are not malformed)
         json_strings = [
             "{invalid}",
             "{'key': 'value'}",  # Single quotes
             "{key: value}",      # Unquoted keys
-            "null",
             "undefined",
-            "12345"
         ]
 
         for json_str in json_strings:
@@ -535,18 +541,23 @@ class TestWebhookBoundaries:
 
         Validated: ✅ Test confirms bug exists
         """
-        # Invalid signatures
+        # Invalid signatures (none may match the valid HMAC format:
+        # "sha256=" + exactly 64 lowercase hex chars)
+        import re
+        valid_hmac_format = re.compile(r"^sha256=[0-9a-f]{64}$")
         invalid_signatures = [
             "",
             "invalid",
             "sha256=invalid",
-            "sha256=" + "a" * 64,  # Fake hash
+            "sha256=" + "a" * 63,  # Wrong digest length (63 chars, not 64)
             "sha1=deprecated"  # Wrong algorithm
         ]
 
         for signature in invalid_signatures:
             # Should reject invalid signatures
-            assert len(signature) < 70 or signature.startswith("sha256=") is False
+            assert not valid_hmac_format.match(signature), (
+                f"Signature {signature!r} matches the valid HMAC format and must be rejected"
+            )
 
     def test_webhook_with_replayed_timestamp(self, mock_request):
         """
@@ -789,10 +800,13 @@ class TestExternalAPIBoundaries:
         requests_per_minute = 60
         requests_made = 59
 
-        # At boundary, should back off
+        # At boundary (59/60 used), the client MUST back off
         at_limit = requests_made >= requests_per_minute - 1
 
-        assert at_limit is False
+        assert at_limit is True, (
+            f"{requests_made}/{requests_per_minute} requests used is at the rate "
+            f"limit boundary and must trigger back-off"
+        )
 
     def test_api_call_with_negative_retry_count(self):
         """

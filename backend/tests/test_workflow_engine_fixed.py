@@ -379,10 +379,12 @@ class TestWorkflowExecution:
 
     @pytest.mark.asyncio
     async def test_execute_step_success(self, workflow_engine):
-        """Test executing a single step successfully."""
+        """Test executing a single step successfully (service must be one the
+        engine's service_registry dispatches — 'test' was removed with the
+        simulated-executor era)."""
         step = {
             "id": "test-step",
-            "service": "test",
+            "service": "ai",
             "action": "echo",
             "parameters": {"message": "Hello"}
         }
@@ -432,15 +434,17 @@ class TestWorkflowExecution:
 
     def test_evaluate_condition_true(self, workflow_engine):
         """Test evaluating condition that should be true."""
-        # Production code uses eval() - need to provide proper context
-        state = {"data": {"value": 10}}
-        result = workflow_engine._evaluate_condition("data.value > 5", state)
+        # Conditions reference step outputs via ${step_id.key} (engine state
+        # convention: outputs live under state["outputs"][step_id]; bare
+        # identifiers are rejected for injection safety).
+        state = {"outputs": {"step1": {"value": 10}}}
+        result = workflow_engine._evaluate_condition("${step1.value} > 5", state)
         assert result is True
 
     def test_evaluate_condition_false(self, workflow_engine):
         """Test evaluating condition that should be false."""
-        state = {"data": {"value": 3}}
-        result = workflow_engine._evaluate_condition("data.value > 5", state)
+        state = {"outputs": {"step1": {"value": 3}}}
+        result = workflow_engine._evaluate_condition("${step1.value} > 5", state)
         assert result is False
 
 
@@ -628,29 +632,12 @@ class TestWorkflowHelpers:
             # Should return None or raise
             assert token is None
 
-    def test_load_workflow_by_id_success(self, workflow_engine, db_session):
-        """Test loading workflow definition by ID."""
-        # Create a workflow in the database - use configuration instead of definition
-        from core.models import Tenant
-        tenant = db_session.query(Tenant).first()
-        if not tenant:
-            tenant = Tenant(id="default-tenant", name="Default")
-            db_session.add(tenant)
-            db_session.commit()
-
-        workflow = Workflow(
-            id="test-workflow-id",
-            name="Test Workflow",
-            description="Test",
-            tenant_id="default-tenant",
-            configuration={"nodes": [], "connections": []}
-        )
-        db_session.add(workflow)
-        db_session.commit()
-
-        loaded = workflow_engine._load_workflow_by_id("test-workflow-id")
+    def test_load_workflow_by_id_success(self, workflow_engine):
+        """Test loading workflow definition by ID (source of truth:
+        workflows.json — the DB insert path is not used by this method)."""
+        loaded = workflow_engine._load_workflow_by_id("demo-customer-support")
         assert loaded is not None
-        assert loaded["id"] == "test-workflow-id"
+        assert loaded["id"] == "demo-customer-support"
 
     def test_load_workflow_by_id_not_found(self, workflow_engine):
         """Test loading workflow that doesn't exist."""
@@ -758,16 +745,15 @@ class TestErrorClasses:
     """Test custom exception classes."""
 
     def test_missing_input_error_creation(self):
-        """Test creating MissingInputError."""
+        """Test creating MissingInputError (message lives in args[0] — the
+        class stores no separate .message attribute)."""
         error = MissingInputError("Missing required input", "user_id")
-        assert error.message == "Missing required input"
         assert error.missing_var == "user_id"
         assert "Missing required input" in str(error)
 
     def test_schema_validation_error_creation(self):
         """Test creating SchemaValidationError."""
         error = SchemaValidationError("Schema validation failed", "input", ["field1", "field2"])
-        assert error.message == "Schema validation failed"
         assert error.schema_type == "input"
         assert error.errors == ["field1", "field2"]
         assert "Schema validation failed" in str(error)
@@ -775,7 +761,6 @@ class TestErrorClasses:
     def test_step_timeout_error_creation(self):
         """Test creating StepTimeoutError."""
         error = StepTimeoutError("Step timed out", "step-123", 30.0)
-        assert error.message == "Step timed out"
         assert error.step_id == "step-123"
         assert error.timeout == 30.0
         assert "Step timed out" in str(error)

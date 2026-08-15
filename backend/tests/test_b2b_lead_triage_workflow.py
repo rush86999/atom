@@ -25,11 +25,15 @@ async def test_b2b_lead_triage_workflow_execution():
     }
     
     # We will patch the individual _execute_* methods to simulate their effects without hitting real services.
+    # NOTE: ZOHO_CRM_INTEGRATION / NOTION_SEARCH / ZOOM_INTEGRATION step types
+    # are routed through STEP_TYPE_TO_CONNECTOR → _execute_registry_step
+    # (advanced_workflow_orchestrator.py:202-215, 1829-1831), which SHADOWS the
+    # dedicated _execute_zoho_crm_integration / _execute_zoom_integration
+    # methods (_execute_notion_search does not exist). So the registry seam is
+    # patched with per-connector side effects instead.
     with patch.object(orchestrator, '_execute_nlu_analysis', new_callable=AsyncMock) as mock_nlu, \
-         patch.object(orchestrator, '_execute_zoho_crm_integration', new_callable=AsyncMock) as mock_zoho, \
+         patch.object(orchestrator, '_execute_registry_step', new_callable=AsyncMock) as mock_registry, \
          patch.object(orchestrator, '_execute_conditional_logic', new_callable=AsyncMock) as mock_cond, \
-         patch.object(orchestrator, '_execute_notion_search', new_callable=AsyncMock) as mock_notion, \
-         patch.object(orchestrator, '_execute_zoom_integration', new_callable=AsyncMock) as mock_zoom, \
          patch.object(orchestrator, '_execute_approval_required_step', new_callable=AsyncMock) as mock_approval, \
          patch.object(orchestrator, '_execute_email_send', new_callable=AsyncMock) as mock_email:
         
@@ -52,25 +56,22 @@ async def test_b2b_lead_triage_workflow_execution():
             
         mock_nlu.side_effect = nlu_side_effect
         
-        # 2. update_zoho_crm
-        async def zoho_result(*args, **kwargs):
-            return {"status": "completed", "result": {"id": "mock_lead_123"}}
-        mock_zoho.side_effect = zoho_result
+        # 2. update_zoho_crm / 4. engineering_notion_search / 5. generate_zoom_link
+        #    (all dispatched via _execute_registry_step by connector id)
+        async def registry_side_effect(connector_id, *args, **kwargs):
+            if connector_id == "zoho-crm":
+                return {"status": "completed", "result": {"id": "mock_lead_123"}}
+            if connector_id == "notion":
+                return {"status": "completed", "result": "Yes, Atom supports SAML SSO via Okta and Azure AD."}
+            if connector_id == "zoom":
+                return {"status": "completed", "join_url": "https://zoom.us/j/mock_meeting"}
+            return {"status": "completed"}
+        mock_registry.side_effect = registry_side_effect
         
         # 3. check_technical
         async def cond_result(*args, **kwargs):
             return {"status": "completed", "next_steps": ["engineering_notion_search"]}
         mock_cond.side_effect = cond_result
-        
-        # 4. engineering_notion_search
-        async def notion_result(*args, **kwargs):
-            return {"status": "completed", "result": "Yes, Atom supports SAML SSO via Okta and Azure AD."}
-        mock_notion.side_effect = notion_result
-        
-        # 5. generate_zoom_link
-        async def zoom_result(*args, **kwargs):
-            return {"status": "completed", "join_url": "https://zoom.us/j/mock_meeting"}
-        mock_zoom.side_effect = zoom_result
         
         # 7. governance_check
         # Assume Student agent, requires approval handler
@@ -92,9 +93,10 @@ async def test_b2b_lead_triage_workflow_execution():
         
         # Verify the NLU step was called
         assert mock_nlu.call_count == 2
-        mock_zoho.assert_called_once()
-        mock_notion.assert_called_once()
-        mock_zoom.assert_called_once()
+        registry_connectors = [call.args[0] for call in mock_registry.call_args_list]
+        assert registry_connectors.count("zoho-crm") == 1
+        assert registry_connectors.count("notion") == 1
+        assert registry_connectors.count("zoom") == 1
         mock_approval.assert_called_once()
         mock_email.assert_not_called() # Email send shouldn't happen yet because it paused at approval
         

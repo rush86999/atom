@@ -65,17 +65,26 @@ class TestTOCTOURaceConditions:
 
     def test_token_storage_toctou(self):
         """
-        Test that token_storage.py has TOCTOU race condition.
-
-        BUG: exists() check followed by file operations.
+        token_storage.py was HARDENED (see the fix in core/token_storage.py):
+        _load_tokens uses try/except FileNotFoundError (no exists() check),
+        and _save_tokens writes to a temp file + os.replace() atomically with
+        0600 permissions. The test now asserts the hardened contract.
         """
+        import inspect
         from core.token_storage import TokenStorage
 
         source = inspect.getsource(TokenStorage)
 
-        # Verify the bug - exists check before file operation
-        assert 'os.path.exists' in source, \
-            "Bug confirmed: TOCTOU - exists check before file operation"
+        # No TOCTOU exists-check before use anywhere in the class.
+        assert 'os.path.exists' not in source, (
+            "TOCTOU regression: exists() check before file operation"
+        )
+        # Load path is race-safe (try/except, not exists-check).
+        assert 'FileNotFoundError' in source
+        # Save path is atomic (temp file + os.replace).
+        assert 'os.replace' in source
+        # Writes are restricted to the owner.
+        assert '0o600' in source
 
     def test_workflow_state_toctou(self):
         """

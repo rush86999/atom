@@ -248,24 +248,27 @@ class TestLifecycleDecayInflatesAccessCount:
 class TestLifecycleDecayFormulaInconsistency:
     """Two methods previously wrote the same Episode.decay_score field with
     OPPOSITE formulas:
-      - decay_old_episodes (old code): max(0, 1 - days_old/180)
-        (a 'freshness' score: 1.0 fresh -> 0 at 180 days)
-      - update_lifecycle:               min(1, days_old/90)
+      - decay_old_episodes (old code): min(1, days_old/90)
         ('how much decay has been applied': 0 fresh -> 1 at 90 days)
+      - update_lifecycle:               max(0, 1 - days_old/180)
+        (a 'freshness' score: 1.0 fresh -> 0 at 180 days)
     The serialized decay_score is consumed by retrieval, so which value an
     episode reported depended on which maintenance path last ran.
 
-    Resolution: update_lifecycle's formula is the canonical one (it has the
-    detailed, worked docstring defining decay_score as 'how much decay has
-    been applied', 0->1). decay_old_episodes was changed to match it. These
-    tests verify the two paths now agree."""
+    Resolution: the freshness formula max(0, 1 - days_old/180) is the
+    canonical one — it matches the column default (`models.py`:
+    default=1.0, "decays over time"), the retrieval default (`else 1.0`),
+    and the docstrings on both methods. decay_old_episodes was changed to
+    match it. These tests verify the two paths now agree."""
 
     def test_decay_old_episodes_matches_update_lifecycle_formula(self, db):
-        """Both decay paths now use min(1, days_old/90) for decay_score."""
+        """Both decay paths now use max(0, 1 - days_old/180) for decay_score."""
         started = datetime.now(timezone.utc) - timedelta(days=100)
         ep = _episode(started_at=started, status="completed", decay_score=0.0)
 
         svc = _lifecycle_service(db)
+        db.add(ep)
+        db.commit()
         assert svc.update_lifecycle(ep) is True
         per_episode_score = ep.decay_score
 
@@ -275,14 +278,20 @@ class TestLifecycleDecayFormulaInconsistency:
         import asyncio
         asyncio.get_event_loop  # ensure loop available
         result = asyncio.run(svc.decay_old_episodes(days_threshold=90))
+        assert result["affected"] >= 1
+        db.refresh(ep)
 
         # update_lifecycle and decay_old_episodes must agree on decay_score.
-        # (Re-fetch the value the batch path wrote via the same formula.)
+        # Freshness formula: 1.0 fresh -> 0.0 fully decayed at 180 days.
         days_old = 100
-        expected = min(1.0, max(0.0, days_old / 90.0))
+        expected = max(0.0, 1.0 - (days_old / 180.0))
         assert per_episode_score == pytest.approx(expected, abs=1e-6), (
             f"update_lifecycle wrote decay_score={per_episode_score}, "
             f"expected {expected}"
+        )
+        assert ep.decay_score == pytest.approx(expected, abs=1e-6), (
+            "decay_old_episodes must write the same freshness score as "
+            "update_lifecycle"
         )
 
 

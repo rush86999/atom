@@ -10,9 +10,9 @@ Tests for the critical security and governance fixes applied in Phase 1:
 """
 
 import pytest
-pytest.importorskip("integrations.ai_enhanced_service")  # transitively required by core.business_agents; module not present
 
 from datetime import datetime, timedelta
+import uuid
 from sqlalchemy.orm import Session
 
 from core.database import SessionLocal
@@ -25,15 +25,28 @@ from core.auth_helpers import (
     cleanup_expired_active_tokens
 )
 from core.business_agents import get_specialized_agent, AGENT_SUITE
-from core.workflow_parameter_validator import (
-    WorkflowParameterValidator, RequiredRule, LengthRule,
-    NumericRule, PatternRule
+from core.advanced_workflow_system import (
+    ParameterValidator, InputParameter, ParameterType, MAX_REGEX_LENGTH
 )
 from core.resource_guards import (
     CPUGuard, MemoryGuard, DiskSpaceGuard,
     RateLimiter, IntegrationTimeoutError
 )
 from core.api_governance import ActionComplexity
+
+
+def _unique_email(prefix: str) -> str:
+    """Unique email per run so repeated executions are idempotent."""
+    return f"{prefix}-{uuid.uuid4().hex[:8]}@test.com"
+
+
+def _purge_test_user(db: Session, user_id: str) -> None:
+    """Remove leftover rows from crashed/interrupted prior runs."""
+    db.query(ActiveToken).filter(ActiveToken.user_id == user_id).delete()
+    existing = db.query(User).filter(User.id == user_id).first()
+    if existing:
+        db.delete(existing)
+    db.commit()
 
 
 class TestTokenRevocation:
@@ -49,15 +62,18 @@ class TestTokenRevocation:
         # Create a test user
         user = User(
             id='test-user-token',
-            email='token@test.com',
+            email=_unique_email('token'),
             role='member', first_name="Test", last_name="User", status="active"
         )
+        _purge_test_user(db_session, user.id)
         db_session.add(user)
         db_session.commit()
 
-        # Track a token
+        # Track a token (unique jti per run — RevokedToken rows persist across
+        # runs and would otherwise make revoke_all_user_tokens skip them)
+        jti = f"test-jti-{uuid.uuid4().hex[:8]}"
         result = track_active_token(
-            jti='test-jti-123',
+            jti=jti,
             user_id=user.id,
             expires_at=datetime.now() + timedelta(hours=1),
             db=db_session,
@@ -68,7 +84,7 @@ class TestTokenRevocation:
         assert result == True, "Token tracking should succeed"
 
         # Verify token is tracked
-        token = db_session.query(ActiveToken).filter_by(jti='test-jti-123').first()
+        token = db_session.query(ActiveToken).filter_by(jti=jti).first()
         assert token is not None, "Token should be tracked"
         assert token.user_id == user.id
         assert token.issued_ip == '127.0.0.1'
@@ -83,16 +99,18 @@ class TestTokenRevocation:
         # Create a test user
         user = User(
             id='test-user-revoke',
-            email='revoke@test.com',
+            email=_unique_email('revoke'),
             role='member', first_name="Test", last_name="User", status="active"
         )
+        _purge_test_user(db_session, user.id)
         db_session.add(user)
         db_session.commit()
 
         # Track multiple tokens
-        for i in range(3):
+        jtis = [f"revoke-jti-{uuid.uuid4().hex[:8]}" for _ in range(3)]
+        for jti in jtis:
             track_active_token(
-                jti=f'test-jti-{i}',
+                jti=jti,
                 user_id=user.id,
                 expires_at=datetime.now() + timedelta(hours=1),
                 db=db_session
@@ -115,16 +133,18 @@ class TestTokenRevocation:
         """Test revoking all tokens except current"""
         user = User(
             id='test-user-except',
-            email='except@test.com',
+            email=_unique_email('except'),
             role='member', first_name="Test", last_name="User", status="active"
         )
+        _purge_test_user(db_session, user.id)
         db_session.add(user)
         db_session.commit()
 
         # Track multiple tokens
-        for i in range(3):
+        jtis = [f"except-jti-{uuid.uuid4().hex[:8]}" for _ in range(3)]
+        for jti in jtis:
             track_active_token(
-                jti=f'except-jti-{i}',
+                jti=jti,
                 user_id=user.id,
                 expires_at=datetime.now() + timedelta(hours=1),
                 db=db_session
@@ -134,13 +154,13 @@ class TestTokenRevocation:
         count = revoke_all_user_tokens(
             user_id=user.id,
             db=db_session,
-            except_jti='except-jti-0'
+            except_jti=jtis[0]
         )
 
         assert count == 2, "Should revoke 2 tokens (not the excepted one)"
 
         # Verify first token is still active
-        token = db_session.query(ActiveToken).filter_by(jti='except-jti-0').first()
+        token = db_session.query(ActiveToken).filter_by(jti=jtis[0]).first()
         assert token is not None, "Excepted token should still be active"
 
         # Cleanup
@@ -150,26 +170,29 @@ class TestTokenRevocation:
 
 
 class TestEnumFixes:
-    """Test enum fixes for status fields"""
+    """Test enum values for status fields (lowercase string values; the whole
+    codebase compares ``status == Enum.X.value`` with these lowercase values —
+    see core/intervention_service.py, core/governance_engine.py)."""
 
-    def test_agent_job_status_uppercase(self):
-        """Test AgentJobStatus uses UPPERCASE values"""
+    def test_agent_job_status_values(self):
+        """Test AgentJobStatus uses lowercase string values"""
         statuses = [status.value for status in AgentJobStatus]
 
-        assert AgentJobStatus.PENDING.value == 'PENDING'
-        assert AgentJobStatus.RUNNING.value == 'RUNNING'
-        assert AgentJobStatus.SUCCESS.value == 'SUCCESS'
-        assert AgentJobStatus.FAILED.value == 'FAILED'
+        assert AgentJobStatus.PENDING.value == 'pending'
+        assert AgentJobStatus.RUNNING.value == 'running'
+        assert AgentJobStatus.SUCCESS.value == 'success'
+        assert AgentJobStatus.FAILED.value == 'failed'
 
-        # Verify all values are uppercase
+        # All values are lowercase strings
         for status_value in statuses:
-            assert status_value.isupper(), f"Status {status_value} should be UPPERCASE"
+            assert isinstance(status_value, str)
+            assert status_value.islower(), f"Status {status_value} should be lowercase"
 
-    def test_hitl_action_status_uppercase(self):
-        """Test HITLActionStatus uses UPPERCASE values"""
-        assert HITLActionStatus.PENDING.value == 'PENDING'
-        assert HITLActionStatus.APPROVED.value == 'APPROVED'
-        assert HITLActionStatus.REJECTED.value == 'REJECTED'
+    def test_hitl_action_status_values(self):
+        """Test HITLActionStatus uses lowercase string values"""
+        assert HITLActionStatus.PENDING.value == 'pending'
+        assert HITLActionStatus.APPROVED.value == 'approved'
+        assert HITLActionStatus.REJECTED.value == 'rejected'
 
 
 class TestBusinessAgents:
@@ -178,7 +201,7 @@ class TestBusinessAgents:
     @pytest.mark.asyncio
     async def test_all_agents_available(self):
         """Test all business agents are available"""
-        assert len(AGENT_SUITE) == 7, "Should have 7 business agents"
+        assert len(AGENT_SUITE) == 8, "Should have 8 business agents"
 
         agent_names = list(AGENT_SUITE.keys())
         expected_names = ['accounting', 'sales', 'marketing', 'logistics',
@@ -225,69 +248,134 @@ class TestBusinessAgents:
 
 
 class TestWorkflowValidator:
-    """Test workflow parameter validator fixes"""
+    """Test workflow parameter validator fixes (core.advanced_workflow_system.ParameterValidator).
+
+    The former dedicated module (core.workflow_parameter_validator) was
+    archived in 2026-07; the surviving implementation is the static
+    ``ParameterValidator.validate_parameter(param, value)`` contract in
+    core/advanced_workflow_system.py (with its ReDoS length cap
+    ``MAX_REGEX_LENGTH = 256``).
+    """
+
+    @staticmethod
+    def _param(**overrides) -> InputParameter:
+        base = dict(
+            name="test_param",
+            type=ParameterType.STRING,
+            label="Test Param",
+            description="A test parameter",
+        )
+        base.update(overrides)
+        return InputParameter(**base)
 
     def test_required_rule_implementation(self):
-        """Test RequiredRule is properly implemented"""
-        rule = RequiredRule('test_required', {'required': True})
+        """Test required parameters reject None (with or without default)."""
+        rule = self._param(required=True)
 
         # Should fail for None
-        is_valid, error = rule.validate(None)
+        is_valid, error = ParameterValidator.validate_parameter(rule, None)
         assert not is_valid
-        assert error == 'This field is required'
+        assert error == 'Test Param is required'
 
-        # Should fail for empty string
-        is_valid, error = rule.validate('')
-        assert not is_valid
-
-        # Should pass for non-empty value
-        is_valid, error = rule.validate('test')
+        # Optional parameter with no value is valid
+        is_valid, error = ParameterValidator.validate_parameter(self._param(required=False), None)
         assert is_valid
         assert error is None
 
+        # Should pass for non-empty value
+        is_valid, error = ParameterValidator.validate_parameter(rule, 'test')
+        assert is_valid
+        assert error is None
+
+        # Required + default: default flows through type validation
+        is_valid, error = ParameterValidator.validate_parameter(
+            self._param(required=True, default_value='fallback'), None
+        )
+        assert is_valid
+
     def test_length_rule_implementation(self):
-        """Test LengthRule is properly implemented"""
-        rule = LengthRule('test_length', {'min_length': 3, 'max_length': 10})
+        """Test min_length/max_length custom rules."""
+        rule = self._param(
+            type=ParameterType.STRING,
+            validation_rules={'min_length': 3, 'max_length': 10},
+        )
 
         # Should fail for too short
-        is_valid, error = rule.validate('ab')
+        is_valid, error = ParameterValidator.validate_parameter(rule, 'ab')
         assert not is_valid
         assert 'at least 3 characters' in error
 
         # Should fail for too long
-        is_valid, error = rule.validate('abcdefghijk')
+        is_valid, error = ParameterValidator.validate_parameter(rule, 'abcdefghijk')
         assert not is_valid
         assert 'at most 10 characters' in error
 
         # Should pass for valid length
-        is_valid, error = rule.validate('abc')
+        is_valid, error = ParameterValidator.validate_parameter(rule, 'abc')
         assert is_valid
 
     def test_numeric_rule_implementation(self):
-        """Test NumericRule is properly implemented"""
-        rule = NumericRule('test_numeric', {'min_value': 0, 'max_value': 100})
+        """Test number type + min_value/max_value custom rules."""
+        rule = self._param(
+            type=ParameterType.NUMBER,
+            validation_rules={'min_value': 0, 'max_value': 100},
+        )
 
         # Should fail for non-numeric
-        is_valid, error = rule.validate('not a number')
+        is_valid, error = ParameterValidator.validate_parameter(rule, 'not a number')
         assert not is_valid
-        assert 'Must be a number' in error
+        assert 'must be a number' in error
 
         # Should fail for out of range
-        is_valid, error = rule.validate(150)
+        is_valid, error = ParameterValidator.validate_parameter(rule, 150)
         assert not is_valid
+        assert 'at most 100' in error
 
         # Should pass for valid number
-        is_valid, error = rule.validate(50)
+        is_valid, error = ParameterValidator.validate_parameter(rule, 50)
         assert is_valid
 
-    def test_transform_value_error_handling(self):
-        """Test transform_value handles errors gracefully"""
-        validator = WorkflowParameterValidator()
+    def test_pattern_rule_redos_guard(self):
+        """Test pattern rule validates format and rejects over-long regexes (ReDoS guard)."""
+        rule = self._param(validation_rules={'pattern': r'^\d{4}-\d{2}$'})
 
-        # Test with invalid JSON (should return original, not pass)
-        result = validator._transform_value('not valid json', 'object')
-        # Should return original value, not raise or pass
-        assert result == 'not valid json'
+        is_valid, error = ParameterValidator.validate_parameter(rule, '2026-08')
+        assert is_valid
+
+        is_valid, error = ParameterValidator.validate_parameter(rule, 'not-a-date')
+        assert not is_valid
+        assert 'format is invalid' in error
+
+        # ReDoS guard: a pattern longer than MAX_REGEX_LENGTH is rejected outright
+        evil = self._param(validation_rules={'pattern': '(a+)+' + 'x' * MAX_REGEX_LENGTH})
+        is_valid, error = ParameterValidator.validate_parameter(evil, 'aaa')
+        assert not is_valid
+        assert 'pattern is too complex' in error
+
+    def test_type_mismatch_rejected(self):
+        """Test wrong types are rejected for each parameter type."""
+        cases = [
+            (ParameterType.STRING, 42, 'must be a string'),
+            (ParameterType.NUMBER, 'nope', 'must be a number'),
+            (ParameterType.BOOLEAN, 'yes', 'must be true or false'),
+            (ParameterType.ARRAY, 'not-a-list', 'must be an array'),
+        ]
+        for ptype, bad_value, message in cases:
+            param = self._param(type=ptype)
+            is_valid, error = ParameterValidator.validate_parameter(param, bad_value)
+            assert not is_valid
+            assert message in error
+
+    def test_select_rule_implementation(self):
+        """Test select parameters restrict to options."""
+        rule = self._param(type=ParameterType.SELECT, options=['a', 'b', 'c'])
+
+        is_valid, error = ParameterValidator.validate_parameter(rule, 'a')
+        assert is_valid
+
+        is_valid, error = ParameterValidator.validate_parameter(rule, 'zzz')
+        assert not is_valid
+        assert 'must be one of' in error
 
 
 class TestResourceGuards:

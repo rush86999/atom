@@ -444,6 +444,10 @@ class ConflictResolutionService:
 
         # Start with local skill as base
         merged = local_skill.copy()
+        # Preserve the identity key even when the local side lacks it — a
+        # merged result without skill_id can't be saved back to the DB.
+        if skill_id:
+            merged['skill_id'] = skill_id
 
         # Merge automatic fields (use most recent by updated_at)
         automatic_fields = ['description', 'tags', 'examples', 'metadata']

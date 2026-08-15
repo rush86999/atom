@@ -159,7 +159,7 @@ class TestAgentGovernanceService:
         )
 
         assert result["allowed"] is False
-        assert result["requires_approval"] is True
+        assert result["requires_human_approval"] is True
         assert result["action_complexity"] == 4
 
     def test_action_complexity_mapping(self, db_session: Session):

@@ -3,14 +3,29 @@ from unittest.mock import MagicMock, patch, AsyncMock
 from core.knowledge_extractor import KnowledgeExtractor
 from core.models import EntityTypeDefinition
 
+VALID_JSON = '{"entities": [], "relationships": []}'
+
+
+def _mock_llm_service():
+    """Patch core.knowledge_extractor.LLMService with an AsyncMock whose
+    generate_completion returns parseable JSON content."""
+    mock_llm = AsyncMock()
+    mock_llm.generate_completion.return_value = {"content": VALID_JSON}
+    return patch("core.knowledge_extractor.LLMService", return_value=mock_llm), mock_llm
+
+
+def _capture_system_prompt(mock_llm):
+    """Extract the system prompt from the last generate_completion call."""
+    args, kwargs = mock_llm.generate_completion.call_args
+    messages = kwargs.get("messages") or args[0]
+    return next(m["content"] for m in messages if m["role"] == "system")
+
+
 @pytest.mark.asyncio
 async def test_extract_knowledge_dynamic_prompt():
-    # Mock AI Service with AsyncMock
-    mock_ai = AsyncMock()
-    mock_ai.analyze_text.return_value = {"success": True, "response": '{"entities": [], "relationships": []}'}
-    
-    extractor = KnowledgeExtractor(mock_ai)
-    
+    # Mock LLMService (the extractor builds its own; no constructor injection)
+    llm_patch, mock_llm = _mock_llm_service()
+
     # Mock custom entity types in DB
     mock_ct = MagicMock(spec=EntityTypeDefinition)
     mock_ct.id = "123"
@@ -22,38 +37,42 @@ async def test_extract_knowledge_dynamic_prompt():
     mock_ct.is_active = True
     mock_ct.is_system = False
 
-    with patch("core.knowledge_extractor.get_db_session") as mock_db:
+    with llm_patch, patch("core.knowledge_extractor.get_db_session") as mock_db:
         mock_session = MagicMock()
         mock_db.return_value.__enter__.return_value = mock_session
-        
-        # Correctly mock a single .filter() call with arguments
         mock_session.query.return_value.filter.return_value.all.return_value = [mock_ct]
-        
+
+        extractor = KnowledgeExtractor(tenant_id="test_tenant")
+
         # Trigger extraction
-        await extractor.extract_knowledge("Our main rival is ACME Corp.", tenant_id="test_tenant")
-        
+        result = await extractor.extract_knowledge("Our main rival is ACME Corp.", tenant_id="test_tenant")
+
         # Verify system prompt contains the custom type
-        # analyze_text is called once
-        assert mock_ai.analyze_text.called
-        args, kwargs = mock_ai.analyze_text.call_args
-        system_prompt = kwargs.get("system_prompt", "")
-        
+        assert mock_llm.generate_completion.called
+        system_prompt = _capture_system_prompt(mock_llm)
+
         assert "Competitor (A business rival)" in system_prompt
         assert "Fields: [name, market_share]" in system_prompt
         assert "Person (name, role, organization, is_stakeholder: bool)" in system_prompt
+        assert result == {"entities": [], "relationships": []}
+
 
 @pytest.mark.asyncio
 async def test_extract_knowledge_no_tenant():
-    mock_ai = AsyncMock()
-    mock_ai.analyze_text.return_value = {"success": True, "response": '{"entities": [], "relationships": []}'}
-    extractor = KnowledgeExtractor(mock_ai)
-    
-    await extractor.extract_knowledge("Hello world")
-    
-    assert mock_ai.analyze_text.called
-    args, kwargs = mock_ai.analyze_text.call_args
-    system_prompt = kwargs.get("system_prompt", "")
-    
-    # Should only have base entities
-    assert "Person (name, role, organization, is_stakeholder: bool)" in system_prompt
-    assert "Competitor" not in system_prompt
+    llm_patch, mock_llm = _mock_llm_service()
+
+    with llm_patch, patch("core.knowledge_extractor.get_db_session") as mock_db:
+        mock_session = MagicMock()
+        mock_db.return_value.__enter__.return_value = mock_session
+        # No custom entity types defined
+        mock_session.query.return_value.filter.return_value.all.return_value = []
+
+        extractor = KnowledgeExtractor()
+        await extractor.extract_knowledge("Hello world")
+
+        assert mock_llm.generate_completion.called
+        system_prompt = _capture_system_prompt(mock_llm)
+
+        # Should only have base entities
+        assert "Person (name, role, organization, is_stakeholder: bool)" in system_prompt
+        assert "Competitor" not in system_prompt

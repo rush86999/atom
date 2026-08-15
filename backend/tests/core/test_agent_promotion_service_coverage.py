@@ -242,13 +242,14 @@ class TestPromotionSuggestions:
 
             service = AgentPromotionService(db_session)
 
-            # Create promotable agents
+            # Create promotable agents (status must match the query's
+            # lowercase AgentStatus.INTERN.value/SUPERVISED.value)
             for i in range(3):
                 agent = AgentRegistry(
                     id=f"agent-promotable-{i}",
                     tenant_id="tenant-promotions",
                     name=f"Promotable {i}",
-                    status="INTERN",  # String value, not enum (to match query)
+                    status=AgentStatus.INTERN.value,  # "intern"
                     confidence_score=0.8 + i * 0.05,
                     category="test",
                     module_path="test.module",
@@ -261,7 +262,7 @@ class TestPromotionSuggestions:
                 id="agent-student",
                 tenant_id="tenant-promotions",
                 name="Student Agent",
-                status="STUDENT",  # Not in query filter
+                status=AgentStatus.STUDENT.value,  # "student" — not in query filter
                 confidence_score=0.6,
                 category="test",
                 module_path="test.module",

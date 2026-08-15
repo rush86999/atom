@@ -33,7 +33,7 @@ async def health() -> Dict[str, Any]:
         return {"healthy": True, "message": "webhook_renewal service available (no health_check method)"}
     except Exception as exc:
         logger.warning("webhook_renewal health check failed: %s", exc)
-        return {"healthy": False, "message": str(exc)}
+        return {"healthy": False, "message": "webhook_renewal health check failed"}
 
 
 @router.get("/capabilities")

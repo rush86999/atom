@@ -143,7 +143,10 @@ class TestCanvasLogicPolicyIssued:
         )
         assert policy.tool_whitelist == ("canvas_render",)
         import os
-        fs_root = os.path.join(cls.CANVAS_RUNTIME_ROOT, "c-policy-1")
+        # run() uses sanitize_namespace (path-safe injective encoding) for the
+        # per-canvas directory, not the raw canvas_id.
+        namespace = cls.sanitize_namespace("c-policy-1")
+        fs_root = os.path.join(cls.CANVAS_RUNTIME_ROOT, namespace)
         assert os.path.abspath(policy.fs_roots[0]) == os.path.abspath(fs_root)
 
     @pytest.mark.asyncio

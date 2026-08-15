@@ -80,7 +80,12 @@ class TestSlackWebhookHandler:
     @patch('core.webhook_handlers.logger')
     def test_verify_signature_no_secret_development(self, mock_logger, mock_getenv):
         """Test signature verification bypassed in development without secret"""
-        mock_getenv.return_value = "development"
+        # Only ENVIRONMENT resolves to "development"; SLACK_SIGNING_SECRET
+        # must stay unset (a blanket return_value would leak "development"
+        # into the signing secret and take the HMAC path instead).
+        def fake_getenv(key, default=None):
+            return "development" if key == "ENVIRONMENT" else default
+        mock_getenv.side_effect = fake_getenv
         handler = SlackWebhookHandler(signing_secret=None)
         result = handler.verify_signature("1234567890", "test-signature", b"test-body")
         assert result is True
@@ -90,7 +95,9 @@ class TestSlackWebhookHandler:
     @patch('core.webhook_handlers.logger')
     def test_verify_signature_no_secret_production(self, mock_logger, mock_getenv):
         """Test signature verification rejected in production without secret"""
-        mock_getenv.return_value = "production"
+        def fake_getenv(key, default=None):
+            return "production" if key == "ENVIRONMENT" else default
+        mock_getenv.side_effect = fake_getenv
         handler = SlackWebhookHandler(signing_secret=None)
         result = handler.verify_signature("1234567890", "test-signature", b"test-body")
         assert result is False
@@ -100,7 +107,9 @@ class TestSlackWebhookHandler:
         """Test valid signature verification"""
         timestamp = "1234567890"
         body = b"test-body"
-        basestring = f"v0:{timestamp}".encode() + body
+        # Slack spec: HMAC-SHA256 over b"v0:{timestamp}:{body}" — the colon
+        # between timestamp and body is load-bearing (webhook_handlers.py).
+        basestring = f"v0:{timestamp}:".encode() + body
         expected_signature = "v0=" + hmac.new(
             webhook_secret.encode(), basestring, hashlib.sha256
         ).hexdigest()
@@ -121,7 +130,7 @@ class TestSlackWebhookHandler:
         """Test signature verification with wrong secret"""
         timestamp = "1234567890"
         body = b"test-body"
-        basestring = f"v0:{timestamp}".encode() + body
+        basestring = f"v0:{timestamp}:".encode() + body
         # Create signature with different secret
         signature = "v0=" + hmac.new(
             "wrong-secret".encode(), basestring, hashlib.sha256

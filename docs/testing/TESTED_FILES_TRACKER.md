@@ -6,7 +6,110 @@
 
 ---
 
-## Session 2026-08-14 (wave 118 — mobile coverage-depth: every src/ file <80% stmts → ≥80%; 210 new tests, 2 real bugs + 1 latent module-load bug + 1 dead-code removal)
+## Session 2026-08-15 (wave 120 — stale backend test-suite repair: 10 files from a batch failure run; 4 REAL source bugs found + fixed (TDD RED→GREEN), 6 test-side fixes)
+
+**Batch failure list**: 10 files (see table). Root causes: (a) unmounted/dead routers — `api/meeting_routes.py`, `api/financial_routes.py`, `integrations/workflow_automation_routes.py` are NOT included in `main_api_app` (their wave tests mount them manually), so endpoint tests against those contracts 404 in the app; (b) model contract drift — `AgentExecution` has no `session_id`/`task_description` (real cols: `input_summary`, `thread_id`); `FinancialAccount` is tenant-scoped (`tenant_id`, no `provider`/`user_id`); `NetWorthSnapshot` uses `total_assets`/`total_liabilities` (no `snapshot_date`/`assets`); `AdminUser` column is `password_hash` (not `hashed_password`); `CanvasAudit` uses `action_type` (not `action`); `User` has no `username` column; (c) shared dev-DB UNIQUE collisions (`admin_roles.name`, `email_verification_tokens.token`, `tenants.subdomain`, `workflows.id`) — fixed values → per-run unique ids; (d) `get_db_session()` is a context manager, not a session factory (`_GeneratorContextManager` has no `close`); (e) FastAPI `Depends(get_current_user)` cannot be patched by module-attribute replacement — tests now use `app.dependency_overrides[get_current_user]`; (f) invented endpoint paths (`/agents/{id}/execute`, `/agents/{id}/episodes`, `/api/canvas/status`, `/api/analytics/workflows/{id}/metrics`, `/api/feedback/analytics/`) rewritten to the real route table (verified by walking `_IncludedRouter.effective_candidates()` — 1173 routes) — note the app wraps included routers in lazy `_IncludedRouter` objects that don't surface in `app.routes`, so HTTP probing is the reliable mount signal (see `tests/test_boot_router_mounts.py`); (g) workflow analytics moved from `AgentExecution`-backed `/api/analytics/workflows/{id}/metrics` to `workflow_events`-backed `/api/analytics/dashboard/workflow/{id}/performance` (`core/workflow_analytics_engine.py`, SQLite `analytics.db`).
+
+**Final state**: all 10 files green in ONE combined process — **337 passed / 0 failed / 0 errors / 21 skipped** (20 skips = unmounted-router classes in `test_user_management_api.py`, 1 pre-existing email-verification skip), plus 2 regression suites (feedback_enhanced, round39 auth sweep) green.
+
+| File | Before | After | Root cause → fix |
+|---|---|---|---|
+| `tests/test_user_management_api.py` | 19 failed + 6 setup errors | **21 passed, 20 skipped** | (1) `super_admin_user`/`test_admin` fixtures + model tests + admin API tests used fixed `admin_roles.name` ("super_admin", "test_admin", …) → UNIQUE collisions against shared dev DB → unique `uuid4().hex[:8]`-suffixed names (emails/subdomains/tokens too); (2) `AdminUser(hashed_password=…)` — real column is `password_hash`; (3) `FinancialAccount(user_id=, provider=)` → tenant-scoped (`tenant_id`, create Tenant first); `NetWorthSnapshot(snapshot_date=, assets=, liabilities=)` → `total_assets`/`total_liabilities`; (4) `TestMeetingAPI`/`TestFinancialAPI`/`test_get_tenant_context_requires_auth` skipped with reasons — `api/meeting_routes.py` + `api/financial_routes.py` are NOT mounted in the app (404; router-level coverage lives in `tests/unit/api/test_meeting_routes.py` + `tests/test_covpush_w65f_api_financial.py`); no `/api/tenants/context` route exists anywhere |
+| `tests/api/test_api_routes_coverage.py` | 20 failed | **23 passed** ×3 runs | All paths were invented (`/agents/{id}/execute`, `/agents/{id}/episodes`, `/workflows`, `/agents/{id}/governance/check`, `/agents/{id}/capabilities`, `/agents/{id}/browser/...`). Rewritten to REAL endpoints (`/api/agents/{id}/run`, `/api/episodes/retrieve/semantic`, `/api/episodes/{agent_id}/list`, `/api/v1/workflow-ui/workflows`, `/api/v1/workflow-ui/workflows/{id}/execute`, `/api/agent-governance/*`, `/api/devices`, `/api/browser/*`, `/api/canvas/`…) asserting mount + auth (401) — same HTTP-signal pattern as `test_boot_router_mounts.py`; dropped `AgentFactory`/`db_session` (anonymous-only checks) |
+| `tests/test_workflow_metrics.py` | 19 failed/errors | **15 passed** | (1) `db` fixture: `get_db_session()` is a context manager (`with get_db_session() as db:`), not a session factory — `_GeneratorContextManager` has no `close`; (2) `AgentExecution(session_id=, task_description=)` — invalid kwargs (real: `input_summary`; no `session_id` — `thread_id` is the lateral-messaging col); (3) endpoint moved: `/api/analytics/workflows/{id}/metrics` is GONE (404) — the workflow metrics surface is now `/api/analytics/dashboard/workflow/{workflow_id}/performance` (auth-gated, computed from `workflow_events` in `analytics.db` by `core/workflow_analytics_engine.py`, NOT `agent_executions`). Rewritten: seed `workflow_events` rows (unique per-test workflow ids — engine caches per workflow+window), real JWT user via `create_access_token`, assert the new shape (`total_executions`, `successful_executions`, `success_rate` as %, `average_duration_ms`…); unknown workflow → 200 with zeroed metrics (engine always returns a populated `PerformanceMetrics`) |
+| `tests/test_canvas_routes_integration.py` | 17 failed | **16 passed** | (1) `patch('api.canvas_routes.get_current_user')` is ineffective — FastAPI `Depends` binds the function object; switched to `app.dependency_overrides[get_current_user]`; (2) `/api/canvas/status` does not exist → replaced with real `GET /api/canvas/` (returns `{success, canvases, count}`); (3) stale mocks `ws_manager`/`FeatureFlags` removed (submit has no WS broadcast; its real side effect is a `CanvasAudit` row); (4) governance runs through REAL `AgentGovernanceService` — fixture agents must be in the app's dev DB (`SessionLocal()`, `status="supervised"`, `workspace_id="default"`; conftest `db_session` is an in-memory worker DB invisible to the app); (5) response shape `{canvas_id, submitted, timestamp}` — no `submission_id`; audit col is `action_type` not `action` |
+| `tests/api/test_feedback_analytics.py` | 10 failed | **13 passed, 1 skipped** | REAL BUG: `api/feedback_analytics.py` router was included WITHOUT its prefix — its paths `/`, `/agent/{agent_id}`, `/trends` landed at bare roots (shadowed) and every `/api/feedback/analytics/*` call 404'd (the `/api/feedback/analytics` no-slash path was served by the shadowing `api/feedback_enhanced.py`). FIXED at `main_api_app.py:1956-1964`: `include_router(feedback_analytics_router, prefix="/api/feedback/analytics", …)` — RED: tests 404 → GREEN: 13 passed; no regression in `tests/api/test_feedback_enhanced.py` (67 passed) |
+| `tests/test_bughunt_intgr_d.py` | 8 failed | **54 passed** | REAL BUGS (3): (1) `TwilioService` never implemented the abstract `get_capabilities` (`core/integration_service.py:359`) → `TypeError: Can't instantiate abstract class` — the whole Twilio integration was inert; added the method enumerating send_sms/get_messages/make_call/get_calls/get_account_info (`integrations/twilio_service.py`); (2) `universal_webhook_bridge.process_incoming_message` leaked `str(e)` in the client-visible error envelope (`{"status": "error", "message": str(e)}`); (3) `webhook_renewal_routes.health` leaked `str(exc)` in the response. Both → generic message + server-side log. TEST fixes: `test_reject_path_fails_execution` asserted CLASS attrs instead of the instance (handler sets instance attrs) → assert on the instance; `User(username=…)` — no such column → dropped; `workflow_automation_routes` router had ZERO auth deps (all endpoints anonymous: test-step/whatsapp automate/enhanced AI) → REAL security gap (R69-pattern) — gated the whole router with `dependencies=[Depends(get_current_user)]` (`integrations/workflow_automation_routes.py`; router is currently unmounted in the app but was a latent anonymous-automation trigger) |
+| `tests/test_bughunt_20260809_api.py` | 7 (batch) | **11 passed** ×2 | Batch-order/shared-DB state dependent — green standalone twice + combined run; no change needed |
+| `tests/test_workflow_engine_fixed.py` | 6 failed | **46 passed** | (1) error-class tests asserted `.message` — classes store the message in `args[0]`/`str(e)` (standard Exception idiom; `jsonschema.ValidationError.message` usage in engine is a different class) → assert `str(error)`; (2) `_evaluate_condition("data.value > 5", …)` — conditions reference state via `${var}` substitution (safe_eval scope is deliberately empty — injection defense, `core/safe_evaluator.py`); bare identifiers return False → use `${step1.value} > 5` with `{"outputs": {"step1": {"value": 10}}}` (engine state convention: step outputs under `state["outputs"][step_id]`, inputs under `input_data`); (3) `test_execute_step_success` used service `"test"` (simulated-executor era; registry has no such service → `Unknown service: test`) → `"ai"` (registry-dispatched, mock target unchanged); (4) `test_load_workflow_by_id_success` inserted `Workflow(id="test-workflow-id")` into the DB — but `_load_workflow_by_id` reads `backend/workflows.json` (DB irrelevant; fixed id also collided on rerun) → load a real catalog id (`demo-customer-support`) |
+| `tests/test_canvas_fork.py` | 5 (batch) | **6 passed** ×2 | Batch-order/shared-DB state dependent — green standalone twice + combined run; no change needed |
+| `tests/api/test_agent_routes_coverage_ext.py` | 5 (batch) | **42 passed** | Batch-order/shared-DB state dependent — green standalone + combined run; no change needed |
+
+**Real bugs found** (4, all TDD RED→GREEN — failing test existed before the fix):
+1. `main_api_app.py:1956` — `feedback_analytics` router mounted without its documented `/api/feedback/analytics` prefix → every analytics endpoint 404'd (shadowed by `feedback_enhanced`); fixed with the prefix.
+2. `integrations/twilio_service.py` — missing abstract `get_capabilities` → `TwilioService` could not be instantiated (whole integration inert); implemented.
+3. `integrations/universal_webhook_bridge.py:158` + `integrations/webhook_renewal_routes.py:36` — `str(e)` leaked into client-visible responses (violates the repo's no-str(e) standard); generic messages + server-side logging.
+4. `integrations/workflow_automation_routes.py:169` — entire router anonymous (whatsapp/automate, enhanced AI analysis, test-step) — latent anonymous automation trigger; gated with `Depends(get_current_user)`.
+5. `core/models.py:9769` — `FinancialAccount.updated_at` was `nullable=False` with only `onupdate` (no insert default) → every plain insert failed with NOT NULL constraint; added `default=func.now()` + `server_default=func.now()`.
+
+**Verification** (all from `backend/`, `PYTHONPATH=/Users/rushiparikh/projects/atom/backend`, `-p no:cacheprovider -q`):
+```bash
+./venv/bin/python -m pytest tests/test_user_management_api.py            # 21 passed, 20 skipped
+./venv/bin/python -m pytest tests/api/test_api_routes_coverage.py        # 23 passed
+./venv/bin/python -m pytest tests/test_workflow_metrics.py               # 15 passed
+./venv/bin/python -m pytest tests/test_canvas_routes_integration.py      # 16 passed
+./venv/bin/python -m pytest tests/api/test_feedback_analytics.py         # 13 passed, 1 skipped
+./venv/bin/python -m pytest tests/test_bughunt_intgr_d.py                # 54 passed
+./venv/bin/python -m pytest tests/test_bughunt_20260809_api.py           # 11 passed
+./venv/bin/python -m pytest tests/test_workflow_engine_fixed.py          # 46 passed
+./venv/bin/python -m pytest tests/test_canvas_fork.py                    # 6 passed
+./venv/bin/python -m pytest tests/api/test_agent_routes_coverage_ext.py  # 42 passed
+# combined (all 10 + 2 regression-sensitive suites in ONE process):
+# 337 passed, 21 skipped, 0 failed — 112.89s
+```
+
+---
+
+## Session 2026-08-15 (wave 122 — stale backend test-suite repair: 19 files from a batch failure run; 0 source bugs, all failures were stale test contracts / phantom imports / test bugs)
+
+**Batch failure list**: 19 files (see table). Root causes: (a) phantom module import (`core.workflow_parameter_validator` — archived 2026-07, real validator is `advanced_workflow_system.ParameterValidator`); (b) `LLMService` patch target — `atom_meta_agent`/`atom_agent_endpoints` obtain it via local re-import/`ServiceFactory`, so `patch("…atom_meta_agent.LLMService")` is a phantom attribute; (c) enum contracts (AgentJobStatus/HITLActionStatus lowercase, `requires_human_approval` not `requires_approval`, `WhatsAppBusinessIntegration` not phantom `WhatsAppBusinessService`); (d) deliberate app hardening (core.auth fail-closed >72B passwords, token_storage TOCTOU-free, ms365 router auth, decay_score freshness formula `max(0, 1-days/180)`); (e) test bugs (missing `db.add`/AsyncMock, wrong status case `"INTERN"` vs `.value`, unpatched local imports, leftover DB rows with fixed jtis/emails).
+
+**Final state**: all 19 files green in ONE combined process — **298 passed / 0 failed / 0 errors** (`-p no:cacheprovider -q`, `PYTHONPATH=/Users/rushiparikh/projects/atom/backend`). No source files modified; every fix was test-side (app was the correct contract in all 19 cases).
+
+| File | Before | After | Root cause → fix |
+|---|---|---|---|
+| `tests/test_phase1_security_fixes.py` | 1 ERROR (collection) | **21 passed** | Phantom `core.workflow_parameter_validator` import → rewrote `TestWorkflowValidator` against real `ParameterValidator.validate_parameter`/`InputParameter`/`ParameterType` (incl. `MAX_REGEX_LENGTH` ReDoS cap); removed importorskip of nonexistent `integrations.ai_enhanced_service`; AGENT_SUITE 7→8; enums are lowercase (app-wide contract); token tests now idempotent (unique email/jti per run + purge leftover rows — stale `RevokedToken` rows made revoke count 0) |
+| `tests/core/test_agent_governance_service_coverage_expand.py` | 3 (batch) | **25 passed** ×3 runs | Batch-order/state dependent — green standalone twice + combined run; no change needed |
+| `tests/core/test_dynamic_extraction.py` | 2 | **2 passed** | Stale constructor-injection contract (`KnowledgeExtractor(mock_ai)` + `analyze_text`); extractor now builds its own `LLMService` and calls `generate_completion` → patch `core.knowledge_extractor.LLMService`, assert prompt substrings from messages[0] |
+| `tests/core/test_episode_rating_bughunt.py` | 1 | **11 passed** | Test asserted inverted decay formula (`min(1, days/90)`); app canonically uses freshness `max(0, 1-days/180)` (documented at `episode_lifecycle_service.py:63-70,346-353`) → updated expected + added batch-path agreement assert; also the test never `db.add`ed the episode (sibling tests did) |
+| `tests/core/test_core_coverage_expansion.py` | 1 | **12 passed** | `KeyError: 'requires_approval'` — real key is `requires_human_approval` (`agent_governance_service.py:668`) |
+| `tests/core/test_agent_promotion_service_coverage.py` | 1 | **12 passed** | `get_promotion_suggestions` filters `AgentStatus.INTERN.value` (lowercase `'intern'`); test created rows with uppercase `"INTERN"` → 0 matches. Fixed to `.value` |
+| `tests/core/test_agent_evolution_loop.py` | 1 | **9 passed** | `validate_evolution_directive` no longer checks `evolution_history` depth (removed from contract; depth lives in `get_ancestor_lineage(max_depth)`) → replaced with real-violation tests (protected config key `sandbox_config` → False; `harness_patches` carry-forward → True) |
+| `tests/core/test_action_registry_coverage.py` | 1 (batch) | **20 passed** | Batch-order/state dependent — green standalone + combined run; no change needed |
+| `tests/test_bughunt_intgr_b.py` | 1 | **20 passed** | Registry now maps `whatsapp` → `WhatsAppBusinessIntegration` (real class); test asserted phantom `WhatsAppBusinessService` alias |
+| `tests/test_bughunt_core_workhorses.py` | 1 | **17 passed** | `chat_stream_agent` re-imports `LLMService` locally (line 1826) so the module-level patch was a no-op → patch `core.llm_service.LLMService`; `stream_completion` must be an async generator (AsyncMock+list isn't async-iterable) |
+| `tests/test_bughunt_core_b.py` | 1 | **11 passed** | Policy fs_root uses `sanitize_namespace(canvas_id)` (path-safe injective encoding — security feature), not raw id → assert against `cls.sanitize_namespace("c-policy-1")` |
+| `tests/test_bughunt_api_wave.py` | 1 (batch) | **23 passed** ×2 runs | Batch-order/state dependent — green standalone twice + combined run; no change needed |
+| `tests/test_bughunt_agents_wave10c.py` | 1 (batch) | **7 passed** | Green standalone + combined run; no change needed |
+| `tests/test_bughunt_20260809_sbx.py` | 1 (batch) | **4 passed** | Green standalone + combined run; no change needed |
+| `tests/test_bug_hunt_round2.py` | 1 | **11 passed** | Test asserted 80-byte password cross-verifies via `core.auth.get_password_hash` — app is now FAIL-CLOSED for >72B (documented `auth.py:76-80`, entropy-loss fix). Updated: core.auth raises ValueError; enterprise truncation roundtrips; ≤71B cross-verify |
+| `tests/test_bughunt_mail_office.py` | 2 | **20 passed** | (1) gmail fetch test: `pipe.ingest_message` was a plain Mock → `await` raised → swallowed → `[]`; must be AsyncMock (sibling sync_calendar test already did). (2) ms365 `/services/status` now router-level auth (R38-40 sweep) → override `get_current_user` |
+| `tests/test_atom_react.py` | 2 ERROR | **2 passed** | Phantom `atom_meta_agent.LLMService` patch; whole ReAct contract changed (instructor `ReActStep`, ServiceFactory LLM, dispatch via `_execute_tool_with_governance`). Rewrote as hermetic execute() tests (FakeSession, `_react_step` sequence, tool-dispatch + final-answer assertions) |
+| `tests/test_toctou_race_conditions.py` | 1 | **5 passed** | token_storage was HARDENED (try/except FileNotFoundError + atomic tempfile/`os.replace` 0600, `token_storage.py:36-75`) — test asserted the bug's presence; flipped to assert the fix (no `os.path.exists`, has `os.replace`/`0o600`) |
+| `tests/api/test_auth_routes_error_paths.py` | 2 | **24 passed** | `not-an-email` on mobile/login returns **401** (opaque string lookup — anti-enumeration), not 422/200; tests' allowed-status lists were stale |
+
+**Real bugs found**: none in source — all 19 files' failures were stale test contracts (the app had been deliberately changed/hardened in each case, with source comments documenting the new contracts). Verified via `git diff --stat` (test files only) + combined green run.
+
+**Verification** (all from `backend/`, `PYTHONPATH=/Users/rushiparikh/projects/atom/backend`):
+```bash
+# per-file (each green, `-p no:cacheprovider -q`):
+./venv/bin/python -m pytest tests/test_phase1_security_fixes.py                    # 21 passed
+./venv/bin/python -m pytest tests/core/test_agent_governance_service_coverage_expand.py  # 25 passed
+./venv/bin/python -m pytest tests/core/test_dynamic_extraction.py                  # 2 passed
+./venv/bin/python -m pytest tests/core/test_episode_rating_bughunt.py              # 11 passed
+./venv/bin/python -m pytest tests/core/test_core_coverage_expansion.py             # 12 passed
+./venv/bin/python -m pytest tests/core/test_agent_promotion_service_coverage.py    # 12 passed
+./venv/bin/python -m pytest tests/core/test_agent_evolution_loop.py                # 9 passed
+./venv/bin/python -m pytest tests/core/test_action_registry_coverage.py            # 20 passed
+./venv/bin/python -m pytest tests/test_bughunt_intgr_b.py                          # 20 passed
+./venv/bin/python -m pytest tests/test_bughunt_core_workhorses.py                  # 17 passed
+./venv/bin/python -m pytest tests/test_bughunt_core_b.py                           # 11 passed
+./venv/bin/python -m pytest tests/test_bughunt_api_wave.py                         # 23 passed
+./venv/bin/python -m pytest tests/test_bughunt_agents_wave10c.py                   # 7 passed
+./venv/bin/python -m pytest tests/test_bughunt_20260809_sbx.py                     # 4 passed
+./venv/bin/python -m pytest tests/test_bug_hunt_round2.py                          # 11 passed
+./venv/bin/python -m pytest tests/test_bughunt_mail_office.py                      # 20 passed
+./venv/bin/python -m pytest tests/test_atom_react.py                               # 2 passed
+./venv/bin/python -m pytest tests/test_toctou_race_conditions.py                   # 5 passed
+./venv/bin/python -m pytest tests/api/test_auth_routes_error_paths.py              # 24 passed
+# combined (single process, catches cross-file pollution):
+./venv/bin/python -m pytest <all 19 files above> -p no:cacheprovider -q            # 298 passed
+```
+
+**Test-infra landmines** (for future waves): (1) `from X import Y` inside a function body (e.g. `chat_stream_agent` line 1826, `atom_meta_agent.__init__` ServiceFactory) makes module-level `patch("…X.Y")` a silent no-op — patch the CANONICAL module (`core.llm_service.LLMService`, `core.service_factory.ServiceFactory.get_llm_service`). (2) Tests writing fixed emails/jtis to `atom_dev.db` collide with `RevokedToken`/`users` rows from crashed prior runs — use uuid-suffixed identifiers + purge leftover rows. (3) `async for` over `AsyncMock(return_value=list)` fails — use an async generator. (4) `sqlite:///:memory:` strips tzinfo on round-trip — aware/naive comparisons differ between SQL and Python; filter in SQL (works) vs comparing in Python (TypeError). (5) `dev DB` is stateful across runs — a "batch green" can differ from standalone when tests write rows.
+
+---
+
 
 **Baseline** (`cd mobile && npm test -- --coverage --watchAll=false --maxWorkers=2`): below-80%-statements files were all TEST-INFRA structure (`__tests__/helpers/*`, `__tests__/mocks/*`, `test-utils/*`) plus `navigation/AuthNavigator.tsx` branches (75%). Also 4 flaky failing tests (ChatTabScreen delete timeout ×2 runs, Login/Register loading indicators, testUtils `wait` 99ms race). All 12 target files now 100% stmts; full suite **exit 0** — 127 suites / 4276 passed / 2 intentional skips (skip-side of `skipOnPlatform`/`onlyOnPlatform`), zero coverage-threshold violations.
 

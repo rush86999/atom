@@ -1,16 +1,29 @@
 """
 Integration coverage tests for api/canvas_routes.py.
 
-These tests use FastAPI TestClient to increase code coverage.
+NOTE (Session 2026-08-15, wave 120): rewritten against the current
+api/canvas_routes.py contract:
+- Auth is enforced via FastAPI `Depends(get_current_user)`, which cannot be
+  patched by replacing the module attribute — the tests now use
+  `app.dependency_overrides[get_current_user]`.
+- `/api/canvas/status` does not exist (the old suite's central endpoint) —
+  replaced with the real list surface `GET /api/canvas/`.
+- `ws_manager` / `FeatureFlags` mocks removed — the submit endpoint has no
+  WebSocket broadcast; its real side effect is a `CanvasAudit` row.
+- Governance runs through the REAL `AgentGovernanceService` against the
+  dev DB (the fixture DB is in-memory and invisible to the app), so agents
+  are seeded via `SessionLocal()`.
+- Response shape: `data = {canvas_id, submitted, timestamp}` (no
+  submission_id / agent_execution_id in the payload).
 """
 import pytest
 import uuid
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime
 
 from main_api_app import app
-from core.models import CanvasAudit, AgentRegistry, AgentExecution, User
+from core.auth import get_current_user
+from core.models import CanvasAudit, AgentRegistry, User, UserStatus
 from core.database import SessionLocal
 
 
@@ -21,60 +34,80 @@ def test_client():
 
 
 @pytest.fixture
-def canvas_user(db_session):
-    """Create authenticated test user."""
-    user = User(
-        email=f"canvas_test-{uuid.uuid4()}@example.com",
-        hashed_password="hashed_password_here",
-        status="active",
-        created_at=datetime.utcnow(), first_name="Test", last_name="User", role="member"
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
+def canvas_user():
+    """Create a user in the app's dev DB (the app reads it for auth/audit)."""
+    db = SessionLocal()
+    try:
+        user = User(
+            email=f"canvas_test-{uuid.uuid4()}@example.com",
+            hashed_password="hashed_password_here",
+            status=UserStatus.ACTIVE.value,
+            created_at=datetime.utcnow(),
+            first_name="Test",
+            last_name="User",
+            role="member",
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+    finally:
+        db.close()
 
 
 @pytest.fixture
-def canvas_agent(db_session):
-    """Create test agent for canvas operations."""
-    agent = AgentRegistry(
-        name="CanvasTestAgent",
-        category="testing",
-        module_path="test.module",
-        class_name="TestCanvas",
-        status="SUPERVISED",
-        confidence_score=0.8,
-        created_at=datetime.utcnow()
-    )
-    db_session.add(agent)
-    db_session.commit()
-    db_session.refresh(agent)
-    return agent
+def authenticated_client(test_client, canvas_user):
+    """Test client with the real get_current_user dependency overridden."""
+    app.dependency_overrides[get_current_user] = lambda: canvas_user
+    try:
+        yield test_client
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
 
 
-class TestCanvasStatusEndpoint:
-    """Tests for canvas status endpoint."""
+@pytest.fixture
+def canvas_agent():
+    """Create a SUPERVISED test agent in the app's dev DB (governance reads it)."""
+    db = SessionLocal()
+    try:
+        agent = AgentRegistry(
+            name="CanvasTestAgent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestCanvas",
+            status="supervised",
+            confidence_score=0.8,
+            workspace_id="default",
+            created_at=datetime.utcnow(),
+        )
+        db.add(agent)
+        db.commit()
+        db.refresh(agent)
+        return agent
+    finally:
+        db.close()
 
-    def test_get_canvas_status_unauthenticated(self, test_client):
-        """Test canvas status without authentication."""
-        response = test_client.get("/api/canvas/status")
+
+class TestCanvasListEndpoint:
+    """Tests for the real canvas list surface (GET /api/canvas/)."""
+
+    def test_get_canvases_unauthenticated(self, test_client):
+        """Test canvas list without authentication."""
+        response = test_client.get("/api/canvas/")
         # Should return 401 or 403 without auth
         assert response.status_code in [401, 403]
 
-    def test_get_canvas_status_authenticated(self, test_client, canvas_user):
-        """Test canvas status with authentication."""
-        # Mock authentication
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
+    def test_get_canvases_authenticated(self, authenticated_client, canvas_user):
+        """Test canvas list with authentication."""
+        response = authenticated_client.get("/api/canvas/")
 
-            response = test_client.get("/api/canvas/status")
-
-            # Status endpoint should be accessible
-            assert response.status_code == 200
-            data = response.json()
-            assert "data" in data
-            assert data["success"] is True
+        # List endpoint should be accessible
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "canvases" in data
+        assert "count" in data
+        assert isinstance(data["canvases"], list)
 
 
 class TestCanvasFormSubmission:
@@ -92,462 +125,236 @@ class TestCanvasFormSubmission:
         # Should require authentication
         assert response.status_code in [401, 403]
 
-    def test_submit_form_authenticated(self, test_client, canvas_user):
+    def test_submit_form_authenticated(self, authenticated_client, canvas_user):
         """Test form submission with authentication."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
+        response = authenticated_client.post(
+            "/api/canvas/submit",
+            json={
+                "canvas_id": f"form_{uuid.uuid4().hex[:8]}",
+                "form_data": {
+                    "email": "user@example.com",
+                    "message": "Test message"
+                }
+            }
+        )
 
-            with patch('api.canvas_routes.ws_manager') as mock_ws:
-                mock_ws.broadcast = AsyncMock()
+        # Should accept submission
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["submitted"] is True
+        assert "canvas_id" in data["data"]
 
-                response = test_client.post(
-                    "/api/canvas/submit",
-                    json={
-                        "canvas_id": "form_123",
-                        "form_data": {
-                            "email": "user@example.com",
-                            "message": "Test message"
-                        }
-                    }
-                )
+    def test_submit_form_with_agent(self, authenticated_client, canvas_user, canvas_agent):
+        """Test form submission with agent context (governance allowed)."""
+        response = authenticated_client.post(
+            "/api/canvas/submit",
+            json={
+                "canvas_id": f"agent_form_{uuid.uuid4().hex[:8]}",
+                "form_data": {"approved": True},
+                "agent_id": canvas_agent.id
+            }
+        )
 
-                # Should accept submission
-                assert response.status_code == 200
-                data = response.json()
-                assert data["success"] is True
-                assert "submission_id" in data["data"]
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["submitted"] is True
 
-    def test_submit_form_with_agent(self, test_client, canvas_user, canvas_agent):
-        """Test form submission with agent context."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
-
-            with patch('api.canvas_routes.ws_manager') as mock_ws:
-                mock_ws.broadcast = AsyncMock()
-
-                response = test_client.post(
-                    "/api/canvas/submit",
-                    json={
-                        "canvas_id": "agent_form_123",
-                        "form_data": {"approved": True},
-                        "agent_id": canvas_agent.id
-                    }
-                )
-
-                assert response.status_code == 200
-                data = response.json()
-                assert "agent_id" in data["data"]
-
-    def test_submit_form_with_execution_id(self, test_client, canvas_user, canvas_agent):
+    def test_submit_form_with_execution_id(self, authenticated_client, canvas_user, canvas_agent):
         """Test form submission linked to agent execution."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
+        response = authenticated_client.post(
+            "/api/canvas/submit",
+            json={
+                "canvas_id": f"execution_form_{uuid.uuid4().hex[:8]}",
+                "form_data": {"action": "approve"},
+                "agent_execution_id": "exec_123",
+                "agent_id": canvas_agent.id
+            }
+        )
 
-            with patch('api.canvas_routes.ws_manager') as mock_ws:
-                mock_ws.broadcast = AsyncMock()
+        assert response.status_code == 200
 
-                response = test_client.post(
-                    "/api/canvas/submit",
-                    json={
-                        "canvas_id": "execution_form_123",
-                        "form_data": {"action": "approve"},
-                        "agent_execution_id": "exec_123",
-                        "agent_id": canvas_agent.id
-                    }
-                )
-
-                assert response.status_code == 200
-
-    def test_submit_form_empty_data(self, test_client, canvas_user):
+    def test_submit_form_empty_data(self, authenticated_client, canvas_user):
         """Test form submission with empty data."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
+        response = authenticated_client.post(
+            "/api/canvas/submit",
+            json={
+                "canvas_id": f"empty_form_{uuid.uuid4().hex[:8]}",
+                "form_data": {}
+            }
+        )
 
-            with patch('api.canvas_routes.ws_manager') as mock_ws:
-                mock_ws.broadcast = AsyncMock()
+        # Should accept empty form data
+        assert response.status_code == 200
 
-                response = test_client.post(
-                    "/api/canvas/submit",
-                    json={
-                        "canvas_id": "empty_form",
-                        "form_data": {}
-                    }
-                )
-
-                # Should accept empty form data
-                assert response.status_code == 200
-
-    def test_submit_form_large_data(self, test_client, canvas_user):
+    def test_submit_form_large_data(self, authenticated_client, canvas_user):
         """Test form submission with large data payload."""
         large_data = {f"field_{i}": f"value_{i}" for i in range(100)}
 
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
+        response = authenticated_client.post(
+            "/api/canvas/submit",
+            json={
+                "canvas_id": f"large_form_{uuid.uuid4().hex[:8]}",
+                "form_data": large_data
+            }
+        )
 
-            with patch('api.canvas_routes.ws_manager') as mock_ws:
-                mock_ws.broadcast = AsyncMock()
-
-                response = test_client.post(
-                    "/api/canvas/submit",
-                    json={
-                        "canvas_id": "large_form",
-                        "form_data": large_data
-                    }
-                )
-
-                assert response.status_code == 200
+        assert response.status_code == 200
 
 
 class TestCanvasGovernanceIntegration:
-    """Tests for canvas governance integration."""
+    """Tests for canvas governance integration (real AgentGovernanceService)."""
 
-    def test_form_submission_governance_check(self, test_client, canvas_user, canvas_agent):
-        """Test governance check during form submission."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
+    def test_form_submission_governance_check(self, authenticated_client, canvas_user, canvas_agent):
+        """Test governance check during form submission (allowed for SUPERVISED agent)."""
+        response = authenticated_client.post(
+            "/api/canvas/submit",
+            json={
+                "canvas_id": f"governance_form_{uuid.uuid4().hex[:8]}",
+                "form_data": {"test": "data"},
+                "agent_id": canvas_agent.id
+            }
+        )
 
-            with patch('api.canvas_routes.FeatureFlags') as mock_flags:
-                mock_flags.should_enforce_governance.return_value = True
+        assert response.status_code == 200
 
-                with patch('api.canvas_routes.ServiceFactory') as mock_factory:
-                    mock_gov_service = MagicMock()
-                    mock_gov_service.can_perform_action.return_value = {
-                        "allowed": True,
-                        "reason": None
-                    }
-                    mock_factory.get_governance_service.return_value = mock_gov_service
+    def test_form_submission_governance_denied(self, authenticated_client, canvas_user):
+        """Test form submission when governance denies action (unknown agent)."""
+        response = authenticated_client.post(
+            "/api/canvas/submit",
+            json={
+                "canvas_id": f"denied_form_{uuid.uuid4().hex[:8]}",
+                "form_data": {"test": "data"},
+                "agent_id": "nonexistent-agent"
+            }
+        )
 
-                    with patch('api.canvas_routes.ws_manager') as mock_ws:
-                        mock_ws.broadcast = AsyncMock()
-
-                        response = test_client.post(
-                            "/api/canvas/submit",
-                            json={
-                                "canvas_id": "governance_form",
-                                "form_data": {"test": "data"},
-                                "agent_id": canvas_agent.id
-                            }
-                        )
-
-                        assert response.status_code == 200
-
-    def test_form_submission_governance_denied(self, test_client, canvas_user, canvas_agent):
-        """Test form submission when governance denies action."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
-
-            with patch('api.canvas_routes.FeatureFlags') as mock_flags:
-                mock_flags.should_enforce_governance.return_value = True
-
-                with patch('api.canvas_routes.ServiceFactory') as mock_factory:
-                    mock_gov_service = MagicMock()
-                    mock_gov_service.can_perform_action.return_value = {
-                        "allowed": False,
-                        "reason": "Insufficient maturity level"
-                    }
-                    mock_factory.get_governance_service.return_value = mock_gov_service
-
-                    response = test_client.post(
-                        "/api/canvas/submit",
-                        json={
-                            "canvas_id": "denied_form",
-                            "form_data": {"test": "data"},
-                            "agent_id": canvas_agent.id
-                        }
-                    )
-
-                    # Should return error when governance denies
-                    assert response.status_code in [400, 403]
-
-    def test_form_submission_creates_execution(self, test_client, canvas_user, canvas_agent):
-        """Test that form submission creates agent execution record."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
-
-            with patch('api.canvas_routes.FeatureFlags') as mock_flags:
-                mock_flags.should_enforce_governance.return_value = True
-
-                with patch('api.canvas_routes.ServiceFactory') as mock_factory:
-                    mock_gov_service = MagicMock()
-                    mock_gov_service.can_perform_action.return_value = {
-                        "allowed": True,
-                        "reason": None
-                    }
-                    mock_gov_service.record_outcome = AsyncMock()
-                    mock_factory.get_governance_service.return_value = mock_gov_service
-
-                    with patch('api.canvas_routes.ws_manager') as mock_ws:
-                        mock_ws.broadcast = AsyncMock()
-
-                        response = test_client.post(
-                            "/api/canvas/submit",
-                            json={
-                                "canvas_id": "execution_form",
-                                "form_data": {"action": "submit"},
-                                "agent_id": canvas_agent.id
-                            }
-                        )
-
-                        assert response.status_code == 200
-                        data = response.json()
-                        assert "agent_execution_id" in data["data"]
+        # Governance denial surfaces as 403 GOVERNANCE_DENIED
+        assert response.status_code == 403
+        data = response.json()
+        assert "error" in data or "detail" in data
 
 
 class TestCanvasAuditTrail:
     """Tests for canvas audit trail in routes."""
 
-    def test_form_submission_creates_audit(self, test_client, canvas_user):
-        """Test that form submission creates audit entry."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
+    def test_form_submission_creates_audit(self, authenticated_client, canvas_user):
+        """Test that form submission creates an audit entry (the real side effect)."""
+        canvas_id = f"audit_form_{uuid.uuid4().hex[:8]}"
 
-            with patch('api.canvas_routes.ws_manager') as mock_ws:
-                mock_ws.broadcast = AsyncMock()
+        response = authenticated_client.post(
+            "/api/canvas/submit",
+            json={
+                "canvas_id": canvas_id,
+                "form_data": {"field1": "value1"}
+            }
+        )
 
-                response = test_client.post(
-                    "/api/canvas/submit",
-                    json={
-                        "canvas_id": "audit_form",
-                        "form_data": {"field1": "value1"}
-                    }
-                )
+        assert response.status_code == 200
 
-                assert response.status_code == 200
+        # Verify audit entry was created in the app DB
+        db = SessionLocal()
+        try:
+            audit = db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id
+            ).first()
 
-                # Verify audit entry was created
-                audit = SessionLocal().query(CanvasAudit).filter(
-                    CanvasAudit.canvas_id == "audit_form"
-                ).first()
+            # Audit entry should exist with the real column names
+            assert audit is not None
+            assert audit.action_type == "submit"
+            assert audit.canvas_type == "form"
+            assert audit.user_id == str(canvas_user.id)
+        finally:
+            db.close()
 
-                # Audit entry should exist
-                assert audit is not None
-                assert audit.action == "submit"
-
-    def test_form_audit_includes_metadata(self, test_client, canvas_user):
+    def test_form_audit_includes_metadata(self, authenticated_client, canvas_user):
         """Test that audit includes form metadata."""
         form_data = {
             "email": "test@example.com",
             "message": "Test message",
             "subscribe": True
         }
+        canvas_id = f"metadata_form_{uuid.uuid4().hex[:8]}"
 
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
+        response = authenticated_client.post(
+            "/api/canvas/submit",
+            json={
+                "canvas_id": canvas_id,
+                "form_data": form_data
+            }
+        )
 
-            with patch('api.canvas_routes.ws_manager') as mock_ws:
-                mock_ws.broadcast = AsyncMock()
+        assert response.status_code == 200
 
-                response = test_client.post(
-                    "/api/canvas/submit",
-                    json={
-                        "canvas_id": "metadata_form",
-                        "form_data": form_data
-                    }
-                )
-
-                assert response.status_code == 200
-
-
-class TestCanvasWebSocketBroadcast:
-    """Tests for canvas WebSocket broadcasts."""
-
-    def test_form_submission_broadcasts(self, test_client, canvas_user):
-        """Test that form submission broadcasts via WebSocket."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
-
-            with patch('api.canvas_routes.ws_manager') as mock_ws:
-                mock_ws.broadcast = AsyncMock()
-
-                response = test_client.post(
-                    "/api/canvas/submit",
-                    json={
-                        "canvas_id": "broadcast_form",
-                        "form_data": {"test": "data"}
-                    }
-                )
-
-                assert response.status_code == 200
-                # Verify broadcast was called
-                assert mock_ws.broadcast.called
-
-    def test_broadcast_includes_governance_check(self, test_client, canvas_user):
-        """Test that broadcast includes governance check data."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
-
-            with patch('api.canvas_routes.FeatureFlags') as mock_flags:
-                mock_flags.should_enforce_governance.return_value = False
-
-                with patch('api.canvas_routes.ws_manager') as mock_ws:
-                    mock_ws.broadcast = AsyncMock()
-
-                    response = test_client.post(
-                        "/api/canvas/submit",
-                        json={
-                            "canvas_id": "governance_broadcast",
-                            "form_data": {"field": "value"}
-                        }
-                    )
-
-                    assert response.status_code == 200
-                    # Check broadcast call arguments
-                    call_args = mock_ws.broadcast.call_args
-                    assert call_args is not None
+        db = SessionLocal()
+        try:
+            audit = db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id
+            ).first()
+            assert audit is not None
+            details = audit.details_json or {}
+            assert details.get("form_data") == form_data
+        finally:
+            db.close()
 
 
 class TestCanvasErrorHandling:
     """Tests for canvas error handling."""
 
-    def test_invalid_json_request(self, test_client, canvas_user):
+    def test_invalid_json_request(self, authenticated_client, canvas_user):
         """Test handling of invalid JSON in request."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
+        response = authenticated_client.post(
+            "/api/canvas/submit",
+            content="invalid json content",
+            headers={"Content-Type": "application/json"}
+        )
 
-            response = test_client.post(
-                "/api/canvas/submit",
-                content="invalid json content",
-                headers={"Content-Type": "application/json"}
-            )
+        # Should return validation error
+        assert response.status_code == 422
 
-            # Should return validation error
-            assert response.status_code == 422
-
-    def test_missing_required_field(self, test_client, canvas_user):
+    def test_missing_required_field(self, authenticated_client, canvas_user):
         """Test handling of missing required field."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
+        # Missing canvas_id
+        response = authenticated_client.post(
+            "/api/canvas/submit",
+            json={
+                "form_data": {"test": "data"}
+            }
+        )
 
-            # Missing canvas_id
-            response = test_client.post(
-                "/api/canvas/submit",
-                json={
-                    "form_data": {"test": "data"}
-                }
-            )
+        # Should return validation error
+        assert response.status_code == 422
 
-            # Should return validation error
-            assert response.status_code == 422
-
-    def test_missing_form_data(self, test_client, canvas_user):
+    def test_missing_form_data(self, authenticated_client, canvas_user):
         """Test handling of missing form_data field."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
+        response = authenticated_client.post(
+            "/api/canvas/submit",
+            json={
+                "canvas_id": f"test_canvas_{uuid.uuid4().hex[:8]}"
+            }
+        )
 
-            response = test_client.post(
-                "/api/canvas/submit",
-                json={
-                    "canvas_id": "test_canvas"
-                }
-            )
-
-            # Should return validation error
-            assert response.status_code == 422
+        # Should return validation error
+        assert response.status_code == 422
 
 
 class TestCanvasResponseFormat:
     """Tests for canvas API response format."""
 
-    def test_success_response_format(self, test_client, canvas_user):
+    def test_success_response_format(self, authenticated_client, canvas_user):
         """Test that successful submission follows response format."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
+        response = authenticated_client.post(
+            "/api/canvas/submit",
+            json={
+                "canvas_id": f"format_form_{uuid.uuid4().hex[:8]}",
+                "form_data": {"test": "data"}
+            }
+        )
 
-            with patch('api.canvas_routes.ws_manager') as mock_ws:
-                mock_ws.broadcast = AsyncMock()
-
-                response = test_client.post(
-                    "/api/canvas/submit",
-                    json={
-                        "canvas_id": "format_form",
-                        "form_data": {"test": "data"}
-                    }
-                )
-
-                assert response.status_code == 200
-                data = response.json()
-                assert "success" in data
-                assert "data" in data
-                assert "message" in data
-                assert data["success"] is True
-
-    def test_status_response_format(self, test_client, canvas_user):
-        """Test that status endpoint follows response format."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
-
-            response = test_client.get("/api/canvas/status")
-
-            assert response.status_code == 200
-            data = response.json()
-            assert "success" in data
-            assert "data" in data
-            assert data["success"] is True
-            assert "status" in data["data"]
-
-
-class TestCanvasFeatureFlags:
-    """Tests for canvas feature flag integration."""
-
-    def test_governance_disabled_bypass(self, test_client, canvas_user, canvas_agent):
-        """Test that disabled governance bypasses checks."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
-
-            with patch('api.canvas_routes.FeatureFlags') as mock_flags:
-                # Governance disabled
-                mock_flags.should_enforce_governance.return_value = False
-
-                with patch('api.canvas_routes.ws_manager') as mock_ws:
-                    mock_ws.broadcast = AsyncMock()
-
-                    response = test_client.post(
-                        "/api/canvas/submit",
-                        json={
-                            "canvas_id": "bypass_form",
-                            "form_data": {"test": "data"},
-                            "agent_id": canvas_agent.id
-                        }
-                    )
-
-                    # Should succeed without governance check
-                    assert response.status_code == 200
-
-
-class TestCanvasAgentOutcomeRecording:
-    """Tests for canvas agent outcome recording."""
-
-    def test_successful_submission_records_outcome(self, test_client, canvas_user, canvas_agent):
-        """Test that successful submission records agent outcome."""
-        with patch('api.canvas_routes.get_current_user') as mock_auth:
-            mock_auth.return_value = canvas_user
-
-            with patch('api.canvas_routes.FeatureFlags') as mock_flags:
-                mock_flags.should_enforce_governance.return_value = True
-
-                with patch('api.canvas_routes.ServiceFactory') as mock_factory:
-                    mock_gov_service = MagicMock()
-                    mock_gov_service.can_perform_action.return_value = {
-                        "allowed": True,
-                        "reason": None
-                    }
-                    # Track if record_outcome was called
-                    mock_gov_service.record_outcome = AsyncMock()
-                    mock_factory.get_governance_service.return_value = mock_gov_service
-
-                    with patch('api.canvas_routes.ws_manager') as mock_ws:
-                        mock_ws.broadcast = AsyncMock()
-
-                        response = test_client.post(
-                            "/api/canvas/submit",
-                            json={
-                                "canvas_id": "outcome_form",
-                                "form_data": {"action": "approve"},
-                                "agent_id": canvas_agent.id
-                            }
-                        )
-
-                        assert response.status_code == 200
-
-                        # Verify record_outcome was called
-                        mock_gov_service.record_outcome.assert_called()
+        assert response.status_code == 200
+        data = response.json()
+        assert "success" in data
+        assert "data" in data
+        assert data["success"] is True
+        assert "timestamp" in data
