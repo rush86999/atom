@@ -358,7 +358,12 @@ class TestBusinessFacts:
         table.search.return_value.where.return_value.limit.return_value.to_pandas.return_value = results
         handler.get_table = Mock(return_value=table)
         fact = await service.get_business_fact("f3")
-        assert fact is None
+        # metadata None → treated as {} → fact still built from row text with
+        # created_at/last_verified defaulted (no fromisoformat(None) crash)
+        assert fact is not None
+        assert fact.id == "f3"
+        assert fact.fact == "rule3"
+        assert fact.created_at is not None
 
     @pytest.mark.asyncio
     async def test_get_business_fact_exception(self):

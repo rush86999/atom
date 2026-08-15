@@ -1,4 +1,5 @@
 from typing import List, Dict, Any, Optional
+import asyncio
 import json
 import logging
 import uuid
@@ -118,7 +119,10 @@ class WorldModelService:
             "feedback_type": experience.feedback_type
         }
         
-        return self.db.add_document(
+        # to_thread: add_document embeds synchronously; called directly on the
+        # loop thread, embed_text's same-thread guard makes every write fail.
+        return await asyncio.to_thread(
+            self.db.add_document,
             table_name=self.table_name,
             text=text_representation,
             source=f"agent_{experience.agent_id}",
@@ -180,7 +184,8 @@ class WorldModelService:
         
         logger.info(f"Recording formula usage: {formula_name} by agent {agent_id} - {'Success' if success else 'Failure'}")
         
-        return self.db.add_document(
+        return await asyncio.to_thread(
+            self.db.add_document,
             table_name=self.table_name,
             text=text_representation,
             source=f"agent_{agent_id}",
@@ -230,7 +235,8 @@ class WorldModelService:
                     # Re-add with updated metadata (LanceDB append-only)
                     enhanced_text = res["text"] + f"\nFeedback: {feedback_notes}" if feedback_notes else res["text"]
                     
-                    self.db.add_document(
+                    await asyncio.to_thread(
+                        self.db.add_document,
                         table_name=self.table_name,
                         text=enhanced_text,
                         source=res.get("source", "system"),
@@ -277,7 +283,8 @@ class WorldModelService:
                     meta["boost_count"] = meta.get("boost_count", 0) + 1
                     meta["last_boosted_at"] = datetime.now(timezone.utc).isoformat()
 
-                    self.db.add_document(
+                    await asyncio.to_thread(
+                        self.db.add_document,
                         table_name=self.table_name,
                         text=res.get("text", ""),
                         source=res.get("source", "system"),
@@ -375,7 +382,8 @@ class WorldModelService:
             **fact.metadata
         }
         
-        return self.db.add_document(
+        return await asyncio.to_thread(
+            self.db.add_document,
             table_name=self.facts_table_name,
             text=text_representation,
             source=f"fact_agent_{fact.source_agent_id}",
@@ -406,7 +414,8 @@ class WorldModelService:
 
                     new_text = res["text"].replace(f"Status: {old_status}", f"Status: {status}")
                     
-                    self.db.add_document(
+                    await asyncio.to_thread(
+                        self.db.add_document,
                         table_name=self.facts_table_name,
                         text=new_text,
                         source=res.get("source"),
@@ -431,18 +440,32 @@ class WorldModelService:
             
             facts = []
             for res in results:
-                meta = res.get("metadata", {})
-                facts.append(BusinessFact(
-                    id=meta.get("id"),
-                    fact=meta.get("fact"),
-                    citations=meta.get("citations", []),
-                    reason=meta.get("reason"),
-                    source_agent_id=meta.get("source_agent_id"),
-                    created_at=datetime.fromisoformat(meta.get("created_at")),
-                    last_verified=datetime.fromisoformat(meta.get("last_verified")),
-                    verification_status=meta.get("verification_status", "unverified"),
-                    metadata=meta
-                ))
+                # Isolate per-row failures: one legacy/corrupt row (missing
+                # metadata, unparseable timestamp) must not nuke the whole
+                # result set for the query.
+                try:
+                    # `or {}` — the key can exist with a None value (legacy row)
+                    meta = res.get("metadata") or {}
+                    row_id = meta.get("id")
+                    row_fact = meta.get("fact")
+                    # Rows without an id/fact are unidentifiable junk — skip
+                    # them rather than constructing empty BusinessFacts.
+                    if not row_id or not row_fact:
+                        logger.warning("Skipping business fact row without id/fact")
+                        continue
+                    facts.append(BusinessFact(
+                        id=row_id,
+                        fact=row_fact,
+                        citations=meta.get("citations", []),
+                        reason=meta.get("reason"),
+                        source_agent_id=meta.get("source_agent_id"),
+                        created_at=datetime.fromisoformat(meta["created_at"]) if meta.get("created_at") else datetime.now(timezone.utc),
+                        last_verified=datetime.fromisoformat(meta["last_verified"]) if meta.get("last_verified") else datetime.now(timezone.utc),
+                        verification_status=meta.get("verification_status", "unverified"),
+                        metadata=meta
+                    ))
+                except (TypeError, ValueError) as row_err:
+                    logger.warning(f"Skipping malformed business fact row: {row_err}")
             return facts
         except Exception as e:
             logger.warning(f"Failed to retrieve business facts: {e}")
@@ -474,15 +497,16 @@ class WorldModelService:
             else:
                 meta = {}
             
-            # Construct BusinessFact
+            # Construct BusinessFact (reason/source_agent_id default to "" —
+            # the model requires str, but legacy rows may carry no metadata)
             return BusinessFact(
                 id=row['id'],
                 fact=meta.get("fact", row['text'].split('\n')[0].replace("Fact: ", "")),
                 citations=meta.get("citations", []),
-                reason=meta.get("reason"),
-                source_agent_id=meta.get("source_agent_id"),
-                created_at=datetime.fromisoformat(meta.get("created_at")),
-                last_verified=datetime.fromisoformat(meta.get("last_verified")) if meta.get("last_verified") else datetime.now(timezone.utc),
+                reason=meta.get("reason") or "",
+                source_agent_id=meta.get("source_agent_id") or "",
+                created_at=datetime.fromisoformat(meta["created_at"]) if meta.get("created_at") else datetime.now(timezone.utc),
+                last_verified=datetime.fromisoformat(meta["last_verified"]) if meta.get("last_verified") else datetime.now(timezone.utc),
                 verification_status=meta.get("verification_status", "unverified"),
                 metadata=meta
             )
@@ -705,7 +729,8 @@ class WorldModelService:
             }
 
             # Save to LanceDB (Cold Storage)
-            success = self.db.add_document(
+            success = await asyncio.to_thread(
+                self.db.add_document,
                 table_name="archived_memories",
                 text=session_text,
                 source=f"session:{conversation_id}",
@@ -813,7 +838,8 @@ class WorldModelService:
             }
 
             # Save to LanceDB
-            lancedb_success = self.db.add_document(
+            lancedb_success = await asyncio.to_thread(
+                self.db.add_document,
                 table_name="archived_memories",
                 text=session_text,
                 source=f"session:{conversation_id}",
@@ -1325,7 +1351,8 @@ class WorldModelService:
             **(metadata or {})
         }
 
-        return self.db.add_document(
+        return await asyncio.to_thread(
+            self.db.add_document,
             table_name="agent_episodes",  # Separate table for episodes
             text=text_representation,
             source=f"episode_{agent_id}",

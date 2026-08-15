@@ -112,8 +112,11 @@ class TestGetBusinessFactMetadataBranches:
         )
         svc.db.get_table = Mock(return_value=table)
         result = await svc.get_business_fact("fact-1")
-        # meta={} → construction hits fromisoformat(None) → swallowed, returns None
-        assert result is None
+        # meta={} → fact built from row text; created_at/last_verified default
+        # to now() instead of crashing fromisoformat(None) → returns the fact
+        assert result is not None
+        assert result.fact == "x"
+        assert result.created_at is not None
 
 
 class TestGetFactById:
