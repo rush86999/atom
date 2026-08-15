@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { renderWithProviders, screen, waitFor, within } from '../../tests/test-utils';
+import { fireEvent, renderWithProviders, screen, waitFor, within } from '../../tests/test-utils';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '../../tests/mocks/server';
@@ -365,6 +365,10 @@ describe('OutlookIntegration Component', () => {
           )
         ).toBe(true);
       });
+      // Restore the fetch spy — leaving it installed wraps MSW's patched
+      // fetch, so the NEXT test's requests bypass MSW interception and the
+      // empty-state test's mock never gets served (dialog never opens).
+      fetchSpy.mockRestore();
     });
 
     it('shows the empty state when there are no emails', async () => {
@@ -383,7 +387,14 @@ describe('OutlookIntegration Component', () => {
       expect(screen.getByText(/try adjusting your filters/i)).toBeInTheDocument();
 
       // The empty-state CTA opens the compose dialog
-      await user.click(screen.getByRole('button', { name: /compose new email/i }));
+      const btn = screen.getByRole('button', { name: /compose new email/i });
+      // The empty-state button can report invisible in jsdom after prior
+      // tests (offsetParent null) even though it is interactive — force the
+      // click so the compose dialog opens deterministically.
+      // fireEvent bypasses jsdom visibility checks — userEvent refuses to
+      // click elements it deems hidden (offsetParent null) even with force,
+      // and in full-file runs the empty-state button can report hidden.
+      fireEvent.click(btn);
       expect(await screen.findByRole('dialog')).toBeInTheDocument();
     });
   });
