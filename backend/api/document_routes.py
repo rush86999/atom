@@ -1,6 +1,7 @@
 """
 Document Routes - API endpoints for document ingestion and search
 """
+import asyncio
 from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
@@ -88,7 +89,10 @@ async def ingest_document(
             "doc_id": doc_id # Store explicit doc_id in metadata for retrieval
         })
 
-        success = lancedb_handler.add_document(
+        # to_thread: add_document embeds synchronously; called directly on the
+        # loop thread, embed_text's same-thread guard makes every write fail.
+        success = await asyncio.to_thread(
+            lancedb_handler.add_document,
             table_name="documents",
             text=content,
             source=f"api:{doc_id}",
@@ -193,7 +197,8 @@ async def upload_document(
             "author": current_user.email if current_user else "unknown"
         }
         
-        success = lancedb_handler.add_document(
+        success = await asyncio.to_thread(
+            lancedb_handler.add_document,
             table_name="documents",
             text=content,
             source=f"upload:{filename}",

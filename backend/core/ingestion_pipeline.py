@@ -14,6 +14,7 @@ Key features:
 - Enforces tenant_id isolation throughout
 """
 
+import asyncio
 import hashlib
 import logging
 import os
@@ -1127,7 +1128,10 @@ class IngestionPipelineService(HybridDataIngestionService):
                                 metadata["to"] = record.get("to")
                                 metadata["subject"] = record.get("subject")
 
-                            lancedb.add_document(
+                            # to_thread: sync add_document from the loop thread
+                            # can never embed (same-thread guard)
+                            await asyncio.to_thread(
+                                lancedb.add_document,
                                 table_name="atom_communications",
                                 text=text,
                                 source=source,
@@ -1291,7 +1295,10 @@ class IngestionPipelineService(HybridDataIngestionService):
                 if text and len(text) >= 10:
                     results["records_processed"] += 1
                     # Index in LanceDB for searchability (Lite mode)
-                    self.lancedb.add_document(
+                    # (to_thread: sync add_document from the loop thread can
+                    # never embed — same-thread guard)
+                    await asyncio.to_thread(
+                        self.lancedb.add_document,
                         table_name=f"tenant_{self.tenant_id}_messages",
                         text=text,
                         source=f"{integration_id}_webhook",

@@ -217,7 +217,7 @@ async def get_suggestions(
         # For now, we return empty or limited suggestions from the actual DB if available
         
         handler = get_lancedb_handler(workspace_id)
-        if not handler.db:
+        if handler.db is None:
             return SuggestionsResponse(success=True, suggestions=[])
             
         # In a real production setup, we'd query the 'documents' table for matching titles

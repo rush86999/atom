@@ -10,6 +10,7 @@ Archives episodes to LanceDB for semantic search.
 """
 
 from datetime import datetime, timedelta, timezone
+import asyncio
 import hashlib
 import logging
 import os
@@ -774,7 +775,10 @@ class EpisodeSegmentationService:
                 summary semantically searchable — previously it sat in
                 metadata as a write-only side channel.
         """
-        if not self.lancedb.db:
+        # `is None` — LanceDBConnection.__len__ returns the table count, so a
+        # healthy EMPTY database is falsy and truthiness checks skip archival
+        # forever (the episodes table is never created to make it truthy).
+        if self.lancedb.db is None:
             logger.warning("LanceDB not available, skipping archival")
             return
 
@@ -832,7 +836,10 @@ class EpisodeSegmentationService:
             # natively BEFORE vector search. Storing them only inside the
             # serialized metadata JSON would make the WHERE outcome='...'
             # prefilter impossible (cosine cannot separate pass/fail).
-            self.lancedb.add_document(
+            # to_thread: sync add_document from the loop thread can never
+            # embed (embed_text same-thread guard) — archival silently no-op'd.
+            await asyncio.to_thread(
+                self.lancedb.add_document,
                 table_name=table_name,
                 text=content,
                 source=f"episode:{episode['id']}",
@@ -1671,7 +1678,8 @@ class EpisodeSegmentationService:
 
     async def _archive_supervision_episode_to_lancedb(self, episode: Any):
         """Archive supervision episode to LanceDB for semantic search"""
-        if not self.lancedb.db:
+        # `is None` — a healthy empty DB is falsy (see note above)
+        if self.lancedb.db is None:
             logger.warning("LanceDB not available, skipping archival")
             return
 
@@ -1712,8 +1720,9 @@ Topics: {', '.join(episode.topics)}
                 self._ensure_episode_columns(table_name)
             # If the table doesn't exist, add_document creates it from this record.
 
-            # Add to LanceDB
-            self.lancedb.add_document(
+            # Add to LanceDB (to_thread — see note above)
+            await asyncio.to_thread(
+                self.lancedb.add_document,
                 table_name=table_name,
                 text=content,
                 source=f"supervision_episode:{episode.id}",

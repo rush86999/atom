@@ -3,6 +3,7 @@ Automatic Document Ingestion API Routes
 Manage per-integration document ingestion settings and memory removal.
 """
 
+import asyncio
 import io
 import logging
 import os
@@ -538,7 +539,10 @@ async def upload_document(
         if not db_handler.get_table("documents"):
              db_handler.create_table("documents")
         
-        success = db_handler.add_document(
+        # to_thread: sync add_document from the loop thread can never embed
+        # (embed_text same-thread guard) — the upload would always 500.
+        success = await asyncio.to_thread(
+            db_handler.add_document,
             table_name="documents",
             text=text,
             source=file_name,

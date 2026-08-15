@@ -438,7 +438,10 @@ class AutoDocumentIngestionService:
                 # bridged:false (no PG row) rather than silently returning
                 # unresolvable hits.
                 _file_doc_id = f"file_{datetime.now(timezone.utc).timestamp()}"
-                success = self.memory_handler.add_document(
+                # to_thread: sync add_document from the loop thread can never
+                # embed (embed_text same-thread guard)
+                success = await asyncio.to_thread(
+                    self.memory_handler.add_document,
                     table_name="documents",
                     text=text,
                     source=f"{source}:{file_name}",
@@ -594,7 +597,8 @@ class AutoDocumentIngestionService:
                             or f"{integration_id}:{file_info.get('path', '')}"
                         )
 
-                        success = self.memory_handler.add_document(
+                        success = await asyncio.to_thread(
+                            self.memory_handler.add_document,
                             table_name="documents",
                             text=text,
                             source=f"{integration_id}:{file_info.get('path', '')}",

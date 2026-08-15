@@ -138,7 +138,10 @@ class MemoryConsolidationService:
                         "archived_at": datetime.now(timezone.utc).isoformat()
                     }
 
-                    success = lancedb.add_document(
+                    # to_thread: sync add_document from the loop thread can
+                    # never embed (embed_text same-thread guard)
+                    success = await asyncio.to_thread(
+                        lancedb.add_document,
                         table_name="archived_memories",
                         text=memory.content,
                         source=f"agent_memory:{memory.agent_id}",

@@ -342,9 +342,11 @@ class HybridDataIngestionService:
                     if not text or len(text) < 10:
                         continue
                     
-                    # Ingest into LanceDB
+                    # Ingest into LanceDB (to_thread: sync add_document from
+                    # the loop thread can never embed — same-thread guard)
                     if self.memory_handler:
-                        success = self.memory_handler.add_document(
+                        success = await asyncio.to_thread(
+                            self.memory_handler.add_document,
                             table_name=f"integration_{integration_id}",
                             text=text,
                             source=integration_id,
