@@ -149,20 +149,55 @@ def browser_context_args(browser_context_args):
 
 @pytest.fixture(scope="session", autouse=True)
 def clean_allure_results():
-    """
-    Clean Allure results directory before test run.
-
-    Prevents old test results from polluting current run.
-
-    Yields:
-        None: Allows test session to proceed
-    """
     if ALLURE_AVAILABLE:
         allure_dir = "allure-results"
         if os.path.exists(allure_dir):
             shutil.rmtree(allure_dir)
     yield
     # Don't clean after (let user review results)
+
+
+# Routes the e2e suite navigates to. Next.js dev-mode (webpack) compiles
+# pages lazily on first hit — under a long suite the first navigation can
+# exceed Playwright's 30s goto timeout (every historical failure cluster is
+# "Page.goto: Timeout 30000ms exceeded"). Pre-warm every route once at
+# session start so webpack compiles them upfront.
+E2E_PREWARM_ROUTES = [
+    "/dashboard", "/agents", "/chat", "/canvas", "/settings", "/search",
+    "/tasks", "/boards", "/automations", "/marketplace",
+    "/dashboards/projects", "/communication", "/sales", "/marketing",
+    "/finance", "/analytics", "/calendar", "/integrations",
+    "/documents", "/health", "/dev-status", "/dev-studio",
+]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def prewarm_frontend_routes(base_url):
+    """Hit every e2e route once before the suite so webpack compiles them.
+
+    Uses urllib (no browser) — a plain GET triggers Next's dev compilation
+    and returns once compiled. Timeout per route is generous (90s) since a
+    cold compile can take a while; failures are logged, never fatal (the
+    backend may be mid-startup).
+    """
+    import urllib.error
+    import urllib.request
+
+    # Fast-fail: if the frontend isn't up, skip pre-warming entirely
+    # (don't burn 23 × 90s timeouts on a down stack).
+    try:
+        urllib.request.urlopen(f"{base_url}/login", timeout=10).read()
+    except Exception:
+        print("[prewarm] frontend not reachable — skipping")
+        yield
+        return
+
+    for route in E2E_PREWARM_ROUTES:
+        try:
+            urllib.request.urlopen(f"{base_url}{route}", timeout=90).read()
+        except Exception as _pe:
+            print(f"[prewarm] {route}: {type(_pe).__name__} (ignored)")
+    yield
 
 
 @pytest.fixture(scope="session")
@@ -221,8 +256,11 @@ def screenshot_page(page, request):
     # Capture screenshot if test failed
     if request.node.rep_call.failed:
         screenshot_path = f"screenshots/{request.node.name}.png"
-        page.screenshot(path=screenshot_path)
-        print(f"\nScreenshot saved: {screenshot_path}")
+        try:
+            page.screenshot(path=screenshot_path, timeout=5000)
+            print(f"\nScreenshot saved: {screenshot_path}")
+        except Exception:
+            pass  # never let the screenshot hook mask the real failure
 
 
 @pytest.fixture(scope="function")
@@ -323,9 +361,15 @@ def pytest_runtest_makereport(item, call):
             test_name = item.name.replace("::", "_").replace("/", "_").replace("[", "").replace("]", "")[:100]
             screenshot_path = f"{SCREENSHOT_DIR}/{timestamp}_{test_name}.png"
 
-            # Capture full page screenshot
-            page.screenshot(path=screenshot_path, full_page=True)
-            print(f"\nScreenshot saved: {screenshot_path}")
+            # Capture full page screenshot. Bounded timeout + swallow errors:
+            # under load, full-page screenshots can hang waiting for fonts
+            # (TimeoutError: Page.screenshot) — a failed screenshot must
+            # NEVER crash the suite or mask the real test failure.
+            try:
+                page.screenshot(path=screenshot_path, full_page=True, timeout=5000)
+                print(f"\nScreenshot saved: {screenshot_path}")
+            except Exception as _se:
+                print(f"\nScreenshot capture skipped: {type(_se).__name__}")
 
             # Attach screenshot to Allure report
             if ALLURE_AVAILABLE:
