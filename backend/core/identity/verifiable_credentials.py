@@ -477,7 +477,11 @@ class VerifiableCredentialManager:
 
         # Verify with DID manager
         if self.did_manager:
-            signature = bytes.fromhex(vc.proof.proof_value)
+            try:
+                signature = bytes.fromhex(vc.proof.proof_value)
+            except ValueError:
+                logger.debug("VC proof_value is not valid hex — cannot verify")
+                return False
             return self.did_manager.verify_signature(vc.issuer, message, signature)
 
         return False
@@ -613,11 +617,15 @@ class VerifiableCredentialManager:
             message = json.dumps(vp_data, sort_keys=True).encode()
 
             if vp.proof.proof_value:
-                signature = bytes.fromhex(vp.proof.proof_value)
-                if self.did_manager:
-                    result.signature_verified = self.did_manager.verify_signature(
-                        vp.holder, message, signature
-                    )
+                try:
+                    signature = bytes.fromhex(vp.proof.proof_value)
+                except ValueError:
+                    result.errors.append("Invalid presentation signature encoding")
+                else:
+                    if self.did_manager:
+                        result.signature_verified = self.did_manager.verify_signature(
+                            vp.holder, message, signature
+                        )
 
         # Determine validity
         if not result.errors and all(cr.is_valid for cr in credential_results):

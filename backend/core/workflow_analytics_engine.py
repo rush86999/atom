@@ -137,6 +137,9 @@ class WorkflowAnalyticsEngine:
         # without limit in a long-running worker).
         self.events_buffer: deque = deque(maxlen=50000)
         self.metrics_buffer: deque = deque(maxlen=10000)
+        # Write-through dedup bookkeeping (see _persist_buffers_sync).
+        self._metrics_persisted_index = 0
+        self._events_persisted_index = 0
         
         # Performance cache
         self.performance_cache: Dict[str, PerformanceMetrics] = {}
@@ -414,6 +417,8 @@ class WorkflowAnalyticsEngine:
                 value=duration_ms,
                 timestamp=datetime.now(),
                 tags={"step_id": step_id, "step_name": step_name, "event_type": event_type},
+                step_id=step_id,
+                step_name=step_name,
                 user_id=user_id,
                 workspace_id=workspace_id,
                 tenant_id=tenant_id
@@ -809,49 +814,6 @@ class WorkflowAnalyticsEngine:
         finally:
             conn.close()
 
-    def create_alert(self, name: str, description: str, severity: AlertSeverity,
-                    condition: str, threshold_value: Union[int, float],
-                    metric_name: str, workflow_id: Optional[str] = None,
-                    step_id: Optional[str] = None,
-                    notification_channels: Optional[List[str]] = None) -> Alert:
-        """Create a new analytics alert"""
-        alert = Alert(
-            alert_id=str(uuid.uuid4()),
-            name=name,
-            description=description,
-            severity=severity,
-            condition=condition,
-            threshold_value=threshold_value,
-            metric_name=metric_name,
-            workflow_id=workflow_id,
-            step_id=step_id,
-            notification_channels=notification_channels or [],
-            created_at=datetime.now()
-        )
-
-        # Save to database
-        conn = sqlite3.connect(str(self.db_path))
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            INSERT INTO analytics_alerts
-            (alert_id, name, description, severity, condition, threshold_value,
-             metric_name, workflow_id, step_id, notification_channels)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            alert.alert_id, alert.name, alert.description, alert.severity.value,
-            alert.condition, str(alert.threshold_value), alert.metric_name,
-            alert.workflow_id, alert.step_id, json.dumps(alert.notification_channels)
-        ))
-
-        conn.commit()
-        conn.close()
-
-        self.active_alerts[alert.alert_id] = alert
-
-        logger.info(f"Created alert: {alert.name} ({alert.alert_id})")
-        return alert
-
     def check_alerts(self):
         """Check all active alerts against current metrics"""
         conn = None
@@ -964,18 +926,31 @@ class WorkflowAnalyticsEngine:
         track_*) so code that inspects events_buffer/metrics_buffer after a
         track_* call still sees the fresh entries; clear=True drains them
         (explicit flush()).
+
+        Only the not-yet-persisted suffix of each buffer is written: the
+        write-through path is invoked on EVERY track_* call, so re-persisting
+        the full buffer would duplicate every previously-written row (O(n^2)
+        growth) and inflate all aggregations. The persisted-prefix index
+        advances only on success, so a failed write is retried on the next
+        call instead of being silently dropped.
         """
         if self.metrics_buffer:
             metrics = list(self.metrics_buffer)
             if clear:
                 self.metrics_buffer.clear()
-            self._persist_metrics_batch(metrics)
+                self._metrics_persisted_index = 0
+            new_metrics = metrics[self._metrics_persisted_index:]
+            if new_metrics and self._persist_metrics_batch(new_metrics):
+                self._metrics_persisted_index = len(metrics)
 
         if self.events_buffer:
             events = list(self.events_buffer)
             if clear:
                 self.events_buffer.clear()
-            self._persist_events_batch(events)
+                self._events_persisted_index = 0
+            new_events = events[self._events_persisted_index:]
+            if new_events and self._persist_events_batch(new_events):
+                self._events_persisted_index = len(events)
 
     def _flush_buffers_sync(self):
         """Compatibility alias: full drain + persist (explicit flush)."""
@@ -1033,8 +1008,12 @@ class WorkflowAnalyticsEngine:
         self._background_thread = thread
         self._stop_event = threading.Event()
 
-    def _persist_metrics_batch(self, metrics: List[WorkflowMetric]):
-        """Process a batch of metrics (synchronous sqlite write-through)."""
+    def _persist_metrics_batch(self, metrics: List[WorkflowMetric]) -> bool:
+        """Process a batch of metrics (synchronous sqlite write-through).
+
+        Returns True on success, False on failure (exception logged and
+        rolled back) so callers can track which rows are durable.
+        """
         conn = None
         try:
             conn = sqlite3.connect(str(self.db_path))
@@ -1058,17 +1037,23 @@ class WorkflowAnalyticsEngine:
                 ))
 
             conn.commit()
+            return True
 
         except Exception as e:
             logger.error(f"Error processing metrics batch: {e}")
             if conn is not None:
                 conn.rollback()
+            return False
         finally:
             if conn is not None:
                 conn.close()
 
-    def _persist_events_batch(self, events: List[WorkflowExecutionEvent]):
-        """Process a batch of events (synchronous sqlite write-through)."""
+    def _persist_events_batch(self, events: List[WorkflowExecutionEvent]) -> bool:
+        """Process a batch of events (synchronous sqlite write-through).
+
+        Returns True on success, False on failure (exception logged and
+        rolled back) so callers can track which rows are durable.
+        """
         conn = None
         try:
             conn = sqlite3.connect(str(self.db_path))
@@ -1097,11 +1082,13 @@ class WorkflowAnalyticsEngine:
                 ))
 
             conn.commit()
+            return True
 
         except Exception as e:
             logger.error(f"Error processing events batch: {e}")
             if conn is not None:
                 conn.rollback()
+            return False
         finally:
             if conn is not None:
                 conn.close()

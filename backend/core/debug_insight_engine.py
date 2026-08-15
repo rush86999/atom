@@ -355,7 +355,7 @@ class DebugInsightEngine:
             # Analyze each operation flow
             for correlation_id, correlation_events in events_by_correlation.items():
                 # Sort by timestamp
-                correlation_events.sort(key=lambda e: e.timestamp or datetime.min)
+                correlation_events.sort(key=lambda e: e.timestamp or datetime.min.replace(tzinfo=timezone.utc))
 
                 # Check for incomplete operations
                 error_events = [e for e in correlation_events if e.level == "ERROR"]
