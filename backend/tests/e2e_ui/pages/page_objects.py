@@ -708,6 +708,13 @@ class ChatPage(BasePage):
         """
         self.page.goto(f"{self.base_url}/chat")
         self.hide_dev_overlays()
+        # The chat page compiles slowly on first hit (dev-mode webpack) —
+        # wait for the input to be actually interactive so callers' immediate
+        # is_loaded() checks don't race the compile.
+        try:
+            self.chat_input.wait_for(state="visible", timeout=20000)
+        except Exception:
+            pass  # is_loaded() will report the state
 
     def send_message(self, text: str) -> None:
         """Type and send a chat message.

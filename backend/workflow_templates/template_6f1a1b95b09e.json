@@ -1,0 +1,28 @@
+{
+  "template_id": "template_6f1a1b95b09e",
+  "name": "Journey Workflow 2e4f13",
+  "description": "Visual workflow: Journey Workflow 2e4f13",
+  "category": "automation",
+  "complexity": "intermediate",
+  "tags": [
+    "visual",
+    "agent-pipeline"
+  ],
+  "version": "1.0.0",
+  "author": "System",
+  "created_at": "2026-08-15 04:00:23.128369",
+  "updated_at": "2026-08-15 04:00:23.128369",
+  "inputs": [],
+  "steps": [],
+  "output_schema": {},
+  "usage_count": 0,
+  "rating": 0.0,
+  "review_count": 0,
+  "estimated_total_duration": 0,
+  "prerequisites": [],
+  "dependencies": [],
+  "permissions": [],
+  "is_public": false,
+  "is_featured": false,
+  "license": "MIT"
+}
