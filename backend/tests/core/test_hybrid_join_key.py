@@ -130,8 +130,11 @@ def test_file_ingest_path_stamps_source_type_and_doc_id():
     src_path = Path(__file__).resolve().parents[2] / "core" / "auto_document_ingestion.py"
     src = src_path.read_text()
     # The file-ingest add_document call: source=f"{source}:{file_name}", no external_id.
+    # (Wrapped in asyncio.to_thread since the loop-thread embed guard; the
+    # kwargs — source, metadata, doc_id — are identical.)
     file_block = re.search(
-        r'success = self\.memory_handler\.add_document\(\s*'
+        r'success = await asyncio\.to_thread\(\s*'
+        r'self\.memory_handler\.add_document,\s*'
         r'table_name="documents",\s*'
         r'text=text,\s*'
         r'source=f"\{source\}:\{file_name\}"',

@@ -41,13 +41,14 @@ class TestExponentPrecedence:
     def test_negative_base_power_resolves_correctly(self, evaluator):
         """Regression guard for unary-minus / power interaction.
 
-        This parser tokenizes a leading minus as part of a numeric literal
-        (``-2`` is a single NUMBER token), so ``-2 ** 2`` evaluates the power
-        first against the negative literal base, yielding ``(-2) ** 2 == 4``.
-        This documents the parser's existing tokenization model and guards
-        against the precedence fix accidentally changing it.
+        Unary minus is an OPERATOR token (not part of the NUMBER literal),
+        and ``**`` binds looser than unary minus on its left operand but
+        tighter than ``*``/``/`` — matching Python exactly:
+        ``-2 ** 2 == -(2 ** 2) == -4`` and ``(-2) ** 2 == 4``. This guards
+        the precedence fix against accidentally flipping either side.
         """
-        assert evaluator.evaluate("-2 ** 2 == 4", {}) is True
+        assert evaluator.evaluate("-2 ** 2 == -4", {}) is True
+        assert evaluator.evaluate("(-2) ** 2 == 4", {}) is True
 
     def test_power_does_not_break_plain_multiplication(self, evaluator):
         """Regression guard: ordinary precedence still works."""

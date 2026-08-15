@@ -237,22 +237,25 @@ class TestNullInputs:
         Test that None action_type is handled gracefully.
 
         Expected: Returns None or raises clear error
-        Actual: AttributeError on action_type.lower() when action_type is None
+        Actual: AttributeError on action_type.startswith("dir:") when
+        action_type is None
         Severity: HIGH
         Impact: Cache crashes with AttributeError instead of handling None
-        Fix: Add None check in _make_key() before calling .lower()
+        Fix: Add None check in _make_key() before calling .startswith()
 
-        Bug confirmed: Line 109 in governance_cache.py calls action_type.lower()
-        without checking if action_type is None first.
+        Bug confirmed: Line 136 in governance_cache.py calls
+        action_type.startswith("dir:") without checking if action_type is
+        None first (the key-builder evolved from action_type.lower() to a
+        startswith check when dir: keys were added).
         """
         cache = GovernanceCache(max_size=100, ttl_seconds=60)
 
         # None action_type causes AttributeError
-        with pytest.raises(AttributeError, match="'NoneType' object has no attribute 'lower'"):
+        with pytest.raises(AttributeError, match="'NoneType' object has no attribute 'startswith'"):
             result = cache.get("agent-1", None)
 
         # Same issue with set()
-        with pytest.raises(AttributeError, match="'NoneType' object has no attribute 'lower'"):
+        with pytest.raises(AttributeError, match="'NoneType' object has no attribute 'startswith'"):
             cache.set("agent-1", None, {"allowed": True})
 
     def test_none_data_in_cache_set(self):

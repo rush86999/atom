@@ -531,29 +531,21 @@ class TestAgentGraduationErrorPaths:
         _mock_agent_lookup(mock_db, sample_agent)
 
         service = AgentGraduationService(mock_db)
-        results = []
-        errors = []
 
-        def check_graduation():
-            try:
-                with patch('core.agent_graduation_service.get_episode_service') as mock_get_episodes:
-                    mock_get_episodes.return_value.get_graduation_readiness.return_value = make_readiness(
-                        episodes_analyzed=10
-                    )
-                    result = asyncio.run(
-                        service.calculate_readiness_score("test-agent-001", "SUPERVISED")
-                    )
-                results.append(result)
-            except Exception as e:
-                errors.append(e)
+        # Deterministic concurrency: gather on the running loop instead of
+        # spawning threads that each enter/exit a `with patch(...)` context —
+        # a thread exiting its context restores the REAL get_episode_service
+        # while a sibling thread is mid-call, handing it a real EpisodeService
+        # backed by Mock query results ("'Mock' object is not iterable").
+        with patch('core.agent_graduation_service.get_episode_service') as mock_get_episodes:
+            mock_get_episodes.return_value.get_graduation_readiness.return_value = make_readiness(
+                episodes_analyzed=10
+            )
+            results = await asyncio.gather(*[
+                service.calculate_readiness_score("test-agent-001", "SUPERVISED")
+                for _ in range(5)
+            ])
 
-        threads = [threading.Thread(target=check_graduation) for _ in range(5)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        assert len(errors) == 0
         assert len(results) == 5
         assert all(r["ready"] is False for r in results)
 
@@ -689,25 +681,15 @@ class TestAgentPromotionErrorPaths:
         mock_db.query.return_value.filter.return_value.first.return_value = real_agent
 
         service = AgentGraduationService(mock_db)
-        results = []
-        errors = []
 
-        def promote():
-            try:
-                result = asyncio.run(
-                    service.promote_agent(real_agent.id, "SUPERVISED", "admin-user")
-                )
-                results.append(result)
-            except Exception as e:
-                errors.append(e)
+        # Deterministic concurrency: gather on the running loop. The earlier
+        # threads+asyncio.run pattern raced on the shared mock_db/agent state
+        # and on event-loop bindings ("This event loop is already running").
+        results = await asyncio.gather(*[
+            service.promote_agent(real_agent.id, "SUPERVISED", "admin-user")
+            for _ in range(3)
+        ])
 
-        threads = [threading.Thread(target=promote) for _ in range(3)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        assert len(errors) == 0
         assert len(results) == 3
         assert all(isinstance(r, bool) for r in results)
 

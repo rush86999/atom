@@ -280,19 +280,16 @@ class TestBoundaryDetectionErrors:
     def test_cosine_similarity_zero_vectors(self):
         """
         ERROR PATH: Cosine similarity with zero vectors.
-        EXPECTED: Returns 0.0 or handles division by zero (line 141-142).
-        BUG_FOUND: Returns NaN instead of 0.0 when both vectors are zero.
-                   Line 127: np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
-                   When v1=[0,0,0], np.linalg.norm(v1)=0, causing 0/0 = NaN.
+        EXPECTED: Returns 0.0 or handles division by zero (line 138-139).
+        FIXED: _cosine_similarity guards zero-magnitude vectors and
+               returns 0.0 instead of NaN (0/0 division).
         """
         lancedb = MagicMock()
         detector = EpisodeBoundaryDetector(lancedb)
 
         # Zero vectors
         similarity = detector._cosine_similarity([0, 0, 0], [0, 0, 0])
-        # BUG: Returns NaN, not 0.0
-        import math
-        assert math.isnan(similarity)  # NaN returned instead of 0.0
+        assert similarity == 0.0  # Zero-magnitude guard returns 0.0, not NaN
 
     def test_cosine_similarity_nan_values(self):
         """
@@ -313,7 +310,10 @@ class TestBoundaryDetectionErrors:
     def test_lancedb_embedding_failure(self):
         """
         ERROR PATH: LanceDB embed_text() fails.
-        EXPECTED: Skips message and continues (line 100-101).
+        EXPECTED: Falls back to keyword-based similarity and continues
+                  (line 106-108). "Hello" vs "Hi" share no keywords, so the
+                  fallback similarity is below the threshold and index 1 is
+                  reported as a topic change.
         """
         lancedb = MagicMock()
         lancedb.embed_text = MagicMock(return_value=None)  # Simulate failure
@@ -327,7 +327,7 @@ class TestBoundaryDetectionErrors:
         msg2.created_at = datetime.utcnow()
 
         changes = detector.detect_topic_changes([msg1, msg2])
-        assert changes == []  # No changes detected (embeddings failed)
+        assert changes == [1]  # Embedding failed -> keyword fallback engaged
 
     def test_invalid_time_gap_threshold(self):
         """
@@ -488,8 +488,10 @@ class TestEpisodePersistenceErrors:
         """
         ERROR PATH: Database commit fails due to constraint violation.
         EXPECTED: Exception propagates, no partial commit.
-        BUG_FOUND: Line 273: db.commit() may raise IntegrityError.
-                   This is tested by creating an episode with missing required fields.
+        Current contract: create_episode_from_session builds an episode dict,
+        creates segments, archives to LanceDB, then commits ONCE (line 425).
+        A commit failure (e.g. IntegrityError) propagates to the caller and
+        nothing is persisted (segments + back-links roll back together).
         """
         service = EpisodeSegmentationService(db_session)
 
@@ -524,8 +526,8 @@ class TestEpisodePersistenceErrors:
         db_session.add(agent)
         db_session.commit()
 
-        # Patch _get_agent_maturity to return None (causes NOT NULL constraint failure)
-        with patch.object(service, '_get_agent_maturity', return_value=None):
+        # Patch commit to fail with a constraint violation
+        with patch.object(db_session, 'commit', side_effect=IntegrityError("constraint violation", {}, None)):
             with pytest.raises(IntegrityError):
                 await_sync(
                     service.create_episode_from_session(
@@ -538,23 +540,28 @@ class TestEpisodePersistenceErrors:
     def test_segment_creation_failure(self, db_session):
         """
         ERROR PATH: Segment creation fails.
-        EXPECTED: Exception propagates, episode may be orphaned.
-        BUG_FOUND: No try-except around segment creation (line 288).
-                   If segment creation fails, episode is already committed.
+        EXPECTED: Exception propagates (no try/except around segment
+                  creation / its commit — _create_segments calls
+                  self.db.commit() at the end without a guard).
+        Current contract: _create_segments takes an episode DICT (the ORM
+        model is no longer constructed here — segments + LanceDB archival
+        are the source of truth). Commit failure propagates; segments are
+        rolled back.
         """
         service = EpisodeSegmentationService(db_session)
 
-        # Create episode manually
-        episode = Episode(
-            id="episode-1",
-            title="Test Episode",
-            agent_id="agent-1",
-            user_id="user-1",
-            tenant_id="default",
-            maturity_at_time="STUDENT"
-        )
-        db_session.add(episode)
-        db_session.commit()
+        # Build the episode dict exactly as create_episode_from_session does
+        episode = {
+            "id": "episode-1",
+            "title": "Test Episode",
+            "agent_id": "agent-1",
+            "user_id": "user-1",
+            "workspace_id": "default",
+            "session_id": "test",
+            "status": "completed",
+            "outcome": "unknown",
+            "maturity_at_time": "STUDENT",
+        }
 
         # Create message
         msg = ChatMessage(
@@ -579,26 +586,37 @@ class TestEpisodePersistenceErrors:
                     )
                 )
 
-        # Episode still exists in DB (orphaned without segments)
+        # No segments were persisted (commit failed)
         db_session.rollback()
-        surviving = db_session.query(Episode).filter(Episode.id == "episode-1").first()
-        assert surviving is not None  # Episode committed but segments failed
+        surviving = db_session.query(EpisodeSegment).filter(
+            EpisodeSegment.episode_id == "episode-1"
+        ).first()
+        assert surviving is None  # Segments rolled back on commit failure
 
     def test_lancedb_archival_failure(self, db_session):
         """
         ERROR PATH: LanceDB archival fails.
-        EXPECTED: Logs error, continues gracefully (line 622-623).
+        EXPECTED: Logs error, continues gracefully (line 781-783: None
+                  lancedb.db -> warning + return None).
+        Current contract: _archive_to_lancedb takes an episode DICT; a
+        missing/unset lancedb.db short-circuits to a warning and None.
         """
         service = EpisodeSegmentationService(db_session)
 
-        # Create episode
-        episode = Episode(
-            id="episode-1",
-            title="Test Episode",
-            agent_id="agent-1",
-            user_id="user-1",
-            tenant_id="default"
-        )
+        # Build the episode dict exactly as create_episode_from_session does
+        episode = {
+            "id": "episode-1",
+            "title": "Test Episode",
+            "description": "Test",
+            "summary": "Test",
+            "topics": [],
+            "agent_id": "agent-1",
+            "user_id": "user-1",
+            "workspace_id": "default",
+            "session_id": "test",
+            "status": "completed",
+            "outcome": "unknown",
+        }
 
         # Patch lancedb to fail
         with patch.object(service.lancedb, 'db', None):
@@ -649,19 +667,16 @@ class TestCosineSimilarityFallbackErrors:
     def test_zero_division_in_fallback(self):
         """
         ERROR PATH: Zero division in pure Python calculation.
-        EXPECTED: Returns 0.0 (line 141-142).
-        BUG_FOUND: Zero vectors cause NaN in numpy path, not pure Python path.
-                   Pure Python fallback at line 141-142 correctly returns 0.0,
-                   but numpy path at line 127 returns NaN.
+        EXPECTED: Returns 0.0 (line 138-139).
+        FIXED: Both the numpy path AND the pure Python fallback return 0.0
+               for zero-magnitude vectors (no NaN, no ZeroDivisionError).
         """
         lancedb = MagicMock()
         detector = EpisodeBoundaryDetector(lancedb)
 
-        # Zero magnitude vectors - numpy path returns NaN
+        # Zero magnitude vectors
         similarity = detector._cosine_similarity([0, 0, 0], [0, 0, 0])
-        # BUG: Returns NaN instead of 0.0
-        import math
-        assert math.isnan(similarity)  # Should be 0.0, but is NaN
+        assert similarity == 0.0  # Zero-magnitude guard returns 0.0
 
 
 # ============================================================================

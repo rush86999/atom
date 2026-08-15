@@ -31,7 +31,23 @@ def client():
     from fastapi import FastAPI
     app = FastAPI()
     app.include_router(router)
-    return TestClient(app)
+
+    from core.auth import get_current_user
+
+    def override_get_current_user():
+        from core.models import User
+        return User(
+            id="wf-test-user",
+            email="wf@test.com",
+            first_name="Workflow",
+            last_name="Tester",
+            role="super_admin",
+            status="active"
+        )
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    yield TestClient(app)
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
