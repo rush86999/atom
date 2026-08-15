@@ -280,14 +280,18 @@ def test_analytics_summary_missing_timestamp_no_crash(engine):
 
 
 def test_analytics_summary_structure(engine):
+    # Compute `now` ONCE — three separate now() calls can straddle UTC
+    # midnight, landing the two messages in different day buckets and
+    # breaking the peak_days assertion (batch runs cross midnight).
+    now = datetime.now(timezone.utc)
     messages = [
-        {"timestamp": datetime.now(timezone.utc) - timedelta(minutes=10), "content": "great"},
-        {"timestamp": datetime.now(timezone.utc) - timedelta(minutes=5), "content": "bad"},
+        {"timestamp": now - timedelta(minutes=10), "content": "great"},
+        {"timestamp": now - timedelta(minutes=5), "content": "bad"},
     ]
     result = engine.get_analytics_summary(messages, "24h")
     assert result["message_stats"]["avg_words_per_message"] == 1.0
     assert result["thread_participation"] == {"total_threads": 0, "avg_messages_per_thread": 0, "most_active_threads": []}
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = now.strftime("%Y-%m-%d")
     assert result["activity_peaks"]["peak_days"] == [(today, 2)]
     assert result["cross_platform"]["total_messages"] == 2
 

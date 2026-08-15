@@ -909,7 +909,7 @@ async def test_wm_record_formula_usage(wsvc, mock_handler):
 async def test_wm_update_experience_feedback(wsvc, mock_handler):
     mock_handler.search = Mock(return_value=[
         {"id": "e1", "text": "T", "source": "s", "metadata": {"confidence_score": 0.5}}])
-    assert await wsvc.update_experience_feedback("e1", 0.8, notes="good") is True
+    assert await wsvc.update_experience_feedback("e1", 0.8, "good") is True
     kwargs = mock_handler.add_document.call_args.kwargs
     assert kwargs["text"].endswith("Feedback: good")
     assert kwargs["metadata"]["feedback_score"] == 0.8
@@ -1220,7 +1220,11 @@ async def test_wm_recall_experiences_composite(wsvc, mock_handler, monkeypatch):
 
 
 async def test_wm_recall_experiences_failure_paths(wsvc, mock_handler, monkeypatch):
-    mock_handler.search = Mock(side_effect=RuntimeError("search boom"))
+    # top-level search works but returns nothing; every sub-source fails
+    # (each is individually caught and tolerated)
+    def search(table_name=None, query=None, limit=None, **kw):
+        return []
+    mock_handler.search = Mock(side_effect=search)
     monkeypatch.setattr("core.graphrag_engine.graphrag_engine",
                         MagicMock(get_context_for_ai=AsyncMock(side_effect=RuntimeError("g"))))
     monkeypatch.setattr("core.formula_memory.get_formula_manager",
