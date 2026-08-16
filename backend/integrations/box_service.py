@@ -396,7 +396,7 @@ class BoxService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,  # BUG FIX: IntegrationMetric has workspace_id, not tenant_id (constructor below likewise)
                         integration_type="box",
                         metric_key=key
                     ).first()
@@ -406,7 +406,7 @@ class BoxService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,  # BUG FIX: was tenant_id, invalid keyword
                             integration_type="box",
                             metric_key=key,
                             value=float(value),

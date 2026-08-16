@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/use-toast";
 import {
   ArrowRight,
@@ -36,10 +35,8 @@ import {
   DollarSign,
   TrendingDown,
   PieChart,
-  Target,
   Zap,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 const DashboardPage: React.FC = () => {
   const [integrations, setIntegrations] = useState<any[]>([]);
@@ -125,7 +122,6 @@ const DashboardPage: React.FC = () => {
           connected,
           health,
           icon: integrationIcons[integration.id] || Activity,
-          lastSync: new Date().toISOString(),
         };
       });
 
@@ -180,49 +176,25 @@ const DashboardPage: React.FC = () => {
   };
 
   const getStatusIcon = (health: string) => {
-    switch (health) {
-      case "healthy":
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case "warning":
-        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
-      case "error":
-        return <AlertTriangle className="w-5 h-5 text-red-500" />;
-      default:
-        return <Clock className="w-5 h-5 text-gray-500 dark:text-gray-400" />;
-    }
+    return health === "healthy" ? (
+      <CheckCircle className="w-5 h-5 text-green-500" />
+    ) : (
+      <AlertTriangle className="w-5 h-5 text-red-500" />
+    );
   };
 
   const getStatusBadge = (health: string) => {
-    const variant =
-      health === "healthy"
-        ? "default" // Greenish usually
-        : health === "warning"
-          ? "secondary" // Yellowish
-          : "destructive"; // Red
-
     // Custom coloring since Shadcn badges are limited
     const className =
       health === "healthy"
         ? "bg-green-500 hover:bg-green-600"
-        : health === "warning"
-          ? "bg-yellow-500 hover:bg-yellow-600"
-          : health === "error"
-            ? "bg-red-500 hover:bg-red-600"
-            : "bg-gray-500 hover:bg-gray-600";
+        : "bg-red-500 hover:bg-red-600";
 
     return (
       <Badge className={className}>
         {health}
       </Badge>
     );
-  };
-
-  const getConnectionProgress = () => {
-    return (stats.connected / stats.total) * 100;
-  };
-
-  const getHealthProgress = () => {
-    return (stats.healthy / stats.total) * 100;
   };
 
   useEffect(() => {

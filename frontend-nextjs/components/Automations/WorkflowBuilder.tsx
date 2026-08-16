@@ -14,12 +14,11 @@ import 'reactflow/dist/style.css';
 import { nodeTypes } from './CustomNodes';
 import AddStepEdge from './AddStepEdge';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
-import { useKeyPress } from 'reactflow';
 import PiecesSidebar, { Piece, PieceAction, PieceTrigger } from './PiecesSidebar';
 import { LogsSidebar } from './LogsSidebar';
 import SmartSuggestions, { StepSuggestion } from './SmartSuggestions';
 import { Button } from "@/components/ui/button";
-import { Plus, Save, Zap, Monitor, Globe, Mail, Clock, Sparkles, PanelLeftClose, PanelLeft, Loader2, Settings2, Undo, Redo, RotateCcw, Activity, List, Play, CheckCircle2, PauseCircle } from "lucide-react";
+import { Plus, Save, Zap, Clock, Sparkles, PanelLeftClose, PanelLeft, Loader2, Undo, Redo, Activity, List } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import NodeConfigSidebar from './NodeConfigSidebar';
 import { VoiceInput } from '@/components/Voice/VoiceInput';
@@ -44,11 +43,6 @@ const nextNodeId = (list: Node[]): string => {
 
 const edgeTypes = {
     addStepEdge: AddStepEdge,
-};
-
-// HITL Approval Buttons — interactive, shows approved/rejected state
-const HITLButtons: React.FC<{ onApprove: () => void; onReject: () => void; approvedState: 'none' | 'approved' | 'rejected' }> = ({ onApprove, onReject, approvedState }) => {
-    return null;
 };
 
 interface WorkflowBuilderProps {
@@ -410,12 +404,6 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
 
         // Set default data based on node type
         switch (type) {
-            case 'email':
-                data = { label: 'Send Email', recipient: 'user@example.com', subject: 'Notification' };
-                break;
-            case 'http':
-                data = { label: 'HTTP Request', method: 'GET', url: 'https://api.example.com' };
-                break;
             case 'timer':
                 data = { label: 'Delay', duration: '5', unit: 'minutes' };
                 break;
@@ -444,12 +432,6 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                     code: `// Write your code here\nexport const code = async (inputs) => {\n  return { result: inputs.data };\n};`,
                     npmPackages: []
                 };
-                break;
-            case 'table':
-                data = { label: 'Tables', action: 'Insert Row', tableName: '' };
-                break;
-            case 'subflow':
-                data = { label: 'Sub Flow', flowName: '', async: false };
                 break;
         }
 
@@ -676,144 +658,6 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
 
     const [chatInput, setChatInput] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
-    const [isDemoRunning, setIsDemoRunning] = useState(false);
-    const [demoType, setDemoType] = useState<'lead' | 'interview'>('lead');
-    const [demoLog, setDemoLog] = useState<Array<{ nodeId: string; title: string; output: React.ReactNode; status: 'running' | 'success' | 'paused' }>>([]);
-    const [showDemoPanel, setShowDemoPanel] = useState(false);
-    const demoApproved = React.useRef<'none' | 'approved' | 'rejected'>('none');
-    const [demoApprovedState, setDemoApprovedState] = useState<'none' | 'approved' | 'rejected'>('none');
-    const [panelPos, setPanelPos] = useState({ x: typeof window !== 'undefined' ? window.innerWidth - 360 : 800, y: 80 });
-    const dragRef = React.useRef<{ dragging: boolean; startX: number; startY: number; origX: number; origY: number }>({ dragging: false, startX: 0, startY: 0, origX: 0, origY: 0 });
-
-    const handleApprove = () => {
-        setDemoApprovedState('approved');
-        demoApproved.current = 'approved';
-        // Update the last log entry to show approved state
-        setDemoLog(prev => prev.map((entry, idx) =>
-            idx === prev.length - 1 ? { ...entry, status: 'success' as const } : entry
-        ));
-        setNodes(nds => nds.map(n =>
-            n.data._demoStatus === 'paused' ? { ...n, data: { ...n.data, _demoStatus: 'success' } } : n
-        ));
-    };
-
-    const handleReject = () => {
-        setDemoApprovedState('rejected');
-        demoApproved.current = 'rejected';
-    };
-
-    const onPanelMouseDown = (e: React.MouseEvent) => {
-        dragRef.current = { dragging: true, startX: e.clientX, startY: e.clientY, origX: panelPos.x, origY: panelPos.y };
-        const onMove = (me: MouseEvent) => {
-            if (!dragRef.current.dragging) return;
-            setPanelPos({ x: dragRef.current.origX + me.clientX - dragRef.current.startX, y: dragRef.current.origY + me.clientY - dragRef.current.startY });
-        };
-        const onUp = () => { dragRef.current.dragging = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onUp);
-    };
-
-    const DEMO_STEPS = [
-        {
-            title: '📧 Inbound Lead Email received',
-            duration: 1800,
-            output: (
-                <div className="space-y-1 text-xs">
-                    <div className="bg-gray-50 border rounded p-2 font-mono text-[11px] space-y-1">
-                        <div><span className="text-gray-400">From:</span> <span className="text-blue-700 font-semibold">james.chen@velocitytech.io</span></div>
-                        <div><span className="text-gray-400">Subject:</span> <span className="font-medium">Interested in ATOM for our sales team (~200 reps)</span></div>
-                        <div className="mt-1 text-gray-600">"Hi, we're scaling rapidly and need a workflow automation platform. Budget approved: $80k/year. Can we connect this week?"</div>
-                    </div>
-                    <div className="text-green-600 font-semibold text-[11px]">✓ Webhook triggered · Lead captured</div>
-                </div>
-            )
-        },
-        {
-            title: '🧠 AI parsing lead intent (Qwen-Plus)',
-            duration: 2200,
-            output: (
-                <div className="space-y-1 text-xs">
-                    <div className="text-gray-400 text-[10px] mb-1">Extracting structured data...</div>
-                    <pre className="bg-slate-900 text-green-400 p-2 rounded text-[10px] font-mono overflow-auto">{`{
-  "company": "VelocityTech",
-  "contact": "James Chen",
-  "email": "james.chen@velocitytech.io",
-  "budget": "$80,000/year",
-  "team_size": "~200 reps",
-  "urgency": "HIGH",
-  "intent": "purchase",
-  "confidence": 0.97
-}`}</pre>
-                    <div className="text-purple-600 font-semibold text-[11px]">✓ Intent parsed · Confidence 97%</div>
-                </div>
-            )
-        },
-        {
-            title: '📋 Creating lead in Zoho CRM',
-            duration: 1600,
-            output: (
-                <div className="space-y-1 text-xs">
-                    <div className="bg-blue-50 border border-blue-200 rounded p-2 text-[11px] space-y-1">
-                        <div className="font-semibold text-blue-800">✓ Lead Created — ID #ZCR-29841</div>
-                        <div className="text-gray-600 space-y-0.5">
-                            <div><span className="font-medium">Name:</span> James Chen</div>
-                            <div><span className="font-medium">Company:</span> VelocityTech</div>
-                            <div><span className="font-medium">Pipeline:</span> Enterprise Sales</div>
-                            <div><span className="font-medium">Deal Value:</span> $80,000</div>
-                            <div><span className="font-medium">Stage:</span> New Inbound → Qualified</div>
-                        </div>
-                    </div>
-                    <div className="text-blue-600 font-semibold text-[11px]">✓ CRM updated · Pipeline advanced</div>
-                </div>
-            )
-        },
-        {
-            title: '🎥 Generating Zoom discovery call',
-            duration: 1400,
-            output: (
-                <div className="space-y-1 text-xs">
-                    <div className="bg-blue-50 border border-blue-100 rounded p-2 text-[11px] space-y-1">
-                        <div className="font-semibold text-blue-700">Discovery Call Scheduled</div>
-                        <div className="text-gray-600"><span className="font-medium">Date:</span> Mon Mar 10, 2026 · 3:00 PM IST</div>
-                        <div className="text-gray-600"><span className="font-medium">Duration:</span> 30 min</div>
-                        <div className="mt-1 p-1.5 bg-white border rounded font-mono text-[10px] text-blue-600 break-all">
-                            https://zoom.us/j/92847301928?pwd=xK9mP
-                        </div>
-                    </div>
-                    <div className="text-blue-600 font-semibold text-[11px]">✓ Zoom link generated · Calendar invite sent</div>
-                </div>
-            )
-        },
-        {
-            title: '✋ Slack HITL — Awaiting approval',
-            duration: 0,
-            output: (
-                <div className="space-y-2 text-xs">
-                    <div className="bg-[#4A154B] text-white rounded p-2 text-[11px] space-y-1">
-                        <div className="font-bold text-[12px]">#sales-leads · ATOM Bot</div>
-                        <div>🚨 <span className="font-semibold">New high-value lead</span> needs approval before outreach</div>
-                        <div className="bg-white/10 rounded p-1.5 text-[10px] space-y-0.5 mt-1">
-                            <div>👤 James Chen · VelocityTech</div>
-                            <div>💰 Budget: $80k/year · 200 reps</div>
-                            <div>⚡ Urgency: HIGH</div>
-                            <div className="text-blue-300 mt-1">🔗 zoom.us/j/92847301928</div>
-                        </div>
-                    </div>
-                    <HITLButtons onApprove={handleApprove} onReject={handleReject} approvedState={demoApprovedState} />
-                </div>
-            )
-        }
-    ];
-
-    const INTERVIEW_DEMO_STEPS = [
-        {
-            title: '📄 Job Application Received',
-            duration: 1800,
-            output: <div className="p-2 text-xs italic text-gray-400">Application processed...</div>
-        }
-    ];
-
-    const runDemoAnimation = async () => { };
 
     return (
         <div className="h-[700px] w-full border rounded-lg bg-white dark:bg-gray-900 shadow-sm flex flex-col overflow-hidden">

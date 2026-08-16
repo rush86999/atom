@@ -547,6 +547,34 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
                               </Button>
                             </div>
                           </div>
+                          {selectedStep === step.id && !readOnly && (
+                            <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+                              <div>
+                                <Label>Step Name</Label>
+                                <Input
+                                  value={step.name}
+                                  onChange={(e) =>
+                                    handleUpdateStep(step.id, { name: e.target.value })
+                                  }
+                                  data-testid={`step-name-${step.id}`}
+                                />
+                              </div>
+                              <div>
+                                <Label>Description</Label>
+                                <Textarea
+                                  value={step.description || ''}
+                                  onChange={(e) =>
+                                    handleUpdateStep(step.id, {
+                                      description: e.target.value,
+                                    })
+                                  }
+                                  data-testid={`step-description-${step.id}`}
+                                  rows={2}
+                                  placeholder="Describe this step..."
+                                />
+                              </div>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     ))}

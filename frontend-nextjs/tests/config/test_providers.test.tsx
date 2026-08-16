@@ -8,6 +8,7 @@
 import React from 'react';
 
 import { renderWithProviders, screen } from '../test-utils';
+import { render, waitFor } from '@testing-library/react';
 import { AppProps } from 'next/app';
 
 // Mock the Layout component to avoid deep recursion
@@ -36,13 +37,32 @@ jest.mock('../../hooks/useCliHandler', () => ({
   useCliHandler: () => jest.fn(),
 }));
 
-// Mock next-auth
+// Mock next-auth. The session payload is read from a global so tests can
+// exercise the SessionSync backendToken branch.
 jest.mock('next-auth/react', () => ({
   SessionProvider: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="session-provider">{children}</div>
   ),
   // _app.tsx's SessionSync calls useSession() at render.
-  useSession: () => ({ data: null, status: 'unauthenticated' }),
+  useSession: () => ({
+    data: (global as any).__mockSession ?? null,
+    status: 'authenticated',
+  }),
+}));
+
+// Configurable router mock (pathname drives the standalone-page branch).
+jest.mock('next/router', () => ({
+  useRouter: () => ({
+    pathname: (global as any).__mockPathname ?? '/dashboard',
+    route: '/dashboard',
+    query: {},
+    asPath: '/dashboard',
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    prefetch: jest.fn(),
+    isReady: true,
+  }),
 }));
 
 import MyApp from '../../pages/_app';
@@ -266,5 +286,158 @@ describe('Provider Error Handling', () => {
 
     // ChakraProvider should use default theme
     expect(() => renderWithProviders(<MyApp {...mockAppProps} />)).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended coverage: session token sync, theme loading, standalone pages
+// ---------------------------------------------------------------------------
+describe('MyApp extended coverage', () => {
+  const { rest } = require('msw');
+  const { server } = require('../../tests/mocks/server');
+
+  const makeProps = (pathname: string, session?: any) => ({
+    pageProps: session ? { session } : {},
+    Component: () => <div data-testid="page-content">Page</div>,
+  }) as unknown as AppProps;
+
+  beforeEach(() => {
+    (global as any).__mockPathname = '/dashboard';
+    (global as any).__mockSession = null;
+    // restoreMocks:true resets the setup-file polyfill between tests
+    (window as any).matchMedia = jest.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    }));
+    document.documentElement.classList.remove('dark');
+    localStorage.removeItem('auth_token');
+    server.resetHandlers();
+    server.use(
+      rest.get('/api/v1/preferences', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({}))
+      )
+    );
+  });
+
+  afterEach(() => {
+    (global as any).__mockPathname = '/dashboard';
+    (global as any).__mockSession = null;
+  });
+
+  const renderSettled = async (props: any) => {
+    render(<MyApp {...props} />);
+    await screen.findByTestId('page-content');
+    await waitFor(() => {
+      expect(document.documentElement).toBeTruthy();
+    });
+    // allow loadTheme microtask to settle
+    await new Promise((r) => setTimeout(r, 30));
+  };
+
+  it('stores the backendToken in localStorage and a cookie', async () => {
+    (global as any).__mockSession = { backendToken: 'tok-123', user: { name: 'Rushi' } };
+
+    await renderSettled(makeProps('/dashboard'));
+
+    // SessionSync reads useSession (mocked global), so set it before render
+    expect(localStorage.getItem('auth_token')).toBe('tok-123');
+    expect(document.cookie).toContain('auth_token=tok-123');
+  });
+
+  it('applies the dark theme from stored preferences', async () => {
+    server.use(
+      rest.get('/api/v1/preferences', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ theme: 'dark' }))
+      )
+    );
+    await renderSettled(makeProps('/dashboard'));
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+  });
+
+  it('applies the light theme from stored preferences', async () => {
+    document.documentElement.classList.add('dark');
+    server.use(
+      rest.get('/api/v1/preferences', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ theme: 'light' }))
+      )
+    );
+    await renderSettled(makeProps('/dashboard'));
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+  });
+
+  it('falls back to the system theme when no theme preference exists', async () => {
+    const original = window.matchMedia;
+    (window as any).matchMedia = jest.fn().mockReturnValue({ matches: true });
+    await renderSettled(makeProps('/dashboard'));
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    (window as any).matchMedia = original;
+  });
+
+  it('falls back to light when the system prefers light', async () => {
+    const original = window.matchMedia;
+    (window as any).matchMedia = jest.fn().mockReturnValue({ matches: false });
+    document.documentElement.classList.add('dark');
+    await renderSettled(makeProps('/dashboard'));
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    (window as any).matchMedia = original;
+  });
+
+  it('falls back to the system theme on a non-ok preferences response', async () => {
+    server.use(
+      rest.get('/api/v1/preferences', (req, res, ctx) => res(ctx.status(500)))
+    );
+    const original = window.matchMedia;
+    (window as any).matchMedia = jest.fn().mockReturnValue({ matches: true });
+    await renderSettled(makeProps('/dashboard'));
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    (window as any).matchMedia = original;
+  });
+
+  it('falls back to the system theme when the preferences fetch rejects', async () => {
+    server.use(
+      rest.get('/api/v1/preferences', (req, res) => res.networkError('down'))
+    );
+    const original = window.matchMedia;
+    (window as any).matchMedia = jest.fn().mockReturnValue({ matches: false });
+    await renderSettled(makeProps('/dashboard'));
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    (window as any).matchMedia = original;
+  });
+
+  it('sends the Authorization header when an auth token is stored', async () => {
+    localStorage.setItem('auth_token', 'stored-token');
+    let authHeader: string | null = null;
+    server.use(
+      rest.get('/api/v1/preferences', (req, res, ctx) => {
+        authHeader = req.headers.get('Authorization');
+        return res(ctx.status(200), ctx.json({}));
+      })
+    );
+    await renderSettled(makeProps('/dashboard'));
+    await waitFor(() => {
+      expect(authHeader).toBe('Bearer stored-token');
+    });
+  });
+
+  it('renders standalone (no Layout/GlobalChatWidget) for auth pages', async () => {
+    (global as any).__mockPathname = '/auth/login';
+    await renderSettled(makeProps('/auth/login'));
+
+    expect(screen.getByTestId('page-content')).toBeInTheDocument();
+    expect(screen.queryByTestId('global-chat-widget')).not.toBeInTheDocument();
+  });
+
+  it('renders Layout and GlobalChatWidget for regular pages', async () => {
+    (global as any).__mockPathname = '/dashboard';
+    await renderSettled(makeProps('/dashboard'));
+
+    expect(screen.getByTestId('layout')).toBeInTheDocument();
+    expect(screen.getByTestId('global-chat-widget')).toBeInTheDocument();
   });
 });

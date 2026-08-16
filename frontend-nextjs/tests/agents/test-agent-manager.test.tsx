@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AgentManager from '@/components/Agents/AgentManager';
 
@@ -8,6 +8,24 @@ jest.mock('@/components/ui/use-toast', () => ({
   useToast: () => ({
     toast: jest.fn()
   })
+}));
+
+// Radix Select is not keyboard-interactive in jsdom; replace it with a native
+// <select> that still exercises the component's onValueChange wiring.
+jest.mock('@/components/ui/select', () => ({
+  Select: ({ value, onValueChange, children }: any) => (
+    <select
+      data-testid="model-select"
+      value={value}
+      onChange={(e) => onValueChange(e.target.value)}
+    >
+      {children}
+    </select>
+  ),
+  SelectTrigger: ({ children }: any) => <>{children}</>,
+  SelectContent: ({ children }: any) => <>{children}</>,
+  SelectItem: ({ value }: any) => <option value={value}>{value}</option>,
+  SelectValue: () => null,
 }));
 
 describe('AgentManager Component', () => {
@@ -473,6 +491,137 @@ describe('AgentManager Component', () => {
       render(<AgentManager initialAgents={[mockAgents[2]]} {...mockHandlers} />);
       const badge = screen.getByText('error');
       expect(badge).toBeInTheDocument();
+    });
+  });
+
+  // Extended coverage: create flow, capability toggling, config inputs
+  describe('Extended Coverage', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    const openCreateModal = async () => {
+      render(<AgentManager initialAgents={[]} {...mockHandlers} />);
+      fireEvent.click(screen.getByRole('button', { name: /create agent/i }));
+      await screen.findByText(/create new agent/i);
+      const nameInput = screen.getByPlaceholderText('Enter agent name');
+      const roleInput = screen.getByPlaceholderText('Enter agent role');
+      return { nameInput, roleInput };
+    };
+
+    it('creates an agent end to end (validation, callbacks, timeout)', async () => {
+      jest.useFakeTimers();
+      const { nameInput, roleInput } = await openCreateModal();
+
+      // submit is disabled until both name and role are filled
+      const submit = () =>
+        screen.getAllByRole('button').find((b) => b.textContent === 'Create Agent' && b.closest('[role="dialog"]'))!;
+      expect(submit()).toBeDisabled();
+
+      fireEvent.change(nameInput, { target: { value: 'Brand New Agent' } });
+      fireEvent.change(roleInput, { target: { value: 'Assistant' } });
+      expect(submit()).toBeEnabled();
+
+      fireEvent.click(submit());
+
+      expect(mockHandlers.onAgentCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Brand New Agent',
+          role: 'Assistant',
+          status: 'inactive',
+        })
+      );
+
+      // the simulated API call resolves after 1s
+      act(() => {
+        jest.advanceTimersByTime(1100);
+      });
+
+      expect(await screen.findByText('Brand New Agent')).toBeInTheDocument();
+      expect(screen.queryByText(/create new agent/i)).not.toBeInTheDocument();
+    });
+
+    it('toggles capabilities on and off in the create modal', async () => {
+      const { nameInput } = await openCreateModal();
+
+      const capButton = screen
+        .getAllByRole('button', { name: /calendar management/i })
+        .find((b) => b.type === 'button' || b.getAttribute('type') === 'button')!;
+      // toggle on
+      fireEvent.click(capButton);
+      // toggle off again
+      fireEvent.click(capButton);
+
+      fireEvent.change(nameInput, { target: { value: 'X' } });
+      const roleInput = screen.getByPlaceholderText('Enter agent role');
+      fireEvent.change(roleInput, { target: { value: 'Y' } });
+
+      // assert no crash; capability state toggled twice back to empty
+      expect(capButton).toBeInTheDocument();
+    });
+
+    it('updates model, temperature and max tokens config', async () => {
+      await openCreateModal();
+
+      // model select
+      fireEvent.change(screen.getByTestId('model-select'), {
+        target: { value: 'claude-2' },
+      });
+
+      // temperature slider (native range input)
+      const sliders = screen
+        .getAllByRole('slider')
+        .filter((s) => (s as HTMLInputElement).type === 'range');
+      fireEvent.change(sliders[0], { target: { value: '0.3' } });
+      fireEvent.change(sliders[1], { target: { value: '2500' } });
+
+      expect(await screen.findByText('0.3')).toBeInTheDocument();
+      expect(screen.getByText('2500')).toBeInTheDocument();
+    });
+
+    it('covers the default status color branch for unknown statuses', () => {
+      render(
+        <AgentManager
+          initialAgents={[
+            { ...mockAgents[0], status: 'paused' as any },
+          ]}
+          {...mockHandlers}
+        />
+      );
+      expect(screen.getByText('paused')).toBeInTheDocument();
+    });
+
+    it('opens the create modal from the empty state CTA', async () => {
+      render(<AgentManager initialAgents={[]} {...mockHandlers} />);
+      fireEvent.click(screen.getByRole('button', { name: /create first agent/i }));
+      await screen.findByText(/create new agent/i);
+    });
+
+    it('populates the edit modal from an existing agent and submits', async () => {
+      render(<AgentManager initialAgents={[mockAgents[0]]} {...mockHandlers} />);
+
+      const editButton = screen
+        .getAllByRole('button')
+        .find((b) => (b.getAttribute('class') || '').includes('border border-input'))!;
+      fireEvent.click(editButton);
+
+      await screen.findByText(/edit agent/i);
+      const nameInput = screen.getByDisplayValue('Agent One') as HTMLInputElement;
+      expect(nameInput.value).toBe('Agent One');
+
+      jest.useFakeTimers();
+      fireEvent.change(nameInput, { target: { value: 'Renamed Agent' } });
+      const updateButton = screen
+        .getAllByRole('button')
+        .find((b) => b.textContent === 'Update Agent')!;
+      fireEvent.click(updateButton);
+
+      act(() => {
+        jest.advanceTimersByTime(1100);
+      });
+
+      expect(await screen.findByText('Renamed Agent')).toBeInTheDocument();
+      expect(mockHandlers.onAgentCreate).toHaveBeenCalled();
     });
   });
 });

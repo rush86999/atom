@@ -686,6 +686,55 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
                       <SelectItem value="blocked">Blocked</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Select
+                    value={view.filter.priority?.[0] || "all"}
+                    onValueChange={(value) =>
+                      setView((prev) => ({
+                        ...prev,
+                        filter:
+                          value === "all"
+                            ? { ...prev.filter, priority: undefined }
+                            : { ...prev.filter, priority: [value] },
+                      }))
+                    }
+                  >
+                    <SelectTrigger data-testid="priority-filter" className="w-[120px]">
+                      <SelectValue placeholder="All priorities" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All priorities</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={`${view.sort.field}-${view.sort.direction}`}
+                    onValueChange={(value) => {
+                      const [field, direction] = value.split("-") as [
+                        typeof view.sort.field,
+                        "asc" | "desc",
+                      ];
+                      setView((prev) => ({
+                        ...prev,
+                        sort: { field, direction },
+                      }));
+                    }}
+                  >
+                    <SelectTrigger data-testid="sort-select" className="w-[150px]">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="dueDate-asc">Due date ↑</SelectItem>
+                      <SelectItem value="dueDate-desc">Due date ↓</SelectItem>
+                      <SelectItem value="priority-desc">Priority ↓</SelectItem>
+                      <SelectItem value="priority-asc">Priority ↑</SelectItem>
+                      <SelectItem value="title-asc">Title A-Z</SelectItem>
+                      <SelectItem value="title-desc">Title Z-A</SelectItem>
+                      <SelectItem value="createdAt-asc">Oldest first</SelectItem>
+                      <SelectItem value="createdAt-desc">Newest first</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardContent>

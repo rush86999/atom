@@ -48,8 +48,29 @@ jest.mock('@/components/ui/spinner', () => ({
 // Unit boundary: HubSpotIntegration renders HubSpotSearch in its default
 // Overview tab. The search component has its own suite; stub it here.
 jest.mock('@/components/integrations/hubspot/HubSpotSearch', () => {
-  return function MockHubSpotSearch() {
-    return <div>HubSpot Search</div>;
+  return function MockHubSpotSearch(props: any) {
+    return (
+      <div>
+        HubSpot Search
+        <button
+          type="button"
+          data-testid="fire-search"
+          onClick={() =>
+            props.onSearch(
+              [
+                { id: 'd1', dealname: 'Big Deal', amount: 10000 },
+                { id: 'd2', dealname: 'Bigger Deal', amount: 25000 },
+                { id: 'c1', firstname: 'No', lastname: 'Amount' },
+              ],
+              { stage: 'closedwon' },
+              { field: 'amount', direction: 'desc' }
+            )
+          }
+        >
+          Fire Search
+        </button>
+      </div>
+    );
   };
 });
 
@@ -230,6 +251,107 @@ describe('HubSpotIntegration', () => {
       const contactsTab = screen.getByRole('button', { name: /^contacts/i });
       // The Contacts tab trigger renders its count badge inline.
       expect(contactsTab).toHaveTextContent('2');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended coverage: search-result panels, auth failure paths
+// ---------------------------------------------------------------------------
+describe('HubSpotIntegration (extended coverage)', () => {
+  let errorSpy: jest.SpyInstance;
+  let logSpy: jest.SpyInstance;
+
+  const { hubspotApi } = require('../../../lib/hubspotApi');
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    connectHubSpotAs({ connected: true });
+  });
+
+  it('renders search result panels across tabs after a search', async () => {
+    render(<HubSpotIntegration />);
+
+    await waitFor(() => {
+      expect(screen.getByText('HubSpot Search')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('fire-search'));
+
+    // Overview tab summary
+    await waitFor(() => {
+      expect(screen.getByText(/matching records/i)).toBeInTheDocument();
+    });
+
+    // Contacts tab
+    fireEvent.click(screen.getByRole('button', { name: /contacts/i }));
+    expect(await screen.findByText(/matching contacts/i)).toBeInTheDocument();
+
+    // Companies tab
+    fireEvent.click(screen.getByRole('button', { name: /companies/i }));
+    expect(await screen.findByText(/matching companies/i)).toBeInTheDocument();
+
+    // Deals tab — total value sums only records with an amount
+    fireEvent.click(screen.getByRole('button', { name: /deals/i }));
+    expect(await screen.findByText('Deal Results')).toBeInTheDocument();
+    expect(screen.getByText(/35,000/)).toBeInTheDocument();
+
+    expect(logSpy).toHaveBeenCalledWith('Applied filters:', { stage: 'closedwon' });
+    expect(logSpy).toHaveBeenCalledWith('Sort options:', { field: 'amount', direction: 'desc' });
+  });
+
+  it('treats an auth-status rejection as disconnected', async () => {
+    hubspotApi.getAuthStatus.mockRejectedValue(new Error('auth down'));
+
+    render(<HubSpotIntegration />);
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to connect to HubSpot:',
+        expect.anything()
+      );
+      expect(screen.getByText('HubSpot Not Connected')).toBeInTheDocument();
+    });
+  });
+
+  it('resets state when the OAuth initiation fails', async () => {
+    hubspotApi.getAuthStatus.mockResolvedValue({ connected: false });
+    hubspotApi.connectHubSpot.mockResolvedValue({ success: false });
+
+    render(<HubSpotIntegration />);
+
+    const connect = await screen.findByRole('button', {
+      name: /connect hubspot account/i,
+    });
+    await waitFor(() => {
+      expect(() => fireEvent.click(connect)).not.toThrow();
+    });
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to connect to HubSpot:',
+        expect.anything()
+      );
+    });
+    expect(screen.getByText('HubSpot Not Connected')).toBeInTheDocument();
+  });
+
+  it('resets state when the OAuth initiation rejects', async () => {
+    hubspotApi.getAuthStatus.mockResolvedValue({ connected: false });
+    hubspotApi.connectHubSpot.mockRejectedValue(new Error('oauth down'));
+
+    render(<HubSpotIntegration />);
+
+    const connect = await screen.findByRole('button', {
+      name: /connect hubspot account/i,
+    });
+    expect(() => fireEvent.click(connect)).not.toThrow();
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to connect to HubSpot:',
+        expect.anything()
+      );
     });
   });
 });

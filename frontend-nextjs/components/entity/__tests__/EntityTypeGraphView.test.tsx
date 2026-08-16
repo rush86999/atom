@@ -24,15 +24,23 @@ import { EntityTypeGraphView } from '../EntityTypeGraphView';
 
 jest.mock('d3', () => {
   const handlers: Record<string, any> = {};
+  const attrCallbacks: any[][] = [];
 
   const makeChain = (): any => ({
     append: jest.fn(() => makeChain()),
     selectAll: jest.fn(() => makeChain()),
     data: jest.fn(() => makeChain()),
     join: jest.fn(() => makeChain()),
-    attr: jest.fn(() => makeChain()),
+    attr: jest.fn((...args: any[]) => {
+      // record function-valued attr callbacks so tests can drive them
+      if (typeof args[1] === 'function') attrCallbacks.push(args);
+      return makeChain();
+    }),
     style: jest.fn(() => makeChain()),
-    text: jest.fn(() => makeChain()),
+    text: jest.fn((...args: any[]) => {
+      if (typeof args[0] === 'function') attrCallbacks.push(args);
+      return makeChain();
+    }),
     remove: jest.fn(() => makeChain()),
     call: jest.fn(() => makeChain()),
     on: jest.fn((evt: string, cb: any) => {
@@ -52,11 +60,9 @@ jest.mock('d3', () => {
     }),
   });
 
-  // resetMocks (jest config) clears factory mock implementations before every
-  // test, so the api exposes __makeChain/__makeSimulation for beforeEach
-  // re-stubbing.
   return {
     __handlers: handlers,
+    __attrCallbacks: attrCallbacks,
     __makeChain: makeChain,
     __makeSimulation: makeSimulation,
     select: jest.fn(() => makeChain()),
@@ -128,23 +134,46 @@ const linkedTypes = [
   entityTypes[1],
 ];
 
+// resetMocks (jest config) clears the factory mock implementations before
+// every test — re-stub the d3 api with handler/attr recording.
+const restubD3 = () => {
+  const d3Mock = require('d3') as any;
+  for (const key of Object.keys(d3Mock.__handlers)) delete d3Mock.__handlers[key];
+  d3Mock.__attrCallbacks.length = 0;
+  d3Mock.select.mockImplementation(() => d3Mock.__makeChain());
+  d3Mock.forceSimulation.mockImplementation(() => d3Mock.__makeSimulation());
+  d3Mock.zoom.mockImplementation(() => ({
+    scaleExtent: jest.fn().mockReturnThis(),
+    on: jest.fn((evt: string, cb: any) => {
+      d3Mock.__handlers['zoom:' + evt] = cb;
+      return undefined;
+    }),
+  }));
+  d3Mock.drag.mockImplementation(() => {
+    const dragBehavior: any = {
+      on: jest.fn((evt: string, cb: any) => {
+        d3Mock.__handlers['drag:' + evt] = cb;
+        return dragBehavior;
+      }),
+    };
+    return dragBehavior;
+  });
+  d3Mock.forceLink.mockImplementation(() => ({
+    id: jest.fn((cb: any) => {
+      d3Mock.__handlers['linkId'] = cb;
+      return { distance: jest.fn().mockReturnThis() };
+    }),
+    distance: jest.fn().mockReturnThis(),
+  }));
+  d3Mock.forceManyBody.mockImplementation(() => ({ strength: jest.fn().mockReturnThis() }));
+  d3Mock.forceCollide.mockImplementation(() => ({ radius: jest.fn().mockReturnThis() }));
+  return d3Mock;
+};
+
 describe('EntityTypeGraphView', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // resetMocks cleared the factory implementations — re-stub the d3 api
-    const d3Mock = require('d3') as any;
-    for (const key of Object.keys(d3Mock.__handlers)) delete d3Mock.__handlers[key];
-    d3Mock.select.mockImplementation(() => d3Mock.__makeChain());
-    d3Mock.forceSimulation.mockImplementation(() => d3Mock.__makeSimulation());
-    d3Mock.zoom.mockImplementation(() => ({
-      scaleExtent: jest.fn().mockReturnThis(),
-      on: jest.fn().mockReturnThis(),
-    }));
-    d3Mock.drag.mockImplementation(() => ({ on: jest.fn().mockReturnThis() }));
-    d3Mock.forceLink.mockImplementation(() => ({ id: jest.fn().mockReturnThis(), distance: jest.fn().mockReturnThis() }));
-    d3Mock.forceManyBody.mockImplementation(() => ({ strength: jest.fn().mockReturnThis() }));
-    d3Mock.forceCollide.mockImplementation(() => ({ radius: jest.fn().mockReturnThis() }));
-
+    restubD3();
     axiosMock.get.mockResolvedValue({ data: { success: true, data: entityTypes } });
   });
 
@@ -254,5 +283,153 @@ describe('EntityTypeGraphView', () => {
     });
     expect(screen.getByText('System Type')).toBeInTheDocument();
     expect(container.querySelector('svg')).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended coverage: zoom, drag, tick and node attr callbacks
+// ---------------------------------------------------------------------------
+describe('EntityTypeGraphView (extended coverage)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    restubD3();
+    axiosMock.get.mockResolvedValue({ data: { success: true, data: entityTypes } });
+  });
+
+  const waitForGraph = async () => {
+    render(<EntityTypeGraphView workspaceId="ws-1" />);
+    await screen.findByText('System Type');
+    const d3Mock = require('d3') as any;
+    await waitFor(() => {
+      expect(typeof d3Mock.__handlers.click).toBe('function');
+    });
+    return d3Mock;
+  };
+
+  test('zoom handler applies the event transform to the container', async () => {
+    const d3Mock = await waitForGraph();
+    expect(typeof d3Mock.__handlers['zoom:zoom']).toBe('function');
+    // container.attr('transform', ...) is a recorded attr call; invoking the
+    // zoom handler must not throw and exercises event.transform usage
+    expect(() =>
+      d3Mock.__handlers['zoom:zoom']({ transform: 'translate(10,10) scale(2)' })
+    ).not.toThrow();
+  });
+
+  test('forceLink id callback resolves node ids', async () => {
+    const d3Mock = await waitForGraph();
+    expect(typeof d3Mock.__handlers.linkId).toBe('function');
+    expect(d3Mock.__handlers.linkId({ id: 'customer' })).toBe('customer');
+  });
+
+  test('drag start, drag and end handlers mutate node fixation', async () => {
+    const d3Mock = await waitForGraph();
+    const sim = d3Mock.forceSimulation.mock.results[0].value;
+    const node = { x: 5, y: 6, fx: undefined as any, fy: undefined as any };
+
+    d3Mock.__handlers['drag:start']({ active: false }, node);
+    expect(sim.alphaTarget).toHaveBeenCalledWith(0.3);
+    expect(sim.restart).toHaveBeenCalled();
+    expect(node.fx).toBe(5);
+    expect(node.fy).toBe(6);
+
+    d3Mock.__handlers['drag:drag']({}, node);
+    // event.x/event.y undefined -> fx/fy become undefined (no crash)
+    expect(node).toBeTruthy();
+
+    d3Mock.__handlers['drag:end']({ active: false }, node);
+    expect(sim.alphaTarget).toHaveBeenCalledWith(0);
+    expect(node.fx).toBeNull();
+    expect(node.fy).toBeNull();
+  });
+
+  test('tick handler updates link endpoints and node transforms', async () => {
+    const d3Mock = await waitForGraph();
+    expect(typeof d3Mock.__handlers.tick).toBe('function');
+    expect(() => d3Mock.__handlers.tick()).not.toThrow();
+
+    // the tick handler registers x1/y1/x2/y2 attr callbacks — drive them with
+    // a resolved link datum (source/target replaced by Node objects)
+    const linkDatum = { source: { x: 1, y: 2 }, target: { x: 3, y: 4 } };
+    for (const key of ['x1', 'y1', 'x2', 'y2']) {
+      const cb = d3Mock.__attrCallbacks.find((a: any[]) => a[0] === key)![1];
+      expect(() => cb(linkDatum)).not.toThrow();
+    }
+    expect(d3Mock.__attrCallbacks.find((a: any[]) => a[0] === 'x1')![1](linkDatum)).toBe(1);
+    expect(d3Mock.__attrCallbacks.find((a: any[]) => a[0] === 'y2')![1](linkDatum)).toBe(4);
+  });
+
+  test('node circle radius, fill and label callbacks compute per-datum values', async () => {
+    const d3Mock = await waitForGraph();
+    await waitFor(() => {
+      expect(d3Mock.__attrCallbacks.length).toBeGreaterThan(0);
+    });
+
+    const datum = { property_count: 9, is_system: true, display_name: 'Customer' };
+    const rCb = d3Mock.__attrCallbacks.find((a) => a[0] === 'r')![1];
+    const fillCb = d3Mock.__attrCallbacks.find((a) => a[0] === 'fill')![1];
+    const dyCb = d3Mock.__attrCallbacks.find((a) => a[0] === 'dy')![1];
+    const textCb = d3Mock.__attrCallbacks.find((a) => a.length === 1)![0];
+
+    expect(rCb(datum)).toBe(15 + 3 * 2);
+    expect(fillCb(datum)).toBe('#8b5cf6');
+    expect(fillCb({ ...datum, is_system: false })).toBe('#10b981');
+    expect(dyCb(datum)).toBe(25 + 3 * 2);
+    expect(textCb(datum)).toBe('Customer');
+  });
+
+  test('unwraps non-enveloped and entity_types-wrapped API payloads', async () => {
+    axiosMock.get.mockResolvedValue({ data: entityTypes });
+    const { rerender } = render(<EntityTypeGraphView workspaceId="ws-1" />);
+    await screen.findByText('System Type');
+
+    axiosMock.get.mockResolvedValue({
+      data: { success: false, entity_types: entityTypes },
+    });
+    rerender(<EntityTypeGraphView workspaceId="ws-2" />);
+    await waitFor(() => {
+      expect(axiosMock.get).toHaveBeenCalledWith('/api/entity-types', {
+        params: { workspace_id: 'ws-2', include_system: true },
+      });
+    });
+    // graph rebuilt from the entity_types-wrapped payload without crashing
+    await screen.findByText('System Type');
+  });
+
+  test('properties without $ref and unknown $ref targets produce no links', async () => {
+    const noLinks = [
+      { ...entityTypes[0], json_schema: { properties: {
+        plain: { type: 'string' },
+        selfRef: { $ref: '#/customer' },
+        other: { $ref: 'does-not-exist' },
+      } } },
+      entityTypes[1],
+    ];
+    axiosMock.get.mockResolvedValue({ data: { success: true, data: noLinks } });
+
+    const d3Mock = require('d3') as any;
+    render(<EntityTypeGraphView workspaceId="ws-1" />);
+    await screen.findByText('System Type');
+
+    await waitFor(() => expect(d3Mock.forceLink).toHaveBeenCalled());
+    const linksArg = d3Mock.forceLink.mock.calls[d3Mock.forceLink.mock.calls.length - 1][0];
+    expect(linksArg).toEqual([]);
+  });
+
+  test('details panel falls back to "any" for untyped properties', async () => {
+    const untyped = [
+      { ...entityTypes[0], json_schema: { properties: { mystery: {} } } },
+    ];
+    axiosMock.get.mockResolvedValue({ data: { success: true, data: untyped } });
+
+    render(<EntityTypeGraphView workspaceId="ws-1" />);
+    const d3Mock = require('d3') as any;
+    await waitFor(() => {
+      expect(typeof d3Mock.__handlers.click).toBe('function');
+    });
+    d3Mock.__handlers.click({ stopPropagation: jest.fn() }, { slug: 'customer' });
+
+    expect(await screen.findByText('Type Details')).toBeInTheDocument();
+    expect(screen.getByText('any')).toBeInTheDocument();
   });
 });

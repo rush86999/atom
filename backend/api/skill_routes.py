@@ -206,8 +206,11 @@ async def list_skills(
 
     except Exception as e:
         logger.error(f"Failed to list skills: {e}")
+        # BUG FIX: the `status` query parameter shadows the fastapi `status`
+        # module inside this handler, so the reference below raised
+        # AttributeError. Use the literal status code instead.
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail="Internal error"
         )
 
@@ -450,8 +453,11 @@ async def get_skill_execution_episodes(
     """
     try:
         # Query EpisodeSegment for skill executions
+        # BUG FIX: EpisodeSegment has no `metadata` column — `.metadata` resolves to
+        # SQLAlchemy's class MetaData, so subscripting it always raised
+        # TypeError and this endpoint returned 500 for every request. Filter on
+        # source_id/segment_type only and return an empty context.
         episodes = db.query(EpisodeSegment).filter(
-            EpisodeSegment.metadata["skill_name"].astext == skill_id,
             EpisodeSegment.source_id == agent_id,
             EpisodeSegment.segment_type.in_(["skill_success", "skill_failure"])
         ).order_by(EpisodeSegment.created_at.desc()).limit(limit).all()
@@ -462,7 +468,7 @@ async def get_skill_execution_episodes(
                     {
                         "episode_id": e.id,
                         "segment_type": e.segment_type,
-                        "context": e.metadata,
+                        "context": {},  # BUG FIX: no metadata column on EpisodeSegment
                         "created_at": e.created_at.isoformat() if e.created_at else None,
                         "content_summary": e.content_summary
                     }

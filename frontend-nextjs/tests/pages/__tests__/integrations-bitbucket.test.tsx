@@ -280,3 +280,185 @@ describe("BitbucketIntegrationPage", () => {
     expect(screen.queryByText("atom-core")).not.toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Extended coverage: connection/data errors, all tabs, rich dataset rendering
+// ---------------------------------------------------------------------------
+describe("BitbucketIntegrationPage (extended coverage)", () => {
+  const mockFetch = jest.fn();
+  const mockPush = jest.fn();
+  let getItemSpy: jest.SpyInstance;
+  let consoleSpy: jest.SpyInstance;
+
+  const dataHandlers = (overrides: Record<string, any> = {}) => (url: string) => {
+    const map: Record<string, any> = {
+      "/health": okResponse({ status: "healthy" }),
+      "/workspaces": okResponse({ workspaces: WORKSPACES }),
+      "/repositories": okResponse({ repositories: REPOSITORIES }),
+      "/pull-requests": okResponse({ pull_requests: PULL_REQUESTS }),
+      "/pipelines": okResponse({ pipelines: PIPELINES }),
+      "/issues": okResponse({ issues: ISSUES }),
+      "/authorize": okResponse({ authorization_url: "https://auth.example.com/start" }),
+    };
+    for (const key of Object.keys(overrides)) {
+      if (url.includes(key)) return overrides[key];
+    }
+    for (const key of Object.keys(map)) {
+      if (url.includes(key)) return map[key];
+    }
+    return errResponse(404);
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    global.fetch = mockFetch;
+    (useRouter as jest.Mock).mockReturnValue({
+      push: mockPush,
+      replace: jest.fn(),
+      prefetch: jest.fn(),
+      back: jest.fn(),
+    });
+    getItemSpy = jest.spyOn(Storage.prototype, "getItem");
+    getItemSpy.mockReturnValue(TOKEN);
+    mockFetch.mockImplementation(dataHandlers());
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+    getItemSpy.mockRestore();
+  });
+
+  const connected = async () => {
+    render(<BitbucketIntegrationPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Connected")).toBeInTheDocument();
+    });
+    // wait for the datasets to land (recent repos render on the overview)
+    await waitFor(() => {
+      expect(screen.getByText("atom-core")).toBeInTheDocument();
+    });
+  };
+
+  it("falls back to disconnected when the health check fetch rejects", async () => {
+    mockFetch.mockImplementation(dataHandlers({ "/health": Promise.reject(new Error("offline")) }));
+    render(<BitbucketIntegrationPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Disconnected")).toBeInTheDocument();
+    });
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "Failed to check Bitbucket connection:",
+      expect.any(Error),
+    );
+  });
+
+  it("aborts data loading when a data endpoint rejects", async () => {
+    mockFetch.mockImplementation(
+      dataHandlers({ "/workspaces": Promise.reject(new Error("boom")) }),
+    );
+    render(<BitbucketIntegrationPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Connected")).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Failed to load Bitbucket data:",
+        expect.any(Error),
+      );
+    });
+    // the try block aborts: no repositories were loaded afterwards
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByText("atom-core")).not.toBeInTheDocument();
+  });
+
+  it("logs when the OAuth authorize call rejects", async () => {
+    mockFetch.mockImplementation(
+      dataHandlers({ "/health": errResponse(500), "/authorize": Promise.reject(new Error("oauth down")) }),
+    );
+    navigationErrors.length = 0;
+    render(<BitbucketIntegrationPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Disconnected")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /⚙️ Settings/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Connect Bitbucket Account/i }));
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Failed to start Bitbucket OAuth flow:",
+        expect.any(Error),
+      );
+    });
+    expect(navigationErrors).toHaveLength(0);
+  });
+
+  it("renders every tab with rich data", async () => {
+    await connected();
+
+    const tabs: [RegExp, RegExp][] = [
+      [/📊 Overview/i, /Bitbucket Integration Overview/i],
+      [/🏢 Workspaces/i, /Bitbucket Workspaces/i],
+      [/📁 Repositories/i, /Bitbucket Repositories/i],
+      [/🔄 Pull Requests/i, /Bitbucket Pull Requests/i],
+      [/⚙️ Pipelines/i, /Bitbucket Pipelines/i],
+      [/🐛 Issues/i, /Bitbucket Issues/i],
+      [/🔍 Code Search/i, /Bitbucket Code Search/i],
+    ];
+    for (const [tab, heading] of tabs) {
+      fireEvent.click(screen.getByRole("button", { name: tab }));
+      expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
+    }
+
+    // workspace card details
+    fireEvent.click(screen.getByRole("button", { name: /🏢 Workspaces/i }));
+    expect(screen.getByText("Globex Industries")).toBeInTheDocument();
+    expect(screen.getByText("globex")).toBeInTheDocument();
+
+    // repository card details
+    fireEvent.click(screen.getByRole("button", { name: /📁 Repositories/i }));
+    expect(screen.getByText("Main platform repository")).toBeInTheDocument();
+    expect(screen.getByText(/Size: 2048 KB/)).toBeInTheDocument();
+
+    // pull request details
+    fireEvent.click(screen.getByRole("button", { name: /🔄 Pull Requests/i }));
+    expect(
+      screen.getAllByText((_, el) => (el?.textContent || "").includes("#42 • feat/sandbox")).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(/feat\/sandbox/)).toBeInTheDocument();
+    expect(screen.getByText(/Author: Rushi Parikh/)).toBeInTheDocument();
+
+    // pipeline details
+    fireEvent.click(screen.getByRole("button", { name: /⚙️ Pipelines/i }));
+    expect(screen.getByText(/Pipeline #8/)).toBeInTheDocument();
+    expect(screen.getByText(/Duration: 15s/)).toBeInTheDocument();
+    expect(screen.getByText(/deadbee/)).toBeInTheDocument();
+
+    // issue details
+    fireEvent.click(screen.getByRole("button", { name: /🐛 Issues/i }));
+    expect(screen.getByText("Two logins race on refresh token")).toBeInTheDocument();
+    expect(screen.getByText(/Priority: high/)).toBeInTheDocument();
+
+    // search tab
+    fireEvent.click(screen.getByRole("button", { name: /🔍 Code Search/i }));
+    expect(screen.getByPlaceholderText("Search code...")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Search$/ })).toBeInTheDocument();
+  });
+
+  it("navigates via the remaining quick action buttons", async () => {
+    await connected();
+
+    fireEvent.click(screen.getByRole("button", { name: /View Pull Requests/i }));
+    expect(screen.getByRole("heading", { name: /Bitbucket Pull Requests/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /📊 Overview/i }));
+    fireEvent.click(screen.getByRole("button", { name: /CI\/CD Pipelines/i }));
+    expect(screen.getByRole("heading", { name: /Bitbucket Pipelines/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /📊 Overview/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Search Code/i }));
+    expect(screen.getByRole("heading", { name: /Bitbucket Code Search/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /← Back to Integrations/i }));
+    expect(mockPush).toHaveBeenCalledWith("/integrations");
+  });
+});

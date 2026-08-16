@@ -236,4 +236,134 @@ describe('HubSpotAIService', () => {
       screen.getByRole('button', { name: /enable ai scoring/i })
     ).toBeInTheDocument();
   });
+
+  // Test 16: the disabled view can be re-enabled inline
+  test('re-enables AI scoring from the disabled view', () => {
+    render(<HubSpotAIService contact={mockContact} />);
+
+    fireEvent.click(screen.getAllByRole('checkbox')[0]);
+    fireEvent.click(screen.getByRole('button', { name: /enable ai scoring/i }));
+
+    expect(screen.getByText('AI Lead Scoring')).toBeInTheDocument();
+    expect(
+      screen.queryByText('AI-powered lead scoring is currently disabled')
+    ).not.toBeInTheDocument();
+  });
+
+  // Test 17: warm lead band
+  test('labels a mid-range score as a Warm Lead', async () => {
+    server.use(
+      rest.post('/api/hubspot/ai/analyze-lead', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ ...mockPrediction, leadScore: 60 }))
+      )
+    );
+
+    render(<HubSpotAIService contact={mockContact} />);
+    fireEvent.click(screen.getByRole('button', { name: /analyze lead/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Warm Lead')).toBeInTheDocument();
+    });
+  });
+
+  // Test 18: cold lead band
+  test('labels a low score as a Cold Lead', async () => {
+    server.use(
+      rest.post('/api/hubspot/ai/analyze-lead', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ ...mockPrediction, leadScore: 20 }))
+      )
+    );
+
+    render(<HubSpotAIService contact={mockContact} />);
+    fireEvent.click(screen.getByRole('button', { name: /analyze lead/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Cold Lead')).toBeInTheDocument();
+    });
+  });
+
+  // Test 19: model selector change flows into the request payload
+  test('sends the selected model id when analyzing', async () => {
+    render(<HubSpotAIService contact={mockContact} />);
+
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'predictive' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /analyze lead/i }));
+
+    await waitFor(() => {
+      expect(lastBody.model_id).toBe('predictive');
+    });
+  });
+
+  // Test 20: invalid prediction payloads are rejected
+  test('shows an error when the server returns a malformed prediction', async () => {
+    server.use(
+      rest.post('/api/hubspot/ai/analyze-lead', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ leadScore: 'high' }))
+      )
+    );
+
+    render(<HubSpotAIService contact={mockContact} />);
+    fireEvent.click(screen.getByRole('button', { name: /analyze lead/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Invalid prediction data format from server')).toBeInTheDocument();
+    });
+  });
+
+  // Test 21: threshold inputs update config
+  test('updates the hot threshold from the number input', () => {
+    render(<HubSpotAIService contact={mockContact} />);
+
+    const hotInput = screen.getByDisplayValue('75');
+    fireEvent.change(hotInput, { target: { value: '90' } });
+
+    expect((hotInput as HTMLInputElement).value).toBe('90');
+    // Hot lead trigger description reflects the new threshold
+    expect(
+      screen.getByText(/lead score exceeds 90/)
+    ).toBeInTheDocument();
+  });
+
+  // Test 22: factor weight sliders update the displayed weight
+  test('updates a factor weight via the slider', () => {
+    render(<HubSpotAIService contact={mockContact} />);
+
+    // engagement starts at 35; move the native range input to 40
+    const engagementSlider = screen.getAllByRole('slider')[0] as HTMLInputElement;
+    expect(engagementSlider.value).toBe('35');
+
+    fireEvent.change(engagementSlider, { target: { value: '40' } });
+
+    expect((screen.getAllByRole('slider')[0] as HTMLInputElement).value).toBe('40');
+    expect(screen.getByText('40%')).toBeInTheDocument();
+  });
+
+  // Test 23: automation checkboxes toggle shared config state
+  test('toggles automation settings via checkboxes', () => {
+    render(<HubSpotAIService contact={mockContact} />);
+
+    // checkboxes: [0] enabled, [1] autoAssign, [2] autoFollowup,
+    // [3] smartSegmentation, [4] hot-trigger autoAssign, [5] behavioral autoFollowup
+    const checkboxes = screen.getAllByRole('checkbox');
+    expect(checkboxes.length).toBe(6);
+    expect((checkboxes[4] as HTMLInputElement).checked).toBe(true); // autoAssign on
+
+    // Toggle autoAssign in the Automation panel; the Hot Lead Trigger card
+    // checkbox reflects the same config state.
+    fireEvent.click(checkboxes[1]);
+    expect((screen.getAllByRole('checkbox')[4] as HTMLInputElement).checked).toBe(false);
+
+    // Toggle the behavioral trigger card checkbox directly (autoFollowup)
+    fireEvent.click(screen.getAllByRole('checkbox')[5]);
+    expect((screen.getAllByRole('checkbox')[2] as HTMLInputElement).checked).toBe(true);
+
+    // Toggle the hot trigger card checkbox directly (autoAssign back on)
+    fireEvent.click(screen.getAllByRole('checkbox')[4]);
+    expect((screen.getAllByRole('checkbox')[1] as HTMLInputElement).checked).toBe(true);
+
+    // The hot trigger description still renders the configured threshold
+    expect(screen.getByText(/lead score exceeds 75/)).toBeInTheDocument();
+  });
 });

@@ -352,3 +352,241 @@ describe('CalendarManagement', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Extended coverage: shared component view navigation, grid event clicks,
+// full dialog form fields, and time-range validation
+// ---------------------------------------------------------------------------
+import SharedCalendarManagement from '@/components/shared/CalendarManagement';
+
+const fmtLocal = (d: Date) => {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+describe('SharedCalendarManagement (extended coverage)', () => {
+  const todayEvent = (hour: number) => {
+    const d = new Date();
+    d.setHours(hour, 0, 0, 0);
+    return d;
+  };
+
+  const initialEvents = [
+    {
+      id: 'e1',
+      title: 'Today Standup',
+      description: 'Daily',
+      start: todayEvent(23),
+      end: todayEvent(23),
+      location: 'Zoom',
+      status: 'confirmed',
+      platform: 'google',
+      color: '#3182CE',
+    },
+  ];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const settle = async () => {
+    await screen.findAllByText('Today Standup');
+  };
+
+  test('switches between Day, Week, and Month views and navigates dates', async () => {
+    render(<SharedCalendarManagement initialEvents={initialEvents} />);
+
+    const weekGridVisible = () =>
+      document.querySelector('.grid.grid-cols-7') !== null;
+    await waitFor(() => expect(weekGridVisible()).toBe(true));
+
+    const navButtons = screen
+      .getAllByRole('button')
+      .filter((b) =>
+        b.querySelector('svg.lucide-chevron-left, svg.lucide-chevron-right'),
+      );
+    expect(navButtons.length).toBeGreaterThanOrEqual(2);
+
+    // Day view renders the single-day agenda for the current date
+    fireEvent.click(screen.getByRole('button', { name: 'Day' }));
+    fireEvent.click(navButtons[0]); // prev
+    fireEvent.click(navButtons[1]); // next
+    expect(screen.getByTestId('day-view')).toBeInTheDocument();
+    expect(within(screen.getByTestId('day-view')).getByText('Today Standup')).toBeInTheDocument();
+
+    // Month view renders a 6x7 grid with weekday headers and event chips
+    fireEvent.click(screen.getByRole('button', { name: 'Month' }));
+    fireEvent.click(navButtons[0]);
+    fireEvent.click(navButtons[1]);
+    expect(screen.getByTestId('month-view')).toBeInTheDocument();
+    expect(screen.getByText('Sun')).toBeInTheDocument();
+    expect(screen.getByText('Sat')).toBeInTheDocument();
+    expect(within(screen.getByTestId('month-view')).getByText('Today Standup')).toBeInTheDocument();
+
+    // Back to Week re-renders the week grid
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }));
+    fireEvent.click(navButtons[0]);
+    fireEvent.click(navButtons[1]);
+    await waitFor(() => expect(weekGridVisible()).toBe(true));
+  });
+
+  test('Day view shows an empty-state message for a day without events', async () => {
+    render(<SharedCalendarManagement initialEvents={initialEvents} />);
+    await settle();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Day' }));
+    // Navigate to tomorrow, which has no events
+    const nextButton = screen
+      .getAllByRole('button')
+      .filter((b) => b.querySelector('svg.lucide-chevron-right'))[0];
+    fireEvent.click(nextButton);
+
+    expect(
+      screen.getByText('No events scheduled for this day.')
+    ).toBeInTheDocument();
+  });
+
+  test('Day and Month view event chips open the edit dialog', async () => {
+    render(<SharedCalendarManagement initialEvents={initialEvents} />);
+    await settle();
+
+    // Day view chip
+    fireEvent.click(screen.getByRole('button', { name: 'Day' }));
+    fireEvent.click(screen.getByTestId('day-view').querySelector('.font-bold.truncate')!);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    // Month view chip
+    fireEvent.click(screen.getByRole('button', { name: 'Month' }));
+    fireEvent.click(screen.getByTestId('month-view').querySelector('.font-bold.truncate')!);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /edit event/i })
+    ).toBeInTheDocument();
+  });
+
+  test('opens the edit dialog from a grid event chip and from the edit icon', async () => {
+    render(<SharedCalendarManagement initialEvents={initialEvents} />);
+
+    await settle();
+
+    // Open the edit dialog by clicking the event in the week grid
+    const chip = screen.getAllByText('Today Standup')[0];
+    fireEvent.click(chip);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    // Edit icon button in the upcoming list
+    const upcomingTitle = screen
+      .getAllByText('Today Standup')
+      .find((el) => el.closest('.flex.justify-between'));
+    const row = (upcomingTitle!.closest('.flex.justify-between') as HTMLElement);
+    const buttons = within(row).getAllByRole('button');
+    fireEvent.click(buttons[0]); // edit icon
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  test('fills every dialog field and submits through the shared component', async () => {
+    const onEventCreate = jest.fn();
+    render(
+      <SharedCalendarManagement
+        initialEvents={initialEvents}
+        onEventCreate={onEventCreate}
+      />,
+    );
+    await settle();
+
+    fireEvent.click(screen.getByRole('button', { name: /new event/i }));
+    const dialog = await screen.findByRole('dialog');
+
+    fireEvent.change(within(dialog).getByPlaceholderText('Event title'), {
+      target: { value: 'Full Form Event' },
+    });
+    fireEvent.change(
+      within(dialog).getByPlaceholderText('Event description'),
+      { target: { value: 'A description' },
+    } as any);
+    fireEvent.change(within(dialog).getByPlaceholderText('Event location'), {
+      target: { value: 'HQ',
+    } } as any);
+    fireEvent.change(within(dialog).getByTestId('event-start'), {
+      target: { value: fmtLocal(todayEvent(12)) },
+    });
+    fireEvent.change(within(dialog).getByTestId('event-end'), {
+      target: { value: fmtLocal(todayEvent(13)) },
+    });
+
+    // Radix selects for status + platform
+    const pickOption = async (trigger: Element, label: string) => {
+      fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+      const option = await waitFor(() => {
+        const found = Array.from(document.querySelectorAll('[role="option"]')).find(
+          (i) => i.textContent === label
+        );
+        if (!found) throw new Error(`option ${label} not found`);
+        return found as HTMLElement;
+      });
+      fireEvent.click(option);
+    };
+    const comboboxes = within(dialog).getAllByRole('combobox');
+    await pickOption(comboboxes[0], 'Tentative');
+    await pickOption(comboboxes[1], 'Outlook Calendar');
+
+    // Color input
+    const colorInput = within(dialog).getByDisplayValue(
+      /^#[0-9a-fA-F]{6}$/,
+    ) as HTMLInputElement;
+    fireEvent.change(colorInput, { target: { value: '#E53E3E' } });
+
+    fireEvent.click(within(dialog).getByTestId('event-submit'));
+
+    await waitFor(() => {
+      expect(onEventCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Full Form Event',
+          description: 'A description',
+          location: 'HQ',
+          status: 'tentative',
+          platform: 'outlook',
+          color: '#e53e3e',
+        }),
+      );
+    });
+  });
+
+  test('rejects an event whose end time is before its start time', async () => {
+    const onEventCreate = jest.fn();
+    render(
+      <SharedCalendarManagement
+        initialEvents={initialEvents}
+        onEventCreate={onEventCreate}
+      />,
+    );
+    await settle();
+
+    fireEvent.click(screen.getByRole('button', { name: /new event/i }));
+    const dialog = await screen.findByRole('dialog');
+
+    fireEvent.change(within(dialog).getByPlaceholderText('Event title'), {
+      target: { value: 'Inverted Event' },
+    });
+    fireEvent.change(within(dialog).getByTestId('event-start'), {
+      target: { value: fmtLocal(todayEvent(14)) },
+    });
+    fireEvent.change(within(dialog).getByTestId('event-end'), {
+      target: { value: fmtLocal(todayEvent(13)) },
+    });
+    fireEvent.click(within(dialog).getByTestId('event-submit'));
+
+    // Validation blocks the submit: dialog stays open, no event created.
+    await new Promise((r) => setTimeout(r, 150));
+    expect(onEventCreate).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+});

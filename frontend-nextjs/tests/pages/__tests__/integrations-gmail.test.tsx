@@ -15,6 +15,28 @@ jest.mock("next/router", () => ({
   })),
 }));
 
+
+// Wrap the real GmailSearch with a trigger button so the page's onSearch
+// callbacks can be exercised (the real component never calls onSearch).
+jest.mock("@/components/GmailSearch", () => {
+  const React = require("react");
+  const real = jest.requireActual("@/components/GmailSearch").default;
+  return {
+    __esModule: true,
+    default: (props: any) => (
+      <div>
+        {React.createElement(real, props)}
+        <button
+          data-testid="trigger-on-search"
+          onClick={() => props.onSearch([1], { filter: true }, { sort: "asc" })}
+        >
+          Trigger Search
+        </button>
+      </div>
+    ),
+  };
+});
+
 const okResponse = (body: any) => ({
   ok: true,
   status: 200,
@@ -173,5 +195,156 @@ describe("GmailIntegrationPage", () => {
       screen.getByPlaceholderText("Search messages..."),
     ).toBeInTheDocument();
     expect(screen.getByText("Showing 0 of 0 items")).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended coverage: connection error, all tabs, quick actions, onSearch
+// ---------------------------------------------------------------------------
+describe("GmailIntegrationPage (extended coverage)", () => {
+  const mockFetch = jest.fn();
+  let consoleSpy: jest.SpyInstance;
+  let logSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    global.fetch = mockFetch;
+    mockFetch.mockImplementation(() =>
+      Promise.resolve({ ok: true, status: 200, json: async () => ({ connected: true }) }),
+    );
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+    logSpy.mockRestore();
+  });
+
+  const settled = async () => {
+    render(<GmailIntegrationPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Connected")).toBeInTheDocument();
+    });
+  };
+
+  it("falls back to disconnected when the status fetch rejects", async () => {
+    mockFetch.mockImplementation(() => Promise.reject(new Error("offline")));
+    render(<GmailIntegrationPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Disconnected")).toBeInTheDocument();
+    });
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "Failed to check Gmail connection:",
+      expect.any(Error),
+    );
+  });
+
+  it("visits every tab from the tab bar", async () => {
+    await settled();
+
+    const tabNames = [
+      ["📊 Overview", /Gmail Integration Overview/i],
+      ["📥 Inbox", /Gmail Inbox/i],
+      ["📅 Calendar", /Google Calendar/i],
+      ["👥 Contacts", /Google Contacts/i],
+      ["✅ Tasks", /Google Tasks/i],
+      ["✏️ Compose", /Compose Email/i],
+      ["🏷️ Labels", /Gmail Labels/i],
+      ["🧠 Memory", /Gmail Memory \(LanceDB\)/i],
+      ["⚙️ Settings", /Gmail Settings/i],
+    ] as const;
+
+    for (const [tab, heading] of tabNames) {
+      fireEvent.click(screen.getByRole("button", { name: new RegExp(tab) }));
+      expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
+    }
+  });
+
+  it("navigates via the remaining quick action buttons", async () => {
+    await settled();
+
+    const openSpy = jest.fn();
+    window.open = openSpy as any;
+
+    const backToOverview = () =>
+      fireEvent.click(screen.getByRole("button", { name: /📊 Overview/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Compose Email/i }));
+    expect(screen.getByRole("heading", { name: /Compose Email/i })).toBeInTheDocument();
+    backToOverview();
+
+    fireEvent.click(screen.getByRole("button", { name: /Manage Contacts/i }));
+    expect(screen.getByRole("heading", { name: /Google Contacts/i })).toBeInTheDocument();
+    backToOverview();
+
+    fireEvent.click(screen.getByRole("button", { name: /View Tasks/i }));
+    expect(screen.getByRole("heading", { name: /Google Tasks/i })).toBeInTheDocument();
+    backToOverview();
+
+    fireEvent.click(screen.getByRole("button", { name: /View Calendar/i }));
+    expect(screen.getByRole("heading", { name: /Google Calendar/i })).toBeInTheDocument();
+    backToOverview();
+
+    fireEvent.click(screen.getByRole("button", { name: /Open Gmail/i }));
+    expect(openSpy).toHaveBeenCalledWith("https://mail.google.com", "_blank");
+  });
+
+  it("sets search results from the inbox and contacts onSearch callbacks", async () => {
+    await settled();
+
+    fireEvent.click(screen.getByRole("button", { name: /📥 Inbox/i }));
+    fireEvent.click(screen.getByTestId("trigger-on-search"));
+    // onSearch([1], ...) now setEmails([1]) — GmailSearch reflects it
+    expect(screen.getByText("Showing 1 of 1 items")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /👥 Contacts/i }));
+    fireEvent.click(screen.getByTestId("trigger-on-search"));
+    expect(screen.getByText("Showing 1 of 1 items")).toBeInTheDocument();
+  });
+
+  it("renders static content on the labels and memory tabs", async () => {
+    await settled();
+
+    fireEvent.click(screen.getByRole("button", { name: /🏷️ Labels/i }));
+    expect(screen.getByText("Primary")).toBeInTheDocument();
+    expect(screen.getByText("Social")).toBeInTheDocument();
+    expect(screen.getByText("Promotions")).toBeInTheDocument();
+    expect(screen.getByText("Work")).toBeInTheDocument();
+    expect(screen.getByText("Important")).toBeInTheDocument();
+    expect(screen.getByText("Archive")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /🧠 Memory/i }));
+    expect(screen.getByText("Memory Statistics")).toBeInTheDocument();
+    expect(screen.getByText("Memory Search")).toBeInTheDocument();
+    expect(screen.getByText("Memory Features")).toBeInTheDocument();
+    expect(screen.getByText("Sync Memory Now")).toBeInTheDocument();
+  });
+
+  it("renders the compose form fields and buttons", async () => {
+    await settled();
+
+    fireEvent.click(screen.getByRole("button", { name: /✏️ Compose/i }));
+    expect(screen.getByPlaceholderText("recipient@example.com")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Email subject")).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Write your email message here..."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Send Email/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Save Draft/i })).toBeInTheDocument();
+  });
+
+  it("renders calendar and tasks controls", async () => {
+    await settled();
+
+    fireEvent.click(screen.getByRole("button", { name: /📅 Calendar/i }));
+    expect(screen.getByPlaceholderText("Search events...")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Create Event/i })).toBeInTheDocument();
+    expect(screen.getByText("Upcoming")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /✅ Tasks/i }));
+    expect(screen.getByPlaceholderText("Search tasks...")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Add Task/i })).toBeInTheDocument();
+    expect(screen.getByText("Due Today")).toBeInTheDocument();
   });
 });

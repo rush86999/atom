@@ -351,4 +351,141 @@ describe('JiraOAuthFlow', () => {
     });
     expect(onError).toHaveBeenCalledTimes(1);
   });
+
+  test('processes an OAuth callback via ?code and ?state params', async () => {
+    window.history.replaceState({}, '', '/?code=abc123&state=xyz');
+
+    renderWithProviders(<JiraOAuthFlow />);
+
+    // The backend handles the exchange; the UI shows the loading step.
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /processing oauth flow/i })
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(/exchanging authorization code for tokens/i)
+    ).toBeInTheDocument();
+  });
+
+  test('reports a project load failure when selecting a resource whose projects fail', async () => {
+    const onError = jest.fn();
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    server.use(
+      resourcesHandler,
+      rest.get('http://localhost:8000/api/auth/jira/CLOUD1/projects', (req, res, ctx) => {
+        return res(ctx.status(500), ctx.json({ error: 'projects unavailable' }));
+      })
+    );
+
+    window.history.replaceState({}, '', '/?success=true');
+    jest.useFakeTimers();
+
+    renderWithProviders(<JiraOAuthFlow onError={onError} />);
+
+    await act(async () => {
+      jest.advanceTimersByTime(1100);
+    });
+    jest.useRealTimers();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /oauth integration failed/i })
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getAllByText(/failed to load projects: 500/i).length
+    ).toBeGreaterThan(0);
+    expect(onError).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to load projects: 500')
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  test('re-selecting a discovered resource reloads its projects, and reconnect resets to idle', async () => {
+    server.use(startHandler, resourcesHandler, projectsHandler);
+
+    window.history.replaceState({}, '', '/?success=true');
+    jest.useFakeTimers();
+
+    renderWithProviders(<JiraOAuthFlow />);
+
+    await act(async () => {
+      jest.advanceTimersByTime(1100);
+    });
+    jest.useRealTimers();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /jira integration successful/i })
+      ).toBeInTheDocument();
+    });
+
+    // Clicking the resource card re-runs the resource selection flow
+    const resourceCard = screen.getByText('acme.atlassian.net').closest('div[class*="cursor-pointer"]')!;
+    await act(async () => {
+      resourceCard.click();
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(screen.getByText('acme.atlassian.net')).toBeInTheDocument();
+
+    // Reconnect resets the whole flow back to the idle view
+    await act(async () => {
+      screen.getByRole('button', { name: /reconnect/i }).click();
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /connect to jira/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  test('shows the "+N more" overflow rows for large projects and issue lists', async () => {
+    const manyProjects = Array.from({ length: 8 }, (_, i) => ({
+      id: `p${i}`,
+      key: `K${i}`,
+      name: `Project ${i}`,
+    }));
+    const manyIssues = Array.from({ length: 7 }, (_, i) => ({
+      id: `i${i}`,
+      key: `K${i}-1`,
+      summary: `Issue ${i}`,
+      status: 'To Do',
+    }));
+
+    server.use(
+      rest.get('http://localhost:8000/api/auth/jira/resources', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({
+          resources: [
+            {
+              ...resources[0],
+              discovery: { projects: manyProjects, issues: manyIssues },
+            },
+          ],
+        }))
+      ),
+      projectsHandler
+    );
+
+    window.history.replaceState({}, '', '/?success=true');
+    jest.useFakeTimers();
+
+    renderWithProviders(<JiraOAuthFlow />);
+
+    await act(async () => {
+      jest.advanceTimersByTime(1100);
+    });
+    jest.useRealTimers();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /jira integration successful/i })
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('+2 more')).toBeInTheDocument(); // 8 projects, 6 shown
+    expect(screen.getByText('+2 more issues')).toBeInTheDocument(); // 7 issues, 5 shown
+  });
 });

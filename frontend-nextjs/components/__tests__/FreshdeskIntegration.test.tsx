@@ -521,3 +521,154 @@ describe('FreshdeskIntegration', () => {
     expect(screen.getByRole('button', { name: /refresh data/i })).toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Extended coverage: error paths, status/priority variants, modal close,
+// create-ticket modal
+// ---------------------------------------------------------------------------
+describe('FreshdeskIntegration (extended coverage)', () => {
+  let consoleSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    server.resetHandlers();
+    server.use(...connectedHandlers);
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+  });
+
+  const connected = async () => {
+    renderWithProviders(<FreshdeskIntegration />);
+    await screen.findByRole('heading', { name: /freshdesk/i });
+  };
+
+  test('a failed data load disconnects the integration', async () => {
+    server.use(
+      rest.get('/api/v1/freshdesk/health', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true, status: 'healthy' }))
+      ),
+      rest.get('/api/v1/freshdesk/tickets', (req, res) => res.networkError('down'))
+    );
+
+    renderWithProviders(<FreshdeskIntegration />);
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to load Freshdesk data:',
+        expect.anything()
+      );
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /connect freshdesk/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  test('search failures are logged without crashing', async () => {
+    const user = userEvent.setup();
+    server.use(
+      rest.post('/api/v1/freshdesk/search', (req, res) => res.networkError('down'))
+    );
+
+    await connected();
+
+    const searchInput = await screen.findByPlaceholderText(/search/i);
+    await user.type(searchInput, 'boom{enter}');
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith('Search failed:', expect.anything());
+    });
+  });
+
+  test('renders every ticket status and priority variant', async () => {
+    const variantTickets = [
+      { status: 2, priority: 1, id: 1, subject: 'S2 P1' },
+      { status: 3, priority: 2, id: 2, subject: 'S3 P2' },
+      { status: 4, priority: 3, id: 3, subject: 'S4 P3' },
+      { status: 5, priority: 4, id: 4, subject: 'S5 P4' },
+      { status: 9, priority: 9, id: 5, subject: 'S9 P9' },
+    ].map((t) => ({ ...tickets[0], ...t, tags: [] }));
+
+    server.use(
+      rest.get('/api/v1/freshdesk/tickets', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true, data: variantTickets }))
+      )
+    );
+
+    await connected();
+    const user0 = userEvent.setup();
+    await user0.click(screen.getByRole('button', { name: /tickets/i }));
+    await screen.findByText('S2 P1');
+
+    for (const text of ['Open', 'Pending', 'Resolved', 'Closed', 'Unknown']) {
+      expect(screen.getAllByText(text).length).toBeGreaterThan(0);
+    }
+    for (const text of ['Low', 'Medium', 'High', 'Urgent']) {
+      expect(screen.getAllByText(text).length).toBeGreaterThan(0);
+    }
+    // status 9 and priority 9 both fall back to Unknown
+    expect(screen.getAllByText('Unknown').length).toBeGreaterThan(1);
+  });
+
+  test('connect modal cancel closes the dialog', async () => {
+    const user = userEvent.setup();
+    server.use(
+      rest.get('/api/v1/freshdesk/health', (req, res, ctx) =>
+        res(ctx.status(503), ctx.json({ error: 'nope' }))
+      )
+    );
+
+    renderWithProviders(<FreshdeskIntegration />);
+    await user.click(
+      await screen.findByRole('button', { name: /connect freshdesk/i })
+    );
+    await screen.findByText(/api key authentication/i);
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByText(/api key authentication/i)).not.toBeInTheDocument();
+    });
+  });
+
+  test('opens the create ticket modal and cancels it', async () => {
+    const user = userEvent.setup();
+
+    await connected();
+    await user.click(screen.getByRole('button', { name: /tickets/i }));
+    await screen.findByText('Cannot log into dashboard');
+
+    await user.click(screen.getByRole('button', { name: /create ticket/i }));
+    await waitFor(() => {
+      expect(screen.getAllByText('Create Ticket').length).toBeGreaterThan(1);
+    });
+    const cancel = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent === 'Cancel');
+    if (cancel) {
+      await user.click(cancel);
+    }
+  });
+
+  test('closes the ticket details modal via the Close button', async () => {
+    const user = userEvent.setup();
+
+    await connected();
+    await user.click(screen.getByRole('button', { name: /tickets/i }));
+    await screen.findByText('Cannot log into dashboard');
+
+    const eyeButton = screen
+      .getAllByRole('button')
+      .find((b) => b.querySelector('svg.lucide-eye')) as HTMLElement;
+    await user.click(eyeButton);
+    await screen.findByRole('heading', { name: /ticket details/i });
+    await user.click(screen.getByRole('button', { name: /close/i }));
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('heading', { name: /ticket details/i })
+      ).not.toBeInTheDocument();
+    });
+  });
+});

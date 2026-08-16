@@ -1335,4 +1335,141 @@ describe('Microsoft365Integration (extended coverage)', () => {
       expect(screen.getByText('Connected')).toBeInTheDocument();
     });
   });
+
+  test('OneDrive tab renders, tolerates typing in the file search', async () => {
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'OneDrive' }));
+    const search = await screen.findByPlaceholderText(/search files/i);
+    fireEvent.change(search, { target: { value: 'report' } });
+    expect((search as HTMLInputElement).value).toBe('report');
+  });
+
+  test('Users tab renders, tolerates typing in the user search', async () => {
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Users' }));
+    const search = await screen.findByPlaceholderText(/search users/i);
+    fireEvent.change(search, { target: { value: 'alice' } });
+    expect((search as HTMLInputElement).value).toBe('alice');
+  });
+
+  test('filters teams by search query', async () => {
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Teams' }));
+    expect(await screen.findByText('Private Squad')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(/search teams/i), {
+      target: { value: 'public crew' },
+    });
+    expect(screen.getByText('Public Crew')).toBeInTheDocument();
+    expect(screen.queryByText('Private Squad')).not.toBeInTheDocument();
+  });
+
+  test('opens the team web url when a team row is clicked', async () => {
+    const openSpy = jest.fn();
+    window.open = openSpy as any;
+
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Teams' }));
+    expect(await screen.findByText('Private Squad')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Private Squad'));
+    expect(openSpy).toHaveBeenCalledWith('https://teams.example.com/t1', '_blank');
+  });
+
+  test('shows an error toast when deleting an email fails', async () => {
+    jest.spyOn(window, 'confirm').mockReturnValue(true);
+    server.use(
+      rest.delete('/api/integrations/microsoft365/outlook/messages/:id', (req, res, ctx) => {
+        return res(ctx.status(500));
+      })
+    );
+
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    const trashButton = document
+      .querySelectorAll('.lucide-trash-2')[0]
+      .closest('button') as HTMLElement;
+    fireEvent.click(trashButton);
+
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Error',
+          description: 'Failed to delete item',
+        })
+      );
+    });
+  });
+
+  test('Automation tab Quick Ack action fires the execute call', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: /automation/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /quick ack/i }));
+
+    await waitFor(() => {
+      const call = fetchSpy.mock.calls.find(
+        ([url]) =>
+          String(url).includes('/outlook/execute') &&
+          String(url).includes('reply_email') === false
+      );
+      const replyCall = fetchSpy.mock.calls.find(
+        ([url, init]) =>
+          String(url).includes('/outlook/execute') &&
+          String((init as any)?.body).includes('reply_email')
+      );
+      expect(replyCall).toBeDefined();
+      expect(call).toBeDefined();
+    });
+    await waitFor(() => {
+      expect(getToastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Success',
+          description: 'Sent quick acknowledgment',
+        })
+      );
+    });
+  });
+
+  test('cancels the compose email dialog without sending', async () => {
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: /compose email/i }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  test('fills the event description and cancels the create-event dialog', async () => {
+    render(<Microsoft365Integration />);
+    await settle(/Urgent Alert/);
+
+    fireEvent.click(screen.getByRole('button', { name: /calendar/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /create event/i })
+    );
+    const dialog = await screen.findByRole('dialog');
+
+    fireEvent.change(within(dialog).getByPlaceholderText('Event description'), {
+      target: { value: 'Detailed notes' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
 });

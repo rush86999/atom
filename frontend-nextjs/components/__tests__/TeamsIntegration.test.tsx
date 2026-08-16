@@ -1200,3 +1200,403 @@ describe('TeamsIntegration (extended coverage)', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Extended coverage part 2: full dialog fields, tab searches, variant
+// defaults, empty-form guards, and channel load errors
+// ---------------------------------------------------------------------------
+describe('TeamsIntegration (extended coverage 2)', () => {
+  const user = userEvent.setup();
+  let errorSpy: jest.SpyInstance;
+  let openSpy: jest.Mock;
+
+  beforeEach(() => {
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    openSpy = jest.fn();
+    window.open = openSpy as any;
+    jest.clearAllMocks();
+    server.resetHandlers();
+    server.use(...teamsHandlers);
+  });
+  afterEach(() => {
+    errorSpy.mockRestore();
+  });
+
+  const pickOption = async (trigger: Element, label: string) => {
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    const option = await waitFor(() => {
+      const found = Array.from(document.querySelectorAll('[role="option"]')).find(
+        (i) => i.textContent === label
+      );
+      if (!found) throw new Error(`option ${label} not found`);
+      return found as HTMLElement;
+    });
+    fireEvent.click(option);
+  };
+
+  const dialogEl = () => document.getElementById('dialog-content') as HTMLElement;
+
+  test('fills every create-team dialog field and submits', async () => {
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+
+    await user.click(screen.getByRole('button', { name: /create team/i }));
+    const dialog = dialogEl();
+
+    await user.type(within(dialog).getByPlaceholderText(/enter team name/i), 'Full Form Team');
+    fireEvent.change(within(dialog).getByPlaceholderText('Team description'), {
+      target: { value: 'Description text' },
+    });
+    const comboboxes = within(dialog).getAllByRole('combobox');
+    await pickOption(comboboxes[0], 'Public');
+    await pickOption(comboboxes[1], 'Education Staff');
+    fireEvent.change(within(dialog).getByPlaceholderText('Team classification'), {
+      target: { value: 'Confidential',
+      },
+    } as any);
+
+    await user.click(within(dialog).getByRole('button', { name: /create team/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  test('cancels the create-team dialog', async () => {
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+
+    await user.click(screen.getByRole('button', { name: /create team/i }));
+    const dialog = dialogEl();
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  test('toggles favorite-by-default and cancels the create-channel dialog', async () => {
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+    await selectTeamByCard(user, 'Engineering');
+
+    await user.click(screen.getByRole('button', { name: /channels/i }));
+    await user.click(screen.getByRole('button', { name: /create channel/i }));
+    const dialog = dialogEl();
+
+    await user.type(within(dialog).getByPlaceholderText(/enter channel name/i), 'Fav Channel');
+    fireEvent.click(within(dialog).getByLabelText(/favorite by default/i));
+
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  test('opens the channel web url from the channels tab', async () => {
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+    await selectTeamByCard(user, 'Engineering');
+
+    await user.click(screen.getByRole('button', { name: /channels/i }));
+    const openButtons = await screen.findAllByRole('button', { name: /open in teams/i });
+    fireEvent.click(openButtons[0]);
+    expect(openSpy).toHaveBeenCalled();
+  });
+
+  test('switches teams via the channels tab team select', async () => {
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+    await selectTeamByCard(user, 'Engineering');
+
+    await user.click(screen.getByRole('button', { name: /channels/i }));
+    expect(await screen.findByText('General')).toBeInTheDocument();
+
+    // The team select in the Channels tab re-runs the channel load.
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    fetchSpy.mockClear();
+    const trigger = screen.getAllByRole('combobox')[0];
+    await pickOption(trigger, 'Design');
+    await waitFor(() => {
+      const call = fetchSpy.mock.calls.find(([u]: any) =>
+        String(u).includes('/api/integrations/teams/channels')
+      );
+      expect(call).toBeDefined();
+      expect(String((call as any)[1].body)).toContain('"team_id":"t2"');
+    });
+  });
+
+  test('search inputs on messages, meetings, and users tabs accept typing', async () => {
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+    await selectTeamByCard(user, 'Engineering');
+
+    // Messages tab
+    await user.click(screen.getByRole('button', { name: /messages/i }));
+    const msgSearch = screen.getByPlaceholderText(/search messages/i);
+    fireEvent.change(msgSearch, { target: { value: 'standup' } });
+    expect((msgSearch as HTMLInputElement).value).toBe('standup');
+
+    // Meetings tab
+    await user.click(screen.getByRole('button', { name: /meetings/i }));
+    const mtgSearch = screen.getByPlaceholderText(/search meetings/i);
+    fireEvent.change(mtgSearch, { target: { value: 'sync' } });
+    expect((mtgSearch as HTMLInputElement).value).toBe('sync');
+
+    // Users tab
+    await user.click(screen.getByRole('button', { name: /users/i }));
+    const userSearch = screen.getByPlaceholderText(/search users/i);
+    fireEvent.change(userSearch, { target: { value: 'rushi' } });
+    expect((userSearch as HTMLInputElement).value).toBe('rushi');
+  });
+
+  test('meeting dialog: fills description, toggles online meeting, cancels; empty submit posts nothing', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+
+    await user.click(screen.getByRole('button', { name: /meetings/i }));
+    await user.click(screen.getByRole('button', { name: /schedule meeting|create meeting/i }));
+
+    const dialog = dialogEl();
+    // Empty form: submit is a no-op
+    await user.click(within(dialog).getAllByRole('button').slice(-1)[0]);
+    expect(
+      fetchSpy.mock.calls.some(([u, i]: any) => String(u).includes('/meetings/create'))
+    ).toBe(false);
+
+    fireEvent.change(within(dialog).getByPlaceholderText('Meeting subject'), {
+      target: { value: 'Subject' },
+    });
+    fireEvent.change(within(dialog).getByPlaceholderText('Meeting description'), {
+      target: { value: 'Desc' },
+    });
+    fireEvent.click(within(dialog).getByLabelText(/online meeting/i));
+
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  test('message dialog: picks importance and mentions, then cancels', async () => {
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+    await selectTeamByCard(user, 'Engineering');
+
+    await user.click(screen.getByRole('button', { name: /channels/i }));
+    await user.click(await screen.findByText('General'));
+    await user.click(screen.getByRole('button', { name: /messages/i }));
+    await user.click(screen.getByRole('button', { name: /send message/i }));
+
+    const dialog = dialogEl();
+    fireEvent.change(within(dialog).getByPlaceholderText(/type your message/i), {
+      target: { value: 'Hello' },
+    });
+    const comboboxes = within(dialog).getAllByRole('combobox');
+    await pickOption(comboboxes[0], 'Low');
+
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  test('renders default visibility/membership variants and low-importance messages', async () => {
+    server.use(
+      rest.post('/api/integrations/teams/teams', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json({
+            data: {
+              teams: [
+                {
+                  id: 't1',
+                  displayName: 'Odd Visibility Team',
+                  createdDateTime: '2026-01-15T10:00:00Z',
+                  visibility: 'unknownMode',
+                  webUrl: 'https://teams.example.com/odd',
+                },
+              ],
+            },
+          })
+        );
+      }),
+      rest.post('/api/integrations/teams/channels', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json({
+            data: {
+              channels: [
+                {
+                  id: 'ch1',
+                  displayName: 'Odd Channel',
+                  description: 'd',
+                  membershipType: 'otherType',
+                  isFavoriteByDefault: false,
+                  webUrl: 'https://teams.example.com/ch1',
+                },
+              ],
+            },
+          })
+        );
+      }),
+      rest.post('/api/integrations/teams/messages', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json({
+            data: {
+              messages: [
+                {
+                  id: 'msg1',
+                  body: { content: 'Low importance note' },
+                  importance: 'low',
+                  createdDateTime: '2026-01-15T10:00:00Z',
+                  from: { user: { displayName: 'Rushi' } },
+                },
+                {
+                  id: 'msg2',
+                  body: { content: 'No importance note' },
+                  createdDateTime: '2026-01-15T11:00:00Z',
+                  from: { user: { displayName: 'Rushi' } },
+                },
+              ],
+            },
+          })
+        );
+      })
+    );
+
+    render(<TeamsIntegration />);
+    await settleData(/Odd Visibility Team/);
+    await selectTeamByCard(user, 'Odd Visibility Team');
+
+    await user.click(screen.getByRole('button', { name: /channels/i }));
+    expect(await screen.findByText('Odd Channel')).toBeInTheDocument();
+
+    await user.click(screen.getByText('Odd Channel'));
+    await user.click(screen.getByRole('button', { name: /messages/i }));
+    expect(await screen.findByText('Low importance note')).toBeInTheDocument();
+    expect(screen.getByText('No importance note')).toBeInTheDocument();
+  });
+
+  test('logs an error when channel loading fails', async () => {
+    server.use(
+      rest.post('/api/integrations/teams/channels', (req, res) =>
+        res.networkError('boom')
+      )
+    );
+
+    render(<TeamsIntegration />);
+    await settleData(/Engineering/);
+    await selectTeamByCard(user, 'Engineering');
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Failed to load channels:', expect.anything());
+    });
+  });
+});
+
+describe('TeamsIntegration (extended coverage 3)', () => {
+  const user = userEvent.setup();
+  let errorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.clearAllMocks();
+    server.resetHandlers();
+    server.use(...teamsHandlers);
+  });
+  afterEach(() => {
+    errorSpy.mockRestore();
+  });
+
+  const pickOption = async (trigger: Element, label: string) => {
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    const option = await waitFor(() => {
+      const found = Array.from(document.querySelectorAll('[role="option"]')).find(
+        (i) => i.textContent === label
+      );
+      if (!found) throw new Error(`option ${label} not found`);
+      return found as HTMLElement;
+    });
+    fireEvent.click(option);
+  };
+
+  test('renders notResponded/default attendee statuses and unknown importance', async () => {
+    server.use(
+      rest.post('/api/integrations/teams/meetings', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json({
+            data: {
+              meetings: [
+                {
+                  id: 'mx1',
+                  subject: 'Status Meeting',
+                  body: { contentType: 'text', content: 'd' },
+                  start: { dateTime: '2026-09-01T09:00:00Z', timeZone: 'UTC' },
+                  end: { dateTime: '2026-09-01T10:00:00Z', timeZone: 'UTC' },
+                  attendees: [
+                    {
+                      type: 'required',
+                      status: { response: 'notResponded', time: '2026-08-01T09:00:00Z' },
+                      emailAddress: { name: 'Dan Pate', address: 'dan@example.com' },
+                    },
+                    {
+                      type: 'required',
+                      status: { response: 'none', time: '2026-08-01T09:00:00Z' },
+                      emailAddress: { name: 'Eve Quant', address: 'eve@example.com' },
+                    },
+                  ],
+                },
+              ],
+            },
+          })
+        );
+      }),
+      rest.post('/api/integrations/teams/messages', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json({
+            data: {
+              messages: [
+                {
+                  id: 'msgx',
+                  body: { content: 'Urgent flag message' },
+                  importance: 'urgent',
+                  createdDateTime: '2026-01-15T10:00:00Z',
+                  from: { user: { displayName: 'Rushi' } },
+                },
+              ],
+            },
+          })
+        );
+      })
+    );
+
+    render(<TeamsIntegration />);
+    await screen.findByText('Connected', {}, { timeout: 3000 });
+
+    await user.click(screen.getByRole('button', { name: /meetings/i }));
+    expect(await screen.findByText('Status Meeting', {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByText('Dan Pate')).toBeInTheDocument();
+    expect(screen.getByText('Eve Quant')).toBeInTheDocument();
+
+    // Messages: unknown importance falls through to the default badge variant.
+    await user.click(screen.getByRole('button', { name: 'Teams', exact: true }));
+    await selectTeamByCard(user, 'Engineering');
+    await user.click(screen.getByRole('button', { name: /channels/i }));
+    await user.click(await screen.findByText('General'));
+    await user.click(screen.getByRole('button', { name: /messages/i }));
+    expect(await screen.findByText('Urgent flag message')).toBeInTheDocument();
+    expect(screen.getByText('urgent')).toBeInTheDocument();
+
+    // Messages tab team select resets the current channel.
+    const trigger = screen.getAllByRole('combobox')[0];
+    await pickOption(trigger, 'Design');
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /send message/i })
+      ).toBeInTheDocument();
+    });
+  });
+});

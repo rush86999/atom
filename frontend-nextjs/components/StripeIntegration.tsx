@@ -8,10 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, CheckCircle, AlertTriangle, Clock, ArrowRight, PlusSquare, Star, User, Settings, ChevronDown, Search, ChevronUp, Trash2, Edit, Eye, Mail, Phone, Calendar, MessageSquare } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { Loader2, ArrowRight, PlusSquare, Star } from "lucide-react";
 
 interface StripePayment {
   id: string;
@@ -39,28 +37,6 @@ interface StripeCustomer {
   avatar_url?: string;
 }
 
-interface StripeSubscription {
-  id: string;
-  customer: string | StripeCustomer; // Can be ID or object expanded
-  status: "active" | "canceled" | "past_due" | "unpaid";
-  current_period_start: string;
-  current_period_end: string;
-  items: Array<{
-    price: {
-      product: string;
-      unit_amount: number;
-      currency: string;
-    };
-    quantity: number;
-  }>;
-  metadata?: Record<string, string>;
-  plan_name?: string;
-  plan_description?: string;
-  amount?: number;
-  interval?: string;
-  next_payment_date?: string;
-}
-
 interface StripeProduct {
   id: string;
   name: string;
@@ -86,7 +62,6 @@ interface StripeAnalytics {
 const StripeIntegration: React.FC = () => {
   const [payments, setPayments] = useState<StripePayment[]>([]);
   const [customers, setCustomers] = useState<StripeCustomer[]>([]);
-  const [subscriptions, setSubscriptions] = useState<StripeSubscription[]>([]);
   const [products, setProducts] = useState<StripeProduct[]>([]);
   const [analytics, setAnalytics] = useState<StripeAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,7 +69,6 @@ const StripeIntegration: React.FC = () => {
   const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
   const [isCreateCustomerOpen, setIsCreateCustomerOpen] = useState(false);
   const [isCreateProductOpen, setIsCreateProductOpen] = useState(false);
-  const [isCreateSubscriptionOpen, setIsCreateSubscriptionOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -109,9 +83,6 @@ const StripeIntegration: React.FC = () => {
   const [newProductName, setNewProductName] = useState("");
   const [newProductDescription, setNewProductDescription] = useState("");
   const [newProductPrice, setNewProductPrice] = useState("");
-
-  const [selectedCustomer, setSelectedCustomer] = useState<StripeCustomer | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState<StripeProduct | null>(null);
 
   const { toast } = useToast();
 
@@ -259,42 +230,6 @@ const StripeIntegration: React.FC = () => {
         description: error.response?.data?.message || error.message,
         variant: "error",
       });
-    }
-  };
-
-  const handleSubscriptionAction = async (subId: string, action: string) => {
-    try {
-      const { apiClient } = await import('../lib/api-client');
-      await apiClient.post(`/api/stripe/subscriptions/${subId}/${action}`);
-
-      toast({
-        title: `Subscription ${action}ed`,
-        variant: 'success'
-      });
-      loadStripeData(); // Refresh data
-    } catch (error: any) {
-      toast({
-        title: `Failed to ${action} subscription`,
-        description: error.response?.data?.message || error.message,
-        variant: 'error'
-      });
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "succeeded":
-      case "active":
-        return "default";
-      case "failed":
-      case "canceled":
-      case "unpaid":
-        return "destructive";
-      case "pending":
-      case "past_due":
-        return "secondary";
-      default:
-        return "outline";
     }
   };
 
@@ -560,7 +495,6 @@ const StripeIntegration: React.FC = () => {
                               size="sm"
                               variant="outline"
                               className="w-full"
-                              onClick={() => setSelectedCustomer(customer)}
                             >
                               View Details
                             </Button>
@@ -577,7 +511,7 @@ const StripeIntegration: React.FC = () => {
                 <div className="space-y-6">
                   <div className="flex justify-between items-center">
                     <h2 className="text-2xl font-semibold">Subscription Management</h2>
-                    <Button onClick={() => setIsCreateSubscriptionOpen(true)}>
+                    <Button>
                       <PlusSquare className="mr-2 h-4 w-4" />
                       Create Subscription
                     </Button>
@@ -606,7 +540,7 @@ const StripeIntegration: React.FC = () => {
                             <p className="text-sm text-muted-foreground">{product.description}</p>
                             <div className="flex justify-between items-center">
                               <span className="font-bold">{formatCurrency(product.price)}</span>
-                              <Button size="sm" variant="outline" onClick={() => setSelectedProduct(product)}>Edit</Button>
+                              <Button size="sm" variant="outline">Edit</Button>
                             </div>
                           </div>
                         </CardContent>

@@ -24,7 +24,7 @@
  *       /api/analytics/alerts, /api/analytics/dashboard/realtime-feed
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
@@ -38,6 +38,39 @@ jest.mock('@/components/ui/use-toast', () => ({
 jest.mock('@/components/ui/spinner', () => ({
   Spinner: () => <div data-testid="spinner">Loading...</div>,
 }));
+
+// Recharts renders nothing measurable in jsdom (zero-width containers), so
+// its children would never execute. Stub the chart primitives as plain
+// pass-through components; the dashboard's own JSX still runs for coverage.
+jest.mock('recharts', () => {
+  const React = require('react');
+  const stub = (name: string) => {
+    const Comp = (props: any) => (
+      <div data-testid={`recharts-${name}`}>
+        {props.children}
+        {typeof props.tickFormatter === 'function' ? props.tickFormatter('2026-08-07T08:00:00.000Z') : null}
+        {typeof props.labelFormatter === 'function' ? props.labelFormatter('2026-08-07T08:00:00.000Z') : null}
+        {typeof props.formatter === 'function' ? props.formatter(10) : null}
+      </div>
+    );
+    Comp.displayName = name;
+    return Comp;
+  };
+  return {
+    ResponsiveContainer: stub('ResponsiveContainer'),
+    LineChart: stub('LineChart'),
+    AreaChart: stub('AreaChart'),
+    BarChart: stub('BarChart'),
+    Line: stub('Line'),
+    Area: stub('Area'),
+    Bar: stub('Bar'),
+    XAxis: stub('XAxis'),
+    YAxis: stub('YAxis'),
+    CartesianGrid: stub('CartesianGrid'),
+    Tooltip: stub('Tooltip'),
+    Legend: stub('Legend'),
+  };
+});
 
 import AnalyticsDashboard from '../dashboard/AnalyticsDashboard';
 
@@ -355,5 +388,215 @@ describe('AnalyticsDashboard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /real-time/i }));
     expect(screen.getByText('No recent events')).toBeInTheDocument();
+  });
+
+  it('renders empty error states when the error breakdown has no data', async () => {
+    server.use(
+      rest.get('/api/analytics/dashboard/errors/breakdown', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ error_types: [], workflows_with_errors: [], recent_errors: [] }))
+      )
+    );
+
+    render(<AnalyticsDashboard />);
+    await screen.findByText('Workflow Analytics');
+
+    fireEvent.click(screen.getByRole('button', { name: /errors/i }));
+    expect(screen.getByText('No errors recorded')).toBeInTheDocument();
+    expect(screen.getByText('No recent errors')).toBeInTheDocument();
+  });
+
+  it('logs and survives failures of the non-KPI endpoints', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    server.use(
+      rest.get('/api/analytics/dashboard/workflows/top-performing', (req, res, ctx) =>
+        res.networkError('top failed')
+      ),
+      rest.get('/api/analytics/dashboard/timeline', (req, res, ctx) =>
+        res.networkError('timeline failed')
+      ),
+      rest.get('/api/analytics/dashboard/errors/breakdown', (req, res, ctx) =>
+        res.networkError('errors failed')
+      ),
+      rest.get('/api/analytics/alerts', (req, res, ctx) =>
+        res.networkError('alerts failed')
+      ),
+      rest.get('/api/analytics/dashboard/realtime-feed', (req, res, ctx) =>
+        res.networkError('realtime failed')
+      )
+    );
+
+    render(<AnalyticsDashboard />);
+
+    // Dashboard still renders; the failures were only logged
+    expect(await screen.findByText('Workflow Analytics')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error fetching top workflows:',
+        expect.any(Error)
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error fetching timeline data:',
+        expect.any(Error)
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error fetching error breakdown:',
+        expect.any(Error)
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error fetching alerts:',
+        expect.any(Error)
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error fetching realtime events:',
+        expect.any(Error)
+      );
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('formats minute-scale durations, stable trends and medium-severity alerts', async () => {
+    server.use(
+      rest.get('/api/analytics/dashboard/workflows/top-performing', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json([
+          {
+            workflow_id: 'wf-min',
+            workflow_name: 'Batch ETL',
+            total_executions: 42,
+            success_rate: 91,
+            average_duration_ms: 90000,
+            last_execution: '2026-08-07T09:00:00.000Z',
+            trend: 'stable',
+          },
+        ]))
+      ),
+      rest.get('/api/analytics/alerts', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json([
+          {
+            alert_id: 'al-med',
+            name: 'Medium alert',
+            description: 'A medium severity alert',
+            severity: 'medium',
+            metric_name: 'error_rate',
+            condition: '>',
+            threshold_value: 3,
+            workflow_id: null,
+            enabled: true,
+          },
+          {
+            alert_id: 'al-high',
+            name: 'High alert',
+            description: 'A high severity alert',
+            severity: 'high',
+            metric_name: 'error_rate',
+            condition: '>',
+            threshold_value: 8,
+            workflow_id: null,
+            enabled: true,
+          },
+          {
+            alert_id: 'al-unknown',
+            name: 'Unknown alert',
+            description: 'An unrecognized severity',
+            severity: 'weird',
+            metric_name: 'success_rate',
+            condition: '<',
+            threshold_value: 50,
+            workflow_id: null,
+            enabled: false,
+          },
+        ]))
+      )
+    );
+
+    render(<AnalyticsDashboard />);
+    await screen.findByText('Workflow Analytics');
+
+    fireEvent.click(screen.getByRole('button', { name: /workflows/i }));
+    expect(screen.getByText('Batch ETL')).toBeInTheDocument();
+    expect(screen.getByText('1.5m')).toBeInTheDocument(); // 90000ms -> 1.5m
+
+    fireEvent.click(screen.getByRole('button', { name: /alerts/i }));
+    expect(screen.getByText('Medium alert')).toBeInTheDocument();
+    expect(screen.getByText('medium')).toBeInTheDocument();
+    expect(screen.getByText('High alert')).toBeInTheDocument();
+    expect(screen.getByText('Unknown alert')).toBeInTheDocument();
+    expect(screen.getByText('weird')).toBeInTheDocument();
+  });
+
+  it('color-codes a slow average duration as red', async () => {
+    server.use(
+      rest.get('/api/analytics/dashboard/kpis', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({
+          ...kpisPayload,
+          average_duration_ms: 8000,
+          average_duration_seconds: 8,
+        }))
+      )
+    );
+
+    render(<AnalyticsDashboard />);
+
+    expect(await screen.findByText('Workflow Analytics')).toBeInTheDocument();
+    const duration = screen.getByText('8s');
+    expect(duration.className).toContain('text-red-600');
+  });
+
+  it('auto-refreshes KPIs and realtime events on the 30s interval', async () => {
+    jest.useFakeTimers();
+    render(<AnalyticsDashboard />);
+
+    // Let the initial load resolve under fake timers
+    await waitFor(() => expect(screen.getByText('Workflow Analytics')).toBeInTheDocument());
+    const kpisBefore = fetchCounts.kpis;
+    const realtimeBefore = fetchCounts.realtime;
+
+    act(() => {
+      jest.advanceTimersByTime(31000);
+    });
+
+    await waitFor(() => expect(fetchCounts.kpis).toBeGreaterThan(kpisBefore));
+    expect(fetchCounts.realtime).toBeGreaterThan(realtimeBefore);
+
+    jest.useRealTimers();
+  });
+
+  it('refetches workflows when the sort-by select changes', async () => {
+    const sortQueries: string[] = [];
+    server.use(
+      rest.get('/api/analytics/dashboard/workflows/top-performing', (req, res, ctx) => {
+        sortQueries.push(String(req.url.searchParams.get('sort_by')));
+        return res(ctx.status(200), ctx.json(workflowsPayload));
+      })
+    );
+
+    render(<AnalyticsDashboard />);
+    await screen.findByText('Workflow Analytics');
+    await waitFor(() => expect(sortQueries).toContain('success_rate'));
+
+    fireEvent.click(screen.getByRole('button', { name: /workflows/i }));
+    fireEvent.click(screen.getAllByRole('combobox')[1]);
+    fireEvent.click(await screen.findByRole('option', { name: 'Duration' }));
+
+    await waitFor(() => expect(sortQueries).toContain('duration'));
+    // The reload resets the tabs to overview; re-open the workflows tab to
+    // confirm the new sort label.
+    await screen.findByText('Workflow Analytics');
+    fireEvent.click(screen.getByRole('button', { name: /workflows/i }));
+    await waitFor(() =>
+      expect(screen.getByText('Ranked by duration')).toBeInTheDocument()
+    );
+  });
+
+  it('clears the auto-refresh interval on unmount', async () => {
+    const { unmount } = render(<AnalyticsDashboard />);
+    await screen.findByText('Workflow Analytics');
+
+    expect(() => unmount()).not.toThrow();
+    // No further fetches happen after unmount
+    const realtimeAfter = fetchCounts.realtime;
+    await new Promise((r) => setTimeout(r, 50));
+    expect(fetchCounts.realtime).toBe(realtimeAfter);
   });
 });

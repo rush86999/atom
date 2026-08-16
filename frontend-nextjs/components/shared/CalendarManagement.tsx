@@ -489,6 +489,114 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
             <CardTitle className={compactView ? "text-lg" : "text-xl"}>Schedule</CardTitle>
           </CardHeader>
           <CardContent>
+            {view.type === "day" && (
+              <div data-testid="day-view" className="flex flex-col gap-2">
+                <div className="font-bold mb-2 text-sm">
+                  {formatDate(view.currentDate)}
+                </div>
+                {getEventsForDate(view.currentDate).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No events scheduled for this day.
+                  </p>
+                ) : (
+                  getEventsForDate(view.currentDate)
+                    .sort((a, b) => a.start.getTime() - b.start.getTime())
+                    .map((event) => (
+                      <div
+                        key={event.id}
+                        className="p-2 rounded text-gray-900 dark:text-white cursor-pointer text-xs"
+                        style={{ backgroundColor: event.color || "#3182CE" }}
+                        onClick={() => {
+                          setSelectedEvent(event);
+                          setIsDialogOpen(true);
+                        }}
+                      >
+                        <div className="font-bold truncate">
+                          {event.title}
+                        </div>
+                        <div className="text-[10px] opacity-90">
+                          {formatTime(event.start)} -{" "}
+                          {formatTime(event.end)}
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className="mt-1 text-[10px] h-4 px-1"
+                        >
+                          {event.platform}
+                        </Badge>
+                      </div>
+                    ))
+                )}
+              </div>
+            )}
+
+            {view.type === "month" && (() => {
+              const monthStart = new Date(
+                view.currentDate.getFullYear(),
+                view.currentDate.getMonth(),
+                1,
+              );
+              const gridStart = new Date(monthStart);
+              gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+              const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+              return (
+                <div data-testid="month-view">
+                  <div className="grid grid-cols-7 gap-2 mb-2">
+                    {weekdays.map((weekday) => (
+                      <div
+                        key={weekday}
+                        className="text-center font-bold text-xs text-muted-foreground"
+                      >
+                        {weekday}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-2">
+                    {Array.from({ length: 42 }).map((_, index) => {
+                      const date = new Date(gridStart);
+                      date.setDate(date.getDate() + index);
+                      const dayEvents = getEventsForDate(date);
+                      const isCurrentMonth =
+                        date.getMonth() === view.currentDate.getMonth();
+
+                      return (
+                        <div
+                          key={index}
+                          className={`border rounded-md p-1 min-h-[80px] ${
+                            isCurrentMonth ? "" : "opacity-40"
+                          }`}
+                        >
+                          <div className="font-bold mb-1 text-xs">
+                            {date.getDate()}
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            {dayEvents.map((event) => (
+                              <div
+                                key={event.id}
+                                className="p-1 rounded text-gray-900 dark:text-white cursor-pointer text-xs truncate"
+                                style={{
+                                  backgroundColor: event.color || "#3182CE",
+                                }}
+                                onClick={() => {
+                                  setSelectedEvent(event);
+                                  setIsDialogOpen(true);
+                                }}
+                              >
+                                <div className="font-bold truncate">
+                                  {event.title}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {view.type === "week" && (
               <div className="grid grid-cols-7 gap-2">
                 {Array.from({ length: 7 }).map((_, index) => {

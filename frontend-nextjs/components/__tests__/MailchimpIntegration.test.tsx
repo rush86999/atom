@@ -15,6 +15,7 @@
 
 import React from 'react';
 import { renderWithProviders, screen, waitFor, within } from '../../tests/test-utils';
+import { cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { rest } from 'msw';
 import { server } from '../../tests/mocks/server';
@@ -544,5 +545,278 @@ describe('MailchimpIntegration', () => {
     expect(
       screen.getByRole('button', { name: /refresh data/i })
     ).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended coverage: error paths, status variants, detail modal bodies
+// ---------------------------------------------------------------------------
+describe('MailchimpIntegration (extended coverage)', () => {
+  let consoleSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    server.resetHandlers();
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+  });
+
+  const connected = async (extra: typeof connectedHandlers = []) => {
+    server.use(...connectedHandlers, ...extra);
+    renderWithProviders(<MailchimpIntegration />);
+    await screen.findByRole('heading', { name: 'Mailchimp' });
+  };
+
+  test('a failed data load disconnects the integration', async () => {
+    server.use(
+      rest.get('/api/v1/mailchimp/health', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true, status: 'healthy' }))
+      ),
+      rest.get('/api/v1/mailchimp/audiences', (req, res) =>
+        res.networkError('down')
+      )
+    );
+
+    renderWithProviders(<MailchimpIntegration />);
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to load Mailchimp data:',
+        expect.anything()
+      );
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /connect mailchimp/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  test('search failures are logged without crashing', async () => {
+    const user = userEvent.setup();
+    await connected([
+      rest.post('/api/v1/mailchimp/search', (req, res) =>
+        res.networkError('down')
+      ),
+    ]);
+
+    const searchInput = await screen.findByPlaceholderText(
+      /search campaigns, contacts/i
+    );
+    await user.type(searchInput, 'boom{enter}');
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith('Search failed:', expect.anything());
+    });
+  });
+
+  test('contact loading failures are logged without crashing', async () => {
+    const user = userEvent.setup();
+    await connected([
+      rest.get('/api/v1/mailchimp/contacts', (req, res) =>
+        res.networkError('down')
+      ),
+    ]);
+
+    await user.click(screen.getByRole('button', { name: /audiences/i }));
+    await screen.findByText('Product Updates');
+    await user.click(screen.getByRole('button', { name: /load contacts/i }));
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to load contacts:',
+        expect.anything()
+      );
+    });
+  });
+
+  test('renders every campaign status variant', async () => {
+    const user = userEvent.setup();
+    const multiStatusCampaigns = [
+      'scheduled',
+      'sending',
+      'draft',
+      'paused',
+      'mystery',
+    ].map((status, i) => ({
+      ...campaigns[0],
+      id: `cam-${status}`,
+      status,
+      settings: { subject_line: `Campaign ${status}` },
+    }));
+
+    server.use(
+      rest.get('/api/v1/mailchimp/health', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true, status: 'healthy' }))
+      ),
+      rest.get('/api/v1/mailchimp/audiences', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true, data: [] }))
+      ),
+      rest.get('/api/v1/mailchimp/automations', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true, data: [] }))
+      ),
+      rest.get('/api/v1/mailchimp/templates', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true, data: [] }))
+      ),
+      rest.get('/api/v1/mailchimp/stats', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true }))
+      ),
+      rest.get('/api/v1/mailchimp/campaigns', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true, data: multiStatusCampaigns }))
+      )
+    );
+    renderWithProviders(<MailchimpIntegration />);
+    await screen.findByRole('heading', { name: 'Mailchimp' });
+
+    await user.click(screen.getByRole('button', { name: /campaigns/i }));
+    await screen.findByText('Campaign scheduled');
+    for (const status of ['scheduled', 'sending', 'draft', 'paused', 'mystery']) {
+      expect(screen.getByText(status)).toBeInTheDocument();
+    }
+  });
+
+  test('renders every contact status variant', async () => {
+    const user = userEvent.setup();
+    const multiStatusContacts = [
+      'subscribed',
+      'unsubscribed',
+      'cleaned',
+      'pending',
+      'archived',
+    ].map((status, i) => ({
+      ...contactsList[0],
+      id: `contact-${status}`,
+      status,
+      email_address: `${status}@example.com`,
+    }));
+
+    await connected([
+      rest.get('/api/v1/mailchimp/contacts', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true, data: multiStatusContacts }))
+      ),
+    ]);
+
+    await user.click(screen.getByRole('button', { name: /audiences/i }));
+    await screen.findByText('Product Updates');
+    await user.click(screen.getByRole('button', { name: /load contacts/i }));
+    await user.click(screen.getByRole('button', { name: /^contacts$/i }));
+
+    await screen.findByText('Contacts (5)');
+    for (const status of ['subscribed', 'unsubscribed', 'cleaned', 'pending', 'archived']) {
+      expect(screen.getByText(status)).toBeInTheDocument();
+    }
+  });
+
+  test('campaign detail modal renders the full body and archive link', async () => {
+    const user = userEvent.setup();
+    const openSpy = jest.fn();
+    window.open = openSpy as any;
+
+    await connected();
+
+    await user.click(screen.getByRole('button', { name: /campaigns/i }));
+    await screen.findByText('January Product Digest');
+
+    const eyeButton = screen
+      .getAllByRole('button')
+      .find((b) => b.querySelector('svg.lucide-eye')) as HTMLElement;
+    await user.click(eyeButton);
+
+    await screen.findByRole('heading', { name: /campaign details/i });
+    expect(screen.getByText('Subject Line')).toBeInTheDocument();
+    expect(screen.getByText('Send Time')).toBeInTheDocument();
+    expect(screen.getByText('Performance Metrics')).toBeInTheDocument();
+    expect(screen.getByText('Unique Opens')).toBeInTheDocument();
+    expect(screen.getAllByText('Open Rate').length).toBeGreaterThan(1);
+    expect(screen.getByText('Click Rate')).toBeInTheDocument();
+
+    await user.click(screen.getByText('View Campaign Archive'));
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://mailchimp.example/archive/1',
+      '_blank'
+    );
+
+    await user.click(screen.getByRole('button', { name: /close/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: /campaign details/i })).not.toBeInTheDocument();
+    });
+  });
+
+  test('opens the create campaign and add contact modals', async () => {
+    const user = userEvent.setup();
+
+    await connected();
+
+    await user.click(screen.getByRole('button', { name: /audiences/i }));
+    await screen.findByText('Product Updates');
+    await user.click(screen.getByRole('button', { name: /create campaign/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Create Campaign')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /^contacts$/i }));
+    await user.click(screen.getByRole('button', { name: /add contact/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Add Contact')).toBeInTheDocument();
+    });
+  });
+});
+
+describe('MailchimpIntegration (dialog close buttons)', () => {
+  test('connect modal cancel, audience modal close, and contact modal close', async () => {
+    const user = userEvent.setup();
+    server.use(...connectedHandlers);
+
+    // connect modal cancel
+    server.use(
+      rest.get('/api/v1/mailchimp/health', (req, res, ctx) =>
+        res(ctx.status(503), ctx.json({ error: 'nope' }))
+      )
+    );
+    renderWithProviders(<MailchimpIntegration />);
+    await user.click(await screen.findByRole('button', { name: /connect mailchimp/i }));
+    await screen.findByText('API Authentication');
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByText('API Authentication')).not.toBeInTheDocument();
+    });
+
+    // remount in the connected state for the detail modals
+    cleanup();
+    server.use(...connectedHandlers);
+    renderWithProviders(<MailchimpIntegration />);
+    await screen.findByRole('heading', { name: 'Mailchimp' });
+
+    // audience modal close
+    await user.click(screen.getByRole('button', { name: /audiences/i }));
+    await screen.findByText('Product Updates');
+    await user.click(screen.getByRole('button', { name: /details/i }));
+    await screen.findByRole('heading', { name: /audience details/i });
+    await user.click(screen.getByRole('button', { name: /close/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: /audience details/i })).not.toBeInTheDocument();
+    });
+
+    // contact modal close
+    server.use(
+      rest.get('/api/v1/mailchimp/contacts', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true, data: contactsList }))
+      )
+    );
+    await user.click(screen.getByRole('button', { name: /load contacts/i }));
+    await user.click(screen.getByRole('button', { name: /^contacts$/i }));
+    await screen.findByText('vip@example.com');
+    const eyeButton = screen
+      .getAllByRole('button')
+      .find((b) => b.querySelector('svg.lucide-eye')) as HTMLElement;
+    await user.click(eyeButton);
+    await screen.findByRole('heading', { name: /contact details/i });
+    await user.click(screen.getByRole('button', { name: /close/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: /contact details/i })).not.toBeInTheDocument();
+    });
   });
 });

@@ -608,3 +608,173 @@ describe('CanvasPanel', () => {
     expect(screen.getByText(/"foo": "bar"/)).toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Extended coverage: chart canvases, data resolution branches, form component
+// ---------------------------------------------------------------------------
+describe('CanvasPanel (extended coverage)', () => {
+  const send = (msg: any) => {
+    const { rerender } = render(<CanvasPanel lastMessage={null} />);
+    rerender(<CanvasPanel lastMessage={msg} />);
+    return rerender;
+  };
+
+  const chartRow = { label: 'Jan', value: 10 };
+
+  it('renders a line_chart canvas from a raw array payload with canvas title', async () => {
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'line_chart',
+        title: 'Growth',
+        data: [chartRow, { label: 'Feb', value: 20 }],
+        id: 'line-1',
+      },
+    });
+
+    // The chart title renders twice: header badge + chart canvas title,
+    // proving resolveChartTitle fell through to the canvas title.
+    expect((await screen.findAllByText('Growth')).length).toBeGreaterThan(1);
+  });
+
+  it('renders a bar_chart canvas from a {content: [...]} payload with embedded title', async () => {
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'bar_chart',
+        title: 'Ignored Canvas Title',
+        data: { content: [chartRow, { label: 'Feb', value: 5 }], title: 'Embedded Title' },
+        id: 'bar-1',
+      },
+    });
+
+    // embedded data.title wins over the canvas title
+    expect((await screen.findAllByText('Embedded Title')).length).toBeGreaterThan(0);
+    // the header badge still shows the canvas title
+    expect(screen.getByText('Ignored Canvas Title')).toBeInTheDocument();
+  });
+
+  it('renders a pie_chart canvas from a {data: [...]} payload', async () => {
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'pie_chart',
+        title: 'Split',
+        data: { data: [{ name: 'A', value: 1 }, { name: 'B', value: 2 }] },
+        id: 'pie-1',
+      },
+    });
+
+    expect((await screen.findAllByText('Split')).length).toBeGreaterThan(0);
+  });
+
+  it('renders a chart title from a nested content.title', async () => {
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'bar_chart',
+        data: { content: { title: 'Nested Title', data: [chartRow] } },
+        id: 'bar-2',
+      },
+    });
+
+    expect(await screen.findByText('Nested Title')).toBeInTheDocument();
+  });
+
+  let submittedForms: any[] = [];
+
+  it('renders a form canvas from a {content: {schema}} payload and submits it', async () => {
+    submittedForms = [];
+    server.use(
+      rest.post('*/api/canvas/submit', (req, res, ctx) => {
+        submittedForms.push(req.body);
+        return res(ctx.status(200), ctx.json({ success: true }));
+      })
+    );
+
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'form',
+        title: 'Survey',
+        data: {
+          content: {
+            title: 'Embedded Survey',
+            schema: { fields: [{ name: 'q1', label: 'Question 1', type: 'text' }] },
+          },
+        },
+        id: 'form-1',
+      },
+    });
+
+    expect(await screen.findByText('Embedded Survey')).toBeInTheDocument();
+    expect(screen.getByText('Question 1')).toBeInTheDocument();
+
+    // submitting the form POSTs to /api/canvas/submit via the panel's
+    // onSubmit handler
+    const input = screen.getByLabelText(/Question 1/i);
+    fireEvent.change(input, { target: { value: 'answer 1' } });
+    fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+    await waitFor(() => {
+      expect(submittedForms).toHaveLength(1);
+    });
+    expect(submittedForms[0]).toMatchObject({ canvas_id: 'form-1' });
+  });
+
+  it('logs and rethrows when the form submission fails', async () => {
+    server.use(
+      rest.post('*/api/canvas/submit', (req, res) => res.networkError('down'))
+    );
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'form',
+        title: 'Broken',
+        data: { fields: [{ name: 'q', label: 'Q', type: 'text', required: false }] },
+        id: 'form-3',
+      },
+    });
+
+    const input = await screen.findByLabelText(/Q/i);
+    fireEvent.change(input, { target: { value: 'x' } });
+    fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Form submission failed:', expect.anything());
+    });
+    errorSpy.mockRestore();
+  });
+
+  it('renders a form canvas from a top-level fields array', async () => {
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'form',
+        title: 'Signup',
+        data: { fields: [{ name: 'email', label: 'Email', type: 'email' }] },
+        id: 'form-2',
+      },
+    });
+
+    expect((await screen.findAllByText('Signup')).length).toBeGreaterThan(0);
+    expect(screen.getByText('Email')).toBeInTheDocument();
+  });
+
+  it('shows the no-data fallback for chart canvases without data', async () => {
+    send({
+      type: 'canvas:update',
+      data: { action: 'present', component: 'line_chart', title: 'Empty' },
+    });
+
+    expect(await screen.findByText('No data to display')).toBeInTheDocument();
+  });
+});

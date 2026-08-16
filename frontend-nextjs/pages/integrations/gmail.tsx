@@ -57,6 +57,39 @@ const GmailIntegrationPage: NextPage = () => {
     checkConnection();
   }, []);
 
+  // Load emails and calendar events once connected
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const loadData = async () => {
+      try {
+        const [emailsRes, eventsRes] = await Promise.all([
+          fetch("/api/integrations/gmail/emails"),
+          fetch("/api/integrations/gmail/events"),
+        ]);
+        if (emailsRes.ok) {
+          const data = await emailsRes.json();
+          const list = data.emails || data.data || [];
+          setEmails(list);
+          setEmailStats({
+            total: list.length,
+            unread: list.filter((e: any) => e.unread).length,
+            important: list.filter((e: any) => e.important).length,
+            starred: list.filter((e: any) => e.starred).length,
+          });
+        }
+        if (eventsRes.ok) {
+          const data = await eventsRes.json();
+          setEvents(data.events || data.data || []);
+        }
+      } catch (error) {
+        console.error("Failed to load Gmail data:", error);
+      }
+    };
+
+    loadData();
+  }, [isConnected]);
+
   const tabs = [
     { id: "overview", name: "Overview", icon: "📊" },
     { id: "inbox", name: "Inbox", icon: "📥" },
@@ -238,9 +271,7 @@ const GmailIntegrationPage: NextPage = () => {
                 data={emails}
                 dataType="messages"
                 onSearch={(results: any[], filters: any, sort: any) => {
-                  console.log("Search results:", results);
-                  console.log("Filters:", filters);
-                  console.log("Sort:", sort);
+                  setEmails(results);
                 }}
                 loading={loading}
                 totalCount={emails.length}
@@ -321,9 +352,7 @@ const GmailIntegrationPage: NextPage = () => {
                 data={contacts}
                 dataType="contacts"
                 onSearch={(results: any[], filters: any, sort: any) => {
-                  console.log("Contact search results:", results);
-                  console.log("Filters:", filters);
-                  console.log("Sort:", sort);
+                  setContacts(results);
                 }}
                 loading={loading}
                 totalCount={contacts.length}

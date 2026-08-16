@@ -6,6 +6,58 @@
 
 ---
 
+## Session 2026-08-16 (wave 124 — FE dead-code completion + last coverage tail: 4 components cleaned, 8 new suites, FE lines 95.31% → 96.10%, zero 0%-files left)
+
+**Scope**: "close all gaps and complete dead code" follow-on to the 95%-push wave (w101-w103). All 4 FE dead-code findings from that wave were independently re-verified (two prior reports were STALE — `Dashboard.tsx getPriorityColor` and `salesforce.tsx getLeadStatusColor/getOpportunityStageColor` ARE live; the subagents had read an older revision) and removed where real. Dead code is now **removed**, not just documented.
+
+### Dead code removed (behavior-identical)
+
+| File | Removed | Evidence |
+|---|---|---|
+| `components/Automations/WorkflowBuilder.tsx` | **~148 lines** — entire "Demo Run" cluster (`DEMO_STEPS` 91-line mock incl. JSX blocks, `INTERVIEW_DEMO_STEPS`, `runDemoAnimation` empty async, `onPanelMouseDown` drag handler, `isDemoRunning`/`demoType`/`demoLog`/`showDemoPanel`/`demoApproved`/`panelPos`/`dragRef` state); no-op `HITLButtons` stub (renders `null`) + `handleApprove`/`handleReject`/`demoApprovedState` (props never invoked); unreachable `addNode` cases `email`/`http`/`table`/`subflow` (zero call sites); unused imports `useKeyPress` + 9 lucide icons | repo-wide grep: zero consumers outside self-referential dead code |
+| `components/StripeIntegration.tsx` | **~60 lines** — `handleSubscriptionAction` (uncalled), `getStatusColor` (uncalled), `subscriptions` state + full `StripeSubscription` interface (setter never called, tab static), write-only `selectedCustomer`/`selectedProduct`/`isCreateSubscriptionOpen` states (buttons keep rendering; dead onClicks dropped), 19 unused imports (15 icons + `Switch` + `Alert` family) | grep: 1-hit definitions; tests assert static text/button presence only |
+| `pages/dashboard.tsx` | **~25 lines** — `getConnectionProgress`/`getHealthProgress` (uncalled; fed only unused `Progress` import), `getStatusIcon`/`getStatusBadge` collapsed to healthy/error (health is binary per line 121; `warning`/default branches unreachable), unused `variant` const in `getStatusBadge`, `lastSync` write-only field, unused imports `Progress`/`Target`/`cn` | grep: zero call sites; dashboard test (224 lines) references none |
+| `pages/integrations/salesforce.tsx` | **~130 lines** — `users` state + `loadUsers` (fetch results never rendered; removed 2 call sites + effect deps), `filteredContacts`/`filteredCases`/`filteredUsers` (no contacts/cases/users tab content exists), `openOpportunities`/`totalUsers`/`activeUsers` stats, `users` loading key, 24 unused imports (18 icons + `CardHeader`/`CardTitle`/`AvatarImage`/`Alert`/`AlertTitle`/`AlertDescription`/`Progress`) | grep-verified zero JSX usage; test suite references none |
+| `components/Dashboard.tsx` | **NOTHING** — prior agent's `getPriorityColor` claim was stale; it IS used at line 370 (`<Badge variant={getPriorityColor(task.priority)}>`) | grep |
+
+### Feature completed (dead no-op → working)
+
+| File | Fix |
+|---|---|
+| `pages/integrations/salesforce.tsx` | **"Filter by type" Select was a no-op** — `selectedType` state bound to the Select but `filteredAccounts` never consulted it. Now wired: `selectedType === "all" || account.Type?.includes(selectedType)` (prefix-match so "Customer" matches "Customer - Direct", "Partner" matches "Channel Partner / Reseller"). NEW test `filters accounts by type via the Filter by type select` (Radix combobox; note: trigger shows "All Types" not the placeholder because value defaults to "all") |
+| `components/dashboard/index.ts` | **Latent barrel bug**: `export { default as DailyBriefingCard } from './DailyBriefingCard'` — module has only a NAMED export → barrel export was `undefined` dead code. Same for `HealthMetricsGrid`. Changed to named re-exports. Caught by new barrel test |
+| `components/SessionProvider.tsx`, `pages/_document.tsx`, `components/Automations/TriggerSettings.tsx` | Added explicit `import React` — these 3 relied on Next's automatic JSX runtime but the project's `jest.config.js:8` uses `jsx: "react"` (classic) → untestable `ReferenceError: React is not defined`; classic-runtime-compatible like every other component |
+
+### New suites (8 files, 41 tests)
+
+| Suite | Covers |
+|---|---|
+| `tests/pages/__tests__/stub-pages.test.tsx` (9 tests) | voice/tasks/calendar/communication/scheduling/system-status/team-chat/google-drive/onedrive pages — previously all 0% (5-11 lines each), children mocked |
+| `components/dashboard/__tests__/DailyBriefingCard.test.tsx` (3) | all 3 badge colors, advice fallback, empty state, action links |
+| `components/integrations/hubspot/__tests__/HubSpotTest.test.tsx` (2) | test harness render + search/button callbacks |
+| `components/Automations/__tests__/OptimizationPanel.test.tsx` (3) | loading / all-optimized / suggestions+apply (was 46.7%) |
+| `components/Automations/__tests__/WorkflowEditor.test.tsx` (3) | WorkflowEditor nav/name/compact + TriggerSettings (was 0%) |
+| `components/admin/shared/__tests__/shared-primitives.test.tsx` (9) | LoadingSkeleton 4 layouts (was 23.5%), EmptyState 5 variants incl. href Link, HelpTooltip (was 57.1%) |
+| `components/__tests__/SessionProvider.test.tsx` (2) | with/without session (was 0%) |
+| `components/__tests__/barrel-exports.test.tsx` (9) | `_document` shell + 9 barrel index files (ui/dashboard/Debugging/hubspot/Collaboration/Versioning/Templates/monday/layout — all were 0%): **caught the dashboard barrel named-vs-default bug above** |
+
+Also updated the w103-era salesforce error-logging test (asserted `"Failed to load users:"` — that loader was dead code and is now gone).
+
+**Verification**:
+```bash
+# 4 cleaned components + new suites: 112/112 green
+npx jest components/__tests__/StripeIntegration.test.tsx tests/pages/__tests__/dashboard.test.tsx tests/components/test_dashboard.test.tsx tests/pages/__tests__/integrations-salesforce.test.tsx components/Automations/__tests__/test-workflow-builder.test.tsx --watchAll=false --maxWorkers=2
+# Full suite + coverage: 661 passed / 1 skipped / 10,975 passed tests
+npx jest --coverage --watchAll=false --maxWorkers=4 --coverageReporters=json-summary
+#   LINES 96.10% (was 95.31%) | STMT 95.75 | FUNC 93.03 | BR 85.01 | 28,328 lines
+#   ZERO 0-file / LOW<60% 0-file (before: 24 files / 137 lines at 0% + 4 files / 52 lines <60%)
+# tsc --noEmit clean for all touched files
+# Backend regression: 122 passed (w101/w102/w103 suites)
+```
+
+Remaining pre-existing branch-threshold warnings (lines coverage ≥80% everywhere): `pages/workflows/schedule.tsx` BR 69.6%, `pages/integrations/index.tsx` BR 69.4%, `pages/api/atom/message.ts` FUNC 57%, `pages/workflows/editor/[id].tsx` BR 70% — branch thresholds, not line gaps.
+
+---
 ## Session 2026-08-15 (wave 123 — stale backend test-suite repair: 9 files from a batch failure run; 0 source bugs, all failures were stale test contracts / test bugs)
 
 **Batch failure list**: 9 files (see table). Root causes: (a) R120 auth gate — `integrations/workflow_automation_routes.py` router now has `dependencies=[Depends(get_current_user)]`; the test client had no auth → every endpoint 401 (fixed via `app.dependency_overrides[get_current_user]`); (b) thread+`patch` race in concurrent-attempt tests — each thread entered/exit its own `with patch(...)` context; a thread exiting restored the REAL `get_episode_service` while a sibling was mid-call → real `EpisodeService` over Mock query data → `TypeError: 'Mock' object is not iterable` (flake; replaced threads+`asyncio.run` with deterministic `asyncio.gather`); (c) app hardening/fixes vs stale tests — `_cosine_similarity` zero-magnitude guard returns 0.0 (not NaN), embed-failure keyword fallback, `-2 ** 2 == -4` (Python-standard precedence), `_make_key` now calls `startswith("dir:")` first (message: `'startswith'` not `'lower'`), LLM call unified on `generate_response(messages=[...])` (not `generate(system_prompt=...)`), episode pipeline moved to dict-based + single deferred commit (no ORM Episode / NOT NULL maturity failure), file-ingest `add_document` wrapped in `asyncio.to_thread(...)`.

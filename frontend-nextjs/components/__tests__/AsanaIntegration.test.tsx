@@ -234,3 +234,203 @@ describe('AsanaIntegration', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Extended coverage: error paths, due-date variants, create-task dialog
+// ---------------------------------------------------------------------------
+describe('AsanaIntegration (extended coverage)', () => {
+  let consoleSpy: jest.SpyInstance;
+  let openSpy: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    openSpy = jest.fn();
+    window.open = openSpy as any;
+    server.resetHandlers();
+    server.use(...asanaHandlers);
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+  });
+
+  test('health-check rejection disconnects and logs', async () => {
+    server.use(
+      rest.get('/api/integrations/asana/health', (req, res) =>
+        res.networkError('down')
+      )
+    );
+
+    render(<AsanaIntegration />);
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith('Health check failed:', expect.anything());
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /connect asana account/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  test('data-loading failures are logged without crashing', async () => {
+    server.use(
+      rest.get('/api/integrations/asana/workspaces', (req, res) =>
+        res.networkError('down')
+      ),
+      rest.get('/api/integrations/asana/tasks', (req, res) =>
+        res.networkError('down')
+      ),
+      rest.get('/api/integrations/asana/teams', (req, res) =>
+        res.networkError('down')
+      ),
+      rest.get('/api/integrations/asana/users', (req, res) =>
+        res.networkError('down')
+      )
+    );
+
+    render(<AsanaIntegration />);
+
+    await waitFor(() => {
+      const messages = consoleSpy.mock.calls.map((c) => c[0]);
+      expect(messages).toEqual(
+        expect.arrayContaining([
+          'Failed to load workspaces:',
+          'Failed to load tasks:',
+          'Failed to load teams:',
+          'Failed to load users:',
+        ])
+      );
+    });
+  });
+
+  test('renders overdue, upcoming, completed and undated task variants', async () => {
+    const today = new Date();
+    const past = new Date(today.getTime() - 10 * 24 * 3600 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const soon = new Date(today.getTime() + 2 * 24 * 3600 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const later = new Date(today.getTime() + 30 * 24 * 3600 * 1000)
+      .toISOString()
+      .slice(0, 10);
+
+    server.use(
+      rest.get('/api/integrations/asana/tasks', (req, res, ctx) =>
+        res(
+          ctx.status(200),
+          ctx.json({
+            data: {
+              tasks: [
+                { id: 'a', name: 'Overdue Task', projects: [], assignee: null, due_on: past, completed: false, permalink_url: 'u1' },
+                { id: 'b', name: 'Soon Task', projects: [], assignee: null, due_on: soon, completed: false, permalink_url: 'u2' },
+                { id: 'c', name: 'Later Task', projects: [], assignee: null, due_on: later, completed: false, permalink_url: 'u3' },
+                { id: 'd', name: 'Done Task', projects: [], assignee: null, due_on: later, completed: true, permalink_url: 'u4' },
+                { id: 'e', name: 'Undated Task', projects: [], assignee: null, due_on: null, completed: false, permalink_url: 'u5' },
+              ],
+            },
+          })
+        )
+      )
+    );
+
+    render(<AsanaIntegration />);
+
+    await screen.findByText('Overdue Task');
+    expect(screen.getByText('Soon Task')).toBeInTheDocument();
+    expect(screen.getByText('Later Task')).toBeInTheDocument();
+    expect(screen.getByText('Done Task')).toBeInTheDocument();
+    expect(screen.getByText('Undated Task')).toBeInTheDocument();
+    expect(screen.getAllByText('Completed').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('In Progress').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('No due date').length).toBeGreaterThan(0);
+
+    // View button opens the permalink
+    fireEvent.click(screen.getAllByRole('button', { name: /view/i })[0]);
+    expect(openSpy).toHaveBeenCalled();
+  });
+
+  test('creates a task from the dialog and cancels it', async () => {
+    server.use(
+      rest.post('/api/integrations/asana/tasks', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true }))
+      )
+    );
+
+    render(<AsanaIntegration />);
+    fireEvent.click(await screen.findByRole('button', { name: /new task/i }));
+
+    fireEvent.change(await screen.findByPlaceholderText('Enter task name'), {
+      target: { value: 'Brand new task' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Task description'), {
+      target: { value: 'A description' },
+    });
+
+    // fill the due date input
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    fireEvent.change(dateInput, { target: { value: '2026-09-01' } });
+
+    // submit the dialog
+    const createBtn = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent === 'Create Task') as HTMLElement;
+    fireEvent.click(createBtn);
+
+    await waitFor(() => {
+      expect(consoleSpy).not.toHaveBeenCalledWith('Failed to create task:', expect.anything());
+    });
+    // dialog closes after a successful create
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Enter task name')).not.toBeInTheDocument();
+    });
+
+    // reopen and cancel
+    fireEvent.click(screen.getByRole('button', { name: /new task/i }));
+    fireEvent.click(
+      screen
+        .getAllByRole('button')
+        .find((b) => b.textContent === 'Cancel') as HTMLElement
+    );
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Enter task name')).not.toBeInTheDocument();
+    });
+  });
+
+  test('create-task failures log an error toast', async () => {
+    server.use(
+      rest.post('/api/integrations/asana/tasks', (req, res) =>
+        res.networkError('down')
+      )
+    );
+
+    render(<AsanaIntegration />);
+    fireEvent.click(await screen.findByRole('button', { name: /new task/i }));
+    fireEvent.change(await screen.findByPlaceholderText('Enter task name'), {
+      target: { value: 'Doomed task' },
+    });
+
+    const createBtn = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent === 'Create Task') as HTMLElement;
+    fireEvent.click(createBtn);
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to create task:', expect.anything());
+    });
+  });
+
+  test('projects tab opens project permalinks', async () => {
+    render(<AsanaIntegration />);
+
+    // wait for the connected dashboard (tasks tab) before switching
+    await screen.findByText('Write launch post');
+    fireEvent.click(screen.getByRole('button', { name: 'Projects' }));
+    await screen.findByText('Website Launch');
+
+    fireEvent.click(screen.getByRole('button', { name: /open in asana/i }));
+    expect(openSpy).toHaveBeenCalled();
+  });
+});

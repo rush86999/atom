@@ -14,11 +14,17 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ZoomIntegration from '@/components/integrations/ZoomIntegration';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
+
+const mockToast = jest.fn();
+jest.mock('@/components/ui/use-toast', () => ({
+  useToast: () => ({ toast: mockToast, dismiss: jest.fn(), toasts: [] }),
+  ToastProvider: ({ children }: any) => children,
+}));
 
 const connectedStatus = {
   is_connected: true,
@@ -233,5 +239,207 @@ describe('ZoomIntegration', () => {
       name: /disconnect/i,
     });
     expect(() => fireEvent.click(disconnectButton)).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended coverage: refresh flow, create meeting, join/download links,
+// connect timeout, and error paths for each data loader
+// ---------------------------------------------------------------------------
+describe('ZoomIntegration (extended coverage)', () => {
+  let errorSpy: jest.SpyInstance;
+  let openSpy: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    server.resetHandlers();
+    server.use(...zoomHandlers);
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    openSpy = jest.fn();
+    window.open = openSpy as any;
+  });
+
+  const settle = async () => {
+    await screen.findByText('Weekly Sync');
+    await new Promise((r) => setTimeout(r, 50));
+  };
+
+  test('refresh button refetches every dataset', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    render(<ZoomIntegration />);
+    await settle();
+
+    fetchSpy.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
+
+    await waitFor(() => {
+      const urls = fetchSpy.mock.calls.map(([u]: [string]) => String(u));
+      expect(urls.some((u) => u.includes('/api/zoom/meetings'))).toBe(true);
+      expect(urls.some((u) => u.includes('/api/zoom/users'))).toBe(true);
+      expect(urls.some((u) => u.includes('/api/zoom/recordings'))).toBe(true);
+      expect(urls.some((u) => u.includes('/api/zoom/analytics'))).toBe(true);
+    });
+  });
+
+  test('opens the meeting join url from the meetings table', async () => {
+    render(<ZoomIntegration />);
+    await settle();
+
+    // The first icon button in the first meeting row is the join button.
+    const row = screen.getByText('Weekly Sync').closest('tr')!;
+    fireEvent.click(within(row).getAllByRole('button')[0]);
+    expect(openSpy).toHaveBeenCalled();
+  });
+
+  test('opens the recording download url from the recordings tab', async () => {
+    render(<ZoomIntegration />);
+    await settle();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recordings' }));
+    const row = (await screen.findByText('Weekly Sync recording')).closest('tr')!;
+    fireEvent.click(within(row).getAllByRole('button')[0]);
+    expect(openSpy).toHaveBeenCalled();
+  });
+
+  test('creates a meeting from the Create Meeting button', async () => {
+    server.use(
+      rest.post('/api/zoom/meetings', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json({ meeting: { id: 'm9', topic: 'ATOM Integration Meeting' } })
+        );
+      })
+    );
+
+    render(<ZoomIntegration />);
+    await settle();
+
+    fireEvent.click(screen.getByRole('button', { name: /create meeting/i }));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Meeting created',
+          description: 'Meeting "ATOM Integration Meeting" created successfully',
+        })
+      );
+    });
+  });
+
+  test('shows an error toast when meeting creation fails', async () => {
+    server.use(
+      rest.post('/api/zoom/meetings', (req, res, ctx) => {
+        return res(ctx.status(500));
+      })
+    );
+
+    render(<ZoomIntegration />);
+    await settle();
+
+    fireEvent.click(screen.getByRole('button', { name: /create meeting/i }));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Failed to create meeting',
+          variant: 'error',
+        })
+      );
+    });
+  });
+
+  test('completes the fake connect flow after the timeout', async () => {
+    jest.useFakeTimers();
+    try {
+      setNotConnected();
+      render(<ZoomIntegration />);
+
+      const connectButton = await screen.findByRole('button', {
+        name: /connect zoom account/i,
+      });
+      fireEvent.click(connectButton);
+
+      act(() => {
+        jest.advanceTimersByTime(2100);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Connected')).toBeInTheDocument();
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('shows a disconnect-failed toast when disconnect rejects', async () => {
+    server.use(
+      rest.post('/api/zoom/auth/disconnect', (req, res) =>
+        res.networkError('boom')
+      )
+    );
+
+    render(<ZoomIntegration />);
+    await settle();
+
+    fireEvent.click(screen.getByRole('button', { name: /disconnect/i }));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Disconnect failed', variant: 'error' })
+      );
+    });
+    // Still connected after a failed disconnect.
+    expect(screen.getByText('Connected')).toBeInTheDocument();
+  });
+
+  test('surfaces errors when data fetches fail', async () => {
+    server.use(
+      rest.get('/api/zoom/meetings', (req, res, ctx) => res(ctx.status(500))),
+      rest.get('/api/zoom/users', (req, res, ctx) => res(ctx.status(500))),
+      rest.get('/api/zoom/recordings', (req, res, ctx) => res(ctx.status(500))),
+      rest.get('/api/zoom/analytics/meetings', (req, res) =>
+        res.networkError('boom')
+      )
+    );
+
+    render(<ZoomIntegration />);
+
+    await waitFor(() => {
+      // Failed loads clear the datasets.
+      expect(screen.queryByText('Weekly Sync')).not.toBeInTheDocument();
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to fetch analytics:',
+        expect.anything()
+      );
+    });
+  });
+});
+
+describe('ZoomIntegration (disconnect non-ok)', () => {
+  test('toasts when the disconnect endpoint returns an error status', async () => {
+    jest.clearAllMocks();
+    server.resetHandlers();
+    server.use(...zoomHandlers);
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    server.use(
+      rest.post('/api/zoom/auth/disconnect', (req, res, ctx) =>
+        res(ctx.status(500))
+      )
+    );
+
+    render(<ZoomIntegration />);
+    await screen.findByText('Weekly Sync');
+
+    fireEvent.click(screen.getByRole('button', { name: /disconnect/i }));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Disconnect failed',
+          description: 'Failed to disconnect',
+          variant: 'error',
+        })
+      );
+    });
   });
 });

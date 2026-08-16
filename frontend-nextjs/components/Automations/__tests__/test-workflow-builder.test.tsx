@@ -200,6 +200,24 @@ jest.mock('../SmartSuggestions', () => {
             }),
         },
         'Suggest Condition'
+      ),
+      React.createElement(
+        'button',
+        {
+          type: 'button',
+          'data-testid': 'fire-unknown-suggestion',
+          onClick: () =>
+            props.onSuggestionClick({
+              id: 's2',
+              title: 'Add Webhook',
+              description: 'Unknown type',
+              type: 'webhook',
+              confidence: 0.5,
+              reason: 'Falls back to action',
+              icon: () => null,
+            }),
+        },
+        'Suggest Webhook'
       )
     );
   };
@@ -237,6 +255,16 @@ jest.mock('../NodeConfigSidebar', () => {
             }),
         },
         'Update Node'
+      ),
+      React.createElement(
+        'button',
+        {
+          type: 'button',
+          'data-testid': 'update-missing-node',
+          onClick: () =>
+            props.onUpdateNode('does-not-exist', { label: 'Ghost' }),
+        },
+        'Update Missing Node'
       ),
       React.createElement(
         'button',
@@ -1255,5 +1283,122 @@ describe('WorkflowBuilder', () => {
       ).toBe(true);
     });
     expect(getFlowProps().nodes[0].data._analytics).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended coverage: suggestion fallback, ghost node update, NLU !ok,
+// analytics fetch rejection, optimization onApply
+// ---------------------------------------------------------------------------
+describe('WorkflowBuilder (extended coverage)', () => {
+  let fetchSpy: jest.SpyInstance;
+  let errorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    fetchSpy = jest
+      .spyOn(global as any, 'fetch')
+      .mockResolvedValue(jsonResponse({}));
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    undoRedoApi().value = {
+      undo: jest.fn(),
+      redo: jest.fn(),
+      takeSnapshot: jest.fn(),
+      canUndo: false,
+      canRedo: false,
+      history: { past: [], present: null, future: [] },
+      resetHistory: jest.fn(),
+    };
+  });
+
+  it('falls back to an action node for unknown suggestion types', () => {
+    render(<WorkflowBuilder />);
+
+    // SmartSuggestions only renders once at least one node exists.
+    addToolbarNode('Condition');
+    fireEvent.click(screen.getByTestId('fire-unknown-suggestion'));
+
+    const nodes = getFlowProps().nodes;
+    expect(nodes).toHaveLength(2);
+    expect(nodes[1]).toMatchObject({
+      type: 'action',
+      data: { label: 'Generic Action', action: 'Do something' },
+    });
+    expect(toastMock()).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Added Add Webhook' })
+    );
+  });
+
+  it('ignores updates for a node id that does not exist', () => {
+    render(<WorkflowBuilder />);
+    addToolbarNode('Condition');
+
+    // Open the config sidebar by selecting a node.
+    act(() => {
+      getFlowProps().onNodeClick({} as any, { id: '1' });
+    });
+    fireEvent.click(screen.getByTestId('update-missing-node'));
+
+    const nodes = getFlowProps().nodes;
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].data.label).toBe('Condition');
+  });
+
+  it('falls back to keyword handling when the NLU endpoint is unavailable', async () => {
+    fetchSpy.mockResolvedValueOnce(jsonResponse({}, false));
+    render(<WorkflowBuilder />);
+
+    const input = screen.getByPlaceholderText(/e\.g\.,/);
+    fireEvent.change(input, { target: { value: 'clear the workflow' } });
+    fireEvent.click(screen.getByRole('button', { name: /generate/i }));
+
+    await waitFor(() => {
+      expect(toastMock()).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'AI Copilot' })
+      );
+    });
+  });
+
+  it('logs an analytics error when the heatmap fetch rejects', async () => {
+    fetchSpy.mockRejectedValueOnce(new Error('heatmap down'));
+    render(
+      <WorkflowBuilder
+        workflowId="wf-1"
+        initialData={{
+          nodes: [
+            {
+              id: '1',
+              type: 'action',
+              position: { x: 0, y: 0 },
+              data: { label: 'A' },
+            },
+          ],
+          edges: [],
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /performance/i }));
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to load analytics',
+        expect.anything()
+      );
+    });
+  });
+
+  it('toasts when an optimization suggestion apply is clicked', () => {
+    render(<WorkflowBuilder />);
+
+    act(() => {
+      optPanelApi().props.onApply({ id: 's1' });
+    });
+
+    expect(toastMock()).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Feature Pending',
+        description: 'Auto-fix is coming soon!',
+      })
+    );
   });
 });

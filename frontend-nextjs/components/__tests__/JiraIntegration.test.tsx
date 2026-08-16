@@ -401,3 +401,325 @@ describe('JiraIntegration', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Extended coverage: variant helpers, sprint issues, project issue types,
+// modal fields, search inputs, and error paths
+// ---------------------------------------------------------------------------
+describe('JiraIntegration (extended coverage)', () => {
+  let errorSpy: jest.SpyInstance;
+
+  const richIssues = [
+    {
+      id: '1',
+      key: 'TEST-1',
+      fields: {
+        summary: 'In progress issue',
+        description: 'd1',
+        status: { name: 'In Progress', statusCategory: { colorName: 'yellow' } },
+        priority: { name: 'Highest', iconUrl: '' },
+        reporter: { displayName: 'Jane Smith', avatarUrls: {} },
+        created: '2024-01-15T10:00:00.000Z',
+        updated: '2024-01-15T10:00:00.000Z',
+        issuetype: { name: 'Task', iconUrl: '' },
+        project: { key: 'TEST', name: 'Test Project' },
+      },
+    },
+    {
+      id: '2',
+      key: 'TEST-2',
+      fields: {
+        summary: 'Done issue',
+        status: { name: 'Done', statusCategory: { colorName: 'green' } },
+        priority: { name: 'High', iconUrl: '' },
+        reporter: { displayName: 'Jane Smith', avatarUrls: {} },
+        created: '2024-01-15T10:00:00.000Z',
+        updated: '2024-01-15T10:00:00.000Z',
+        issuetype: { name: 'Bug', iconUrl: '' },
+        project: { key: 'TEST', name: 'Test Project' },
+      },
+    },
+    {
+      id: '3',
+      key: 'TEST-3',
+      fields: {
+        summary: 'Blocked issue',
+        status: { name: 'Blocked', statusCategory: { colorName: 'red' } },
+        priority: { name: 'Low', iconUrl: '' },
+        reporter: { displayName: 'Jane Smith', avatarUrls: {} },
+        created: '2024-01-15T10:00:00.000Z',
+        updated: '2024-01-15T10:00:00.000Z',
+        issuetype: { name: 'Epic', iconUrl: '' },
+        project: { key: 'TEST', name: 'Test Project' },
+      },
+    },
+    {
+      id: '4',
+      key: 'TEST-4',
+      fields: {
+        summary: 'Weird status issue',
+        status: { name: 'Whatever', statusCategory: { colorName: 'purple' } },
+        priority: { name: 'Unusual', iconUrl: '' },
+        reporter: { displayName: 'Jane Smith', avatarUrls: {} },
+        created: '2024-01-15T10:00:00.000Z',
+        updated: '2024-01-15T10:00:00.000Z',
+        issuetype: { name: 'Story', iconUrl: '' },
+        project: { key: 'TEST', name: 'Test Project' },
+      },
+    },
+  ];
+
+  const richSprints = [
+    {
+      id: 2,
+      state: 'active',
+      name: 'Rich Sprint',
+      originBoardId: 1,
+      goal: 'Cover sprint issue rendering',
+      issues: [
+        {
+          id: '10',
+          key: 'TEST-10',
+          fields: {
+            summary: 'Sprint issue with assignee',
+            assignee: {
+              displayName: 'John Doe',
+              avatarUrls: { '24x24': 'https://example.com/a24.png' },
+            },
+          },
+        },
+        {
+          id: '11',
+          key: 'TEST-11',
+          fields: { summary: 'Unassigned sprint issue' },
+        },
+      ],
+    },
+  ];
+
+  beforeEach(() => {
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.clearAllMocks();
+    server.resetHandlers();
+    server.use(...jiraHandlers);
+  });
+
+  const settle = async () => {
+    await settleData(/Test Project/);
+  };
+
+  test('renders status and priority variant badges for all colors', async () => {
+    server.use(
+      rest.post('/api/integrations/jira/issues', (req, res, ctx) => {
+        return res(ctx.status(200), ctx.json({ data: { issues: richIssues } }));
+      })
+    );
+
+    render(<JiraIntegration />);
+    await settle();
+
+    fireEvent.click(screen.getByText('Test Project'));
+    fireEvent.click(screen.getByRole('button', { name: 'Issues' }));
+
+    for (const summary of ['In progress issue', 'Done issue', 'Blocked issue', 'Weird status issue']) {
+      expect(await screen.findByText(summary)).toBeInTheDocument();
+    }
+    expect(screen.getByText('Highest')).toBeInTheDocument();
+    expect(screen.getByText('High')).toBeInTheDocument();
+    expect(screen.getByText('Low')).toBeInTheDocument();
+    expect(screen.getByText('Unusual')).toBeInTheDocument();
+  });
+
+  test('renders project issue type badges', async () => {
+    server.use(
+      rest.post('/api/integrations/jira/projects', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json({
+            data: {
+              projects: [
+                {
+                  id: '10000',
+                  key: 'TEST',
+                  name: 'Test Project',
+                  projectTypeKey: 'software',
+                  lead: { displayName: 'John Doe', avatarUrls: {} },
+                  issueTypes: [
+                    { id: '1', name: 'Task' },
+                    { id: '2', name: 'Bug' },
+                  ],
+                },
+              ],
+            },
+          })
+        );
+      })
+    );
+
+    render(<JiraIntegration />);
+    await settle();
+
+    expect(screen.getByText('Task')).toBeInTheDocument();
+    expect(screen.getByText('Bug')).toBeInTheDocument();
+  });
+
+  test('sprints tab renders sprint issues with assignees', async () => {
+    server.use(
+      rest.post('/api/integrations/jira/sprints', (req, res, ctx) => {
+        return res(ctx.status(200), ctx.json({ data: { sprints: richSprints } }));
+      })
+    );
+
+    render(<JiraIntegration />);
+    await settle();
+
+    fireEvent.click(screen.getByText('Test Project'));
+    fireEvent.click(screen.getByRole('button', { name: 'Sprints' }));
+
+    expect(await screen.findByText('Rich Sprint')).toBeInTheDocument();
+    expect(screen.getByText('2 issues')).toBeInTheDocument();
+    expect(screen.getByText('Sprint issue with assignee')).toBeInTheDocument();
+    expect(screen.getByText('Unassigned sprint issue')).toBeInTheDocument();
+  });
+
+  test('issues and team search inputs accept typing', async () => {
+    render(<JiraIntegration />);
+    await settle();
+
+    fireEvent.click(screen.getByText('Test Project'));
+    fireEvent.click(screen.getByRole('button', { name: 'Issues' }));
+    const issueSearch = screen.getByPlaceholderText(/search issues/i);
+    fireEvent.change(issueSearch, { target: { value: 'summary' } });
+    expect((issueSearch as HTMLInputElement).value).toBe('summary');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Team' }));
+    const userSearch = await screen.findByPlaceholderText(/search users/i);
+    fireEvent.change(userSearch, { target: { value: 'john' } });
+    expect((userSearch as HTMLInputElement).value).toBe('john');
+    expect(screen.getByText('John Doe')).toBeInTheDocument();
+  });
+
+  test('fills description, type, priority, and assignee in the create dialog', async () => {
+    const issuePosts: any[] = [];
+    server.use(
+      rest.post('/api/integrations/jira/issues/create', (req, res, ctx) => {
+        issuePosts.push(req.body);
+        return res(ctx.status(200), ctx.json({ success: true }));
+      })
+    );
+
+    render(<JiraIntegration />);
+    await settle();
+
+    fireEvent.click(screen.getByText('Test Project'));
+    fireEvent.click(screen.getByRole('button', { name: 'Issues' }));
+    fireEvent.click(await screen.findByRole('button', { name: /create issue/i }));
+
+    const dialog = screen.getByRole('dialog');
+    fireEvent.change(
+      within(dialog).getByPlaceholderText(/issue summary/i),
+      { target: { value: 'Full form issue' } }
+    );
+    fireEvent.change(
+      within(dialog).getByPlaceholderText(/describe the issue/i),
+      { target: { value: 'A full description' } }
+    );
+
+    // The dialog has several Selects: project, issueType, priority, assignee
+    const dialogButtons = within(dialog).getAllByRole('button');
+    // Project select
+    fireEvent.click(dialogButtons[0]);
+    fireEvent.click(await within(dialog).findByText(/Test Project \(TEST\)/));
+    // Issue type select
+    fireEvent.click(dialogButtons[1]);
+    fireEvent.click(await within(dialog).findByText('Bug'));
+    // Priority select
+    fireEvent.click(dialogButtons[2]);
+    fireEvent.click(await within(dialog).findByText('Low'));
+    // Assignee select
+    fireEvent.click(dialogButtons[3]);
+    fireEvent.click(await within(dialog).findByText('John Doe'));
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create Issue' }));
+
+    await waitFor(() => {
+      expect(
+        issuePosts.some(
+          (b) =>
+            b.summary === 'Full form issue' &&
+            b.issueType === 'Bug' &&
+            b.priority === 'Low' &&
+            b.assignee === '12345'
+        )
+      ).toBe(true);
+    });
+  });
+
+  test('cancels the create-issue dialog', async () => {
+    render(<JiraIntegration />);
+    await settle();
+
+    fireEvent.click(screen.getByText('Test Project'));
+    fireEvent.click(screen.getByRole('button', { name: 'Issues' }));
+    fireEvent.click(await screen.findByRole('button', { name: /create issue/i }));
+
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  test('logs errors when issue/sprint loads and issue creation fail', async () => {
+    const netFail = (path: string) => rest.post(path, (req, res) => res.networkError('boom'));
+    server.use(
+      netFail('/api/integrations/jira/issues'),
+      netFail('/api/integrations/jira/sprints'),
+      netFail('/api/integrations/jira/issues/create')
+    );
+
+    render(<JiraIntegration />);
+    await settle();
+
+    fireEvent.click(screen.getByText('Test Project'));
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Failed to load issues:', expect.anything());
+      expect(errorSpy).toHaveBeenCalledWith('Failed to load sprints:', expect.anything());
+    });
+
+    // Attempting an issue creation through the failing endpoint logs too.
+    fireEvent.click(screen.getByRole('button', { name: 'Issues' }));
+    fireEvent.click(await screen.findByRole('button', { name: /create issue/i }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.change(
+      within(dialog).getByPlaceholderText(/issue summary/i),
+      { target: { value: 'Failing issue' } }
+    );
+    const dialogButtons = within(dialog).getAllByRole('button');
+    fireEvent.click(dialogButtons[0]);
+    fireEvent.click(await within(dialog).findByText(/Test Project \(TEST\)/));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create Issue' }));
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Failed to create issue:', expect.anything());
+    });
+  });
+
+  test('treats a health-check network failure as disconnected', async () => {
+    server.use(
+      rest.get('/api/integrations/jira/health', (req, res) =>
+        res.networkError('boom')
+      )
+    );
+
+    render(<JiraIntegration />);
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith('Health check failed:', expect.anything());
+      expect(
+        screen.getByRole('button', { name: /connect jira account/i })
+      ).toBeInTheDocument();
+    });
+  });
+});

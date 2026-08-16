@@ -405,6 +405,65 @@ describe('TaskManagement (shared)', () => {
     expect(screen.getByText('2 tasks')).toBeInTheDocument();
   });
 
+  it('filters the board by priority via the priority filter select', async () => {
+    render(
+      <TaskManagement
+        {...defaultProps}
+        initialTasks={[
+          makeTask({ id: 't-1', priority: 'high', title: 'Urgent task' }),
+          makeTask({ id: 't-2', priority: 'low', title: 'Chill task' }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('2 tasks')).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('priority-filter'));
+    await user.click(await screen.findByRole('option', { name: 'High' }));
+
+    expect(screen.getByText('1 tasks')).toBeInTheDocument();
+    expect(screen.getAllByText('Urgent task').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryAllByText('Chill task')).toHaveLength(0);
+
+    await user.click(screen.getByTestId('priority-filter'));
+    await user.click(await screen.findByRole('option', { name: 'All priorities' }));
+
+    expect(screen.getByText('2 tasks')).toBeInTheDocument();
+  });
+
+  it('sorts tasks by priority and title via the sort select', async () => {
+    render(
+      <TaskManagement
+        {...defaultProps}
+        initialTasks={[
+          makeTask({ id: 't-1', priority: 'low', title: 'Banana', status: 'todo' }),
+          makeTask({ id: 't-2', priority: 'high', title: 'Cherry', status: 'todo' }),
+          makeTask({ id: 't-3', priority: 'low', title: 'Apple', status: 'todo' }),
+        ]}
+      />,
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('sort-select'));
+    await user.click(await screen.findByRole('option', { name: 'Priority ↓' }));
+
+    // High-priority task first in the board column
+    const todoColumn = (screen.getByText('TODO (3)').closest('div') as HTMLElement).parentElement!;
+    const titles = within(todoColumn as HTMLElement)
+      .getAllByText(/^(Banana|Cherry|Apple)$/)
+      .map((el) => el.textContent);
+    expect(titles[0]).toBe('Cherry');
+
+    await user.click(screen.getByTestId('sort-select'));
+    await user.click(await screen.findByRole('option', { name: 'Title A-Z' }));
+
+    const sortedTitles = within((screen.getByText('TODO (3)').closest('div') as HTMLElement).parentElement as HTMLElement)
+      .getAllByText(/^(Banana|Cherry|Apple)$/)
+      .map((el) => el.textContent);
+    expect(sortedTitles).toEqual(['Apple', 'Banana', 'Cherry']);
+  });
+
   it('opens the edit dialog when an Upcoming row is clicked', async () => {
     render(
       <TaskManagement
@@ -511,5 +570,181 @@ describe('TaskManagement (shared)', () => {
     expect(screen.queryByRole('button', { name: /new task/i })).not.toBeInTheDocument();
     expect(screen.getByText('Task Board')).toBeInTheDocument();
     expect(screen.getAllByText('Still visible').length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended coverage: full task form fields, list-row click, variant defaults
+// ---------------------------------------------------------------------------
+describe('TaskManagement (extended coverage)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const defaultProps = {
+    onTaskCreate: jest.fn(),
+    onTaskUpdate: jest.fn(),
+    onTaskDelete: jest.fn(),
+    onProjectCreate: jest.fn(),
+    onProjectUpdate: jest.fn(),
+  };
+
+  it('fills estimated hours, tags, assignee, and color in the task dialog', async () => {
+    const onTaskCreate = jest.fn();
+    render(
+      <TaskManagement
+        {...defaultProps}
+        onTaskCreate={onTaskCreate}
+        initialProjects={[makeProject()]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('new-task-btn'));
+    const dialog = await screen.findByRole('dialog');
+
+    fireEvent.change(screen.getByTestId('task-title'), {
+      target: { value: 'Full Form Task' },
+    });
+    fireEvent.change(
+      document.querySelector('input[type="date"]') as HTMLInputElement,
+      { target: { value: '2026-12-01' } },
+    );
+    fireEvent.change(dialog.querySelector('input[type="number"]') as HTMLInputElement, {
+      target: { value: '8' },
+    });
+    fireEvent.change(within(dialog).getByPlaceholderText(/backend, frontend, design/i), {
+      target: { value: 'backend, infra' },
+    });
+    fireEvent.change(within(dialog).getByPlaceholderText(/assignee name/i), {
+      target: { value: 'Grace Hopper' },
+    });
+    const colorInput = dialog.querySelector('input[type="color"]') as HTMLInputElement;
+    fireEvent.change(colorInput, { target: { value: '#E53E3E' } });
+
+    fireEvent.click(screen.getByTestId('task-submit'));
+
+    await waitFor(() => {
+      expect(onTaskCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Full Form Task',
+          estimatedHours: 8,
+          tags: ['backend', 'infra'],
+          assignee: 'Grace Hopper',
+          color: '#e53e3e',
+        }),
+      );
+    });
+  });
+
+  it('opens the task dialog from a compact list-view row', async () => {
+    render(
+      <TaskManagement
+        {...defaultProps}
+        compactView
+        initialTasks={[makeTask()]}
+        initialProjects={[makeProject()]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /list/i }));
+    const titleEl = screen
+      .getAllByText('Write launch post')
+      .find((el) => el.closest('.cursor-pointer'));
+    const row = titleEl!.closest('.cursor-pointer') as HTMLElement;
+    fireEvent.click(row);
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByTestId('task-title')).toHaveValue('Write launch post');
+  });
+
+  it('renders default variants for unknown priorities and statuses in list view', () => {
+    render(
+      <TaskManagement
+        {...defaultProps}
+        initialTasks={[
+          makeTask({ id: 't-1', status: 'completed', priority: 'medium' }),
+          makeTask({ id: 't-2', status: 'blocked', priority: 'low' }),
+          makeTask({ id: 't-3', status: 'archived', priority: 'urgent' }),
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /list/i }));
+
+    // All rows render with their status badges; unknown statuses fall through
+    // to the default badge variant without crashing.
+    expect(screen.getAllByText('completed').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('blocked').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('archived').length).toBeGreaterThan(0);
+  });
+});
+
+describe('TaskManagement (extended coverage 2)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const defaultProps = {
+    onTaskCreate: jest.fn(),
+    onTaskUpdate: jest.fn(),
+    onTaskDelete: jest.fn(),
+    onProjectCreate: jest.fn(),
+    onProjectUpdate: jest.fn(),
+  };
+
+  it('renders an unknown priority badge in the board', () => {
+    render(
+      <TaskManagement
+        {...defaultProps}
+        initialTasks={[
+          makeTask({ id: 't-9', status: 'todo', priority: 'urgent' as any, title: 'Odd task' }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('urgent')).toBeInTheDocument();
+  });
+
+  it('edits the task description and the project color', async () => {
+    const onTaskUpdate = jest.fn();
+    render(
+      <TaskManagement
+        {...defaultProps}
+        onTaskUpdate={onTaskUpdate}
+        initialTasks={[makeTask()]}
+        initialProjects={[makeProject()]}
+      />,
+    );
+
+    // Task dialog: change the description and save
+    fireEvent.click(screen.getAllByText('Write launch post')[0]);
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByPlaceholderText(/task description/i), {
+      target: { value: 'Updated description' },
+    });
+    fireEvent.click(screen.getByTestId('task-submit'));
+    await waitFor(() => {
+      expect(onTaskUpdate).toHaveBeenCalledWith(
+        't-1',
+        expect.objectContaining({ description: 'Updated description' }),
+      );
+    });
+
+    // Project dialog: change the color and save
+    fireEvent.click(screen.getByText('Website Launch'));
+    const projectDialog = await screen.findByRole('dialog');
+    const colorInput = projectDialog.querySelector(
+      'input[type="color"]',
+    ) as HTMLInputElement;
+    fireEvent.change(colorInput, { target: { value: '#E53E3E' } });
+    fireEvent.click(
+      within(projectDialog).getByRole('button', { name: /update project/i }),
+    );
+    await waitFor(() => {
+      expect(defaultProps.onProjectUpdate).toHaveBeenCalledWith(
+        'proj-1',
+        expect.objectContaining({ color: '#e53e3e' }),
+      );
+    });
   });
 });

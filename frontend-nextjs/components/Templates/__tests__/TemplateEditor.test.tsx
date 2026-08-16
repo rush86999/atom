@@ -131,6 +131,33 @@ describe('TemplateEditor', () => {
     expect(screen.getByText('Step 2')).toBeInTheDocument();
   });
 
+  it('edits the selected step inline via handleUpdateStep', () => {
+    render(
+      <TemplateEditor
+        initialTemplate={{ ...INITIAL, steps: [{ id: 's1', name: 'Step 1', step_type: 'action' }] }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Workflow Steps/i }));
+
+    // Editor fields appear only after selecting the step card
+    expect(screen.queryByTestId('step-name-s1')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Step 1'));
+    expect(screen.getByTestId('step-name-s1')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId('step-name-s1'), {
+      target: { value: 'Renamed Step' },
+    });
+    fireEvent.change(screen.getByTestId('step-description-s1'), {
+      target: { value: 'A brand new description' },
+    });
+
+    expect(screen.getByText('Renamed Step')).toBeInTheDocument();
+    expect(screen.getAllByText('A brand new description').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Step 1')).not.toBeInTheDocument();
+  });
+
   it('reorders steps down and deletes them', () => {
     const { container } = render(
       <TemplateEditor initialTemplate={INITIAL} onSave={mockOnSave} onCancel={mockOnCancel} />
@@ -223,5 +250,114 @@ describe('TemplateEditor', () => {
     render(<TemplateEditor initialTemplate={INITIAL} onSave={mockOnSave} onCancel={mockOnCancel} />);
     fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
     expect(mockOnCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('toasts an error when onSave rejects', async () => {
+    const failingSave = jest.fn().mockRejectedValue(new Error('Disk full'));
+    render(
+      <TemplateEditor initialTemplate={{ ...INITIAL, steps: [{ id: 's1', name: 'Step A', step_type: 'action' }] }} onSave={failingSave} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Save Template/i }));
+
+    await waitFor(() => {
+      expect(mockToast.toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Error',
+          description: 'Disk full',
+          variant: 'error',
+        })
+      );
+    });
+  });
+
+  it('moves a step up and keeps the remaining step selected after deletion', () => {
+    const twoSteps: WorkflowTemplate = {
+      ...INITIAL,
+      steps: [
+        { id: 's1', name: 'First', step_type: 'trigger' },
+        { id: 's2', name: 'Second', step_type: 'action' },
+      ],
+    };
+    const { container } = render(<TemplateEditor initialTemplate={twoSteps} onSave={mockOnSave} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Workflow Steps/i }));
+
+    const upButtons = container.querySelectorAll('svg.lucide-arrow-up');
+    fireEvent.click(upButtons[1].closest('button')!);
+
+    const names = screen.getAllByText(/^(First|Second)$/);
+    expect(names[0]).toHaveTextContent('Second');
+    expect(names[1]).toHaveTextContent('First');
+
+    // Clicking a card marks it selected (ring styling)
+    fireEvent.click(names[1].closest('[class*="border"]')!);
+    expect(names[1].closest('[class*="ring-2"]')).toBeTruthy();
+  });
+
+  it('renders rich step metadata: optional badge, description, service, action, duration', () => {
+    const rich: WorkflowTemplate = {
+      ...INITIAL,
+      steps: [
+        {
+          id: 's1',
+          name: 'Enrich Lead',
+          step_type: 'agent_execution',
+          description: 'Enriches the lead record',
+          service: 'hubspot',
+          action: 'update_contact',
+          estimated_duration: 120,
+          is_optional: true,
+        },
+      ],
+    };
+    render(<TemplateEditor initialTemplate={rich} onSave={mockOnSave} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Workflow Steps/i }));
+
+    expect(screen.getByText('Enrich Lead')).toBeInTheDocument();
+    expect(screen.getByText('agent_execution')).toBeInTheDocument();
+    expect(screen.getByText('Optional')).toBeInTheDocument();
+    expect(screen.getByText('Enriches the lead record')).toBeInTheDocument();
+    expect(screen.getByText('Service: hubspot')).toBeInTheDocument();
+    expect(screen.getByText('Action: update_contact')).toBeInTheDocument();
+    expect(screen.getByText('Duration: 120s')).toBeInTheDocument();
+  });
+
+  it('edits input parameter name, label, description and type', () => {
+    render(<TemplateEditor initialTemplate={INITIAL} onSave={mockOnSave} />);
+    fireEvent.click(screen.getByRole('button', { name: /Input Parameters/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Add Parameter/i }));
+
+    const nameInput = screen.getByPlaceholderText('parameter_name');
+    fireEvent.change(nameInput, { target: { value: 'owner_id' } });
+    expect((nameInput as HTMLInputElement).value).toBe('owner_id');
+
+    const labelInput = screen.getByPlaceholderText('User-friendly label');
+    fireEvent.change(labelInput, { target: { value: 'Record Owner' } });
+    expect((labelInput as HTMLInputElement).value).toBe('Record Owner');
+
+    const description = screen.getByPlaceholderText('Describe this parameter...');
+    fireEvent.change(description, { target: { value: 'HubSpot owner id' } });
+    expect((description as HTMLTextAreaElement).value).toBe('HubSpot owner id');
+
+    // Type select: open the combobox and pick "Number"
+    fireEvent.click(screen.getByRole('combobox'));
+    fireEvent.click(screen.getByRole('option', { name: 'Number' }));
+    expect(screen.getByRole('combobox')).toHaveTextContent('Number');
+
+    // A second parameter can be appended from the list footer button
+    fireEvent.click(screen.getAllByRole('button', { name: /Add Parameter/i })[0]);
+    expect(screen.getAllByPlaceholderText('parameter_name')).toHaveLength(2);
+  });
+
+  it('shows empty preview placeholders and no-tags fallback', () => {
+    render(<TemplateEditor initialTemplate={{ ...INITIAL, name: '', description: '', tags: [] }} onSave={mockOnSave} />);
+    fireEvent.click(screen.getAllByRole('button', { name: /Preview/i })[1]);
+
+    expect(screen.getAllByText('Not set')).toHaveLength(2);
+    expect(screen.getByText('No tags')).toBeInTheDocument();
+    expect(screen.getByText('No steps defined')).toBeInTheDocument();
+    expect(screen.getByText('0 parameters')).toBeInTheDocument();
   });
 });

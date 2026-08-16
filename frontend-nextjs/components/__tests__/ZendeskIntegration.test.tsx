@@ -23,6 +23,25 @@ import { server } from '@/tests/mocks/server';
 
 const getToastMock = (): jest.Mock => (useToast as jest.Mock)().toast;
 
+// Radix Select is not interactive in jsdom; replace with native selects so
+// filter + dialog select handlers can be driven directly.
+jest.mock('@/components/ui/select', () => ({
+  Select: ({ value, onValueChange, children }: any) => (
+    <select
+      data-testid="native-select"
+      value={value ?? ''}
+      onChange={(e) => onValueChange(e.target.value)}
+    >
+      {children}
+    </select>
+  ),
+  SelectTrigger: ({ children }: any) => <>{children}</>,
+  SelectContent: ({ children }: any) => <>{children}</>,
+  SelectItem: ({ value, children }: any) => <option value={value}>{children}</option>,
+  SelectValue: () => null,
+}));
+
+
 const zendeskHandlers = [
   rest.get('/api/integrations/zendesk/health', (req, res, ctx) => {
     return res(ctx.status(200), ctx.json({ status: 'healthy' }));
@@ -808,5 +827,262 @@ describe('ZendeskIntegration (extended coverage)', () => {
       expect(errorSpy).toHaveBeenCalledWith('Failed to load views:', expect.anything());
       expect(errorSpy).toHaveBeenCalledWith('Failed to load organizations:', expect.anything());
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended coverage: health catch, filters, dialog selects and checkboxes
+// ---------------------------------------------------------------------------
+describe('ZendeskIntegration (extended coverage)', () => {
+  let consoleSpy: jest.SpyInstance;
+  let openSpy: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    openSpy = jest.fn();
+    window.open = openSpy as any;
+    server.resetHandlers();
+    server.use(...zendeskHandlers);
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+  });
+
+  const settle = async (text: RegExp | string) => {
+    await screen.findByText(text);
+    await new Promise((r) => setTimeout(r, 50));
+  };
+
+  test('health-check rejection disconnects and logs', async () => {
+    server.use(
+      rest.get('/api/integrations/zendesk/health', (req, res) =>
+        res.networkError('down')
+      )
+    );
+
+    render(<ZendeskIntegration />);
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith('Health check failed:', expect.anything());
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /connect zendesk/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  test('status and priority filters reload tickets with params', async () => {
+    let ticketRequests: string[] = [];
+    server.use(
+      rest.post('/api/integrations/zendesk/tickets', async (req, res, ctx) => {
+        ticketRequests.push(await req.text());
+        return res(
+          ctx.status(200),
+          ctx.json({
+            data: {
+              tickets: [
+                {
+                  id: 301,
+                  subject: 'Filterable ticket',
+                  description: 'd',
+                  status: 'open',
+                  priority: 'high',
+                  requester: { name: 'Alice' },
+                },
+              ],
+            },
+          })
+        );
+      })
+    );
+
+    render(<ZendeskIntegration />);
+    await settle('Filterable ticket');
+
+    const selects = screen.getAllByTestId('native-select');
+    // first select = status filter, second = priority filter
+    fireEvent.change(selects[0], { target: { value: 'open' } });
+    await waitFor(() => {
+      expect(
+        ticketRequests.some((body) => body.includes('"status":"open"'))
+      ).toBe(true);
+    });
+
+    fireEvent.change(selects[1], { target: { value: 'urgent' } });
+    await waitFor(() => {
+      expect(
+        ticketRequests.some((body) => body.includes('"priority":"urgent"'))
+      ).toBe(true);
+    });
+    expect(await screen.findByText('Filterable ticket')).toBeInTheDocument();
+  });
+
+  test('create ticket dialog drives selects, due date and cancel', async () => {
+    let createdBody: string = '';
+    server.use(
+      rest.post('/api/integrations/zendesk/tickets/create', async (req, res, ctx) => {
+        createdBody = await req.text();
+        return res(ctx.status(200), ctx.json({ success: true }));
+      })
+    );
+
+    render(<ZendeskIntegration />);
+    await settle(/login issue/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /create ticket/i }));
+    const dialog = await screen.findByRole('dialog');
+
+    fireEvent.change(screen.getByPlaceholderText('Ticket subject'), {
+      target: { value: 'Select-driven ticket' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Ticket description'), {
+      target: { value: 'Body' },
+    });
+
+    const selects = Array.from(dialog.querySelectorAll('select'));
+    for (const sel of selects) {
+      fireEvent.change(sel, { target: { value: sel.options[1]?.value ?? '' } });
+    }
+
+    // the due-at input is the remaining text input (not subject/description)
+    const dueInput = Array.from(
+      dialog.querySelectorAll('input')
+    ).find(
+      (i) => !['Ticket subject', 'Ticket description'].includes(i.placeholder)
+    ) as HTMLInputElement | undefined;
+    if (dueInput) {
+      fireEvent.change(dueInput, { target: { value: '2026-09-01' } });
+    }
+
+    const footerButtons = Array.from(dialog.querySelectorAll('button')).filter(
+      (b) => b.textContent?.includes('Create Ticket')
+    );
+    fireEvent.click(footerButtons[footerButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(createdBody).toContain('Select-driven ticket');
+    });
+  });
+
+  test('user dialog drives role/organization selects and the verified checkbox', async () => {
+    let createdBody: string = '';
+    server.use(
+      rest.post('/api/integrations/zendesk/users/create', async (req, res, ctx) => {
+        createdBody = await req.text();
+        return res(ctx.status(200), ctx.json({ success: true }));
+      }),
+      rest.post('/api/integrations/zendesk/organizations', (req, res, ctx) =>
+        res(
+          ctx.status(200),
+          ctx.json({
+            data: {
+              organizations: [
+                { id: 'org1', name: 'Acme Corp', tags: [], domain_names: [] },
+              ],
+            },
+          })
+        )
+      )
+    );
+
+    render(<ZendeskIntegration />);
+    await settle(/login issue/i);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Users' }));
+    fireEvent.click(screen.getAllByRole('button', { name: /create user/i })[0]);
+    const dialog = await screen.findByRole('dialog');
+
+    fireEvent.change(screen.getByPlaceholderText('User name'), {
+      target: { value: 'Eve' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('user@example.com'), {
+      target: { value: 'eve@example.com' },
+    });
+
+    const selects = Array.from(dialog.querySelectorAll('select'));
+    for (const sel of selects) {
+      fireEvent.change(sel, { target: { value: sel.options[sel.options.length - 1].value } });
+    }
+
+    const checkbox = dialog.querySelector('[role="checkbox"]') as HTMLElement;
+    if (checkbox) {
+      fireEvent.click(checkbox);
+    }
+
+    const footerButtons = Array.from(dialog.querySelectorAll('button')).filter(
+      (b) => b.textContent?.includes('Create User')
+    );
+    fireEvent.click(footerButtons[footerButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(createdBody).toContain('Eve');
+    });
+  });
+
+  test('organization dialog toggles shared tickets and comments checkboxes', async () => {
+    let createdBody: string = '';
+    server.use(
+      rest.post('/api/integrations/zendesk/organizations/create', async (req, res, ctx) => {
+        createdBody = await req.text();
+        return res(ctx.status(200), ctx.json({ success: true }));
+      })
+    );
+
+    render(<ZendeskIntegration />);
+    await settle(/login issue/i);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Organizations' }));
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /create organization/i })[0]
+    );
+    const dialog = await screen.findByRole('dialog');
+
+    fireEvent.change(screen.getByPlaceholderText('Organization name'), {
+      target: { value: 'CheckCorp' },
+    });
+
+    const checkboxes = Array.from(
+      dialog.querySelectorAll('[role="checkbox"]')
+    ) as HTMLElement[];
+    for (const cb of checkboxes) {
+      fireEvent.click(cb);
+    }
+
+    const footerButtons = Array.from(dialog.querySelectorAll('button')).filter(
+      (b) => b.textContent?.includes('Create Organization')
+    );
+    fireEvent.click(footerButtons[footerButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(createdBody).toContain('CheckCorp');
+    });
+  });
+
+  test('renders end-user and unknown role variants on the Users tab', async () => {
+    server.use(
+      rest.post('/api/integrations/zendesk/users', (req, res, ctx) =>
+        res(
+          ctx.status(200),
+          ctx.json({
+            data: {
+              users: [
+                { id: 1, name: 'End User Eve', email: 'eve@x.com', role: 'end-user', active: true },
+                { id: 2, name: 'Mystery Max', email: 'max@x.com', role: 'mystery', active: true },
+              ],
+            },
+          })
+        )
+      )
+    );
+
+    render(<ZendeskIntegration />);
+    await settle(/login issue/i);
+    fireEvent.click(screen.getByRole('button', { name: 'Users' }));
+
+    expect(await screen.findByText('End User Eve')).toBeInTheDocument();
+    expect(screen.getByText('Mystery Max')).toBeInTheDocument();
   });
 });

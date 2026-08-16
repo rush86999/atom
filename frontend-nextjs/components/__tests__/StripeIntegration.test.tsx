@@ -16,6 +16,7 @@
 
 import React from 'react';
 import { renderWithProviders, screen, waitFor, within } from '../../tests/test-utils';
+import { fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 jest.mock('../../lib/api-client', () => ({
@@ -426,5 +427,296 @@ describe('StripeIntegration', () => {
     expect(
       screen.getByRole('button', { name: /create payment/i })
     ).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Extended coverage: failure toasts, status filter, tab actions, dialog
+// cancels, and receipt link
+// ---------------------------------------------------------------------------
+describe('StripeIntegration (extended coverage)', () => {
+  const user = userEvent.setup();
+  let openSpy: jest.Mock;
+  let errorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    openSpy = jest.fn();
+    window.open = openSpy as any;
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockGet.mockImplementation((url: string) => {
+      if (url === '/api/stripe/payments') {
+        return Promise.resolve({ data: { payments } });
+      }
+      if (url === '/api/stripe/customers') {
+        return Promise.resolve({ data: { customers } });
+      }
+      if (url === '/api/stripe/products') {
+        return Promise.resolve({ data: { products } });
+      }
+      if (url === '/api/stripe/analytics') {
+        return Promise.resolve({ data: { analytics } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+    mockPost.mockResolvedValue({ data: { success: true } });
+  });
+
+  const settle = async () => {
+    await screen.findByText('Annual subscription');
+  };
+
+  const dialogEl = () => document.getElementById('dialog-content') as HTMLElement;
+
+  const pickOption = async (label: string) => {
+    const triggers = screen.getAllByRole('combobox');
+    fireEvent.keyDown(triggers[0], { key: 'ArrowDown' });
+    const option = await waitFor(() => {
+      const found = Array.from(document.querySelectorAll('[role="option"]')).find(
+        (i) => i.textContent === label
+      );
+      if (!found) throw new Error(`option ${label} not found`);
+      return found as HTMLElement;
+    });
+    fireEvent.click(option);
+  };
+
+  test('opens the payment receipt link', async () => {
+    renderWithProviders(<StripeIntegration />);
+    await settle();
+
+    const row = screen.getByText('Annual subscription').closest('tr')!;
+    fireEvent.click(within(row).getByRole('button', { name: /receipt/i }));
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://pay.stripe.example/receipts/1',
+      '_blank'
+    );
+  });
+
+  test('filters payments by status via the select', async () => {
+    renderWithProviders(<StripeIntegration />);
+    await settle();
+
+    await pickOption('Succeeded');
+    await waitFor(() => {
+      expect(screen.getByText('Annual subscription')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Pro plan upgrade')).not.toBeInTheDocument();
+  });
+
+  test('customers tab View Details selects a customer', async () => {
+    renderWithProviders(<StripeIntegration />);
+    await settle();
+
+    await user.click(screen.getByRole('button', { name: 'Customers' }));
+    await user.click(await screen.findByRole('button', { name: /view details/i }));
+    // The customer details panel renders the selected email
+    expect(await screen.findByText('ada@example.com')).toBeInTheDocument();
+  });
+
+  test('products tab shows Edit and subscriptions tab shows the create button', async () => {
+    renderWithProviders(<StripeIntegration />);
+    await settle();
+
+    await user.click(screen.getByRole('button', { name: 'Products' }));
+    await user.click(await screen.findByRole('button', { name: /edit/i }));
+    expect(await screen.findByText('Analytics Pro')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Subscriptions' }));
+    expect(
+      await screen.findByRole('button', { name: /create subscription/i })
+    ).toBeInTheDocument();
+  });
+
+  test('create-payment dialog fills currency and cancels', async () => {
+    renderWithProviders(<StripeIntegration />);
+    await settle();
+
+    await user.click(screen.getByRole('button', { name: /create payment/i }));
+    const dialog = dialogEl();
+    await user.type(within(dialog).getByPlaceholderText('0.00'), '10');
+    fireEvent.change(within(dialog).getByPlaceholderText('USD'), {
+      target: { value: 'EUR' },
+    });
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  test('shows an error toast when payment creation is rejected', async () => {
+    mockPost.mockResolvedValueOnce({ data: { success: false, message: 'card declined' } });
+    renderWithProviders(<StripeIntegration />);
+    await settle();
+
+    await user.click(screen.getByRole('button', { name: /create payment/i }));
+    const dialog = dialogEl();
+    await user.type(within(dialog).getByPlaceholderText('0.00'), '10');
+    await user.type(
+      within(dialog).getByPlaceholderText(/payment description/i),
+      'Declined charge'
+    );
+    await user.click(within(dialog).getByRole('button', { name: /create payment/i }));
+
+    // The failure path runs without creating anything; the dialog stays open
+    // and no new payment row appears.
+    await new Promise((r) => setTimeout(r, 150));
+    expect(screen.queryByText('Declined charge')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  test('shows an error toast when customer creation is rejected', async () => {
+    mockPost.mockRejectedValueOnce({
+      response: { data: { message: 'invalid email' } },
+    });
+    renderWithProviders(<StripeIntegration />);
+    await settle();
+
+    await user.click(screen.getByRole('button', { name: 'Customers' }));
+    await user.click(await screen.findByRole('button', { name: /add customer|create customer/i }));
+
+    const dialog = dialogEl();
+    await user.type(within(dialog).getByPlaceholderText('Customer name'), 'Bob');
+    await user.type(within(dialog).getByPlaceholderText('customer@example.com'), 'bob@example.com');
+    await user.click(within(dialog).getAllByRole('button').slice(-1)[0]);
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith('/api/stripe/customers/create', {
+        name: 'Bob',
+        email: 'bob@example.com',
+      });
+    });
+    // Rejected: the dialog stays open.
+    await new Promise((r) => setTimeout(r, 150));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  test('shows an error toast when product creation is rejected', async () => {
+    mockPost.mockResolvedValueOnce({ data: { success: false, message: 'bad product' } });
+    renderWithProviders(<StripeIntegration />);
+    await settle();
+
+    await user.click(screen.getByRole('button', { name: 'Products' }));
+    await user.click(await screen.findByRole('button', { name: /create product|add product/i }));
+
+    const dialog = dialogEl();
+    await user.type(within(dialog).getByPlaceholderText('Product name'), 'Failing');
+    await user.type(within(dialog).getByPlaceholderText('0.00'), '9');
+    await user.click(within(dialog).getAllByRole('button').slice(-1)[0]);
+
+    await new Promise((r) => setTimeout(r, 150));
+    // Failure path keeps the dialog open and adds no product card.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  test('renders pending and unknown payment statuses', async () => {
+    mockGet.mockImplementation((url: string) => {
+      if (url === '/api/stripe/payments') {
+        return Promise.resolve({
+          data: {
+            payments: [
+              ...payments,
+              {
+                id: 'pi_pend',
+                amount: 1000,
+                currency: 'usd',
+                status: 'pending',
+                description: 'Pending charge',
+                created: '2026-01-07T10:00:00Z',
+              },
+              {
+                id: 'pi_odd',
+                amount: 1200,
+                currency: 'usd',
+                status: 'refunded',
+                description: 'Refunded charge',
+                created: '2026-01-08T10:00:00Z',
+              },
+            ],
+          },
+        });
+      }
+      if (url === '/api/stripe/customers') {
+        return Promise.resolve({ data: { customers } });
+      }
+      if (url === '/api/stripe/products') {
+        return Promise.resolve({ data: { products } });
+      }
+      if (url === '/api/stripe/analytics') {
+        return Promise.resolve({ data: { analytics } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    renderWithProviders(<StripeIntegration />);
+    await settle();
+
+    expect(screen.getByText('Pending charge')).toBeInTheDocument();
+    expect(screen.getByText('Refunded charge')).toBeInTheDocument();
+    expect(screen.getByText('pending')).toBeInTheDocument();
+    expect(screen.getByText('refunded')).toBeInTheDocument();
+  });
+});
+
+describe('StripeIntegration (extended coverage 2)', () => {
+  const user = userEvent.setup();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGet.mockImplementation((url: string) => {
+      if (url === '/api/stripe/payments') return Promise.resolve({ data: { payments } });
+      if (url === '/api/stripe/customers') return Promise.resolve({ data: { customers } });
+      if (url === '/api/stripe/products') return Promise.resolve({ data: { products } });
+      if (url === '/api/stripe/analytics') return Promise.resolve({ data: { analytics } });
+      return Promise.resolve({ data: {} });
+    });
+    mockPost.mockResolvedValue({ data: { success: true } });
+  });
+
+  const settle = async () => {
+    await screen.findByText('Annual subscription');
+  };
+
+  const dialogEl = () => document.getElementById('dialog-content') as HTMLElement;
+
+  test('covers the customer success:false branch, dialog cancels, and subscription button', async () => {
+    mockPost.mockImplementation((url: string) => {
+      if (url === '/api/stripe/customers/create') {
+        return Promise.resolve({ data: { success: false, message: 'nope' } });
+      }
+      return Promise.resolve({ data: { success: true } });
+    });
+
+    renderWithProviders(<StripeIntegration />);
+    await settle();
+
+    // Subscriptions tab create button (state-only, no dialog)
+    await user.click(screen.getByRole('button', { name: 'Subscriptions' }));
+    await user.click(await screen.findByRole('button', { name: /create subscription/i }));
+    expect(await screen.findByText('No subscriptions loaded.')).toBeInTheDocument();
+
+    // Customer dialog: rejected branch keeps the dialog open
+    await user.click(screen.getByRole('button', { name: 'Customers' }));
+    await user.click(await screen.findByRole('button', { name: /add customer|create customer/i }));
+    let dialog = dialogEl();
+    await user.type(within(dialog).getByPlaceholderText('Customer name'), 'Carol');
+    await user.type(within(dialog).getByPlaceholderText('customer@example.com'), 'carol@example.com');
+    await user.click(within(dialog).getAllByRole('button').slice(-1)[0]);
+    await new Promise((r) => setTimeout(r, 150));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    // Product dialog cancel
+    await user.click(within(dialogEl()).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: 'Products' }));
+    await user.click(await screen.findByRole('button', { name: /create product|add product/i }));
+    dialog = dialogEl();
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 });

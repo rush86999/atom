@@ -10,29 +10,11 @@ import {
   ArrowRight,
   Plus,
   Search,
-  Settings,
   RefreshCw,
-  Clock,
-  Star,
   Eye,
-  Edit,
-  Trash2,
-  MessageSquare,
-  Mail,
-  Phone,
-  Calendar,
-  User,
-  Briefcase,
-  Building,
-  Globe,
-  MapPin,
-  DollarSign,
-  Target,
-  Users,
-  FileText,
   LayoutDashboard,
 } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -49,9 +31,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 // Helper hook for modal state
 function useDisclosure() {
@@ -277,6 +257,21 @@ interface SalesforceUser {
   ManagerName?: string;
 }
 
+// Static Tailwind classes keyed by the color names returned by the
+// status/stage color helpers (static keys keep Tailwind JIT happy).
+const statusColorClasses: Record<string, string> = {
+  gray: "text-muted-foreground",
+  yellow: "text-yellow-600",
+  blue: "text-blue-600",
+  green: "text-green-600",
+  purple: "text-purple-600",
+  orange: "text-orange-600",
+  pink: "text-pink-600",
+  teal: "text-teal-600",
+  indigo: "text-indigo-600",
+  red: "text-red-600",
+};
+
 const SalesforceIntegration: React.FC = () => {
   const [leads, setLeads] = useState<SalesforceLead[]>([]);
   const [opportunities, setOpportunities] = useState<SalesforceOpportunity[]>(
@@ -285,7 +280,6 @@ const SalesforceIntegration: React.FC = () => {
   const [accounts, setAccounts] = useState<SalesforceAccount[]>([]);
   const [contacts, setContacts] = useState<SalesforceContact[]>([]);
   const [cases, setCases] = useState<SalesforceCase[]>([]);
-  const [users, setUsers] = useState<SalesforceUser[]>([]);
   const [userProfile, setUserProfile] = useState<SalesforceUser | null>(null);
   const [loading, setLoading] = useState({
     leads: false,
@@ -293,7 +287,6 @@ const SalesforceIntegration: React.FC = () => {
     accounts: false,
     contacts: false,
     cases: false,
-    users: false,
     profile: false,
   });
   const [connected, setConnected] = useState(false);
@@ -522,29 +515,6 @@ const SalesforceIntegration: React.FC = () => {
     }
   }, []);
 
-  const loadUsers = useCallback(async () => {
-    setLoading((prev) => ({ ...prev, users: true }));
-    try {
-      const response = await fetch("/api/integrations/salesforce/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: "current",
-          limit: 100,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.data?.users || []);
-      }
-    } catch (error) {
-      console.error("Failed to load users:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, users: false }));
-    }
-  }, []);
-
   const checkConnection = useCallback(async () => {
     try {
       const response = await fetch("/api/integrations/salesforce/health");
@@ -557,7 +527,6 @@ const SalesforceIntegration: React.FC = () => {
         loadAccounts();
         loadContacts();
         loadCases();
-        loadUsers();
       } else {
         setConnected(false);
         setHealthStatus("error");
@@ -574,7 +543,6 @@ const SalesforceIntegration: React.FC = () => {
     loadAccounts,
     loadContacts,
     loadCases,
-    loadUsers,
   ]);
 
   // Create records
@@ -756,42 +724,13 @@ const SalesforceIntegration: React.FC = () => {
 
   const filteredAccounts = accounts.filter(
     (account) =>
-      account.Name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (account.Type &&
-        account.Type.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (account.Industry &&
-        account.Industry.toLowerCase().includes(searchQuery.toLowerCase())),
-  );
-
-  const filteredContacts = contacts.filter(
-    (contact) =>
-      (contact.FirstName &&
-        contact.FirstName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      contact.LastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (contact.Email &&
-        contact.Email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (contact.AccountName &&
-        contact.AccountName.toLowerCase().includes(searchQuery.toLowerCase())),
-  );
-
-  const filteredCases = cases.filter(
-    (case_) =>
-      (case_.Subject &&
-        case_.Subject.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      case_.Status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (case_.AccountName &&
-        case_.AccountName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      case_.CaseNumber.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
-  const filteredUsers = users.filter(
-    (user) =>
-      user.Name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.Email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (user.Title &&
-        user.Title.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (user.Department &&
-        user.Department.toLowerCase().includes(searchQuery.toLowerCase())),
+      (selectedType === "all" ||
+        (account.Type && account.Type.includes(selectedType))) &&
+      (account.Name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (account.Type &&
+          account.Type.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (account.Industry &&
+          account.Industry.toLowerCase().includes(searchQuery.toLowerCase()))),
   );
 
   // Stats calculations
@@ -800,7 +739,6 @@ const SalesforceIntegration: React.FC = () => {
     (l) => l.Status !== "Qualified" && !l.IsConverted,
   ).length;
   const totalOpportunities = opportunities.length;
-  const openOpportunities = opportunities.filter((o) => !o.IsClosed).length;
   const totalAmount = opportunities.reduce(
     (sum, o) => sum + (o.Amount || 0),
     0,
@@ -808,8 +746,6 @@ const SalesforceIntegration: React.FC = () => {
   const totalAccounts = accounts.length;
   const totalContacts = contacts.length;
   const openCases = cases.filter((c) => !c.ClosedDate).length;
-  const totalUsers = users.length;
-  const activeUsers = users.filter((u) => u.IsActive).length;
 
   useEffect(() => {
     checkConnection();
@@ -823,7 +759,6 @@ const SalesforceIntegration: React.FC = () => {
       loadAccounts();
       loadContacts();
       loadCases();
-      loadUsers();
     }
   }, [
     connected,
@@ -833,14 +768,7 @@ const SalesforceIntegration: React.FC = () => {
     loadAccounts,
     loadContacts,
     loadCases,
-    loadUsers,
   ]);
-
-  useEffect(() => {
-    if (selectedAccount) {
-      loadContacts();
-    }
-  }, [selectedAccount, loadContacts]);
 
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleString();
@@ -892,34 +820,6 @@ const SalesforceIntegration: React.FC = () => {
         return "green";
       case "closed lost":
         return "red";
-      default:
-        return "gray";
-    }
-  };
-
-  const getCaseStatusColor = (status: string): string => {
-    switch (status?.toLowerCase()) {
-      case "new":
-        return "blue";
-      case "working":
-        return "yellow";
-      case "escalated":
-        return "orange";
-      case "closed":
-        return "green";
-      default:
-        return "gray";
-    }
-  };
-
-  const getCasePriorityColor = (priority: string): string => {
-    switch (priority?.toLowerCase()) {
-      case "high":
-        return "red";
-      case "medium":
-        return "yellow";
-      case "low":
-        return "green";
       default:
         return "gray";
     }
@@ -1135,7 +1035,10 @@ const SalesforceIntegration: React.FC = () => {
                                 </td>
                                 <td className="p-4 align-middle">{lead.Company}</td>
                                 <td className="p-4 align-middle">
-                                  <Badge variant="outline">
+                                  <Badge
+                                    variant="outline"
+                                    className={statusColorClasses[getLeadStatusColor(lead.Status)]}
+                                  >
                                     {lead.Status}
                                   </Badge>
                                 </td>
@@ -1211,7 +1114,10 @@ const SalesforceIntegration: React.FC = () => {
                                 <td className="p-4 align-middle font-medium">{opp.Name}</td>
                                 <td className="p-4 align-middle">{opp.AccountName}</td>
                                 <td className="p-4 align-middle">
-                                  <Badge variant="outline">
+                                  <Badge
+                                    variant="outline"
+                                    className={statusColorClasses[getOpportunityStageColor(opp.StageName)]}
+                                  >
                                     {opp.StageName}
                                   </Badge>
                                 </td>

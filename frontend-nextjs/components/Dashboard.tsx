@@ -187,7 +187,9 @@ const Dashboard: React.FC = () => {
     return new Date(date).toDateString() === today.toDateString();
   };
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = (
+    priority: string,
+  ): "destructive" | "secondary" | "outline" => {
     switch (priority) {
       case "high":
         return "destructive";
@@ -365,7 +367,7 @@ const Dashboard: React.FC = () => {
                               >
                                 {task.title}
                               </span>
-                              <Badge variant={task.priority === 'high' ? 'destructive' : 'outline'}>
+                              <Badge variant={getPriorityColor(task.priority)}>
                                 {task.priority}
                               </Badge>
                             </div>
