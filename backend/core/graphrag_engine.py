@@ -474,11 +474,16 @@ class GraphRAGEngine:
 
     # ==================== INGESTION ORCHESTRATOR ====================
 
-    async def ingest_document(self, workspace_id: Optional[str] = None, 
+    async def ingest_document(self, workspace_id: Optional[str] = None,
                              tenant_id: Optional[str] = None,
-                             doc_id: str = "unknown", text: str = "", source: str = "unknown"):
+                             doc_id: str = "unknown", text: str = "", source: str = "unknown",
+                             sensitivity: str = "internal"):
         """
         Ingest raw text -> Extract -> Store in Postgres.
+
+        ``sensitivity`` (P4 ladder: public|internal|confidential|restricted)
+        propagates to every node extracted from this document — taint rule:
+        a node is as restricted as the most restrictive doc that mentions it.
         """
         ws_id = workspace_id or self.workspace_id
         tid = tenant_id or self.tenant_id
@@ -495,10 +500,18 @@ class GraphRAGEngine:
             return
 
         # 2. Store
-        e_dicts = [{"name": e.name, "type": e.entity_type, "description": e.description, "properties": e.properties} for e in entities]
+        e_dicts = [{"name": e.name, "type": e.entity_type, "description": e.description, "properties": e.properties, "sensitivity": sensitivity} for e in entities]
         r_dicts = [{"from": r.from_entity, "to": r.to_entity, "type": r.rel_type, "properties": r.properties} for r in relationships]
-        
+
         self.ingest_structured_data(ws_id, tid, e_dicts, r_dicts)
+
+    @staticmethod
+    def _raise_sensitivity(current: Optional[str], incoming: Optional[str]) -> str:
+        """Return the more restrictive of two P4 classifications (never lowers)."""
+        from core.org_data_bundle_service import SENSITIVITY_LADDER
+        cur = current if current in SENSITIVITY_LADDER else "internal"
+        inc = incoming if incoming in SENSITIVITY_LADDER else "internal"
+        return max(cur, inc, key=SENSITIVITY_LADDER.index)
 
     # ==================== WRITE OPERATIONS (SQL) ====================
 
@@ -766,14 +779,14 @@ class GraphRAGEngine:
         with get_db_session() as session:
             try:
                 # 1. Process Nodes
-                node_map = {} 
+                node_map = {}
                 for e_data in entities:
                     name = e_data.get("name")
                     if not name: continue
-                    
+
                     properties = e_data.get("properties", {})
                     canonical_type = properties.get("canonical_type")
-                    
+
                     if canonical_type:
                         canonical_id = self._resolve_canonical_entity(session, ws_id, name, canonical_type)
                         if canonical_id:
@@ -781,6 +794,25 @@ class GraphRAGEngine:
 
                     properties_copy = dict(properties)
                     embedding_val = properties_copy.pop("embedding", None)
+                    sensitivity = e_data.get("sensitivity")
+
+                    # Upsert on (workspace, name, type): re-ingesting the same
+                    # entity (or importing an org bundle) must merge, not
+                    # duplicate. Sensitivity taint rule: never lowered.
+                    existing = session.query(GraphNode).filter_by(
+                        workspace_id=ws_id,
+                        name=name,
+                        type=e_data.get("type", "unknown"),
+                    ).first()
+                    if existing:
+                        existing.description = e_data.get("description", "") or existing.description
+                        existing.properties = properties_copy
+                        if embedding_val is not None:
+                            existing.embedding = embedding_val
+                        existing.sensitivity = self._raise_sensitivity(existing.sensitivity, sensitivity)
+                        session.flush()
+                        node_map[name] = existing.id
+                        continue
 
                     node = GraphNode(
                         tenant_id=tid,
@@ -789,10 +821,11 @@ class GraphRAGEngine:
                         type=e_data.get("type", "unknown"),
                         description=e_data.get("description", ""),
                         properties=properties_copy,
-                        embedding=embedding_val
+                        embedding=embedding_val,
+                        sensitivity=self._raise_sensitivity("internal", sensitivity),
                     )
                     session.add(node)
-                    session.flush() 
+                    session.flush()
                     node_map[name] = node.id
                 
                 # 2. Process Edges

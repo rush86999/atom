@@ -6,6 +6,35 @@
 
 ---
 
+## Session 2026-08-16 (w110 — Org Ingestion Sharing implementation verified + test suite: ORG_INGESTION_SHARING_PLAN.md Phases 0–2)
+
+**Context**: the plan (`docs/architecture/ORG_INGESTION_SHARING_PLAN.md`) was implemented in-tree (models + migration `20260816_org_ingestion_sharing` + `core/org_sharing_crypto.py` + `core/ingestion_profile_service.py` + `core/org_data_bundle_service.py` + Phase 0 persistence in `core/hybrid_data_ingestion.py` + routes in `api/data_ingestion_routes.py`) with **zero tests**. This wave added the plan-§7 test suite and closed one plan violation.
+
+**Files tested** (NEW `tests/test_covpush_w110_org_sharing.py`, 46 tests — plus 4 parallel test files `test_org_sharing_crypto.py` / `test_hybrid_ingestion_persistence.py` / `test_ingestion_profile_service.py` / `test_org_data_bundle_service.py`; **94 passed combined**):
+
+| Area | Coverage |
+|---|---|
+| `core/org_sharing_crypto.py` | keypair gen/persist (0600), sign/verify round-trip, tampered-payload reject, foreign-key fails until registered, bad-length reject, idempotent registration, bad-base64 fail-closed, empty-registry own-key verify, sha256 fingerprint |
+| Phase 0 (`core/hybrid_data_ingestion.py`) | sync configs + usage stats survive restart, disable persists, last_synced persists, `ATOM_INGESTION_PERSIST_STATE=false` writes nothing, per-workspace isolation |
+| `core/ingestion_profile_service.py` | build structure, credential keys stripped from folders, fail-closed when sanitizer misses, signed envelope + hash consistency, A→B round-trip (own tenant, listed integrations only — personal sources untouched), unsigned/tampered/unregistered-signer/unsupported-version rejects, rejected import IS audited |
+| `core/org_data_bundle_service.py` | restricted excluded by default (+excluded_by_sensitivity breakdown), raised ceiling includes confidential, invalid ceiling, per-source filter, record cap (100k), fail-closed, export audit row, import round-trip + idempotent re-import (document_ingestions dedup), changed-record re-ingest, tombstone → `freshness_status='removed'`, bad-signature/tampered/over-cap rejects, import audit row |
+| Routes (`api/data_ingestion_routes.py`) | kill switch `ATOM_ORG_SHARING_ENABLED` (default off) → 403 on all 6 org routes; org-key bootstrap; peer-key register (+bad-length 400); profile export/import flow; bundle export/import flow |
+
+**Real gap found + fixed (TDD)**: plan §6.3 "unverified bundles are rejected **and audited**" was violated — both `apply_profile` and `apply_bundle` raised on verification failure WITHOUT recording the audit row. Now record `IngestionProfileImport(signature_valid=False)` / `BundleImport(records_total=0)` before re-raising. RED: `test_rejected_import_is_audited` / `test_apply_bundle_rejects_bad_signature_and_audits` (asserted 0 audit rows) → GREEN after.
+
+**Stale-test repairs (pre-existing at HEAD, verified via stash)**: `tests/test_covpush_w26_hybrid_ingestion.py` — `TestZohoMultiAppFetcher::test_no_token` patched `core.database.SessionLocal` but `_fetch_zoho_multi_app_data` uses the module-level `core.hybrid_data_ingestion.SessionLocal` binding (sibling tests patch correctly) → repointed; `TestUniversalAdapter::test_no_fetch_records_zoho_fallback` ran against the real DB/factory (unmocked `ServiceFactory` + `SessionLocal`) → added the standard db/factory mocks. Both fail identically at pre-Phase-0 code.
+
+**Verification**:
+```bash
+# Full org-sharing + ingestion cluster: 349 passed / 0 failed
+PYTHONPATH=. pytest tests/test_covpush_w110_org_sharing.py tests/test_hybrid_ingestion_persistence.py tests/test_ingestion_profile_service.py tests/test_org_data_bundle_service.py tests/test_org_sharing_crypto.py tests/unit/test_hybrid_data_ingestion.py tests/test_covpush_ingestion_hybrid.py tests/test_covpush_w26_hybrid_ingestion.py tests/test_covpush_w34_ingestion.py -p no:cacheprovider
+# Router boot: 12 routes incl. /org-key, /profile/{export,import}, /bundle/{export,import}
+# mypy: no new error classes in the 3 new services (repo-wide SQLAlchemy Column[X] baseline noise only; CI does not run mypy)
+```
+
+**Notes**: `worker_database` fixture is SESSION-scoped in-memory SQLite → org-sharing tests carry an autouse table-cleanup fixture; Phase 0 tests patch `core.hybrid_data_ingestion.SessionLocal` (module binding) and re-enable `ATOM_INGESTION_PERSIST_STATE` (root conftest disables it for pre-existing suites). Phase 2b (memory bundle: GraphRAG + raw text) and Phase 3 (hub) remain PROPOSED/NOT IMPLEMENTED per the plan doc.
+
+---
 ## Session 2026-08-16 (wave 124 — FE dead-code completion + last coverage tail: 4 components cleaned, 8 new suites, FE lines 95.31% → 96.10%, zero 0%-files left)
 
 **Scope**: "close all gaps and complete dead code" follow-on to the 95%-push wave (w101-w103). All 4 FE dead-code findings from that wave were independently re-verified (two prior reports were STALE — `Dashboard.tsx getPriorityColor` and `salesforce.tsx getLeadStatusColor/getOpportunityStageColor` ARE live; the subagents had read an older revision) and removed where real. Dead code is now **removed**, not just documented.

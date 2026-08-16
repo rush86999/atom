@@ -2645,10 +2645,99 @@ class IngestionSettings(Base):
     exclude_folders = Column(JSONColumn, default=list)
     max_file_size_mb = Column(Integer, default=50)
     sync_frequency_minutes = Column(Integer, default=60)
-    
+
+    # Org Ingestion Sharing Phase 0: hybrid ingestion pipeline state
+    # (previously in-memory only in HybridDataIngestionService — lost on restart).
+    entity_types = Column(JSONColumn, default=list)
+    sync_last_n_days = Column(Integer, default=30)
+    max_records_per_sync = Column(Integer, default=1000)
+    sync_mode = Column(String, default="incremental")
+    usage_stats_json = Column(JSONColumn, default=dict)
+
     last_sync = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class OrgPublicKey(Base):
+    """Org Ingestion Sharing (Phase 1): Ed25519 public keys trusted for
+    verifying signed ingestion profiles / org data bundles.
+
+    The instance's OWN keypair is generated once and the private key is kept
+    in ``./data/org_sharing_key`` (0600) — never in the DB. This table stores
+    the own public key (``is_own=True``) and peer members' public keys
+    distributed out-of-band by the org admin.
+    """
+    __tablename__ = "org_public_keys"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    label = Column(String(255), nullable=False)  # e.g. "member-laptop-alice"
+    public_key = Column(String(128), nullable=False, index=True)  # base64 (raw 32 bytes)
+    fingerprint = Column(String(64), nullable=False, index=True)  # sha256 of raw key
+    is_own = Column(Boolean, default=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_org_public_keys_own", "workspace_id", "is_own"),
+    )
+
+
+class IngestionProfileImport(Base):
+    """Org Ingestion Sharing (Phase 1): audit of imported ingestion profiles."""
+    __tablename__ = "ingestion_profile_imports"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    profile_version = Column(Integer, nullable=False)
+    signature_valid = Column(Boolean, nullable=False, default=False)
+    applied_integrations = Column(JSONColumn, default=list)
+    performed_by = Column(String, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class BundleExport(Base):
+    """Org Ingestion Sharing (Phase 2): audit of org data bundle exports."""
+    __tablename__ = "bundle_exports"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    payload_hash = Column(String(64), nullable=False, index=True)
+    sources = Column(JSONColumn, default=list)
+    record_count = Column(Integer, default=0)
+    sensitivity_breakdown = Column(JSONColumn, default=dict)
+    section_counts = Column(JSONColumn, default=dict)  # Phase 2b: per-section counts
+    destination = Column(String(255), nullable=True)  # free-text label, e.g. "finance-team"
+    performed_by = Column(String, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class BundleImport(Base):
+    """Org Ingestion Sharing (Phase 2): audit of org data bundle imports."""
+    __tablename__ = "bundle_imports"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    payload_hash = Column(String(64), nullable=False, index=True)
+    records_total = Column(Integer, default=0)
+    records_ingested = Column(Integer, default=0)
+    records_skipped = Column(Integer, default=0)
+    tombstones_applied = Column(Integer, default=0)
+    section_counts = Column(JSONColumn, default=dict)  # Phase 2b: per-section counts
+    performed_by = Column(String, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class IntegrationMetric(Base):
     """
@@ -2698,6 +2787,11 @@ class GraphNode(Base):
         nullable=True
     )
     
+    # Org Ingestion Sharing Phase 2b: sensitivity taint propagation — a node's
+    # classification is inherited from the most restrictive source document it
+    # was extracted from (set at extraction time by GraphRAGEngine).
+    sensitivity = Column(String(20), nullable=True, default="internal", server_default="internal")
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

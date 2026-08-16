@@ -3,9 +3,11 @@ Hybrid Data Ingestion API Routes
 Exposes endpoints for managing automatic data sync from integrations.
 """
 
+import base64
 import logging
+import os
 from typing import Any, Dict, List, Optional
-from fastapi import Depends, Query, Request
+from fastapi import Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -13,10 +15,24 @@ from core.api_governance import ActionComplexity, require_governance
 from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.llm.gateway.auth import get_gateway_identity
 
 logger = logging.getLogger(__name__)
 
 router = BaseAPIRouter(prefix="/api/data-ingestion", tags=["Data Ingestion"])
+
+
+def org_sharing_enabled() -> bool:
+    """Master switch for org ingestion sharing (default OFF)."""
+    return os.getenv("ATOM_ORG_SHARING_ENABLED", "false").lower() in ("1", "true", "yes")
+
+
+def require_org_sharing():
+    if not org_sharing_enabled():
+        raise router.permission_denied_error(
+            "org ingestion sharing",
+            details={"reason": "ATOM_ORG_SHARING_ENABLED is false"},
+        )
 
 
 # Request/Response Models
@@ -44,11 +60,11 @@ class UsageSummaryResponse(BaseModel):
     auto_sync_enabled_count: int = 0
 
 
-# Helper to get workspace_id (in production, extract from auth token)
-def get_workspace_id() -> str:
-    """Get workspace ID from request context"""
-    # In production, this would come from JWT/session
-    return "default"
+# Helper to resolve the workspace from the authenticated user
+def get_workspace_id(current_user: Optional[User] = None) -> str:
+    """Resolve workspace ID from the auth context (Personal Edition → "default")."""
+    from core.personal_scope import resolve_workspace_id
+    return resolve_workspace_id(current_user)
 
 
 @router.get("/usage", response_model=UsageSummaryResponse)
@@ -59,7 +75,7 @@ async def get_integration_usage(current_user: User = Depends(get_current_user)):
     """
     try:
         from core.hybrid_data_ingestion import get_hybrid_ingestion_service
-        service = get_hybrid_ingestion_service("default")
+        service = get_hybrid_ingestion_service(get_workspace_id(current_user))
         summary = service.get_usage_summary()
         return UsageSummaryResponse(**summary)
     except Exception as e:
@@ -90,7 +106,7 @@ async def enable_auto_sync(
     try:
         from core.hybrid_data_ingestion import SyncConfiguration, get_hybrid_ingestion_service
 
-        service = get_hybrid_ingestion_service("default")
+        service = get_hybrid_ingestion_service(get_workspace_id(current_user))
 
         config = None
         if request.entity_types:
@@ -140,7 +156,7 @@ async def disable_auto_sync(
     """
     try:
         from core.hybrid_data_ingestion import get_hybrid_ingestion_service
-        service = get_hybrid_ingestion_service("default")
+        service = get_hybrid_ingestion_service(get_workspace_id(current_user))
         service.disable_auto_sync(integration_id)
 
         logger.info(f"Auto-sync disabled for {integration_id}")
@@ -175,7 +191,7 @@ async def trigger_sync(
     """
     try:
         from core.hybrid_data_ingestion import get_hybrid_ingestion_service
-        service = get_hybrid_ingestion_service("default")
+        service = get_hybrid_ingestion_service(get_workspace_id(current_user))
         result = await service.sync_integration_data(integration_id, force=force)
 
         return SyncResponse(
@@ -202,7 +218,7 @@ async def get_sync_status(
     """
     try:
         from core.hybrid_data_ingestion import get_hybrid_ingestion_service
-        service = get_hybrid_ingestion_service("default")
+        service = get_hybrid_ingestion_service(get_workspace_id(current_user))
         
         stats = service.usage_stats.get(integration_id)
         config = service.sync_configs.get(integration_id)
@@ -250,3 +266,316 @@ async def list_available_integrations():
         data=integrations,
         metadata={"count": len(integrations)}
     )
+
+
+# ============================================================================
+# Org Ingestion Sharing (Phases 1-2) — docs/architecture/ORG_INGESTION_SHARING_PLAN.md
+# Flag-gated: ATOM_ORG_SHARING_ENABLED (default false).
+# ============================================================================
+
+
+class RegisterOrgKeyRequest(BaseModel):
+    public_key: str  # base64 raw Ed25519 public key (from the exporting member)
+    label: str = "peer"
+
+
+class ProfileImportRequest(BaseModel):
+    profile: Dict[str, Any]  # signed envelope from GET /profile/export
+
+
+class BundleExportRequest(BaseModel):
+    sources: List[str]
+    sensitivity_ceiling: str = "internal"  # public|internal|confidential|restricted
+    destination: Optional[str] = None
+    include: Optional[List[str]] = None  # payload sections: records | graph | texts (default all)
+
+
+class BundleImportRequest(BaseModel):
+    bundle: Dict[str, Any]  # signed envelope from POST /bundle/export
+
+
+@router.get("/org-key")
+async def get_own_org_key(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get (generating on first use) this instance's org-sharing public key.
+
+    Members exchange public keys out-of-band once; each side registers the
+    other's key via POST /org-key/register before importing profiles/bundles.
+    """
+    require_org_sharing()
+    from core import org_sharing_crypto
+    from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+
+    workspace_id = resolve_workspace_id(current_user)
+    tenant_id = resolve_tenant_id(current_user)
+    public_key = org_sharing_crypto.ensure_own_key_registered(db, workspace_id, tenant_id)
+    fingerprint = org_sharing_crypto.fingerprint(
+        base64.b64decode(public_key)
+    )
+    return router.success_response(
+        data={"public_key": public_key, "fingerprint": fingerprint},
+    )
+
+
+@router.post("/org-key/register")
+@require_governance(
+    action_complexity=ActionComplexity.MODERATE,
+    action_name="register_org_public_key",
+    feature="data_ingestion"
+)
+async def register_peer_org_key(
+    request: RegisterOrgKeyRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    agent_id: Optional[str] = None
+):
+    """Trust a peer member's org-sharing public key for signature verification."""
+    require_org_sharing()
+    from core import org_sharing_crypto
+    from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+
+    try:
+        row = org_sharing_crypto.register_public_key(
+            db,
+            request.public_key,
+            label=request.label,
+            workspace_id=resolve_workspace_id(current_user),
+            tenant_id=resolve_tenant_id(current_user),
+        )
+        return router.success_response(
+            data={"fingerprint": row.fingerprint, "label": row.label},
+            message=f"Registered org public key {row.fingerprint[:16]}…"
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/profile/export")
+async def export_ingestion_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Export this instance's ingestion configuration as a signed profile.
+
+    The profile contains no credentials (P5 sanitizer, fail-closed) and no
+    data — only how to sync (integrations, entity types, frequencies, rules).
+    """
+    require_org_sharing()
+    from core.ingestion_profile_service import IngestionProfileError, IngestionProfileService
+    from core.personal_scope import resolve_workspace_id
+
+    try:
+        envelope = IngestionProfileService().export_profile(
+            db, resolve_workspace_id(current_user)
+        )
+        return router.success_response(data=envelope)
+    except IngestionProfileError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/profile/import")
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="import_ingestion_profile",
+    feature="data_ingestion"
+)
+async def import_ingestion_profile(
+    request: ProfileImportRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    agent_id: Optional[str] = None
+):
+    """Import a signed ingestion profile from another org member.
+
+    **Governance**: HIGH complexity — changes sync behavior for the listed
+    integrations. Signature must verify against a registered org key.
+    """
+    require_org_sharing()
+    from core.ingestion_profile_service import IngestionProfileError, IngestionProfileService
+    from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+
+    try:
+        result = IngestionProfileService().apply_profile(
+            db,
+            request.profile,
+            workspace_id=resolve_workspace_id(current_user),
+            tenant_id=resolve_tenant_id(current_user),
+            performed_by=getattr(current_user, "id", None),
+        )
+        return router.success_response(data=result, message="Ingestion profile imported")
+    except IngestionProfileError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/bundle/export")
+@require_governance(
+    action_complexity=ActionComplexity.CRITICAL,
+    action_name="export_org_data_bundle",
+    feature="data_ingestion"
+)
+async def export_org_data_bundle(
+    request: BundleExportRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    agent_id: Optional[str] = None
+):
+    """Export normalized ingested records as a signed org data bundle.
+
+    **Governance**: CRITICAL — this is an exfiltration surface; records leave
+    the instance. Restricted/confidential records are excluded unless the
+    ceiling is explicitly raised for a scoped sub-bundle.
+    """
+    require_org_sharing()
+    from core.org_data_bundle_service import BundleError, OrgDataBundleService
+    from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+
+    try:
+        envelope = OrgDataBundleService().build_bundle(
+            db,
+            workspace_id=resolve_workspace_id(current_user),
+            sources=request.sources,
+            sensitivity_ceiling=request.sensitivity_ceiling,
+            destination=request.destination,
+            include=request.include,
+        )
+        return router.success_response(data=envelope)
+    except BundleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/bundle/import")
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="import_org_data_bundle",
+    feature="data_ingestion"
+)
+async def import_org_data_bundle(
+    request: BundleImportRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    agent_id: Optional[str] = None
+):
+    """Import a signed org data bundle from another member.
+
+    **Governance**: HIGH — writes records into local memory. The signature is
+    verified BEFORE any record is parsed; the importer re-embeds locally
+    through the governed ingestion paths.
+    """
+    require_org_sharing()
+    from core.org_data_bundle_service import BundleError, OrgDataBundleService
+    from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+
+    try:
+        result = await OrgDataBundleService().apply_bundle(
+            db,
+            request.bundle,
+            workspace_id=resolve_workspace_id(current_user),
+            tenant_id=resolve_tenant_id(current_user),
+            performed_by=getattr(current_user, "id", None),
+        )
+        return router.success_response(data=result, message="Org data bundle imported")
+    except BundleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============================================================================
+# Phase 3 — Org Ingestion Hub (continuous sync; flag ATOM_ORG_HUB_ENABLED)
+# ============================================================================
+
+
+def org_hub_enabled() -> bool:
+    """Master switch for the hub-side pull endpoint (default OFF)."""
+    return os.getenv("ATOM_ORG_HUB_ENABLED", "false").lower() in ("1", "true", "yes")
+
+
+def require_org_hub():
+    if not org_hub_enabled():
+        raise router.permission_denied_error(
+            "org ingestion hub",
+            details={"reason": "ATOM_ORG_HUB_ENABLED is false"},
+        )
+
+
+class HubPullRequest(BaseModel):
+    hub_url: str
+    api_key: str  # the member's atom_sk_* key on the hub
+    sources: List[str]
+    sensitivity_ceiling: str = "internal"
+
+
+@router.get("/hub/bundles", dependencies=[Depends(require_org_hub)])
+async def hub_delta_bundles(
+    since: Optional[str] = Query(None, description="Per-source cursor JSON (from a previous pull)"),
+    sources: str = Query("", description="Comma-separated integration ids; empty = all"),
+    sensitivity_ceiling: str = Query("internal"),
+    request: Request = None,
+    db: Session = Depends(get_db),
+    identity: Any = Depends(get_gateway_identity),
+):
+    """Hub-side: serve signed delta bundles to members with atom_sk_* keys.
+
+    Members pull with ``Authorization: Bearer <atom_sk_*>`` (reusing the LLM
+    gateway key mechanism), pass the cursor from their last pull, and receive
+    a Phase-2-shaped signed bundle containing only newer records + tombstones,
+    plus the next cursor.
+    """
+    from core.org_hub_service import OrgHubService, cursor_from_json
+    from core.personal_scope import resolve_workspace_id
+
+    source_list = [s.strip() for s in sources.split(",") if s.strip()]
+    try:
+        envelope = OrgHubService().build_delta_bundle(
+            db,
+            workspace_id=resolve_workspace_id(identity.user),
+            sources=source_list,
+            since_cursor=cursor_from_json(since),
+            sensitivity_ceiling=sensitivity_ceiling,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return router.success_response(data=envelope)
+
+
+@router.post("/hub/pull")
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="pull_org_hub",
+    feature="data_ingestion"
+)
+async def hub_pull(
+    request: HubPullRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    agent_id: Optional[str] = None
+):
+    """Member-side: pull the latest delta bundle from the org hub and apply it.
+
+    **Governance**: HIGH — imports records into local memory via the Phase 2
+    import path (signature verified, deduped, re-embedded). The cursor is
+    persisted so the next pull continues incrementally.
+    """
+    require_org_sharing()
+    from core.org_hub_service import HubError, OrgHubService
+    from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+
+    try:
+        result = await OrgHubService().pull_and_apply(
+            db,
+            hub_url=request.hub_url,
+            api_key=request.api_key,
+            sources=request.sources,
+            workspace_id=resolve_workspace_id(current_user),
+            tenant_id=resolve_tenant_id(current_user),
+            sensitivity_ceiling=request.sensitivity_ceiling,
+            performed_by=getattr(current_user, "id", None),
+        )
+        return router.success_response(data=result, message="Org hub delta applied")
+    except HubError as e:
+        raise HTTPException(status_code=400, detail=str(e))

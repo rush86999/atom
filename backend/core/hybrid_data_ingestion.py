@@ -177,7 +177,143 @@ class HybridDataIngestionService:
         except ImportError:
             self.llm = None
             logger.warning("LLM Service not available for hybrid ingestion schema discovery")
-    
+
+        # Phase 0 (org ingestion sharing): restore persisted sync configs and
+        # usage stats. Previously these were in-memory only and silently lost
+        # on every restart.
+        self._load_state()
+
+    # ------------------------------------------------------------------
+    # Phase 0: persistence to ingestion_settings
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _persistence_enabled() -> bool:
+        return os.getenv("ATOM_INGESTION_PERSIST_STATE", "true").lower() in ("1", "true", "yes")
+
+    def _load_state(self):
+        """Rebuild usage_stats / sync_configs from persisted ingestion_settings rows.
+
+        Non-fatal by design: a missing/unavailable DB degrades to the previous
+        in-memory behaviour instead of breaking ingestion startup.
+        """
+        if not self._persistence_enabled():
+            return
+        try:
+            from core.models import IngestionSettings
+            db = SessionLocal()
+            try:
+                rows = db.query(IngestionSettings).filter(
+                    IngestionSettings.workspace_id == self.workspace_id
+                ).all()
+                for row in rows:
+                    usage = (row.usage_stats_json or {}) if isinstance(row.usage_stats_json, dict) else {}
+                    # JSON columns default to []/{} on insert, so a document-
+                    # ingestion-only row shows entity_types==[] — treat that
+                    # as "no hybrid state" too.
+                    has_config = bool(row.entity_types)
+                    if not usage and not has_config:
+                        continue  # document-ingestion-only row — not hybrid state
+                    last_used = self._parse_dt(usage.get("last_used"))
+                    last_synced = self._parse_dt(usage.get("last_synced")) or row.last_sync
+                    stats = IntegrationUsageStats(
+                        integration_id=row.integration_id,
+                        integration_name=usage.get("integration_name", row.integration_id),
+                        workspace_id=self.workspace_id,
+                        total_calls=usage.get("total_calls", 0),
+                        successful_calls=usage.get("successful_calls", 0),
+                        last_used=last_used,
+                        last_synced=last_synced,
+                        auto_sync_enabled=bool(usage.get("auto_sync_enabled", row.enabled)),
+                        sync_frequency_minutes=usage.get("sync_frequency_minutes", row.sync_frequency_minutes or 60),
+                    )
+                    self.usage_stats[row.integration_id] = stats
+                    if has_config:
+                        self.sync_configs[row.integration_id] = SyncConfiguration(
+                            integration_id=row.integration_id,
+                            entity_types=list(row.entity_types or []),
+                            sync_last_n_days=row.sync_last_n_days or 30,
+                            max_records_per_sync=row.max_records_per_sync or 1000,
+                            include_metadata=True,
+                            sync_mode=row.sync_mode or "incremental",
+                        )
+                if self.usage_stats:
+                    logger.info(
+                        f"Restored hybrid ingestion state for {len(self.usage_stats)} "
+                        f"integration(s) in workspace {self.workspace_id}"
+                    )
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"Could not load persisted ingestion state: {e}")
+
+    @staticmethod
+    def _parse_dt(value: Optional[str]) -> Optional[datetime]:
+        if not value or not isinstance(value, str):
+            return None
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:
+            return None
+
+    def _persist_integration(self, integration_id: str):
+        """Write-through the current in-memory state for one integration.
+
+        Non-fatal: persistence failures are logged and never break the sync
+        flow (the in-memory dicts remain the operational source of truth for
+        the running process).
+        """
+        if not self._persistence_enabled():
+            return
+        try:
+            from core.models import IngestionSettings
+            stats = self.usage_stats.get(integration_id)
+            config = self.sync_configs.get(integration_id)
+            if stats is None and config is None:
+                return
+
+            usage_json: Dict[str, Any] = {}
+            if stats:
+                usage_json = {
+                    "integration_name": stats.integration_name,
+                    "total_calls": stats.total_calls,
+                    "successful_calls": stats.successful_calls,
+                    "last_used": stats.last_used.isoformat() if stats.last_used else None,
+                    "last_synced": stats.last_synced.isoformat() if stats.last_synced else None,
+                    "auto_sync_enabled": stats.auto_sync_enabled,
+                    "sync_frequency_minutes": stats.sync_frequency_minutes,
+                }
+
+            db = SessionLocal()
+            try:
+                row = db.query(IngestionSettings).filter(
+                    IngestionSettings.workspace_id == self.workspace_id,
+                    IngestionSettings.integration_id == integration_id,
+                ).first()
+                if row is None:
+                    row = IngestionSettings(
+                        workspace_id=self.workspace_id,
+                        tenant_id=self.tenant_id,
+                        integration_id=integration_id,
+                    )
+                    db.add(row)
+
+                if stats:
+                    row.enabled = stats.auto_sync_enabled
+                    row.sync_frequency_minutes = stats.sync_frequency_minutes
+                    row.last_sync = stats.last_synced
+                    row.usage_stats_json = usage_json
+                if config:
+                    row.entity_types = list(config.entity_types)
+                    row.sync_last_n_days = config.sync_last_n_days
+                    row.max_records_per_sync = config.max_records_per_sync
+                    row.sync_mode = config.sync_mode
+                db.commit()
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"Could not persist ingestion state for {integration_id}: {e}")
+
     def record_integration_usage(
         self, 
         integration_id: str, 
@@ -205,7 +341,9 @@ class HybridDataIngestionService:
         # Check if we should auto-enable sync
         if not stats.auto_sync_enabled:
             self._check_auto_enable_sync(integration_id)
-        
+
+        self._persist_integration(integration_id)
+
         logger.debug(f"Recorded usage for {integration_id}: {stats.total_calls} total calls")
     
     def _check_auto_enable_sync(self, integration_id: str):
@@ -248,6 +386,7 @@ class HybridDataIngestionService:
             )
         
         logger.info(f"Auto-sync enabled for {integration_id} in workspace {self.workspace_id}")
+        self._persist_integration(integration_id)
     
     def disable_auto_sync(self, integration_id: str):
         """Disable automatic data sync for an integration"""
@@ -257,6 +396,7 @@ class HybridDataIngestionService:
             self._sync_tasks[integration_id].cancel()
             del self._sync_tasks[integration_id]
         logger.info(f"Auto-sync disabled for {integration_id}")
+        self._persist_integration(integration_id)
     
     async def sync_integration_data(
         self, 
@@ -406,6 +546,8 @@ class HybridDataIngestionService:
                 results["success"] = True
                 if stats:
                     stats.last_synced = datetime.now(timezone.utc)
+            if stats:
+                self._persist_integration(integration_id)
 
             results["completed_at"] = datetime.now(timezone.utc).isoformat()
             

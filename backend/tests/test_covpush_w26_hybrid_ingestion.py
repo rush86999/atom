@@ -351,10 +351,17 @@ class TestUniversalAdapter:
         adapter = MagicMock()
         adapter.ensure_token = AsyncMock()
         del adapter.fetch_records
-        with patch.object(svc, "_fetch_zoho_multi_app_data", new=AsyncMock(return_value=[{"id": "z"}])):
+        db = MagicMock()
+        db.close = MagicMock()
+        factory = MagicMock()
+        factory.get_zoho_adapter.return_value = adapter
+        with patch("core.database.SessionLocal", return_value=db), \
+             patch("core.service_factory.ServiceFactory", factory), \
+             patch.object(svc, "_fetch_zoho_multi_app_data", new=AsyncMock(return_value=[{"id": "z"}])):
             records = await svc._fetch_universal_adapter_data(
                 "zoho", make_config(integration_id="zoho"))
         assert records == [{"id": "z"}]
+        adapter.ensure_token.assert_awaited_once()
 
     async def test_no_fetch_records_other_warns(self):
         svc = make_service()
@@ -758,7 +765,7 @@ class TestZohoMultiAppFetcher:
         db.close = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = None
         with patch("core.integrations.adapters.zoho.ZohoAdapter") as adapter_cls, \
-             patch("core.database.SessionLocal", return_value=db):
+             patch("core.hybrid_data_ingestion.SessionLocal", return_value=db):
             records = await svc._fetch_zoho_multi_app_data(
                 make_config(integration_id="zoho", entity_types=["crm_leads"]))
         assert records == []

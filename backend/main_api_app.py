@@ -547,6 +547,45 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error(f"Failed to start hybrid ingestion sync loop: {e}")
 
+        # 6b. Org Ingestion Hub member pull loop (Phase 3) — pulls signed delta
+        # bundles from the designated hub on an interval and applies them via
+        # the Phase 2 import path. Opt-in: ATOM_ORG_HUB_URL + ATOM_ORG_HUB_API_KEY
+        # (and ATOM_ORG_SHARING_ENABLED=true). Killing the hub degrades members
+        # to stale-but-functional local data — the loop retries next interval.
+        if os.getenv("ATOM_ORG_SHARING_ENABLED", "false").lower() in ("1", "true", "yes") and os.getenv("ATOM_ORG_HUB_URL"):
+            try:
+                from core.org_hub_service import OrgHubService
+
+                async def _hub_pull_loop():
+                    from core.database import get_db_session
+                    from core.personal_scope import PERSONAL_TENANT_ID, PERSONAL_WORKSPACE_ID
+
+                    interval_min = float(os.getenv("ATOM_ORG_HUB_PULL_INTERVAL_MIN", "15"))
+                    sources = [s.strip() for s in os.getenv("ATOM_ORG_HUB_SOURCES", "").split(",") if s.strip()]
+                    ceiling = os.getenv("ATOM_ORG_HUB_SENSITIVITY_CEILING", "internal")
+                    hub_url = os.getenv("ATOM_ORG_HUB_URL", "")
+                    api_key = os.getenv("ATOM_ORG_HUB_API_KEY", "")
+                    while True:
+                        try:
+                            with get_db_session() as db:
+                                await OrgHubService().pull_and_apply(
+                                    db,
+                                    hub_url=hub_url,
+                                    api_key=api_key,
+                                    sources=sources,
+                                    workspace_id=PERSONAL_WORKSPACE_ID,
+                                    tenant_id=PERSONAL_TENANT_ID,
+                                    sensitivity_ceiling=ceiling,
+                                )
+                        except Exception as e:
+                            logger.warning(f"Org hub pull failed (will retry in {interval_min} min): {e}")
+                        await asyncio.sleep(interval_min * 60)
+
+                _spawn_background_task(_hub_pull_loop())
+                logger.info("✓ Org Ingestion Hub member pull loop started (ATOM_ORG_HUB_URL set)")
+            except Exception as e:
+                logger.error(f"Failed to start org hub pull loop: {e}")
+
         # Start Outlook Automation Loop
         try:
             from outlook_automation_service import start_outlook_automation_loop

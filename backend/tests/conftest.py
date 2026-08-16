@@ -180,6 +180,20 @@ def ensure_numpy_available(request):
 
 
 @pytest.fixture(autouse=True)
+def disable_ingestion_state_persistence(monkeypatch):
+    """Keep hybrid-ingestion state in-memory for tests (Phase 0 persistence).
+
+    HybridDataIngestionService now writes sync configs/usage stats through to
+    the ingestion_settings table. Existing suites construct the service with
+    mocked deps and assert on in-memory state — persistence against the shared
+    test/dev DB would both pollute it and make assertions order-dependent.
+    New persistence tests opt back in by setting the env var themselves.
+    """
+    monkeypatch.setenv("ATOM_INGESTION_PERSIST_STATE", "false")
+    yield
+
+
+@pytest.fixture(autouse=True)
 def isolate_environment():
     """
     Isolate environment variables between tests.
