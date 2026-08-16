@@ -359,8 +359,14 @@ All new tables carry `tenant_id` + `workspace_id` and go through
 ## 8. Rollout
 
 Feature-flagged per phase; Phase 0 is unconditionally valuable (restart-persistence
-bug) and ships first. Phases 1–2 behind `ATOM_ORG_SHARING_ENABLED`. Phase 3 gets its
-own go/no-go after 1–2 are validated in a real org.
+bug) and ships first. Phases 1–2 behind `ATOM_ORG_SHARING_ENABLED`. Phase 3 (hub)
+ships behind `ATOM_ORG_HUB_ENABLED` (hub side) + `ATOM_ORG_HUB_URL` /
+`ATOM_ORG_HUB_API_KEY` / `ATOM_ORG_HUB_SOURCES` / `ATOM_ORG_HUB_SENSITIVITY_CEILING` /
+`ATOM_ORG_HUB_PULL_INTERVAL_MIN` (member side; default 15 min) — validation in a real
+org is still recommended before a hub goes production. Member cursors persist in
+`ingestion_settings.usage_stats_json` (integration `org_hub`) via Phase 0 persistence;
+a killed hub degrades members to stale-but-functional local data (the pull loop
+retries each interval).
 
 ## 9. Open questions
 
