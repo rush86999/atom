@@ -23,6 +23,7 @@ System architecture, design patterns, and technical specifications.
 - **[Mini-Apps](MINI_APPS.md)** ✨ NEW (design) - Long-running stateful document apps (spreadsheets/docs/decks) on canvases. MVC: Canvas=View, CanvasLogic=Controller, MiniApp manifest=Model; wraps the real office engine. Platform is the harness (P1→P3→P4→P9); viewer rights always cap declared scopes.
 
 ### Memory & Context
+- **[Org Ingestion Sharing](ORG_INGESTION_SHARING_PLAN.md)** ✨ NEW (implemented) - Members of one org running local instances share ingestion config (signed profiles), org data + GraphRAG/knowledge memory (signed bundles, P4 sensitivity gate, never embeddings/credentials), and continuous delta sync from a designated hub. Episodic memory/chat/turn facts permanently excluded (graduation trust semantics)
 - **[Context Memory (Per-Turn Fact Extraction)](CONTEXT_MEMORY.md)** - Hermes-style durable-fact extraction layer; `sync_turn` + `on_pre_compress` hooks; two-tier recall (SQL + LanceDB); extraction-first over compression-first ✨
 - **[AgentRadio (Lateral Coordination)](AGENT_RADIO.md)** ✨ NEW - Passive-awareness peer-to-peer messaging between agents (3 `radio.*` actions: create_thread / send_message / wait_for_mention). Mention-first, cost-governed, breakpoint-gated; a fixed team is never the default. Complements (does not replace) Conductor/Fleet/Queen orchestration.
 - **[Atom vs. Hermes Comparison](HERMES_COMPARISON.md)** - Evidence-based capability matrix, decision log, and what Atom deliberately didn't build (and why)

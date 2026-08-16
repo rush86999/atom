@@ -21,6 +21,7 @@ Atom is a **self-hosted AI agent workforce** — a team of governed, sandboxed a
 | **Blueprint Security** | Credential stripping on canvas fork/share (`strip_credentials` denylist). Fresh IDs, audit rows. | ✅ Implemented |
 | **Real MCP Client** | JSON-RPC 2.0 over HTTP+SSE/stdio. Connect to arbitrary external MCP servers (Cloudflare portals). | ✅ Implemented |
 | **Credential Encryption** | `IntegrationToken` access/refresh encrypted at rest (Fernet). `BYOK_ENCRYPTION_KEY` persisted (0600). Fail-closed in prod. | ✅ Implemented |
+| **Org Ingestion Sharing** | Signed Ed25519 profiles/bundles + optional hub for sharing ingestion config, org data, and GraphRAG memory between org members' local instances. Credentials stripped (fail-closed), P4 sensitivity gate, embeddings never shared (re-embedded locally), full audit trail. Flag `ATOM_ORG_SHARING_ENABLED` (default off). | ✅ Implemented |
 
 ### 🧠 Intelligence & Memory
 

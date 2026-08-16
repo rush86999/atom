@@ -33,6 +33,17 @@ below is retained for historical context only.
    resolvable, `get_encryption_key()` raises `MissingKeyError` rather than
    minting a throwaway key that would brick every stored token on restart.
 
+### Org sharing signing key (`./data/org_sharing_key`)
+
+Org Ingestion Sharing (see `docs/architecture/ORG_INGESTION_SHARING_PLAN.md`)
+signs exported profiles/bundles with **Ed25519**; the private key lives in
+`./data/org_sharing_key` (0600) — the same on-disk pattern as the BYOK
+encryption key, overridable via `ATOM_ORG_SHARING_KEY_FILE`. It is **never
+stored in the database**; only public keys (own + peers) are registered in the
+`org_public_keys` table. A corrupt or non-Ed25519 key file is regenerated on
+next use; verification is fail-closed (missing registry, bad base64, or
+unknown signer ⇒ reject, never unverified accept).
+
 ### Implementation
 
 - `backend/core/privsec/token_encryption.py` — `encrypt_token()` / `decrypt_token()`

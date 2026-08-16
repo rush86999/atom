@@ -97,6 +97,7 @@
 | [Device Capabilities](integrations/device-capabilities.md) | Camera, screen, location, exec | Devs |
 | [Deep Linking](archive/legacy/DEEPLINK_IMPLEMENTATION.md) | `atom://` URLs for external apps | Devs |
 | [Marketplace](marketplace/connection.md) | Commercial marketplace (atomagentos.com) | Enterprise |
+| [Org Ingestion Sharing](architecture/ORG_INGESTION_SHARING_PLAN.md) | **NEW** - Signed profiles/bundles + hub: share ingestion config, org data & GraphRAG memory between org members' local instances | Self-hosters/Admins |
 
 ### 🎨 Canvas & Office Automation
 
