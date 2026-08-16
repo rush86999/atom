@@ -1000,7 +1000,39 @@ class TestOutlookCoverage:
     def test_refresh_access_token(self):
         svc = self.make()
         assert run(svc._refresh_access_token("u1", {"refresh_token": None})) is None
-        assert run(svc._refresh_access_token("u1", {"refresh_token": "rt", "access_token": "at"})) == "at"
+        # No client credentials configured -> refresh refused
+        assert run(svc._refresh_access_token("u1", {"refresh_token": "rt", "access_token": "at"})) is None
+
+        # Credentials configured -> token endpoint is called and new token returned
+        svc.client_id, svc.client_secret, svc.tenant_id_config = "cid", "sec", "tenant"
+
+        class FakeResp:
+            status = 200
+
+            async def json(self):
+                return {"access_token": "new_at", "refresh_token": "new_rt", "expires_in": 3600}
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+        class FakeSession:
+            def __init__(self):
+                self.post = MagicMock(return_value=FakeResp())
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+        with patch("integrations.outlook_service.aiohttp.ClientSession", return_value=FakeSession()), \
+             patch("core.database.get_db_session", return_value=db):
+            assert run(svc._refresh_access_token("u1", {"refresh_token": "rt", "access_token": "at"})) == "new_at"
 
     def test_make_graph_request(self):
         svc = self.make()
@@ -1356,6 +1388,7 @@ class TestOutlookCoverage:
         svc.get_user_emails = AsyncMock(return_value=[{"id": "1"}, {"id": "2"}])
         with patch("integrations.atom_communication_ingestion_pipeline.get_ingestion_pipeline") as gp:
             pipe = Mock()
+            pipe.ingest_message = AsyncMock(return_value={"ok": True})
             gp.return_value = pipe
             result = run(svc.fetch_recent_messages("u1"))
         assert len(result) == 2
@@ -2350,10 +2383,13 @@ class TestMs365Coverage:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
+        from core.auth import get_current_user
         from integrations.microsoft365_service import microsoft365_router
 
         app = FastAPI()
         app.include_router(microsoft365_router)
+        # The router enforces authentication; bypass it for route-level testing.
+        app.dependency_overrides[get_current_user] = lambda: {"id": "u1"}
         client = TestClient(app, raise_server_exceptions=False)
 
         resp = client.get("/microsoft365/health")
@@ -3885,7 +3921,12 @@ class TestWorkspaceSyncCoverage:
         ]
         for change_type, data in cases:
             r = svc._apply_slack_change("T1", change_type, data)
-            assert (r is None) or r["success"] is True, (change_type, data)
+            if not data:
+                # Missing-data cases may be explicitly rejected with a
+                # "Missing required data" error by the current service.
+                assert (r is None) or r.get("success") is True or                     "Missing required data" in r.get("error", ""), (change_type, data)
+            else:
+                assert (r is None) or r["success"] is True, (change_type, data)
 
         # service not available -> failure
         with patch("integrations.slack_enhanced_service.SlackEnhancedService", None):
@@ -3934,7 +3975,12 @@ class TestWorkspaceSyncCoverage:
         ]
         for change_type, data in cases:
             r = svc._apply_discord_change("D1", change_type, data)
-            assert (r is None) or r["success"] is True, (change_type, data)
+            if not data:
+                # Missing-data cases may be explicitly rejected with a
+                # "Missing required data" error by the current service.
+                assert (r is None) or r.get("success") is True or                     "Missing required data" in r.get("error", ""), (change_type, data)
+            else:
+                assert (r is None) or r["success"] is True, (change_type, data)
 
         with patch("integrations.atom_discord_integration.atom_discord_integration", None):
             r = svc._apply_discord_change("D1", ChangeType.MEMBER_ADD, {"user_id": "u"})
@@ -3980,7 +4026,12 @@ class TestWorkspaceSyncCoverage:
         ]
         for change_type, data in cases:
             r = svc._apply_google_chat_change("G1", change_type, data)
-            assert (r is None) or r["success"] is True, (change_type, data)
+            if not data:
+                # Missing-data cases may be explicitly rejected with a
+                # "Missing required data" error by the current service.
+                assert (r is None) or r.get("success") is True or                     "Missing required data" in r.get("error", ""), (change_type, data)
+            else:
+                assert (r is None) or r["success"] is True, (change_type, data)
 
         with patch("integrations.atom_google_chat_integration.atom_google_chat_integration", None):
             r = svc._apply_google_chat_change("G1", ChangeType.MEMBER_ADD, {"email": "a"})
@@ -4028,7 +4079,12 @@ class TestWorkspaceSyncCoverage:
         ]
         for change_type, data in cases:
             r = svc._apply_teams_change("M1", change_type, data)
-            assert (r is None) or r["success"] is True, (change_type, data)
+            if not data:
+                # Missing-data cases may be explicitly rejected with a
+                # "Missing required data" error by the current service.
+                assert (r is None) or r.get("success") is True or                     "Missing required data" in r.get("error", ""), (change_type, data)
+            else:
+                assert (r is None) or r["success"] is True, (change_type, data)
 
         with patch("integrations.atom_teams_integration.atom_teams_integration", None):
             r = svc._apply_teams_change("M1", ChangeType.MEMBER_ADD, {"email": "a"})

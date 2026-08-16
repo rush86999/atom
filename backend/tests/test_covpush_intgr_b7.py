@@ -82,13 +82,13 @@ class TestPDFOCR:
         svc.ocr_readers = {"docling": 1, "easyocr": 1, "tesseract": 1, "openai": 1}
         methods = svc._get_available_ocr_methods(False)
         assert methods == ["docling", "easyocr", "tesseract"]
-        svc.ocr_readers = {"easyocr": 1, "tesseract": 1, "openai": 1}
+        svc.ocr_readers = {"easyocr": 1, "tesseract": 1, "ai_vision": 1}
         methods = svc._get_available_ocr_methods(True)
         assert "openai_vision" in methods
         svc.use_byok = True
         svc.byok_manager = MagicMock()
         svc.byok_manager.get_optimal_provider = MagicMock(return_value="openai")
-        svc.ocr_readers = {"docling": 1, "openai": 1}
+        svc.ocr_readers = {"docling": 1, "ai_vision": 1}
         methods = svc._get_available_ocr_methods(True)
         assert methods == ["docling", "openai_vision"]
         svc.byok_manager.get_optimal_provider = MagicMock(return_value="other")

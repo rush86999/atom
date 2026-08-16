@@ -7,20 +7,22 @@ Test coverage for workflow UI API endpoints including:
 - Workflow execution and history
 - UI integration with mock data and database
 - API authentication and error handling
+
+Ported to the current core/workflow_ui_endpoints.py API: endpoint
+functions are async, take ``db``/``current_user`` directly (matching the
+style of tests/test_covpush_w93_pdf_comm_routes.py), and the DB-mode vs
+mock-mode branches are controlled by ``WORKFLOW_MOCK_ENABLED``.
 """
 
-import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
-from sqlalchemy.orm import Session
 from datetime import datetime
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from core.auth import get_current_user as auth_get_current_user
-from core.database import get_db
+import pytest
+from fastapi import HTTPException
 
+import core.workflow_ui_endpoints as wui
 from core.workflow_ui_endpoints import (
-    router,
     WorkflowStep,
     WorkflowTemplateResponse,
     WorkflowDefinition,
@@ -30,7 +32,61 @@ from core.workflow_ui_endpoints import (
     MOCK_WORKFLOWS,
     MOCK_EXECUTIONS,
     MOCK_SERVICES,
+    cancel_execution,
+    create_workflow,
+    create_workflow_definition,
+    delete_workflow,
+    execute_workflow,
+    execute_workflow_by_id,
+    get_services,
+    get_templates,
+    get_workflow_by_id,
+    get_workflow_history,
+    get_workflows,
+    import_template,
+    list_workflows,
+    update_workflow,
 )
+
+
+def _tpl(**kw):
+    """A row shaped like the WorkflowTemplate ORM columns (see core/models.py)."""
+    defaults = dict(
+        id="tpl_001",
+        tenant_id="t-1",
+        name="Test Template",
+        description="Test description",
+        category="automation",
+        icon="workflow",
+        steps=[{"id": "s1"}],
+        input_schema={"type": "object"},
+        is_public=True,
+        rating=4.5,
+        usage_count=100,
+        author_id="user_001",
+        version="1.0.0",
+        created_at=datetime(2026, 1, 1),
+        updated_at=datetime(2026, 1, 2),
+    )
+    defaults.update(kw)
+    return SimpleNamespace(**defaults)
+
+
+def _db(template=None, rows=None):
+    db = MagicMock()
+    chain = MagicMock()
+    chain.filter.return_value = chain  # recursive filter chain
+    chain.first.return_value = template
+    chain.all.return_value = rows or []
+    chain.order_by.return_value.limit.return_value.all.return_value = rows or []
+    chain.order_by.return_value.limit.return_value.offset.return_value \
+        .all.return_value = rows or []
+    db.query.return_value = chain
+    return db
+
+
+def _mock_flag(value=True):
+    return patch.object(wui, "WORKFLOW_MOCK_ENABLED", value)
 
 
 # ============================================================================
@@ -40,151 +96,77 @@ from core.workflow_ui_endpoints import (
 class TestWorkflowUIRoutes:
     """Test workflow template and definition endpoints."""
 
-    def test_get_templates_with_database(self):
-        """GET /templates returns templates from database."""
-        # Arrange
-        client = TestClient(router)
-        mock_db = Mock(spec=Session)
+    async def test_get_templates_with_database(self):
+        """get_templates returns templates from database in DB mode."""
+        db = _db(rows=[_tpl()])
+        with _mock_flag(False):
+            out = await get_templates(
+                category=None, complexity=None, is_public=True, db=db
+            )
+        assert out["success"] is True
+        assert out["count"] == 1
+        assert out["templates"][0]["id"] == "tpl_001"
+        assert out["templates"][0]["name"] == "Test Template"
+        assert out["templates"][0]["input_schema"] == {"type": "object"}
 
-        mock_template = Mock()
-        mock_template.template_id = "tpl_001"
-        mock_template.name = "Test Template"
-        mock_template.description = "Test description"
-        mock_template.category = "automation"
-        mock_template.complexity = "beginner"
-        mock_template.tags = ["automation"]
-        mock_template.is_featured = True
-        mock_template.is_public = True
-        mock_template.rating = 4.5
-        mock_template.usage_count = 100
-        mock_template.author_id = "user_001"
-        mock_template.version = "1.0.0"
-        mock_template.steps_schema = []
-        mock_template.inputs_schema = {}
-        mock_template.created_at = datetime.now()
-        mock_template.updated_at = datetime.now()
+    async def test_get_templates_with_mock_mode(self):
+        """get_templates returns mock data when WORKFLOW_MOCK_ENABLED."""
+        with _mock_flag(True):
+            out = await get_templates(
+                category=None, complexity=None, is_public=True, db=MagicMock()
+            )
+        assert out["success"] is True
+        assert out["count"] == len(MOCK_TEMPLATES)
+        assert len(out["templates"]) > 0
 
-        mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [
-            mock_template
-        ]
+    async def test_get_templates_with_category_filter(self):
+        """get_templates filters by category."""
+        db = _db(rows=[])
+        with _mock_flag(False):
+            out = await get_templates(
+                category="business", complexity=None, is_public=True, db=db
+            )
+        assert out["success"] is True
+        assert out["templates"] == []
+        assert out["count"] == 0
+        # The category filter must reach the query chain
+        assert db.query.return_value.filter.called
 
-        # Act
-        response = client.get("/templates?is_public=true")
+    async def test_import_template_success(self):
+        """import_template creates a private copy and bumps usage_count."""
+        source = _tpl()
+        db = _db(template=source)
+        with _mock_flag(False):
+            out = await import_template("tpl_001", db=db)
+        assert out["success"] is True
+        assert out["workflow_id"].startswith("wf_")
+        assert db.add.called
+        assert db.commit.called
+        assert source.usage_count == 101  # incremented on source
 
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "templates" in data
-        assert isinstance(data["templates"], list)
+    async def test_import_template_not_found(self):
+        """import_template raises 404 for a missing template."""
+        with _mock_flag(False):
+            with pytest.raises(HTTPException) as exc_info:
+                await import_template("nonexistent", db=_db(template=None))
+        assert exc_info.value.status_code == 404
 
-    def test_get_templates_with_mock_mode(self):
-        """GET /templates returns mock data when WORKFLOW_MOCK_ENABLED."""
-        # Arrange
-        client = TestClient(router)
+    async def test_get_services_endpoint(self):
+        """get_services returns available service integrations."""
+        out = await get_services()
+        assert out["success"] is True
+        assert len(out["services"]) > 0
+        assert any(s["name"] == "Slack" for s in out["services"])
 
-        with patch('core.workflow_ui_endpoints.WORKFLOW_MOCK_ENABLED', True):
-
-            # Act
-            response = client.get("/templates")
-
-            # Assert
-            assert response.status_code == 200
-            data = response.json()
-            assert data["success"] is True
-            assert len(data["templates"]) > 0
-
-    def test_get_templates_with_category_filter(self):
-        """GET /templates filters by category."""
-        # Arrange
-        client = TestClient(router)
-        mock_db = Mock(spec=Session)
-        mock_db.query.return_value.filter.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
-
-        # Act
-        response = client.get("/templates?category=business&is_public=true")
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-
-    def test_import_template_success(self):
-        """POST /templates/{template_id}/import creates private copy."""
-        # Arrange
-        client = TestClient(router)
-        mock_db = Mock(spec=Session)
-
-        mock_source = Mock()
-        mock_source.template_id = "tpl_001"
-        mock_source.name = "Source Template"
-        mock_source.description = "Source description"
-        mock_source.category = "automation"
-        mock_source.complexity = "beginner"
-        mock_source.tags = ["automation"]
-        mock_source.template_json = {}
-        mock_source.inputs_schema = {}
-        mock_source.steps_schema = []
-        mock_source.output_schema = {}
-        mock_source.usage_count = 10
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_source
-        mock_db.add = Mock()
-        mock_db.commit = Mock()
-        mock_db.refresh = Mock()
-
-        # Act
-        response = client.post("/templates/tpl_001/import")
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "workflow_id" in data
-
-    def test_import_template_not_found(self):
-        """POST /templates/{template_id}/import returns 404 for missing template."""
-        # Arrange
-        client = TestClient(router)
-        mock_db = Mock(spec=Session)
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-
-        # Act
-        response = client.post("/templates/nonexistent/import")
-
-        # Assert
-        assert response.status_code == 404
-
-    def test_get_services_endpoint(self):
-        """GET /services returns available service integrations."""
-        # Arrange
-        client = TestClient(router)
-
-        # Act
-        response = client.get("/services")
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "services" in data
-        assert len(data["services"]) > 0
-
-    def test_get_workflow_definitions(self):
-        """GET /definitions returns workflow definitions."""
-        # Arrange
-        client = TestClient(router)
-        mock_db = Mock(spec=Session)
-        mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.offset.return_value.all.return_value = []
-
-        # Act
-        response = client.get("/definitions?limit=50&offset=0")
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "workflows" in data
+    async def test_get_workflow_definitions(self):
+        """get_workflows returns workflow definitions."""
+        db = _db(rows=[_tpl()])
+        with _mock_flag(False):
+            out = await get_workflows(limit=50, offset=0, db=db)
+        assert out["success"] is True
+        assert out["count"] == 1
+        assert out["workflows"][0]["id"] == "tpl_001"
+        assert out["workflows"][0]["steps_count"] == 1
 
 
 # ============================================================================
@@ -287,154 +269,73 @@ class TestUIIntegration:
 class TestWorkflowCanvas:
     """Test workflow canvas data and configuration."""
 
-    def test_get_workflow_by_id_success(self):
-        """GET /workflows/{workflow_id} returns workflow details."""
-        # Arrange
-        client = TestClient(router)
-        mock_db = Mock(spec=Session)
+    async def test_get_workflow_by_id_success(self):
+        """get_workflow_by_id returns workflow details."""
+        db = _db(template=_tpl(id="wf_001", name="Test Workflow"))
+        with _mock_flag(False):
+            out = await get_workflow_by_id("wf_001", db=db)
+        assert out["success"] is True
+        assert out["workflow"]["id"] == "wf_001"
+        assert out["workflow"]["name"] == "Test Workflow"
+        assert out["workflow"]["steps_count"] == 1
 
-        mock_template = Mock()
-        mock_template.template_id = "wf_001"
-        mock_template.name = "Test Workflow"
-        mock_template.description = "Test workflow description"
-        mock_template.category = "automation"
-        mock_template.complexity = "beginner"
-        mock_template.tags = ["test"]
-        mock_template.steps_schema = []
-        mock_template.inputs_schema = {}
-        mock_template.rating = 4.0
-        mock_template.usage_count = 50
-        mock_template.version = "1.0.0"
-        mock_template.author_id = "user_001"
-        mock_template.created_at = datetime.now()
-        mock_template.updated_at = datetime.now()
+    async def test_get_workflow_by_id_not_found(self):
+        """get_workflow_by_id raises 404 for a missing workflow."""
+        with _mock_flag(False):
+            with pytest.raises(HTTPException) as exc_info:
+                await get_workflow_by_id("nonexistent", db=_db(template=None))
+        assert exc_info.value.status_code == 404
+        assert "nonexistent" in exc_info.value.detail
 
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_template
+    async def test_create_workflow_success(self):
+        """create_workflow creates a new workflow template."""
+        db = _db()
+        payload = {
+            "name": "New Workflow",
+            "description": "Test workflow creation",
+            "category": "automation",
+            "input_schema": {"type": "object"},
+            "steps": [],
+        }
+        with _mock_flag(False):
+            out = await create_workflow(payload, author_id="user_001", db=db)
+        assert out["success"] is True
+        assert out["workflow"]["name"] == "New Workflow"
+        assert out["workflow"]["id"].startswith("tpl_")
+        assert db.add.called and db.commit.called
 
-        # Act
-        response = client.get("/workflows/wf_001")
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["workflow"]["id"] == "wf_001"
-
-    def test_get_workflow_by_id_not_found(self):
-        """GET /workflows/{workflow_id} returns 404 for missing workflow."""
-        # Arrange
-        client = TestClient(router)
-        mock_db = Mock(spec=Session)
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-
-        # Act
-        response = client.get("/workflows/nonexistent")
-
-        # Assert
-        assert response.status_code == 404
-
-    def test_create_workflow_success(self):
-        """POST /workflows creates new workflow."""
-        # Arrange
-        client = TestClient(router)
-        mock_db = Mock(spec=Session)
-        mock_db.add = Mock()
-        mock_db.commit = Mock()
-        mock_db.refresh = Mock()
-
-        with patch('core.workflow_ui_endpoints.uuid.uuid4', return_value='test12345'):
-            payload = {
-                "name": "New Workflow",
-                "description": "Test workflow creation",
-                "category": "automation",
-                "complexity": "beginner",
-                "input_schema": {"type": "object"},
-                "steps": []
-            }
-
-            # Act
-            response = client.post("/workflows", json=payload)
-
-            # Assert
-            assert response.status_code == 200
-            data = response.json()
-            assert data["success"] is True
-            assert data["workflow"]["name"] == "New Workflow"
-
-    def test_update_workflow_success(self):
-        """PUT /workflows/{workflow_id} updates existing workflow."""
-        # Arrange
-        client = TestClient(router)
-        mock_db = Mock(spec=Session)
-
-        mock_template = Mock()
-        mock_template.template_id = "wf_001"
-        mock_template.name = "Old Name"
-        mock_template.description = "Old description"
-        mock_template.category = "automation"
-        mock_template.complexity = "beginner"
-        mock_template.tags = []
-        mock_template.inputs_schema = {}
-        mock_template.steps_schema = []
-        mock_template.output_schema = {}
-        mock_template.is_public = False
-        mock_template.version = "1.0.0"
-        mock_template.created_at = datetime.now()
-        mock_template.updated_at = datetime.now()
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_template
-        mock_db.commit = Mock()
-        mock_db.refresh = Mock()
-
+    async def test_update_workflow_success(self):
+        """update_workflow updates an existing workflow."""
+        template = _tpl(id="wf_001", name="Old Name")
+        db = _db(template=template)
         payload = {
             "name": "Updated Name",
             "description": "Updated description"
         }
+        with _mock_flag(False):
+            out = await update_workflow("wf_001", payload, db=db)
+        assert out["success"] is True
+        assert out["workflow"]["name"] == "Updated Name"
+        assert template.name == "Updated Name"
+        db.commit.assert_called_once()
 
-        # Act
-        response = client.put("/workflows/wf_001", json=payload)
+    async def test_delete_workflow_success(self):
+        """delete_workflow deletes a workflow."""
+        template = _tpl(id="wf_001")
+        db = _db(template=template)
+        with _mock_flag(False):
+            out = await delete_workflow("wf_001", db=db)
+        assert out["success"] is True
+        db.delete.assert_called_once_with(template)
+        db.commit.assert_called_once()
 
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        mock_db.commit.assert_called_once()
-
-    def test_delete_workflow_success(self):
-        """DELETE /workflows/{workflow_id} deletes workflow."""
-        # Arrange
-        client = TestClient(router)
-        mock_db = Mock(spec=Session)
-
-        mock_template = Mock()
-        mock_template.template_id = "wf_001"
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_template
-        mock_db.delete = Mock()
-        mock_db.commit = Mock()
-
-        # Act
-        response = client.delete("/workflows/wf_001")
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        mock_db.delete.assert_called_once()
-
-    def test_list_workflows_alias(self):
-        """GET /workflows (list) returns workflows (alias for /definitions)."""
-        # Arrange
-        client = TestClient(router)
-        mock_db = Mock(spec=Session)
-        mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.offset.return_value.all.return_value = []
-
-        # Act
-        response = client.get("/workflows?limit=10&offset=0")
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
+    async def test_list_workflows_alias(self):
+        """list_workflows returns workflows (alias for get_workflows)."""
+        db = _db(rows=[_tpl()])
+        with _mock_flag(False):
+            out = await list_workflows(limit=10, offset=0, db=db)
+        assert out["success"] is True
+        assert out["count"] == 1
 
 
 # ============================================================================
@@ -444,45 +345,27 @@ class TestWorkflowCanvas:
 class TestAPIAuthentication:
     """Test API authentication and authorization."""
 
-    def test_api_response_format_consistent(self):
-        """All API responses follow consistent format."""
-        # Arrange
-        client = TestClient(router)
+    async def test_api_response_format_consistent(self):
+        """All endpoint responses follow the consistent success format."""
+        out = await get_services()
+        assert isinstance(out["success"], bool)
+        assert out["success"] is True
 
-        # Act & Assert
-        response = client.get("/services")
-        assert response.status_code == 200
-        data = response.json()
-        assert "success" in data
-        assert isinstance(data["success"], bool)
+    async def test_error_response_format(self):
+        """Error responses carry a FastAPI-style status_code and detail."""
+        with _mock_flag(False):
+            with pytest.raises(HTTPException) as exc_info:
+                await get_workflow_by_id("nonexistent", db=_db(template=None))
+        assert exc_info.value.status_code == 404
+        assert exc_info.value.detail
 
-    def test_error_response_format(self):
-        """Error responses follow consistent format."""
-        # Arrange
-        client = TestClient(router)
-        mock_db = Mock(spec=Session)
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-
-        # Act
-        response = client.get("/workflows/nonexistent")
-
-        # Assert
-        assert response.status_code == 404
-        data = response.json()
-        assert "detail" in data
-
-    def test_endpoint_requires_database_session(self):
-        """Endpoints that require database session accept dependency injection."""
-        # Arrange
-        client = TestClient(router)
-        mock_db = Mock(spec=Session)
-        mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.offset.return_value.all.return_value = []
-
-        # Act
-        response = client.get("/workflows")
-
-        # Assert
-        assert response.status_code == 200
+    async def test_endpoint_requires_database_session(self):
+        """DB-backed endpoints accept an injected database session."""
+        db = _db(rows=[])
+        with _mock_flag(False):
+            out = await get_workflows(limit=10, offset=0, db=db)
+        assert out["success"] is True
+        db.query.assert_called()
 
 
 # ============================================================================
@@ -492,89 +375,79 @@ class TestAPIAuthentication:
 class TestWorkflowExecution:
     """Test workflow execution and history endpoints."""
 
-    def test_execute_workflow_by_id(self):
-        """POST /workflows/{workflow_id}/execute starts workflow execution."""
-        # Arrange
-        client = TestClient(router)
+    async def test_execute_workflow_by_id(self):
+        """execute_workflow_by_id schedules a background orchestration."""
+        orchestrator = MagicMock()
+        orchestrator.active_contexts = {}
+        background_tasks = MagicMock()
+        user = MagicMock()
+        with patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator), \
+             patch.object(wui, "require_workflow_executor_orchestrator",
+                          new=AsyncMock()), \
+             patch.object(wui.uuid, "uuid4",
+                          return_value=MagicMock(hex="ab12cd34")):
+            out = await execute_workflow_by_id(
+                "wf_001",
+                background_tasks=background_tasks,
+                payload={"input": {}},
+                current_user=user,
+            )
+        assert out["success"] is True
+        assert out["execution_id"] == "exec_ab12cd34"
+        assert out["workflow_id"] == "wf_001"
+        background_tasks.add_task.assert_called_once()
 
-        with patch('core.workflow_ui_endpoints.BackgroundTasks'):
-            with patch('core.workflow_ui_endpoints.uuid.uuid4', return_value='exec123'):
-                # Act
-                response = client.post("/workflows/wf_001/execute", json={"input": {}})
+    async def test_get_workflow_history(self):
+        """get_workflow_history returns execution history for a workflow."""
+        out = await get_workflow_history("wf_1")
+        assert out["success"] is True
+        assert out["workflow_id"] == "wf_1"
+        assert isinstance(out["history"], list)
+        assert all(e["workflow_id"] == "wf_1" for e in out["history"])
+        assert len(out["history"]) > 0  # mock history exists for wf_1
 
-                # Assert
-                assert response.status_code == 200
-                data = response.json()
-                assert data["success"] is True
-                assert "execution_id" in data
-
-    def test_get_workflow_history(self):
-        """GET /workflows/{workflow_id}/history returns execution history."""
-        # Arrange
-        client = TestClient(router)
-
-        # Act
-        response = client.get("/workflows/wf_001/history")
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "history" in data
-        assert isinstance(data["history"], list)
-
-    def test_create_workflow_definition(self):
-        """POST /definitions creates new workflow definition."""
-        # Arrange
-        client = TestClient(router)
-
-        with patch('core.workflow_ui_endpoints.uuid.uuid4', return_value='test123'):
+    async def test_create_workflow_definition(self):
+        """create_workflow_definition creates a definition from builder nodes."""
+        snapshot = list(MOCK_WORKFLOWS)
+        try:
             payload = {
                 "name": "Visual Workflow",
                 "description": "Created via Visual Builder",
-                "definition": {
-                    "nodes": [
-                        {"id": "node1", "type": "action"}
-                    ]
-                }
+                "definition": {"nodes": [{"id": "node1", "type": "action"},
+                                         {"id": "node2", "type": "action"}]},
             }
+            out = await create_workflow_definition(payload)
+            assert out["success"] is True
+            assert out["workflow"]["name"] == "Visual Workflow"
+            assert out["workflow"]["steps_count"] == 2
+            assert MOCK_WORKFLOWS[0].id == out["workflow"]["id"]
+        finally:
+            wui.MOCK_WORKFLOWS[:] = snapshot
 
-            # Act
-            response = client.post("/definitions", json=payload)
+    async def test_get_executions(self):
+        """GET /executions returns active workflow executions (auth required)."""
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from core.auth import get_current_user
+        from core.workflow_ui_endpoints import router, get_executions
 
-            # Assert
-            assert response.status_code == 200
-            data = response.json()
-            assert data["success"] is True
-            assert "workflow" in data
-
-    def test_get_executions(self):
-        """GET /executions returns active workflow executions."""
-        # Arrange — R69: endpoint now requires auth; build an authed client.
         app = FastAPI()
         app.include_router(router)
-        app.dependency_overrides[auth_get_current_user] = lambda: MagicMock(
+        app.dependency_overrides[get_current_user] = lambda: MagicMock(
             id="u-69", email="u@example.com", role="member", tenant_id="tenant-69"
         )
-        app.dependency_overrides[get_db] = lambda: MagicMock()
         client = TestClient(app, raise_server_exceptions=False)
 
-        # Act
         response = client.get("/executions")
 
-        # Assert
         assert response.status_code == 200
         data = response.json()
         assert "success" in data
         assert "executions" in data
 
-    def test_cancel_execution(self):
-        """POST /executions/{execution_id}/cancel cancels running execution."""
-        # Arrange
-        client = TestClient(router)
-
-        # Create a mock execution first
-        from core.workflow_ui_endpoints import MOCK_EXECUTIONS
+    async def test_cancel_execution(self):
+        """cancel_execution cancels a running mock execution."""
         mock_exec = WorkflowExecution(
             execution_id="exec_cancel_001",
             workflow_id="wf_001",
@@ -584,65 +457,76 @@ class TestWorkflowExecution:
             total_steps=3
         )
         MOCK_EXECUTIONS.append(mock_exec)
+        try:
+            out = await cancel_execution(
+                "exec_cancel_001", current_user=MagicMock()
+            )
+            assert out["success"] is True
+            assert mock_exec.status == "cancelled"
+        finally:
+            MOCK_EXECUTIONS.remove(mock_exec)
 
-        # Act
-        response = client.post("/executions/exec_cancel_001/cancel")
+    async def test_cancel_execution_not_found(self):
+        """cancel_execution raises 404 for a missing execution."""
+        db = _db(template=None)
+        orchestrator = MagicMock()
+        orchestrator.active_contexts = {}
+        with patch.object(wui, "get_db", MagicMock(return_value=iter([db]))), \
+             patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator):
+            with pytest.raises(HTTPException) as exc_info:
+                await cancel_execution(
+                    "nonexistent", current_user=MagicMock()
+                )
+        assert exc_info.value.status_code == 404
 
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-
-    def test_cancel_execution_not_found(self):
-        """POST /executions/{execution_id}/cancel returns 404 for missing execution."""
-        # Arrange
-        client = TestClient(router)
-
-        # Act
-        response = client.post("/executions/nonexistent/cancel")
-
-        # Assert
-        assert response.status_code == 404
-
-    def test_execute_workflow_endpoint(self):
-        """POST /execute executes workflow with input data."""
-        # Arrange
-        client = TestClient(router)
-
-        with patch('core.workflow_ui_endpoints.BackgroundTasks'):
-            with patch('core.workflow_ui_endpoints.uuid.uuid4', return_value='exec123'):
-                payload = {
+    async def test_execute_workflow_endpoint(self):
+        """execute_workflow executes a workflow with input data."""
+        orchestrator = MagicMock()
+        orchestrator.active_contexts = {}
+        orchestrator.workflows = {
+            # tpl_o365_finance maps to this orchestrator definition
+            "financial_reporting_automation": SimpleNamespace(
+                steps=[SimpleNamespace(), SimpleNamespace(), SimpleNamespace()]
+            )
+        }
+        background_tasks = MagicMock()
+        with patch("advanced_workflow_orchestrator.get_orchestrator",
+                   return_value=orchestrator), \
+             patch.object(wui, "require_workflow_executor_orchestrator",
+                          new=AsyncMock()):
+            out = await execute_workflow(
+                payload={
                     "workflow_id": "tpl_o365_finance",
-                    "input": {
-                        "month": "January",
-                        "dataset": "sales_dashboard"
-                    }
-                }
+                    "input": {"month": "January", "dataset": "sales_dashboard"},
+                },
+                background_tasks=background_tasks,
+                current_user=MagicMock(),
+            )
+        assert out["success"] is True
+        assert out["execution_id"].startswith("exec_")
+        assert out["status"] == "pending"  # status field present
+        assert out["workflow_id"] == "tpl_o365_finance"
+        assert out["total_steps"] == 3  # counted from orchestrator definition
+        background_tasks.add_task.assert_called_once()
+        # Context pre-registered so it appears in the executions list
+        assert out["execution_id"] in orchestrator.active_contexts
 
-                # Act
-                response = client.post("/execute", json=payload)
+    async def test_debug_orchestrator_state(self):
+        """GET /debug/state returns orchestrator debug information (auth required)."""
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from core.auth import get_current_user
+        from core.workflow_ui_endpoints import router
 
-                # Assert
-                assert response.status_code == 200
-                data = response.json()
-                assert data["success"] is True
-                assert "execution_id" in data
-                assert "status" in data
-
-    def test_debug_orchestrator_state(self):
-        """GET /debug/state returns orchestrator debug information."""
-        # Arrange — R69: endpoint now requires auth; build an authed client.
         app = FastAPI()
         app.include_router(router)
-        app.dependency_overrides[auth_get_current_user] = lambda: MagicMock(
+        app.dependency_overrides[get_current_user] = lambda: MagicMock(
             id="u-69", email="u@example.com", role="member", tenant_id="tenant-69"
         )
-        app.dependency_overrides[get_db] = lambda: MagicMock()
         client = TestClient(app, raise_server_exceptions=False)
 
-        # Act
         response = client.get("/debug/state")
 
-        # Assert
         # May fail if orchestrator not available, which is OK
         assert response.status_code in [200, 500]

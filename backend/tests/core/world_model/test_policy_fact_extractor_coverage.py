@@ -27,9 +27,9 @@ class TestExtractedFactModel:
 
     def test_extracted_fact_basic_creation(self):
         """Test basic ExtractedFact creation"""
-        fact = ExtractedFact(fact="Expenses over $100 need approval")
+        fact = ExtractedFact(fact="Expenses over $100 need approval", domain="finance")
         assert fact.fact == "Expenses over $100 need approval"
-        assert fact.domain is None
+        assert fact.domain == "finance"
         assert fact.confidence == 0.8
 
     def test_extracted_fact_with_domain(self):
@@ -44,6 +44,7 @@ class TestExtractedFactModel:
         """Test ExtractedFact with custom confidence"""
         fact = ExtractedFact(
             fact="Travel expenses within 30 days",
+            domain="finance",
             confidence=0.95
         )
         assert fact.confidence == 0.95
@@ -65,24 +66,24 @@ class TestExtractionResultModel:
 
     def test_extraction_result_basic(self):
         """Test ExtractionResult with empty facts"""
-        result = ExtractionResult(facts=[], extraction_time=0.5)
+        result = ExtractionResult(facts=[], source_document="/doc.pdf", extraction_time=0.5)
         assert result.facts == []
         assert result.extraction_time == 0.5
 
     def test_extraction_result_with_facts(self):
         """Test ExtractionResult with facts"""
         facts = [
-            ExtractedFact(fact="Rule 1", confidence=0.9),
-            ExtractedFact(fact="Rule 2", confidence=0.8)
+            ExtractedFact(fact="Rule 1", domain="finance", confidence=0.9),
+            ExtractedFact(fact="Rule 2", domain="hr", confidence=0.8)
         ]
-        result = ExtractionResult(facts=facts, extraction_time=1.2)
+        result = ExtractionResult(facts=facts, source_document="/doc.pdf", extraction_time=1.2)
         assert len(result.facts) == 2
         assert result.extraction_time == 1.2
 
     def test_extraction_result_serialization(self):
         """Test ExtractionResult can be serialized to dict"""
-        facts = [ExtractedFact(fact="Test fact")]
-        result = ExtractionResult(facts=facts, extraction_time=0.1)
+        facts = [ExtractedFact(fact="Test fact", domain="general")]
+        result = ExtractionResult(facts=facts, source_document="/doc.pdf", extraction_time=0.1)
         data = result.model_dump()
         assert "facts" in data
         assert "extraction_time" in data
@@ -166,18 +167,19 @@ class TestExtractFactsFromDocument:
             assert isinstance(result, ExtractionResult)
 
     @pytest.mark.asyncio
-    async def test_extract_facts_logs_warning(self):
-        """Test extraction logs warning about unimplemented feature"""
+    async def test_extract_facts_logs_unavailable(self):
+        """Test extraction logs error when docling is unavailable"""
         extractor = PolicyFactExtractor()
         with patch("core.policy_fact_extractor.logger") as mock_logger:
             result = await extractor.extract_facts_from_document(
                 document_path="/test.pdf",
                 user_id="user-123"
             )
-            # Should log warning about unimplemented feature
-            mock_logger.warning.assert_called_once()
-            call_args = str(mock_logger.warning.call_args)
-            assert "not implemented" in call_args.lower()
+            # Should log error about the docling processor not being available
+            assert mock_logger.error.called
+            call_args = str(mock_logger.error.call_args)
+            assert "not available" in call_args.lower()
+            assert result.facts == []
 
 
 class TestGlobalExtractorRegistry:
@@ -191,7 +193,7 @@ class TestGlobalExtractorRegistry:
         extractor = get_policy_fact_extractor("test-workspace")
         assert isinstance(extractor, PolicyFactExtractor)
         assert extractor.workspace_id == "test-workspace"
-        assert "test-workspace" in _extractors
+        assert "test-workspace:default" in _extractors
 
     def test_get_extractor_reuses_existing_instance(self):
         """Test get_policy_fact_extractor reuses existing instance"""
@@ -213,7 +215,7 @@ class TestGlobalExtractorRegistry:
         extractor = get_policy_fact_extractor()
         assert isinstance(extractor, PolicyFactExtractor)
         assert extractor.workspace_id == "default"
-        assert "default" in _extractors
+        assert "default:default" in _extractors
 
     def test_get_extractor_multiple_workspaces(self):
         """Test get_policy_fact_extractor with multiple workspaces"""
@@ -230,9 +232,9 @@ class TestGlobalExtractorRegistry:
 
         # All should be in registry
         assert len(_extractors) == 3
-        assert "workspace-1" in _extractors
-        assert "workspace-2" in _extractors
-        assert "workspace-3" in _extractors
+        assert "workspace-1:default" in _extractors
+        assert "workspace-2:default" in _extractors
+        assert "workspace-3:default" in _extractors
 
     def test_get_extractor_logs_creation(self):
         """Test get_policy_fact_extractor logs creation"""
@@ -297,20 +299,20 @@ class TestEdgeCases:
     def test_extracted_fact_edge_cases(self):
         """Test ExtractedFact with edge case values"""
         # Empty fact string
-        fact = ExtractedFact(fact="")
+        fact = ExtractedFact(fact="", domain="general")
         assert fact.fact == ""
 
         # Zero confidence
-        fact = ExtractedFact(fact="test", confidence=0.0)
+        fact = ExtractedFact(fact="test", domain="general", confidence=0.0)
         assert fact.confidence == 0.0
 
         # Maximum confidence
-        fact = ExtractedFact(fact="test", confidence=1.0)
+        fact = ExtractedFact(fact="test", domain="general", confidence=1.0)
         assert fact.confidence == 1.0
 
     def test_extraction_result_negative_time(self):
         """Test ExtractionResult with zero time (not negative in practice)"""
-        result = ExtractionResult(facts=[], extraction_time=0.0)
+        result = ExtractionResult(facts=[], source_document="/doc.pdf", extraction_time=0.0)
         assert result.extraction_time == 0.0
 
     def test_global_registry_clear_between_tests(self):
@@ -335,24 +337,22 @@ class TestModelValidation:
     def test_extracted_fact_validation(self):
         """Test ExtractedFact validates confidence is float"""
         # Pydantic should convert int to float
-        fact = ExtractedFact(fact="test", confidence=80)
+        fact = ExtractedFact(fact="test", domain="general", confidence=80)
         assert isinstance(fact.confidence, float)
         assert fact.confidence == 80.0
 
     def test_extraction_result_validation(self):
         """Test ExtractionResult validates extraction_time is float"""
         # Pydantic should convert int to float
-        result = ExtractionResult(facts=[], extraction_time=1)
+        result = ExtractionResult(facts=[], source_document="/doc.pdf", extraction_time=1)
         assert isinstance(result.extraction_time, float)
         assert result.extraction_time == 1.0
 
-    def test_extracted_fact_optional_domain(self):
-        """Test ExtractedFact domain is optional"""
-        fact = ExtractedFact(fact="test")
-        assert fact.domain is None
-
-        fact_with_domain = ExtractedFact(fact="test", domain="finance")
-        assert fact_with_domain.domain == "finance"
+    def test_extracted_fact_domain_required(self):
+        """Test ExtractedFact domain is a required string field"""
+        fact = ExtractedFact(fact="test", domain="finance")
+        assert fact.domain == "finance"
+        assert isinstance(fact.domain, str)
 
 
 class TestAsyncBehavior:

@@ -26,6 +26,21 @@ def _video_request(task_type, **kw):
 # ============================================================================
 
 
+
+def _fake_cv2_module(video_capture=None):
+    """cv2 stub: the installed cv2 is incompatible with numpy 2.x in this env."""
+    import types
+    mod = types.ModuleType("cv2")
+    mod.VideoCapture = video_capture or MagicMock(name="VideoCapture")
+    mod.CAP_PROP_FRAME_COUNT = 0
+    mod.CAP_PROP_POS_FRAMES = 1
+    mod.CAP_PROP_FPS = 2
+    mod.CAP_PROP_FRAME_WIDTH = 3
+    mod.CAP_PROP_FRAME_HEIGHT = 4
+    mod.COLOR_BGR2RGB = 5
+    mod.cvtColor = MagicMock(return_value="rgb")
+    return mod
+
 class TestVideoAIService:
     def _svc(self):
         import integrations.atom_video_ai_service as v
@@ -159,7 +174,10 @@ class TestVideoAIService:
         assert svc._get_quality_category(65) == "fair"
         assert svc._get_quality_category(55) == "poor"
         assert svc._get_quality_category(10) == "very_poor"
-        assert await svc._analyze_video_quality(b"x") == 0.0
+        cap = MagicMock()
+        cap.get.return_value = 0
+        with patch.dict(sys.modules, {"cv2": _fake_cv2_module(video_capture=MagicMock(return_value=cap))}):
+            assert await svc._analyze_video_quality(b"x") == 0.0
 
     async def test_new_handlers(self):
         import integrations.atom_video_ai_service as v
@@ -912,15 +930,19 @@ class TestVideoAIGaps:
     async def test_analyze_video_quality_real_cv2(self):
         import integrations.atom_video_ai_service as v
         svc = self._svc()
-        assert await svc._analyze_video_quality(b"not a video") == 0.0
+        cap = MagicMock()
+        cap.get.return_value = 0
+        with patch.dict(sys.modules, {"cv2": _fake_cv2_module(video_capture=MagicMock(return_value=cap))}):
+            assert await svc._analyze_video_quality(b"not a video") == 0.0
 
     async def test_extract_frames_error(self):
         import integrations.atom_video_ai_service as v
         svc = self._svc()
         with patch.dict(sys.modules, {"cv2": None}):
             assert await svc._extract_frames(b"x") == []
-        import cv2
-        with patch("cv2.VideoCapture", side_effect=RuntimeError("x")):
+        fake_cv2 = _fake_cv2_module()
+        fake_cv2.VideoCapture = MagicMock(side_effect=RuntimeError("x"))
+        with patch.dict(sys.modules, {"cv2": fake_cv2}):
             assert await svc._extract_frames(b"x") == []
 
 
@@ -1078,7 +1100,7 @@ class TestChatInterfaceGaps:
         import integrations.atom_chat_interface as mod
         svc = self._svc()
         fake = MagicMock()
-        fake.list_workspaces.side_effect = RuntimeError("x")
+        fake.list_workflows.side_effect = RuntimeError("x")
         with patch.object(mod, "slack_workflow_automation", fake):
             resp = await svc._handle_slack_workflows(self._msg(svc, "/slack-workflows list"))
             assert "Error with workflows" in resp
@@ -1092,7 +1114,7 @@ class TestChatInterfaceGaps:
         wf.description = "desc"
         wf.active = True
         fake = MagicMock()
-        fake.list_workspaces.return_value = [wf]
+        fake.list_workflows.return_value = [wf]
         fake.execute_workflow = AsyncMock(return_value=MagicMock(id="exec1"))
         svc.slack_connected = True
         with patch.object(mod, "slack_workflow_automation", fake):
@@ -1151,10 +1173,8 @@ class TestVideoAIFinalGaps:
         fake_cap = MagicMock()
         fake_cap.get.return_value = 10
         fake_cap.read.return_value = (True, MagicMock())
-        with patch("cv2.VideoCapture", return_value=fake_cap), \
-             patch("cv2.CAP_PROP_FRAME_COUNT", 0), \
-             patch("cv2.CAP_PROP_POS_FRAMES", 1), \
-             patch("cv2.cvtColor", return_value="rgb"):
+        fake_cv2 = _fake_cv2_module(video_capture=MagicMock(return_value=fake_cap))
+        with patch.dict(sys.modules, {"cv2": fake_cv2}):
             frames = await svc._extract_frames(b"data", num_frames=5)
         assert len(frames) == 5
         assert fake_cap.release.called

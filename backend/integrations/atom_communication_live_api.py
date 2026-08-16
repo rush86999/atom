@@ -159,6 +159,68 @@ async def fetch_slack_recent(limit: int = 20) -> List[Dict]:
 
     return messages
 
+async def fetch_gmail_recent(limit: int = 20) -> List[Dict]:
+    """Fetch recent Gmail messages for the unified inbox.
+
+    BUG FIX: this function was referenced by get_recent_contacts but never
+    defined — the NameError was silently swallowed, so Gmail contacts never
+    appeared in the live API response.
+    """
+    if not GMAIL_AVAILABLE:
+        return []
+    try:
+        from core.user_context_manager import get_user_context_manager
+        token_context = get_user_context_manager().get_token_with_context("gmail")
+        token = token_context.get("token") if token_context else None
+        msgs = gmail_service.get_messages(max_results=limit, token=token)
+        return [
+            {"sender": m.get("sender") or m.get("from", ""), "source": "gmail",
+             "snippet": m.get("snippet", ""), "date": m.get("date")}
+            for m in msgs
+        ]
+    except Exception as e:
+        logger.warning(f"Error fetching Gmail recent messages: {e}")
+        return []
+
+
+async def fetch_discord_recent(limit: int = 20) -> List[Dict]:
+    """Fetch recent Discord messages across the first guild channels.
+
+    BUG FIX: this function was referenced by get_recent_contacts but never
+    defined — the NameError was silently swallowed, so Discord contacts never
+    appeared in the live API response.
+    """
+    if not DISCORD_AVAILABLE:
+        return []
+    try:
+        messages = []
+        get_guilds = getattr(discord_service, "get_guilds", None)
+        if get_guilds is None:
+            logger.debug("discord_service exposes no get_guilds; skipping Discord recent")
+            return []
+        guilds = await get_guilds()
+        for guild in guilds[:1]:
+            channels = await discord_service.get_guild_channels(
+                guild_id=guild.get("id", ""))
+            for ch in channels[:3]:
+                msgs = await discord_service.get_channel_messages(
+                    channel_id=ch.get("id", ""), limit=max(1, limit // 3))
+                for m in msgs:
+                    messages.append({
+                        "sender": m.get("author", {}).get("username", "")
+                                  if isinstance(m.get("author"), dict) else m.get("author", ""),
+                        "source": "discord",
+                        "content": m.get("content", ""),
+                        "date": m.get("timestamp"),
+                    })
+                    if len(messages) >= limit:
+                        return messages
+        return messages
+    except Exception as e:
+        logger.warning(f"Error fetching Discord recent messages: {e}")
+        return []
+
+
 async def fetch_zoho_mail_recent(limit: int = 20) -> List[Dict]:
     """Fetch recent messages from Zoho Mail"""
     if not ZOHO_MAIL_AVAILABLE:

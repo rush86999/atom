@@ -247,17 +247,17 @@ class CalendlyService(IntegrationService):
                 
                 for key, value, unit in metrics_to_save:
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,  # BUG FIX: model column is workspace_id, not tenant_id
                         integration_type="calendly",
                         metric_key=key
                     ).first()
-                    
+
                     if existing:
                         existing.value = float(value)
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,  # BUG FIX: IntegrationMetric has workspace_id, not tenant_id
                             integration_type="calendly",
                             metric_key=key,
                             value=float(value),

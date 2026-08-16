@@ -25,13 +25,22 @@ sys = __import__('sys')
 mock_episode_service = Mock()
 mock_episode_service.EpisodeService = Mock
 mock_episode_service.ReadinessThresholds = Mock
+_real_episode_service = sys.modules.get('core.episode_service')
 sys.modules['core.episode_service'] = mock_episode_service
-
-from core.graduation_exam import (
-    GraduationExamService,
-    ExamResult,
-    PromotionResult
-)
+try:
+    from core.graduation_exam import (
+        GraduationExamService,
+        ExamResult,
+        PromotionResult
+    )
+finally:
+    # Restore the real module so later test files in the same worker
+    # (e.g. tests/core/episode/test_episode_service.py) import the real
+    # EpisodeService instead of this Mock.
+    if _real_episode_service is not None:
+        sys.modules['core.episode_service'] = _real_episode_service
+    else:
+        sys.modules.pop('core.episode_service', None)
 from core.models import (
     AgentRegistry,
     AgentEpisode,

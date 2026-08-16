@@ -433,7 +433,12 @@ class AgentSocialLayer:
             metadata = post.post_metadata if isinstance(post.post_metadata, dict) else {}
 
             def _mentions(key: str) -> List[str]:
-                listed = metadata.get(key) or getattr(post, key, None) or []
+                # BUG FIX: an explicit empty list in metadata must not fall
+                # through to the attribute fallback, which can yield a
+                # non-iterable value.
+                listed = metadata.get(key)
+                if listed is None:
+                    listed = getattr(post, key, None) or []
                 return list(listed)
 
             # Count agent mentions

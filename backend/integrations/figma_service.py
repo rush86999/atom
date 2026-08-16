@@ -346,8 +346,11 @@ class FigmaService(IntegrationService):
                 ]
                 
                 for key, value, unit in metrics_to_save:
+                    # BUG FIX: IntegrationMetric has workspace_id (not tenant_id)
+                    # as its column — constructing/filtering with tenant_id made
+                    # every insert raise TypeError, so the sync always failed.
                     existing = db.query(IntegrationMetric).filter_by(
-                        tenant_id=workspace_id,
+                        workspace_id=workspace_id,
                         integration_type="figma",
                         metric_key=key
                     ).first()
@@ -357,7 +360,7 @@ class FigmaService(IntegrationService):
                         existing.last_synced_at = datetime.now(timezone.utc)
                     else:
                         metric = IntegrationMetric(
-                            tenant_id=workspace_id,
+                            workspace_id=workspace_id,
                             integration_type="figma",
                             metric_key=key,
                             value=float(value),

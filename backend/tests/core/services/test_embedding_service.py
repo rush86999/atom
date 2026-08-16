@@ -139,17 +139,19 @@ class TestGenerateEmbedding:
 
     @pytest.mark.asyncio
     async def test_generate_embedding_openai(self):
-        """Test generating OpenAI embedding."""
+        """Test generating OpenAI embedding (unified via LLMService)."""
         from core.embedding_service import EmbeddingService
+        from unittest.mock import AsyncMock
         service = EmbeddingService(provider="openai", config={"api_key": "test-key"})
 
-        with patch.object(service, '_generate_openai_embedding') as mock_gen:
-            mock_gen.return_value = [0.2] * 1536
+        mock_llm = Mock()
+        mock_llm.generate_embedding = AsyncMock(return_value=[0.2] * 1536)
+        service.llm_service = mock_llm
 
-            result = await service.generate_embedding("test text")
+        result = await service.generate_embedding("test text")
 
-            assert len(result) == 1536
-            mock_gen.assert_called_once()
+        assert len(result) == 1536
+        mock_llm.generate_embedding.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_embedding_error_handling(self, embedding_service):
@@ -180,18 +182,20 @@ class TestGenerateEmbeddingsBatch:
 
     @pytest.mark.asyncio
     async def test_generate_embeddings_batch_openai(self):
-        """Test batch generation with OpenAI."""
+        """Test batch generation with OpenAI (unified via LLMService)."""
         from core.embedding_service import EmbeddingService
+        from unittest.mock import AsyncMock
         service = EmbeddingService(provider="openai", config={"api_key": "test-key"})
         texts = ["text 1", "text 2"]
 
-        with patch.object(service, '_generate_openai_embeddings_batch') as mock_gen:
-            mock_gen.return_value = [[0.1] * 1536, [0.2] * 1536]
+        mock_llm = Mock()
+        mock_llm.generate_embeddings_batch = AsyncMock(return_value=[[0.1] * 1536, [0.2] * 1536])
+        service.llm_service = mock_llm
 
-            results = await service.generate_embeddings_batch(texts)
+        results = await service.generate_embeddings_batch(texts)
 
-            assert len(results) == 2
-            mock_gen.assert_called_once()
+        assert len(results) == 2
+        mock_llm.generate_embeddings_batch.assert_called_once()
 
 
 class TestFastEmbedCoarseSearch:

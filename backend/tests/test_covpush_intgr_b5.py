@@ -226,7 +226,7 @@ class TestWorkflowEngine:
         svc.send_message = AsyncMock(return_value={"ok": True, "timestamp": "1", "message_id": "m1"})
         svc.send_dm = AsyncMock(return_value={"ok": True, "timestamp": "1", "message_id": "m1"})
         svc.create_channel = AsyncMock(return_value={"ok": True, "channel_id": "C2"})
-        svc.invite_to_channel = AsyncMock(return_value={"invited_users": ["U1"], "failed_users": []})
+        svc.invite_to_channel = AsyncMock(return_value={"ok": True, "invited_users": ["U1"], "failed_users": []})
         svc.add_reaction = AsyncMock(return_value={"ok": True})
         svc.pin_message = AsyncMock(return_value={"ok": True})
         eng.slack_service = svc

@@ -152,9 +152,12 @@ def test_is_error_observation_non_string():
 # ---------------------------------------------------------------------------
 def test_meta_agent_sandbox_check_disabled_returns_none():
     """When the sandbox master switch is off, the check is a no-op (None)."""
-    fake_sandbox_config = MagicMock()
-    fake_sandbox_config.is_sandbox_enabled.return_value = False
-    with patch.dict("sys.modules", {"core.sandbox_config": fake_sandbox_config}):
+    # Patch the real module directly: the source resolves sandbox_config via
+    # `from core import sandbox_config` (parent-package attribute), so
+    # replacing sys.modules only works if the module was never imported
+    # earlier in the process (order-dependent under xdist).
+    from core import sandbox_config as _sandbox_config
+    with patch.object(_sandbox_config, "is_sandbox_enabled", return_value=False):
         result = _meta_agent_sandbox_check("read_file", {}, {"run_id": "r1", "tier": "executive"})
     assert result is None
 

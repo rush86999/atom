@@ -486,11 +486,16 @@ class TestSkillRegistryServiceCoverage:
     @pytest.mark.asyncio
     async def test_execute_nodejs_skill_no_code(self, db_session, monkeypatch):
         """Cover Node.js execution (lines 739-741) - no code found"""
-        # Bypass the npm governance/install step so the test exercises the
-        # code-extraction failure path directly.
+        # Bypass the npm governance/install step and force code extraction to
+        # fail so the test exercises the code-extraction failure path directly
+        # (without hitting Docker).
         monkeypatch.setattr(
             'core.skill_registry_service.SkillRegistryService._install_npm_dependencies_for_skill',
             Mock(return_value={"success": True, "image_tag": "skill-test:latest", "vulnerabilities": []})
+        )
+        monkeypatch.setattr(
+            'core.skill_registry_service.SkillRegistryService._extract_nodejs_code',
+            Mock(return_value="")
         )
 
         skill_data = {

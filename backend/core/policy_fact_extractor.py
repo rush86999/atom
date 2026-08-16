@@ -207,4 +207,5 @@ def get_policy_fact_extractor(workspace_id: str = "default", tenant_id: str = "d
     cache_key = f"{workspace_id}:{tenant_id}"
     if cache_key not in _extractors:
         _extractors[cache_key] = PolicyFactExtractor(workspace_id, tenant_id)
+        logger.info(f"Created PolicyFactExtractor for workspace '{workspace_id}' (tenant '{tenant_id}')")
     return _extractors[cache_key]

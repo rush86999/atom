@@ -34,6 +34,13 @@ class FakeLLM:
         return json.dumps({"sentiment": "positive", "sentiment_score": 0.9, "key_topics": ["a"]})
 
 
+def _legacy_llm(*args, **kwargs):
+    """LLM mock exposing only the legacy ``chat_completion`` interface."""
+    mock = MagicMock(*args, **kwargs)
+    mock.generate_completion = None
+    return mock
+
+
 class FakePlatform:
     async def get_unified_workspaces(self, user_id):
         return [{
@@ -148,7 +155,7 @@ class TestAtomAIIntegration:
         svc = self._svc()
         result = await svc.get_intelligent_analytics("orders", "30d", "w1")
         assert result["sentiment"] == "positive"  # JSON response parsed
-        svc.llm_service = MagicMock()
+        svc.llm_service = _legacy_llm()
         svc.llm_service.chat_completion = AsyncMock(return_value="plain text")
         result = await svc.get_intelligent_analytics("orders", "30d", "w1")
         assert result["analysis"] == "plain text"  # non-JSON response -> analysis key
@@ -230,7 +237,7 @@ class TestAtomAIIntegration:
         svc = self._svc()
         analysis = await svc._get_message_ai_analysis({"content": "hello"})
         assert analysis["sentiment"] == "positive"
-        svc.llm_service = MagicMock()
+        svc.llm_service = _legacy_llm()
         svc.llm_service.chat_completion = AsyncMock(return_value="not json")
         analysis = await svc._get_message_ai_analysis({"content": "hello"})
         assert analysis["sentiment"] == "neutral"
@@ -242,7 +249,7 @@ class TestAtomAIIntegration:
         svc = self._svc()
         assert await svc._enhance_content("hi", {}) != "hi"
         assert await svc._enhance_content("hi", {"enhance_content": False}) == "hi"
-        svc.llm_service = MagicMock()
+        svc.llm_service = _legacy_llm()
         svc.llm_service.chat_completion = AsyncMock(side_effect=RuntimeError("x"))
         assert await svc._enhance_content("hi", {}) == "hi"
         svc.atom_memory.store = AsyncMock()
@@ -270,12 +277,12 @@ class TestAtomAIIntegration:
         assert cid.startswith("ai_conv_u1_slack_")
         resp = await mgr.continue_conversation(cid, "hi", "u1")
         assert resp["ok"] is False
-        mgr2 = AIConversationManager(MagicMock())
+        mgr2 = AIConversationManager(_legacy_llm())
         mgr2.llm_service.chat_completion = AsyncMock(return_value="")
         cid2 = await mgr2.start_conversation("u1", "slack")
         resp = await mgr2.continue_conversation(cid2, "hi", "u1")
         assert resp["ok"] is False and "failed" in resp["error"]
-        cmd_llm = MagicMock()
+        cmd_llm = _legacy_llm()
         cmd_llm.chat_completion = AsyncMock(return_value=json.dumps({"ok": True, "action": "send"}))
         mgr3 = AIConversationManager(cmd_llm)
         resp = await mgr3.process_command("send to bob", "u1", "ws1", "slack")
@@ -283,13 +290,13 @@ class TestAtomAIIntegration:
         cmd_llm.chat_completion = AsyncMock(return_value="raw response")
         resp = await mgr3.process_command("send to bob", "u1", "ws1", "slack")
         assert resp["ok"] is True and resp["response"] == "raw response"
-        mgr4 = AIConversationManager(MagicMock())
+        mgr4 = AIConversationManager(_legacy_llm())
         mgr4.llm_service.chat_completion = AsyncMock(side_effect=RuntimeError("x"))
         assert (await mgr4.process_command("cmd", "u1"))["ok"] is False
 
     async def test_search_manager(self):
         from integrations.atom_ai_integration import IntelligentSearchManager
-        llm = MagicMock()
+        llm = _legacy_llm()
         llm.chat_completion = AsyncMock(return_value=json.dumps({"ranked_results": [{"id": "r"}]}))
         mgr = IntelligentSearchManager(llm, MagicMock())
         mgr.atom_search.unified_search = AsyncMock(return_value=[{"id": 1}])
@@ -321,7 +328,7 @@ class TestAtomAIIntegration:
 
     async def test_workflow_intelligence_manager(self):
         from integrations.atom_ai_integration import WorkflowIntelligenceManager
-        llm = MagicMock()
+        llm = _legacy_llm()
         llm.chat_completion = AsyncMock(return_value=json.dumps({"opt": 1}))
         mgr = WorkflowIntelligenceManager(llm, None)
         wf = await mgr.enhance_workflow({"id": 1})
@@ -345,7 +352,7 @@ class TestAtomAIIntegration:
 
     async def test_cross_platform_ai_manager(self):
         from integrations.atom_ai_integration import CrossPlatformAIManager
-        llm = MagicMock()
+        llm = _legacy_llm()
         llm.chat_completion = AsyncMock(return_value=json.dumps({"analysis": 1}))
         mgr = CrossPlatformAIManager(llm, {"slack": FakePlatform(), "teams": None})
         await mgr.initialize()
@@ -1127,8 +1134,8 @@ class TestShopifyService:
         assert (await svc.execute_operation("full_sync", {"workspace_id": "w"}))["success"]
         svc.handle_webhook_event = AsyncMock(return_value={"ok": True})
         assert (await svc.execute_operation("handle_webhook_event", {"payload": {}, "topic": "orders/create"}))["ok"] is True
-        with pytest.raises(NotImplementedError):
-            await svc.execute_operation("nope", {})
+        result = await svc.execute_operation("nope", {})
+        assert result["success"] is False and "Unknown operation" in result["error"]
 
     async def test_handle_webhook_event(self):
         svc = self._svc()

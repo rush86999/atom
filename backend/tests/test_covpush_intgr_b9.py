@@ -69,30 +69,29 @@ class TestQuickBooksCov:
 
     async def test_circuit_and_rate_paths(self):
         import integrations.atom_quickbooks_integration_service as qb
+        from fastapi import HTTPException
         svc = self._svc()
+
+        async def expect_disabled(coro, status=503, fragment="temporarily disabled"):
+            with pytest.raises(HTTPException) as exc:
+                await coro
+            assert exc.value.status_code == status
+            assert fragment in exc.value.detail
+
         with patch.object(qb.circuit_breaker, "is_enabled", new=AsyncMock(return_value=False)):
-            result = await svc.create_invoice({"amount": 1})
-            assert result["success"] is False
-            result = await svc.create_payment({"amount": 1})
-            assert result["success"] is False
-            result = await svc.create_expense({"amount": 1})
-            assert result["success"] is False
-            result = await svc.create_customer("N", "e@e.com")
-            assert result["success"] is False
-            result = await svc.generate_financial_report(
-                qb.FinancialReportType.PROFIT_AND_LOSS, datetime.now(timezone.utc), datetime.now(timezone.utc))
-            assert result["success"] is False
-            await svc.close()
+            await expect_disabled(svc.create_invoice({"amount": 1}))
+            await expect_disabled(svc.create_payment({"amount": 1}))
+            await expect_disabled(svc.create_expense({"amount": 1}))
+            await expect_disabled(svc.create_customer("N", "e@e.com"))
+            await expect_disabled(svc.generate_financial_report(
+                qb.FinancialReportType.PROFIT_AND_LOSS, datetime.now(timezone.utc), datetime.now(timezone.utc)))
+            await expect_disabled(svc.close())
         with patch.object(qb.rate_limiter, "is_rate_limited", new=AsyncMock(return_value=(True, 0))):
-            result = await svc.create_invoice({"amount": 1})
-            assert result["success"] is False
-            result = await svc.create_payment({"amount": 1})
-            assert result["success"] is False
-            result = await svc.create_expense({"amount": 1})
-            assert result["success"] is False
-            result = await svc.create_customer("N", "e")
-            assert result["success"] is False
-            await svc.close()
+            await expect_disabled(svc.create_invoice({"amount": 1}), 429, "Rate limit exceeded")
+            await expect_disabled(svc.create_payment({"amount": 1}), 429, "Rate limit exceeded")
+            await expect_disabled(svc.create_expense({"amount": 1}), 429, "Rate limit exceeded")
+            await expect_disabled(svc.create_customer("N", "e"), 429, "Rate limit exceeded")
+            await expect_disabled(svc.close(), 429, "Rate limit exceeded")
 
     async def test_create_invoice_full(self):
         import integrations.atom_quickbooks_integration_service as qb

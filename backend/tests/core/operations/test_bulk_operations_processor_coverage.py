@@ -538,7 +538,8 @@ class TestBulkOperationsProcessorCoverage:
         assert job.processed_items == 3
         assert job.successful_items == 3
         assert job.failed_items == 0
-        assert job.progress_percentage == 50.0
+        # progress_percentage is now a computed property: processed/total
+        assert job.progress_percentage == 100.0
 
     @pytest.mark.asyncio
     async def test_update_job_progress_with_failures(self):

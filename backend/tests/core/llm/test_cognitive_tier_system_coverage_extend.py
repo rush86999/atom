@@ -461,8 +461,10 @@ class TestCombinedClassificationFactors:
         large_simple = "hello world " * 1000  # ~12000 chars ≈ 3000 tokens
         result = classifier.classify(large_simple, task_type="chat")
 
-        # Should be HEAVY or COMPLEX due to token count
-        assert result in [CognitiveTier.HEAVY, CognitiveTier.COMPLEX]
+        # Strong "simple" keyword signals intentionally cap the tier at
+        # VERSATILE (BUG-116): a long-but-simple prompt never routes to an
+        # expensive tier on token count alone.
+        assert result in [CognitiveTier.MICRO, CognitiveTier.STANDARD, CognitiveTier.VERSATILE]
 
     def test_code_block_affects_classification(self):
         """Test that code blocks affect tier classification."""

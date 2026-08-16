@@ -396,9 +396,9 @@ class TestAddReaction:
                 db=db_session
             )
 
-            # Source returns a placeholder {emoji: 1} (reaction counting via
-            # PostReaction relationship is not yet wired), so no increment occurs.
-            assert result.get("👍") == 1
+            # Source counts existing reactions (legacy dict shape) and
+            # increments: {"👍": 2} + 1 -> {"👍": 3}
+            assert result.get("👍") == 3
 
     @pytest.mark.asyncio
     async def test_add_reaction_post_not_found(self, social_layer, db_session):

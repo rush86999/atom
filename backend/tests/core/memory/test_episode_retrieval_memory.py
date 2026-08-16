@@ -583,8 +583,18 @@ class TestCanvasContextFetching:
     @pytest.mark.asyncio
     async def test_fetch_canvas_context_success(self, retrieval_service):
         """Successfully fetch canvas context."""
+        # CanvasAudit stores business fields inside details_json (flat schema)
         canvases = [
-            Mock(id="canvas-1", canvas_type="charts", component_type="line-chart", component_name="Sales Trend", action="present", created_at=datetime.now(), audit_metadata={})
+            Mock(
+                id="canvas-1",
+                action_type="present",
+                created_at=datetime.now(),
+                details_json={
+                    "canvas_type": "charts",
+                    "component_type": "line-chart",
+                    "component_name": "Sales Trend",
+                },
+            )
         ]
         retrieval_service.db.query.return_value.filter.return_value.all.return_value = canvases
 

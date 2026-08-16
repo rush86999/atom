@@ -220,7 +220,10 @@ class TeamsAdapter(PlatformAdapter):
             ).digest()
 
             try:
-                provided_hmac = base64url_decode(signature)
+                # BUG FIX: jose's base64url_decode requires bytes; passing the
+                # str signature raised TypeError (caught below) so every valid
+                # HMAC signature was rejected.
+                provided_hmac = base64url_decode(signature.encode("ascii"))
             except Exception:
                 return False
 

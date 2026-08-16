@@ -103,6 +103,8 @@ class TestDevelopmentMode:
     async def test_dev_mode_no_app_id(self, teams_adapter, mock_request, monkeypatch):
         """Test that requests are allowed in development mode without app_id"""
         monkeypatch.setenv("ENVIRONMENT", "development")
+        # Dev bypass requires explicit opt-in (see teams.py verify_request)
+        monkeypatch.setenv("BYPASS_WEBHOOK_SIGNATURE", "true")
         monkeypatch.setenv("MICROSOFT_APP_ID", "")
 
         adapter = TeamsAdapter()

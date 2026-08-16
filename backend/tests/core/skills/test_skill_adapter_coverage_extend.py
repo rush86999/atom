@@ -27,11 +27,21 @@ from unittest.mock import Mock, AsyncMock, patch, MagicMock, PropertyMock
 # Module-level mocking for external dependencies (Phase 182 pattern)
 sys.modules['docker'] = MagicMock()
 sys.modules['docker.errors'] = MagicMock()
-sys.modules['core.package_installer'] = MagicMock()
-sys.modules['core.npm_package_installer'] = MagicMock()
-sys.modules['core.npm_script_analyzer'] = MagicMock()
-sys.modules['core.package_governance_service'] = MagicMock()
-sys.modules['core.skill_sandbox'] = MagicMock()
+
+# Save the real core.* submodules so they can be restored after
+# core.skill_adapter is imported — leaving MagicMocks in sys.modules breaks
+# monkeypatch.setattr resolution in later test files that run in the same
+# worker (e.g. test_skill_registry_service_coverage.py).
+_mocked_core_modules = [
+    'core.package_installer',
+    'core.npm_package_installer',
+    'core.npm_script_analyzer',
+    'core.package_governance_service',
+    'core.skill_sandbox',
+]
+_real_core_modules = {name: sys.modules.get(name) for name in _mocked_core_modules}
+for name in _mocked_core_modules:
+    sys.modules[name] = MagicMock()
 
 # Mock HazardSandbox at module level
 mock_hazard_sandbox = MagicMock()
@@ -42,6 +52,13 @@ from core.skill_adapter import (
     NodeJsSkillAdapter,
     create_community_tool
 )
+
+# Restore the real modules; skill_adapter has already bound its imports.
+for name, real in _real_core_modules.items():
+    if real is not None:
+        sys.modules[name] = real
+    else:
+        sys.modules.pop(name, None)
 
 
 class TestPythonSkillExecutionErrorHandling:

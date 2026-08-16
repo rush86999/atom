@@ -195,6 +195,8 @@ def mock_canvas_summary_service():
     """Create mock canvas summary service"""
     service = Mock()
     service.generate_summary = AsyncMock(return_value="Agent presented workflow approval canvas")
+    service._detect_hallucination = Mock(return_value=False)
+    service._calculate_semantic_richness = Mock(return_value=0.8)
     return service
 
 
@@ -682,7 +684,7 @@ class TestEpisodeCreation:
         mock_query.filter = Mock(return_value=mock_query)
         mock_query.order_by = Mock(return_value=mock_query)
         mock_query.first = Mock(return_value=sample_session)
-        mock_query.all = Mock(return_value=[[], []])  # No messages, no executions
+        mock_query.all = Mock(return_value=[])  # No messages, no executions, no canvas/feedback
         db_session.query = Mock(return_value=mock_query)
 
         episode = await segmentation_service.create_episode_from_session(
@@ -700,7 +702,11 @@ class TestEpisodeCreation:
         mock_query.filter = Mock(return_value=mock_query)
         mock_query.order_by = Mock(return_value=mock_query)
         mock_query.first = Mock(side_effect=[sample_session, sample_agent])
-        mock_query.all = Mock(return_value=[[ChatMessage(id="m1", conversation_id="s1", role="user", content="Hi", created_at=datetime.now())], [], []])
+        # First .all() call returns one message; subsequent calls (executions,
+        # canvas audits, feedback) return empty lists.
+        message = ChatMessage(id="m1", conversation_id="s1", role="user", content="Hi", created_at=datetime.now())
+        all_results = [[message], []]
+        mock_query.all = Mock(side_effect=lambda: all_results.pop(0) if len(all_results) > 1 else all_results[0])
         db_session.query = Mock(return_value=mock_query)
         segmentation_service.lancedb.db = None
 
@@ -820,7 +826,7 @@ class TestCanvasContext:
 
         canvases = segmentation_service._fetch_canvas_context("session1")
         assert len(canvases) == 1
-        assert canvases[0].canvas_type == "orchestration"
+        assert (canvases[0].details_json or {}).get("canvas_type") == "orchestration"
 
     def test_fetch_canvas_context_empty(self, segmentation_service, db_session):
         """Test fetching canvas context when none exist"""
@@ -1026,7 +1032,7 @@ class TestSupervisionEpisodes:
             id="exec1",
             agent_id="agent1",
             status="completed",
-            task_description="Complete task",
+            input_summary="Complete task",
             result_summary="Task completed"
         )
 
@@ -1035,7 +1041,9 @@ class TestSupervisionEpisodes:
         episode = await segmentation_service.create_supervision_episode(supervision, execution, db_session)
 
         assert episode is not None
-        assert episode.id == "sup1"
+        assert episode.id  # generated UUID
+        assert "Test Agent" in episode.title
+        assert episode.supervisor_id == "user1"
         assert episode.supervisor_rating == 4
         assert episode.intervention_count == 2
 
@@ -1087,7 +1095,7 @@ class TestSupervisionEpisodes:
         execution = AgentExecution(
             id="exec1",
             agent_id="agent1",
-            task_description="Process customer data"
+            input_summary="Process customer data"
         )
         topics = segmentation_service._extract_supervision_topics(supervision, execution)
         assert isinstance(topics, list)

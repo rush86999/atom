@@ -649,7 +649,10 @@ class EnterpriseAuthService:
 
             # Extract signature value
             signature_value = signature.find('.//ds:SignatureValue', namespaces)
-            if not signature_value:
+            # BUG FIX: ElementTree Elements are falsy when childless, so a
+            # present <ds:SignatureValue> element was treated as missing and
+            # verification always failed. Compare against None instead.
+            if signature_value is None:
                 logger.error("No SignatureValue found")
                 return False
 
@@ -781,7 +784,10 @@ class EnterpriseAuthService:
                     role=self._map_saml_role_to_user_role(saml_roles[0]) if saml_roles else UserRole.MEMBER.value,
                     status=UserStatus.ACTIVE.value,
                     last_login=datetime.now(timezone.utc),
-                    onboarding_completed=False
+                    # BUG FIX: removed onboarding_completed=False — that column
+                    # is commented out of core.models.User (pending migrations),
+                    # so passing it raised TypeError on every SAML first-login
+                    # user creation, breaking SSO entirely.
                 )
                 db.add(user)
 

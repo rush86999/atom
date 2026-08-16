@@ -75,7 +75,14 @@ class ZohoInventoryService(IntegrationService):
         from core.models import IntegrationToken
         from datetime import datetime, timezone, timedelta
 
-        db = SessionLocal()
+        # BUG FIX: SessionLocal() was created OUTSIDE the try block, so a DB
+        # session failure propagated to the caller instead of returning None
+        # as the "Error retrieving ... token" handler intends.
+        try:
+            db = SessionLocal()
+        except Exception as e:
+            logger.error(f"Error retrieving Zoho Inventory token for tenant {tid}: {e}")
+            return None
         try:
             token_record = db.query(IntegrationToken).filter(
                 IntegrationToken.tenant_id == tid,

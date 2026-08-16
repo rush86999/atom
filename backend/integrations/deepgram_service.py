@@ -272,7 +272,9 @@ class DeepgramService(IntegrationService):
                 raise HTTPException(status_code=401, detail="Deepgram API key not found")
             
             headers = {
-                "Authorization": f"Token {api_key}",
+                # BUG FIX: referenced undefined local `api_key` — every file
+                # transcription raised NameError. Use the instance key.
+                "Authorization": f"Token {self.api_key}",
                 "Content-Type": mime_type
             }
             
