@@ -243,8 +243,8 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
         return token_data
         
     except Exception as e:
-        logger.error(f"OAuth callback failed for {provider}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to complete {provider} OAuth flow")
+        logger.error(f"OAuth callback failed for {provider}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to complete {provider} OAuth flow: {str(e)}")
 
 # ============================================================================
 # Generic OAuth Endpoints
