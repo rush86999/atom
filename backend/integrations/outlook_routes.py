@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from core.security_dependencies import get_current_user
+from core.models import User
 from .outlook_service import OutlookService
 
 logger = logging.getLogger(__name__)
