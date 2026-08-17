@@ -169,20 +169,14 @@ const OutlookIntegration: React.FC = () => {
     const handleConnect = async () => {
         try {
             // B7 (Plan 315): /api/auth/* endpoints now require a valid token.
-            // Forward the session token like lib/api.ts does for apiClient.
+            // Use the correct Microsoft OAuth endpoint (Outlook uses Microsoft Graph).
             const token =
                 localStorage.getItem("auth_token") ||
                 localStorage.getItem("token");
-            const response = await fetch("/api/auth/outlook/authorize", {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
-            });
-            if (!response.ok) throw new Error("Failed to get authorization URL");
-            const data = await response.json();
-            if (data.auth_url) {
-                window.location.href = data.auth_url;
-            } else {
-                throw new Error("No authorization URL returned");
-            }
+            // The /initiate endpoint returns a redirect to Microsoft login.
+            // We can't fetch and follow redirect easily with auth header, so navigate directly.
+            // The auth is handled via session cookie by the backend.
+            window.location.href = "/api/v1/auth/oauth/microsoft/initiate";
         } catch (error) {
             console.error("Connect error:", error);
             toast({

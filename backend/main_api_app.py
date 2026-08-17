@@ -1283,7 +1283,7 @@ elif is_test_mode:
                 elif name == "microsoft365":
                     prefix = "/api/v1/integrations/microsoft365"
                 elif name == "outlook":
-                    prefix = "/api/v1/integrations/outlook"
+                    prefix = "/api/integrations/outlook"
                 elif name == "mailchimp":
                     prefix = "/api/v1/integrations/mailchimp"
                 elif name == "zoho_crm":
