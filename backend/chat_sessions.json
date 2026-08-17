@@ -1273,5 +1273,16 @@
     "metadata": {},
     "message_count": 0,
     "history": []
+  },
+  {
+    "session_id": "telegram_7520355703_7520355703_",
+    "user_id": "external_agent_user",
+    "created_at": "2026-08-17T21:00:31.340344+00:00",
+    "last_active": "2026-08-17T21:00:31.340344+00:00",
+    "metadata": {
+      "channel_id": "7520355703"
+    },
+    "message_count": 0,
+    "history": []
   }
 ]
