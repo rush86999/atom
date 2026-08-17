@@ -661,6 +661,20 @@ async def lifespan(app: FastAPI):
             _spawn_background_task(queue_worker.run())
             logger.info("✓ Queue Processing Worker running")
 
+            # 8b. Telegram long-polling worker — NAT-friendly IM for the
+            # Personal Edition: no public URL, tunnel, or domain required.
+            # Mutually exclusive with webhook mode (worker deletes any
+            # registered webhook on startup).
+            if (
+                os.getenv("TELEGRAM_POLLING_ENABLED", "false").lower() == "true"
+                and os.getenv("TELEGRAM_BOT_TOKEN")
+            ):
+                from workers.telegram_polling_worker import TelegramPollingWorker
+
+                telegram_poller = TelegramPollingWorker()
+                _spawn_background_task(telegram_poller.run())
+                logger.info("✓ Telegram Polling Worker running (webhook mode disabled)")
+
             # 9. Start Webhook Renewal Worker (NEW)
             from core.database import SessionLocal
             from core.scheduled_webhook_renewal import ScheduledWebhookRenewalService
