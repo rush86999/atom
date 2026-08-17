@@ -525,11 +525,17 @@ async def hub_delta_bundles(
     a Phase-2-shaped signed bundle containing only newer records + tombstones,
     plus the next cursor.
     """
-    from core.org_hub_service import OrgHubService, cursor_from_json
+    from core.org_hub_service import (
+        OrgHubService,
+        apply_hub_source_policy,
+        cursor_from_json,
+    )
     from core.personal_scope import resolve_workspace_id
 
-    source_list = [s.strip() for s in sources.split(",") if s.strip()]
     try:
+        source_list = apply_hub_source_policy(
+            [s.strip() for s in sources.split(",") if s.strip()]
+        )
         envelope = OrgHubService().build_delta_bundle(
             db,
             workspace_id=resolve_workspace_id(identity.user),
@@ -579,3 +585,131 @@ async def hub_pull(
         return router.success_response(data=result, message="Org hub delta applied")
     except HubError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============================================================================
+# Org sharing ops: key lifecycle + hub sync status (real-world prep)
+# ============================================================================
+
+
+@router.get("/org-key/list")
+async def list_org_keys(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List registered org-sharing public keys (own + peers) with fingerprints.
+
+    Rotating a peer: register the new key, verify a bundle imports, then
+    DELETE the old key id — imports verify against any registered key.
+    """
+    require_org_sharing()
+    from core.models import OrgPublicKey
+    from core.personal_scope import resolve_workspace_id
+
+    workspace_id = resolve_workspace_id(current_user)
+    rows = db.query(OrgPublicKey).filter(
+        (OrgPublicKey.workspace_id == workspace_id) | (OrgPublicKey.workspace_id.is_(None))
+    ).all()
+    return router.success_response(data={
+        "keys": [
+            {
+                "id": row.id,
+                "label": row.label,
+                "fingerprint": row.fingerprint,
+                "is_own": row.is_own,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+            }
+            for row in rows
+        ],
+        "count": len(rows),
+    })
+
+
+@router.delete("/org-key/{key_id}")
+@require_governance(
+    action_complexity=ActionComplexity.HIGH,
+    action_name="revoke_org_public_key",
+    feature="data_ingestion"
+)
+async def revoke_org_key(
+    key_id: str,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    agent_id: Optional[str] = None
+):
+    """Revoke a registered org public key — bundles signed by it stop verifying.
+
+    **Governance**: HIGH — changes which signers this instance trusts. The
+    instance's OWN key cannot be revoked this way (it is the local identity);
+    rotate it by deleting ./data/org_sharing_key and re-registering.
+    """
+    require_org_sharing()
+    from core.models import OrgPublicKey
+
+    row = db.query(OrgPublicKey).filter_by(id=key_id).first()
+    if row is None:
+        raise router.not_found_error("OrgPublicKey", key_id)
+    if row.is_own:
+        raise HTTPException(
+            status_code=400,
+            detail="Refusing to revoke the instance's own key — rotate via "
+                   "./data/org_sharing_key instead (see ORG_SHARING_SETUP.md)",
+        )
+    fingerprint = row.fingerprint
+    db.delete(row)
+    db.commit()
+    return router.success_response(
+        data={"revoked": key_id, "fingerprint": fingerprint},
+        message=f"Revoked org public key {fingerprint[:16]}…",
+    )
+
+
+@router.get("/hub/status")
+async def hub_sync_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Member-side hub sync status: persisted cursor + recent import results.
+
+    Ops/validation endpoint — answers "when did we last pull, and did it
+    apply cleanly?" without touching the hub.
+    """
+    require_org_sharing()
+    from core.models import BundleImport, IngestionSettings
+    from core.org_hub_service import HUB_CURSOR_INTEGRATION, cursor_from_json
+    from core.personal_scope import resolve_workspace_id
+
+    workspace_id = resolve_workspace_id(current_user)
+    row = db.query(IngestionSettings).filter(
+        IngestionSettings.workspace_id == workspace_id,
+        IngestionSettings.integration_id == HUB_CURSOR_INTEGRATION,
+    ).first()
+    cursor = {}
+    last_cursor_update = None
+    if row is not None:
+        usage = row.usage_stats_json or {}
+        cursor = cursor_from_json(usage.get("org_hub_cursor"))
+        last_cursor_update = row.updated_at.isoformat() if row.updated_at else None
+
+    recent = db.query(BundleImport).filter(
+        BundleImport.workspace_id == workspace_id
+    ).order_by(BundleImport.created_at.desc()).limit(5).all()
+
+    return router.success_response(data={
+        "hub_pull_configured": bool(os.getenv("ATOM_ORG_HUB_URL")),
+        "cursor": cursor,
+        "cursor_sources": sorted(cursor.keys()),
+        "last_cursor_update": last_cursor_update,
+        "recent_imports": [
+            {
+                "id": imp.id,
+                "created_at": imp.created_at.isoformat() if imp.created_at else None,
+                "records_ingested": imp.records_ingested,
+                "records_skipped": imp.records_skipped,
+                "tombstones_applied": imp.tombstones_applied,
+                "section_counts": imp.section_counts or {},
+            }
+            for imp in recent
+        ],
+    })

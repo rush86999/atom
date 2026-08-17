@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -35,6 +36,60 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 HUB_CURSOR_INTEGRATION = "org_hub"
+
+# Hub-side hardening (real-world prep). Both read at request time so ops can
+# change them without a restart.
+# ATOM_ORG_HUB_MAX_SENSITIVITY — the highest sensitivity the hub will ever
+#   serve, regardless of what a member requests (default "internal").
+# ATOM_ORG_HUB_SOURCE_ALLOWLIST — comma-separated integration ids the hub may
+#   serve. Unset = no restriction; when set, requests are intersected with it
+#   so the hub owner's personal integrations can never leak via a pull.
+MAX_SENSITIVITY_ENV = "ATOM_ORG_HUB_MAX_SENSITIVITY"
+SOURCE_ALLOWLIST_ENV = "ATOM_ORG_HUB_SOURCE_ALLOWLIST"
+MAX_DELTA_RECORDS = 100_000  # global cap across ALL sources in one delta
+
+
+def hub_max_sensitivity() -> str:
+    from core.org_data_bundle_service import SENSITIVITY_LADDER
+    value = os.getenv(MAX_SENSITIVITY_ENV, "internal").strip().lower()
+    return value if value in SENSITIVITY_LADDER else "internal"
+
+
+def hub_source_allowlist() -> Optional[set]:
+    raw = os.getenv(SOURCE_ALLOWLIST_ENV, "").strip()
+    if not raw:
+        return None
+    return {s.strip() for s in raw.split(",") if s.strip()}
+
+
+def apply_hub_source_policy(requested: List[str]) -> List[str]:
+    """Intersect requested sources with the hub allowlist.
+
+    Empty requested + allowlist set → the allowlist (hub chooses defaults).
+    Empty result against a set allowlist is a policy error, not an empty pull.
+    """
+    allowlist = hub_source_allowlist()
+    if allowlist is None:
+        return requested
+    if not requested:
+        return sorted(allowlist)
+    allowed_requested = [s for s in requested if s in allowlist]
+    denied = sorted(set(requested) - allowlist)
+    if denied:
+        raise HubError(
+            f"Sources not on the hub allowlist: {', '.join(denied)} "
+            f"(allowlist: {', '.join(sorted(allowlist))})"
+        )
+    return allowed_requested
+
+
+def clamp_sensitivity_ceiling(requested: str) -> str:
+    """Clamp a member-requested ceiling to the hub's configured maximum."""
+    from core.org_data_bundle_service import SENSITIVITY_LADDER
+    max_ceiling = hub_max_sensitivity()
+    if SENSITIVITY_LADDER.index(requested) > SENSITIVITY_LADDER.index(max_ceiling):
+        return max_ceiling
+    return requested
 
 
 class HubError(ValueError):
@@ -104,6 +159,13 @@ class OrgHubService:
 
         if sensitivity_ceiling not in SENSITIVITY_LADDER:
             raise BundleError(f"Invalid sensitivity_ceiling {sensitivity_ceiling!r}")
+
+        # Hub-side policy: clamp the ceiling to the hub's configured max and
+        # intersect sources with the allowlist — a member request can never
+        # raise the hub's egress policy.
+        effective_ceiling = clamp_sensitivity_ceiling(sensitivity_ceiling)
+        ceiling_clamped = effective_ceiling != sensitivity_ceiling
+        sensitivity_ceiling = effective_ceiling
         allowed = set(SENSITIVITY_LADDER[: SENSITIVITY_LADDER.index(sensitivity_ceiling) + 1])
 
         from core.models import IngestedDocument
@@ -113,8 +175,14 @@ class OrgHubService:
         tombstones: List[str] = []
         breakdown: Dict[str, int] = {}
         excluded: Dict[str, int] = {}
+        cap_hit = False
 
         for source in sources:
+            if cap_hit:
+                # Global record cap already reached — leave this source's
+                # cursor untouched so the next pull resumes where it stopped.
+                logger.info(f"Hub delta cap reached — deferring source {source}")
+                continue
             since = (since_cursor or {}).get(source) or {}
             since_ts = _normalize_dt(since.get("updated_at"))
             since_id = since.get("external_id") or ""
@@ -168,8 +236,9 @@ class OrgHubService:
                     "content_hash": _content_hash(doc.integration_id, doc.external_id, doc.external_modified_at, preview),
                 })
                 breakdown[sensitivity] = breakdown.get(sensitivity, 0) + 1
-                if len(records) >= 100_000:
-                    logger.warning("Hub delta record cap (100k) reached — truncating")
+                if len(records) >= MAX_DELTA_RECORDS:
+                    logger.warning(f"Hub delta record cap ({MAX_DELTA_RECORDS}) reached — truncating")
+                    cap_hit = True
                     break
             if last_seen:
                 cursor[source] = last_seen
@@ -187,6 +256,10 @@ class OrgHubService:
             "hub_delta": True,
             "cursor": cursor,
         }
+        if cap_hit:
+            payload["truncated"] = True
+        if ceiling_clamped:
+            payload["ceiling_clamped_to"] = sensitivity_ceiling
 
         envelope = sign_and_audit_bundle(
             db,
