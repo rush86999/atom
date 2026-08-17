@@ -837,6 +837,13 @@ class BYOKHandler:
         # Separate sync and async clients
         self.async_clients: Dict[str, Any] = {}
 
+        # Providers whose client was built from a process-environment API key
+        # (as opposed to a DB-stored BYOK/OAuth credential). In the AGPL
+        # self-hosted edition an env key IS the user's own key, so these
+        # providers must be treated as BYOK by the plan-gating logic below —
+        # free-tier model allow-lists only apply to managed (platform) keys.
+        self.env_key_providers: set = set()
+
         # Phase 226.2-01: Special handling for LUX provider (uses Anthropic API key via lux_config)
         if "lux" in providers_config:
             if "pytest" not in sys.modules:
@@ -922,6 +929,7 @@ class BYOKHandler:
 
                 if api_key:
                     credential_source = "env"
+                    self.env_key_providers.add(provider_id)
 
             # Initialize client if we have an API key
             if api_key:
@@ -1773,6 +1781,12 @@ class BYOKHandler:
                             tenant_key = self.byok_manager.get_tenant_api_key(self.tenant_id, temp_provider_id)
                             if tenant_key:
                                 is_managed = False  # Custom Key = BYOK
+                            elif self.env_key_providers:
+                                # AGPL self-hosted edition: an env-configured key is
+                                # the user's own key — BYOK, never plan-restricted.
+                                # (temp_provider_id may itself be skewed by the
+                                # free-tier allow-list, so match on any env key.)
+                                is_managed = False
                             elif tenant_plan.lower() in [p.lower() for p in BYOK_ENABLED_PLANS]:
                                 is_managed = False  # Enterprise Plan = BYOK
 
@@ -2897,6 +2911,9 @@ class BYOKHandler:
 
                             tenant_key = self.byok_manager.get_tenant_api_key(tenant.id, temp_provider_id)
                             if tenant_key:
+                                is_managed = False
+                            elif self.env_key_providers:
+                                # AGPL self-hosted edition: env key = user's own key = BYOK
                                 is_managed = False
                             elif tenant_plan.lower() in [p.lower() for p in BYOK_ENABLED_PLANS]:
                                 is_managed = False

@@ -27,8 +27,13 @@ from typing import ClassVar, Union
 
 from dotenv import load_dotenv
 
-# Load environment variables from .env and .env.local in the project root
+# Load environment variables: backend/.env is the documented dev location
+# (created by `make setup`), then the repo-root .env used by docker compose,
+# then .env.local overrides. dotenv never overwrites already-set values, so
+# the first file that defines a variable wins.
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(backend_dir, ".env"))
 load_dotenv(os.path.join(project_root, ".env"))
 load_dotenv(os.path.join(project_root, ".env.local"), override=True)
 

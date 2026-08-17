@@ -27,6 +27,8 @@ Atom is an open-source, self-hosted **AI agent workforce** for your employees. I
 
 **Your data stays yours**: workflow data, agent state, and memory live on your infrastructure. LLM inference uses your own API keys (BYOK) — or local models (Ollama/Llama.cpp) for fully private deployments.
 
+**Free edition, full features (AGPL v3)**: everything in this repository — every agent, integration, and governance feature — is free and open source. Keys you configure in `.env` are treated as BYOK and are never gated by plans or tiers. Commercial/managed editions run this same code on the client's own infrastructure; there is no closed-source "pro" build.
+
 **💰 Budget-friendly AI agents**: OpenCode Go subscription (~90% savings vs pay-per-token) — one $10/mo key unlocks **general-purpose models** (DeepSeek V4, Kimi K3, GLM 5.2, MiniMax M3, Qwen 3.7, Nemotron 3 Ultra, Grok 4.5) with **full tool-calling & structured output** — not just for coding, works for any agent workload. [Setup guide →](docs/guides/OPENCODE_GO_PROVIDER.md)
 
 **No lock-in**: 16+ LLM providers (OpenAI, Anthropic, DeepSeek, Gemini, MiniMax, Groq…) with automatic cost-aware routing, fallback, and self-healing.

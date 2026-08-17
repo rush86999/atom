@@ -77,6 +77,14 @@ services:
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3:8b}
 
+      # --- Edition: enterprise = multi-user (employees get own accounts) ---
+      - ATOM_EDITION=${ATOM_EDITION:-personal}
+
+      # --- Telegram channel (bot token from @BotFather; webhook URL from tunnel) ---
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_WEBHOOK_URL=${TELEGRAM_WEBHOOK_URL:-}
+      - TELEGRAM_SECRET_TOKEN=${TELEGRAM_SECRET_TOKEN:-}
+
       # --- CORS (frontend runs on :3001) ---
       - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001
       - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001
