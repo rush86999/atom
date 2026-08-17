@@ -269,6 +269,13 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         ) or is_bearer:
             return await call_next(request)
 
+        # Third-party webhooks (Telegram, Slack, WhatsApp…) are server-to-server
+        # callbacks that carry their own fail-closed signature verification
+        # (e.g. X-Telegram-Bot-Api-Secret-Token). No browser session exists to
+        # forge, so CSRF does not apply to them.
+        if request.url.path.endswith("/webhook"):
+            return await call_next(request)
+
         # Check for CSRF token for state-changing requests
         if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
             csrf_token = request.headers.get("X-CSRF-Token")

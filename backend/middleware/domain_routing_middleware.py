@@ -39,6 +39,7 @@ class DomainRoutingMiddleware(BaseHTTPMiddleware):
             or host == "testserver"
             or host.endswith(".fly.dev")
             or host.endswith(".ngrok-free.app")
+            or host.endswith(".trycloudflare.com")
         ):
             # Skip domain routing for local development or system domains
             request.state.tenant_id = None
