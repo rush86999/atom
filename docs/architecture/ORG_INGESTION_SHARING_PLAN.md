@@ -1,7 +1,9 @@
 # Org Ingestion Sharing — Plan
 
 > **Status:** **ALL PHASES IMPLEMENTED** (backend, Aug 16, 2026) — Phases 0–2, 2b
-> (memory bundle), and 3 (org ingestion hub). Flags: `ATOM_ORG_SHARING_ENABLED`
+> (memory bundle), and 3 (org ingestion hub). **Setup/ops runbook:
+> [ORG_SHARING_SETUP.md](ORG_SHARING_SETUP.md)** (topology, key ceremony, egress
+> policy, rotation, validation checklist). Flags: `ATOM_ORG_SHARING_ENABLED`
 > (default **off**), `ATOM_ORG_HUB_ENABLED` (hub side), `ATOM_ORG_HUB_URL` +
 > `ATOM_ORG_HUB_API_KEY` (member pull loop).
 > Implemented surface: `core/org_sharing_crypto.py` (Ed25519 sign/verify + key
