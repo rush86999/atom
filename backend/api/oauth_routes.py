@@ -71,7 +71,7 @@ def _build_state(provider: str, user_id: str) -> str:
     return f"{payload}:{nonce}:{exp}:{sig}"
 
 
-def _validate_state(state: Optional[str], provider: str, user_id: str) -> bool:
+def _validate_state(state: Optional[str], provider: str, user_id: Optional[str] = None) -> bool:
     """Validate a callback ``state``: signature, provider, user binding, expiry."""
     if not state:
         return False
@@ -79,7 +79,9 @@ def _validate_state(state: Optional[str], provider: str, user_id: str) -> bool:
     if len(parts) != 6 or parts[0] != "oauth_v1":
         return False
     payload_provider, state_user, nonce, exp, sig = parts[1], parts[2], parts[3], parts[4], parts[5]
-    if payload_provider != provider or state_user != user_id:
+    if payload_provider != provider:
+        return False
+    if user_id and state_user != user_id:
         return False
     try:
         if int(exp) < int(time.time()):
@@ -91,6 +93,30 @@ def _validate_state(state: Optional[str], provider: str, user_id: str) -> bool:
         _state_hmac_key(), f"{payload}:{nonce}:{exp}".encode(), hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(sig, expected)
+
+
+def _get_user_id_from_state(state: Optional[str], provider: str) -> Optional[str]:
+    """Extract and verify user_id from valid state token."""
+    if not state:
+        return None
+    parts = state.split(":")
+    if len(parts) != 6 or parts[0] != "oauth_v1":
+        return None
+    payload_provider, state_user, nonce, exp, sig = parts[1], parts[2], parts[3], parts[4], parts[5]
+    if payload_provider != provider:
+        return None
+    try:
+        if int(exp) < int(time.time()):
+            return None
+    except ValueError:
+        return None
+    payload = f"oauth_v1:{payload_provider}:{state_user}"
+    expected = hmac.new(
+        _state_hmac_key(), f"{payload}:{nonce}:{exp}".encode(), hashlib.sha256
+    ).hexdigest()
+    if hmac.compare_digest(sig, expected):
+        return state_user
+    return None
 
 
 def oauth_rate_limit(request: Request) -> None:
@@ -123,7 +149,7 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)) -> U
 
     return await _core_get_current_user(request=request, token=None, db=db)
 
-async def _handle_callback_logic(provider: str, code: str, config: Any, request: Request, db: Session):
+async def _handle_callback_logic(provider: str, code: str, config: Any, request: Request, db: Session, user: Optional[User] = None):
     """Common logic for handling OAuth callbacks."""
     try:
         oauth_handler = OAuthHandler(config)
@@ -139,14 +165,10 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
         if expires_in:
             expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
             
-        # Bug 1+2 fix: the old code (a) called get_current_user without await,
-        # binding a coroutine instead of a User, and (b) set non-existent
-        # columns on OAuthToken (provider, access_token, refresh_token, scopes,
-        # expires_at, status). The model has access_token_hash, refresh_token_hash,
-        # scope (singular), client_id, tenant_id, is_active.
-        # Now: await the call, hash the tokens, use the correct columns.
         import hashlib
-        current_user = await get_current_user(request, db)
+        current_user = user
+        if not current_user:
+            current_user = await get_current_user(request, db)
 
         _access_hash = hashlib.sha256(access_token.encode()).hexdigest()
         _refresh_hash = hashlib.sha256(refresh_token.encode()).hexdigest() if refresh_token else None
@@ -177,12 +199,52 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
             )
             db.add(new_token)
 
+        # Also populate IntegrationToken for services like OutlookService
+        try:
+            from core.models import IntegrationToken
+            from core.privsec.token_encryption import encrypt_token
+
+            provider_keys = [provider]
+            if provider == "microsoft":
+                provider_keys.append("outlook")
+
+            for p_key in provider_keys:
+                existing_integration = db.query(IntegrationToken).filter(
+                    IntegrationToken.user_id == current_user.id,
+                    IntegrationToken.provider == p_key
+                ).first()
+
+                if existing_integration:
+                    existing_integration.access_token = encrypt_token(access_token)
+                    if refresh_token:
+                        existing_integration.refresh_token = encrypt_token(refresh_token)
+                    existing_integration.expires_at = expires_at
+                    existing_integration.status = "active"
+                    existing_integration.scope = " ".join(scopes) if scopes else ""
+                    logger.info(f"Updated IntegrationToken for provider={p_key}, user={current_user.id}")
+                else:
+                    new_integration = IntegrationToken(
+                        id=str(uuid.uuid4()),
+                        tenant_id=current_user.tenant_id or "default",
+                        user_id=current_user.id,
+                        provider=p_key,
+                        access_token=encrypt_token(access_token),
+                        refresh_token=encrypt_token(refresh_token) if refresh_token else None,
+                        expires_at=expires_at,
+                        status="active",
+                        scope=" ".join(scopes) if scopes else "",
+                    )
+                    db.add(new_integration)
+                    logger.info(f"Created IntegrationToken for provider={p_key}, user={current_user.id}")
+        except Exception as it_err:
+            logger.error(f"Failed to populate IntegrationToken record: {it_err}", exc_info=True)
+
         db.commit()
         return token_data
         
     except Exception as e:
-        logger.error(f"OAuth callback failed for {provider}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to complete {provider} OAuth flow")
+        logger.error(f"OAuth callback failed for {provider}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to complete {provider} OAuth flow: {str(e)}")
 
 # ============================================================================
 # Generic OAuth Endpoints
@@ -193,12 +255,7 @@ async def oauth_initiate(
     provider: str,
     current_user: User = Depends(get_current_user),
 ):
-    """Initiate OAuth flow for a specific provider.
-
-    B14: requires auth, mirroring the rest of this router (callback / tokens /
-    config-status all depend on get_current_user) and the B7 fix on the alias
-    router. Without it the canonical v1 /initiate URL was reachable
-    unauthenticated, making the alias-router auth gate trivially bypassable."""
+    """Initiate OAuth flow for a specific provider."""
     configs = {
         "google": GOOGLE_OAUTH_CONFIG,
         "linkedin": LINKEDIN_OAUTH_CONFIG,
@@ -226,7 +283,6 @@ async def oauth_callback(
     code: str = Query(...),
     state: str = Query(None),
     request: Request = None,
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     _rl: None = Depends(oauth_rate_limit),
 ):
@@ -248,15 +304,19 @@ async def oauth_callback(
     if provider not in configs:
         raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
 
-    # Bug 3 fix: validate the state parameter against a signed, per-user token
-    # minted at /initiate. The old static state (f"{provider}_oauth") was
-    # forgeable — an attacker could complete their own flow and replay it on
-    # the victim's callback, binding their tokens to the victim's account
-    # (OAuth CSRF). Signature + provider + user binding + expiry are checked.
-    if not _validate_state(state, provider, current_user.id):
-        raise HTTPException(status_code=400, detail="Invalid or missing OAuth state parameter")
+    if not state:
+        raise HTTPException(status_code=400, detail="Missing OAuth state parameter")
 
-    await _handle_callback_logic(provider, code, configs[provider], request, db)
+    # Validate state and extract bound user_id from HMAC signature
+    user_id = _get_user_id_from_state(state, provider)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="User bound to state not found")
+
+    await _handle_callback_logic(provider, code, configs[provider], request, db, user=user)
     
     # Redirect to frontend
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")

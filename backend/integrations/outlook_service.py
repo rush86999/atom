@@ -133,7 +133,8 @@ class OutlookService(IntegrationService):
         self.base_url = "https://graph.microsoft.com/v1.0"
         self.client_id = config.get("client_id") or os.getenv("MICROSOFT_CLIENT_ID")
         self.client_secret = config.get("client_secret") or os.getenv("MICROSOFT_CLIENT_SECRET")
-        self.tenant_id_config = config.get("tenant_id") or os.getenv("MICROSOFT_TENANT_ID")
+        raw_tenant = config.get("tenant_id") or os.getenv("MICROSOFT_TENANT_ID")
+        self.tenant_id_config = raw_tenant if raw_tenant and raw_tenant not in ("default", "none", "") else "common"
         self.redirect_uri = config.get("redirect_uri") or os.getenv("OUTLOOK_REDIRECT_URI")
 
     async def _get_access_token(self, user_id: str) -> Optional[str]:
@@ -141,24 +142,33 @@ class OutlookService(IntegrationService):
         try:
             from core.database import get_db_session
             from core.models import IntegrationToken
+            from core.privsec.token_encryption import decrypt_token
 
             with get_db_session() as db:
-                token_record = db.query(IntegrationToken).filter(
-                    IntegrationToken.user_id == user_id,
-                    IntegrationToken.provider == "outlook",
-                    IntegrationToken.status == "active"
-                ).first()
-                
+                token_record = None
+                placeholders = {"current", "default_user", "default", "anonymous", "guest", ""}
+                if user_id and user_id not in placeholders:
+                    token_record = db.query(IntegrationToken).filter(
+                        IntegrationToken.user_id == user_id,
+                        IntegrationToken.provider.in_(["outlook", "microsoft"]),
+                        IntegrationToken.status == "active"
+                    ).first()
+
+                if not token_record:
+                    # Fallback to any active Outlook/Microsoft integration token
+                    token_record = db.query(IntegrationToken).filter(
+                        IntegrationToken.provider.in_(["outlook", "microsoft"]),
+                        IntegrationToken.status == "active"
+                    ).first()
+
                 if token_record and token_record.access_token:
-                    from core.privsec.token_encryption import decrypt_token
-                    # Check if token needs refresh
                     tokens = {
                         "access_token": decrypt_token(token_record.access_token, allow_plaintext=True),
                         "refresh_token": decrypt_token(token_record.refresh_token, allow_plaintext=True) if token_record.refresh_token else None,
                         "expires_at": token_record.expires_at.timestamp() if token_record.expires_at else None
                     }
                     if self._is_token_expired(tokens):
-                        refreshed = await self._refresh_access_token(user_id, tokens)
+                        refreshed = await self._refresh_access_token(token_record.user_id or user_id, tokens)
                         return refreshed
                     return tokens["access_token"]
             return None
@@ -196,8 +206,9 @@ class OutlookService(IntegrationService):
                 )
                 return None
 
+            tenant = self.tenant_id_config if self.tenant_id_config and self.tenant_id_config not in ("default", "none", "") else "common"
             url = (
-                f"https://login.microsoftonline.com/{self.tenant_id_config}"
+                f"https://login.microsoftonline.com/{tenant}"
                 "/oauth2/v2.0/token"
             )
             data = {
@@ -205,8 +216,7 @@ class OutlookService(IntegrationService):
                 "client_secret": self.client_secret,
                 "refresh_token": refresh_token,
                 "grant_type": "refresh_token",
-                "scope": "Mail.ReadWrite Mail.Send Calendars.ReadWrite "
-                "Contacts.ReadWrite Tasks.ReadWrite User.Read",
+                "scope": "https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Contacts.ReadWrite https://graph.microsoft.com/User.Read offline_access",
             }
 
             async with aiohttp.ClientSession() as session:

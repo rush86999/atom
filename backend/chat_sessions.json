@@ -1246,5 +1246,32 @@
     "metadata": {},
     "message_count": 0,
     "history": []
+  },
+  {
+    "session_id": "session_1786728546735_mp93viivm",
+    "user_id": "19b47f19-8be6-4432-8c73-a6a57db9eb15",
+    "created_at": "2026-08-17T13:08:15.710090+00:00",
+    "last_active": "2026-08-17T13:08:15.710090+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "session_1786972571125_romg3l1r1",
+    "user_id": "19b47f19-8be6-4432-8c73-a6a57db9eb15",
+    "created_at": "2026-08-17T14:10:36.881102+00:00",
+    "last_active": "2026-08-17T14:10:36.881102+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "session_1786982082805_a8ykaah6i",
+    "user_id": "19b47f19-8be6-4432-8c73-a6a57db9eb15",
+    "created_at": "2026-08-17T16:35:13.611152+00:00",
+    "last_active": "2026-08-17T16:35:13.611152+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
   }
 ]

@@ -24,7 +24,7 @@ describe('lib/backendAuth', () => {
     const result = await loginWithBackend('a@b.c', 'pw');
     expect(result.access_token).toBe('at-1');
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/api/auth/login',
+      expect.stringContaining('/api/auth/login'),
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },

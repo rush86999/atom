@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from core.security_dependencies import get_current_user
+from core.models import User
 from .outlook_service import OutlookService
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 # Auth Type: OAuth2 (endpoints additionally require an authenticated session
 # user — 401 anonymous; R38-40 anon-sweep policy)
 router = APIRouter(
-    prefix="",
+    prefix="/api/integrations/outlook",
     tags=["outlook"],
     dependencies=[Depends(get_current_user)],
 )
@@ -130,13 +131,20 @@ class SearchRequest(BaseModel):
     max_results: int = Field(50, description="Maximum results")
 
 
+PLACEHOLDER_USER_IDS = {"current", "default_user", "default", "anonymous", "guest", ""}
+
+
 # Email endpoints
 @router.post("/emails", summary="List emails")
-async def list_emails(request: EmailListRequest):
+async def list_emails(
+    request: EmailListRequest,
+    current_user: User = Depends(get_current_user),
+):
     """List emails with filtering and pagination"""
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         emails = await outlook_service.get_user_emails(
-            user_id=request.user_id,
+            user_id=user_id,
             folder=request.folder,
             query=request.query,
             max_results=request.max_results,
@@ -156,11 +164,15 @@ async def list_emails(request: EmailListRequest):
 
 
 @router.post("/emails/send", summary="Send email")
-async def send_email(request: EmailSendRequest):
+async def send_email(
+    request: EmailSendRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Send email via Outlook"""
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         result = await outlook_service.send_email(
-            user_id=request.user_id,
+            user_id=user_id,
             to_recipients=request.to_recipients,
             subject=request.subject,
             body=request.body,
@@ -185,11 +197,15 @@ async def send_email(request: EmailSendRequest):
 
 
 @router.post("/emails/draft", summary="Create draft email")
-async def create_draft_email(request: EmailDraftRequest):
+async def create_draft_email(
+    request: EmailDraftRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Create draft email"""
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         result = await outlook_service.create_draft_email(
-            user_id=request.user_id,
+            user_id=user_id,
             to_recipients=request.to_recipients,
             subject=request.subject,
             body=request.body,
@@ -215,19 +231,16 @@ async def create_draft_email(request: EmailDraftRequest):
         )
 
 
-# Unread emails endpoint
-# NOTE: must stay registered BEFORE /emails/{email_id} — Starlette matches
-# routes in registration order, so a later static path is shadowed by the
-# dynamic route (wave 92 bug: /emails/unread returned the email-detail
-# handler with email_id="unread" and the unread endpoint was unreachable).
 @router.get("/emails/unread", summary="Get unread emails")
 async def get_unread_emails(
     user_id: str = Query(..., description="User ID"),
     max_results: int = Query(50, description="Maximum results"),
+    current_user: User = Depends(get_current_user),
 ):
     """Get unread emails"""
+    target_user_id = current_user.id if not user_id or user_id in PLACEHOLDER_USER_IDS else user_id
     try:
-        emails = await outlook_service.get_unread_emails(user_id, max_results)
+        emails = await outlook_service.get_unread_emails(target_user_id, max_results)
         return {
             "success": True,
             "service": "outlook",
@@ -289,11 +302,15 @@ async def delete_email(email_id: str, user_id: str = Query(..., description="Use
 
 # Calendar endpoints
 @router.post("/calendar/events", summary="List calendar events")
-async def list_calendar_events(request: CalendarEventListRequest):
+async def list_calendar_events(
+    request: CalendarEventListRequest,
+    current_user: User = Depends(get_current_user),
+):
     """List calendar events with time range filtering"""
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         events = await outlook_service.get_calendar_events(
-            user_id=request.user_id,
+            user_id=user_id,
             time_min=request.time_min,
             time_max=request.time_max,
             max_results=request.max_results,
@@ -313,11 +330,15 @@ async def list_calendar_events(request: CalendarEventListRequest):
 
 
 @router.post("/calendar/events/create", summary="Create calendar event")
-async def create_calendar_event(request: CalendarEventCreateRequest):
+async def create_calendar_event(
+    request: CalendarEventCreateRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Create calendar event"""
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         result = await outlook_service.create_calendar_event(
-            user_id=request.user_id,
+            user_id=user_id,
             subject=request.subject,
             body=request.body,
             start=request.start,
@@ -348,11 +369,15 @@ async def create_calendar_event(request: CalendarEventCreateRequest):
 
 # Contact endpoints
 @router.post("/contacts", summary="List contacts")
-async def list_contacts(request: ContactListRequest):
+async def list_contacts(
+    request: ContactListRequest,
+    current_user: User = Depends(get_current_user),
+):
     """List contacts with optional search"""
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         contacts = await outlook_service.get_user_contacts(
-            user_id=request.user_id,
+            user_id=user_id,
             query=request.query,
             max_results=request.max_results,
         )
@@ -371,11 +396,15 @@ async def list_contacts(request: ContactListRequest):
 
 
 @router.post("/contacts/create", summary="Create contact")
-async def create_contact(request: ContactCreateRequest):
+async def create_contact(
+    request: ContactCreateRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Create contact"""
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         result = await outlook_service.create_contact(
-            user_id=request.user_id,
+            user_id=user_id,
             display_name=request.display_name,
             given_name=request.given_name,
             surname=request.surname,
@@ -404,11 +433,15 @@ async def create_contact(request: ContactCreateRequest):
 
 # Task endpoints
 @router.post("/tasks", summary="List tasks")
-async def list_tasks(request: TaskListRequest):
+async def list_tasks(
+    request: TaskListRequest,
+    current_user: User = Depends(get_current_user),
+):
     """List tasks with optional status filtering"""
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         tasks = await outlook_service.get_user_tasks(
-            user_id=request.user_id,
+            user_id=user_id,
             status=request.status,
             max_results=request.max_results,
         )
@@ -425,11 +458,15 @@ async def list_tasks(request: TaskListRequest):
 
 
 @router.post("/tasks/create", summary="Create task")
-async def create_task(request: TaskCreateRequest):
+async def create_task(
+    request: TaskCreateRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Create task"""
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         result = await outlook_service.create_task(
-            user_id=request.user_id,
+            user_id=user_id,
             subject=request.subject,
             body=request.body,
             importance=request.importance,
@@ -455,11 +492,15 @@ async def create_task(request: TaskCreateRequest):
 
 # Search endpoint
 @router.post("/search", summary="Search emails")
-async def search_emails(request: SearchRequest):
+async def search_emails(
+    request: SearchRequest,
+    current_user: User = Depends(get_current_user),
+):
     """Search across Outlook emails"""
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         emails = await outlook_service.search_emails(
-            user_id=request.user_id,
+            user_id=user_id,
             query=request.query,
             max_results=request.max_results,
         )
@@ -480,10 +521,15 @@ async def search_emails(request: SearchRequest):
 
 # User profile endpoint
 @router.get("/profile", summary="Get user profile")
-async def get_user_profile(user_id: str = Query(..., description="User ID")):
+@router.post("/profile", summary="Get user profile")
+async def get_user_profile(
+    user_id: Optional[str] = Query(None, description="User ID"),
+    current_user: User = Depends(get_current_user),
+):
     """Get user profile information"""
+    target_user_id = current_user.id if not user_id or user_id in PLACEHOLDER_USER_IDS else user_id
     try:
-        profile = await outlook_service.get_user_profile(user_id)
+        profile = await outlook_service.get_user_profile(target_user_id)
 
         if profile:
             return {

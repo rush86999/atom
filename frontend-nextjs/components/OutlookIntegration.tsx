@@ -168,15 +168,18 @@ const OutlookIntegration: React.FC = () => {
 
     const handleConnect = async () => {
         try {
-            // B7 (Plan 315): /api/auth/* endpoints now require a valid token.
-            // Use the correct Microsoft OAuth endpoint (Outlook uses Microsoft Graph).
+            // Redirect directly to backend to avoid Next.js proxy issues with 307 redirects.
+            // The backend returns a 307 redirect to Microsoft login, which the browser follows.
             const token =
                 localStorage.getItem("auth_token") ||
                 localStorage.getItem("token");
-            // The /initiate endpoint returns a redirect to Microsoft login.
-            // We can't fetch and follow redirect easily with auth header, so navigate directly.
-            // The auth is handled via session cookie by the backend.
-            window.location.href = "/api/v1/auth/oauth/microsoft/initiate";
+            const backendBase = window.location.hostname === "localhost" 
+                ? "http://localhost:8000" 
+                : "";
+            const url = token 
+                ? `${backendBase}/api/v1/auth/oauth/microsoft/initiate?token=${encodeURIComponent(token)}`
+                : `${backendBase}/api/v1/auth/oauth/microsoft/initiate`;
+            window.location.href = url;
         } catch (error) {
             console.error("Connect error:", error);
             toast({
@@ -187,11 +190,26 @@ const OutlookIntegration: React.FC = () => {
         }
     };
 
+    const getAuthHeaders = (extraHeaders: Record<string, string> = {}) => {
+        const token = typeof window !== "undefined"
+            ? (localStorage.getItem("auth_token") || localStorage.getItem("token"))
+            : null;
+        return {
+            ...extraHeaders,
+            ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        };
+    };
+
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/outlook/health");
-            if (response.ok) {
+            const headers = getAuthHeaders();
+            let response = await fetch("/api/v1/integrations/outlook/health", { headers }).catch(() => null);
+            if (!response || !response.ok) {
+                response = await fetch("/api/integrations/outlook/health", { headers }).catch(() => null);
+            }
+
+            if (response && response.ok) {
                 setConnected(true);
                 setHealthStatus("healthy");
                 loadUserProfile();
@@ -212,7 +230,7 @@ const OutlookIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/outlook/profile", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: getAuthHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                 }),
@@ -234,7 +252,7 @@ const OutlookIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/outlook/emails", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: getAuthHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     folder: selectedFolder,
@@ -263,7 +281,7 @@ const OutlookIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/outlook/events", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: getAuthHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     start_date: new Date().toISOString(),
@@ -290,7 +308,7 @@ const OutlookIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/outlook/contacts", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: getAuthHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 30,
@@ -313,7 +331,7 @@ const OutlookIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/outlook/tasks", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: getAuthHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 20,
@@ -336,7 +354,7 @@ const OutlookIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/outlook/emails/send", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: getAuthHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     to: newEmail.to,
@@ -540,6 +558,15 @@ const OutlookIntegration: React.FC = () => {
                         >
                             <RefreshCw className="mr-2 w-3 h-3" />
                             Refresh Status
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleConnect}
+                            title="Sign in with a different Microsoft / Outlook account"
+                        >
+                            <Mail className="mr-2 w-3 h-3" />
+                            Switch Account
                         </Button>
                     </div>
                 </div>
