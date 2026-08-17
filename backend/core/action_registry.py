@@ -1200,3 +1200,139 @@ async def _mini_app_db_write(args: Dict[str, Any], context: Dict[str, Any]) -> D
 
     return await mini_app_db_write(args, context)
 
+
+# ============================================================================
+# Shopify content actions (product listings + blogs/articles).
+# Resolve the connected store from the workspace, then call ShopifyService.
+# Enforcement (P2 capability scoping, P3 gatekeeper, P9 sandbox) is layered on
+# top by the shared dispatch path — these are intentionally thin wrappers.
+# ============================================================================
+
+_SHOPIFY_PRODUCT_CREATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "title": {"type": "string", "description": "Product title"},
+        "body_html": {"type": "string", "description": "Product description (HTML)"},
+        "vendor": {"type": "string"},
+        "product_type": {"type": "string"},
+        "tags": {"type": "string", "description": "Comma-separated tags"},
+        "handle": {"type": "string"},
+        "status": {"type": "string", "enum": ["active", "draft", "archived"], "default": "active"},
+        "variants": {"type": "array", "description": "List of variant objects e.g. [{title, price, sku, inventory_quantity}]"},
+        "images": {"type": "array", "description": "List of image URLs or {src: 'https://...'} objects"},
+    },
+    "required": ["title"],
+}
+
+_SHOPIFY_BLOG_CREATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "title": {"type": "string", "description": "Blog title"},
+        "handle": {"type": "string", "description": "Optional URL handle"},
+    },
+    "required": ["title"],
+}
+
+_SHOPIFY_ARTICLE_CREATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "blog_id": {"type": "string", "description": "Target blog id"},
+        "title": {"type": "string", "description": "Article title"},
+        "body_html": {"type": "string", "description": "Article body (HTML)"},
+        "author": {"type": "string"},
+        "tags": {"type": "string", "description": "Comma-separated tags"},
+        "published": {"type": "boolean", "default": True},
+    },
+    "required": ["blog_id", "title", "body_html"],
+}
+
+_SHOPIFY_BLOGS_LIST_SCHEMA = {
+    "type": "object",
+    "properties": {},
+}
+
+
+def _resolve_shopify_store(context: Dict[str, Any]) -> tuple:
+    """Resolve (access_token, shop_domain) for the workspace's connected store."""
+    try:
+        from core.database import SessionLocal
+        from core.models import EcommerceStore
+        ws_id = (context or {}).get("workspace_id", "default")
+        with SessionLocal() as db:
+            store = db.query(EcommerceStore).filter(
+                EcommerceStore.tenant_id == ws_id
+            ).first()
+            if not store:
+                # Fallback: newest store if the workspace never bound one
+                store = db.query(EcommerceStore).order_by(EcommerceStore.created_at.desc()).first()
+            if not store or not store.access_token:
+                return None, None
+            return store.access_token, store.shop_domain
+    except Exception as e:
+        logger.warning(f"Failed to resolve Shopify store: {e}")
+        return None, None
+
+
+@register_action(
+    "shopify_create_product",
+    description="Create a product listing on the connected Shopify store (title, description, variants, images, tags).",
+    parameters_schema=_SHOPIFY_PRODUCT_CREATE_SCHEMA,
+)
+async def _shopify_create_product(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    token, shop = _resolve_shopify_store(context)
+    if not token:
+        return {"success": False, "error": "no_shopify_store", "message": "No Shopify store connected to this workspace."}
+    from integrations.shopify_service import ShopifyService
+    product = await ShopifyService().create_product(token, shop, product=args)
+    return {"success": True, "product": product}
+
+
+@register_action(
+    "shopify_list_blogs",
+    description="List blogs on the connected Shopify store.",
+    parameters_schema=_SHOPIFY_BLOGS_LIST_SCHEMA,
+)
+async def _shopify_list_blogs(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    token, shop = _resolve_shopify_store(context)
+    if not token:
+        return {"success": False, "error": "no_shopify_store", "message": "No Shopify store connected to this workspace."}
+    from integrations.shopify_service import ShopifyService
+    blogs = await ShopifyService().list_blogs(token, shop)
+    return {"success": True, "blogs": blogs}
+
+
+@register_action(
+    "shopify_create_blog",
+    description="Create a blog on the connected Shopify store to host articles/posts.",
+    parameters_schema=_SHOPIFY_BLOG_CREATE_SCHEMA,
+)
+async def _shopify_create_blog(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    token, shop = _resolve_shopify_store(context)
+    if not token:
+        return {"success": False, "error": "no_shopify_store", "message": "No Shopify store connected to this workspace."}
+    from integrations.shopify_service import ShopifyService
+    blog = await ShopifyService().create_blog(token, shop, title=args["title"], handle=args.get("handle"))
+    return {"success": True, "blog": blog}
+
+
+@register_action(
+    "shopify_create_article",
+    description="Create/publish a blog article (post) on the connected Shopify store.",
+    parameters_schema=_SHOPIFY_ARTICLE_CREATE_SCHEMA,
+)
+async def _shopify_create_article(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    token, shop = _resolve_shopify_store(context)
+    if not token:
+        return {"success": False, "error": "no_shopify_store", "message": "No Shopify store connected to this workspace."}
+    from integrations.shopify_service import ShopifyService
+    article = await ShopifyService().create_article(
+        token, shop,
+        blog_id=args["blog_id"],
+        title=args["title"],
+        body_html=args.get("body_html", ""),
+        author=args.get("author"),
+        tags=args.get("tags"),
+        published=args.get("published", True),
+    )
+    return {"success": True, "article": article}
+

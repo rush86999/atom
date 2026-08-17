@@ -510,15 +510,43 @@ class MCPService(IntegrationService):
 
                 {
                     "name": "shopify_create_product",
-                    "description": "Create a new product in Shopify",
+                    "description": "Create a new product listing in Shopify",
                     "parameters": {
-                        "title": "string",
-                        "body_html": "string (optional)",
+                        "title": "string (required)",
+                        "body_html": "string (optional, product description HTML)",
                         "vendor": "string (optional)",
                         "product_type": "string (optional)",
                         "tags": "string (optional, comma separated)",
-                        "variants": "array (optional, list of variants)"
+                        "handle": "string (optional)",
+                        "status": "string (optional, active|draft|archived, default active)",
+                        "variants": "array (optional, list of variant objects e.g. [{title, price, sku, inventory_quantity}])",
+                        "images": "array (optional, list of image URLs or {src: 'https://...'})"
                     }
+                },
+                {
+                    "name": "shopify_create_blog",
+                    "description": "Create a blog in Shopify to host articles/posts",
+                    "parameters": {
+                        "title": "string (required, blog title)",
+                        "handle": "string (optional)"
+                    }
+                },
+                {
+                    "name": "shopify_create_article",
+                    "description": "Create/publish a blog article (post) in a Shopify blog",
+                    "parameters": {
+                        "blog_id": "string (required, target blog id)",
+                        "title": "string (required)",
+                        "body_html": "string (required, article HTML body)",
+                        "author": "string (optional)",
+                        "tags": "string (optional, comma separated)",
+                        "published": "boolean (optional, default true)"
+                    }
+                },
+                {
+                    "name": "shopify_list_blogs",
+                    "description": "List all blogs on the connected Shopify store",
+                    "parameters": {}
                 },
                 {
                     "name": "shopify_update_inventory",
@@ -1564,17 +1592,35 @@ class MCPService(IntegrationService):
                 service = ShopifyService()
                 
                 if tool_name == "shopify_create_product":
-                    # Simple product creation wrapper
-                    # Note: Ideally this would be extended in ShopifyService, simulating here for now
-                    # In a real scenario, we'd add create_product to ShopifyService
-                    url = f"{service._get_base_url(shop)}/products.json"
-                    headers = service._get_headers(token)
-                    payload = {"product": arguments}
-                    async with httpx.AsyncClient() as client:
-                        resp = await client.post(url, headers=headers, json=payload)
-                        if resp.status_code == 201:
-                            return f"Product created successfully: {resp.json()['product']['id']}"
-                        return f"Failed to create product: {resp.text}"
+                    product = await service.create_product(token, shop, product=arguments)
+                    return (f"Product created successfully. id={product.get('id')} "
+                            f"title={product.get('title')} handle={product.get('handle')}")
+
+                elif tool_name == "shopify_list_blogs":
+                    blogs = await service.list_blogs(token, shop)
+                    if not blogs:
+                        return "No blogs found on this store. Use shopify_create_blog to create one."
+                    summary = [f"id={b['id']} title={b.get('title')} handle={b.get('handle')} articles={b.get('articles_count', '?')}" for b in blogs]
+                    return "\n".join(summary)
+
+                elif tool_name == "shopify_create_blog":
+                    blog = await service.create_blog(token, shop, title=arguments.get("title"), handle=arguments.get("handle"))
+                    return f"Blog created successfully. id={blog.get('id')} title={blog.get('title')} handle={blog.get('handle')}"
+
+                elif tool_name == "shopify_create_article":
+                    blog_id = arguments.get("blog_id")
+                    article = await service.create_article(
+                        token, shop,
+                        blog_id=blog_id,
+                        title=arguments.get("title"),
+                        body_html=arguments.get("body_html", ""),
+                        author=arguments.get("author"),
+                        tags=arguments.get("tags"),
+                        published=arguments.get("published", True),
+                    )
+                    return (f"Article created successfully. id={article.get('id')} "
+                            f"title={article.get('title')} blog_id={blog_id} "
+                            f"published={article.get('published')} url={article.get('url', '')}")
 
                 elif tool_name == "shopify_update_inventory":
                      # Assuming set availability for simplicity
