@@ -4,18 +4,26 @@ Complete guide for integrating Telegram and WhatsApp with Atom Agent OS.
 
 ## Overview
 
-Atom supports incoming webhooks from Telegram and WhatsApp, allowing users to interact with agents via IM platforms. All IM interactions are secured with:
-- Webhook signature verification (prevents spoofing)
+Atom supports two inbound modes for Telegram, allowing users to interact with agents via IM:
+
+- **Polling mode** (recommended for Personal Edition / self-hosted): Atom long-polls Telegram's `getUpdates`. **No public URL, domain, or tunnel required** — works behind NAT out of the box.
+- **Webhook mode** (for servers with a public HTTPS URL): Telegram pushes updates to your backend.
+
+All IM interactions are secured with:
+- Webhook signature verification in webhook mode (prevents spoofing); polling fetches directly from Telegram over TLS
 - Rate limiting (10 req/min per user)
 - Governance checks (STUDENT agents blocked)
 - Comprehensive audit trail
 
+Both modes dispatch through the same pipeline — permission gates, maturity blocks, audit trail, and agent replies behave identically.
+
 ## Prerequisites
 
 - Atom backend running (port 8000)
-- Public HTTPS URL for webhook endpoints (use ngrok for development)
+- **Polling mode:** nothing else — no public URL needed
+- **Webhook mode:** public HTTPS URL for the webhook endpoint (use ngrok/Cloudflare Tunnel for development)
 - Telegram Bot account (free)
-- WhatsApp Business account (Meta Business Suite)
+- WhatsApp Business account (Meta Business Suite) — for WhatsApp
 
 ---
 
@@ -28,24 +36,42 @@ Atom supports incoming webhooks from Telegram and WhatsApp, allowing users to in
 3. Follow prompts to name your bot (e.g., "AtomAgentBot")
 4. BotFather will provide a **Bot Token** (format: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`)
 5. Save this token - you'll need it for environment configuration
+6. **For group chats:** run `/setprivacy` → select your bot → **Disable**, so the bot receives all group messages (not just commands/mentions). Bots can never DM a user first — each user must `/start` the bot once.
 
-### Step 2: Configure Webhook
+### Step 2a: Polling Mode (no public URL — recommended for Personal Edition)
 
-Set your webhook URL to point to Atom:
+Add to your `.env`:
+
+```bash
+TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+TELEGRAM_POLLING_ENABLED=true
+```
+
+Restart the backend. The Telegram Polling Worker:
+- Deletes any registered webhook on startup (Telegram forbids webhook and polling concurrently)
+- Long-polls `getUpdates` with an offset cursor that never rewinds
+- Self-heals 409 conflicts (stale webhook) by removing it mid-run
+- Survives reboots, IP changes, and network switches with nothing to re-register
+
+### Step 2b: Webhook Mode (public URL)
+
+Set your webhook URL to point at Atom:
 
 ```bash
 curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://your-atom-domain.com/api/telegram/webhook",
+    "url": "https://your-atom-domain.com/api/v1/integrations/telegram/api/telegram/webhook",
     "secret_token": "YOUR_SECRET_TOKEN"
   }'
 ```
 
 Replace:
 - `<YOUR_BOT_TOKEN>`: Token from BotFather
-- `https://your-atom-domain.com`: Your public Atom URL
+- `https://your-atom-domain.com`: Your public Atom URL (note the full stacked route prefix above)
 - `YOUR_SECRET_TOKEN`: Random string for webhook verification (generate with: `openssl rand -hex 32`)
+
+The backend must have `ATOM_TELEGRAM_WEBHOOK_SECRET` set to the same value (fail-closed: requests without a matching `X-Telegram-Bot-Api-Secret-Token` header are rejected), and the hostname must be listed in `ALLOWED_HOSTS`.
 
 ### Step 3: Configure Environment Variables
 
@@ -54,7 +80,10 @@ Add to your `.env` file:
 ```bash
 # Telegram Configuration
 TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
-TELEGRAM_SECRET_TOKEN=your_random_secret_token_here
+TELEGRAM_POLLING_ENABLED=true            # polling mode (mutually exclusive with webhook)
+# Webhook mode only:
+TELEGRAM_WEBHOOK_URL=https://your-atom-domain.com/...
+ATOM_TELEGRAM_WEBHOOK_SECRET=your_random_secret_token_here
 ```
 
 ### Step 4: Verify Setup
@@ -62,11 +91,14 @@ TELEGRAM_SECRET_TOKEN=your_random_secret_token_here
 Test your bot:
 
 ```bash
-# Check webhook status
+# Polling mode: look for the startup line in backend logs
+#   "✓ Telegram Polling Worker running (webhook mode disabled)"
+
+# Webhook mode: check webhook status
 curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 
 # Send test message to your bot in Telegram
-# Check logs: tail -f logs/atom.log | grep telegram
+# Check logs: tail -f logs/atom.log | grep -i telegram
 ```
 
 Expected response: `{"ok":true,"result":{"url":"https://...","has_custom_certificate":false,...}}`

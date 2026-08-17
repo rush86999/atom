@@ -353,6 +353,19 @@ All optional. Each integration has `*_CLIENT_ID` / `*_CLIENT_SECRET` (OAuth) or
 `*_API_KEY` / `*_ACCESS_TOKEN` patterns. The full list with sign-up URLs lives
 in [`backend/.env.example`](../../backend/.env.example) §10–§20.
 
+### Telegram IM (polling or webhook)
+
+| Variable | Default | Required? | Description |
+|----------|---------|-----------|-------------|
+| `TELEGRAM_BOT_TOKEN` | unset | for Telegram IM | Bot token from @BotFather. Enables agent IM in either mode. |
+| `TELEGRAM_POLLING_ENABLED` | `false` | — | Long-poll `getUpdates` instead of a webhook. **No public URL/domain/tunnel needed** — NAT-friendly, recommended for Personal Edition. Mutually exclusive with webhook mode; the worker deletes any registered webhook on startup. See [IM Adapter Setup](../integrations/IM_ADAPTER_SETUP.md). |
+| `TELEGRAM_WEBHOOK_URL` | unset | webhook mode | Public HTTPS URL Telegram pushes updates to. |
+| `ATOM_TELEGRAM_WEBHOOK_SECRET` | unset | webhook mode | Fail-closed shared secret; Telegram sends it as `X-Telegram-Bot-Api-Secret-Token`. Requests without a match are rejected. |
+| `TELEGRAM_BOT_USERNAME` | unset | — | Bot @username, informational. |
+
+For group chats, disable the bot's privacy mode via BotFather `/setprivacy`,
+and remember bots can never DM a user first (each user must `/start` the bot).
+
 Categories: **Communication** (Slack, Discord, WhatsApp, Telegram, Teams,
 Twilio, SendGrid), **Google**, **Microsoft**, **Project Management** (Asana,
 Jira, Linear, Notion, Monday, Trello, ClickUp, Airtable), **CRM** (Salesforce,

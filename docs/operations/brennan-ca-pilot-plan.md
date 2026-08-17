@@ -38,25 +38,25 @@ The repo already contains a brennan.ca-specific demo kit — this pilot upgrades
 
 ```
       remote employees (home networks)
-        │ HTTPS (browser)              │ Telegram DMs / group chat
-        ▼                              ▼
-   ┌──────────── Cloudflare Tunnel (zero-trust) ────────────────┐
-   │  app.brennan.ca  →  :3001  web UI  (Cloudflare Access)     │
-   │  api.brennan.ca  →  :8001  backend + Telegram webhook      │
-   └───────────────────────────┬────────────────────────────────┘
-                               ▼
-               ┌──────────────────────────────────┐
-               │  Atom instance (one always-on box)│
-               │  docker-compose-personal.yml     │
-               │  ATOM_EDITION=enterprise         │
-               │  SQLite + LanceDB + fastembed    │
-               │  LLM: BYOK (OpenCode Go/OpenAI)  │
-               └──────────────────────────────────┘
+        │                               │ Telegram DMs / group chat
+        │ (Phase 3 only: web UI over    ▼
+        │  Cloudflare Tunnel + Access)  ┌──────────────────────────┐
+        │                               │  Telegram long-polling   │
+        │                               │  (outbound-only, no      │
+        │                               │  public URL needed)      │
+        │                               └────────────┬─────────────┘
+        ▼                                            ▼
+   ┌─────────────────────────────────────────────────────────┐
+   │  Atom instance (one always-on box)                       │
+   │  ATOM_EDITION=enterprise · SQLite + LanceDB + fastembed  │
+   │  LLM: BYOK (OpenCode Go / OpenAI)                        │
+   └─────────────────────────────────────────────────────────┘
 ```
 
 - **Why central:** all employees share one org context naturally; one set of OAuth connections; episodic memory and knowledge graph are shared; ops burden is one box, not N. Personal Edition compose (SQLite + LanceDB, no Postgres/Redis) is sufficient for a team of ~5.
 - **Where the box lives (owner's call):** (a) the owner's always-on machine at home, or (b) a small cloud VM — the repo ships a DigitalOcean 1-click template and `fly.toml`. Either way it stays "local for now" in the sense that matters: self-hosted, single-tenant, your keys. A VM avoids home-uplink/NAT issues and is easier to back up; pick whichever stays up reliably.
-- **Two public hostnames are required:** the frontend's `NEXT_PUBLIC_API_URL` is a *browser-side* setting (`frontend-nextjs/.env.local`, consumed by `next.config.js`), so remote browsers must reach the backend directly — set it to `https://api.<domain>` at deploy time, and point `TELEGRAM_WEBHOOK_URL` at the same api hostname.
+- **Telegram needs NO public URL (updated 2026-08-17):** the bot runs in long-polling mode (`TELEGRAM_POLLING_ENABLED=true`, new `TelegramPollingWorker`) — outbound-only, survives reboots/IP changes with nothing to re-register. Webhook mode via tunnel remains available for server deployments (`docs/integrations/IM_ADAPTER_SETUP.md`).
+- **Public hostnames are a Phase 3 need, not Phase 1:** only when employees log into the web UI remotely do we add a Cloudflare Tunnel (`app.<domain>` → :3001, `api.<domain>` → :8001, both behind Cloudflare Access). The frontend's `NEXT_PUBLIC_API_URL` is a *browser-side* setting, so remote browsers must reach the backend directly — set it to `https://api.<domain>` at that point. **Domain decision:** `atomagentos.com` is reserved for the multitenant SaaS sister app (not this pilot). `brennan.ca` hosts the Shopify storefront plus M365/Proofpoint email and Zoho records — migrating its nameservers is a deliberate post-pilot project (record manifest captured 2026-08-17: Shopify A 23.227.38.65 + www CNAME, Proofpoint MX, SPF incl. outlook.com + zoho-inventory.ca, MS + Zoho verification TXTs). For Phase 3, a ~$10 dedicated domain in the existing Cloudflare account is the zero-risk option.
 - **Telegram-first for remote staff:** the bot DM/group is the daily driver (no login friction); the web UI is for Canvas, dashboards, and approvals. The repo also has a React Native companion app (`mobile/`) as an optional later addition.
 - **Multi-user:** set `ATOM_EDITION=enterprise` — Personal edition defaults to single-user, Telegram-only IM (`backend/core/package_feature_service.py:197` detects edition from env). Each employee gets a user account via admin panel (`docs/guides/ADMINISTRATORS/USER_MANAGEMENT.md`).
 - **Alternative deferred to Phase 5:** the new org-sharing hub/member model (each employee runs their own local instance and pulls signed ingestion bundles from a hub). A remote workforce actually maps *better* to this than a shared office did — every member laptop is already an island. It's still deferred: for a time-boxed pilot, one box + two hostnames beats N instances + a key ceremony. See §8.
@@ -65,7 +65,7 @@ The repo already contains a brennan.ca-specific demo kit — this pilot upgrades
 
 | App | Atom connector | Auth setup | Limits / gotchas | Phase |
 |---|---|---|---|---|
-| **Telegram** (replaces WhatsApp) | `atom_telegram_integration.py` + IM adapter + ingestion fetcher | @BotFather → bot token; `TELEGRAM_WEBHOOK_URL` | Privacy mode ON by default → bot only sees commands/mentions in groups; run `/setprivacy` → Disable in BotFather or promote bot to group admin. Bots **cannot DM a user first** — every employee must `/start` the bot once. Bots never see other bots' messages. | 1 |
+| **Telegram** (replaces WhatsApp) | `atom_telegram_integration.py` + IM adapter + ingestion fetcher + new `TelegramPollingWorker` | @BotFather → bot token; `TELEGRAM_POLLING_ENABLED=true` (no public URL). Webhook mode optional for servers | Privacy mode ON by default → bot only sees commands/mentions in groups; run `/setprivacy` → Disable in BotFather or promote bot to group admin. Bots **cannot DM a user first** — every employee must `/start` the bot once. Bots never see other bots' messages. **Live as of 2026-08-17: @brennan_atom_bot on polling mode.** | 1 ✅ |
 | **Outlook** | `microsoft365_service.py` (Microsoft Graph) | Azure app registration; delegated `Mail.Read`, `Mail.Send`, `Files.Read` | Graph allows ~10k req/10 min per user per app; send limit ~150 mails/15 min per tenant — far above pilot needs. Consumer outlook.com accounts only support delegated access; a Microsoft 365 work tenant is cleaner. | 1 |
 | **OneDrive** | `core/integrations/adapters/onedrive.py` + `auto_document_ingestion.py` | Same Azure app; `Files.Read.All` | Store the 5 brennan templates + live documents folder; ingestion handles docx/xlsx/pdf via docling. | 1 |
 | **Word / Excel** (files) | docling parsing, `modify_word_document`, workbook runtime, Canvas co-editing | n/a (files come via OneDrive/WorkDrive/local upload) | This is a flagship demo capability — template fill + formula-evaluating Excel. No API dependency. | 2 |
@@ -95,12 +95,12 @@ Weekly rhythm: review each teammate's blocked-trigger proposals and supervision 
 
 ## 5. Rollout schedule
 
-### Phase 0 — Setup (Days 1–2, owner + whoever runs IT)
-1. Provision one always-on box (reliable home machine **or** small cloud VM — DigitalOcean 1-click / Fly template in repo); clone repo; `docker compose -f docker-compose-personal.yml up` with `.env.personal` + `ATOM_EDITION=enterprise`.
-2. Set LLM key (`OPENCODE_API_KEY` recommended — $10/mo subscription models with tool-calling — or existing OpenAI/Anthropic key). Generate + back up `SECRET_KEY`, `JWT_SECRET_KEY`, `BYOK_ENCRYPTION_KEY`.
-3. Cloudflare Tunnel: `app.<domain>` → `:3001`, `api.<domain>` → `:8001`; enable **Cloudflare Access** (email OTP, employee addresses allow-listed) on both hostnames; set `NEXT_PUBLIC_API_URL=https://api.<domain>` and `TELEGRAM_WEBHOOK_URL=https://api.<domain>/...`.
-4. Create employee accounts (admin panel); send each employee their web URL + Telegram bot link (they `/start` it).
-5. Load `demo/brennan/seed_data.py` for rehearsal data.
+### Phase 0 — Setup (Days 1–2, owner + whoever runs IT) — **✅ done 2026-08-17 (native dev path on owner's Mac; see Ops notes)**
+1. ~~Provision box + docker compose~~ Owner's Mac, native path (`make setup` + uvicorn + `next dev --webpack`) — Docker Desktop was dead on this machine (backend IPC failures since Aug 15).
+2. ✅ LLM key (`OPENCODE_API_KEY` via OpenCode Go — env keys count as BYOK after the AGPL fix), secrets generated.
+3. ~~Cloudflare Tunnel~~ Not needed: Telegram runs in polling mode (`TELEGRAM_POLLING_ENABLED=true`); tunnel + `app/api` hostnames deferred to Phase 3 with the domain decision (see §2).
+4. Employee accounts + bot `/start` links — pending Phase 3 (bot already live: @brennan_atom_bot).
+5. ✅ `demo/brennan/seed_data.py` loaded (8 entities, 6 relationships in the live graph; meta agent `atom_main` registered at SUPERVISED with agent-wide default tier).
 
 ### Phase 1 — Connect the stack (Days 3–5)
 Order matters — cheapest wins first:
@@ -155,10 +155,13 @@ Dogfood org-sharing hub/member (§8) with 1–2 employees running their own inst
 
 **Ops notes discovered during initial bring-up (2026-08-17, macOS native path):**
 
-- The backend loads the **repo-root `.env`** (`main_api_app.py:32`), not `backend/.env` — put `OPENCODE_API_KEY`, `ATOM_EDITION`, `TELEGRAM_*` in the root `.env`. The native dev path uses `data/atom.db` (from root `.env` `DATABASE_URL`), not `atom_dev.db`.
+- The backend loads `backend/.env` first, then repo-root `.env` (previously only the root file was read, contradicting every quick-start doc). **Keep `DATABASE_URL` identical in both** — a mismatch silently swaps databases mid-restart (this bit us: the server flipped to a stale `atom_dev.db`; both files now pin `sqlite:///./data/atom.db`).
 - ~~The bootstrap `default` tenant is created with `plan_type='free'`, which routes LLM requests through free-tier model allow-lists and filters out OpenCode Go models even with a valid env key~~ **Fixed in code (2026-08-17):** env-configured API keys are now treated as BYOK and are never plan-restricted in the AGPL self-hosted edition (`BYOKHandler.env_key_providers`, `backend/core/llm/byok_handler.py`). The DB workaround (`UPDATE tenants SET plan_type='enterprise' WHERE id='default';`) is only needed on pre-fix installs.
-- The backend now loads `backend/.env` first, then repo-root `.env` (previously only the root file was read, contradicting every quick-start doc).
 - Frontend on Rosetta/x64 Node needs `npx next dev --webpack -p 3001` (Turbopack has no native bindings).
+- Telegram runs in **polling mode** (`TELEGRAM_POLLING_ENABLED=true`) — no tunnel/domain. Webhook mode, if ever used, needs: `ATOM_TELEGRAM_WEBHOOK_SECRET` (fail-closed), hostname in `ALLOWED_HOSTS`, and the full stacked route `/api/v1/integrations/telegram/api/telegram/webhook`. `*.trycloudflare.com` hosts are exempt from tenant-subdomain routing and `/webhook` paths from CSRF (committed upstream).
+- The meta agent must be ≥ SUPERVISED to act (STUDENT capabilities are blocked at invocation). `atom_main` is registered in `agent_registry` at `supervised` with `capability_maturities: {"*": "supervised"}` (agent-wide default tier; per-capability entries override). Role teammates should still start at STUDENT — that's the training story.
+- The `default` workspace has `learning_phase_completed=1` (graduated), so outbound Telegram sends don't pause for HITL. Flip to 0 to restore approval gating — note the HITL queue consumer/UI is not wired yet; approvals land in `hitl_actions` unprocessed.
+- Fixes pushed to main from this bring-up: `bb385696b` (env-key BYOK + backend/.env loading), `148538e5b` (tunnel host + webhook CSRF exemptions), `9edc9f4d7` (Telegram inbound pipeline: governance cache call, orchestrator init, workspace id), `aabcf45e5` (meta agent capability gating + `*` default tier), `5ff589a3f` (Telegram polling worker).
 
 1. **This pilot** = one org, one central instance, real data, real users → proves teammate value.
 2. **Org-sharing dogfood** (Phase 5) = same org split across member instances: hub egress policy (`ATOM_ORG_HUB_MAX_SENSITIVITY`, `ATOM_ORG_HUB_SOURCE_ALLOWLIST`), per-member `atom_sk_*` gateway keys, Ed25519 key ceremony, signed delta bundles with sensitivity ceilings (`docs/architecture/ORG_SHARING_SETUP.md`). This exercises account/key lifecycle and data-partitioning semantics at org scale.

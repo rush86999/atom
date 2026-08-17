@@ -101,7 +101,24 @@ Open your browser: **http://localhost:3001**
 
 That's it! 🎉 Atom is now running on your local machine.
 
-### 5. (Optional) Verify Vector Embeddings
+### 5. (Optional) Talk to Atom from Telegram — no public URL needed
+
+Personal Edition's IM channel is Telegram, and it works behind NAT via
+long-polling (no domain, tunnel, or public IP):
+
+1. Create a bot with [@BotFather](https://t.me/BotFather) (`/newbot`), copy the token.
+2. Add to `.env`:
+   ```bash
+   TELEGRAM_BOT_TOKEN=123456789:ABC...
+   TELEGRAM_POLLING_ENABLED=true
+   ```
+3. Restart the backend and `/start` your bot from Telegram.
+
+Governance (permission gates, STUDENT-agent blocking, audit trail) applies
+identically to webhook mode. For groups, disable the bot's privacy mode in
+BotFather (`/setprivacy`). Full guide: [IM Adapter Setup](../integrations/IM_ADAPTER_SETUP.md).
+
+### 6. (Optional) Verify Vector Embeddings
 
 Test that vector embeddings are working properly:
 

@@ -173,7 +173,7 @@ ATOM supports **9 fully implemented messaging platforms** with comprehensive fea
   - Inline Mode (external chat results)
   - Chat Actions (typing indicators)
   - Polls (interactive voting)
-- **Webhooks**: Long polling or webhook mode
+- **Webhooks**: Long polling or webhook mode (`TELEGRAM_POLLING_ENABLED=true` starts the polling worker — no public URL/domain/tunnel needed; see [IM Adapter Setup](../integrations/IM_ADAPTER_SETUP.md))
 - **Authentication**: Bot token from BotFather
 - **Rate Limits**: 30 messages/second (bot), 20/minute (group)
 
