@@ -133,7 +133,8 @@ class OutlookService(IntegrationService):
         self.base_url = "https://graph.microsoft.com/v1.0"
         self.client_id = config.get("client_id") or os.getenv("MICROSOFT_CLIENT_ID")
         self.client_secret = config.get("client_secret") or os.getenv("MICROSOFT_CLIENT_SECRET")
-        self.tenant_id_config = config.get("tenant_id") or os.getenv("MICROSOFT_TENANT_ID")
+        raw_tenant = config.get("tenant_id") or os.getenv("MICROSOFT_TENANT_ID")
+        self.tenant_id_config = raw_tenant if raw_tenant and raw_tenant not in ("default", "none", "") else "common"
         self.redirect_uri = config.get("redirect_uri") or os.getenv("OUTLOOK_REDIRECT_URI")
 
     async def _get_access_token(self, user_id: str) -> Optional[str]:
@@ -205,8 +206,9 @@ class OutlookService(IntegrationService):
                 )
                 return None
 
+            tenant = self.tenant_id_config if self.tenant_id_config and self.tenant_id_config not in ("default", "none", "") else "common"
             url = (
-                f"https://login.microsoftonline.com/{self.tenant_id_config}"
+                f"https://login.microsoftonline.com/{tenant}"
                 "/oauth2/v2.0/token"
             )
             data = {
@@ -214,8 +216,7 @@ class OutlookService(IntegrationService):
                 "client_secret": self.client_secret,
                 "refresh_token": refresh_token,
                 "grant_type": "refresh_token",
-                "scope": "Mail.ReadWrite Mail.Send Calendars.ReadWrite "
-                "Contacts.ReadWrite Tasks.ReadWrite User.Read",
+                "scope": "https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Contacts.ReadWrite https://graph.microsoft.com/User.Read offline_access",
             }
 
             async with aiohttp.ClientSession() as session:
