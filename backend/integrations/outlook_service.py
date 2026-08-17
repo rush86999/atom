@@ -141,24 +141,33 @@ class OutlookService(IntegrationService):
         try:
             from core.database import get_db_session
             from core.models import IntegrationToken
+            from core.privsec.token_encryption import decrypt_token
 
             with get_db_session() as db:
-                token_record = db.query(IntegrationToken).filter(
-                    IntegrationToken.user_id == user_id,
-                    IntegrationToken.provider == "outlook",
-                    IntegrationToken.status == "active"
-                ).first()
-                
+                token_record = None
+                placeholders = {"current", "default_user", "default", "anonymous", "guest", ""}
+                if user_id and user_id not in placeholders:
+                    token_record = db.query(IntegrationToken).filter(
+                        IntegrationToken.user_id == user_id,
+                        IntegrationToken.provider.in_(["outlook", "microsoft"]),
+                        IntegrationToken.status == "active"
+                    ).first()
+
+                if not token_record:
+                    # Fallback to any active Outlook/Microsoft integration token
+                    token_record = db.query(IntegrationToken).filter(
+                        IntegrationToken.provider.in_(["outlook", "microsoft"]),
+                        IntegrationToken.status == "active"
+                    ).first()
+
                 if token_record and token_record.access_token:
-                    from core.privsec.token_encryption import decrypt_token
-                    # Check if token needs refresh
                     tokens = {
                         "access_token": decrypt_token(token_record.access_token, allow_plaintext=True),
                         "refresh_token": decrypt_token(token_record.refresh_token, allow_plaintext=True) if token_record.refresh_token else None,
                         "expires_at": token_record.expires_at.timestamp() if token_record.expires_at else None
                     }
                     if self._is_token_expired(tokens):
-                        refreshed = await self._refresh_access_token(user_id, tokens)
+                        refreshed = await self._refresh_access_token(token_record.user_id or user_id, tokens)
                         return refreshed
                     return tokens["access_token"]
             return None

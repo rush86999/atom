@@ -131,6 +131,9 @@ class SearchRequest(BaseModel):
     max_results: int = Field(50, description="Maximum results")
 
 
+PLACEHOLDER_USER_IDS = {"current", "default_user", "default", "anonymous", "guest", ""}
+
+
 # Email endpoints
 @router.post("/emails", summary="List emails")
 async def list_emails(
@@ -138,7 +141,7 @@ async def list_emails(
     current_user: User = Depends(get_current_user),
 ):
     """List emails with filtering and pagination"""
-    user_id = current_user.id if request.user_id in ("current", None, "") else request.user_id
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         emails = await outlook_service.get_user_emails(
             user_id=user_id,
@@ -166,7 +169,7 @@ async def send_email(
     current_user: User = Depends(get_current_user),
 ):
     """Send email via Outlook"""
-    user_id = current_user.id if request.user_id in ("current", None, "") else request.user_id
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         result = await outlook_service.send_email(
             user_id=user_id,
@@ -199,7 +202,7 @@ async def create_draft_email(
     current_user: User = Depends(get_current_user),
 ):
     """Create draft email"""
-    user_id = current_user.id if request.user_id in ("current", None, "") else request.user_id
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         result = await outlook_service.create_draft_email(
             user_id=user_id,
@@ -235,7 +238,7 @@ async def get_unread_emails(
     current_user: User = Depends(get_current_user),
 ):
     """Get unread emails"""
-    target_user_id = current_user.id if user_id in ("current", None, "") else user_id
+    target_user_id = current_user.id if not user_id or user_id in PLACEHOLDER_USER_IDS else user_id
     try:
         emails = await outlook_service.get_unread_emails(target_user_id, max_results)
         return {
@@ -304,7 +307,7 @@ async def list_calendar_events(
     current_user: User = Depends(get_current_user),
 ):
     """List calendar events with time range filtering"""
-    user_id = current_user.id if request.user_id in ("current", None, "") else request.user_id
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         events = await outlook_service.get_calendar_events(
             user_id=user_id,
@@ -332,7 +335,7 @@ async def create_calendar_event(
     current_user: User = Depends(get_current_user),
 ):
     """Create calendar event"""
-    user_id = current_user.id if request.user_id in ("current", None, "") else request.user_id
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         result = await outlook_service.create_calendar_event(
             user_id=user_id,
@@ -371,7 +374,7 @@ async def list_contacts(
     current_user: User = Depends(get_current_user),
 ):
     """List contacts with optional search"""
-    user_id = current_user.id if request.user_id in ("current", None, "") else request.user_id
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         contacts = await outlook_service.get_user_contacts(
             user_id=user_id,
@@ -398,7 +401,7 @@ async def create_contact(
     current_user: User = Depends(get_current_user),
 ):
     """Create contact"""
-    user_id = current_user.id if request.user_id in ("current", None, "") else request.user_id
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         result = await outlook_service.create_contact(
             user_id=user_id,
@@ -435,7 +438,7 @@ async def list_tasks(
     current_user: User = Depends(get_current_user),
 ):
     """List tasks with optional status filtering"""
-    user_id = current_user.id if request.user_id in ("current", None, "") else request.user_id
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         tasks = await outlook_service.get_user_tasks(
             user_id=user_id,
@@ -460,7 +463,7 @@ async def create_task(
     current_user: User = Depends(get_current_user),
 ):
     """Create task"""
-    user_id = current_user.id if request.user_id in ("current", None, "") else request.user_id
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         result = await outlook_service.create_task(
             user_id=user_id,
@@ -494,7 +497,7 @@ async def search_emails(
     current_user: User = Depends(get_current_user),
 ):
     """Search across Outlook emails"""
-    user_id = current_user.id if request.user_id in ("current", None, "") else request.user_id
+    user_id = current_user.id if not request.user_id or request.user_id in PLACEHOLDER_USER_IDS else request.user_id
     try:
         emails = await outlook_service.search_emails(
             user_id=user_id,
@@ -524,7 +527,7 @@ async def get_user_profile(
     current_user: User = Depends(get_current_user),
 ):
     """Get user profile information"""
-    target_user_id = current_user.id if user_id in ("current", None, "") else user_id
+    target_user_id = current_user.id if not user_id or user_id in PLACEHOLDER_USER_IDS else user_id
     try:
         profile = await outlook_service.get_user_profile(target_user_id)
 
