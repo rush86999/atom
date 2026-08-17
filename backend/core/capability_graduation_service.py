@@ -48,7 +48,12 @@ class CapabilityGraduationService:
 
         config = self._config(agent)
         maturities = config.get("capability_maturities", {})
-        return maturities.get(capability_name, CapabilityMaturityLevel.STUDENT)
+        # Per-capability level wins; "*" sets an agent-wide default tier
+        # (e.g. register the meta agent at supervised) for capabilities
+        # without an explicit entry.
+        if capability_name in maturities:
+            return maturities[capability_name]
+        return maturities.get("*", CapabilityMaturityLevel.STUDENT)
 
     def record_usage(
         self,

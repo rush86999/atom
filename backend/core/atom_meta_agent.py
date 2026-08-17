@@ -1599,7 +1599,7 @@ What is your next step?"""
             elif tool_name == "invoke_capability":
                 # Maturity-Gated Capability Invocation
                 capability_name = args.get("capability_name")
-                maturity = self.graduation_service.get_maturity(self.tenant_id, "atom_main", capability_name)
+                maturity = self.graduation_service.get_maturity("atom_main", capability_name)
 
                 logger.info(f"Invoking capability '{capability_name}' at maturity level: {maturity}")
 
@@ -1617,7 +1617,6 @@ What is your next step?"""
                 try:
                     _cap_outcome = parse_tool_outcome(result)
                     self.graduation_service.record_usage(
-                        self.tenant_id,
                         "atom_main",
                         capability_name,
                         success=_cap_outcome.success,
@@ -1626,7 +1625,7 @@ What is your next step?"""
                 except Exception:
                     # Never let graduation bookkeeping break the turn
                     self.graduation_service.record_usage(
-                        self.tenant_id, "atom_main", capability_name,
+                        "atom_main", capability_name,
                         success=True, verified="unverified",
                     )
                 return str(result)
@@ -2312,7 +2311,7 @@ Provide your Mentorship Guidance:"""
                         if getattr(self, "graduation_service", None):
                             try:
                                 maturity = self.graduation_service.get_maturity(
-                                    self.tenant_id, "atom_main", "fact_extraction"
+                                    "atom_main", "fact_extraction"
                                 )
                             except Exception:
                                 maturity = None
