@@ -220,6 +220,8 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
                         existing_integration.refresh_token = encrypt_token(refresh_token)
                     existing_integration.expires_at = expires_at
                     existing_integration.status = "active"
+                    existing_integration.scope = " ".join(scopes) if scopes else ""
+                    logger.info(f"Updated IntegrationToken for provider={p_key}, user={current_user.id}")
                 else:
                     new_integration = IntegrationToken(
                         id=str(uuid.uuid4()),
@@ -230,11 +232,12 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
                         refresh_token=encrypt_token(refresh_token) if refresh_token else None,
                         expires_at=expires_at,
                         status="active",
-                        scopes=scopes
+                        scope=" ".join(scopes) if scopes else "",
                     )
                     db.add(new_integration)
+                    logger.info(f"Created IntegrationToken for provider={p_key}, user={current_user.id}")
         except Exception as it_err:
-            logger.warning(f"Failed to populate IntegrationToken record: {it_err}")
+            logger.error(f"Failed to populate IntegrationToken record: {it_err}", exc_info=True)
 
         db.commit()
         return token_data
