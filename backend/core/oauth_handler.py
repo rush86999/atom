@@ -26,13 +26,25 @@ class OAuthConfig:
         scopes: list[str],
         additional_params: Optional[Dict] = None
     ):
-        self.client_id = os.getenv(client_id_env)
-        self.client_secret = os.getenv(client_secret_env)
-        self.redirect_uri = os.getenv(redirect_uri_env)
+        self._client_id_env = client_id_env
+        self._client_secret_env = client_secret_env
+        self._redirect_uri_env = redirect_uri_env
         self.auth_url = auth_url
         self.token_url = token_url
         self.scopes = scopes
         self.additional_params = additional_params or {}
+
+    @property
+    def client_id(self) -> Optional[str]:
+        return os.getenv(self._client_id_env)
+
+    @property
+    def client_secret(self) -> Optional[str]:
+        return os.getenv(self._client_secret_env)
+
+    @property
+    def redirect_uri(self) -> Optional[str]:
+        return os.getenv(self._redirect_uri_env)
     
     def is_configured(self) -> bool:
         """Check if OAuth credentials are configured"""

@@ -111,23 +111,23 @@ const Home = () => {
         if (token) {
           const res = await fetch(`${API_BASE}/api/onboarding/status`, {
             headers: { "Authorization": `Bearer ${token}` }
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (!data.onboarding_completed) {
+          }).catch(() => null);
+          if (res && res.ok) {
+            const data = await res.json().catch(() => null);
+            if (data && !data.onboarding_completed) {
               setShowWizard(true);
               // Fetch full user details for wizard personalized greeting
               const userRes = await fetch(`${API_BASE}/api/users/me`, {
                 headers: { "Authorization": `Bearer ${token}` }
-              });
-              if (userRes.ok) {
-                setUser(await userRes.json());
+              }).catch(() => null);
+              if (userRes && userRes.ok) {
+                setUser(await userRes.json().catch(() => null));
               }
             }
           }
         }
       } catch (err) {
-        console.error("Failed to check onboarding status", err);
+        // Silent fallback for non-blocking onboarding check
       }
     };
 

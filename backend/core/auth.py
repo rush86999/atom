@@ -147,6 +147,9 @@ async def get_current_user(
         # Also check for secure cookie name if in production
         if not token:
             token = request.cookies.get("__Secure-next-auth.session-token")
+        # Check query params for direct browser redirects
+        if not token:
+            token = request.query_params.get("token") or request.query_params.get("auth_token")
             
     if not token:
         raise credentials_exception

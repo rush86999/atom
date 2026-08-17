@@ -10,7 +10,11 @@ export default function OAuthSuccess() {
         const timer = setInterval(() => {
             setCountdown((prev) => {
                 if (prev <= 1) {
-                    router.push('/');
+                    if (provider === 'microsoft' || provider === 'outlook') {
+                        router.push('/integrations/outlook');
+                    } else {
+                        router.push('/dashboard');
+                    }
                     return 0;
                 }
                 return prev - 1;

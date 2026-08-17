@@ -61,6 +61,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
             try {
                 const { apiClient } = await import('../lib/api-client');
                 const response = await apiClient.get("/api/agents/approvals/pending", {
+                    retry: false,
                     validateStatus: (status) => status < 500
                 }) as any;
                 if (response.status === 200 && Array.isArray(response.data) && response.data.length > 0) {
@@ -74,7 +75,10 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     setPendingApproval(null);
                 }
             } catch (err) {
-                console.error("Failed to fetch pending approvals:", err);
+                // Background polling check - silent fallback if backend is unreachable
+                if (process.env.NODE_ENV === 'development') {
+                    console.debug("Pending approvals unavailable (backend unreachable)");
+                }
             }
         };
         fetchPendingApprovals();

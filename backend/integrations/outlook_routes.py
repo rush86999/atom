@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # Auth Type: OAuth2 (endpoints additionally require an authenticated session
 # user — 401 anonymous; R38-40 anon-sweep policy)
 router = APIRouter(
-    prefix="",
+    prefix="/api/outlook",
     tags=["outlook"],
     dependencies=[Depends(get_current_user)],
 )

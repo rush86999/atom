@@ -80,20 +80,23 @@ const DashboardPage: React.FC = () => {
       // 1. Health Checks — BUG-101: Fixed URLs to include /v1 prefix matching
       // the backend mount (/api/v1/integrations/{id}). Previously all 13
       // health checks 404'd, making every integration show Disconnected.
+      const token = typeof window !== "undefined" ? (localStorage.getItem("auth_token") || localStorage.getItem("token")) : null;
+      const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
+
       const healthChecks = await Promise.all([
-        fetch("/api/v1/integrations/box/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/dropbox/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/gdrive/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/slack/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/gmail/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/notion/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/jira/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/github/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/nextjs/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/stripe/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/linear/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/outlook/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/asana/health", { signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/box/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/dropbox/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/gdrive/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/slack/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/gmail/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/notion/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/jira/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/github/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/nextjs/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/stripe/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/linear/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/outlook/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
+        fetch("/api/v1/integrations/asana/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
       ]);
 
       const integrationList = [

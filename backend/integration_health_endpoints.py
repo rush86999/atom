@@ -240,7 +240,7 @@ INTEGRATION_REGISTRY = {
     }
 }
 
-def get_integration_health(service_name: str) -> IntegrationHealthStatus:
+def get_integration_health(service_name: str, db: Optional[Any] = None, user: Optional[Any] = None) -> IntegrationHealthStatus:
     """Get health status for a specific integration"""
     integration_info = INTEGRATION_REGISTRY.get(service_name, {
         "enabled": False,
@@ -249,9 +249,28 @@ def get_integration_health(service_name: str) -> IntegrationHealthStatus:
         "description": "Integration not found"
     })
 
-    # Simulate health check - in production, this would check actual API connectivity
-    is_healthy = integration_info["enabled"] and integration_info["configured"]
-    
+    # Check database for active OAuthToken if user & db context available
+    has_active_token = False
+    if db and user:
+        try:
+            from core.models import OAuthToken
+            client_ids = [f"{service_name}_client"]
+            if service_name in ("outlook", "microsoft365", "onedrive"):
+                client_ids.append("microsoft_client")
+            if service_name in ("gdrive", "gmail", "google_drive"):
+                client_ids.append("google_client")
+
+            token_entry = db.query(OAuthToken).filter(
+                OAuthToken.user_id == user.id,
+                OAuthToken.client_id.in_(client_ids),
+                OAuthToken.is_active == True
+            ).first()
+            if token_entry:
+                has_active_token = True
+        except Exception:
+            pass
+
+    is_healthy = has_active_token or (integration_info["enabled"] and integration_info["configured"])
     status = "healthy" if is_healthy else "unhealthy"
 
     # Broadcast platform status change
@@ -268,7 +287,7 @@ def get_integration_health(service_name: str) -> IntegrationHealthStatus:
         service_name=service_name,
         status="healthy" if is_healthy else "unhealthy",
         enabled=integration_info["enabled"],
-        configured=integration_info["configured"],
+        configured=is_healthy,
         last_checked=datetime.datetime.now().isoformat(),
         endpoint_count=len(integration_info["endpoints"]),
         error_message=None if is_healthy else "Integration not properly configured"
@@ -328,22 +347,36 @@ async def get_integrations_status():
     }
 
 
+from fastapi import Request, Depends
+from core.database import get_db
+
+async def _get_optional_user(request: Request, db: Any) -> Optional[Any]:
+    try:
+        from core.auth import get_current_user
+        return await get_current_user(request=request, token=None, db=db)
+    except Exception:
+        return None
+
 # Individual health endpoints for key integrations
 @router.get("/asana/health", response_model=IntegrationHealthStatus)
-async def get_asana_health():
-    return get_integration_health("asana")
+async def get_asana_health(request: Request, db: Any = Depends(get_db)):
+    user = await _get_optional_user(request, db)
+    return get_integration_health("asana", db=db, user=user)
 
 @router.get("/notion/health", response_model=IntegrationHealthStatus)
-async def get_notion_health():
-    return get_integration_health("notion")
+async def get_notion_health(request: Request, db: Any = Depends(get_db)):
+    user = await _get_optional_user(request, db)
+    return get_integration_health("notion", db=db, user=user)
 
 @router.get("/linear/health", response_model=IntegrationHealthStatus)
-async def get_linear_health():
-    return get_integration_health("linear")
+async def get_linear_health(request: Request, db: Any = Depends(get_db)):
+    user = await _get_optional_user(request, db)
+    return get_integration_health("linear", db=db, user=user)
 
 @router.get("/outlook/health", response_model=IntegrationHealthStatus)
-async def get_outlook_health():
-    return get_integration_health("outlook")
+async def get_outlook_health(request: Request, db: Any = Depends(get_db)):
+    user = await _get_optional_user(request, db)
+    return get_integration_health("outlook", db=db, user=user)
 
 @router.get("/dropbox/health", response_model=IntegrationHealthStatus)
 async def get_dropbox_health():
