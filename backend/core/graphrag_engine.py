@@ -14,6 +14,7 @@ from typing import Dict, Any, List, Optional, Set
 from dataclasses import dataclass, field
 from datetime import datetime
 from sqlalchemy import text, func
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 # Import Database
@@ -1173,8 +1174,16 @@ class GraphRAGEngine:
                     ORDER BY created_at DESC
                     LIMIT 20
                 """)
-                communities = session.execute(sql, {"ws_id": ws_id}).fetchall()
-                
+                try:
+                    communities = session.execute(sql, {"ws_id": ws_id}).fetchall()
+                except OperationalError as oe:
+                    # Communities table not yet created (fresh DB / tests) —
+                    # global search degrades to the empty path, not an error.
+                    if "graph_communities" in str(oe):
+                        communities = []
+                    else:
+                        raise
+
                 if not communities:
                     return {"mode": "global", "summaries": [], "answer": "No community data available for global search."}
 
@@ -1320,8 +1329,7 @@ class GraphRAGEngine:
         Scan completed hypothesis trees for failed/pruned hypotheses using GraphRAG's LLM
         to identify common failure patterns and extract recurring negative constraints.
         """
-        from core.database import get_db_session
-
+        # Uses the module-level get_db_session so patch targets behave uniformly.
         if self.db:
             return await self._discover_patterns_with_session(self.db, tenant_id, limit)
 
