@@ -72,6 +72,93 @@ class ShopifyService(IntegrationService):
             logger.error(f"Failed to get products: {e}")
             raise HTTPException(status_code=500, detail="Internal error")
 
+    async def create_product(self, access_token: str, shop: str, product: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new product listing (title/body/variants/images/tags)."""
+        try:
+            url = f"{self._get_base_url(shop)}/products.json"
+            headers = self._get_headers(access_token)
+            response = await self.http.post("shopify", url, headers=headers, json={"product": product})
+            response.raise_for_status()
+            return response.json().get("product", {})
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"Shopify create product failed: {e.response.status_code}: {e.response.text[:500]}"
+            )
+            raise HTTPException(status_code=502, detail="Shopify create product failed")
+        except Exception as e:
+            logger.error(f"Failed to create product: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
+
+    async def list_blogs(self, access_token: str, shop: str) -> List[Dict[str, Any]]:
+        """List all blogs on the store."""
+        try:
+            url = f"{self._get_base_url(shop)}/blogs.json"
+            headers = self._get_headers(access_token)
+            response = await self.http.get("shopify", url, headers=headers)
+            response.raise_for_status()
+            return response.json().get("blogs", [])
+        except Exception as e:
+            logger.error(f"Failed to list blogs: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
+
+    async def create_blog(self, access_token: str, shop: str, title: str, handle: Optional[str] = None) -> Dict[str, Any]:
+        """Create a blog to host articles/posts."""
+        try:
+            url = f"{self._get_base_url(shop)}/blogs.json"
+            headers = self._get_headers(access_token)
+            blog: Dict[str, Any] = {"title": title}
+            if handle:
+                blog["handle"] = handle
+            response = await self.http.post("shopify", url, headers=headers, json={"blog": blog})
+            response.raise_for_status()
+            return response.json().get("blog", {})
+        except Exception as e:
+            logger.error(f"Failed to create blog: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
+
+    async def list_articles(self, access_token: str, shop: str, blog_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """List articles (posts) in a blog."""
+        try:
+            url = f"{self._get_base_url(shop)}/blogs/{blog_id}/articles.json"
+            headers = self._get_headers(access_token)
+            response = await self.http.get("shopify", url, headers=headers, params={"limit": limit})
+            response.raise_for_status()
+            return response.json().get("articles", [])
+        except Exception as e:
+            logger.error(f"Failed to list articles: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
+
+    async def create_article(
+        self,
+        access_token: str,
+        shop: str,
+        blog_id: str,
+        title: str,
+        body_html: str,
+        author: Optional[str] = None,
+        tags: Optional[str] = None,
+        published: bool = True,
+    ) -> Dict[str, Any]:
+        """Create a blog article (post) in a blog."""
+        try:
+            url = f"{self._get_base_url(shop)}/blogs/{blog_id}/articles.json"
+            headers = self._get_headers(access_token)
+            article: Dict[str, Any] = {
+                "title": title,
+                "body_html": body_html,
+                "published": published,
+            }
+            if author:
+                article["author"] = author
+            if tags:
+                article["tags"] = tags
+            response = await self.http.post("shopify", url, headers=headers, json={"article": article})
+            response.raise_for_status()
+            return response.json().get("article", {})
+        except Exception as e:
+            logger.error(f"Failed to create article: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
+
     async def get_orders(self, access_token: str, shop: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of orders"""
         try:
@@ -435,9 +522,14 @@ class ShopifyService(IntegrationService):
         return {
             "operations": [
                 {"id": "get_products", "name": "Get Products", "complexity": 1},
+                {"id": "create_product", "name": "Create Product Listing", "complexity": 3},
                 {"id": "get_orders", "name": "Get Orders", "complexity": 1},
                 {"id": "create_fulfillment", "name": "Create Fulfillment", "complexity": 3},
                 {"id": "get_shop_analytics", "name": "Get Shop Analytics", "complexity": 1},
+                {"id": "list_blogs", "name": "List Blogs", "complexity": 1},
+                {"id": "create_blog", "name": "Create Blog", "complexity": 2},
+                {"id": "list_articles", "name": "List Blog Articles", "complexity": 1},
+                {"id": "create_article", "name": "Create Blog Article", "complexity": 2},
             ],
             "supports_webhooks": True
         }
@@ -455,8 +547,9 @@ class ShopifyService(IntegrationService):
             return {"healthy": False, "message": "Shopify health check failed"}
 
     async def execute_operation(self, operation: str, parameters: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        token = parameters.get("access_token") or self.config.get("access_token")
-        shop = parameters.get("shop") or self.shop_name
+        token: str = (parameters.get("access_token") or self.config.get("access_token")) or ""
+        shop: str = (parameters.get("shop") or self.shop_name) or ""
+        result: Any = None
 
         try:
             if operation == "handle_webhook_event":
@@ -464,6 +557,29 @@ class ShopifyService(IntegrationService):
 
             if operation == "get_products":
                 result = await self.get_products(token, shop, limit=parameters.get("limit", 20))
+                return {"success": True, "result": result}
+            elif operation == "create_product":
+                result = await self.create_product(token, shop, product=parameters.get("product", parameters))
+                return {"success": True, "result": result}
+            elif operation == "list_blogs":
+                result = await self.list_blogs(token, shop)
+                return {"success": True, "result": result}
+            elif operation == "create_blog":
+                result = await self.create_blog(token, shop, title=parameters["title"], handle=parameters.get("handle"))
+                return {"success": True, "result": result}
+            elif operation == "list_articles":
+                result = await self.list_articles(token, shop, blog_id=parameters["blog_id"], limit=parameters.get("limit", 20))
+                return {"success": True, "result": result}
+            elif operation == "create_article":
+                result = await self.create_article(
+                    token, shop,
+                    blog_id=parameters["blog_id"],
+                    title=parameters["title"],
+                    body_html=parameters.get("body_html", ""),
+                    author=parameters.get("author"),
+                    tags=parameters.get("tags"),
+                    published=parameters.get("published", True),
+                )
                 return {"success": True, "result": result}
             elif operation == "get_orders":
                 result = await self.get_orders(token, shop, limit=parameters.get("limit", 20))

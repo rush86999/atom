@@ -32,6 +32,28 @@ class ShopifyAuthRequest(BaseModel):
     shop: str
     workspace_id: str = "default"
 
+class ProductCreateRequest(BaseModel):
+    title: str
+    body_html: str = ""
+    vendor: str = ""
+    product_type: str = ""
+    tags: str = ""
+    handle: str = ""
+    status: str = "active"
+    variants: list = []
+    images: list = []
+
+class BlogCreateRequest(BaseModel):
+    title: str
+    handle: str = ""
+
+class ArticleCreateRequest(BaseModel):
+    title: str
+    body_html: str
+    author: str = ""
+    tags: str = ""
+    published: bool = True
+
 @router.post("/auth/callback")
 async def shopify_auth_callback(auth_request: ShopifyAuthRequest, db: Session = Depends(get_db)):
     """Exchange authorization code for access token and save store"""
@@ -92,6 +114,70 @@ async def list_products(
     products = await shopify_service.get_products(access_token, shop, limit)
     return {"ok": True, "data": products, "count": len(products)}
 
+@router.post("/products")
+async def create_product(
+    request: ProductCreateRequest,
+    current_user: User = Depends(get_current_user),
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain"),
+):
+    """Create a Shopify product listing (agent-driven)."""
+    payload = request.model_dump(exclude_none=True)
+    product = await shopify_service.create_product(access_token, shop, payload)
+    return {"ok": True, "data": product}
+
+@router.get("/blogs")
+async def list_blogs(
+    current_user: User = Depends(get_current_user),
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain"),
+):
+    """List Shopify blogs"""
+    blogs = await shopify_service.list_blogs(access_token, shop)
+    return {"ok": True, "data": blogs, "count": len(blogs)}
+
+@router.post("/blogs")
+async def create_blog(
+    request: BlogCreateRequest,
+    current_user: User = Depends(get_current_user),
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain"),
+):
+    """Create a Shopify blog"""
+    blog = await shopify_service.create_blog(access_token, shop, request.title, request.handle or None)
+    return {"ok": True, "data": blog}
+
+@router.get("/blogs/{blog_id}/articles")
+async def list_articles(
+    blog_id: str,
+    current_user: User = Depends(get_current_user),
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain"),
+    limit: int = Query(20, ge=1, le=100)
+):
+    """List articles in a Shopify blog"""
+    articles = await shopify_service.list_articles(access_token, shop, blog_id, limit)
+    return {"ok": True, "data": articles, "count": len(articles)}
+
+@router.post("/blogs/{blog_id}/articles")
+async def create_article(
+    blog_id: str,
+    request: ArticleCreateRequest,
+    current_user: User = Depends(get_current_user),
+    access_token: str = Query(..., description="Access Token"),
+    shop: str = Query(..., description="Shop Domain"),
+):
+    """Create a Shopify blog article (post)"""
+    article = await shopify_service.create_article(
+        access_token, shop, blog_id,
+        title=request.title,
+        body_html=request.body_html,
+        author=request.author or None,
+        tags=request.tags or None,
+        published=request.published,
+    )
+    return {"ok": True, "data": article}
+
 @router.get("/orders")
 async def list_orders(
     current_user: User = Depends(get_current_user),
@@ -149,6 +235,8 @@ async def shopify_root():
             "/draft-orders",
             "/transactions/{order_id}",
             "/analytics",
+            "/blogs",
+            "/blogs/{blog_id}/articles",
             "/webhooks/setup",
             "/status"
         ]
