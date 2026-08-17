@@ -199,6 +199,43 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
             )
             db.add(new_token)
 
+        # Also populate IntegrationToken for services like OutlookService
+        try:
+            from core.models import IntegrationToken
+            from core.privsec.token_encryption import encrypt_token
+
+            provider_keys = [provider]
+            if provider == "microsoft":
+                provider_keys.append("outlook")
+
+            for p_key in provider_keys:
+                existing_integration = db.query(IntegrationToken).filter(
+                    IntegrationToken.user_id == current_user.id,
+                    IntegrationToken.provider == p_key
+                ).first()
+
+                if existing_integration:
+                    existing_integration.access_token = encrypt_token(access_token)
+                    if refresh_token:
+                        existing_integration.refresh_token = encrypt_token(refresh_token)
+                    existing_integration.expires_at = expires_at
+                    existing_integration.status = "active"
+                else:
+                    new_integration = IntegrationToken(
+                        id=str(uuid.uuid4()),
+                        tenant_id=current_user.tenant_id or "default",
+                        user_id=current_user.id,
+                        provider=p_key,
+                        access_token=encrypt_token(access_token),
+                        refresh_token=encrypt_token(refresh_token) if refresh_token else None,
+                        expires_at=expires_at,
+                        status="active",
+                        scopes=scopes
+                    )
+                    db.add(new_integration)
+        except Exception as it_err:
+            logger.warning(f"Failed to populate IntegrationToken record: {it_err}")
+
         db.commit()
         return token_data
         
