@@ -168,14 +168,17 @@ const OutlookIntegration: React.FC = () => {
 
     const handleConnect = async () => {
         try {
-            // B7 (Plan 315): /api/auth/* endpoints now require a valid token.
-            // Use the correct Microsoft OAuth endpoint (Outlook uses Microsoft Graph).
+            // Redirect directly to backend to avoid Next.js proxy issues with 307 redirects.
+            // The backend returns a 307 redirect to Microsoft login, which the browser follows.
             const token =
                 localStorage.getItem("auth_token") ||
                 localStorage.getItem("token");
+            const backendBase = window.location.hostname === "localhost" 
+                ? "http://localhost:8000" 
+                : "";
             const url = token 
-                ? `/api/v1/auth/oauth/microsoft/initiate?token=${encodeURIComponent(token)}`
-                : "/api/v1/auth/oauth/microsoft/initiate";
+                ? `${backendBase}/api/v1/auth/oauth/microsoft/initiate?token=${encodeURIComponent(token)}`
+                : `${backendBase}/api/v1/auth/oauth/microsoft/initiate`;
             window.location.href = url;
         } catch (error) {
             console.error("Connect error:", error);
