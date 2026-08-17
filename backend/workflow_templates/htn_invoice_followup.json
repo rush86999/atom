@@ -1,0 +1,86 @@
+{
+  "template_id": "htn_invoice_followup",
+  "name": "Invoice Follow-up Sequence",
+  "description": "HTN method: reconcile an outstanding invoice, send a payment reminder, escalate on commitment, and confirm settlement.",
+  "category": "business",
+  "complexity": "intermediate",
+  "tags": ["invoice", "payment", "accounts-receivable", "followup", "finance", "htn"],
+  "version": "1.0.0",
+  "author": "System",
+  "created_at": "2026-08-17T00:00:00",
+  "updated_at": "2026-08-17T00:00:00",
+  "inputs": [
+    {"name": "invoice_number", "label": "Invoice number", "type": "string", "required": true}
+  ],
+  "steps": [
+    {
+      "id": "lookup_invoice",
+      "name": "Locate invoice in knowledge graph",
+      "description": "Find the Invoice entity, its amount, recipient, and due date.",
+      "step_type": "action",
+      "service": "knowledge",
+      "action": "knowledge.query",
+      "parameters": [],
+      "depends_on": [],
+      "estimated_duration": 60,
+      "is_optional": false
+    },
+    {
+      "id": "check_status",
+      "name": "Check payment status and aging",
+      "description": "Determine days outstanding and prior communication.",
+      "step_type": "action",
+      "depends_on": ["lookup_invoice"],
+      "estimated_duration": 60,
+      "is_optional": false
+    },
+    {
+      "id": "send_reminder",
+      "name": "Send payment reminder",
+      "description": "Polite reminder with invoice details to the recipient contact.",
+      "step_type": "action",
+      "depends_on": ["check_status"],
+      "estimated_duration": 120,
+      "is_optional": false
+    },
+    {
+      "id": "await_commitment",
+      "name": "Watch for payment commitment",
+      "description": "Monitor replies for INTENT=payment_commitment (knowledge graph).",
+      "step_type": "trigger",
+      "depends_on": ["send_reminder"],
+      "estimated_duration": 86400,
+      "is_optional": false
+    },
+    {
+      "id": "escalate",
+      "name": "Escalate if no commitment",
+      "description": "Escalate to account owner after the reminder window lapses.",
+      "step_type": "action",
+      "condition": "no payment_commitment intent observed",
+      "depends_on": ["await_commitment"],
+      "estimated_duration": 300,
+      "is_optional": true
+    },
+    {
+      "id": "confirm_settled",
+      "name": "Confirm invoice settled",
+      "description": "Verify the invoice status is paid and record the outcome.",
+      "step_type": "verification",
+      "depends_on": ["await_commitment"],
+      "estimated_duration": 120,
+      "is_optional": false
+    }
+  ],
+  "output_schema": {"type": "object", "properties": {"settled": {"type": "boolean"}}},
+  "usage_count": 0,
+  "rating": 0.0,
+  "review_count": 0,
+  "estimated_total_duration": 90000,
+  "prerequisites": [],
+  "dependencies": ["knowledge graph", "email integration"],
+  "permissions": ["finance.read", "email.send"],
+  "is_public": false,
+  "is_featured": false,
+  "license": "MIT"
+}

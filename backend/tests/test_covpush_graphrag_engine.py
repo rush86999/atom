@@ -400,7 +400,7 @@ class TestIngest:
         relationships = [{"from": "Acme", "to": "Bob", "type": "employs"}]
         with _db_ctx(session):
             result = g.ingest_structured_data("ws-1", "t-1", entities, relationships)
-        assert result == {"entities": 3, "relationships": 1}
+        assert result == {"entities": 3, "relationships": 1, "edges_rejected": 0}
         assert session.query(GraphNode).filter_by(name="Acme").first() is not None
         assert session.query(GraphEdge).count() == 1
 

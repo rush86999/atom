@@ -12,7 +12,7 @@ import asyncio
 import re
 from typing import Dict, Any, List, Optional, Set
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import text, func
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
@@ -59,6 +59,12 @@ def _get_workflow_orchestrator() -> Any:
 GRAPHRAG_LLM_ENABLED = os.getenv("GRAPHRAG_LLM_ENABLED", "true").lower() == "true"
 GRAPHRAG_LLM_PROVIDER = os.getenv("GRAPHRAG_LLM_PROVIDER", "openai")
 GRAPHRAG_LLM_MODEL = os.getenv("GRAPHRAG_LLM_MODEL", "gpt-4o-mini")
+
+
+def _ontology_enforcement_strict() -> bool:
+    """ATOM_ONTOLOGY_ENFORCEMENT=strict rejects ontology-violating edges at
+    write time; the default 'warn' mode writes them flagged."""
+    return os.getenv("ATOM_ONTOLOGY_ENFORCEMENT", "warn").strip().lower() == "strict"
 
 # ==================== DATA CLASSES (Transient) ====================
 
@@ -277,6 +283,10 @@ class GraphRAGEngine:
                 if "source" not in props: props["source"] = source
                 if "doc_id" not in props: props["doc_id"] = doc_id
                 props["llm_extracted"] = True
+                # Keep the LLM's own entity id so ingest_document can remap
+                # relationship endpoints (which reference these ids) to names.
+                if e.get("id"):
+                    props["extractor_id"] = str(e["id"])
 
                 entities.append(Entity(
                     id=str(uuid.uuid4()),
@@ -489,6 +499,18 @@ class GraphRAGEngine:
         ws_id = workspace_id or self.workspace_id
         tid = tenant_id or self.tenant_id
 
+        # A3 (chunk grounding): chunk the document once so every extracted
+        # entity/edge carries supporting chunk references — the relational
+        # equivalent of RDF 1.2 rdf:reifies statement provenance. Research
+        # (arXiv 2511.05991): chunk-in-node grounding was the decisive
+        # accuracy factor (15-20% -> 90%).
+        chunks = []
+        try:
+            from core.ontology.chunker import chunk_text, locate_name_chunks
+            chunks = chunk_text(text)
+        except Exception as chunk_err:
+            logger.debug(f"chunking skipped: {chunk_err}")
+
         # 1. Extract
         if self._is_llm_available(ws_id):
             logger.info(f"Using LLM-based extraction for document {doc_id}")
@@ -499,6 +521,48 @@ class GraphRAGEngine:
         if not entities and not relationships:
             logger.info("No entities extracted.")
             return
+
+        # Attach chunk provenance to entities (substring match is cheap and
+        # deterministic; misses are simply empty provenance, not errors).
+        entity_chunk_ids: Dict[str, List[int]] = {}
+        if chunks:
+            try:
+                for e in entities:
+                    hit_ids = locate_name_chunks(e.name, chunks)
+                    entity_chunk_ids[e.name] = hit_ids
+                    if hit_ids:
+                        e.properties["provenance"] = {
+                            "doc_id": doc_id,
+                            "source": source,
+                            "chunk_ids": hit_ids,
+                        }
+            except Exception as prov_err:
+                logger.debug(f"provenance attach skipped: {prov_err}")
+
+        # Remap relationship endpoints from extractor ids to entity names —
+        # ingest_structured_data keys its node map by name, and the LLM
+        # references entities by its own ids (edges silently missed before).
+        extractor_id_to_name = {
+            e.properties.get("extractor_id"): e.name
+            for e in entities if e.properties.get("extractor_id")
+        }
+        if extractor_id_to_name:
+            for r in relationships:
+                r.from_entity = extractor_id_to_name.get(r.from_entity, r.from_entity)
+                r.to_entity = extractor_id_to_name.get(r.to_entity, r.to_entity)
+
+        # Edge provenance: union of endpoint chunk references.
+        if chunks:
+            for r in relationships:
+                endpoint_chunks = sorted(
+                    set(entity_chunk_ids.get(r.from_entity, [])
+                        + entity_chunk_ids.get(r.to_entity, []))
+                )
+                if endpoint_chunks:
+                    props = dict(r.properties or {})
+                    props.setdefault("provenance", {})["doc_id"] = doc_id
+                    props["provenance"]["chunk_ids"] = endpoint_chunks[:10]
+                    r.properties = props
 
         # 2. Store
         e_dicts = [{"name": e.name, "type": e.entity_type, "description": e.description, "properties": e.properties, "sensitivity": sensitivity} for e in entities]
@@ -630,6 +694,46 @@ class GraphRAGEngine:
                     logger.warning(f"add_relationship: target node '{rel.to_entity}' not found — skipping")
                     return None
 
+                props = dict(rel.properties or {})
+                now_iso = datetime.now(timezone.utc).isoformat()
+
+                # Ontology validation (A1/A4) on the manual write path too.
+                try:
+                    from core.ontology import get_ontology_service
+                    validation = get_ontology_service(tid).validate_relationship(
+                        src.type, rel.rel_type, tgt.type)
+                    if not validation.ok:
+                        if _ontology_enforcement_strict():
+                            logger.warning(f"edge rejected ({validation.reason})")
+                            return None
+                        props["ontology_violation"] = validation.reason
+                    elif not validation.declared:
+                        props["ontology_undeclared_relation"] = True
+                except Exception as onto_err:
+                    logger.debug(f"ontology validation skipped: {onto_err}")
+
+                # Dedup with occurrence counts (A5) — same triple upserts.
+                existing_edge = session.query(GraphEdge).filter(
+                    GraphEdge.workspace_id == ws_id,
+                    GraphEdge.source_node_id == rel.from_entity,
+                    GraphEdge.target_node_id == rel.to_entity,
+                    GraphEdge.relationship_type == rel.rel_type,
+                ).first()
+                if existing_edge:
+                    ep = dict(existing_edge.properties or {})
+                    ep["occurrence_count"] = int(ep.get("occurrence_count", 1)) + 1
+                    ep["last_seen"] = now_iso
+                    ep.update({k: v for k, v in props.items()
+                               if k not in ("occurrence_count", "last_seen")})
+                    existing_edge.properties = ep
+                    existing_edge.weight = (existing_edge.weight or 1.0) + 1.0
+                    session.commit()
+                    return existing_edge.id
+
+                props.setdefault("verification", "proposed")
+                props.setdefault("occurrence_count", 1)
+                props["first_seen"] = now_iso
+                props["last_seen"] = now_iso
                 edge = GraphEdge(
                     id=rel.id,
                     tenant_id=tid,
@@ -637,7 +741,7 @@ class GraphRAGEngine:
                     source_node_id=rel.from_entity,
                     target_node_id=rel.to_entity,
                     relationship_type=rel.rel_type,
-                    properties=rel.properties
+                    properties=props
                 )
                 session.add(edge)
                 session.commit()
@@ -779,8 +883,17 @@ class GraphRAGEngine:
         
         with get_db_session() as session:
             try:
+                # Ontology layer (A1/A2/A4): validation + alias resolution.
+                onto = None
+                try:
+                    from core.ontology import get_ontology_service
+                    onto = get_ontology_service(tid)
+                except Exception as onto_err:
+                    logger.debug(f"ontology layer unavailable: {onto_err}")
+
                 # 1. Process Nodes
                 node_map = {}
+                node_types: Dict[str, str] = {}
                 for e_data in entities:
                     name = e_data.get("name")
                     if not name: continue
@@ -796,30 +909,47 @@ class GraphRAGEngine:
                     properties_copy = dict(properties)
                     embedding_val = properties_copy.pop("embedding", None)
                     sensitivity = e_data.get("sensitivity")
+                    node_type = e_data.get("type", "unknown")
+                    # A2/A5: canonicalize the type label through the ontology
+                    # (alias resolution — "org" == "Organization") so upserts
+                    # dedupe across alias spellings.
+                    if onto:
+                        resolved = onto.resolve_entity_type(node_type)
+                        if resolved:
+                            node_type = resolved
 
                     # Upsert on (workspace, name, type): re-ingesting the same
                     # entity (or importing an org bundle) must merge, not
                     # duplicate. Sensitivity taint rule: never lowered.
-                    existing = session.query(GraphNode).filter_by(
-                        workspace_id=ws_id,
-                        name=name,
-                        type=e_data.get("type", "unknown"),
-                    ).first()
+                    # A5: alias-aware match — case-insensitive name, plus
+                    # previously recorded also_known_as aliases on the node.
+                    existing = self._find_existing_node(session, ws_id, name, node_type)
                     if existing:
                         existing.description = e_data.get("description", "") or existing.description
-                        existing.properties = properties_copy
+                        merged_props = dict(existing.properties or {})
+                        merged_props.update(properties_copy)
+                        # merge chunk provenance instead of overwriting
+                        new_prov = properties_copy.get("provenance")
+                        if new_prov:
+                            old_prov = (existing.properties or {}).get("provenance") or {}
+                            merged_ids = list(dict.fromkeys(
+                                old_prov.get("chunk_ids", []) + new_prov.get("chunk_ids", [])))
+                            new_prov["chunk_ids"] = merged_ids[:50]
+                            merged_props["provenance"] = new_prov
+                        existing.properties = merged_props
                         if embedding_val is not None:
                             existing.embedding = embedding_val
                         existing.sensitivity = self._raise_sensitivity(existing.sensitivity, sensitivity)
                         session.flush()
                         node_map[name] = existing.id
+                        node_types[existing.id] = existing.type
                         continue
 
                     node = GraphNode(
                         tenant_id=tid,
                         workspace_id=ws_id,
                         name=name,
-                        type=e_data.get("type", "unknown"),
+                        type=node_type,
                         description=e_data.get("description", ""),
                         properties=properties_copy,
                         embedding=embedding_val,
@@ -828,29 +958,141 @@ class GraphRAGEngine:
                     session.add(node)
                     session.flush()
                     node_map[name] = node.id
-                
-                # 2. Process Edges
+                    node_types[node.id] = node.type
+
+                # 2. Process Edges (A1/A4/A6: ontology validation, dedup with
+                # occurrence counts, hypothesis verification states)
+                skipped_violations = 0
                 for r_data in relationships:
                     src = node_map.get(r_data.get("from"))
                     dst = node_map.get(r_data.get("to"))
-                    if src and dst:
+                    if not (src and dst):
+                        continue
+                    rel_type = r_data.get("type", "related_to")
+                    props = dict(r_data.get("properties", {}) or {})
+
+                    if onto:
+                        validation = onto.validate_relationship(
+                            node_types.get(src, "unknown"), rel_type,
+                            node_types.get(dst, "unknown"))
+                        if not validation.ok:
+                            if _ontology_enforcement_strict():
+                                skipped_violations += 1
+                                logger.warning(
+                                    f"edge rejected ({validation.reason}): "
+                                    f"{src} -[{rel_type}]-> {dst}")
+                                continue
+                            props["ontology_violation"] = validation.reason
+                        elif not validation.declared:
+                            props["ontology_undeclared_relation"] = True
+
+                    now_iso = datetime.now(timezone.utc).isoformat()
+                    confidence = props.get("confidence")
+
+                    existing_edge = session.query(GraphEdge).filter(
+                        GraphEdge.workspace_id == ws_id,
+                        GraphEdge.source_node_id == src,
+                        GraphEdge.target_node_id == dst,
+                        GraphEdge.relationship_type == rel_type,
+                    ).first()
+                    if existing_edge:
+                        # Dedup: repeated observations strengthen (occurrence
+                        # count + weight) instead of duplicating rows.
+                        ep = dict(existing_edge.properties or {})
+                        ep["occurrence_count"] = int(ep.get("occurrence_count", 1)) + 1
+                        ep["last_seen"] = now_iso
+                        if confidence is not None:
+                            ep["confidence"] = max(float(confidence),
+                                                   float(ep.get("confidence", 0)))
+                        new_prov = props.get("provenance")
+                        if new_prov:
+                            old_prov = ep.get("provenance") or {}
+                            merged = list(dict.fromkeys(
+                                old_prov.get("chunk_ids", []) + new_prov.get("chunk_ids", [])))
+                            new_prov["chunk_ids"] = merged[:50]
+                            ep["provenance"] = new_prov
+                        ep.update({k: v for k, v in props.items()
+                                   if k not in ("provenance", "occurrence_count",
+                                                "last_seen", "confidence")})
+                        existing_edge.properties = ep
+                        existing_edge.weight = (existing_edge.weight or 1.0) + 1.0
+                    else:
+                        # A6 hypothesis lifecycle: extracted facts land as
+                        # 'proposed'; promotion to 'verified' is an explicit
+                        # act (human review / corroborating source).
+                        props.setdefault("verification", "proposed")
+                        props.setdefault("occurrence_count", 1)
+                        props["first_seen"] = now_iso
+                        props["last_seen"] = now_iso
                         edge = GraphEdge(
                             tenant_id=tid,
                             workspace_id=ws_id,
                             source_node_id=src,
                             target_node_id=dst,
-                            relationship_type=r_data.get("type", "related_to"),
-                            properties=r_data.get("properties", {})
+                            relationship_type=rel_type,
+                            properties=props,
                         )
                         session.add(edge)
-                
+
                 session.commit()
-                logger.info(f"Ingested {len(entities)} nodes, {len(relationships)} edges for ws {ws_id}")
-                return {"entities": len(entities), "relationships": len(relationships)}
+                # A8 (incremental versioning): snapshot the graph every N
+                # ingests via the previously-unwired DynamicGraphManager.
+                self._maybe_snapshot_version(ws_id)
+                logger.info(
+                    f"Ingested {len(entities)} nodes, {len(relationships)} edges"
+                    f"{' (' + str(skipped_violations) + ' rejected by ontology)' if skipped_violations else ''}"
+                    f" for ws {ws_id}")
+                return {"entities": len(entities), "relationships": len(relationships),
+                        "edges_rejected": skipped_violations}
             except Exception as e:
                 session.rollback()
                 logger.error(f"Structured ingestion failed: {e}")
                 return {"entities": 0, "relationships": 0}
+
+    @staticmethod
+    def _find_existing_node(session, ws_id: str, name: str, node_type: str):
+        """Alias/case-insensitive node lookup for entity resolution (A5).
+
+        Matches exact (legacy path, indexed), then case-insensitive name,
+        then names recorded in the node's also_known_as property list.
+        """
+        from sqlalchemy import or_
+
+        existing = session.query(GraphNode).filter_by(
+            workspace_id=ws_id, name=name, type=node_type,
+        ).first()
+        if existing:
+            return existing
+
+        candidates = session.query(GraphNode).filter(
+            GraphNode.workspace_id == ws_id,
+            GraphNode.type == node_type,
+            func.lower(GraphNode.name) == name.lower(),
+        ).all()
+        if not candidates:
+            candidates = [
+                n for n in session.query(GraphNode).filter(
+                    GraphNode.workspace_id == ws_id,
+                    GraphNode.type == node_type,
+                ).limit(500).all()
+                if name in ((n.properties or {}).get("also_known_as") or [])
+            ]
+        return candidates[0] if candidates else None
+
+    _version_ingest_counter: Dict[str, int] = {}
+
+    def _maybe_snapshot_version(self, ws_id: str, every: int = 10) -> None:
+        """Create a graph version snapshot every ``every`` ingests (A8)."""
+        try:
+            count = self._version_ingest_counter.get(ws_id, 0) + 1
+            self._version_ingest_counter[ws_id] = count
+            if count % every != 0:
+                return
+            from core.graphrag.dynamic_graph import get_dynamic_graph_manager
+            get_dynamic_graph_manager().create_version(
+                ws_id, metadata={"trigger": "ingest", "ingest_count": count})
+        except Exception as exc:
+            logger.debug(f"graph version snapshot skipped: {exc}")
 
     # ==================== READ OPERATIONS (SQL) ====================
 

@@ -1,0 +1,91 @@
+{
+  "template_id": "htn_content_publish",
+  "name": "Content Publish Pipeline",
+  "description": "HTN method: research, draft, review, and publish a piece of content (blog, article, newsletter) with verification before publication.",
+  "category": "automation",
+  "complexity": "intermediate",
+  "tags": ["content", "publishing", "blog", "article", "marketing", "htn"],
+  "version": "1.0.0",
+  "author": "System",
+  "created_at": "2026-08-17T00:00:00",
+  "updated_at": "2026-08-17T00:00:00",
+  "inputs": [
+    {"name": "topic", "label": "Topic", "type": "string", "required": true},
+    {"name": "audience", "label": "Audience", "type": "string", "required": false},
+    {"name": "channel", "label": "Channel", "type": "string", "required": false, "default_value": "blog"}
+  ],
+  "steps": [
+    {
+      "id": "research",
+      "name": "Research topic and gather sources",
+      "description": "Collect reference material and prior internal knowledge-graph context on the topic.",
+      "step_type": "action",
+      "service": "knowledge",
+      "action": "knowledge.query",
+      "parameters": [],
+      "depends_on": [],
+      "estimated_duration": 300,
+      "is_optional": false
+    },
+    {
+      "id": "outline",
+      "name": "Draft outline",
+      "description": "Produce a section outline from the research.",
+      "step_type": "agent",
+      "depends_on": ["research"],
+      "estimated_duration": 240,
+      "is_optional": false
+    },
+    {
+      "id": "write_draft",
+      "name": "Write full draft",
+      "description": "Write the complete content draft from the outline.",
+      "step_type": "agent",
+      "depends_on": ["outline"],
+      "estimated_duration": 600,
+      "is_optional": false
+    },
+    {
+      "id": "fact_check",
+      "name": "Verify claims against knowledge graph",
+      "description": "Check factual claims in the draft against stored entities/facts.",
+      "step_type": "action",
+      "service": "knowledge",
+      "action": "knowledge.query",
+      "depends_on": ["write_draft"],
+      "estimated_duration": 240,
+      "is_optional": false
+    },
+    {
+      "id": "review",
+      "name": "Human/agent review sign-off",
+      "description": "Editorial review gate; must pass before publishing.",
+      "step_type": "approval",
+      "depends_on": ["fact_check"],
+      "estimated_duration": 600,
+      "is_optional": false
+    },
+    {
+      "id": "publish",
+      "name": "Publish to channel",
+      "description": "Publish the approved content (e.g. Shopify blog article).",
+      "step_type": "action",
+      "service": "shopify",
+      "action": "shopify_create_article",
+      "depends_on": ["review"],
+      "estimated_duration": 120,
+      "is_optional": false
+    }
+  ],
+  "output_schema": {"type": "object", "properties": {"published_url": {"type": "string"}}},
+  "usage_count": 0,
+  "rating": 0.0,
+  "review_count": 0,
+  "estimated_total_duration": 2100,
+  "prerequisites": [],
+  "dependencies": ["knowledge graph", "publishing integration"],
+  "permissions": ["content.publish"],
+  "is_public": false,
+  "is_featured": false,
+  "license": "MIT"
+}

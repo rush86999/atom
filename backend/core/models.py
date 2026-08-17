@@ -9964,6 +9964,14 @@ class EntityTypeDefinition(Base):
     # Skill bindings (array of skill IDs) - REQUIRES PostgreSQL for JSONB queries
     available_skills = Column(JSONBColumn, nullable=True)  # ["send_email", "generate_pdf"]
 
+    # Ontology layer (RDFS-style semantics, gap A2/A5):
+    # parent_type — rdfs:subClassOf: slug of the parent entity type, enabling
+    #   subclass-closure checks (a Deal is-a Transaction for domain/range).
+    # aliases — SKOS altLabel: alternate type strings ("org", "Company") used
+    #   to resolve free-text type labels to canonical types.
+    parent_type = Column(String(100), nullable=True)
+    aliases = Column(JSONBColumn, default=list)
+
     # Metadata
     is_active = Column(Boolean, default=True, nullable=False)
     is_system = Column(Boolean, default=False)  # True for 20 canonical entities
@@ -9981,6 +9989,76 @@ class EntityTypeDefinition(Base):
         Index("ix_entity_types_json_schema_gin", "json_schema", postgresql_using='gin'),
         Index("ix_entity_types_skills_gin", "available_skills", postgresql_using='gin'),
     )
+
+
+class RelationTypeDefinition(Base):
+    """Ontology relation definitions — RDFS property semantics (gap A1).
+
+    Declares the legal (domain_type, name, range_type) triples that
+    constrain GraphRAG edge writes (write-time validation) and ground the
+    LLM extraction prompt (schema-constrained extraction). domain_type /
+    range_type are JSON lists of entity-type slugs; ["*"] means unrestricted.
+    """
+    __tablename__ = "relation_type_definitions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    name = Column(String(150), nullable=False)  # e.g. "OWNS"
+    display_name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+
+    domain_type = Column(JSONBColumn, default=list)  # ["Person", "Organization"] or ["*"]
+    range_type = Column(JSONBColumn, default=list)   # ["Project", "Task"] or ["*"]
+    inverse_of = Column(String(150), nullable=True)  # owl:inverseOf
+    cardinality = Column(String(20), default="many_to_many")  # one_to_one|one_to_many|many_to_many
+
+    is_system = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    version = Column(Integer, default=1, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index("ix_relation_types_tenant_name", "tenant_id", "name", unique=True),
+        Index("ix_relation_types_tenant_id", "tenant_id"),
+    )
+
+
+class GoalObjective(Base):
+    """Persisted goal with machine-checkable success criteria (gaps B1/B2/B9).
+
+    Replaces the ephemeral Objective dataclass / GoalEngine in-memory dict as
+    the durable record. ``criteria`` holds structured predicates evaluated by
+    core/goals/criterion_evaluator.py (graph_edge_exists, entity_exists,
+    board_task_status, state_equals, numeric_compare, metric_gte, all_of/
+    any_of). ``key_results`` holds OKR-style measurable outcomes
+    ({description, metric, target, current}).
+    """
+    __tablename__ = "goal_objectives"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    workspace_id = Column(String, nullable=False, index=True)
+
+    title = Column(String(500), nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default="active", index=True)
+    # active | on_hold | at_risk | achieved | failed
+    progress = Column(Float, default=0.0)  # 0-100, fraction of satisfied criteria
+
+    criteria = Column(JSONBColumn, default=list)      # structured, machine-checkable
+    key_results = Column(JSONBColumn, default=list)   # OKR key results
+    metadata_json = Column(JSONBColumn, default={})
+
+    owner_id = Column(String, nullable=True)
+    parent_goal_id = Column(String, ForeignKey("goal_objectives.id", ondelete="SET NULL"), nullable=True)
+    source = Column(String(20), default="api")  # api | chat | agent | decomposition
+    target_date = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class SkillSuggestionFeedback(Base):

@@ -31,7 +31,26 @@ class Goal(BaseModel):
 class GoalEngine:
     def __init__(self):
         self.goals: Dict[str, Goal] = {}
-        # Mock storage for now, would be a DB in production
+        # In-memory working set for API compatibility; every create/progress
+        # update is mirrored to the durable GoalObjective table via
+        # GoalService (B1 — goals previously vanished on restart).
+
+    def _persist(self, goal: Goal, tenant_id: str = "default") -> Optional[str]:
+        """Mirror a Goal to the goal_objectives table. Best-effort: the
+        legacy in-memory behavior must not break when the DB is down."""
+        try:
+            from core.goals.goal_service import GoalService
+            record = GoalService(workspace_id=tenant_id, tenant_id=tenant_id).create_goal(
+                title=goal.title,
+                description=goal.description or "",
+                owner_id=goal.owner_id,
+                target_date=goal.target_date,
+                source="chat",
+            )
+            return record.get("id")
+        except Exception as exc:
+            logger.debug(f"goal persistence skipped: {exc}")
+            return None
     
     async def create_goal_from_text(self, title: str, target_date: datetime, owner_id: str = "default", tenant_id: str = "default") -> Goal:
         """Create a new goal and automatically decompose it into sub-tasks"""
@@ -96,6 +115,7 @@ class GoalEngine:
             goal.sub_tasks = sub_tasks
         
         self.goals[goal.id] = goal
+        self._persist(goal, tenant_id)
         return goal
 
     async def decompose_goal(self, title: str, target_date: datetime) -> List[GoalSubTask]:
@@ -153,6 +173,14 @@ class GoalEngine:
             goal.status = "COMPLETED"
         else:
             goal.status = "ACTIVE"
+
+        # Mirror progress to the persisted record.
+        try:
+            from core.goals.goal_service import GoalService
+            GoalService(workspace_id="default").update_progress_from_subtasks(
+                goal.id, len(completed), len(goal.sub_tasks))
+        except Exception as exc:
+            logger.debug(f"goal progress persistence skipped: {exc}")
 
     async def check_for_escalations(self) -> List[Dict[str, Any]]:
         """Identify goals that are behind and need intervention"""

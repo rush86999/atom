@@ -2245,6 +2245,13 @@ try:
         logger.warning(f"Failed to load GraphRAG routes: {e}")
 
     try:
+        from api.ontology_routes import router as ontology_router
+
+        app.include_router(ontology_router, prefix="/api/ontology", tags=["ontology"])
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Failed to load Ontology routes: {e}")
+
+    try:
         from api.project_routes import router as projects_router
 
         app.include_router(projects_router)

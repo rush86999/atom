@@ -46,9 +46,18 @@ ActionHandler = Callable[[Dict[str, Any], Dict[str, Any]], Awaitable[Any]]
 
 
 class ActionDefinition:
-    """A named, invokable action registered in the registry."""
+    """A named, invokable action registered in the registry.
 
-    __slots__ = ("name", "description", "handler", "parameters_schema")
+    Action contracts (gap B4, OWL-S-inspired): ``preconditions`` are
+    structured facts that must hold in the execution context before the
+    action may run (checked by :meth:`check_preconditions`); ``effects``
+    declare what the action produces/changes, letting planners select
+    actions by outcome and goal criteria reference action results. Both
+    are optional and backward compatible.
+    """
+
+    __slots__ = ("name", "description", "handler", "parameters_schema",
+                 "preconditions", "effects")
 
     def __init__(
         self,
@@ -56,6 +65,8 @@ class ActionDefinition:
         handler: ActionHandler,
         description: str = "",
         parameters_schema: Optional[Dict[str, Any]] = None,
+        preconditions: Optional[List[Dict[str, Any]]] = None,
+        effects: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         self.name = name
         self.handler = handler
@@ -67,9 +78,51 @@ class ActionDefinition:
             "properties": {},
             "required": [],
         }
+        # Structured contracts: [{"fact": "workspace_id", "op": "exists"}, ...]
+        self.preconditions = list(preconditions or [])
+        # [{"effect": "graph_updated"}, {"effect": "goal_evaluated", "goal_id": "$args.goal_id"}]
+        self.effects = list(effects or [])
+
+    def check_preconditions(self, context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Evaluate preconditions against ``context``.
+
+        Each precondition: {"fact": "dotted.path", "op": "exists"|"eq"|"ne"|
+        "in"|"true", "value": ...}. Returns the list of *failed* checks
+        (empty list = all satisfied). Never raises.
+        """
+        failures: List[Dict[str, Any]] = []
+        for pre in self.preconditions:
+            fact = pre.get("fact", "")
+            actual = _dig(context, fact)
+            op = pre.get("op", "exists")
+            expected = pre.get("value")
+            ok = True
+            if op == "exists":
+                ok = actual is not None
+            elif op == "true":
+                ok = bool(actual)
+            elif op == "eq":
+                ok = actual == expected
+            elif op == "ne":
+                ok = actual != expected
+            elif op == "in":
+                ok = actual in (expected or [])
+            if not ok:
+                failures.append({"precondition": pre, "actual": actual})
+        return failures
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid
         return f"<ActionDefinition {self.name}>"
+
+
+def _dig(data: Dict[str, Any], dotted_path: str) -> Any:
+    """Resolve 'a.b.c' against nested dicts; None when any hop is missing."""
+    current: Any = data
+    for part in str(dotted_path).split("."):
+        if not isinstance(current, dict):
+            return None
+        current = current.get(part)
+    return current
 
 
 class ActionRegistry:
@@ -84,9 +137,12 @@ class ActionRegistry:
         handler: ActionHandler,
         description: str = "",
         parameters_schema: Optional[Dict[str, Any]] = None,
+        preconditions: Optional[List[Dict[str, Any]]] = None,
+        effects: Optional[List[Dict[str, Any]]] = None,
     ) -> ActionDefinition:
         """Register an action. Overwrites an existing action with the same name."""
-        action = ActionDefinition(name, handler, description, parameters_schema)
+        action = ActionDefinition(name, handler, description, parameters_schema,
+                                  preconditions, effects)
         self._actions[name] = action
         logger.debug("Registered action %s", name)
         return action
@@ -132,6 +188,8 @@ def register_action(
     name: str,
     description: str = "",
     parameters_schema: Optional[Dict[str, Any]] = None,
+    preconditions: Optional[List[Dict[str, Any]]] = None,
+    effects: Optional[List[Dict[str, Any]]] = None,
 ):
     """Decorator that registers an async handler as a named action.
 
@@ -142,7 +200,8 @@ def register_action(
             return {...}
     """
     def decorator(func: ActionHandler) -> ActionHandler:
-        action_registry.register(name, func, description, parameters_schema)
+        action_registry.register(name, func, description, parameters_schema,
+                                 preconditions, effects)
         return func
 
     return decorator
@@ -1338,3 +1397,156 @@ async def _shopify_create_article(args: Dict[str, Any], context: Dict[str, Any])
     )
     return {"success": True, "article": article}
 
+
+
+# ============================================================================
+# Knowledge/goal/ontology actions — close the GraphRAG↔agent and goal↔agent
+# seams (gaps B4/B7, A-agent-surface). Previously there were zero graph,
+# knowledge, or goal actions: agents could not query the knowledge graph,
+# create or evaluate goals, or inspect the ontology.
+# ============================================================================
+
+_GRAPH_QUERY_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "query": {"type": "string", "description": "Natural-language query over the knowledge graph"},
+        "mode": {"type": "string", "enum": ["auto", "local", "global"],
+                 "description": "local = entity-anchored traversal, global = community synthesis"},
+    },
+    "required": ["query"],
+}
+
+
+@register_action(
+    "knowledge.query",
+    description="Query the workspace knowledge graph (GraphRAG). Local mode returns "
+                "entities/relationships around the query anchors; global mode synthesizes "
+                "over community summaries.",
+    parameters_schema=_GRAPH_QUERY_SCHEMA,
+    effects=[{"effect": "read_only"}],
+)
+async def _knowledge_query(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.graphrag_engine import graphrag_engine
+    result = await graphrag_engine.query(
+        workspace_id=context.get("workspace_id"),
+        query=str(args.get("query", "")),
+        mode=str(args.get("mode", "auto")),
+    )
+    return {"success": not result.get("error"), "result": result}
+
+
+_GOAL_CREATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "criteria": {
+            "type": "array",
+            "description": "Machine-checkable success criteria "
+                "(graph_edge_exists, entity_exists, board_task_status, state_equals, "
+                "numeric_compare, metric_gte, all_of, any_of, manual)",
+            "items": {"type": "object"},
+        },
+        "key_results": {"type": "array", "items": {"type": "object"},
+                        "description": "OKR key results [{description, metric, target}]"},
+        "target_date": {"type": "string", "description": "ISO date"},
+    },
+    "required": ["title"],
+}
+
+
+@register_action(
+    "goals.create",
+    description="Create a persisted goal with machine-checkable success criteria. "
+                "Use together with goals.evaluate; the goal_id can be passed as "
+                "context.goal_id to make an agent run terminate when the goal is met.",
+    parameters_schema=_GOAL_CREATE_SCHEMA,
+    effects=[{"effect": "goal_created", "goal_id": "$args.title"}],
+)
+async def _goals_create(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.goals.goal_service import GoalService
+    target = args.get("target_date")
+    target_dt = None
+    if target:
+        from datetime import datetime
+        target_dt = datetime.fromisoformat(str(target).replace("Z", "+00:00"))
+    goal = GoalService(
+        workspace_id=context.get("workspace_id", "default"),
+        tenant_id=context.get("tenant_id", "default"),
+    ).create_goal(
+        title=str(args["title"]),
+        description=str(args.get("description", "")),
+        criteria=args.get("criteria") or [],
+        key_results=args.get("key_results") or [],
+        owner_id=context.get("user_id"),
+        target_date=target_dt,
+        source="agent",
+    )
+    return {"success": True, "goal": goal}
+
+
+@register_action(
+    "goals.evaluate",
+    description="Evaluate a persisted goal's success criteria against the current "
+                "graph/board/state; updates progress and status (achieved/at_risk).",
+    parameters_schema={
+        "type": "object",
+        "properties": {"goal_id": {"type": "string"}},
+        "required": ["goal_id"],
+    },
+    effects=[{"effect": "goal_evaluated", "goal_id": "$args.goal_id"}],
+)
+async def _goals_evaluate(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.goals.goal_service import GoalService
+    result = GoalService(
+        workspace_id=context.get("workspace_id", "default"),
+        tenant_id=context.get("tenant_id", "default"),
+    ).evaluate(str(args["goal_id"]))
+    return {"success": "error" not in result, **result}
+
+
+@register_action(
+    "goals.decompose",
+    description="HTN-decompose a goal into a dependency-validated subtask plan "
+                "(reusable workflow-template methods; parallel execution groups included).",
+    parameters_schema={
+        "type": "object",
+        "properties": {
+            "goal": {"type": "string"},
+            "template_id": {"type": "string", "description": "Optional specific method"},
+        },
+        "required": ["goal"],
+    },
+    effects=[{"effect": "plan_produced"}],
+)
+async def _goals_decompose(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.goals.htn_planner import HTNPlanner
+    plan = HTNPlanner().decompose(str(args["goal"]), template_id=args.get("template_id"))
+    return {"success": not plan.get("cycles"), "plan": plan}
+
+
+@register_action(
+    "ontology.inspect",
+    description="Inspect the workspace ontology: entity types (with hierarchy), "
+                "declared relations with domain/range, and undeclared relation types "
+                "found in the graph (formalization candidates).",
+    parameters_schema={"type": "object", "properties": {}, "required": []},
+    effects=[{"effect": "read_only"}],
+)
+async def _ontology_inspect(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.ontology import get_ontology_service
+    onto = get_ontology_service(context.get("tenant_id", "default"))
+    schema = onto.get_schema()
+    return {
+        "success": True,
+        "entity_types": [
+            {k: t[k] for k in ("slug", "parent_type", "aliases", "abstract", "fields")}
+            for t in schema["entity_types"]
+        ],
+        "relations": [
+            {k: r[k] for k in ("name", "domain", "range", "description")}
+            for r in schema["relations"]
+        ],
+        "undeclared_relations_in_use": onto.undeclared_relations_in_use(
+            context.get("workspace_id", "default")),
+    }
