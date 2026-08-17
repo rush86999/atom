@@ -1253,7 +1253,12 @@ _SHOPIFY_BLOGS_LIST_SCHEMA = {
 
 
 def _resolve_shopify_store(context: Dict[str, Any]) -> tuple:
-    """Resolve (access_token, shop_domain) for the workspace's connected store."""
+    """Resolve (access_token, shop_domain) for the workspace's connected store.
+
+    Fail-closed: returns (None, None) when the workspace has no store — never
+    falls back to another tenant's store, which would let one workspace read or
+    mutate another tenant's storefront (P1 cross-tenant exposure).
+    """
     try:
         from core.database import SessionLocal
         from core.models import EcommerceStore
@@ -1262,9 +1267,6 @@ def _resolve_shopify_store(context: Dict[str, Any]) -> tuple:
             store = db.query(EcommerceStore).filter(
                 EcommerceStore.tenant_id == ws_id
             ).first()
-            if not store:
-                # Fallback: newest store if the workspace never bound one
-                store = db.query(EcommerceStore).order_by(EcommerceStore.created_at.desc()).first()
             if not store or not store.access_token:
                 return None, None
             return store.access_token, store.shop_domain

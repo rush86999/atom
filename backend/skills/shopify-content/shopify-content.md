@@ -54,5 +54,10 @@ Verify a store is connected before doing anything else:
   use data you actually have.
 - Prefer `draft` status (`status: "draft"`) for listings that need a human
   review before going live.
-- If a call fails with a Shopify API error, surface the store's error message
-  verbatim so the user can fix permissions/scopes, then stop.
+- If a Shopify call fails, stop and report the failure to the user. The service
+  returns generic errors by design (client-safe), so you cannot relay the
+  store's raw message — instead suggest the likely cause: the store is
+  disconnected, or the connected app is missing scopes
+  (`write_products` for listings, `write_content` for blogs/articles).
+- Never fall back to a different store than the one bound to the user's
+  workspace; if no store is bound, tell the user to connect one and stop.
