@@ -114,7 +114,7 @@ class AgentIntegrationGateway:
         try:
             if action_type == ActionType.SEND_MESSAGE:
                 # Phase 70: External Stakeholder Governance Check
-                workspace_id = params.get("workspace_id", "default_workspace")
+                workspace_id = params.get("workspace_id", "default")
                 if contact_governance.is_external_contact(platform, params):
                     should_pause = await contact_governance.should_require_approval(
                         workspace_id, action_type.value, platform, params

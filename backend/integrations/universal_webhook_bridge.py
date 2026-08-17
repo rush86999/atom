@@ -65,7 +65,7 @@ class UniversalWebhookBridge:
         if self._orchestrator is None:
             try:
                 from integrations.chat_orchestrator import ChatOrchestrator
-                self._orchestrator = ChatOrchestrator(workspace_id="default")
+                self._orchestrator = ChatOrchestrator(tenant_id="default")
             except Exception as e:
                 logger.error(f"Failed to initialize ChatOrchestrator: {e}")
         return self._orchestrator

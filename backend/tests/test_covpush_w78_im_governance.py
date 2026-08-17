@@ -84,15 +84,24 @@ def _request() -> Request:
 
 
 def _cache_mock(blocked=None, agent=None):
-    """GovernanceCache substitute: get() is an AsyncMock returning per-key rows."""
+    """GovernanceCache substitute: async lookups returning per-key rows.
+
+    Mirrors GovernanceCache's real API: get_async(agent_id, action_type).
+    IM block flags are stored as decisions under
+    ("im_user:<platform>:<sender_id>", "blocked").
+    """
     cache = MagicMock()
 
     async def _get(key, *args):
-        if isinstance(key, str) and key.startswith("im_blocked:"):
+        return agent
+
+    async def _get_async(key, action_type=""):
+        if isinstance(key, str) and key.startswith("im_user:"):
             return blocked
         return agent
 
     cache.get = AsyncMock(side_effect=_get)
+    cache.get_async = AsyncMock(side_effect=_get_async)
     return cache
 
 

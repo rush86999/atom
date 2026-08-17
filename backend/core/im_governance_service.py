@@ -176,9 +176,10 @@ class IMGovernanceService:
         """
         cache = get_governance_cache()
 
-        # Check if user is blocked
-        blocked_key = f"im_blocked:{platform}:{sender_id}"
-        blocked = await cache.get(blocked_key)
+        # Check if user is blocked. GovernanceCache keys decisions by
+        # (agent_id, action_type) — an IM block is stored as a decision under
+        # ("im_user:<platform>:<sender_id>", "blocked").
+        blocked = await cache.get_async(f"im_user:{platform}:{sender_id}", "blocked")
         if blocked and blocked.get("blocked"):
             logger.warning(f"Blocked {platform} user {sender_id} attempted trigger")
             raise HTTPException(
