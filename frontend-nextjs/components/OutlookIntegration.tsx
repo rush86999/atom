@@ -262,7 +262,8 @@ const OutlookIntegration: React.FC = () => {
 
             if (response.ok) {
                 const data = await response.json();
-                setEmails(data.data?.emails || []);
+                const emailList = Array.isArray(data.data) ? data.data : (data.data?.emails || []);
+                setEmails(emailList);
             }
         } catch (error) {
             console.error("Failed to load emails:", error);
@@ -294,7 +295,8 @@ const OutlookIntegration: React.FC = () => {
 
             if (response.ok) {
                 const data = await response.json();
-                setEvents(data.data?.events || []);
+                const eventList = Array.isArray(data.data) ? data.data : (data.data?.events || []);
+                setEvents(eventList);
             }
         } catch (error) {
             console.error("Failed to load events:", error);
@@ -317,7 +319,8 @@ const OutlookIntegration: React.FC = () => {
 
             if (response.ok) {
                 const data = await response.json();
-                setContacts(data.data?.contacts || []);
+                const contactList = Array.isArray(data.data) ? data.data : (data.data?.contacts || []);
+                setContacts(contactList);
             }
         } catch (error) {
             console.error("Failed to load contacts:", error);
@@ -340,7 +343,8 @@ const OutlookIntegration: React.FC = () => {
 
             if (response.ok) {
                 const data = await response.json();
-                setTasks(data.data?.tasks || []);
+                const taskList = Array.isArray(data.data) ? data.data : (data.data?.tasks || []);
+                setTasks(taskList);
             }
         } catch (error) {
             console.error("Failed to load tasks:", error);
