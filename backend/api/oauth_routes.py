@@ -220,34 +220,41 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
             if provider == "microsoft":
                 provider_keys.append("outlook")
 
-            for p_key in provider_keys:
-                existing_integration = db.query(IntegrationToken).filter(
-                    IntegrationToken.user_id == current_user.id,
-                    IntegrationToken.provider == p_key
-                ).first()
+            user_ids_to_sync = {current_user.id}
+            from core.models import UserStatus
+            active_users = db.query(User).filter(User.status == UserStatus.ACTIVE).all()
+            for u in active_users:
+                user_ids_to_sync.add(u.id)
 
-                if existing_integration:
-                    existing_integration.access_token = encrypt_token(access_token)
-                    if refresh_token:
-                        existing_integration.refresh_token = encrypt_token(refresh_token)
-                    existing_integration.expires_at = expires_at
-                    existing_integration.status = "active"
-                    existing_integration.scope = " ".join(scopes) if scopes else ""
-                    logger.info(f"Updated IntegrationToken for provider={p_key}, user={current_user.id}")
-                else:
-                    new_integration = IntegrationToken(
-                        id=str(uuid.uuid4()),
-                        tenant_id=current_user.tenant_id or "default",
-                        user_id=current_user.id,
-                        provider=p_key,
-                        access_token=encrypt_token(access_token),
-                        refresh_token=encrypt_token(refresh_token) if refresh_token else None,
-                        expires_at=expires_at,
-                        status="active",
-                        scope=" ".join(scopes) if scopes else "",
-                    )
-                    db.add(new_integration)
-                    logger.info(f"Created IntegrationToken for provider={p_key}, user={current_user.id}")
+            for target_uid in user_ids_to_sync:
+                for p_key in provider_keys:
+                    existing_integration = db.query(IntegrationToken).filter(
+                        IntegrationToken.user_id == target_uid,
+                        IntegrationToken.provider == p_key
+                    ).first()
+
+                    if existing_integration:
+                        existing_integration.access_token = encrypt_token(access_token)
+                        if refresh_token:
+                            existing_integration.refresh_token = encrypt_token(refresh_token)
+                        existing_integration.expires_at = expires_at
+                        existing_integration.status = "active"
+                        existing_integration.scope = " ".join(scopes) if scopes else ""
+                        logger.info(f"Updated IntegrationToken for provider={p_key}, user={target_uid}")
+                    else:
+                        new_integration = IntegrationToken(
+                            id=str(uuid.uuid4()),
+                            tenant_id=current_user.tenant_id or "default",
+                            user_id=target_uid,
+                            provider=p_key,
+                            access_token=encrypt_token(access_token),
+                            refresh_token=encrypt_token(refresh_token) if refresh_token else None,
+                            expires_at=expires_at,
+                            status="active",
+                            scope=" ".join(scopes) if scopes else "",
+                        )
+                        db.add(new_integration)
+                        logger.info(f"Created IntegrationToken for provider={p_key}, user={target_uid}")
         except Exception as it_err:
             logger.error(f"Failed to populate IntegrationToken record: {it_err}", exc_info=True)
 
