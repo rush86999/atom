@@ -301,6 +301,7 @@ async def delete_email(email_id: str, user_id: str = Query(..., description="Use
 
 
 # Calendar endpoints
+@router.post("/events", summary="List calendar events (alias)")
 @router.post("/calendar/events", summary="List calendar events")
 async def list_calendar_events(
     request: CalendarEventListRequest,

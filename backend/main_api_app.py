@@ -838,6 +838,15 @@ try:
         install_connection_tracking()
         startup_logger.info("✓ Connection leak detector installed")
     except Exception as e:
+        startup_logger.warning(f"Connection leak detector not available: {e}")
+
+    try:
+        from integrations.outlook_routes import router as outlook_app_router
+        app.include_router(outlook_app_router, prefix="/api/integrations/outlook", tags=["outlook"])
+        app.include_router(outlook_app_router, prefix="/api/v1/integrations/outlook", tags=["outlook"])
+        startup_logger.info("✓ Outlook integration routes registered at /api/integrations/outlook and /api/v1/integrations/outlook")
+    except Exception as e:
+        startup_logger.error(f"Failed to register Outlook routes: {e}")
         startup_logger.warning(f"✗ Failed to install connection leak detector: {e}")
 
     # --- CORE HEALTH ENDPOINTS (FIRST PRIORITY) ---
@@ -1347,17 +1356,18 @@ elif is_test_mode:
 # --- FORCED ZOHO SUITE REGISTRATION (STABILIZATION) ---
 # Skip in test mode to prevent hangs
 if not is_test_mode:
-    for zoho_module in ["zoho_workdrive", "zoho_crm", "zoho_books", "zoho_inventory"]:
+    forced_modules = ["zoho_workdrive", "zoho_crm", "zoho_books", "zoho_inventory", "outlook"]
+    for mod in forced_modules:
         try:
-            if zoho_module not in _loaded_integrations:
-                router = load_integration(zoho_module, registry="api_routers")
+            if mod not in _loaded_integrations:
+                router = load_integration(mod, registry="api_routers")
                 if router:
-                    prefix = f"/api/v1/integrations/{zoho_module.replace('_', '-')}"
-                    app.include_router(router, prefix=prefix, tags=[zoho_module])
-                    _loaded_integrations.add(zoho_module)
-                    logger.info(f"  ✓ {zoho_module} (Forced)")
+                    prefix = "/api/integrations/outlook" if mod == "outlook" else f"/api/v1/integrations/{mod.replace('_', '-')}"
+                    app.include_router(router, prefix=prefix, tags=[mod])
+                    _loaded_integrations.add(mod)
+                    logger.info(f"  ✓ {mod} (Forced registration at {prefix})")
         except Exception as e:
-            logger.error(f"  ✗ Forced registration failed for {zoho_module}: {e}")
+            logger.error(f"  ✗ Forced registration failed for {mod}: {e}")
 
 
 @app.get("/api/debug/integrations")
@@ -1823,9 +1833,11 @@ async def auto_load_integration_middleware(request, call_next):
                 "atom-agent": "atom_agent",
             }
 
-            if potential_integration == "v1":
-                # Handle /api/v1/integrations/{name}
-                if len(path_parts) >= 5 and path_parts[3] == "integrations":
+            if potential_integration in ("v1", "integrations"):
+                # Handle /api/integrations/{name} or /api/v1/integrations/{name}
+                if path_parts[2] == "integrations" and len(path_parts) >= 4:
+                    potential_integration = path_parts[3]
+                elif len(path_parts) >= 5 and path_parts[3] == "integrations":
                     potential_integration = path_parts[4]
                 else:
                     potential_integration = None  # Core v1 route
@@ -1853,9 +1865,12 @@ async def auto_load_integration_middleware(request, call_next):
                             # prefix (/api/atom-agent); only third-party integrations
                             # get the /api/v1/integrations/{name} prefix. Mirror the
                             # eager loader's CORE_API_MODULES handling here.
-                            prefix = "" if integration_name in CORE_API_MODULES else (
-                                f"/api/v1/integrations/{integration_name.replace('_', '-')}"
-                            )
+                            if integration_name == "outlook":
+                                prefix = "/api/integrations/outlook"
+                            elif integration_name in CORE_API_MODULES:
+                                prefix = ""
+                            else:
+                                prefix = f"/api/v1/integrations/{integration_name.replace('_', '-')}"
                             app.include_router(router, prefix=prefix, tags=[integration_name])
                             _loaded_integrations.add(integration_name)
                             logger.info(f"✓ Auto-loaded: {integration_name}")
@@ -2411,9 +2426,9 @@ try:
         logger.info("✓ Messaging OAuth (BYOK) Routes Loaded")
 
 
-        # Outlook and Gmail are now handled via the dynamic registry above
-        # from integrations.outlook_enhanced_routes import router as outlook_enh_router
-        # app.include_router(outlook_enh_router, prefix="/api/v1/integrations/outlook")
+        from integrations.outlook_routes import router as outlook_app_router
+        app.include_router(outlook_app_router, prefix="/api/integrations/outlook", tags=["outlook"])
+        logger.info("✓ Explicit Outlook Integration Routes Loaded at /api/integrations/outlook")
 
         # Legacy messaging routes replaced by batch 3 standardized routes
 
