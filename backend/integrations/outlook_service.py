@@ -216,7 +216,6 @@ class OutlookService(IntegrationService):
                 "client_secret": self.client_secret,
                 "refresh_token": refresh_token,
                 "grant_type": "refresh_token",
-                "scope": "https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/Contacts.ReadWrite https://graph.microsoft.com/User.Read offline_access",
             }
 
             async with aiohttp.ClientSession() as session:
