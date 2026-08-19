@@ -350,12 +350,20 @@ class AtomMetaAgent:
     """
     
     CORE_TOOLS_NAMES = [
-        "mcp_tool_search", 
+        "mcp_tool_search",
         "save_business_fact",
         "verify_citation",
         "ingest_knowledge_from_text",
         "ingest_knowledge_from_file",
         "query_knowledge_graph",
+        # Memory self-service (P1.1 tool equality — the meta agent could
+        # query the graph but not search documents, remember/forget facts,
+        # or search conversation memory):
+        "documents.search",
+        "search_communications",
+        "recall_episodes",
+        "memory_remember",
+        "memory_forget",
         "trigger_workflow",
         "invoke_capability",
         "recruit_fleet",    # NEW: Multi-agent orchestration

@@ -132,24 +132,40 @@ class LanceDBMemoryManager:
         """Initialize LanceDB connection and tables"""
         try:
             self.db = lancedb.connect(str(self.db_path))
-            self._create_connections_table()
-            self._create_metadata_table()
-            
-            # Initialize embedding model
+
+            # Initialize embedding model FIRST — the table schema's vector
+            # dimension depends on which embedder is active.
+            # Primary: sentence-transformers all-mpnet-base-v2 (768-dim).
+            # Fallback: FastEmbed bge-small-en-v1.5 (384-dim, ONNX — no
+            # torch). Without a fallback, a broken/missing torch install
+            # silently zero-vectorized every message and comm search
+            # returned nothing.
+            self.model = None
+            self._fastembed = None
+            self.embedding_dim = 384
             try:
                 sentence_transformer = _get_sentence_transformer()
                 if sentence_transformer:
                     logger.info("Loading embedding model (all-mpnet-base-v2)...")
                     self.model = sentence_transformer('all-mpnet-base-v2')
+                    self.embedding_dim = 768
                     logger.info("Embedding model loaded successfully")
                 else:
-                    logger.warning("Embedding model skipped (library missing)")
-                    self.model = None
+                    logger.warning("sentence-transformers unavailable — trying FastEmbed")
             except Exception as e:
-                logger.error(f"Error loading embedding model: {str(e)}")
-                # Continue without embeddings
-                self.model = None
-                
+                logger.warning(f"sentence-transformers load failed ({e}) — trying FastEmbed")
+            if self.model is None:
+                try:
+                    from fastembed import TextEmbedding
+
+                    self._fastembed = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
+                    self.embedding_dim = 384
+                    logger.info("Using FastEmbed (bge-small, 384-dim) for communication embeddings")
+                except Exception as fe:
+                    logger.error(f"No embedder available — comm vectors will be zeros: {fe}")
+
+            self._create_connections_table()
+            self._create_metadata_table()
             logger.info("LanceDB memory manager initialized successfully")
             return True
         except Exception as e:
@@ -158,6 +174,7 @@ class LanceDBMemoryManager:
     
     def _create_connections_table(self):
         """Create communications table with vector search"""
+        dim = getattr(self, "embedding_dim", 384)
         schema = pa.schema([
             pa.field("id", pa.string()),
             pa.field("app_type", pa.string()),
@@ -172,17 +189,34 @@ class LanceDBMemoryManager:
             pa.field("status", pa.string()),
             pa.field("priority", pa.string()),
             pa.field("tags", pa.list_(pa.string())),
-            pa.field("vector", pa.list_(pa.float32(), 768)),  # For vector search
-            pa.field("search_vector", pa.list_(pa.float32(), 768))  # Primary search vector
+            pa.field("vector", pa.list_(pa.float32(), dim)),  # For vector search
+            pa.field("search_vector", pa.list_(pa.float32(), dim))  # Primary search vector
         ])
-        
+
         # Check if table exists
         table_names = self.db.table_names()
         if "atom_communications" not in table_names:
             self.connections_table = self.db.create_table("atom_communications", schema=schema)
-            logger.info("Created atom_communications table")
+            logger.info(f"Created atom_communications table ({dim}-dim vectors)")
         else:
             self.connections_table = self.db.open_table("atom_communications")
+            # Self-heal: an existing EMPTY table created for a different
+            # embedder dim would reject every insert. Recreate it; a table
+            # with rows is left alone (logged) to avoid data loss.
+            try:
+                existing_dim = str(self.connections_table.schema.field("vector").type)
+                if str(dim) not in existing_dim and self.connections_table.count_rows() == 0:
+                    self.db.drop_table("atom_communications")
+                    self.connections_table = self.db.create_table("atom_communications", schema=schema)
+                    logger.info(f"Recreated empty atom_communications at {dim}-dim")
+                elif str(dim) not in existing_dim:
+                    logger.warning(
+                        f"atom_communications has {existing_dim} vectors but active "
+                        f"embedder emits {dim} — new inserts will fail; "
+                        f"migrate or clear the table to match"
+                    )
+            except Exception as dim_err:
+                logger.debug(f"dim check skipped: {dim_err}")
             logger.info("Opened existing atom_communications table")
             
         # Create FTS index for hybrid search if it doesn't exist
@@ -229,8 +263,8 @@ class LanceDBMemoryManager:
                 "status": data.status,
                 "priority": data.priority,
                 "tags": data.tags,
-                "vector": data.vector_embedding or [0.0] * 768,  # Default embedding
-                "search_vector": data.vector_embedding or [0.0] * 768
+                "vector": data.vector_embedding or [0.0] * self.embedding_dim,  # Default embedding
+                "search_vector": data.vector_embedding or [0.0] * self.embedding_dim
             }
             
             # Add to database
@@ -309,7 +343,7 @@ class LanceDBMemoryManager:
                     "priority": data.priority,
                     "tags": data.tags,
                     "vector": data.vector_embedding or [0.0] * 768,
-                    "search_vector": data.vector_embedding or [0.0] * 768
+                    "search_vector": data.vector_embedding or [0.0] * self.embedding_dim
                 }
                 records.append(record)
             
@@ -327,17 +361,20 @@ class LanceDBMemoryManager:
             return False
     
     def generate_embedding(self, text: str) -> List[float]:
-        """Generate embedding for text content"""
+        """Generate embedding for text content (mpnet → fastembed → zeros)"""
+        dim = getattr(self, "embedding_dim", 384)
         try:
-            if not self.model:
-                logger.warning("Embedding model not initialized, returning zero vector")
-                return [0.0] * 768
-                
-            embedding = self.model.encode(text)
-            return embedding.tolist()
+            if self.model:
+                return self.model.encode(text).tolist()
+            if getattr(self, "_fastembed", None) is not None:
+                embeddings = list(self._fastembed.embed([text]))
+                if embeddings:
+                    return embeddings[0].tolist()
+            logger.warning("Embedding model not initialized, returning zero vector")
+            return [0.0] * dim
         except Exception as e:
-            logger.error(f"Error generating embedding: {str(e)}")
-            return [0.0] * 768
+            logger.error(f"Error generating embedding: {e}")
+            return [0.0] * dim
 
     def search_communications(self, query: str, limit: int = 10, app_type: str = None, tag: str = None) -> List[Dict]:
         """Search communications using hybrid search (vector + FTS)"""
@@ -1682,7 +1719,16 @@ class CommunicationIngestionPipeline:
                 "sender": message_data.get("sender"),
                 "recipient": message_data.get("recipient"),
                 "subject": message_data.get("subject"),
-                "content": message_data.get("content", ""),
+                # Field-name fallbacks across platforms: Telegram/Discord use
+                # "text", email-ish sources use "body", others "content".
+                # Without this, Telegram messages were stored with EMPTY
+                # content (and meaningless embeddings).
+                "content": (
+                    message_data.get("content")
+                    or message_data.get("text")
+                    or message_data.get("body")
+                    or ""
+                ),
                 "attachments": message_data.get("attachments", []),
                 "metadata": message_data.get("metadata", {}),
                 "status": message_data.get("status", "active"),
