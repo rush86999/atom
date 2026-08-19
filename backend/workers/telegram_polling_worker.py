@@ -135,6 +135,10 @@ class TelegramPollingWorker:
                     action="polling_update_received",
                     success=True,
                 )
+                # Persist to the communication memory store (vector+FTS) — the
+                # tiered webhook path does this for webhook mode; polling must
+                # match it or IM conversations never become retrievable memory.
+                asyncio.create_task(self._ingest_to_comm_store(message))
             except Exception as e:
                 logger.error(f"Telegram polling processing failed: {e}")
                 await im_governance_service.log_to_audit_trail(
@@ -147,6 +151,18 @@ class TelegramPollingWorker:
                 )
         finally:
             db.close()
+
+    async def _ingest_to_comm_store(self, message: Dict[str, Any]) -> None:
+        """Fire-and-forget: write the message to the comms memory store."""
+        try:
+            from integrations.atom_communication_ingestion_pipeline import (
+                get_ingestion_pipeline,
+            )
+
+            pipeline = get_ingestion_pipeline("default")
+            await pipeline.ingest_message("telegram", message)
+        except Exception as e:
+            logger.debug(f"TelegramPollingWorker: comm-store ingest skipped: {e}")
 
     # ------------------------------------------------------------------ #
     # Main loop

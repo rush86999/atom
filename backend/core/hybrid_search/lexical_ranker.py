@@ -236,19 +236,29 @@ def _search_iliike_fallback(
 ) -> List[Dict[str, Any]]:
     """Legacy ILIKE prefilter + title-3x/content-1x weighting (no FTS tables)."""
     from core.models import IngestedDocument, KnowledgeDocument
-    from sqlalchemy import or_
+    from sqlalchemy import or_, and_
 
-    pattern = f"%{query.lower()}%"
+    # Match on individual query tokens, not the full query string: a natural
+    # question ("what's the price of the press brake?") is never a contiguous
+    # substring of a title or preview, so the full-string ILIKE returned ~0
+    # hits for every conversational query (same bug class as the GraphRAG
+    # keyword leg). Tokens ORed across title+preview, then ranked by the
+    # needle-substring weighting below.
+    tokens = [t for t in _FTS_TOKEN_CLEAN.findall(query.lower()) if len(t) >= 2][:8]
+    if not tokens:
+        return []
+    tok_clause_ingested = and_(*[
+        or_(
+            IngestedDocument.file_name.ilike(f"%{t}%"),
+            IngestedDocument.content_preview.ilike(f"%{t}%"),
+        )
+        for t in tokens
+    ])
     needle = query.lower()
     results: List[Dict[str, Any]] = []
 
     if source in (None, "", "ingested"):
-        qi = db.query(IngestedDocument).filter(
-            or_(
-                IngestedDocument.file_name.ilike(pattern),
-                IngestedDocument.content_preview.ilike(pattern),
-            )
-        )
+        qi = db.query(IngestedDocument).filter(tok_clause_ingested)
         if since:
             qi = qi.filter(
                 or_(
@@ -278,12 +288,14 @@ def _search_iliike_fallback(
             )
 
     if source in (None, "", "knowledge"):
-        qk = db.query(KnowledgeDocument).filter(
+        tok_clause_knowledge = and_(*[
             or_(
-                KnowledgeDocument.title.ilike(pattern),
-                KnowledgeDocument.content.ilike(pattern),
+                KnowledgeDocument.title.ilike(f"%{t}%"),
+                KnowledgeDocument.content.ilike(f"%{t}%"),
             )
-        )
+            for t in tokens
+        ])
+        qk = db.query(KnowledgeDocument).filter(tok_clause_knowledge)
         if since:
             qk = qk.filter(
                 or_(

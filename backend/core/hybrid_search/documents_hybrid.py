@@ -83,7 +83,59 @@ class DocumentsHybridSearch:
             label = "no_results"
 
         results = self._hydrate(fused)
+
+        # Conversations leg (P1.3 first slice — bridge, don't copy): search the
+        # communication memory store (emails/Slack/WhatsApp/Teams/Telegram,
+        # vector+FTS) and append its top hits as first-class results. The comms
+        # record IS the source of truth — nothing is duplicated into documents.
+        # Skipped when the caller filtered to a specific document source.
+        conv_results: List[Dict[str, Any]] = []
+        if not source and os.getenv("MEMORY_CONVERSATIONS_LEG", "true").lower() in ("1", "true", "yes", "on"):
+            conv_results = await self._conversations_leg(query, max(2, limit // 3))
+            stats["conversation_hits"] = len(conv_results)
+            label = f"{label}+conversations" if (results or conv_results) and label != "no_results" else (label if label != "no_results" else "conversations_only")
+            results.extend(conv_results)
+
         return self._response(query, results[:limit], label, stats)
+
+    async def _conversations_leg(self, query: str, limit: int) -> List[Dict[str, Any]]:
+        """Hybrid search over the communication memory store."""
+        try:
+            from integrations.atom_communication_ingestion_pipeline import (
+                get_ingestion_pipeline,
+            )
+
+            def _search():
+                pipeline = get_ingestion_pipeline("default")
+                manager = getattr(pipeline, "memory_manager", pipeline)
+                # Lazy init: a fresh singleton hasn't opened its LanceDB table yet.
+                if getattr(manager, "connections_table", None) is None and hasattr(manager, "initialize"):
+                    manager.initialize()
+                if getattr(manager, "connections_table", None) is None:
+                    return []
+                return manager.search_communications(query[:500], limit)
+
+            records = await asyncio.to_thread(_search)
+        except Exception as e:
+            logger.debug("conversations leg unavailable: %s", e)
+            return []
+        out: List[Dict[str, Any]] = []
+        for rec in records or []:
+            content = str(rec.get("content") or rec.get("text") or "").strip()
+            cid = str(rec.get("id") or "")
+            if not content or not cid:
+                continue
+            out.append({
+                "id": cid,
+                "source": "communication",
+                "title": f"{rec.get('app_type', 'message')} — {str(rec.get('timestamp', ''))[:10]}",
+                "preview": content[:200],
+                "modified": None,
+                "bridged": True,
+                "legs": ["conversations"],
+                "score": 0.0,
+            })
+        return out
 
     # -- legs -----------------------------------------------------------------
 
