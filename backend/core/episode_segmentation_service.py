@@ -818,7 +818,14 @@ class EpisodeSegmentationService:
                 "maturity_at_time": episode.get("maturity_at_time"),
                 "human_intervention_count": episode.get("human_intervention_count", 0),
                 "constitutional_score": episode.get("constitutional_score"),
-                "type": "episode"
+                "type": "episode",
+                # Canvas-aware recall (P2 addendum): stamp canvas identity and
+                # feedback into metadata so recall_episodes can apply the
+                # canvas boost to CANONICAL episodes, not just the
+                # agent_episodes mirror. Best-effort — absent when the
+                # episode had no canvas/feedback.
+                "canvas_id": (canvas_context or {}).get("canvas_id") if isinstance(canvas_context, dict) else None,
+                "feedback_score": episode.get("feedback_score"),
             }
 
             # Create episodes table if it doesn't exist — but DON'T pre-create

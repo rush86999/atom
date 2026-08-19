@@ -381,6 +381,7 @@ _RECALL_EPISODES_SCHEMA = {
     "properties": {
         "task": {"type": "string", "description": "The current task/question to find similar past episodes for"},
         "mode": {"type": "string", "description": "contextual (default) | semantic | similar_failures"},
+        "canvas_id": {"type": "string", "description": "Canvas-aware recall: boost episodes from this canvas"},
         "limit": {"type": "integer", "description": "Max episodes (default 3)"},
     },
     "required": ["task"],
@@ -392,16 +393,41 @@ _RECALL_EPISODES_SCHEMA = {
     description="Recall past learning episodes (prior agent work sessions) relevant "
                 "to a task — what was done, the outcome, and how the user judged it. "
                 "Use before attempting a task similar to past work, or to answer "
-                "'have we handled this before' questions.",
+                "'have we handled this before' questions. Pass canvas_id for "
+                "canvas-aware recall (episodes from the same canvas are boosted).",
     parameters_schema=_RECALL_EPISODES_SCHEMA,
 )
 async def _recall_episodes(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     task = (args.get("task") or "").strip()
     mode = (args.get("mode") or "contextual").strip()
     limit = int(args.get("limit", 3))
+    canvas_id = (args.get("canvas_id") or "").strip() or None
     if not task:
         return {"success": False, "error": "task is required", "episodes": []}
     try:
+        # Canvas-aware mode: route through WorldModelService.recall_episodes,
+        # which applies canvas (+0.3 same / -0.05 different) and feedback
+        # boosts over BOTH the canonical episodes table and the mirror.
+        if canvas_id:
+            from core.agent_world_model import WorldModelService
+
+            world_model = WorldModelService(workspace_id=str(context.get("workspace_id") or "default"))
+            rows = await world_model.recall_episodes(
+                task_description=task,
+                agent_role=str(context.get("agent_role") or "agent"),
+                agent_id=str(context.get("agent_id")) if context.get("agent_id") else None,
+                canvas_id=canvas_id,
+                limit=limit,
+            )
+            episodes = [{
+                "id": str(r.get("episode_id") or ""),
+                "task": r.get("task_description") or "",
+                "outcome": r.get("outcome"),
+                "canvas_id": r.get("canvas_id"),
+                "final_score": r.get("final_score"),
+            } for r in rows or []]
+            return {"success": True, "mode": "canvas_aware", "episodes": episodes}
+
         from core.database import SessionLocal
         from core.episode_retrieval_service import EpisodeRetrievalService
 
