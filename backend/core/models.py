@@ -2819,7 +2819,15 @@ class GraphEdge(Base):
     relationship_type = Column(String, nullable=False) # e.g., 'manages', 'blocks'
     weight = Column(Float, default=1.0)
     properties = Column(JSONColumn, default={})
-    
+
+    # Bi-temporal (P2.2, Zep/Graphiti pattern): valid_from = when the fact
+    # became true in the world; invalid_at = when a contradicting fact
+    # superseded it (edges are INVALIDATED, never deleted — "what was true
+    # last quarter" stays answerable). Reads filter invalid_at IS NULL.
+    valid_from = Column(DateTime(timezone=True), nullable=True)
+    invalid_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    invalidation_reason = Column(Text, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (

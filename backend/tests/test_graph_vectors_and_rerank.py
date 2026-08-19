@@ -26,9 +26,10 @@ class TestGraphNodeVectorIndex:
                 "n1", "AccurPress Press Brake", "product", "50-ton CNC", "default"
             )
         handler.add_document.assert_called_once()
-        kwargs = handler.add_document.call_args
-        assert kwargs[0][0] == "graph_nodes"
-        assert kwargs[1]["extra_columns"]["node_id"] == "n1"
+        args, kwargs = handler.add_document.call_args
+        assert args[0] == "graph_nodes"
+        assert kwargs["metadata"]["node_id"] == "n1"
+        assert kwargs["extra_columns"]["id"] == "n1"
 
     def test_index_node_vector_never_raises(self):
         from core.graphrag_engine import GraphRAGEngine

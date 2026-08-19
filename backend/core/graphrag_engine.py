@@ -1036,6 +1036,8 @@ class GraphRAGEngine:
                             target_node_id=dst,
                             relationship_type=rel_type,
                             properties=props,
+                            # Bi-temporal (P2.2): new facts are valid from now
+                            valid_from=datetime.utcnow(),
                         )
                         session.add(edge)
 
@@ -1107,21 +1109,62 @@ class GraphRAGEngine:
     # mirrored into a LanceDB `graph_nodes` table (id = node id) which works
     # on every backend.
 
-    def _index_node_vector(self, node_id, name, entity_type, description, ws_id):
+    def _index_node_vector(self, node_id, name, entity_type, description, ws_id) -> bool:
+        """Mirror a node into the LanceDB graph_nodes table. node_id/name/type
+        ride in the metadata JSON (schema-safe against pre-existing tables);
+        the row id is the node id. Returns add success."""
         try:
             from core.lancedb_handler import get_lancedb_handler
 
             handler = get_lancedb_handler(ws_id)
             text = f"{name} ({entity_type}): {description or ''}"
-            handler.add_document(
+            return bool(handler.add_document(
                 "graph_nodes",
                 text,
                 source="graphrag",
-                metadata={"node_id": node_id},
-                extra_columns={"id": node_id, "node_id": node_id, "name": name, "type": entity_type},
-            )
+                metadata={"node_id": node_id, "name": name, "type": entity_type},
+                extra_columns={"id": node_id},
+            ))
         except Exception as e:
-            logger.debug(f"graph node vector index skipped: {e}")
+            logger.debug(f"graph node vector index failed for {node_id}: {e}")
+            return False
+
+    # ---- Bi-temporal edges (P2.2) -------------------------------------------
+    def invalidate_edge(self, edge_id: str, reason: str) -> bool:
+        """Mark an edge superseded (invalidated, never deleted — full history
+        preserved for 'what was true as of date X' queries)."""
+        try:
+            with get_db_session() as session:
+                edge = session.query(GraphEdge).filter(GraphEdge.id == edge_id).first()
+                if not edge or edge.invalid_at is not None:
+                    return False
+                edge.invalid_at = datetime.utcnow()
+                edge.invalidation_reason = reason or "superseded"
+                session.commit()
+                return True
+        except Exception as e:
+            logger.error(f"invalidate_edge failed: {e}")
+            return False
+
+    def edges_as_of(self, as_of: datetime, workspace_id: Optional[str] = None) -> List[Dict]:
+        """Point-in-time edge list (bi-temporal read): edges whose valid_from
+        ≤ as_of and (invalid_at is null or invalid_at > as_of)."""
+        ws_id = workspace_id or self.workspace_id
+        try:
+            with get_db_session() as session:
+                rows = session.query(GraphEdge).filter(
+                    GraphEdge.workspace_id == ws_id,
+                    GraphEdge.valid_from <= as_of,
+                    (GraphEdge.invalid_at.is_(None)) | (GraphEdge.invalid_at > as_of),
+                ).all()
+                return [{
+                    "id": r.id, "source": r.source_node_id, "target": r.target_node_id,
+                    "type": r.relationship_type, "valid_from": str(r.valid_from),
+                    "invalid_at": str(r.invalid_at),
+                } for r in rows]
+        except Exception as e:
+            logger.error(f"edges_as_of failed: {e}")
+            return []
 
     def backfill_node_vectors(self, workspace_id: Optional[str] = None) -> Dict[str, int]:
         """(Re)embed all graph nodes for a workspace into the LanceDB
@@ -1135,10 +1178,9 @@ class GraphRAGEngine:
                     GraphNode.workspace_id == ws_id
                 ).all()
             for n in nodes:
-                try:
-                    self._index_node_vector(n.id, n.name, n.type, n.description, ws_id)
+                if self._index_node_vector(n.id, n.name, n.type, n.description, ws_id):
                     embedded += 1
-                except Exception:
+                else:
                     skipped += 1
         except Exception as e:
             logger.error(f"backfill_node_vectors failed: {e}")
@@ -1247,6 +1289,8 @@ class GraphRAGEngine:
                 # on SQLite, leaving Personal Edition keyword-only) --
                 vector_nodes = []
                 try:
+                    import json as _json
+
                     from core.lancedb_handler import get_lancedb_handler
 
                     handler = get_lancedb_handler(ws_id)
@@ -1254,7 +1298,13 @@ class GraphRAGEngine:
                     seen: set = set()
                     vec_ids = []
                     for r in vec_rows:
-                        nid = str(r.get("node_id") or r.get("id") or "")
+                        # node_id rides in the metadata JSON (schema-safe)
+                        raw_meta = r.get("metadata")
+                        try:
+                            meta = _json.loads(raw_meta) if isinstance(raw_meta, str) else (raw_meta or {})
+                        except Exception:
+                            meta = {}
+                        nid = str(meta.get("node_id") or r.get("node_id") or r.get("id") or "")
                         if nid and nid not in seen:
                             seen.add(nid)
                             vec_ids.append(nid)
@@ -1352,7 +1402,7 @@ class GraphRAGEngine:
                                 t.depth + 1,
                                 t.path || target.id
                             FROM traversal t
-                            JOIN graph_edges e ON (e.source_node_id = t.id OR e.target_node_id = t.id)
+                            JOIN graph_edges e ON ((e.source_node_id = t.id OR e.target_node_id = t.id) AND e.invalid_at IS NULL)
                             JOIN graph_nodes target ON (
                                 CASE
                                     WHEN e.source_node_id = t.id THEN e.target_node_id = target.id
@@ -1373,6 +1423,7 @@ class GraphRAGEngine:
                         FROM graph_edges e
                         WHERE (e.source_node_id = ANY(:node_ids) OR e.target_node_id = ANY(:node_ids))
                         AND e.workspace_id = :ws_id
+                        AND e.invalid_at IS NULL
                         LIMIT 50
                     """)
 
@@ -1400,7 +1451,7 @@ class GraphRAGEngine:
                                 t.depth + 1,
                                 t.path || target.id || ','
                             FROM traversal t
-                            JOIN graph_edges e ON (e.source_node_id = t.id OR e.target_node_id = t.id)
+                            JOIN graph_edges e ON ((e.source_node_id = t.id OR e.target_node_id = t.id) AND e.invalid_at IS NULL)
                             JOIN graph_nodes target ON (
                                 CASE
                                     WHEN e.source_node_id = t.id THEN e.target_node_id = target.id
@@ -1430,6 +1481,7 @@ class GraphRAGEngine:
                             FROM graph_edges e
                             WHERE (e.source_node_id IN ({found_ids_str}) OR e.target_node_id IN ({found_ids_str}))
                             AND e.workspace_id = :ws_id
+                            AND e.invalid_at IS NULL
                             LIMIT 50
                         """)
                         edges_result = session.execute(edges_sql, {"ws_id": ws_id}).fetchall()

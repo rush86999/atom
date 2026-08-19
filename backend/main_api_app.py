@@ -713,6 +713,17 @@ async def lifespan(app: FastAPI):
 
                 _spawn_background_task(_warm_assembler())
 
+            # 8d. Memory consolidation worker (P2.1): nightly rule-based
+            # consolidation — contradiction sweeps + supersede — always off
+            # the user-facing turn (sleep-time principle).
+            if os.getenv("MEMORY_CONSOLIDATION_ENABLED", "true").lower() in ("1", "true", "yes", "on"):
+                from workers.memory_consolidation_worker import MemoryConsolidationWorker
+
+                interval_h = float(os.getenv("MEMORY_CONSOLIDATION_INTERVAL_HOURS", "24"))
+                consolidation_worker = MemoryConsolidationWorker(interval_hours=interval_h)
+                _spawn_background_task(consolidation_worker.run())
+                logger.info("✓ Memory Consolidation Worker running (%.1fh)", interval_h)
+
             # 9. Start Webhook Renewal Worker (NEW)
             from core.database import SessionLocal
             from core.scheduled_webhook_renewal import ScheduledWebhookRenewalService
