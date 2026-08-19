@@ -105,6 +105,10 @@ class KnowledgeVFSProvider(VFSProvider):
         except re.error:
             return citations
         # Enumerate document dirs under the prefix (or all if prefix is the root).
+        # A root prefix ("/" or "") lists only the top-level category dirs, not
+        # documents — retarget it at the documents tree so grep("/") finds hits.
+        if path_prefix in ("/", ""):
+            path_prefix = "knowledge/documents"
         nodes = await self.ls(path_prefix, ctx)
         for node in nodes:
             if node.type != "dir":
