@@ -194,6 +194,28 @@ def disable_ingestion_state_persistence(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def graph_p15_embedding_disabled_by_default(request, monkeypatch):
+    """P1.5 graph embeddings (LanceDB graph_nodes table) are additive: the
+    ingest path mirrors nodes into the real ./data/atom_memory store and the
+    local_search vector leg reads it. Existing suites run against in-memory
+    SQLite + the shared dev store — leaving the feature on both slows them and
+    leaks test rows into the real store (which then pollutes other suites).
+    Default OFF everywhere except the graph-vector tests, which exercise the
+    mirroring itself.
+    """
+    if request.node.fspath.basename in {
+        "test_graphrag_p1_5_embeddings.py",
+        "test_graph_vectors_and_rerank.py",
+    }:
+        yield
+        return
+    monkeypatch.setattr(
+        "core.graphrag_engine.GraphRAGEngine._index_node_vector", lambda *a, **k: False
+    )
+    yield
+
+
+@pytest.fixture(autouse=True)
 def isolate_environment():
     """
     Isolate environment variables between tests.
