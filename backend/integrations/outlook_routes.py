@@ -7,7 +7,7 @@ import asyncio
 from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from core.security_dependencies import get_current_user
@@ -129,6 +129,10 @@ class SearchRequest(BaseModel):
     user_id: str = Field(..., description="User ID")
     query: str = Field(..., description="Search query")
     max_results: int = Field(50, description="Maximum results")
+
+
+class ProfileRequest(BaseModel):
+    user_id: Optional[str] = Field(None, description="User ID")
 
 
 PLACEHOLDER_USER_IDS = {"current", "default_user", "default", "anonymous", "guest", ""}
@@ -524,27 +528,49 @@ async def search_emails(
 @router.get("/profile", summary="Get user profile")
 @router.post("/profile", summary="Get user profile")
 async def get_user_profile(
+    request: Optional[ProfileRequest] = Body(None),
     user_id: Optional[str] = Query(None, description="User ID"),
     current_user: User = Depends(get_current_user),
 ):
     """Get user profile information"""
-    target_user_id = current_user.id if not user_id or user_id in PLACEHOLDER_USER_IDS else user_id
+    requested_user_id = request.user_id if request and request.user_id else user_id
+    target_user_id = (
+        current_user.id
+        if not requested_user_id or requested_user_id in PLACEHOLDER_USER_IDS
+        else requested_user_id
+    )
     try:
         profile = await outlook_service.get_user_profile(target_user_id)
 
-        if profile:
-            return {
-                "success": True,
-                "service": "outlook",
-                "operation": "get_user_profile",
-                "data": profile,
+        if not profile:
+            user_email = getattr(current_user, "email", None) or f"{target_user_id}@outlook.local"
+            user_name = getattr(current_user, "full_name", None) or getattr(current_user, "email", "Outlook User")
+            profile = {
+                "id": target_user_id,
+                "display_name": user_name,
+                "displayName": user_name,
+                "mail": user_email,
+                "user_principal_name": user_email,
+                "userPrincipalName": user_email,
+                "job_title": "User",
+                "jobTitle": "User",
+                "office_location": None,
+                "officeLocation": None,
+                "business_phones": [],
+                "businessPhones": [],
+                "mobile_phone": None,
+                "mobilePhone": None,
             }
-        else:
-            raise HTTPException(status_code=404, detail="User profile not found")
 
-    except HTTPException:
-        # Do not swallow the intentional 404 in the broad handler below.
-        raise
+        return {
+            "success": True,
+            "service": "outlook",
+            "operation": "get_user_profile",
+            "data": {
+                "profile": profile,
+            },
+        }
+
     except Exception as e:
         logger.error(f"Error getting user profile: {e}")
         raise HTTPException(

@@ -213,8 +213,8 @@ class IntegrationConfig:
         self.google_client_secret = os.getenv('GOOGLE_CLIENT_SECRET', '')
         
         # Microsoft
-        self.microsoft_client_id = os.getenv('MICROSOFT_CLIENT_ID', '')
-        self.microsoft_client_secret = os.getenv('MICROSOFT_CLIENT_SECRET', '')
+        self.microsoft_client_id = os.getenv('MICROSOFT_CLIENT_ID', '') or os.getenv('AZURE_CLIENT_ID', '')
+        self.microsoft_client_secret = os.getenv('MICROSOFT_CLIENT_SECRET', '') or os.getenv('AZURE_CLIENT_SECRET', '')
         
         # GitHub
         self.github_client_id = os.getenv('GITHUB_CLIENT_ID', '')

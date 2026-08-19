@@ -135,6 +135,40 @@ interface OutlookUser {
     officeLocation?: string;
 }
 
+// The backend (integrations/outlook_service.OutlookEmail) serializes emails in
+// snake_case with the raw Microsoft Graph shape (from_field.emailAddress, body
+// as {content, contentType}, received_date_time, is_read, has_attachments,
+// web_link). This component renders a normalized camelCase shape, so map the
+// raw payload into that shape here. Tolerant of both shapes so the camelCase
+// test fixtures keep rendering identically.
+function normalizeOutlookEmail(raw: any): OutlookEmail {
+    const fromAddr = raw?.from_field ?? raw?.sender ?? raw?.from ?? null;
+    const fromName = fromAddr?.emailAddress?.name ?? fromAddr?.name ?? "Unknown";
+    const fromEmail =
+        fromAddr?.emailAddress?.address ?? fromAddr?.email ?? fromAddr?.address ?? "";
+    const rawTo = raw?.to_recipients ?? raw?.to ?? [];
+    const body =
+        typeof raw?.body === "string"
+            ? raw.body
+            : raw?.body?.content ?? raw?.body_preview ?? raw?.bodyPreview ?? "";
+    return {
+        id: raw?.id ?? "",
+        subject: raw?.subject ?? "(No Subject)",
+        from: { name: fromName, email: fromEmail },
+        to: (Array.isArray(rawTo) ? rawTo : []).map((r: any) => ({
+            name: r?.emailAddress?.name ?? r?.name ?? "",
+            email: r?.emailAddress?.address ?? r?.email ?? r?.address ?? "",
+        })),
+        body,
+        receivedDateTime:
+            raw?.received_date_time ?? raw?.receivedDateTime ?? raw?.received_datetime ?? "",
+        isRead: raw?.is_read ?? raw?.isRead ?? false,
+        hasAttachments: raw?.has_attachments ?? raw?.hasAttachments ?? false,
+        importance: raw?.importance ?? "normal",
+        webLink: raw?.web_link ?? raw?.webLink ?? "",
+    };
+}
+
 const OutlookIntegration: React.FC = () => {
     const [emails, setEmails] = useState<OutlookEmail[]>([]);
     const [events, setEvents] = useState<OutlookEvent[]>([]);
@@ -238,7 +272,19 @@ const OutlookIntegration: React.FC = () => {
 
             if (response.ok) {
                 const data = await response.json();
-                setUserProfile(data.data?.profile || null);
+                const profileData = data.data?.profile || data.data || null;
+                if (profileData && typeof profileData === "object") {
+                    setUserProfile({
+                        id: profileData.id || "current",
+                        displayName: profileData.displayName || profileData.display_name || "Outlook User",
+                        mail: profileData.mail || profileData.userPrincipalName || profileData.user_principal_name || "",
+                        userPrincipalName: profileData.userPrincipalName || profileData.user_principal_name || profileData.mail || "",
+                        jobTitle: profileData.jobTitle || profileData.job_title,
+                        officeLocation: profileData.officeLocation || profileData.office_location,
+                    });
+                } else {
+                    setUserProfile(null);
+                }
             }
         } catch (error) {
             console.error("Failed to load user profile:", error);
@@ -263,7 +309,7 @@ const OutlookIntegration: React.FC = () => {
             if (response.ok) {
                 const data = await response.json();
                 const emailList = Array.isArray(data.data) ? data.data : (data.data?.emails || []);
-                setEmails(emailList);
+                setEmails(emailList.map(normalizeOutlookEmail));
             }
         } catch (error) {
             console.error("Failed to load emails:", error);

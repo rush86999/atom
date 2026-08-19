@@ -131,11 +131,11 @@ class OutlookService(IntegrationService):
             config = {}
         super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = "https://graph.microsoft.com/v1.0"
-        self.client_id = config.get("client_id") or os.getenv("MICROSOFT_CLIENT_ID")
-        self.client_secret = config.get("client_secret") or os.getenv("MICROSOFT_CLIENT_SECRET")
-        raw_tenant = config.get("tenant_id") or os.getenv("MICROSOFT_TENANT_ID")
+        self.client_id = config.get("client_id") or os.getenv("MICROSOFT_CLIENT_ID") or os.getenv("AZURE_CLIENT_ID") or os.getenv("OUTLOOK_CLIENT_ID")
+        self.client_secret = config.get("client_secret") or os.getenv("MICROSOFT_CLIENT_SECRET") or os.getenv("AZURE_CLIENT_SECRET") or os.getenv("OUTLOOK_CLIENT_SECRET")
+        raw_tenant = config.get("tenant_id") or os.getenv("MICROSOFT_TENANT_ID") or os.getenv("AZURE_TENANT_ID") or os.getenv("OUTLOOK_TENANT_ID")
         self.tenant_id_config = raw_tenant if raw_tenant and raw_tenant not in ("default", "none", "") else "common"
-        self.redirect_uri = config.get("redirect_uri") or os.getenv("OUTLOOK_REDIRECT_URI")
+        self.redirect_uri = config.get("redirect_uri") or os.getenv("OUTLOOK_REDIRECT_URI") or os.getenv("AZURE_REDIRECT_URI")
 
     async def _get_access_token(self, user_id: str) -> Optional[str]:
         """Get access token for user from database"""
@@ -846,7 +846,14 @@ class OutlookService(IntegrationService):
                     business_phones=result.get("businessPhones", []),
                     mobile_phone=result.get("mobilePhone"),
                 )
-                return asdict(user)
+                data = asdict(user)
+                data["displayName"] = user.display_name
+                data["userPrincipalName"] = user.user_principal_name
+                data["jobTitle"] = user.job_title
+                data["officeLocation"] = user.office_location
+                data["businessPhones"] = user.business_phones or []
+                data["mobilePhone"] = user.mobile_phone
+                return data
             return None
         except Exception as e:
             logger.error(f"Error getting user profile: {e}")
