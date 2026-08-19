@@ -58,3 +58,24 @@ Real code (tray, hotkeys, QuickChat, agent list, login, notifications) but a **c
 6. Settings navigation + auth consolidation (7, 8) — before widening beyond the pilot.
 
 Items 1–3 are the minimum to put a browser URL in front of an employee; 4–5 make the demo tell the full story.
+
+
+---
+
+## Closure status (2026-08-19, "close all gaps" pass)
+
+**Closed:**
+
+- ✅ Gap 1 (shared identity): `default_user` purged from chat hooks, history sidebar, canvas, _app preferences, BFF preferences routes — all list endpoints/subscriptions now use the JWT-derived user (`lib/identity.ts`; unauthenticated calls fail 401 instead of merging histories).
+- ✅ Gap 2 (localhost bundle): `next.config.js` fail-fast — production builds REFUSE to bake loopback (verified: build errors without a public origin, succeeds with one); ~63 files' `|| "http://localhost:8000"` fallbacks removed.
+- ✅ Gap 3 (admin user management): `/admin/users` page over the existing `/api/admin/users` CRUD (+roles), linked in the sidebar. Pilot practice: provision employees here; self-registration off.
+- ✅ Gap 4 (approvals): `/approvals` page over `/api/agents/approvals/*` with 15s auto-refresh, approve/reject, linked in the sidebar.
+- ✅ Gap 5 (memory transparency): backend returns `memory_context` (the exact injected block) on every chat response; chat UI renders a collapsible "🧠 Context used" drawer. Live-verified (3.6k chars on a product query).
+- ✅ Gap 8 (orphaned settings): Account tab enabled; Advanced section links AI Providers / Account+2FA / Routing / Local Models / Sessions.
+- ✅ Gap 12 (stub actions): suggested actions now send as messages (or navigate for URLs).
+- ✅ Gap 11 (partial): Telegram card added to the integrations catalog.
+- ✅ Gap 14: phantom `default-workspace` → `default` on the dashboard.
+
+**Verified:** production build (fail-fast + public-origin success), all new pages 200, `memory_context` end-to-end, orchestrator tests green.
+
+**Still open (deliberate):** Gap 6/7 (auth hardening + consolidation — Cloudflare Access mitigates for the pilot; fix before SaaS), Gap 9 (team-chat placeholder stays cut from the narrative), Gap 10 (real office co-editing — post-pilot), Gap 13 (PWA — post-pilot), full OAuth connect buttons for Azure/Zoho (ride with their connection setup).

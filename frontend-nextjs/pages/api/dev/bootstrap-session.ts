@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-const BACKEND_BASE = process.env.PYTHON_BACKEND_URL || 'http://127.0.0.1:8000';
+const BACKEND_BASE = process.env.PYTHON_BACKEND_URL || "";
 const DEV_EMAIL = process.env.NEXT_PUBLIC_DEV_BOOTSTRAP_EMAIL || 'admin@example.com';
 
 function readBootstrapPassword(): string | null {

@@ -139,6 +139,7 @@ class ChatMessageResponse(BaseModel):
     next_steps: list = Field(..., description="Suggested next steps")
     timestamp: str = Field(..., description="Response timestamp")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata and structured actions")
+    memory_context: Optional[str] = Field(None, description="Auto-retrieved memory context injected before this answer (memory transparency)")
     model: Optional[str] = Field(None, description="Which model produced the response")
     provider: Optional[str] = Field(None, description="Which provider served the response")
     error_code: Optional[str] = Field(None, description="Structured error code (e.g. no_llm_provider, budget_exceeded)")
@@ -176,6 +177,7 @@ class ChatFeedbackRequest(BaseModel):
     message_id: str = Field(..., description="The message the feedback is about")
     feedback: str = Field(..., description='"thumbs_up" or "thumbs_down"')
     comment: Optional[str] = Field(None, description="Optional free-text feedback")
+    memory_context: Optional[str] = Field(None, description="Auto-retrieved memory context injected before this answer (memory transparency)")
     model: Optional[str] = Field(None, description="Which model produced the response")
     provider: Optional[str] = Field(None, description="Which provider served the response")
     session_id: Optional[str] = Field(None, description="Conversation session ID")
@@ -386,6 +388,7 @@ async def send_chat_message(
             next_steps=response.get("next_steps", []),
             timestamp=response.get("timestamp", ""),
             metadata=response.get("data", {}), # Map 'data' to 'metadata' for frontend
+            memory_context=response.get("memory_context"),
             model=response.get("model"),
             provider=response.get("provider"),
         )

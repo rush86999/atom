@@ -30,7 +30,7 @@ const steps = [
     { title: "Ready", description: "Let's go" },
 ];
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 // P1.2 — providers offered in the inline API-key card. Must stay in sync with
 // the valid_providers list on the backend store endpoint (byok_endpoints.py).

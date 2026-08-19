@@ -4,7 +4,7 @@ import { USE_BACKEND_API } from '../../../lib/api';
 import { sendEmail } from '../../../lib/email';
 import crypto from 'crypto';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default async function handler(
     req: NextApiRequest,

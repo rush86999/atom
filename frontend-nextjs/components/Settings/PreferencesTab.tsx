@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { getCurrentUserId } from "@/lib/identity";
 
 interface PreferenceState {
     theme: string;
@@ -19,8 +20,8 @@ const DEFAULT_PREFS: PreferenceState = {
     email_frequency: "daily"
 };
 
-const API_URL = typeof window !== 'undefined' ? "" : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
-const USER_ID = "default_user";
+const API_URL = typeof window !== 'undefined' ? "" : (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+const USER_ID = getCurrentUserId();
 const WORKSPACE_ID = "default";
 
 const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;

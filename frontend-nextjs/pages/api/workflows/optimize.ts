@@ -10,7 +10,7 @@ export default async function handler(
 
     try {
         // Use environment variable or fallback to 127.0.0.1
-        let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+        let apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
         // Force IPv4 to avoid Windows ::1 resolution issues
         apiUrl = apiUrl.replace('localhost', '127.0.0.1');
 

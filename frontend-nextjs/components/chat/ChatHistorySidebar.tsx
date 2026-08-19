@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AGENT_CHAT } from "@/src/lib/testIds";
+import { getCurrentUserId } from "@/lib/identity";
 
 interface ChatSession {
     id: string;
@@ -34,7 +35,7 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
             setLoading(true);
             const { apiClient } = await import('../../lib/api-client');
             // Use correct backend endpoint for sessions
-            const response = await apiClient.get("/api/chat/sessions?user_id=default_user") as any;
+            const response = await apiClient.get(`/api/chat/sessions?user_id=${getCurrentUserId()}`) as any;
             if (response.status !== 200) {
                 throw new Error("Failed to fetch chat history");
             }

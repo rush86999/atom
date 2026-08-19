@@ -32,7 +32,7 @@ import { authOptions } from "../auth/[...nextauth]";
  * - assessment_criteria: Success criteria
  */
 
-const BACKEND_API_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BACKEND_API_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "";
 
 export default async function handler(
   req: NextApiRequest,

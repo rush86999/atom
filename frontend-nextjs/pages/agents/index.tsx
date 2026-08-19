@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Brain } from "lucide-react";
 import ReasoningChainViewer from "@/components/ReasoningChainViewer";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 // The backend list payload carries the maturity TIER in `status`
 // (student/intern/supervised/autonomous/paused/...). The card expects

@@ -59,7 +59,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     // Derive the default WebSocket host from NEXT_PUBLIC_API_URL so the client
     // talks to the same backend the REST API uses (and respects wss in prod).
     const resolveWsBase = (): string => {
-        const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+        const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
         return apiBase.replace(/^http/, "ws"); // http:// -> ws://, https:// -> wss://
     };
 

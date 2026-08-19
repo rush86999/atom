@@ -51,7 +51,7 @@ const DashboardPage: React.FC = () => {
   const [sales, setSales] = useState<any>(null);
   const { toast } = useToast();
   const router = useRouter();
-  const workspaceId = "default-workspace"; // Consistent with other components
+  const workspaceId = "default"; // Consistent with other components
 
   const integrationIcons: Record<string, any> = {
     box: HardDrive,

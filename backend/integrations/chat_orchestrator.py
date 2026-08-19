@@ -477,6 +477,7 @@ class ChatOrchestrator:
                 "timestamp": datetime.now().isoformat(),
                 "model": used_model,
                 "provider": used_provider,
+                "memory_context": (ai_response or {}).get("memory_context") if ai_response else None,
             }
             if budget_failure:
                 response["error_code"] = "budget_exceeded"
@@ -577,6 +578,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 }
             ]
 
+            memory_block = None
             # Unified turn-time memory retrieval (P0, memory unification plan):
             # comms memory + GraphRAG + episodes + turn facts, bounded block.
             # Fault-isolated and flag-gated — never blocks or breaks the turn.
@@ -634,6 +636,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "content": response_data.get("content", "").strip(),
                     "model": response_data.get("model"),
                     "provider": response_data.get("provider"),
+                    "memory_context": memory_block,
                 }
 
             return None

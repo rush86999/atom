@@ -16,7 +16,7 @@ export default async function handler(
 
     try {
         // Exchange authorization code for tokens
-        const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:8000';
+        const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || "";
         const response = await fetch(`${backendUrl}/api/dropbox/callback?code=${req.query.code}&state=${req.query.state || ''}`, {
             method: 'GET',
             headers: {

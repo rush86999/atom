@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     const authHeader = req.headers.authorization;

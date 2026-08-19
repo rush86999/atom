@@ -38,7 +38,7 @@ export const JiraOAuthFlow: React.FC<JiraOAuthFlowProps> = ({
 
   // Base API configuration
   const apiConfig = {
-    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000',
+    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || "",
     endpoints: {
       startOAuth: '/api/auth/jira/start',
       getResources: '/api/auth/jira/resources',

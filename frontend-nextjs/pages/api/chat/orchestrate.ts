@@ -46,7 +46,7 @@ export default async function handler(
     }
 
     // Forward to the real backend chat endpoint (was /api/workflow_agent/chat — 404).
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
     const backendResponse = await fetch(
       `${API_BASE}/api/v1/ai/chat`,
       {

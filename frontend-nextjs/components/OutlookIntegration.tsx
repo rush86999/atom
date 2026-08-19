@@ -208,7 +208,7 @@ const OutlookIntegration: React.FC = () => {
                 localStorage.getItem("auth_token") ||
                 localStorage.getItem("token");
             const backendBase = window.location.hostname === "localhost" 
-                ? "http://localhost:8000" 
+                ? "" 
                 : "";
             const url = token 
                 ? `${backendBase}/api/v1/auth/oauth/microsoft/initiate?token=${encodeURIComponent(token)}`

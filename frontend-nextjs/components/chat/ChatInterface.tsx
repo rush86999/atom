@@ -58,8 +58,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
         providerError,
     } = useChatInterface({ sessionId, initialAgentId, onSessionCreated });
 
+    // Suggested actions now DO something (UI gap #12): an action with text
+    // sends it as the next user message; one with a URL navigates.
     const handleActionClick = (action: any) => {
-        console.log("Action clicked:", action);
+        if (!action) return;
+        const text = typeof action === "string" ? action : (action.label || action.text || action.action);
+        if (typeof action === "object" && action.url) {
+            window.location.href = action.url;
+            return;
+        }
+        if (text) {
+            handleSend(String(text));
+        }
     };
 
     // P1.4: clicking an example prompt sends it as a new user message.

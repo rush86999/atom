@@ -117,7 +117,7 @@ export default async function handler(
     }
 
     // Step 2: Forward to main backend for workflow processing
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
     const authToken = req.headers.authorization || '';
     let backendResponse;
     try {

@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 
-const PYTHON_API_BASE_URL = process.env.PYTHON_API_SERVICE_BASE_URL || "http://localhost:8000";
+const PYTHON_API_BASE_URL = process.env.PYTHON_API_SERVICE_BASE_URL || "";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === 'GET') {

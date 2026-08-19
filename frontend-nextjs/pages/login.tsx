@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { loginWithBackend, persistBackendToken } from '../lib/backendAuth';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function LoginPage() {
     const router = useRouter();

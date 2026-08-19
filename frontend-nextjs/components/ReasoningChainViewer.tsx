@@ -73,7 +73,7 @@ const ReasoningChainViewer: React.FC<ReasoningChainViewerProps> = ({ chainId, ch
             // W45: was /api/v1/voice/reasoning/{chainId} — a dead 404 endpoint.
             // The real backend route is /api/reasoning/chain/{chainId} (via
             // API_BASE, same as every other call on this page).
-            const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, "");
+            const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
             const token = localStorage.getItem('auth_token');
             const headers: Record<string, string> = {};
             if (token) headers['Authorization'] = `Bearer ${token}`;

@@ -1,26 +1,44 @@
 const path = require('path');
 const fs = require('fs');
 
-let nextPublicApiUrl = "http://127.0.0.1:8000";
-try {
-  const envLocalPath = path.resolve(__dirname, '.env.local');
-  if (fs.existsSync(envLocalPath)) {
-    const envLocal = fs.readFileSync(envLocalPath, 'utf8');
-    const match = envLocal.match(/NEXT_PUBLIC_API_URL=(.+)/);
-    if (match && match[1]) {
-      nextPublicApiUrl = match[1].trim();
+// API base resolution (fail-fast): NEXT_PUBLIC_API_URL from the real env
+// wins; .env.local is a dev convenience fallback; a localhost default is
+// ONLY applied in `next dev`. Production builds REFUSE to bake loopback
+// into the client bundle — serving such a build from any non-local
+// hostname breaks every API call (gap #2 in the UI gap analysis).
+const isDev = process.env.NODE_ENV === 'development';
+let nextPublicApiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+if (!nextPublicApiUrl) {
+  try {
+    const envLocalPath = path.resolve(__dirname, '.env.local');
+    if (fs.existsSync(envLocalPath)) {
+      const envLocal = fs.readFileSync(envLocalPath, 'utf8');
+      const match = envLocal.match(/NEXT_PUBLIC_API_URL=(.+)/);
+      if (match && match[1]) {
+        nextPublicApiUrl = match[1].trim();
+      }
     }
+  } catch (e) {
+    // Ignore
   }
-} catch (e) {
-  // Ignore
+}
+if (!nextPublicApiUrl && isDev) {
+  nextPublicApiUrl = "http://localhost:8001";
+}
+if (!nextPublicApiUrl || (/localhost|127\.0\.0\.1/.test(nextPublicApiUrl) && !isDev)) {
+  throw new Error(
+    "[next.config.js] NEXT_PUBLIC_API_URL must be set to the public API origin " +
+    "for non-dev builds (got: " + (nextPublicApiUrl || 'unset') + "). " +
+    "Refusing to bake a loopback URL into a production client bundle."
+  );
 }
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   env: {
-    PYTHON_API_SERVICE_BASE_URL: "http://127.0.0.1:8000",
-    NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:8000",
-    PYTHON_BACKEND_URL: "http://127.0.0.1:8000",
+    PYTHON_API_SERVICE_BASE_URL: nextPublicApiUrl,
+    NEXT_PUBLIC_API_BASE_URL: nextPublicApiUrl,
+    PYTHON_BACKEND_URL: nextPublicApiUrl,
   },
   // #11 fix: re-enable compression (the zlib issue was from an old Next.js
   // version — 14+ handles this correctly). Keep TS/ESLint ignores for now

@@ -21,7 +21,7 @@ import {
 } from "../components/ui/card";
 import { OnboardingWizard } from "../components/Onboarding/OnboardingWizard";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 interface DashboardFeed {
   recent_executions: Array<{

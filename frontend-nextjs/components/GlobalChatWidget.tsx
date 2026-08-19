@@ -10,6 +10,7 @@ import { useWebSocket } from "../hooks/useWebSocket";
 import { Badge } from "@/components/ui/badge";
 
 import { useRouter } from 'next/router';
+import { getCurrentUserId } from "@/lib/identity";
 
 interface GlobalChatWidgetProps {
     userId?: string;
@@ -138,7 +139,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         try {
             setIsLoading(true);
             const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
-            const res = await fetch(`/api/chat/history/${sid}?user_id=${userId || 'default_user'}`, {
+            const res = await fetch(`/api/chat/history/${sid}?user_id=${userId || getCurrentUserId()}`, {
                 headers: token ? { 'Authorization': `Bearer ${token}` } : {},
             }).catch(() => null);
 
