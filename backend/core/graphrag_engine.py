@@ -644,7 +644,12 @@ class GraphRAGEngine:
                     session.add(node)
                     
                 session.commit()
-                
+
+                # Vector index (P1.5): mirror the node into the LanceDB
+                # graph_nodes table so local_search's vector leg works on
+                # SQLite (the pgvector leg only ever ran on Postgres).
+                self._index_node_vector(entity.id, entity.name, entity.entity_type, entity.description, ws_id)
+
                 # Trigger Automation. Keep a strong ref so the task isn't
                 # GC'd before the event fires.
                 if AUTOMATION_AVAILABLE:
@@ -1096,6 +1101,49 @@ class GraphRAGEngine:
 
     # ==================== READ OPERATIONS (SQL) ====================
 
+    # ---- Vector index (P1.5): LanceDB mirror of graph nodes ---------------
+    # The pgvector vector leg only ever ran on Postgres (the `<=>` operator
+    # fails on SQLite), leaving Personal Edition keyword-only. Nodes are
+    # mirrored into a LanceDB `graph_nodes` table (id = node id) which works
+    # on every backend.
+
+    def _index_node_vector(self, node_id, name, entity_type, description, ws_id):
+        try:
+            from core.lancedb_handler import get_lancedb_handler
+
+            handler = get_lancedb_handler(ws_id)
+            text = f"{name} ({entity_type}): {description or ''}"
+            handler.add_document(
+                "graph_nodes",
+                text,
+                source="graphrag",
+                metadata={"node_id": node_id},
+                extra_columns={"id": node_id, "node_id": node_id, "name": name, "type": entity_type},
+            )
+        except Exception as e:
+            logger.debug(f"graph node vector index skipped: {e}")
+
+    def backfill_node_vectors(self, workspace_id: Optional[str] = None) -> Dict[str, int]:
+        """(Re)embed all graph nodes for a workspace into the LanceDB
+        graph_nodes table. Idempotent per node id (LanceDB rows are
+        appended — call drop_table('graph_nodes') first for a clean rebuild)."""
+        ws_id = workspace_id or self.workspace_id
+        embedded = skipped = 0
+        try:
+            with get_db_session() as session:
+                nodes = session.query(GraphNode).filter(
+                    GraphNode.workspace_id == ws_id
+                ).all()
+            for n in nodes:
+                try:
+                    self._index_node_vector(n.id, n.name, n.type, n.description, ws_id)
+                    embedded += 1
+                except Exception:
+                    skipped += 1
+        except Exception as e:
+            logger.error(f"backfill_node_vectors failed: {e}")
+        return {"embedded": embedded, "skipped": skipped, "workspace": ws_id}
+
     def local_search(self, workspace_id: Optional[str] = None,
                      tenant_id: Optional[str] = None,
                      query: str = "", depth: int = 2,
@@ -1194,30 +1242,33 @@ class GraphRAGEngine:
                             f"OR json_extract(target.properties, '$.doc_id') NOT IN ({ids_csv}))"
                         )
 
-                # -- Vector leg --
+                # -- Vector leg (LanceDB graph_nodes mirror — works on SQLite
+                # and Postgres alike; the old pgvector `<=>` leg never ran
+                # on SQLite, leaving Personal Edition keyword-only) --
                 vector_nodes = []
-                if query_embedding:
-                    try:
-                        # node_fresh_anchor uses alias ``n``; alias graph_nodes
-                        # as n here so the same fragment applies.
-                        vector_sql = text(f"""
-                            SELECT id, name, type, description
-                            FROM graph_nodes n
-                            WHERE workspace_id = :ws_id
-                            AND embedding IS NOT NULL
-                            {node_fresh_anchor}
-                            ORDER BY embedding <=> :query_embedding
-                            LIMIT 5
-                        """)
-                        vector_nodes = session.execute(
-                            vector_sql, {
-                                "ws_id": ws_id,
-                                "query_embedding": query_embedding
-                            }
-                        ).fetchall()
-                        logger.info(f"Hybrid search: vector leg found {len(vector_nodes)} nodes")
-                    except Exception as pg_err:
-                        logger.debug(f"pgvector query failed (hybrid): {pg_err}")
+                try:
+                    from core.lancedb_handler import get_lancedb_handler
+
+                    handler = get_lancedb_handler(ws_id)
+                    vec_rows = handler.search("graph_nodes", query, limit=5) or []
+                    seen: set = set()
+                    vec_ids = []
+                    for r in vec_rows:
+                        nid = str(r.get("node_id") or r.get("id") or "")
+                        if nid and nid not in seen:
+                            seen.add(nid)
+                            vec_ids.append(nid)
+                    if vec_ids:
+                        safe_ids = ", ".join(
+                            "'" + str(i).replace("'", "''") + "'" for i in vec_ids
+                        )
+                        vector_nodes = session.execute(text(
+                            f"SELECT id, name, type, description FROM graph_nodes "
+                            f"WHERE id IN ({safe_ids})"
+                        )).fetchall()
+                    logger.info(f"Hybrid search: vector leg found {len(vector_nodes)} nodes")
+                except Exception as lanc_err:
+                    logger.debug(f"LanceDB graph vector leg failed: {lanc_err}")
 
                 # -- Keyword leg (always runs) --
                 # Match on extracted search terms, not the raw query: a
@@ -1516,7 +1567,11 @@ class GraphRAGEngine:
         if mode == "global":
             return await self.global_search(ws_id, tid, query)
         else:
-            return self.local_search(ws_id, tid, query)
+            # to_thread: local_search's LanceDB vector leg calls the sync
+            # embed_text, which no-ops in the event-loop thread (async-context
+            # guard) — the vector leg silently returned [] from every async
+            # caller. A worker thread embeds fine.
+            return await asyncio.to_thread(self.local_search, ws_id, tid, query)
 
     async def get_context_for_ai(self, workspace_id: Optional[str] = None, 
                                tenant_id: Optional[str] = None,

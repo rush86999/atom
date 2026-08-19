@@ -6,8 +6,6 @@ moment an employee talks to an agent:
 
   - Communication memory (emails/Slack/WhatsApp/Teams…) — LanceDB hybrid
     (vector + FTS) via CommunicationIngestionPipeline
-  - Documents + conversations — DocumentsHybridSearch (BM25 + vector RRF
-    fused, conversations leg bridged to the comms store; bridge, don't copy)
   - GraphRAG context (ontology identities + relationships) — graphrag_engine
   - Learning episodes — EpisodeRetrievalService.retrieve_contextual
   - Durable turn facts — prefetch_relevant_facts (Tier-2 recall)
@@ -41,29 +39,14 @@ PER_LEG_TIMEOUT_SECONDS = 1.5  # steady-state is 10–50ms/leg; first call pays
                                 # embedding-model loads, so allow a cold start.
 TOTAL_CHAR_BUDGET = 10_000          # ≈ 2.5k tokens across all blocks
 GRAPH_CHAR_CAP = 3_200
-KNOWLEDGE_CHAR_CAP = 2_000
+COMMS_CHAR_CAP = 1_600
 EPISODES_CHAR_CAP = 1_200
 FACTS_CHAR_CAP = 1_600
 SNIPPET_CHAR_CAP = 220
 
-# P1.4 rerank: budget-gated second pass over each leg's candidates before
-# the per-block caps truncate them — keeps the most relevant lines, not the
-# first N a store happened to return. Cross-encoder (HybridRetrievalService
-# reuse) when torch is healthy; fastembed cosine-similarity fallback (works
-# without torch); no-op otherwise. Plan budget: rerank only when total
-# assembly stays < 800 ms (docs/architecture/AGENT_MEMORY_UNIFICATION_PLAN.md §6).
-RERANK_FLAG = "MEMORY_CONTEXT_RERANK"
-RERANK_BUDGET_MS = 700               # enter the rerank phase only if gather ≤ 700ms
-RERANK_LEG_TIMEOUT_SECONDS = 0.250   # per-leg rerank cap (CPU cross-encoder is slow)
-RERANK_MIN_LINES = 3                 # nothing to decide below this
-
 
 def assembly_enabled() -> bool:
     return os.getenv(ENV_FLAG, "true").lower() in ("1", "true", "yes", "on")
-
-
-def rerank_enabled() -> bool:
-    return os.getenv(RERANK_FLAG, "true").lower() in ("1", "true", "yes", "on")
 
 
 # --------------------------------------------------------------------------- #
@@ -83,33 +66,29 @@ async def _graph_leg(message: str, workspace_id: str, tenant_id: str) -> str:
     return context
 
 
-async def _knowledge_leg(message: str, workspace_id: str) -> List[str]:
-    """Unified hybrid knowledge leg (P1.3) — documents + conversations fused
-    by RRF via DocumentsHybridSearch (BM25 FTS5/tsvector + LanceDB vector,
-    plus the conversations leg bridged to the comms store — bridge, don't
-    copy: no comms record is duplicated into documents). Replaces the
-    standalone comms-only leg: the hybrid path covers the comms store itself.
-    Runs async I/O directly; per-leg timeout applies at the call site."""
-    try:
-        from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
-
-        result = await DocumentsHybridSearch().search(
-            query=message[:500], limit=6
-        )
-    except Exception as e:
-        logger.debug(f"memory assembler: knowledge leg failed: {e}")
+async def _comms_leg(message: str, workspace_id: str) -> List[str]:
+    """Communication-memory hybrid search (runs in a thread: sync LanceDB)."""
+    pipeline = _get_comms_pipeline(workspace_id)
+    if pipeline is None:
         return []
+    # search_communications lives on the pipeline's LanceDBMemoryManager.
+    manager = getattr(pipeline, "memory_manager", pipeline)
+    records = await asyncio.to_thread(
+        manager.search_communications, message[:500], 5
+    )
     lines: List[str] = []
-    for hit in (result or {}).get("results", []) or []:
-        source = str(hit.get("source") or "doc")
-        title = str(hit.get("title") or "").strip()
-        preview = str(hit.get("preview") or "").strip().replace("\n", " ")
-        if not preview:
+    for rec in records or []:
+        content = str(
+            rec.get("content") or rec.get("text") or rec.get("snippet") or ""
+        ).strip()
+        if not content:
             continue
-        if len(preview) > SNIPPET_CHAR_CAP:
-            preview = preview[:SNIPPET_CHAR_CAP] + "…"
-        label = title if title else source
-        lines.append(f"[{source}: {label}] {preview}")
+        app = str(rec.get("app_type") or rec.get("app") or "comm")
+        ts = str(rec.get("timestamp") or "")[:10]
+        if len(content) > SNIPPET_CHAR_CAP:
+            content = content[:SNIPPET_CHAR_CAP] + "…"
+        prefix = f"[{app}{(' ' + ts) if ts else ''}] "
+        lines.append(prefix + content.replace("\n", " "))
     return lines
 
 
@@ -187,92 +166,24 @@ async def _integration_records_leg(message: str, workspace_id: str) -> List[str]
 
 
 # --------------------------------------------------------------------------- #
-# P1.4 rerank (budget-gated; cross-encoder → fastembed cosine → no-op)
+# Pipeline singleton (embedding model is expensive to load per call)
 # --------------------------------------------------------------------------- #
 
-_RERANK_MODEL = None       # None = not probed; False = unavailable; else CrossEncoder
-_RERANK_MODEL_PROBED = False
-_RERANK_EMBEDDER = None    # lazy EmbeddingService(fastembed)
+_COMMS_PIPELINES: Dict[str, Any] = {}
 
 
-async def _probe_cross_encoder() -> Any:
-    """One-time availability probe for the cross-encoder tier (plan intent:
-    HybridRetrievalService reuse, in-process). Heavy — imports torch and can
-    load/download the model — so it must run from `warm()`, never the hot
-    path. Caches the result; never raises."""
-    global _RERANK_MODEL, _RERANK_MODEL_PROBED
-    if _RERANK_MODEL_PROBED:
-        return _RERANK_MODEL
-    _RERANK_MODEL_PROBED = True
-    try:
-        from core.database import SessionLocal
-        from core.hybrid_retrieval_service import HybridRetrievalService
-
-        db = SessionLocal()
+def _get_comms_pipeline(workspace_id: str):
+    if workspace_id not in _COMMS_PIPELINES:
         try:
-            svc = HybridRetrievalService(db)
-            model = await svc._get_reranker_model()
-            _RERANK_MODEL = model if model is not False else False
-        finally:
-            db.close()
-    except Exception as e:
-        logger.info(f"memory assembler: cross-encoder unavailable: {e}")
-        _RERANK_MODEL = False
-    return _RERANK_MODEL
-
-
-async def _rerank_lines(query: str, lines: List[str]) -> List[str]:
-    """Re-order candidate lines by relevance to `query`.
-
-    Tier 1: the cached cross-encoder probed during `warm()` (torch healthy
-    machines only). Tier 2 (this env: broken torch): fastembed cosine
-    similarity — the same embedder the comm store and vector legs use, so it
-    is warm and cheap. Tier 3: no-op. Never raises; the hot path imports
-    nothing heavy (the cross-encoder is probed once in warm(), never here).
-    The caller enforces the per-leg time budget via `_safe`.
-    """
-    global _RERANK_EMBEDDER
-    if not rerank_enabled() or len(lines) < RERANK_MIN_LINES:
-        return lines
-
-    # -- Tier 1: cached cross-encoder (probed in warm()) ---------------------
-    model = _RERANK_MODEL
-    if model:
-        try:
-            scores = await asyncio.to_thread(
-                model.predict, [(query, ln) for ln in lines]
+            from integrations.atom_communication_ingestion_pipeline import (
+                get_ingestion_pipeline,
             )
-            order = sorted(
-                range(len(lines)),
-                key=lambda i: scores[i],
-                reverse=True,
-            )
-            return [lines[i] for i in order]
+
+            _COMMS_PIPELINES[workspace_id] = get_ingestion_pipeline(workspace_id)
         except Exception as e:
-            logger.debug(f"memory assembler: cross-encoder predict failed ({e}); "
-                         f"trying fastembed cosine")
-
-    # -- Tier 2: fastembed cosine similarity --------------------------------
-    try:
-        if _RERANK_EMBEDDER is None:
-            from core.embedding_service import EmbeddingService
-
-            _RERANK_EMBEDDER = EmbeddingService(provider="fastembed")
-        import numpy as np
-
-        vectors = await _RERANK_EMBEDDER.generate_embeddings_batch(
-            [query[:500]] + lines
-        )
-        q = np.asarray(vectors[0], dtype=float)
-        docs = np.asarray(vectors[1:], dtype=float)
-        q_norm = float(np.linalg.norm(q))
-        doc_norms = np.linalg.norm(docs, axis=1)
-        sims = (docs @ q) / (doc_norms * q_norm + 1e-8)
-        order = sorted(range(len(lines)), key=lambda i: sims[i], reverse=True)
-        return [lines[i] for i in order]
-    except Exception as e:
-        logger.debug(f"memory assembler: fastembed rerank unavailable ({e}); no-op")
-        return lines
+            logger.warning(f"memory assembler: comms pipeline unavailable: {e}")
+            _COMMS_PIPELINES[workspace_id] = None
+    return _COMMS_PIPELINES[workspace_id]
 
 
 # --------------------------------------------------------------------------- #
@@ -291,9 +202,9 @@ def _bounded_lines(lines: List[str], cap: int) -> str:
     return "\n".join(out)
 
 
-async def _safe(aw, label: str, timeout: float = PER_LEG_TIMEOUT_SECONDS) -> Any:
+async def _safe(aw, label: str) -> Any:
     try:
-        return await asyncio.wait_for(aw, timeout=timeout)
+        return await asyncio.wait_for(aw, timeout=PER_LEG_TIMEOUT_SECONDS)
     except asyncio.TimeoutError:
         logger.info(f"memory assembler: {label} leg timed out")
         return None
@@ -308,7 +219,7 @@ async def warm(workspace_id: str = "default", tenant_id: str = "default") -> Non
     costs. Call once at app startup; generous timeout because model loads
     can take seconds. Never raises."""
     legs = (
-        _knowledge_leg("warmup", workspace_id),
+        _comms_leg("warmup", workspace_id),
         _integration_records_leg("warmup", workspace_id),
         _facts_leg("warmup", workspace_id),
     )
@@ -318,20 +229,46 @@ async def warm(workspace_id: str = "default", tenant_id: str = "default") -> Non
         except Exception as e:
             logger.debug(f"assembler warmup leg skipped: {e}")
 
-    # Warm the rerank tiers: probe the cross-encoder once (heavy import only
-    # here), then warm the fastembed embedder so the first rerank pass
-    # doesn't pay a cold model load that would blow the per-leg budget.
+
+_RERANKER = None
+_RERANKER_UNAVAILABLE = False
+
+
+def _get_reranker():
+    """Lazy cross-encoder (torch-dependent); returns None when unavailable —
+    coarse retrieval order is kept (graceful degradation, P1.4)."""
+    global _RERANKER, _RERANKER_UNAVAILABLE
+    if _RERANKER_UNAVAILABLE:
+        return None
+    if _RERANKER is None:
+        try:
+            from sentence_transformers import CrossEncoder
+
+            _RERANKER = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+        except Exception as e:
+            logger.info(f"memory assembler: cross-encoder rerank unavailable ({e}); keeping coarse order")
+            _RERANKER_UNAVAILABLE = True
+            return None
+    return _RERANKER
+
+
+async def _rerank_lines(query: str, lines: List[str]) -> List[str]:
+    """Cross-encoder rerank of assembled memory lines within the leg budget.
+    Falls back to the input order when the reranker is unavailable."""
+    reranker = _get_reranker()
+    if reranker is None or not lines:
+        return lines
     try:
-        await asyncio.wait_for(_probe_cross_encoder(), timeout=45)
+        import asyncio as _aio
+
+        def _rank():
+            scored = reranker.rank(query, lines)
+            return [lines[i] for i, _ in scored]
+
+        return await _aio.wait_for(_aio.to_thread(_rank), timeout=PER_LEG_TIMEOUT_SECONDS)
     except Exception as e:
-        logger.debug(f"assembler cross-encoder probe skipped: {e}")
-    try:
-        await asyncio.wait_for(
-            _rerank_lines("warmup", ["warmup a", "warmup b", "warmup c"]),
-            timeout=45,
-        )
-    except Exception as e:
-        logger.debug(f"assembler rerank warmup skipped: {e}")
+        logger.debug(f"rerank skipped: {e}")
+        return lines
 
 
 async def assemble_memory_context(
@@ -345,57 +282,38 @@ async def assemble_memory_context(
     if not message or not message.strip():
         return None
     try:
-        started = time.monotonic()
-        graph_ctx, knowledge_lines, integration_lines, episode_lines, fact_lines = await asyncio.gather(
+        graph_ctx, comms_lines, integration_lines, episode_lines, fact_lines = await asyncio.gather(
             _safe(_graph_leg(message, workspace_id, tenant_id), "graph"),
-            _safe(_knowledge_leg(message, workspace_id), "knowledge"),
+            _safe(_comms_leg(message, workspace_id), "comms"),
             _safe(_integration_records_leg(message, workspace_id), "integration_records"),
             _safe(_episodes_leg(message, agent_id), "episodes"),
             _safe(_facts_leg(message, workspace_id), "facts"),
         )
 
-        # P1.4 rerank phase — budget-gated: only when the gather stayed fast
-        # enough to leave room under the 800ms plan budget. Each leg is
-        # re-ordered by relevance so the per-block caps keep the best lines,
-        # not the first N the store returned. Stop the phase once budget is
-        # exhausted (a slow or absent reranker degrades to current order).
-        gather_elapsed_ms = (time.monotonic() - started) * 1000
-        if rerank_enabled() and gather_elapsed_ms < RERANK_BUDGET_MS:
-            legs_to_rerank = (
-                ("knowledge", knowledge_lines),
-                ("integration_records", integration_lines),
-                ("episodes", episode_lines),
-                ("facts", fact_lines),
-            )
-            for label, lines in legs_to_rerank:
-                if not lines:
-                    continue
-                reranked = await _safe(
-                    _rerank_lines(message, lines),
-                    f"rerank:{label}",
-                    timeout=RERANK_LEG_TIMEOUT_SECONDS,
-                )
-                if isinstance(reranked, list):
-                    if label == "knowledge":
-                        knowledge_lines = reranked
-                    elif label == "integration_records":
-                        integration_lines = reranked
-                    elif label == "episodes":
-                        episode_lines = reranked
-                    else:
-                        fact_lines = reranked
-                if (time.monotonic() - started) * 1000 >= (
-                    RERANK_BUDGET_MS + RERANK_LEG_TIMEOUT_SECONDS * 1000
-                ):
-                    break
-
         blocks: List[str] = []
         if graph_ctx:
             blocks.append("KNOWLEDGE GRAPH CONTEXT:\n" + graph_ctx)
-        knowledge_block = _bounded_lines(knowledge_lines or [], KNOWLEDGE_CHAR_CAP)
-        if knowledge_block:
-            blocks.append("RELATED KNOWLEDGE & CONVERSATIONS (docs + email/chat):\n" + knowledge_block)
-        integration_block = _bounded_lines(integration_lines or [], KNOWLEDGE_CHAR_CAP)
+        # P1.4: cross-encoder rerank of the item-level legs when available
+        # (torch-dependent; graceful no-op otherwise).
+        if (comms_lines or integration_lines or fact_lines) and (
+            comms_lines + integration_lines + fact_lines
+        ):
+            try:
+                combined = await _rerank_lines(
+                    message,
+                    (comms_lines or []) + (integration_lines or []) + (fact_lines or []),
+                )
+                # Split back proportionally so per-block caps still apply
+                n1, n2 = len(comms_lines or []), len(integration_lines or [])
+                comms_lines = combined[:n1]
+                integration_lines = combined[n1:n1 + n2]
+                fact_lines = combined[n1 + n2:]
+            except Exception:
+                pass
+        comms_block = _bounded_lines(comms_lines or [], COMMS_CHAR_CAP)
+        if comms_block:
+            blocks.append("RELATED CONVERSATIONS (email/chat memory):\n" + comms_block)
+        integration_block = _bounded_lines(integration_lines or [], COMMS_CHAR_CAP)
         if integration_block:
             blocks.append("RELATED INTEGRATION RECORDS (CRM/shop/files ingested):\n" + integration_block)
         episodes_block = _bounded_lines(episode_lines or [], EPISODES_CHAR_CAP)
