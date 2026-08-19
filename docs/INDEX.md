@@ -99,6 +99,7 @@
 | [Marketplace](marketplace/connection.md) | Commercial marketplace (atomagentos.com) | Enterprise |
 | [Org Ingestion Sharing](architecture/ORG_INGESTION_SHARING_PLAN.md) | **NEW** - Signed profiles/bundles + hub: share ingestion config, org data & GraphRAG memory between org members' local instances | Self-hosters/Admins |
 | [Org Sharing Setup Runbook](architecture/ORG_SHARING_SETUP.md) | **NEW** - Hub/member setup, key ceremony, sensitivity policy, rotation, validation checklist | Admins/Self-hosters |
+| [Agent Memory Unification](architecture/AGENT_MEMORY_UNIFICATION_PLAN.md) | **NEW** - Research-grounded plan: unified turn-time memory retrieval (comms + GraphRAG + episodes + turn facts) for chat/IM surfaces, tool equality, consolidation | Devs/Architects |
 
 ### 🎨 Canvas & Office Automation
 
