@@ -2208,8 +2208,8 @@ class TestPipelineWebhookHelpers:
             async def __aexit__(self, *a):
                 return False
         with patch("integrations.atom_communication_ingestion_pipeline.httpx.AsyncClient", _AC), \
-             patch("core.token_storage.token_storage") as ts:
-            ts.get_token = Mock(return_value={"access_token": "tok"})
+             patch("integrations.outlook_service.outlook_service._get_access_token",
+                   new_callable=AsyncMock, return_value="tok"):
             msgs = asyncio.run(pipe._fetch_outlook_messages(None))
         assert len(msgs) == 1
         assert "cat1" in msgs[0]["tags"]
@@ -2250,23 +2250,27 @@ class TestPipelineWebhookHelpers:
             async def __aexit__(self, *a):
                 return False
         with patch("integrations.atom_communication_ingestion_pipeline.httpx.AsyncClient", _AC), \
-             patch("core.token_storage.token_storage") as ts, \
+             patch("integrations.outlook_service.outlook_service._get_access_token",
+                   new_callable=AsyncMock, return_value="tok"), \
              patch("asyncio.sleep", AsyncMock()):
-            ts.get_token = Mock(return_value={"access_token": "tok"})
             msgs = asyncio.run(pipe._fetch_outlook_messages(None))
         assert len(msgs) == 1
         assert msgs[0]["status"] == "unread"
 
     def test_fetch_outlook_no_token(self):
         pipe = self._pipeline()
-        with patch("core.token_storage.token_storage") as ts:
-            ts.get_token = Mock(return_value=None)
+        with patch("integrations.outlook_service.outlook_service._get_access_token",
+                   new_callable=AsyncMock, return_value=None):
             assert asyncio.run(pipe._fetch_outlook_messages(None)) == []
 
     def test_fetch_outlook_import_error(self):
         pipe = self._pipeline()
-        with patch("core.token_storage.token_storage") as ts:
-            ts.get_token = Mock(side_effect=ImportError("no token storage"))
+        real_import = builtins.__import__
+        def _block(name, *a, **k):
+            if name == "integrations.outlook_service":
+                raise ImportError("no outlook service")
+            return real_import(name, *a, **k)
+        with patch("builtins.__import__", side_effect=_block):
             assert asyncio.run(pipe._fetch_outlook_messages(None)) == []
 
     def test_get_ingestion_stats_error(self):

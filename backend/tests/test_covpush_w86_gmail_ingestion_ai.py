@@ -1215,8 +1215,8 @@ async def test_fetch_gmail_messages(pipe, monkeypatch):
 
 
 async def test_fetch_outlook_messages(pipe, monkeypatch):
-    with patch('core.token_storage.token_storage') as ts:
-        ts.get_token.return_value = {'access_token': 'tok'}
+    with patch('integrations.outlook_service.outlook_service._get_access_token',
+               new_callable=AsyncMock, return_value='tok'):
         msg = {'id': 'o1', 'receivedDateTime': '2026-01-01T10:00:00',
                'from': {'emailAddress': {'address': 'a@b.c', 'name': 'A'}},
                'toRecipients': [{'emailAddress': {'address': 'x@y.z'}}],

@@ -113,6 +113,7 @@ class IngestionConfig:
     embed_content: bool
     retention_days: int
     vector_dim: int = 768
+    polling_interval_seconds: int = 30
 
 class LanceDBMemoryManager:
     """LanceDB-based memory manager for ATOM"""
@@ -495,6 +496,47 @@ class CommunicationIngestionPipeline:
     def is_webhook_enabled(self, app_type: str) -> bool:
         """Check if webhook ingestion is enabled for an app"""
         return self.webhook_enabled.get(app_type, False)
+
+    def start_outlook_poller(self, polling_interval_seconds: int = 60) -> bool:
+        """
+        Start the Outlook real-time polling stream (idempotent).
+
+        Complements the Graph push webhook (SaaS/Redis/tenant path) with a
+        NAT-friendly poller that works on Personal Edition without Redis or a
+        public notification URL. Reads the token from IntegrationToken (the
+        OAuth callback's store) via outlook_service, not the deprecated
+        file-based token_storage.
+
+        Args:
+            polling_interval_seconds: How often to poll Microsoft Graph for new mail.
+
+        Returns:
+            True if the stream is running (or was already running).
+        """
+        try:
+            if "outlook" in self.active_streams:
+                logger.info("Outlook poller already running")
+                return True
+
+            config = IngestionConfig(
+                app_type=CommunicationAppType.OUTLOOK,
+                enabled=True,
+                real_time=True,
+                batch_size=200,
+                ingest_attachments=True,
+                embed_content=True,
+                retention_days=365,
+                vector_dim=768,
+                polling_interval_seconds=max(30, int(polling_interval_seconds)),
+            )
+            self.configure_app(CommunicationAppType.OUTLOOK, config)
+            started = self.start_real_time_stream(CommunicationAppType.OUTLOOK.value)
+            if started:
+                logger.info(f"Started Outlook poller (interval={config.polling_interval_seconds}s)")
+            return started
+        except Exception as e:
+            logger.error(f"Error starting Outlook poller: {e}")
+            return False
 
     async def _handle_webhook_message(self, message_data: Dict[str, Any]):
         """
@@ -1433,14 +1475,17 @@ class CommunicationIngestionPipeline:
         Supports incremental fetching and rate limiting.
         """
         try:
-            from core.token_storage import token_storage
+            # Token source: DB IntegrationToken (encrypted, OAuth-callback
+            # populated) via outlook_service. The legacy file-based
+            # token_storage is NOT populated by the current OAuth flow, so it
+            # always returned None here and the poller never fetched mail.
+            from integrations.outlook_service import outlook_service
 
-            token_data = token_storage.get_token("microsoft")
-            if not token_data:
-                logger.warning("No Microsoft OAuth token found for Outlook polling")
+            access_token = await outlook_service._get_access_token(user_id=None)
+            if not access_token:
+                logger.warning("No Microsoft OAuth token found for Outlook polling (IntegrationToken)")
                 return []
 
-            access_token = token_data.get("access_token")
             headers = {"Authorization": f"Bearer {access_token}"}
 
             all_messages = []

@@ -259,6 +259,21 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
             logger.error(f"Failed to populate IntegrationToken record: {it_err}", exc_info=True)
 
         db.commit()
+
+        # Start the Outlook poller on connect (Personal Edition / NAT-friendly
+        # complement to the Graph push webhook). Uses the module-level pipeline
+        # singleton so the polling task survives this request.
+        if provider == "microsoft":
+            try:
+                from integrations.atom_communication_ingestion_pipeline import (
+                    ingestion_pipeline,
+                )
+
+                if ingestion_pipeline.start_outlook_poller():
+                    logger.info("Outlook polling stream started after Microsoft OAuth connect")
+            except Exception as poller_err:
+                logger.error(f"Failed to start Outlook poller after OAuth connect: {poller_err}")
+
         return token_data
         
     except Exception as e:

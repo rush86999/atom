@@ -598,6 +598,32 @@ async def lifespan(app: FastAPI):
             logger.info("✓ Outlook Automation Loop started")
         except Exception as e:
             logger.error(f"Failed to start Outlook Automation Loop: {e}")
+
+        # Start Outlook Memory Poller (recover after restart when Outlook is
+        # already connected). Reads tokens from IntegrationToken; skips when no
+        # active outlook/microsoft token exists or the stream is already up.
+        try:
+            from core.database import get_db_session
+            from core.models import IntegrationToken
+
+            with get_db_session() as db:
+                has_outlook = (
+                    db.query(IntegrationToken)
+                    .filter(
+                        IntegrationToken.provider.in_(["outlook", "microsoft"]),
+                        IntegrationToken.status == "active",
+                    )
+                    .first()
+                )
+            if has_outlook:
+                from integrations.atom_communication_ingestion_pipeline import (
+                    ingestion_pipeline,
+                )
+
+                if ingestion_pipeline.start_outlook_poller():
+                    logger.info("✓ Outlook memory poller recovered (connected account found)")
+        except Exception as e:
+            logger.error(f"Failed to start Outlook memory poller: {e}")
     elif is_test_mode:
         logger.info("⊘ Skipping Schedulers and Workers in test mode")
 
