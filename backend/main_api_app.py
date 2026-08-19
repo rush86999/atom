@@ -675,6 +675,18 @@ async def lifespan(app: FastAPI):
                 _spawn_background_task(telegram_poller.run())
                 logger.info("✓ Telegram Polling Worker running (webhook mode disabled)")
 
+            # 8c. Warm the memory assembler (P0): preload embedding models and
+            # LanceDB tables so the first turn-time retrieval hits warm caches
+            # instead of the per-leg timeout.
+            if os.getenv("MEMORY_CONTEXT_ASSEMBLY", "true").lower() in ("1", "true", "yes", "on"):
+                from core.memory_context_assembler import warm as warm_memory_assembler
+
+                async def _warm_assembler():
+                    await warm_memory_assembler()
+                    logger.info("✓ Memory assembler warmed")
+
+                _spawn_background_task(_warm_assembler())
+
             # 9. Start Webhook Renewal Worker (NEW)
             from core.database import SessionLocal
             from core.scheduled_webhook_renewal import ScheduledWebhookRenewalService

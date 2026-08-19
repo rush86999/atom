@@ -1220,18 +1220,43 @@ class GraphRAGEngine:
                         logger.debug(f"pgvector query failed (hybrid): {pg_err}")
 
                 # -- Keyword leg (always runs) --
+                # Match on extracted search terms, not the raw query: a
+                # natural-language question ("What did ACME inquire about?")
+                # is never a substring of a node name, so the old full-query
+                # LIKE returned ~0 entities for every conversational lookup.
                 like_op = "ILIKE" if is_postgres else "LIKE"
-                keyword_sql = text(f"""
-                    SELECT id, name, type, description
-                    FROM graph_nodes n
-                    WHERE workspace_id = :ws_id
-                    AND name {like_op} :query
-                    {node_fresh_anchor}
-                    LIMIT 5
-                """)
-                keyword_nodes = session.execute(
-                    keyword_sql, {"ws_id": ws_id, "query": f"%{query}%"}
-                ).fetchall()
+                _stop = {
+                    "what", "which", "who", "whom", "whose", "when", "where",
+                    "why", "how", "did", "does", "do", "is", "are", "was",
+                    "were", "the", "a", "an", "of", "for", "about", "on",
+                    "in", "to", "from", "with", "and", "or", "their", "they",
+                    "our", "we", "you", "me", "tell", "give", "show", "find",
+                    "any", "all", "that", "this", "it",
+                }
+                terms = [
+                    w for w in query.replace("?", " ").replace(",", " ").split()
+                    if len(w) > 2 and w.lower() not in _stop
+                ][:8]
+                if terms:
+                    term_clauses = " OR ".join(
+                        f"(name {like_op} :term_{i} OR description {like_op} :term_{i})"
+                        for i in range(len(terms))
+                    )
+                    keyword_sql = text(f"""
+                        SELECT id, name, type, description
+                        FROM graph_nodes n
+                        WHERE workspace_id = :ws_id
+                        AND ({term_clauses})
+                        {node_fresh_anchor}
+                        LIMIT 5
+                    """)
+                    keyword_params = {
+                        "ws_id": ws_id,
+                        **{f"term_{i}": f"%{t}%" for i, t in enumerate(terms)},
+                    }
+                    keyword_nodes = session.execute(keyword_sql, keyword_params).fetchall()
+                else:
+                    keyword_nodes = []
                 logger.info(f"Hybrid search: keyword leg found {len(keyword_nodes)} nodes")
 
                 # -- Union & deduplicate by ID --
@@ -1509,8 +1534,37 @@ class GraphRAGEngine:
         id_to_name = {e['id']: e['name'] for e in entities}
         
         context_lines = [f"Found {len(entities)} relevant entities:"]
+
+        # Business properties (price, stock, sku, status…) live on the node's
+        # `properties` JSON, which the search legs don't select. Re-hydrate
+        # them so the injected context can answer "what's the price / stock"
+        # questions — the most common employee lookup — without a second query.
+        prop_map: Dict[str, Dict[str, Any]] = {}
+        try:
+            ent_ids = [e["id"] for e in entities[:15] if e.get("id")]
+            if ent_ids:
+                with get_db_session() as session:
+                    rows = session.query(GraphNode).filter(
+                        GraphNode.id.in_(ent_ids)
+                    ).all()
+                    prop_map = {r.id: (r.properties or {}) for r in rows}
+        except Exception as prop_err:
+            logger.debug(f"property hydration failed: {prop_err}")
+
+        _PROP_EXCLUDE = {
+            "id", "source", "created_at", "updated_at", "embedding",
+            "sensitivity", "doc_id", "workspace_id", "tenant_id",
+        }
         for e in entities[:15]:
-            context_lines.append(f"- {e['name']} ({e['type']}): {e.get('description', '')}")
+            line = f"- {e['name']} ({e['type']}): {e.get('description', '')}"
+            props = prop_map.get(e.get("id")) or {}
+            salient = [
+                f"{k}={v}" for k, v in props.items()
+                if k not in _PROP_EXCLUDE and v not in (None, "", [], {})
+            ][:12]
+            if salient:
+                line += " [" + "; ".join(str(s) for s in salient) + "]"
+            context_lines.append(line)
             
         context_lines.append("\nRelationships:")
         for r in rels[:25]:

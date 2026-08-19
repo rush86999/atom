@@ -45,6 +45,7 @@ AGENTS = {
 from core.workflow_endpoints import load_workflows
 from ai.automation_engine import AutomationEngine
 from ai.workflow_scheduler import workflow_scheduler
+import asyncio
 import uuid
 
 # BUG-122/123: Missing imports for automation agent execution and finance/CRM handlers.
@@ -482,6 +483,15 @@ class ChatOrchestrator:
                 response["failure_reason"] = budget_failure.get("failure_reason")
                 response["recovery_url"] = "/settings/billing"
 
+            # Durable fact extraction on the chat path (P0, memory unification
+            # plan): fire-and-forget, same extractor the meta agent uses. Chat
+            # must not be a memory black hole; a slow write never blocks the
+            # user-facing turn.
+            if not budget_failure and main_message:
+                self._dispatch_turn_fact_extraction(
+                    message, main_message, session_id, user_id
+                )
+
             # Update session with new context
             self._update_session(session, message, response, intent_analysis)
 
@@ -500,6 +510,31 @@ class ChatOrchestrator:
             except Exception:
                 pass  # Don't let the persistence attempt mask the original error
             return self._generate_error_response("I encountered an error processing your message. Please try again.", session_id)
+
+    def _dispatch_turn_fact_extraction(
+        self, user_request: str, final_answer: str, session_id: Optional[str], user_id: Optional[str]
+    ) -> None:
+        """Fire-and-forget durable-fact extraction for a completed chat turn."""
+        try:
+            from core.turn_fact_extractor import get_turn_fact_extractor
+            from core.turn_fact_extractor import TURN_FACT_EXTRACTION_ENABLED
+
+            if not TURN_FACT_EXTRACTION_ENABLED:
+                return
+            extractor = get_turn_fact_extractor(
+                workspace_id="default", tenant_id=self.tenant_id
+            )
+            task = asyncio.create_task(
+                extractor.extract_from_turn(
+                    user_request=user_request,
+                    final_answer=final_answer,
+                    session_id=session_id,
+                    user_id=user_id,
+                )
+            )
+            task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
+        except Exception as e:
+            logger.debug(f"turn-fact extraction dispatch failed: {e}")
 
     async def _get_qwen_response(
         self,
@@ -541,6 +576,26 @@ class ChatOrchestrator:
 When users ask to fetch live data (like CRM leads), acknowledge that the integration needs to be connected first and guide them on setup. Be helpful, specific, and actionable. Keep responses concise (2-4 sentences) unless detail is needed."""
                 }
             ]
+
+            # Unified turn-time memory retrieval (P0, memory unification plan):
+            # comms memory + GraphRAG + episodes + turn facts, bounded block.
+            # Fault-isolated and flag-gated — never blocks or breaks the turn.
+            try:
+                from core.memory_context_assembler import (
+                    assemble_memory_context,
+                    assembly_enabled,
+                )
+
+                if assembly_enabled():
+                    memory_block = await assemble_memory_context(
+                        message=message,
+                        workspace_id="default",
+                        tenant_id=self.tenant_id,
+                    )
+                    if memory_block:
+                        messages.append({"role": "system", "content": memory_block})
+            except Exception as e:
+                logger.debug(f"memory context assembly skipped: {e}")
 
             # Add conversation history
             for h in history:
