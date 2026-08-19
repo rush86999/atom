@@ -14,10 +14,12 @@ import { useRouter } from "next/router";
 import { WakeWordProvider } from "../contexts/WakeWordContext";
 import { useCliHandler } from "../hooks/useCliHandler";
 import { getCurrentUserId } from "@/lib/identity";
+import { checkApiVersion } from "@/lib/apiVersion";
 
 const SessionSync: React.FC = () => {
   const { data: session } = useSession();
 
+  useEffect(() => { checkApiVersion(); }, []);
   useEffect(() => {
     if (session && (session as any).backendToken) {
       const token = (session as any).backendToken;

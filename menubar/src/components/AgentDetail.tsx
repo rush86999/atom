@@ -373,7 +373,8 @@ export default function AgentDetail({
           <div style={{ marginTop: "16px", textAlign: "center" }}>
             <button
               onClick={() => {
-                const url = `http://localhost:8000/agents/${agentId}/episodes`;
+                const base = (localStorage.getItem("atom_server_url") || "").replace(/\/$/, "");
+                const url = `${base}/agents/${agentId}/episodes`;
                 window.open(url, "_blank");
               }}
               style={{

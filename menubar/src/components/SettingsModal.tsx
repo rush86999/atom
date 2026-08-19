@@ -21,7 +21,7 @@ interface Settings {
 
 export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsModalProps) {
   const [settings, setSettings] = useState<Settings>({
-    serverUrl: "http://localhost:8000",
+    serverUrl: typeof window !== "undefined" ? (localStorage.getItem("atom_server_url") || "") : "",
     autoLaunch: false,
     startMinimized: false,
     notificationsEnabled: true,

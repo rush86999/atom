@@ -692,7 +692,7 @@ async def lifespan(app: FastAPI):
             # Mutually exclusive with webhook mode (worker deletes any
             # registered webhook on startup).
             if (
-                os.getenv("TELEGRAM_POLLING_ENABLED", "false").lower() == "true"
+                _exp("telegram_polling")
                 and os.getenv("TELEGRAM_BOT_TOKEN")
             ):
                 from workers.telegram_polling_worker import TelegramPollingWorker
@@ -704,7 +704,8 @@ async def lifespan(app: FastAPI):
             # 8c. Warm the memory assembler (P0): preload embedding models and
             # LanceDB tables so the first turn-time retrieval hits warm caches
             # instead of the per-leg timeout.
-            if os.getenv("MEMORY_CONTEXT_ASSEMBLY", "true").lower() in ("1", "true", "yes", "on"):
+            from core.experiments import is_enabled as _exp
+            if _exp("memory_context_assembly"):
                 from core.memory_context_assembler import warm as warm_memory_assembler
 
                 async def _warm_assembler():
@@ -716,7 +717,7 @@ async def lifespan(app: FastAPI):
             # 8d. Memory consolidation worker (P2.1): nightly rule-based
             # consolidation — contradiction sweeps + supersede — always off
             # the user-facing turn (sleep-time principle).
-            if os.getenv("MEMORY_CONSOLIDATION_ENABLED", "true").lower() in ("1", "true", "yes", "on"):
+            if _exp("memory_consolidation"):
                 from workers.memory_consolidation_worker import MemoryConsolidationWorker
 
                 interval_h = float(os.getenv("MEMORY_CONSOLIDATION_INTERVAL_HOURS", "24"))
@@ -906,6 +907,18 @@ try:
             "status": "alive",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "debug_id": "v8.0.0",
+        }
+
+    # API compatibility pin (berd gap #2): clients record the API version
+    # they were built against; a mismatch warns instead of failing subtly.
+    ATOM_API_VERSION = 1
+
+    @app.get("/api/meta/version", tags=["System"])
+    async def api_version():
+        return {
+            "api_version": ATOM_API_VERSION,
+            "product": "atom",
+            "commit": os.getenv("GIT_SHA", "dev"),
         }
 
     @app.get("/", tags=["System"])
@@ -2703,6 +2716,16 @@ try:
         app.include_router(ws_router, tags=["WebSockets"])
     except (ImportError, TypeError):
         logger.warning("WebSocket routes not found, skipping.")
+
+    # 4b. ACP bridge — standard Agent Client Protocol v1 endpoint so any
+    # ACP-compatible client (Zed, Berd-style shells) can drive Atom agents.
+    try:
+        from api.acp_routes import router as acp_router
+
+        app.include_router(acp_router, tags=["ACP"])
+        logger.info("✓ ACP bridge mounted at /acp/ws")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"ACP bridge not mounted: {e}")
 
     # 6. MCP Routes (Web Search & Web Access for Agents)
     try:

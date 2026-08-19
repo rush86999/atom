@@ -59,7 +59,9 @@ RERANK_MIN_LINES = 3                 # nothing to decide below this
 
 
 def assembly_enabled() -> bool:
-    return os.getenv(ENV_FLAG, "true").lower() in ("1", "true", "yes", "on")
+    from core.experiments import is_enabled
+
+    return is_enabled("memory_context_assembly")
 
 
 def rerank_enabled() -> bool:

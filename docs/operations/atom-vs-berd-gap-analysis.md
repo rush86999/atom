@@ -52,3 +52,17 @@ Berd's enterprise story isn't a fork; it's **seams** — defined extension point
 3. **Experiment registry** (#5) — cheap, do before the flag count grows further.
 4. **Edition seams** (#6) — before the first paid client-hosted deployment.
 5. **Desktop packaging** (#3) + **runtime pinning** (#2) — only when/if the desktop companion becomes a real surface.
+
+
+---
+
+## Closure status (2026-08-19, "close all gaps" pass)
+
+- ✅ **#1 ACP endpoint**: `api/acp_routes.py` — ACP v1 baseline over authenticated WebSocket (`/acp/ws?token=<jwt>`): initialize (capabilities incl. loadSession), session/new, session/load, session/prompt (streams spec-shaped `agent_message_chunk` updates, then `stopReason`), session/cancel. **Live-verified with a real ACP client conversation** (initialize → new → prompt → memory-backed answer → end_turn). Later slices (tool_call/plan updates, request_permission) are additive on the same wire shapes.
+- ✅ **#2 API version pin**: `/api/meta/version` + frontend `lib/apiVersion.ts` checks at startup and warns loudly on mismatch (build pins via NEXT_PUBLIC_API_VERSION).
+- ✅ **#3 desktop cleanup (implementable part)**: menubar's hardcoded `localhost:8000` URLs replaced with the configured server URL (localStorage `atom_server_url`); packaging/signing requirements documented in menubar/README (needs Apple Developer ID — certs are the blocker, not code).
+- ✅ **#4 frontend hygiene**: duplicate next configs deleted; `scripts/typecheck-changed.sh` gate (fails only on type errors in changed files); Playwright smoke suite (`e2e/smoke.spec.ts`, 10 employee-critical flows, auto-skips without backend/credentials) + `npm run e2e` / `e2e:install` / `typecheck:changed`.
+- ✅ **#5 experiment registry**: `core/experiments.py` — declared defaults + dev/prod semantics + env override; adopted by the memory-assembly, conversations-leg, rerank, consolidation, and telegram-polling call sites; `registry_summary()` for settings UI. Test caught (and the resolution fixed for) NODE_ENV/ENVIRONMENT precedence.
+- ✅ **#6 edition seams**: `core/edition.py` — `distribution.json` overrides (branding, provider_policy, agent_catalog, gateway_keys, feature_flags) with unknown-seam rejection and community defaults when absent; the paid edition is now a distribution file, not a fork.
+
+Tests: 11 new (ACP handshake/prompt/auth-reject, registry defaults/override/unknown, edition seams ×4) + 43 across affected suites. All pushed.

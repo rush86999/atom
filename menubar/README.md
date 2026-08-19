@@ -132,3 +132,12 @@ Real-time agent responses and canvas presentations will be delivered via WebSock
 ## License
 
 MIT
+
+## Packaging (post-pilot)
+
+The companion is dev-quality. To ship a real desktop distribution:
+`pnpm tauri build` produces the bundle; signing/notarization require an
+Apple Developer ID (set `APPLE_SIGNING_IDENTITY` + notarytool credentials)
+and the Tauri updater (`tauri.conf.json > plugins > updater`) — none of
+which are configured here. The server URL is read from Settings (stored in
+localStorage `atom_server_url`); nothing is hardcoded.

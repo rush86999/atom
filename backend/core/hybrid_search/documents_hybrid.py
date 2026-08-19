@@ -90,7 +90,8 @@ class DocumentsHybridSearch:
         # record IS the source of truth — nothing is duplicated into documents.
         # Skipped when the caller filtered to a specific document source.
         conv_results: List[Dict[str, Any]] = []
-        if not source and os.getenv("MEMORY_CONVERSATIONS_LEG", "true").lower() in ("1", "true", "yes", "on"):
+        from core.experiments import is_enabled as _exp_enabled
+        if not source and _exp_enabled("memory_conversations_leg"):
             conv_results = await self._conversations_leg(query, max(2, limit // 3))
             stats["conversation_hits"] = len(conv_results)
             label = f"{label}+conversations" if (results or conv_results) and label != "no_results" else (label if label != "no_results" else "conversations_only")
