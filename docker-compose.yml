@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 services:
   # PostgreSQL Database
@@ -51,6 +51,9 @@ services:
     build:
       context: ./frontend-nextjs
       dockerfile: Dockerfile.production
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8001
+        - NEXT_PUBLIC_ALLOW_LOOPBACK=1
     ports:
       - "3000:3000"
     environment:
@@ -89,6 +92,7 @@ services:
     restart: unless-stopped
     networks:
       - atom_network
+
 
 volumes:
   postgres_data:

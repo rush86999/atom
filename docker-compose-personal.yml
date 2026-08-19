@@ -24,6 +24,31 @@
 # Use `docker-compose.yml` instead.
 # ==============================================================================
 
+# Atom Personal Edition — Docker Compose
+# ==============================================================================
+# Single-user, SQLite, zero-external-services stack. This is the simplest way
+# to run the full Atom platform (all 80+ routers via main_api_app:app) without
+# standing up PostgreSQL, Redis, or the piece-engine.
+#
+# Quick Start:
+#   1. cp .env.personal .env
+#   2. Edit .env — set BYOK_ENCRYPTION_KEY, JWT_SECRET_KEY (run:
+#      openssl rand -base64 32) and at least one LLM provider key
+#      (or ATOM_LOCAL_ONLY=true for Ollama).
+#   3. docker compose -f docker-compose-personal.yml up -d --build
+#   4. Frontend:  http://localhost:3001   |   Backend: http://localhost:8001
+#      Swagger:   http://localhost:8001/docs
+#
+# What you get:
+#   - Backend running the FULL app (main_api_app:app), port 8001
+#   - Next.js frontend, port 3001
+#   - SQLite database (./data/atom.db) + local LanceDB (./data/lancedb)
+#   - No Postgres / Redis / piece-engine / browser-node required
+#
+# Want the full production stack (Postgres + Redis + piece-engine + browser)?
+# Use `docker-compose.yml` instead.
+# ==============================================================================
+
 services:
   # ---------------------------------------------------------------------------
   # Backend — the full Atom app (main_api_app:app)
@@ -113,6 +138,7 @@ services:
       dockerfile: Dockerfile
       args:
         - NEXT_PUBLIC_API_URL=http://localhost:8001
+        - NEXT_PUBLIC_ALLOW_LOOPBACK=1
     container_name: atom-personal-frontend
     ports:
       - "3001:3000"
@@ -142,6 +168,7 @@ services:
   #   restart: unless-stopped
   #   networks:
   #     - atom-personal
+
 
 networks:
   atom-personal:

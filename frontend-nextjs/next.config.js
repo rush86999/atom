@@ -25,7 +25,10 @@ if (!nextPublicApiUrl) {
 if (!nextPublicApiUrl && isDev) {
   nextPublicApiUrl = "http://localhost:8001";
 }
-if (!nextPublicApiUrl || (/localhost|127\.0\.0\.1/.test(nextPublicApiUrl) && !isDev)) {
+// Explicit opt-in for same-machine deployments (docker compose on one
+// host, where the browser genuinely talks to localhost). Never silent.
+const allowLoopback = process.env.NEXT_PUBLIC_ALLOW_LOOPBACK === "1";
+if (!nextPublicApiUrl || (/localhost|127\.0\.0\.1/.test(nextPublicApiUrl) && !isDev && !allowLoopback)) {
   throw new Error(
     "[next.config.js] NEXT_PUBLIC_API_URL must be set to the public API origin " +
     "for non-dev builds (got: " + (nextPublicApiUrl || 'unset') + "). " +
