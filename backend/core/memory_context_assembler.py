@@ -6,6 +6,8 @@ moment an employee talks to an agent:
 
   - Communication memory (emails/Slack/WhatsApp/Teams…) — LanceDB hybrid
     (vector + FTS) via CommunicationIngestionPipeline
+  - Documents + conversations — DocumentsHybridSearch (BM25 + vector RRF
+    fused, conversations leg bridged to the comms store; bridge, don't copy)
   - GraphRAG context (ontology identities + relationships) — graphrag_engine
   - Learning episodes — EpisodeRetrievalService.retrieve_contextual
   - Durable turn facts — prefetch_relevant_facts (Tier-2 recall)
@@ -39,7 +41,7 @@ PER_LEG_TIMEOUT_SECONDS = 1.5  # steady-state is 10–50ms/leg; first call pays
                                 # embedding-model loads, so allow a cold start.
 TOTAL_CHAR_BUDGET = 10_000          # ≈ 2.5k tokens across all blocks
 GRAPH_CHAR_CAP = 3_200
-COMMS_CHAR_CAP = 1_600
+KNOWLEDGE_CHAR_CAP = 2_000
 EPISODES_CHAR_CAP = 1_200
 FACTS_CHAR_CAP = 1_600
 SNIPPET_CHAR_CAP = 220
@@ -66,29 +68,33 @@ async def _graph_leg(message: str, workspace_id: str, tenant_id: str) -> str:
     return context
 
 
-async def _comms_leg(message: str, workspace_id: str) -> List[str]:
-    """Communication-memory hybrid search (runs in a thread: sync LanceDB)."""
-    pipeline = _get_comms_pipeline(workspace_id)
-    if pipeline is None:
+async def _knowledge_leg(message: str, workspace_id: str) -> List[str]:
+    """Unified hybrid knowledge leg (P1.3) — documents + conversations fused
+    by RRF via DocumentsHybridSearch (BM25 FTS5/tsvector + LanceDB vector,
+    plus the conversations leg bridged to the comms store — bridge, don't
+    copy: no comms record is duplicated into documents). Replaces the
+    standalone comms-only leg: the hybrid path covers the comms store itself.
+    Runs async I/O directly; per-leg timeout applies at the call site."""
+    try:
+        from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+        result = await DocumentsHybridSearch().search(
+            query=message[:500], limit=6
+        )
+    except Exception as e:
+        logger.debug(f"memory assembler: knowledge leg failed: {e}")
         return []
-    # search_communications lives on the pipeline's LanceDBMemoryManager.
-    manager = getattr(pipeline, "memory_manager", pipeline)
-    records = await asyncio.to_thread(
-        manager.search_communications, message[:500], 5
-    )
     lines: List[str] = []
-    for rec in records or []:
-        content = str(
-            rec.get("content") or rec.get("text") or rec.get("snippet") or ""
-        ).strip()
-        if not content:
+    for hit in (result or {}).get("results", []) or []:
+        source = str(hit.get("source") or "doc")
+        title = str(hit.get("title") or "").strip()
+        preview = str(hit.get("preview") or "").strip().replace("\n", " ")
+        if not preview:
             continue
-        app = str(rec.get("app_type") or rec.get("app") or "comm")
-        ts = str(rec.get("timestamp") or "")[:10]
-        if len(content) > SNIPPET_CHAR_CAP:
-            content = content[:SNIPPET_CHAR_CAP] + "…"
-        prefix = f"[{app}{(' ' + ts) if ts else ''}] "
-        lines.append(prefix + content.replace("\n", " "))
+        if len(preview) > SNIPPET_CHAR_CAP:
+            preview = preview[:SNIPPET_CHAR_CAP] + "…"
+        label = title if title else source
+        lines.append(f"[{source}: {label}] {preview}")
     return lines
 
 
@@ -166,27 +172,6 @@ async def _integration_records_leg(message: str, workspace_id: str) -> List[str]
 
 
 # --------------------------------------------------------------------------- #
-# Pipeline singleton (embedding model is expensive to load per call)
-# --------------------------------------------------------------------------- #
-
-_COMMS_PIPELINES: Dict[str, Any] = {}
-
-
-def _get_comms_pipeline(workspace_id: str):
-    if workspace_id not in _COMMS_PIPELINES:
-        try:
-            from integrations.atom_communication_ingestion_pipeline import (
-                get_ingestion_pipeline,
-            )
-
-            _COMMS_PIPELINES[workspace_id] = get_ingestion_pipeline(workspace_id)
-        except Exception as e:
-            logger.warning(f"memory assembler: comms pipeline unavailable: {e}")
-            _COMMS_PIPELINES[workspace_id] = None
-    return _COMMS_PIPELINES[workspace_id]
-
-
-# --------------------------------------------------------------------------- #
 # Assembly
 # --------------------------------------------------------------------------- #
 
@@ -219,7 +204,7 @@ async def warm(workspace_id: str = "default", tenant_id: str = "default") -> Non
     costs. Call once at app startup; generous timeout because model loads
     can take seconds. Never raises."""
     legs = (
-        _comms_leg("warmup", workspace_id),
+        _knowledge_leg("warmup", workspace_id),
         _integration_records_leg("warmup", workspace_id),
         _facts_leg("warmup", workspace_id),
     )
@@ -241,9 +226,9 @@ async def assemble_memory_context(
     if not message or not message.strip():
         return None
     try:
-        graph_ctx, comms_lines, integration_lines, episode_lines, fact_lines = await asyncio.gather(
+        graph_ctx, knowledge_lines, integration_lines, episode_lines, fact_lines = await asyncio.gather(
             _safe(_graph_leg(message, workspace_id, tenant_id), "graph"),
-            _safe(_comms_leg(message, workspace_id), "comms"),
+            _safe(_knowledge_leg(message, workspace_id), "knowledge"),
             _safe(_integration_records_leg(message, workspace_id), "integration_records"),
             _safe(_episodes_leg(message, agent_id), "episodes"),
             _safe(_facts_leg(message, workspace_id), "facts"),
@@ -252,10 +237,10 @@ async def assemble_memory_context(
         blocks: List[str] = []
         if graph_ctx:
             blocks.append("KNOWLEDGE GRAPH CONTEXT:\n" + graph_ctx)
-        comms_block = _bounded_lines(comms_lines or [], COMMS_CHAR_CAP)
-        if comms_block:
-            blocks.append("RELATED CONVERSATIONS (email/chat memory):\n" + comms_block)
-        integration_block = _bounded_lines(integration_lines or [], COMMS_CHAR_CAP)
+        knowledge_block = _bounded_lines(knowledge_lines or [], KNOWLEDGE_CHAR_CAP)
+        if knowledge_block:
+            blocks.append("RELATED KNOWLEDGE & CONVERSATIONS (docs + email/chat):\n" + knowledge_block)
+        integration_block = _bounded_lines(integration_lines or [], KNOWLEDGE_CHAR_CAP)
         if integration_block:
             blocks.append("RELATED INTEGRATION RECORDS (CRM/shop/files ingested):\n" + integration_block)
         episodes_block = _bounded_lines(episode_lines or [], EPISODES_CHAR_CAP)

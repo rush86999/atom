@@ -49,8 +49,8 @@ async def test_all_legs_rendered(monkeypatch):
     async def fake_graph(message, ws, tn):
         return "ACME Fabrication — raised inquiry about press brake"
 
-    async def fake_comms(message, ws):
-        return ["[slack 2026-08-19] Sarah needs a quote on the press brake"]
+    async def fake_knowledge(message, ws):
+        return ["[communication: whatsapp — 2026-08-19] Sarah needs a quote on the press brake"]
 
     async def fake_episodes(message, agent):
         return ["Created quote Q-2024-0142 for ACME (outcome: success)"]
@@ -59,7 +59,7 @@ async def test_all_legs_rendered(monkeypatch):
         return ["ACME Fab budget is around $80K"]
 
     with patch.object(mca, "_graph_leg", fake_graph), \
-         patch.object(mca, "_comms_leg", fake_comms), \
+         patch.object(mca, "_knowledge_leg", fake_knowledge), \
          patch.object(mca, "_integration_records_leg", AsyncMock(return_value=[])), \
          patch.object(mca, "_episodes_leg", fake_episodes), \
          patch.object(mca, "_facts_leg", fake_facts):
@@ -70,7 +70,7 @@ async def test_all_legs_rendered(monkeypatch):
     for expected in (
         "KNOWLEDGE GRAPH CONTEXT",
         "ACME Fabrication",
-        "RELATED CONVERSATIONS",
+        "RELATED KNOWLEDGE & CONVERSATIONS",
         "RELEVANT PAST EPISODES",
         "DURABLE FACTS",
         "$80K",
@@ -90,7 +90,7 @@ async def test_leg_failure_isolated(monkeypatch):
         return "graph context here"
 
     with patch.object(mca, "_graph_leg", fine_graph), \
-         patch.object(mca, "_comms_leg", boom), \
+         patch.object(mca, "_knowledge_leg", boom), \
          patch.object(mca, "_integration_records_leg", AsyncMock(return_value=[])), \
          patch.object(mca, "_episodes_leg", boom), \
          patch.object(mca, "_facts_leg", boom):
@@ -98,7 +98,7 @@ async def test_leg_failure_isolated(monkeypatch):
 
     assert block is not None
     assert "graph context here" in block
-    assert "RELATED CONVERSATIONS" not in block
+    assert "RELATED KNOWLEDGE & CONVERSATIONS" not in block
 
 
 @pytest.mark.asyncio
@@ -113,7 +113,7 @@ async def test_leg_timeout_isolated(monkeypatch):
         return ["a durable fact"]
 
     with patch.object(mca, "_graph_leg", slow_graph), \
-         patch.object(mca, "_comms_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_knowledge_leg", AsyncMock(return_value=[])), \
          patch.object(mca, "_integration_records_leg", AsyncMock(return_value=[])), \
          patch.object(mca, "_episodes_leg", AsyncMock(return_value=[])), \
          patch.object(mca, "_facts_leg", fast_facts):
@@ -130,7 +130,7 @@ async def test_leg_timeout_isolated(monkeypatch):
 async def test_no_memory_returns_none(monkeypatch):
     monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")
     with patch.object(mca, "_graph_leg", AsyncMock(return_value="")), \
-         patch.object(mca, "_comms_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_knowledge_leg", AsyncMock(return_value=[])), \
          patch.object(mca, "_integration_records_leg", AsyncMock(return_value=[])), \
          patch.object(mca, "_episodes_leg", AsyncMock(return_value=[])), \
          patch.object(mca, "_facts_leg", AsyncMock(return_value=[])):
@@ -150,7 +150,7 @@ async def test_total_budget_enforced(monkeypatch):
         return "G" * 50_000
 
     with patch.object(mca, "_graph_leg", huge_graph), \
-         patch.object(mca, "_comms_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_knowledge_leg", AsyncMock(return_value=[])), \
          patch.object(mca, "_integration_records_leg", AsyncMock(return_value=[])), \
          patch.object(mca, "_episodes_leg", AsyncMock(return_value=[])), \
          patch.object(mca, "_facts_leg", AsyncMock(return_value=[])):
@@ -198,7 +198,7 @@ async def test_integration_records_leg_rendered(monkeypatch):
         return ["[zoho_crm] ACME Fabrication — raised inquiry about press brake"]
 
     with patch.object(mca, "_graph_leg", AsyncMock(return_value="")), \
-         patch.object(mca, "_comms_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_knowledge_leg", AsyncMock(return_value=[])), \
          patch.object(mca, "_integration_records_leg", fake_integration), \
          patch.object(mca, "_episodes_leg", AsyncMock(return_value=[])), \
          patch.object(mca, "_facts_leg", AsyncMock(return_value=[])):
@@ -207,3 +207,65 @@ async def test_integration_records_leg_rendered(monkeypatch):
     assert block is not None
     assert "RELATED INTEGRATION RECORDS" in block
     assert "ACME Fabrication" in block
+
+
+# --------------------------------------------------------------------------- #
+# Knowledge leg (P1.3) — DocumentsHybridSearch bridge, don't copy
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.asyncio
+async def test_knowledge_leg_renders_documents_and_conversations(monkeypatch):
+    """Document hits (source=ingested/knowledge) and conversation hits
+    (source=communication) both render as first-class lines."""
+    from core.hybrid_search import documents_hybrid
+
+    async def fake_search(self, query, limit=10, **kw):
+        return {
+            "success": True,
+            "query": query,
+            "hybrid": "bm25_vector_rrf+conversations",
+            "stats": {},
+            "results": [
+                {
+                    "source": "ingested",
+                    "id": "doc1",
+                    "title": "ACME press brake spec.pdf",
+                    "preview": "ACME Fabrication — 50T press brake, 84,500",
+                    "bridged": True,
+                },
+                {
+                    "source": "communication",
+                    "id": "c1",
+                    "title": "whatsapp — 2026-08-19",
+                    "preview": "Sarah needs a quote on the press brake",
+                    "bridged": True,
+                },
+            ],
+        }
+
+    with patch.object(documents_hybrid.DocumentsHybridSearch, "search", fake_search):
+        lines = await mca._knowledge_leg("what did ACME ask about?", "default")
+
+    assert len(lines) == 2
+    assert lines[0].startswith("[ingested: ACME press brake spec.pdf]")
+    assert "84,500" in lines[0]
+    assert lines[1].startswith("[communication: whatsapp — 2026-08-19]")
+    assert "press brake" in lines[1]
+
+
+@pytest.mark.asyncio
+async def test_knowledge_leg_fault_isolated(monkeypatch):
+    """A failing or empty hybrid search yields [] — never raises."""
+    from core.hybrid_search import documents_hybrid
+
+    async def boom(self, query, limit=10, **kw):
+        raise RuntimeError("store down")
+
+    with patch.object(documents_hybrid.DocumentsHybridSearch, "search", boom):
+        assert await mca._knowledge_leg("anything", "default") == []
+
+    async def empty(self, query, limit=10, **kw):
+        return {"success": True, "query": query, "results": [], "hybrid": "no_results", "stats": {}}
+
+    with patch.object(documents_hybrid.DocumentsHybridSearch, "search", empty):
+        assert await mca._knowledge_leg("anything", "default") == []
