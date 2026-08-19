@@ -51,7 +51,15 @@ knowledge/
     <id>/                ← IngestedDocument or KnowledgeDocument
       meta.json          ← JSON metadata (source, file_name, title, …)
       content.lines      ← line-numbered content
+  conversations/         ← 2026-08: communication memory subtree (bridge, not copy)
+    <id>/                ← record in atom_communications (email/Slack/WhatsApp/Teams/Telegram)
+      content.lines      ← line-numbered message content (meta: app_type, timestamp)
 ```
+
+`grep` at a root prefix (`/`, `` or `knowledge`) scans **both** trees and
+returns line-cited matches; a specific prefix scopes the scan. Conversation
+records live in the comms memory store — the VFS reads them by id; nothing is
+duplicated into the documents tables.
 
 ## Actions (flag-gated, kill-switch parity)
 

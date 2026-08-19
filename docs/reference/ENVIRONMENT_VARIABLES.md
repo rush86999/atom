@@ -368,6 +368,7 @@ in [`backend/.env.example`](../../backend/.env.example) §10–§20.
 | Variable | Default | Required? | Description |
 |----------|---------|-----------|-------------|
 | `MEMORY_CONTEXT_ASSEMBLY` | `true` | — | Fuse comm memory + GraphRAG + episodes + turn facts + all ingested `integration_*` records into one bounded `RELEVANT MEMORY` block injected before the LLM on every chat/IM surface. Legs are fault-isolated with per-leg timeouts; a startup warm-up preloads embedding models. See [Agent Memory Unification Plan](../architecture/AGENT_MEMORY_UNIFICATION_PLAN.md). |
+| `MEMORY_CONVERSATIONS_LEG` | `true` | — | Include the communication memory store (email/Slack/WhatsApp/Teams/Telegram) as a leg in `documents.search` hybrid results (`source=communication`, bridged — never copied into documents). See [Agent Hybrid Search](../architecture/AGENT_HYBRID_SEARCH.md). |
 
 For group chats, disable the bot's privacy mode via BotFather `/setprivacy`,
 and remember bots can never DM a user first (each user must `/start` the bot).

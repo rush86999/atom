@@ -1,6 +1,6 @@
 # Agent Memory Unification Plan — Retrieval at the Moment of Service
 
-> **Status:** Adopted plan of record (2026-08-19). **P0 implemented & live-verified** (`7f55636ca`, 2026-08-19 — assembler, chat-path extraction, dropped-key renders incl. feedback, universal ingestion symmetry, GraphRAG keyword fix + property hydration); P1 next. Owner: brennan.ca pilot → upstream
+> **Status:** Adopted plan of record (2026-08-19). **P0 implemented & live-verified** (`7f55636ca`, 2026-08-19 — assembler, chat-path extraction, dropped-key renders incl. feedback, universal ingestion symmetry, GraphRAG keyword fix + property hydration); **P1.3 first slice + lexical leg done** (`74301215d`, 2026-08-19 — conversations leg in hybrid search, knowledge/conversations VFS subtree, FTS/BM25 leg live, ILIKE-fallback tokenization fix, poller persists IMs to the comms store). Remaining P1: meta-agent tool equality, episode unification, rerank, graph embeddings. Owner: brennan.ca pilot → upstream
 > **Sponsor goal:** the README's "AI agent employee" promise — a teammate that remembers customers, commitments, and past work and retrieves the right memory **at the moment it serves an employee**.
 > **Companion audit:** the gap inventory below comes from a full code trace (2026-08-19) of ingestion → retrieval paths. This plan maps research-proven patterns onto those exact gaps, ranked by pilot-visible value.
 > **Supersedes:** `AGENT_MEMORY_CONTEXT_ASSEMBLY.md` (folded in here).
