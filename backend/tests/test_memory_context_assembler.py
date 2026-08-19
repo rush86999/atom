@@ -269,3 +269,136 @@ async def test_knowledge_leg_fault_isolated(monkeypatch):
 
     with patch.object(documents_hybrid.DocumentsHybridSearch, "search", empty):
         assert await mca._knowledge_leg("anything", "default") == []
+
+
+# --------------------------------------------------------------------------- #
+# P1.4 rerank — budget-gated, cross-encoder → fastembed cosine → no-op
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.asyncio
+async def test_rerank_lines_flag_off_noop(monkeypatch):
+    monkeypatch.setenv("MEMORY_CONTEXT_RERANK", "false")
+    lines = ["a", "b", "c"]
+    assert await mca._rerank_lines("q", lines) == lines
+
+
+@pytest.mark.asyncio
+async def test_rerank_lines_below_min_noop(monkeypatch):
+    monkeypatch.setenv("MEMORY_CONTEXT_RERANK", "true")
+    assert await mca._rerank_lines("q", ["only one"]) == ["only one"]
+
+
+@pytest.mark.asyncio
+async def test_rerank_lines_fastembed_orders_by_similarity(monkeypatch):
+    """Cross-encoder unavailable (torch broken in this env) → fastembed
+    cosine re-orders so the most similar line comes first."""
+    monkeypatch.setenv("MEMORY_CONTEXT_RERANK", "true")
+
+    class FakeEmbedder:
+        async def generate_embeddings_batch(self, texts):
+            # query → [1,0]; "beta"/"gamma" → [0,1] (far); "alpha" → [1,0]
+            return [[1.0, 0.0], [0.0, 1.0], [0.0, 1.0], [1.0, 0.0]]
+
+    mca._RERANK_EMBEDDER = FakeEmbedder()
+    try:
+        out = await mca._rerank_lines(
+            "query", ["beta line", "gamma line", "alpha line"]
+        )
+    finally:
+        mca._RERANK_EMBEDDER = None
+    assert out == ["alpha line", "beta line", "gamma line"]
+
+
+@pytest.mark.asyncio
+async def test_rerank_lines_cross_encoder_unavailable_falls_back(monkeypatch):
+    """No cached cross-encoder (unprobed/unavailable, e.g. broken torch) →
+    fastembed cosine tier runs, not raise."""
+    monkeypatch.setenv("MEMORY_CONTEXT_RERANK", "true")
+    mca._RERANK_MODEL = False
+
+    class FakeEmbedder:
+        async def generate_embeddings_batch(self, texts):
+            return [[1.0, 0.0], [0.0, 1.0], [0.0, 1.0], [1.0, 0.0]]
+
+    try:
+        with patch.object(mca, "_RERANK_EMBEDDER", FakeEmbedder()):
+            out = await mca._rerank_lines(
+                "query", ["beta line", "gamma line", "alpha line"]
+            )
+    finally:
+        mca._RERANK_MODEL = None
+    assert out == ["alpha line", "beta line", "gamma line"]
+
+
+@pytest.mark.asyncio
+async def test_rerank_lines_cached_cross_encoder_used(monkeypatch):
+    """A probed cross-encoder is used (predict in thread) and fastembed is
+    never touched."""
+    monkeypatch.setenv("MEMORY_CONTEXT_RERANK", "true")
+
+    class FakeModel:
+        def predict(self, pairs):
+            # relevance order: index 1 first
+            return [0.2, 0.9, 0.5]
+
+    mca._RERANK_MODEL = FakeModel()
+    try:
+        with patch.object(mca, "_RERANK_EMBEDDER", None):
+            out = await mca._rerank_lines(
+                "query", ["third line", "first line", "second line"]
+            )
+    finally:
+        mca._RERANK_MODEL = None
+    assert out == ["first line", "second line", "third line"]
+
+
+@pytest.mark.asyncio
+async def test_rerank_phase_reorders_knowledge_block(monkeypatch):
+    """The assembly rerank phase re-orders candidates before the block cap
+    truncates, so the most relevant line surfaces first."""
+    monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")
+    monkeypatch.setenv("MEMORY_CONTEXT_RERANK", "true")
+
+    async def fake_knowledge(message, ws):
+        return [
+            "[doc: zzz] third-place-content",
+            "[doc: aaa] most-relevant",
+            "[doc: bbb] second-place-content",
+        ]
+
+    async def fake_rerank(query, lines):
+        return sorted(lines, key=lambda ln: "most-relevant" in ln, reverse=True)
+
+    with patch.object(mca, "_graph_leg", AsyncMock(return_value="")), \
+         patch.object(mca, "_knowledge_leg", fake_knowledge), \
+         patch.object(mca, "_integration_records_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_episodes_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_facts_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_rerank_lines", fake_rerank):
+        block = await assemble_memory_context("anything")
+
+    assert block is not None
+    assert "RELATED KNOWLEDGE & CONVERSATIONS" in block
+    assert block.find("most-relevant") < block.find("third-place-content")
+
+
+@pytest.mark.asyncio
+async def test_rerank_phase_skipped_when_flag_off(monkeypatch):
+    """MEMORY_CONTEXT_RERANK=false preserves store order (no rerank call)."""
+    monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")
+    monkeypatch.setenv("MEMORY_CONTEXT_RERANK", "false")
+
+    async def fake_knowledge(message, ws):
+        return ["[doc: aaa] first", "[doc: bbb] second", "[doc: ccc] third"]
+
+    with patch.object(mca, "_graph_leg", AsyncMock(return_value="")), \
+         patch.object(mca, "_knowledge_leg", fake_knowledge), \
+         patch.object(mca, "_integration_records_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_episodes_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_facts_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_rerank_lines", AsyncMock()) as mock_rerank:
+        block = await assemble_memory_context("anything")
+
+    assert block is not None
+    assert "RELATED KNOWLEDGE & CONVERSATIONS" in block
+    mock_rerank.assert_not_called()
