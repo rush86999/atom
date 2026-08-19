@@ -53,40 +53,38 @@ class TestGraphNodeVectorIndex:
 # --------------------------------------------------------------------------- #
 
 class TestAssemblerRerank:
+    """The merged upstream P1.4 rerank is budget-gated via MEMORY_CONTEXT_RERANK
+    (RERANK_FLAG) and degrades gracefully without torch. We pin the flag
+    contract; ordering behavior is covered by upstream's own tests."""
+
+    def test_rerank_flag_constant(self):
+        import core.memory_context_assembler as m
+
+        assert m.RERANK_FLAG == "MEMORY_CONTEXT_RERANK"
+        assert m.RERANK_MIN_LINES >= 3  # never rerank trivially small legs
+
     @pytest.mark.asyncio
-    async def test_rerank_unavailable_keeps_order(self, monkeypatch):
+    async def test_assembler_works_with_rerank_disabled(self, monkeypatch):
         monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")
-        mca._RERANKER = None
-        mca._RERANKER_UNAVAILABLE = True
+        monkeypatch.setenv("MEMORY_CONTEXT_RERANK", "false")
 
         async def fake_graph(message, ws, tn):
             return None
 
         async def fake_comms(message, ws):
-            return ["[slack] first line"]
+            return ["[slack] a line"]
 
-        async def empty(message, ws):
+        async def empty2(message, ws):
             return []
 
-        async def fake_facts(message, ws):
-            return ["a fact"]
+        async def empty1(message, agent):
+            return []
 
         with patch.object(mca, "_graph_leg", fake_graph), \
-             patch.object(mca, "_comms_leg", fake_comms), \
-             patch.object(mca, "_integration_records_leg", empty), \
-             patch.object(mca, "_episodes_leg", empty), \
-             patch.object(mca, "_facts_leg", fake_facts):
+             patch.object(mca, "_knowledge_leg", fake_comms), \
+             patch.object(mca, "_integration_records_leg", empty2), \
+             patch.object(mca, "_episodes_leg", empty1), \
+             patch.object(mca, "_facts_leg", empty2):
             block = await mca.assemble_memory_context("anything")
 
-        assert block is not None
-        assert "first line" in block
-        assert "a fact" in block
-
-    @pytest.mark.asyncio
-    async def test_rerank_reorders_when_available(self):
-        fake = MagicMock()
-        fake.rank = lambda q, lines: [(1, 0.9), (0, 0.1)]  # index 1 first
-        lines = ["bad match", "great match"]
-        out = await mca._rerank_lines("query", lines) if hasattr(mca, "_rerank_lines") else lines
-        # Without torch this env returns input order; assert the contract shape
-        assert isinstance(out, list) and set(out) <= {"bad match", "great match"}
+        assert block is not None and "a line" in block
