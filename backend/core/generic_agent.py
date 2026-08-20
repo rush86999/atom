@@ -1063,6 +1063,53 @@ What is your next step?"""
             final_answer=raw_response if has_final_marker else None
         )
         
+    async def _oracle_check(self, tool_name: str, args: Dict, result: Any) -> Any:
+        """Post-execution oracle stamp (W2, default ON via ATOM_ORACLE_ENFORCE).
+
+        For mutating actions with a registered postcondition verifier, the
+        oracle re-derives the outcome against the system of record — including
+        fields only the *result* carries (e.g. task_id). Verdict is stamped
+        onto the observation: dict results get ``oracle_verified`` /
+        ``oracle_evidence`` keys; string results get an ``[ORACLE:...]`` tag.
+        A refuted outcome is marked UNVERIFIED so downstream confidence
+        scoring (selector_confidence) can never treat self-report as fact.
+        Failures here never block the tool result (verification is additive).
+        """
+        try:
+            import os
+
+            from core.oracle import (
+                get_postcondition,
+                oracle_verifier_enabled,
+                validate,
+            )
+
+            enforce = (
+                os.getenv("ATOM_ORACLE_ENFORCE", "true").strip().lower()
+                in ("1", "true", "yes", "on")
+            )
+            if not enforce or not oracle_verifier_enabled():
+                return result
+            if get_postcondition(tool_name) is None:
+                return result  # not in the high-risk mutating set
+            result_fields = result if isinstance(result, dict) else {}
+            with get_db_session() as oracle_db:
+                oracle_result = await validate(
+                    tool_name, {**args, **result_fields, "db": oracle_db}
+                )
+            if oracle_result is None:
+                return result
+            if isinstance(result, dict):
+                out = dict(result)
+                out["oracle_verified"] = oracle_result.verified
+                out["oracle_evidence"] = oracle_result.evidence
+                return out
+            verdict = "VERIFIED" if oracle_result.verified else "UNVERIFIED"
+            return f"{result}\n[ORACLE:{verdict} — {oracle_result.evidence}]"
+        except Exception as e:
+            logger.debug(f"oracle stamp skipped for {tool_name}: {e}")
+            return result
+
     async def _step_act(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False) -> Any:
         """Execute a tool via MCP with Governance Check
 
@@ -1121,7 +1168,12 @@ What is your next step?"""
                         return f"Governance Error: {auth_check['reason']}"
 
             # 2. Execute via MCP Service (Dynamic Resolution)
-            return await self.mcp.call_tool(tool_name, args, context=context)
+            result = await self.mcp.call_tool(tool_name, args, context=context)
+            # 3. Default-on outcome verification (W2): for actions with a
+            # registered postcondition verifier, re-derive success against the
+            # system of record and stamp the observation with the oracle's
+            # verdict — the tool never grades its own work.
+            return await self._oracle_check(tool_name, args, result)
             
         except Exception as e:
             error_msg = str(e)

@@ -240,3 +240,127 @@ def test_browser_audit_denormalizes_confidence_provenance():
     assert row.match_confidence_provenance == "internal"
     assert row.match_confidence_score == 0.72
     assert row.external_validated_at is None
+
+
+# ---------------------------------------------------------------------------
+# Default-on oracle enforcement: _oracle_check stamps tool outcomes (W2)
+# ---------------------------------------------------------------------------
+from unittest.mock import MagicMock
+from types import SimpleNamespace
+
+
+def _bare_agent():
+    """A GenericAgent shell — _oracle_check only needs the class, not init."""
+    from core.generic_agent import GenericAgent
+    return GenericAgent.__new__(GenericAgent)
+
+
+def _mock_db(first_value):
+    """get_db_session()-style mock: `with m as db:` yields a configured db."""
+    outer = MagicMock()
+    inner = MagicMock()
+    inner.query.return_value.filter.return_value.first.return_value = first_value
+    outer.__enter__.return_value = inner
+    outer.__exit__.return_value = False
+    return outer
+
+
+@pytest.mark.asyncio
+async def test_oracle_check_stamps_refuted_string_result(monkeypatch):
+    """Tool claims success but workflow row is absent → observation tagged UNVERIFIED."""
+    import core.oracle.postcondition_verifiers  # noqa: F401
+    import core.generic_agent as ga
+
+    monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
+    monkeypatch.delenv("ATOM_ORACLE_ENFORCE", raising=False)
+    db = _mock_db(None)
+    monkeypatch.setattr(ga, "get_db_session", lambda: db)
+
+    agent = _bare_agent()
+    out = await agent._oracle_check(
+        "trigger_workflow", {"workflow_id": "wf-ghost"}, "Workflow triggered OK"
+    )
+    assert "[ORACLE:UNVERIFIED" in out
+
+
+@pytest.mark.asyncio
+async def test_oracle_check_stamps_verified_dict_result(monkeypatch):
+    """Real effect in the DB → dict result gains oracle_verified=True."""
+    import core.oracle.postcondition_verifiers  # noqa: F401
+    import core.generic_agent as ga
+
+    monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
+    monkeypatch.delenv("ATOM_ORACLE_ENFORCE", raising=False)
+    db = _mock_db(SimpleNamespace(id="wf-1", status="active"))
+    monkeypatch.setattr(ga, "get_db_session", lambda: db)
+
+    agent = _bare_agent()
+    out = await agent._oracle_check(
+        "trigger_workflow", {"workflow_id": "wf-1"}, {"status": "ok"}
+    )
+    assert out["oracle_verified"] is True
+    assert out["oracle_evidence"]
+
+
+@pytest.mark.asyncio
+async def test_oracle_check_uses_result_fields_for_task_id(monkeypatch):
+    """tasks.create: task_id lives in the RESULT, not the args — must be merged."""
+    import core.oracle.postcondition_verifiers  # noqa: F401
+    import core.generic_agent as ga
+
+    monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
+    db = _mock_db(SimpleNamespace(id="t-9"))
+    monkeypatch.setattr(ga, "get_db_session", lambda: db)
+
+    agent = _bare_agent()
+    out = await agent._oracle_check(
+        "tasks.create", {"title": "do it"}, {"task_id": "t-9", "created": True}
+    )
+    assert out["oracle_verified"] is True
+
+
+@pytest.mark.asyncio
+async def test_oracle_check_passthrough_for_unregistered_action():
+    agent = _bare_agent()
+    out = await agent._oracle_check("documents.search", {"q": "x"}, {"rows": []})
+    assert out == {"rows": []}
+
+
+@pytest.mark.asyncio
+async def test_oracle_check_kill_switch(monkeypatch):
+    """ATOM_ORACLE_ENFORCE=false reverts to pass-through even for registered actions."""
+    import core.oracle.postcondition_verifiers  # noqa: F401
+    import core.generic_agent as ga
+
+    monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
+    monkeypatch.setenv("ATOM_ORACLE_ENFORCE", "false")
+    db = _mock_db(None)
+    monkeypatch.setattr(ga, "get_db_session", lambda: db)
+
+    agent = _bare_agent()
+    out = await agent._oracle_check(
+        "trigger_workflow", {"workflow_id": "wf-ghost"}, "Workflow triggered OK"
+    )
+    assert out == "Workflow triggered OK"
+
+
+@pytest.mark.asyncio
+async def test_oracle_check_never_blocks_on_error(monkeypatch):
+    """DB blowing up must not corrupt the tool result."""
+    import core.oracle.postcondition_verifiers  # noqa: F401
+    import core.generic_agent as ga
+
+    monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
+
+    class _Boom:
+        def __enter__(self):
+            raise RuntimeError("db down")
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(ga, "get_db_session", lambda: _Boom())
+    agent = _bare_agent()
+    out = await agent._oracle_check(
+        "trigger_workflow", {"workflow_id": "wf-1"}, {"status": "ok"}
+    )
+    assert out == {"status": "ok"}
