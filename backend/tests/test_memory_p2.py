@@ -7,8 +7,48 @@ os.environ.setdefault("TESTING", "1")
 os.environ["DATABASE_URL"] = "sqlite:///./test_p2.db"
 
 import pytest
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+
+@pytest.fixture(autouse=True)
+def hermetic_db(monkeypatch):
+    """Isolate P2 tests from the shared dev DB.
+
+    The session engine binds at first `core.database` import (conftest /
+    module order), so the module-top DATABASE_URL override above never
+    takes effect and these tests would write fixed-PK rows into the real
+    dev store. Patching core.database's SessionLocal/engine routes every
+    call (incl. GraphRAGEngine's shared get_db_session) to a throwaway
+    in-memory SQLite.
+    """
+    import core.database as db
+    from core.models_registration import Base
+
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+
+    @contextmanager
+    def _session():
+        s = SessionLocal()
+        try:
+            yield s
+        finally:
+            s.close()
+
+    Base.metadata.create_all(bind=engine)
+    monkeypatch.setattr(db, "engine", engine)
+    monkeypatch.setattr(db, "SessionLocal", SessionLocal)
+    monkeypatch.setattr(db, "get_db_session", _session)
 
 
 # --------------------------------------------------------------------------- #
