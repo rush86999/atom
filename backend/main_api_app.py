@@ -677,6 +677,8 @@ async def lifespan(app: FastAPI):
             from workers.activity_state_worker import ActivityStateWorker
             from workers.queue_processing_worker import QueueProcessingWorker
 
+            from core.experiments import is_enabled as _exp
+
             # Start Activity State Worker (online/away/offline transitions)
             activity_worker = ActivityStateWorker(interval_seconds=60)
             _spawn_background_task(activity_worker.run())
@@ -704,7 +706,6 @@ async def lifespan(app: FastAPI):
             # 8c. Warm the memory assembler (P0): preload embedding models and
             # LanceDB tables so the first turn-time retrieval hits warm caches
             # instead of the per-leg timeout.
-            from core.experiments import is_enabled as _exp
             if _exp("memory_context_assembly"):
                 from core.memory_context_assembler import warm as warm_memory_assembler
 
