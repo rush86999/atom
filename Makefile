@@ -52,7 +52,10 @@ CORE_TEST_FILES := tests/test_integration_http.py tests/test_local_models.py \
   tests/test_routing_db_persistence.py tests/test_round17b_fixes.py \
   tests/test_learning_routing.py tests/test_learning_llm_router.py \
   tests/test_workbook_runtime.py tests/test_canvas_crud.py \
-  tests/test_openrouter_provider.py tests/test_provider_wiring.py
+  tests/test_openrouter_provider.py tests/test_provider_wiring.py \
+  tests/api/test_a2a_routes.py tests/api/test_sso_oidc_routes.py \
+  tests/api/test_scim_routes.py tests/core/test_observability_tracing.py \
+  tests/core/test_oracle_and_two_tier_confidence.py
 
 test-core: ## Run the CI-gated core test suite
 	cd backend && DATABASE_URL="sqlite:///test_ci.db" SECRET_KEY="ci-test-secret-key" \

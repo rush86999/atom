@@ -2746,6 +2746,25 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"OIDC SSO not mounted: {e}")
 
+    # 4d-bis. SCIM v2 — user provisioning for enterprise IdPs (Okta/Entra).
+    try:
+        from api.scim_routes import install_scim_exception_handlers, router as scim_router
+
+        app.include_router(scim_router, tags=["SCIM"])
+        install_scim_exception_handlers(app)
+        logger.info("✓ SCIM v2 mounted at /api/scim/v2")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"SCIM v2 not mounted: {e}")
+
+    # 4d-ter. Observability — span tracing + optional Langfuse export.
+    try:
+        from api.observability_routes import router as observability_router
+
+        app.include_router(observability_router, tags=["Observability"])
+        logger.info("✓ Observability mounted at /api/observability")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Observability not mounted: {e}")
+
     # 4e. BambooHR + Twitter/X integrations.
     try:
         from integrations.bamboohr_routes import router as bamboohr_router

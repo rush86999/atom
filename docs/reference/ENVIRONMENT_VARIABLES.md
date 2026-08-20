@@ -327,6 +327,10 @@ to no-ops when no token is set.
 | `WORKFLOW_OPTIMIZATION_ENABLED` | `true` | — | Workflow optimization. |
 | `COMMISSION_AUTO_CALCULATE` | `true` | — | Auto-commission calculation. |
 | `FEDERATION_API_KEY` | unset | — | Cross-instance agent sharing. |
+| `ATOM_ORACLE_ENFORCE` | `true` | — | Postcondition oracle stamps tool outcomes (refuted self-reports marked UNVERIFIED). `false` = pass-through. |
+| `ATOM_OIDC_ISSUER` / `ATOM_OIDC_CLIENT_ID` / `ATOM_OIDC_CLIENT_SECRET` / `ATOM_OIDC_ENABLED` | unset | — | OIDC SSO env fallback (a DB config row via `PUT /api/auth/sso/oidc/config` takes precedence). |
+| `ATOM_SCIM_TOKEN` | unset | — | Bearer token for SCIM v2 provisioning (`/api/scim/v2`). Unset = SCIM disabled (503). |
+| `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_HOST` | unset / `https://cloud.langfuse.com` | — | Enables async trace-span export to Langfuse (`/api/observability/spans` works without them). |
 
 ### Monitoring thresholds
 
@@ -348,6 +352,19 @@ to no-ops when no token is set.
 ---
 
 ## 14. Integration credentials (46+ services)
+
+### BambooHR (HR)
+
+| Variable | Default | Required? | Description |
+|----------|---------|-----------|-------------|
+| `BAMBOOHR_SUBDOMAIN` | unset | for BambooHR | Your BambooHR subdomain. |
+| `BAMBOOHR_API_KEY` | unset | for BambooHR | API key (Basic auth). |
+
+### Twitter / X
+
+| Variable | Default | Required? | Description |
+|----------|---------|-----------|-------------|
+| `TWITTER_BEARER_TOKEN` | unset | for X API v2 | Bearer token for post/user-tweets/search. |
 
 All optional. Each integration has `*_CLIENT_ID` / `*_CLIENT_SECRET` (OAuth) or
 `*_API_KEY` / `*_ACCESS_TOKEN` patterns. The full list with sign-up URLs lives

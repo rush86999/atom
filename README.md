@@ -125,7 +125,7 @@ This isn't "AI replacing humans." It's **AI handling the work humans shouldn't b
 | Category | Features |
 |---|---|
 | **🤖 Multi-Agent Orchestration** | Queen Agent (structured workflows) + Fleet Admiral (open-ended tasks) + Conductor (5 execution strategies) + validated state machine with rollback; governed fleet routing with ranked specialist matching |
-| **🛡️ Governance & Safety** | 4-tier maturity (Student→Autonomous), policy-gated HITL approval, comprehensive audit trail, AI-powered training, OIDC SSO + 8-role RBAC |
+| **🛡️ Governance & Safety** | 4-tier maturity (Student→Autonomous), policy-gated HITL approval, comprehensive audit trail, AI-powered training, OIDC SSO + SCIM v2 provisioning + 8-role RBAC |
 | **✅ Outcome Verification** | Postcondition oracle re-derives success against the system of record — on by default, a refuted self-report is stamped UNVERIFIED (`ATOM_ORACLE_ENFORCE` kill switch); two-tier confidence provenance (self-reported vs externally verified); opt-in reviewer re-delegation loop |
 | **🧠 Memory & Learning** | Per-turn fact extraction, 2-tier recall (SQL + LanceDB), episodic memory, `memory_remember/forget`, self-evolution (Memento/AlphaEvolver, self-evolving harness) |
 | **🔎 Hybrid Search** | `documents.search` fuses BM25 (FTS5/tsvector) + vector (LanceDB) via Reciprocal Rank Fusion (RRF) — semantic + precise retrieval with citations |
@@ -137,7 +137,7 @@ This isn't "AI replacing humans." It's **AI handling the work humans shouldn't b
 | **🌐 46+ Business Integrations** | Salesforce, HubSpot, Slack, Teams, Gmail, Notion, Jira, Linear, Stripe, QuickBooks, Shopify, GitHub, GitLab, Zoom… |
 | **🛰️ LLM Gateway** | OpenAI/Anthropic-compatible API over your BYOK — point Claude Code, n8n, or any OpenAI-SDK app at Atom |
 | **💰 Cost-Aware Routing** | 5-tier cognitive classification, 16+ providers, opt-in learning router (feedback-based re-ranking), RTK token compression |
-| **🤝 Interoperability** | MCP client for external tool servers, ACP endpoint for standard agent clients, A2A Agent Card + `message/send` for agent-to-agent delegation |
+| **🤝 Interoperability** | MCP client for external tool servers, ACP endpoint for standard agent clients, A2A Agent Card + `message/send` for agent-to-agent delegation, span tracing with optional Langfuse export |
 | **🎯 Goal-Driven Loops** | Agents terminate on a `definition_of_done` predicate instead of always burning to `max_steps`; utility targets, custom action surfaces, stuck-detection |
 
 ---
