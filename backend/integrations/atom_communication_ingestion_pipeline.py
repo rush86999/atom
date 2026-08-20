@@ -1531,7 +1531,11 @@ class CommunicationIngestionPipeline:
                 # Build filter for messages since last fetch
                 params = {"$top": 50}
                 if last_fetch:
-                    params["$filter"] = f"receivedDateTime gt {last_fetch.isoformat()}"
+                    # Graph OData requires UTC 'Z' format — a bare isoformat()
+                    # (no timezone marker) returns 400 InvalidFilter, which
+                    # silently broke every incremental poll after the first.
+                    ts = last_fetch.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    params["$filter"] = f"receivedDateTime gt {ts}"
 
                 # Pagination support
                 next_link = None

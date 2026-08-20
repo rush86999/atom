@@ -206,7 +206,7 @@ class OutlookService(IntegrationService):
                 )
                 return None
 
-            tenant = self.tenant_id_config if self.tenant_id_config and self.tenant_id_config not in ("default", "none", "") else "common"
+            tenant = self.tenant_id_config if self.tenant_id_config and self.tenant_id_config not in ("default", "none", "") else (os.getenv("MICROSOFT_TENANT_ID") or "common")
             url = (
                 f"https://login.microsoftonline.com/{tenant}"
                 "/oauth2/v2.0/token"
