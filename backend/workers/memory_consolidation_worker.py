@@ -31,12 +31,15 @@ class MemoryConsolidationWorker:
             if not self.running:
                 break
             try:
-                from core.memory_consolidator import consolidate_workspace
+                from core.memory_consolidator import consolidate_with_llm, consolidate_workspace
 
                 workspaces = {"default"}
                 reports = {}
                 for ws in workspaces:
-                    reports[ws] = await asyncio.to_thread(consolidate_workspace, ws)
+                    report = await asyncio.to_thread(consolidate_workspace, ws)
+                    llm_report = await consolidate_with_llm(ws)
+                    report["llm_review"] = llm_report
+                    reports[ws] = report
                 self.last_run = datetime.utcnow()
                 self.last_report = reports
                 logger.info("MemoryConsolidationWorker: %s", reports)
