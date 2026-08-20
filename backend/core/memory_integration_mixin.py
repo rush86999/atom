@@ -317,6 +317,20 @@ class MemoryIntegrationMixin(ABC):
                 job.progress = int((i + len(batch)) / len(records) * 100)
                 logger.info(f"Progress: {job.progress}% ({job.processed_records}/{job.total_records})")
 
+            # Step 2.5: Bridge communication records to the unified memory
+            # pipelines. The generic entity store above is write-only at
+            # retrieval time; email/communication backfills must ALSO reach the
+            # FTS+vector comms store (Pipeline A) and graph entities (Pipeline
+            # B) so backfilled mail is readable via search_communications + the
+            # P1.3 hybrid leg — closing the P0.4 ingestion-symmetry gap.
+            # Same records — no double-count into processed_records.
+            bridge = await self._bridge_records_to_unified_memory(records)
+            if bridge.get("comms") or bridge.get("graph"):
+                logger.info(
+                    f"Bridged {bridge.get('comms', 0)} comm records / "
+                    f"{bridge.get('graph', 0)} graph entities for {self.integration_id}"
+                )
+
             # Step 3: Complete
             job.status = "completed"
             job.completed_at = datetime.now()
@@ -332,6 +346,54 @@ class MemoryIntegrationMixin(ABC):
             job.status = "failed"
             job.completed_at = datetime.now()
             job.error = str(e)
+
+    async def _bridge_records_to_unified_memory(
+        self, records: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Route email/communication backfill records through the unified
+        memory pipelines so they're readable at retrieval time.
+
+        Only integrations classified as ``email`` or ``communication`` get the
+        bridge — CRM/project/support backfills keep their existing
+        generic-LanceDB entity behavior. Never raises: a failing comm pipeline
+        (Redis down, embedding stack error) logs and degrades the job instead
+        of failing it.
+
+        Returns:
+            Dict with ``comms`` (Pipeline A messages ingested) and ``graph``
+            (Pipeline B entities bridged) counts.
+        """
+        integration_type = self.get_integration_type()
+        if integration_type not in ("email", "communication"):
+            return {"comms": 0, "graph": 0}
+
+        if not records:
+            return {"comms": 0, "graph": 0}
+
+        comms_count = 0
+        graph_count = 0
+        try:
+            from integrations.atom_communication_ingestion_pipeline import (
+                get_ingestion_pipeline,
+            )
+
+            pipeline = get_ingestion_pipeline(self.workspace_id)
+            for record in records:
+                try:
+                    success = await pipeline.ingest_message(self.integration_id, record)
+                    if success:
+                        comms_count += 1
+                except Exception as record_err:
+                    logger.warning(
+                        f"Failed to bridge {self.integration_id} record "
+                        f"{record.get('id')}: {record_err}"
+                    )
+        except Exception as e:
+            logger.warning(
+                f"Unified-memory bridge unavailable for {self.integration_id}: {e}"
+            )
+
+        return {"comms": comms_count, "graph": graph_count}
 
     @staticmethod
     def get_job_status(job_id: str) -> Optional[Dict[str, Any]]:
