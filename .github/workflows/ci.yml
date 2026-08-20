@@ -258,3 +258,46 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit --skipLibCheck
         continue-on-error: true  # Pre-existing errors; don't block PRs yet
+
+  # -------------------------------------------------------------------
+  # Repo hygiene gate: no giant blobs, no junk artifacts tracked.
+  # -------------------------------------------------------------------
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check repo hygiene
+        run: |
+          set -u
+          FAIL=0
+
+          echo "Checking for tracked files larger than 5MB..."
+          while IFS= read -r -d '' f; do
+            size=$(stat -c%s "$f")
+            if [ "$size" -gt 5242880 ]; then
+              echo "::error file=$f::Tracked file is $size bytes (limit 5MB)"
+              FAIL=1
+            fi
+          done < <(git ls-files -z)
+
+          echo "Checking for tracked junk paths (.git-rewrite, FINAL_100_PERCENT_*)..."
+          junk=$(git ls-files | grep -E '(^|/)\.git-rewrite(/|$)|FINAL_100_PERCENT_' || true)
+          if [ -n "$junk" ]; then
+            echo "$junk" | while IFS= read -r f; do echo "::error file=$f::Junk path must not be tracked"; done
+            FAIL=1
+          fi
+
+          echo "Checking for tracked *.profraw files..."
+          prof=$(git ls-files -- '*.profraw')
+          if [ -n "$prof" ]; then
+            echo "$prof" | while IFS= read -r f; do echo "::error file=$f::profraw coverage artifact must not be tracked"; done
+            FAIL=1
+          fi
+
+          if [ "$FAIL" -ne 0 ]; then
+            echo "Hygiene gate FAILED"
+            exit 1
+          fi
+          echo "Hygiene gate passed"
