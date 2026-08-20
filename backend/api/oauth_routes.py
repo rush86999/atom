@@ -47,9 +47,16 @@ _oauth_limiter = AuthRateLimiter(limit=20, window_seconds=60)
 
 
 def _state_hmac_key() -> bytes:
-    """HMAC key for signing OAuth state tokens (stable within a process)."""
-    raw = os.getenv("SECRET_KEY") or "atom-oauth-state-fallback"
-    return hashlib.sha256(raw.encode()).digest()
+    """HMAC key for signing OAuth state tokens — derived from the JWT secret.
+
+    Deliberately reuses ``core.auth.SECRET_KEY`` so there is exactly ONE secret
+    resolution policy in the app: raise in production if unset, random
+    dev fallback. A standalone hardcoded fallback here would be a static secret
+    any repo reader could use to forge state tokens (OAuth CSRF / token-binding).
+    """
+    from core.auth import SECRET_KEY as _auth_secret
+
+    return hashlib.sha256(_auth_secret.encode()).digest()
 
 
 def _build_state(provider: str, user_id: str) -> str:
@@ -347,6 +354,25 @@ async def oauth_callback(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=400, detail="User bound to state not found")
+
+    # CSRF / token-binding check: if this request carries an authenticated
+    # session, the user it belongs to MUST be the user the state was minted
+    # for. A validly-signed state for user-a presented in user-b's session
+    # means the state was hijacked mid-flow — bind the attacker's tokens to
+    # user-a's account. (Public callback keeps working for provider redirects:
+    # the session check is additive; a missing/invalid session falls through
+    # to the signed state as the sole credential.)
+    session_user = None
+    try:
+        session_user = await get_current_user(request, db)
+    except HTTPException:
+        pass
+
+    if session_user is not None and str(session_user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="OAuth state was issued for a different user",
+        )
 
     await _handle_callback_logic(provider, code, configs[provider], request, db, user=user)
     

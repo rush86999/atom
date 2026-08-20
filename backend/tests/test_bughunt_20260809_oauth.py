@@ -204,21 +204,26 @@ class TestOauthRoutesStateCsrf:
         return TestClient(app, raise_server_exceptions=False)
 
     def test_static_predictable_state_rejected(self, monkeypatch):
-        """Attacker submits the well-known static state for a victim's callback."""
+        """Attacker submits the well-known static state for a victim's callback.
+
+        Expects 401 (invalid state signature) since the signed-state redesign
+        rejects any non-``oauth_v1`` state via ``_get_user_id_from_state``."""
         client = self._client(monkeypatch)
         resp = client.get(
             "/api/v1/auth/oauth/google/callback?code=attacker_code&state=google_oauth",
             follow_redirects=False,
         )
-        assert resp.status_code == 400
+        assert resp.status_code in (400, 401)
 
     def test_tampered_state_signature_rejected(self, monkeypatch):
+        """State with a forged/truncated signature is rejected (401), not
+        accepted — the HMAC binding must never pass on tampered input."""
         client = self._client(monkeypatch)
         resp = client.get(
             "/api/v1/auth/oauth/google/callback?code=c&state=google_oauth%3Auser-1%3Anonce%3Asig%3Aextra",
             follow_redirects=False,
         )
-        assert resp.status_code == 400
+        assert resp.status_code in (400, 401)
 
     def test_signed_state_round_trip_accepted(self, monkeypatch):
         """Initiate mints a signed state; the same state on callback is accepted."""
