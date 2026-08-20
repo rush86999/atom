@@ -190,7 +190,8 @@ class MultiHopExpander:
         start_entity_id: str,
         workspace_id: str,
         session: Optional[Session] = None,
-        query_context: Optional[Dict[str, Any]] = None
+        query_context: Optional[Dict[str, Any]] = None,
+        as_of: Optional[datetime] = None
     ) -> ExpansionResult:
         """
         Perform multi-hop expansion from start entity.
@@ -200,22 +201,26 @@ class MultiHopExpander:
             workspace_id: Workspace identifier
             session: Optional database session
             query_context: Optional context for relevance scoring
+            as_of: Optional point-in-time cutoff (W1): edges that were not
+                yet born (valid_from > as_of) or already invalidated
+                (invalid_at <= as_of) are pruned. None = legacy (all edges).
 
         Returns:
             ExpansionResult with discovered nodes and paths
         """
         if session is None:
             with get_db_session() as sess:
-                return self._expand_impl(start_entity_id, workspace_id, sess, query_context)
+                return self._expand_impl(start_entity_id, workspace_id, sess, query_context, as_of)
         else:
-            return self._expand_impl(start_entity_id, workspace_id, session, query_context)
+            return self._expand_impl(start_entity_id, workspace_id, session, query_context, as_of)
 
     def _expand_impl(
         self,
         start_entity_id: str,
         workspace_id: str,
         session: Session,
-        query_context: Optional[Dict[str, Any]] = None
+        query_context: Optional[Dict[str, Any]] = None,
+        as_of: Optional[datetime] = None
     ) -> ExpansionResult:
         """Internal expansion implementation"""
         result = ExpansionResult(
@@ -268,7 +273,7 @@ class MultiHopExpander:
             for current_node in current_level:
                 # Get neighbors using cue-driven activation
                 neighbors = self._get_neighbors_with_cues(
-                    current_node, workspace_id, session, query_context
+                    current_node, workspace_id, session, query_context, as_of
                 )
 
                 for neighbor, rel_type, confidence in neighbors:
@@ -365,6 +370,8 @@ class MultiHopExpander:
             "path_count": len(result.paths),
             "completed_at": datetime.now().isoformat()
         }
+        if as_of is not None:
+            result.metadata["as_of"] = as_of.isoformat()
 
         logger.info(
             f"Multi-hop expansion: found {result.total_nodes_found} nodes, "
@@ -378,18 +385,28 @@ class MultiHopExpander:
         node: ExpansionNode,
         workspace_id: str,
         session: Session,
-        query_context: Optional[Dict[str, Any]] = None
+        query_context: Optional[Dict[str, Any]] = None,
+        as_of: Optional[datetime] = None
     ) -> List[Tuple[GraphNode, str, float]]:
         """
         Get neighbors using cue-driven activation.
 
+        With ``as_of`` (W1), only edges alive at that instant participate:
+        valid_from is NULL or <= as_of, and invalid_at is NULL or > as_of.
+
         Returns list of (neighbor_node, relationship_type, confidence) tuples.
         """
         # Get all edges connected to this node
-        edges = session.query(GraphEdge).filter(
+        edges_query = session.query(GraphEdge).filter(
             (GraphEdge.source_node_id == node.id) | (GraphEdge.target_node_id == node.id),
             GraphEdge.workspace_id == workspace_id
-        ).all()
+        )
+        if as_of is not None:
+            edges_query = edges_query.filter(
+                (GraphEdge.valid_from.is_(None)) | (GraphEdge.valid_from <= as_of),
+                (GraphEdge.invalid_at.is_(None)) | (GraphEdge.invalid_at > as_of),
+            )
+        edges = edges_query.all()
 
         # Batch-fetch all neighbor node IDs in one query to avoid an N+1 storm
         # (previously one session.query(GraphNode).filter(...) per edge, which
@@ -550,7 +567,8 @@ class SQLMultiHopExpander:
         start_entity_id: str,
         workspace_id: str,
         max_depth: Optional[int] = None,
-        session: Optional[Session] = None
+        session: Optional[Session] = None,
+        as_of: Optional[datetime] = None
     ) -> ExpansionResult:
         """
         Perform multi-hop expansion using SQL Recursive CTE.
@@ -560,6 +578,10 @@ class SQLMultiHopExpander:
             workspace_id: Workspace identifier
             max_depth: Maximum hop depth (overrides config)
             session: Optional database session
+            as_of: Optional point-in-time cutoff (W1) — prunes edges not
+                alive at that instant, in the CTE and the relationship
+                listing. Parameters are bound only when the clause is present.
+                None = legacy (all edges).
 
         Returns:
             ExpansionResult with discovered nodes and relationships
@@ -568,16 +590,17 @@ class SQLMultiHopExpander:
 
         if session is None:
             with get_db_session() as sess:
-                return self._expand_sql_impl(start_entity_id, workspace_id, max_depth, sess)
+                return self._expand_sql_impl(start_entity_id, workspace_id, max_depth, sess, as_of)
         else:
-            return self._expand_sql_impl(start_entity_id, workspace_id, max_depth, session)
+            return self._expand_sql_impl(start_entity_id, workspace_id, max_depth, session, as_of)
 
     def _expand_sql_impl(
         self,
         start_entity_id: str,
         workspace_id: str,
         max_depth: int,
-        session: Session
+        session: Session,
+        as_of: Optional[datetime] = None
     ) -> ExpansionResult:
         """Internal SQL expansion implementation"""
         result = ExpansionResult(
@@ -588,6 +611,31 @@ class SQLMultiHopExpander:
         )
 
         try:
+            # W1: point-in-time cutoff. When as_of is provided the CTE and
+            # the relationship listing only traverse edges alive at that
+            # instant (valid_from <= as_of < invalid_at, NULLs pass).
+            as_of_clause = ""
+            as_of_rel_clause = ""
+            cte_params: Dict[str, Any] = {
+                "start_id": start_entity_id,
+                "ws_id": workspace_id,
+                "max_depth": max_depth,
+                "decay_factor": self.config.relevance_decay,
+                "min_relevance": self.config.min_relevance_score,
+                "max_nodes": self.config.max_total_nodes
+            }
+            if as_of is not None:
+                as_of_clause = (
+                    " AND (e.valid_from IS NULL OR e.valid_from <= :as_of)"
+                    " AND (e.invalid_at IS NULL OR e.invalid_at > :as_of)"
+                )
+                as_of_rel_clause = (
+                    " AND (e.valid_from IS NULL OR e.valid_from <= :as_of_rel)"
+                    " AND (e.invalid_at IS NULL OR e.invalid_at > :as_of_rel)"
+                )
+                cte_params["as_of"] = as_of
+                cte_params["as_of_rel"] = as_of
+
             # Build recursive CTE query
             cte_query = text(f"""
                 WITH RECURSIVE traversal AS (
@@ -638,6 +686,7 @@ class SQLMultiHopExpander:
                     AND neighbor.workspace_id = :ws_id
                     AND NOT (neighbor.id = ANY(t.path))  -- Cycle detection
                     AND t.relevance_score >= :min_relevance
+                    {as_of_clause}
                 )
                 SELECT DISTINCT
                     id, name, type, description, properties,
@@ -648,14 +697,7 @@ class SQLMultiHopExpander:
             """)
 
             # Execute query
-            rows = session.execute(cte_query, {
-                "start_id": start_entity_id,
-                "ws_id": workspace_id,
-                "max_depth": max_depth,
-                "decay_factor": self.config.relevance_decay,
-                "min_relevance": self.config.min_relevance_score,
-                "max_nodes": self.config.max_total_nodes
-            }).fetchall()
+            rows = session.execute(cte_query, cte_params).fetchall()
 
             # Process results
             seen_ids: Set[str] = set()
@@ -676,20 +718,24 @@ class SQLMultiHopExpander:
 
             # Get relationships for discovered nodes
             if seen_ids:
-                rel_query = text("""
+                rel_query = text(f"""
                     SELECT e.source_node_id, e.target_node_id,
                            e.relationship_type, e.properties
                     FROM graph_edges e
                     WHERE (e.source_node_id = ANY(:node_ids)
                            OR e.target_node_id = ANY(:node_ids))
                     AND e.workspace_id = :ws_id
+                    {as_of_rel_clause}
                     LIMIT 100;
                 """)
 
-                rel_rows = session.execute(rel_query, {
+                rel_params = {
                     "node_ids": list(seen_ids),
-                    "ws_id": workspace_id
-                }).fetchall()
+                    "ws_id": workspace_id,
+                }
+                if as_of is not None:
+                    rel_params["as_of_rel"] = as_of
+                rel_rows = session.execute(rel_query, rel_params).fetchall()
 
                 for rel in rel_rows:
                     result.relationships.append({
@@ -703,6 +749,8 @@ class SQLMultiHopExpander:
                 f"SQL multi-hop expansion: found {result.total_nodes_found} nodes, "
                 f"reached depth {result.max_depth_reached}"
             )
+            if as_of is not None:
+                result.metadata["as_of"] = as_of.isoformat()
 
         except Exception as e:
             logger.error(f"SQL multi-hop expansion failed: {e}")

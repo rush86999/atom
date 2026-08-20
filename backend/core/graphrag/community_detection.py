@@ -363,7 +363,9 @@ class CommunityDetectionService:
         self,
         workspace_id: str,
         session: Optional[Session] = None,
-        store_results: bool = True
+        store_results: bool = True,
+        window_start: Optional[datetime] = None,
+        window_end: Optional[datetime] = None
     ) -> DetectionResult:
         """
         Detect communities in workspace graph.
@@ -372,27 +374,40 @@ class CommunityDetectionService:
             workspace_id: Workspace identifier
             session: Optional database session
             store_results: Whether to store results in database
+            window_start: Optional W1 time-window start (exclusive for edge
+                validity: edges invalidated at or before it are pruned)
+            window_end: Optional W1 time-window end (inclusive: only edges
+                born at or before it, and nodes created at or before it)
 
         Returns:
             DetectionResult with detected communities
         """
         if session is None:
             with get_db_session() as sess:
-                return self._detect_impl(workspace_id, sess, store_results)
+                return self._detect_impl(workspace_id, sess, store_results, window_start, window_end)
         else:
-            return self._detect_impl(workspace_id, session, store_results)
+            return self._detect_impl(workspace_id, session, store_results, window_start, window_end)
 
     def _detect_impl(
         self,
         workspace_id: str,
         session: Session,
-        store_results: bool
+        store_results: bool,
+        window_start: Optional[datetime] = None,
+        window_end: Optional[datetime] = None
     ) -> DetectionResult:
         """Internal detection implementation"""
         start_time = datetime.now()
 
-        # Build graph from database
-        graph = self._build_graph(workspace_id, session)
+        # Build graph from database (W1: window filters apply here)
+        graph = self._build_graph(workspace_id, session, window_start, window_end)
+
+        def _with_window_meta(metadata: Dict[str, Any]) -> Dict[str, Any]:
+            if window_start is not None:
+                metadata["window_start"] = window_start.isoformat()
+            if window_end is not None:
+                metadata["window_end"] = window_end.isoformat()
+            return metadata
 
         if graph.number_of_nodes() < self.config.min_community_size:
             logger.info(f"Graph too small for community detection: {graph.number_of_nodes()} nodes")
@@ -400,7 +415,7 @@ class CommunityDetectionService:
                 num_communities=0,
                 modularity=0.0,
                 coverage=0.0,
-                metadata={"reason": "graph_too_small"}
+                metadata=_with_window_meta({"reason": "graph_too_small"})
             )
 
         # Determine resolution
@@ -408,6 +423,7 @@ class CommunityDetectionService:
 
         # Run detection
         result = self.leiden.detect(graph, resolution)
+        result.metadata = _with_window_meta(result.metadata)
         result.metadata["workspace_id"] = workspace_id
         result.metadata["graph_nodes"] = graph.number_of_nodes()
         result.metadata["graph_edges"] = graph.number_of_edges()
@@ -426,25 +442,59 @@ class CommunityDetectionService:
 
         return result
 
-    def _build_graph(self, workspace_id: str, session: Session) -> 'nx.Graph':
-        """Build NetworkX graph from database"""
+    def _build_graph(
+        self,
+        workspace_id: str,
+        session: Session,
+        window_start: Optional[datetime] = None,
+        window_end: Optional[datetime] = None
+    ) -> 'nx.Graph':
+        """Build NetworkX graph from database.
+
+        With a W1 window the graph snapshots the network as it was at that
+        point in time: nodes must have been created at or before
+        ``window_end``, and edges must overlap the window interval
+        (born at or before ``window_end`` and never invalidated before
+        ``window_start``). NULL bi-temporal fields are treated as always
+        valid so legacy rows are never dropped.
+        """
         if not NETWORKX_AVAILABLE:
             raise ImportError("NetworkX required for graph operations")
+
+        windowed = window_start is not None or window_end is not None
 
         graph = nx.Graph()
 
         # Add nodes
-        nodes = session.query(GraphNode).filter(
+        nodes_query = session.query(GraphNode).filter(
             GraphNode.workspace_id == workspace_id
-        ).all()
+        )
+        if windowed and window_end is not None:
+            nodes_query = nodes_query.filter(
+                (GraphNode.created_at.is_(None)) | (GraphNode.created_at <= window_end)
+            )
+        nodes = nodes_query.all()
 
         for node in nodes:
             graph.add_node(str(node.id), name=node.name, type=node.type)
 
         # Add edges
-        edges = session.query(GraphEdge).filter(
+        edges_query = session.query(GraphEdge).filter(
             GraphEdge.workspace_id == workspace_id
-        ).all()
+        )
+        if windowed:
+            edge_conds = []
+            if window_end is not None:
+                edge_conds.append(
+                    (GraphEdge.valid_from.is_(None)) | (GraphEdge.valid_from <= window_end)
+                )
+            if window_start is not None:
+                edge_conds.append(
+                    (GraphEdge.invalid_at.is_(None)) | (GraphEdge.invalid_at > window_start)
+                )
+            if edge_conds:
+                edges_query = edges_query.filter(*edge_conds)
+        edges = edges_query.all()
 
         for edge in edges:
             weight = edge.properties.get('weight', 1.0) if edge.properties else 1.0
