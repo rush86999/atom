@@ -5648,3 +5648,14 @@ No source changes needed this wave (no genuine bugs found in the 6 modules — t
 **Files**: `core/llm/routing/routellm_trainer.py` (extract_features now iterates the contract — was a hardcoded 10-element list that silently dropped the new features), `core/llm/routing/per_model_router.py`, `core/learning_llm_router.py`, `core/llm/byok_handler.py`; docs `LEARNING_LLM_ROUTER.md`, `COGNITIVE_TIER_SYSTEM.md`, `HERMES_COMPARISON.md`.
 
 **Verification**: new suite 23/23; regression cluster 640 passed (learning/routing/byok/ema suites) + 635 passed (byok_handler cluster incl. wave11b/bigfour/stash tests) — 0 failed. mypy: 54 errors on the 5 touched files, identical pre-existing baseline (0 new; none on changed lines).
+
+## Session 2026-08-20 (backend + frontend) — pilot E2E fixes (3 new tests)
+
+**TDD red→green** (`tests/test_pilot_change_password.py`, 3 tests; observed failing 404 before fix):
+
+1. **POST /api/auth/change-password 404 on the live app** — the frontend settings/account page calls `/api/auth/change-password` with `{current_password, new_password}`, but the route only existed in `api/enterprise_auth_endpoints.py` (fields `old_password`/`new_password`), which is mounted only in `minimal_app.py` — the production `main_api_app` router (`core/auth_endpoints.py`, lazy-registry `"auth"`) had no change-password route. Fixed by adding the endpoint + `ChangePasswordRequest` (frontend field names) to `core/auth_endpoints.py`; verifies current password (400 on mismatch, 400 on same-as-current), sets new hash, revokes all other sessions via `revoke_all_user_helpers.revoke_all_user_tokens` (keeps current JWT via `except_jti`), audit `UPDATE`, 5/5min rate limiter. Live-verified on :8001 (400 for wrong current password, 401 unauthenticated) without altering the admin credential.
+   - **Aside**: the first edit accidentally wedged `change_password_rate_limit` under the `@router.post("/login")` decorator (login began returning HTTP 200 `null`) — caught by the route-name check (`/api/auth/login` bound to the dependency), decorator restored, login tests re-passed.
+
+**Files**: `backend/core/auth_endpoints.py` (new endpoint + request model + rate-limit dep), `backend/tests/test_pilot_change_password.py` (new), `frontend-nextjs/pages/dashboard.tsx` (removed hardcoded mock "Recent Activity" card + unused `Clock` import — only fake content on the dashboard; stats/integration tiles are live API data).
+
+**Verification**: new suite 3/3; regression `test_auth_routes_coverage.py` + `test_auth_fixes.py` → 71 passed, 0 failed. `npm run type-check`: `pages/dashboard.tsx` clean of new errors (2 pre-existing at lines 140-141 unchanged).

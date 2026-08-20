@@ -16,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import {
   ArrowRight,
-  Clock,
   Settings,
   CheckCircle,
   AlertTriangle,
@@ -444,44 +443,7 @@ const DashboardPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>
-              Latest integration events and syncs
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
-                <div className="flex items-center space-x-3">
-                  <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                  <span>Next.js integration connected</span>
-                </div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">2 minutes ago</span>
-              </div>
-
-              <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
-                <div className="flex items-center space-x-3">
-                  <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                  <span>GitHub repositories synced</span>
-                </div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">15 minutes ago</span>
-              </div>
-
-              <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
-                <div className="flex items-center space-x-3">
-                  <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                  <span>Slack channels updated</span>
-                </div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">1 hour ago</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        </div>
     </div>
   );
 };

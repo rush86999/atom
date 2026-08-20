@@ -48,6 +48,7 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 _recovery_limiter = AuthRateLimiter(limit=5, window_seconds=300)    # 5/5min
 _verify_limiter = AuthRateLimiter(limit=10, window_seconds=300)     # 10/5min
 _reset_limiter = AuthRateLimiter(limit=5, window_seconds=300)       # 5/5min
+_password_change_limiter = AuthRateLimiter(limit=5, window_seconds=300)  # 5/5min (current-password guessing)
 
 
 def forgot_password_rate_limit(request: Request) -> None:
@@ -124,10 +125,34 @@ class ResetPasswordRequest(BaseModel):
 class VerifyTokenRequest(BaseModel):
     token: str
 
+class ChangePasswordRequest(BaseModel):
+    """Change password request (authenticated user).
+
+    Field names match the frontend payload (settings/account.tsx sends
+    current_password + new_password)."""
+    current_password: str = Field(..., max_length=128)
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def _check_new_password_bytes(cls, v: str) -> str:
+        return _validate_password_bytes(v)
+
 class LoginRequest(BaseModel):
     username: str
     password: str
     totp_code: Optional[str] = None
+
+def change_password_rate_limit(request: Request) -> None:
+    """FastAPI dependency: rate limit POST /api/auth/change-password (5/5min/IP)."""
+    allowed, _ = _password_change_limiter.check(request)
+    if not allowed:
+        logger.warning(
+            "change-password rate limit exceeded for IP %s",
+            _password_change_limiter._client_ip(request),
+        )
+        raise HTTPException(status_code=429, detail="Too many password change attempts. Please try again later.")
+
 
 @router.post("/login")
 async def login_for_access_token(
@@ -462,6 +487,64 @@ async def logout(
         request=request
     )
     return {"success": True, "message": "Logged out successfully"}
+
+@router.post("/change-password")
+async def change_password(
+    request: Request,
+    change_data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _rl=Depends(change_password_rate_limit),
+):
+    """Change the authenticated user's password.
+
+    Requires the current password. Revokes every other active session
+    (the current JWT is kept) so a leaked token does not survive a password
+    change. Rate-limited (5/5min/IP) to blunt current-password guessing.
+    """
+    from core.auth import ALGORITHM, SECRET_KEY, oauth2_scheme, revoke_token
+    import jwt as _jwt
+    from core.auth_helpers import revoke_all_user_tokens
+
+    if not verify_password(change_data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    if verify_password(change_data.new_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="New password must be different from the current password")
+
+    current_user.hashed_password = get_password_hash(change_data.new_password)
+    db.commit()
+
+    # Keep the current session's token; revoke all others.
+    current_jti = None
+    try:
+        raw_token = await oauth2_scheme(request)
+        if raw_token:
+            payload = _jwt.decode(raw_token, SECRET_KEY, algorithms=[ALGORITHM])
+            current_jti = payload.get("jti")
+    except Exception:
+        pass  # Best-effort; revocation still proceeds without except_jti
+
+    revoked = revoke_all_user_tokens(
+        user_id=current_user.id,
+        db=db,
+        except_jti=current_jti,
+        revocation_reason="password_change",
+    )
+
+    audit_service.log_event(
+        db,
+        event_type=AuditEventType.UPDATE.value,
+        action="change_password",
+        description="User changed their password",
+        user_id=current_user.id,
+        user_email=current_user.email,
+        security_level=SecurityLevel.MEDIUM.value,
+        request=request,
+    )
+
+    logger.info("Password changed for user %s (%d other sessions revoked)", current_user.id, revoked)
+    return {"success": True, "message": "Password updated successfully", "revoked_sessions": revoked}
 
 @router.get("/profile")
 async def get_user_profile(current_user: User = Depends(get_current_user)):
