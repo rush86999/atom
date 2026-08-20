@@ -147,19 +147,17 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)) -> U
     """
     from core.auth import get_current_user as _core_get_current_user
 
-    return await _core_get_current_user(request=request, token=None, db=db)
+    # Extract the Bearer token from the Authorization header ourselves.
+    # core.auth.oauth2_scheme only binds when FastAPI injects it as a
+    # dependency; this wrapper is called directly (not as a FastAPI dep), so
+    # passing token=None unconditionally meant the Authorization header was
+    # never read and every Bearer call /api/v1/auth/oauth/* 401'd.
+    auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
+    token = None
+    if auth_header and auth_header.lower().startswith("bearer "):
+        token = auth_header[7:].strip()
 
-async def get_optional_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    """Get current user, falling back to active DB user if token is missing or invalid."""
-    try:
-        return await get_current_user(request, db)
-    except Exception as e:
-        logger.warning(f"OAuth initiation auth fallback triggered: {e}")
-        from core.models import UserStatus
-        user = db.query(User).filter(User.status == UserStatus.ACTIVE).first() or db.query(User).first()
-        if not user:
-            raise HTTPException(status_code=401, detail="No active user found in database")
-        return user
+    return await _core_get_current_user(request=request, token=token, db=db)
 
 async def _handle_callback_logic(provider: str, code: str, config: Any, request: Request, db: Session, user: Optional[User] = None):
     """Common logic for handling OAuth callbacks."""
@@ -287,7 +285,7 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
 @router.get("/{provider}/initiate")
 async def oauth_initiate(
     provider: str,
-    current_user: User = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Initiate OAuth flow for a specific provider."""
     configs = {

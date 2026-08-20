@@ -127,3 +127,40 @@ def test_known_providers_match_v1_config():
         f"B16 regression: allowlist providers that v1 rejects: {unresolved}. "
         f"v1 supports {sorted(v1_keys)}."
     )
+
+
+# --- B17: Bearer token silently ignored by the v1 auth wrapper ---------------
+
+
+def test_v1_oauth_get_current_user_passes_bearer_token():
+    """RED: oauth_routes.get_current_user must extract the Bearer token from
+    the Authorization header and hand it to ``core.auth.get_current_user``.
+    Since commit 49de5a594 the wrapper passes ``token=None`` unconditionally,
+    so every Bearer-authenticated call to ``/api/v1/auth/oauth/*`` 401s with
+    'Could not validate credentials' (cookie-only sessions still worked,
+    masking the bug). The wrapper's own docstring promises to verify "a JWT
+    (Bearer header or NextAuth cookie)", but only the cookie path ever ran."""
+    import asyncio
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, patch
+
+    import api.oauth_routes as v1
+
+    captured = {}
+    fake_core = AsyncMock(return_value="user-obj")
+    fake_core.side_effect = lambda request, token, db: captured.__setitem__("token", token)
+
+    request = SimpleNamespace(
+        headers={"Authorization": "Bearer abc.def.ghi"},
+        query_params={},
+        cookies={},
+    )
+
+    with patch("core.auth.get_current_user", fake_core):
+        asyncio.run(v1.get_current_user(request, db=None))
+
+    assert captured.get("token") == "abc.def.ghi", (
+        f"B17 regression: get_current_user passed token={captured.get('token')!r} "
+        f"to core.auth instead of the Bearer token. The v1 OAuth surface is "
+        f"unusable over Bearer auth."
+    )
