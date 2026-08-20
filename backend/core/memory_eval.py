@@ -127,6 +127,24 @@ def _seed_eval_workspace(workspace_id: str) -> None:
     Base.metadata.create_all(bind=engine)
 
     from core.graphrag_engine import GraphRAGEngine
+
+    # demo/ lives at the repo root, not inside backend/ — resolve it relative
+    # to this file so the import works regardless of the caller's cwd
+    # (CI runs the backend job with working-directory: backend).
+    import importlib.util
+    import pathlib
+    import sys
+
+    _seed_path = (
+        pathlib.Path(__file__).resolve().parents[2] / "demo" / "brennan" / "seed_data.py"
+    )
+    if "demo.brennan.seed_data" not in sys.modules:
+        _spec = importlib.util.spec_from_file_location(
+            "demo.brennan.seed_data", _seed_path
+        )
+        _mod = importlib.util.module_from_spec(_spec)
+        sys.modules["demo.brennan.seed_data"] = _mod
+        _spec.loader.exec_module(_mod)
     from demo.brennan.seed_data import (  # type: ignore
         PRODUCTS, CUSTOMERS, VENDORS, LEADS, RELATIONSHIPS,
     )
