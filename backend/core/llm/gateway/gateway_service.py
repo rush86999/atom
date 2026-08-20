@@ -284,6 +284,53 @@ class GatewayService:
         return body
 
 
+def record_gateway_span(
+    model: Optional[str],
+    provider: Optional[str],
+    status_code: Optional[int],
+    latency_ms: Optional[int],
+    usage: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Record an observability span for one gateway request (fire-and-forget).
+
+    Called from the gateway routes' single logging choke point
+    (``_log_and_alert`` in ``api/openai_gateway_routes.py``) so both the
+    OpenAI- and Anthropic-compatible surfaces — success, error, and stream
+    paths — emit exactly one ``llm.gateway.request`` span each. Token usage
+    is read defensively: only fields actually present on the caller-supplied
+    usage dict are recorded.
+    """
+    import time as _time
+    import uuid as _uuid
+
+    from core.observability.tracing import record_span
+
+    usage = usage or {}
+    ended = _time.time()
+    attributes: Dict[str, Any] = {
+        "model": model,
+        "provider": provider,
+        "status_code": status_code,
+        "latency_ms": latency_ms,
+    }
+    if "prompt_tokens" in usage:
+        attributes["prompt_tokens"] = usage.get("prompt_tokens")
+    if "completion_tokens" in usage:
+        attributes["completion_tokens"] = usage.get("completion_tokens")
+    try:
+        record_span(
+            trace_id=str(_uuid.uuid4()),
+            name="llm.gateway.request",
+            kind="llm.gateway",
+            attributes=attributes,
+            started_at=ended - max(0.0, (latency_ms or 0) / 1000.0),
+            ended_at=ended,
+            status="ok" if (status_code or 500) < 400 else "error",
+        )
+    except Exception as exc:  # observability must never break the gateway
+        logger.debug(f"gateway span recording skipped: {exc}")
+
+
 def _parse_tier(value: str) -> Optional[CognitiveTier]:
     """Parse an x-atom-tier override into a CognitiveTier, or None."""
     try:

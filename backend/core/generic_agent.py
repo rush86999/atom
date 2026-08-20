@@ -1099,6 +1099,30 @@ What is your next step?"""
                 )
             if oracle_result is None:
                 return result
+            # Observability seam: one span per oracle verdict (local import to
+            # avoid import cycles; failures never affect the verdict path).
+            try:
+                import time as _time
+                import uuid as _uuid
+
+                from core.observability.tracing import record_span
+
+                _ended = _time.time()
+                record_span(
+                    trace_id=str(_uuid.uuid4()),
+                    name="oracle.verify",
+                    kind="oracle",
+                    attributes={
+                        "tool": tool_name,
+                        "verified": bool(oracle_result.verified),
+                        "evidence": str(oracle_result.evidence or "")[:200],
+                    },
+                    started_at=_ended,
+                    ended_at=_ended,
+                    status="ok" if oracle_result.verified else "unverified",
+                )
+            except Exception as _obs_exc:
+                logger.debug(f"oracle span recording skipped for {tool_name}: {_obs_exc}")
             if isinstance(result, dict):
                 out = dict(result)
                 out["oracle_verified"] = oracle_result.verified

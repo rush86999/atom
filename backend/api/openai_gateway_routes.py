@@ -130,6 +130,14 @@ async def _log_and_alert(
         response_body=response_body,
     )
     await record_gateway_spend(identity.workspace_id, cost, user_id=identity.user_id)
+    # Observability seam (W?): one span per gateway request, emitted from this
+    # single choke point so all surfaces/paths are covered uniformly.
+    try:
+        from core.llm.gateway.gateway_service import record_gateway_span
+
+        record_gateway_span(model, provider, status_code, latency_ms, usage=usage)
+    except Exception as exc:  # never break the gateway for observability
+        logger.debug(f"gateway span emission skipped: {exc}")
 
 
 # --------------------------------------------------------------------------- #
