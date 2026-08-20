@@ -64,7 +64,7 @@ class IngestionPipelineService(HybridDataIngestionService):
     # Integrations whose records are always treated as communications (known
     # comm apps — includes both native ids and webhook ids).
     _KNOWN_COMM_INTEGRATIONS = frozenset({
-        "outlook", "gmail", "slack", "microsoft_teams", "telegram",
+        "outlook", "gmail", "slack", "microsoft_teams", "teams", "telegram",
         "whatsapp", "discord", "sms", "calls", "zoom", "line", "signal",
         "messenger", "google_chat",
     })

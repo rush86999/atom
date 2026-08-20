@@ -758,7 +758,7 @@ class CommunicationIngestionPipeline:
                 messages = await self._fetch_whatsapp_messages(last_fetch)
             elif app_type == CommunicationAppType.SLACK.value:
                 messages = await self._fetch_slack_messages(last_fetch)
-            elif app_type == CommunicationAppType.MICROSOFT_TEAMS.value:
+            elif app_type == CommunicationAppType.MICROSOFT_TEAMS.value or app_type == "teams":
                 messages = await self._fetch_teams_messages(last_fetch)
             elif app_type == CommunicationAppType.EMAIL.value:
                 messages = await self._fetch_email_messages(last_fetch)
@@ -1679,7 +1679,17 @@ class CommunicationIngestionPipeline:
                 "sender": message_data.get("from"),
                 "recipient": message_data.get("to"),
                 "subject": None,
-                "content": message_data.get("content", ""),
+                # Field-name fallback: the Meta/WhatsApp transformer emits
+                # `text` (ingestion_pipeline.py:3321), while some pollers and
+                # older payloads use `content`/`body`. Without the fallback,
+                # messages were stored with EMPTY content (and meaningless
+                # embeddings) — the same bug class that hit Telegram.
+                "content": (
+                    message_data.get("content")
+                    or message_data.get("text")
+                    or message_data.get("body")
+                    or ""
+                ),
                 "attachments": message_data.get("attachments", []),
                 "metadata": {
                     "message_type": message_data.get("message_type", "text"),
