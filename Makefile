@@ -40,9 +40,23 @@ dev: ## Run backend + frontend together (requires tmux or two terminals)
 # -------------------------------------------------------------------
 # Tests
 # -------------------------------------------------------------------
-.PHONY: test test-e2e test-backend
+.PHONY: test test-e2e test-backend test-core
 test-backend: ## Run the backend unit tests
 	cd backend && $(PYTEST) tests/ -q --tb=short
+
+# The CI-gated core suite (same 14 files the backend-tests job runs). Keep in
+# sync with .github/workflows/ci.yml.
+CORE_TEST_FILES := tests/test_integration_http.py tests/test_local_models.py \
+  tests/test_routing_feedback_endpoint.py tests/test_phase_integration.py \
+  tests/test_response_quality.py tests/test_routing_trainer_integration.py \
+  tests/test_routing_db_persistence.py tests/test_round17b_fixes.py \
+  tests/test_learning_routing.py tests/test_learning_llm_router.py \
+  tests/test_workbook_runtime.py tests/test_canvas_crud.py \
+  tests/test_openrouter_provider.py tests/test_provider_wiring.py
+
+test-core: ## Run the CI-gated core test suite
+	cd backend && DATABASE_URL="sqlite:///test_ci.db" SECRET_KEY="ci-test-secret-key" \
+	  ENVIRONMENT=development $(PYTEST) $(CORE_TEST_FILES) -q --tb=line
 
 test-e2e: ## Run the E2E journey suite (needs backend on :$(PORT) + frontend on :$(FE_PORT))
 	cd backend/tests/e2e_ui && PLAYWRIGHT_NODEJS_PATH=$$(which node) \

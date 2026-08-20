@@ -9,7 +9,7 @@
 
 [![License](https://img.shields.io/badge/License-AGPL-blue.svg)](LICENSE.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/rush86999/atom/ci.yml?branch=main&label=CI)](https://github.com/rush86999/atom/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-27%2C000%2B-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-85k%2B%20%E2%80%A2%20CI--gated%20core%20suite-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)]()
 [![Stars](https://img.shields.io/github/stars/rush86999/atom?style=social)]()
 
@@ -23,9 +23,9 @@ Atom is an open-source, self-hosted **AI agent workforce** for your employees. I
 
 **Autonomous agents as teammates**: Atom's agents don't just respond to commands — they operate autonomously within governed boundaries, handling routine work end-to-end while your employees focus on strategy, creativity, and high-value decisions. Each agent is a digital teammate with specialized skills, persistent memory, and the ability to collaborate with other agents and humans alike.
 
-**Trusted by design**: every agent action is governed by a 4-tier maturity model, executed inside a default-on sandbox, and recorded in a complete audit trail — with human-in-the-loop approval wherever you want it. Your employees get capable help; you keep control.
+**Trusted by design**: every agent action is governed by a 4-tier maturity model, executed inside a default-on sandbox, and recorded in a comprehensive audit trail — with human-in-the-loop approval wherever you want it. And unlike every chatbot-style agent platform, **Atom verifies outcomes instead of trusting agent self-report**: mutating actions are re-derived against your system of record by an independent postcondition oracle (on by default), and confidence is split into *self-reported* vs *externally verified*. Your employees get capable help; you keep control.
 
-**Your data stays yours**: workflow data, agent state, and memory live on your infrastructure. LLM inference uses your own API keys (BYOK) — or local models (Ollama/Llama.cpp) for fully private deployments.
+**Your data stays yours**: workflow data, agent state, and memory live on your infrastructure. LLM inference uses your own API keys (BYOK) — or local models (Ollama first-class, or any local OpenAI-compatible server: LM Studio, vLLM, llama.cpp server) for fully private deployments.
 
 **Free edition, full features (AGPL v3)**: everything in this repository — every agent, integration, and governance feature — is free and open source. Keys you configure in `.env` are treated as BYOK and are never gated by plans or tiers. Commercial/managed editions run this same code on the client's own infrastructure; there is no closed-source "pro" build.
 
@@ -125,18 +125,19 @@ This isn't "AI replacing humans." It's **AI handling the work humans shouldn't b
 | Category | Features |
 |---|---|
 | **🤖 Multi-Agent Orchestration** | Queen Agent (structured workflows) + Fleet Admiral (open-ended tasks) + Conductor (5 execution strategies) + validated state machine with rollback; governed fleet routing with ranked specialist matching |
-| **🛡️ Governance & Safety** | 4-tier maturity (Student→Autonomous), 3-layer policy engine, HITL approval, complete audit trail, AI-powered training |
-| **✅ Outcome Verification** | Postcondition oracle re-derives success against the system of record (no self-attestation), two-tier confidence provenance, reviewer re-delegation loop with diversity-aware sampling |
+| **🛡️ Governance & Safety** | 4-tier maturity (Student→Autonomous), policy-gated HITL approval, comprehensive audit trail, AI-powered training, OIDC SSO + 8-role RBAC |
+| **✅ Outcome Verification** | Postcondition oracle re-derives success against the system of record — on by default, a refuted self-report is stamped UNVERIFIED (`ATOM_ORACLE_ENFORCE` kill switch); two-tier confidence provenance (self-reported vs externally verified); opt-in reviewer re-delegation loop |
 | **🧠 Memory & Learning** | Per-turn fact extraction, 2-tier recall (SQL + LanceDB), episodic memory, `memory_remember/forget`, self-evolution (Memento/AlphaEvolver, self-evolving harness) |
 | **🔎 Hybrid Search** | `documents.search` fuses BM25 (FTS5/tsvector) + vector (LanceDB) via Reciprocal Rank Fusion (RRF) — semantic + precise retrieval with citations |
 | **🗂️ Knowledge VFS** | Agent-native document tree — `ls`/`cat`/`grep`/`search` with line-numbered citations instead of bespoke per-store queries |
 | **📻 Agent Radio** | Lateral peer-to-peer messaging between agents (mention-first, budget-governed) — agents coordinate without hardcoded teams |
-| **💼 Office Automation** | Real-time Excel/Word/PPTX co-editing on Canvas; formula-evaluating workbook runtime; agent↔document sync |
-| **🧩 Mini-Apps** | Agent-authored stateful canvas apps (spreadsheets/docs/decks) — Firecracker microVM isolation, per-instance chat co-editing |
+| **💼 Office Automation** | Agent-driven Excel/Word/PPTX editing on Canvas with live preview broadcast; formula-evaluating workbook runtime; agent↔document sync |
+| **🧩 Mini-Apps** | Agent-authored stateful canvas apps — Firecracker microVM isolation, per-instance chat |
 | **🔍 GraphRAG & Intelligence** | Multi-hop expansion, Leiden community detection, JIT fact verification, D3 visual explorer |
 | **🌐 46+ Business Integrations** | Salesforce, HubSpot, Slack, Teams, Gmail, Notion, Jira, Linear, Stripe, QuickBooks, Shopify, GitHub, GitLab, Zoom… |
 | **🛰️ LLM Gateway** | OpenAI/Anthropic-compatible API over your BYOK — point Claude Code, n8n, or any OpenAI-SDK app at Atom |
-| **💰 Cost-Aware Routing** | 5-tier cognitive classification, 16+ providers, learning router (feedback-based re-ranking), RTK token compression |
+| **💰 Cost-Aware Routing** | 5-tier cognitive classification, 16+ providers, opt-in learning router (feedback-based re-ranking), RTK token compression |
+| **🤝 Interoperability** | MCP client for external tool servers, ACP endpoint for standard agent clients, A2A Agent Card + `message/send` for agent-to-agent delegation |
 | **🎯 Goal-Driven Loops** | Agents terminate on a `definition_of_done` predicate instead of always burning to `max_steps`; utility targets, custom action surfaces, stuck-detection |
 
 ---
@@ -145,7 +146,7 @@ This isn't "AI replacing humans." It's **AI handling the work humans shouldn't b
 
 | Layer | What you get |
 |---|---|
-| **Execution Sandbox** | Filesystem scope, tool whitelist, tripwires, resource caps, KillRun — enforced on *every* dispatch path |
+| **Execution Sandbox** | Filesystem scope, tool whitelist, tripwires, resource caps, KillRun — enforced at every tool-dispatch hub (in-process policy checks); mini-apps run in Firecracker microVMs |
 | **Encrypted Credentials** | OAuth integration tokens encrypted at rest (Fernet); production fails closed without key |
 | **Per-Agent Capability Bindings** | Zero-trust tool scoping — agent can never exceed its tier floor |
 | **Outbound Gatekeeper** | Rate limiting, response masking, HITL mutation approval on integration calls |
@@ -230,6 +231,7 @@ atom/
 |---|---|---|---|---|---|
 | **AI Agents (reason, not just execute)** | ✅ | ❌ | ✅ | ✅ | ✅ |
 | **Governance (maturity + HITL + audit)** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Outcome verification (re-derived from system of record, not self-report)** | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Default-on Sandbox (all dispatch paths)** | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Self-Hosted / Private (your keys, your infra)** | ✅ | ❌ | ✅ | ✅ | ✅ |
 | **Office/Canvas Native (Excel formulas, co-edit)** | ✅ | ❌ | ❌ | ❌ | ❌ |
@@ -243,7 +245,7 @@ atom/
 
 ## 🤝 Contributing & Support
 
-We welcome contributions — see [CONTRIBUTING.md](CONTRIBUTING.md). Quality bar: tests pass (100%), coverage ≥70%, review required, docs updated.
+We welcome contributions — see [CONTRIBUTING.md](CONTRIBUTING.md). Quality bar: CI-gated core suite green, typecheck clean on changed files, review required, docs updated. See [docs/compliance/COMPLIANCE_MAPPING.md](docs/compliance/COMPLIANCE_MAPPING.md) for the security/compliance control mapping.
 
 - **Issues**: [GitHub Issues](https://github.com/rush86999/atom/issues)
 - **Blog**: [Substack](https://substack.com/@rish2atom/posts)
