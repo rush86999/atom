@@ -1,15 +1,19 @@
 <div align="center">
 
 # ATOM Platform
-### Open-Source AI Agent Workforce for Your Team
+### The governed agent platform — autonomy, earned.
 
 ![Atom Platform](https://github.com/user-attachments/assets/398de2e3-4ea6-487c-93ae-9600a66598fc)
 
-**Give every employee a team of AI agents — trusted and safe by design.**
+**88% of AI agent pilots never reach production.***
+**Atom is built for the other path.**
+
+<small>*Industry figure (Turion 2026). Atom makes no claims about its own deployments.</small>
 
 [![License](https://img.shields.io/badge/License-AGPL-blue.svg)](LICENSE.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/rush86999/atom/ci.yml?branch=main&label=CI)](https://github.com/rush86999/atom/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-85k%2B%20%E2%80%A2%20CI--gated%20core%20suite-brightgreen)]()
+[![Governance](https://img.shields.io/badge/governance-0.027ms%20P99-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)]()
 [![Stars](https://img.shields.io/github/stars/rush86999/atom?style=social)]()
 
@@ -19,19 +23,23 @@
 
 ## What is Atom?
 
-Atom is an open-source, self-hosted **AI agent workforce** for your employees. Instead of one assistant, Atom runs a team of specialty agents — sales, support, finance, engineering — that your people delegate to in plain language. Agents plan, verify, and execute complex workflows across your entire tech stack.
+Atom is an open-source, self-hosted **AI agent workforce** — a team of specialty agents (sales, support, finance, engineering) that your people delegate to in plain language. Where other platforms sell agent *capability*, Atom sells agent *accountability*: autonomy that is earned through verified outcomes, executed inside a deterministic safety net, on your hardware.
 
-**Autonomous agents as teammates**: Atom's agents don't just respond to commands — they operate autonomously within governed boundaries, handling routine work end-to-end while your employees focus on strategy, creativity, and high-value decisions. Each agent is a digital teammate with specialized skills, persistent memory, and the ability to collaborate with other agents and humans alike.
+**Agents that earn trust, not assume it.** Atom's agents don't just respond to commands — they operate autonomously within governed boundaries, handling routine work end-to-end. Every agent starts as a supervised intern and graduates through a 4-tier maturity model (STUDENT → INTERN → SUPERVISED → AUTONOMOUS) only after **verified** successful runs — 10/25/50 episodes, outcome-checked, not self-reported.
 
-**Trusted by design**: every agent action is governed by a 4-tier maturity model, executed inside a default-on sandbox, and recorded in a comprehensive audit trail — with human-in-the-loop approval wherever you want it. And unlike every chatbot-style agent platform, **Atom verifies outcomes instead of trusting agent self-report**: mutating actions are re-derived against your system of record by an independent postcondition oracle (on by default), and confidence is split into *self-reported* vs *externally verified*. Your employees get capable help; you keep control.
+**Verified outcomes, not self-report.** Every mutating action is re-derived against your system of record by an independent postcondition oracle (on by default), and confidence is split into *self-reported* vs *externally verified*. An agent that says "done" is checked, not believed. A prompt-injected agent at any tier acts at that tier's *scoped* blast radius — bounded by a default-on sandbox layer: filesystem scope, tool whitelist, tripwires, resource caps, kill-run, egress allowlist, full provenance audit. 0.027ms P99 per check.
 
-**Your data stays yours**: workflow data, agent state, and memory live on your infrastructure. LLM inference uses your own API keys (BYOK) — or local models (Ollama first-class, or any local OpenAI-compatible server: LM Studio, vLLM, llama.cpp server) for fully private deployments.
+**Your data stays yours.** Workflow data, agent state, and memory live on your infrastructure — embedded store, no cloud required. LLM inference uses your own API keys (BYOK, encrypted at rest) — or local models (Ollama first-class, or any local OpenAI-compatible server: LM Studio, vLLM, llama.cpp server) for fully private deployments. EU AI Act data-governance obligations (Aug 2026)? Designed for, not retrofitted.
 
 **Free edition, full features (AGPL v3)**: everything in this repository — every agent, integration, and governance feature — is free and open source. Keys you configure in `.env` are treated as BYOK and are never gated by plans or tiers. Commercial/managed editions run this same code on the client's own infrastructure; there is no closed-source "pro" build.
 
 **💰 Budget-friendly AI agents**: OpenCode Go subscription (~90% savings vs pay-per-token) — one $10/mo key unlocks **general-purpose models** (DeepSeek V4, Kimi K3, GLM 5.2, MiniMax M3, Qwen 3.7, Nemotron 3 Ultra, Grok 4.5) with **full tool-calling & structured output** — not just for coding, works for any agent workload. [Setup guide →](docs/guides/OPENCODE_GO_PROVIDER.md)
 
-**No lock-in**: 16+ LLM providers (OpenAI, Anthropic, DeepSeek, Gemini, MiniMax, Groq…) with automatic cost-aware routing, fallback, and self-healing.
+**No lock-in**: 16+ LLM providers (OpenAI, Anthropic, DeepSeek, Gemini, MiniMax, Groq…) with automatic cost-aware routing, fallback, and self-healing — every run makes the next run cheaper (learning router + caching tiers).
+
+---
+
+*Receipts: 0.027ms P99 governance checks (repo benchmark) · 616k ops/s cached throughput · 69+ documented TDD hardening rounds (~1,100 fixes in the deep security sweep alone) · 85k+ tests (repo CI badge). External stats sourced in [docs/marketing/RESEARCH_NOTES.md](docs/marketing/RESEARCH_NOTES.md); copy kit in [COPY_README.md](docs/marketing/COPY_README.md) + [POSITIONING.md](docs/marketing/POSITIONING.md).*
 
 ---
 
