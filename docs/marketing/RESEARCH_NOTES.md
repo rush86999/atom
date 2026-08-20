@@ -3,6 +3,7 @@
 > Every external stat used in Atom marketing copy, with its source. If it's not here,
 > it doesn't go in copy. Repo-internal claims are grounded in `CLAUDE.md` / `docs/`
 > (see each file's own "Grounding" notes).
+> Last updated: Aug 20, 2026 (added OWASP ASI Top 10 + NIST agent-standards sourcing).
 
 ## The 88% problem
 
@@ -76,3 +77,32 @@
 - Zapier ~7,000–8,000 integrations · Make ~2,000 · n8n ~400 native + webhooks · Lindy ~80 deep.
   Source: aiagentrank.io "Zapier vs Make vs n8n vs Lindy: 2026 showdown" (May 21, 2026).
   https://aiagentrank.io/blog/zapier-vs-make-vs-n8n-vs-lindy
+
+## OWASP ASI Top 10 for Agentic Applications (2026) — candidacy for copy
+
+- **"OWASP Top 10 for Agentic Applications" (ASI Top 10) published Dec 2025, community-reviewed by 100+ researchers; adopted as a de-facto purchase/audit checklist for 2026. Its two framing principles: "Least Agency" (agents get minimum autonomy, minimum tool access, minimum credential scope — autonomy is **earned, not default**) and "Strong Observability" (goal state, tool-use patterns, decision pathways must be logged).**
+  Sources: genai.owasp.org, runesec.dev guide, Palo Alto Networks (2026).
+  https://genai.owasp.org/initiatives/agentic-security-initiative/
+  https://runesec.dev/learn/owasp-top-10-agentic-ai
+  https://www.paloaltonetworks.com/blog/cloud-security/owasp-agentic-ai-security
+- **The ASI 10 risks map 1:1 onto Atom's existing controls** (see `POSITIONING.md` §8 mapping): Goal Hijack → match-confidence + oracle verification; Tool Misuse → tool whitelist + sandbox caps; Identity/Privilege Abuse → DIDs/VCs + capability bindings; Memory Poisoning → verified-episode graduation + sensitivity taint on ingest; Cascading Failures → circuit breakers + kill-run; Rogue Agents → hard-skip + maturity revoke. **Uniquely sellable: Atom ships the ASI checklist as code — most 2026 competitors sell it as a subscription dashboard.**
+- **"Almost 9 of 10 agent projects stall between proof-of-concept and stable rollout — and the blocker is rarely model quality. It's 'we don't trust this in production without controls.'"**
+  Source: Gartner 2026 Hype Cycle for Agentic AI, as summarized in Fleece AI (May 2026).
+  https://www.gartner.com/en/articles/hype-cycle-for-agentic-ai
+
+## NIST AI Agent Standards Initiative (2026) — regulatory momentum
+
+- **NIST formally launched the AI Agent Standards Initiative (Feb 17, 2026) under CAISI — the first U.S. government program dedicated to secure/interoperable agentic AI, targeting agent identity, authorization, and accountability. A companion NCCoE concept paper (Feb 5, 2026) identifies the four minimum enterprise requirements for production agents: identification, authorization, access delegation, and logging.** OWASP ASI is cited as the practical threat-model vocabulary while NIST final guidance is pending (Q4 2026).
+  Sources: NIST, Cloud Security Alliance research notes (Mar/Apr 2026).
+  https://www.nist.gov/artificial-intelligence/ai-agent-standards-initiative
+  https://labs.cloudsecurityalliance.org/research/csa-research-note-nist-ai-agent-standards-initiative-2026040/
+- **EU AI Act (Regulation (EU) 2024/1689) fully applies Aug 2, 2026; high-risk Article 9 requires risk management systems, and ASI Auditors note that agentic AI without documented controls against at least ASI01/ASI03/ASI06 will struggle to demonstrate Article 9 compliance.**
+  Sources: Microsoft agent-governance-toolkit OWASP compliance guide; runesec.dev (both map EU AI Act deadlines).
+  https://github.com/microsoft/agent-governance-toolkit/blob/main/packages/agent-compliance/docs/OWASP-COMPLIANCE.md
+
+## MCP as the audit chokepoint — architectural positioning angle
+
+- **The Model Context Protocol is becoming the dominant interface for agent tool access, making MCP gateways "natural audit chokepoints": every tool invocation passes through the MCP layer, so enforcement of logging, authorization, and rate limiting belongs there. MCP itself lacks standardized audit logging — production platforms must implement it at the gateway.** Atom's `mcp_service.call_tool` already is exactly that chokepoint (sandbox gate, capability bindings, audit, provenance — P2/P3/P4/P9).
+  Source: Zylos Research, "AI Agent Governance and Compliance in 2026" (May 1, 2026).
+  https://zylos.ai/research/2026-05-01-ai-agent-governance-compliance-2026/
+- Same source: a single agent interaction generates 5–50KB of audit data; at 10k interactions/day that is 36–182GB/year — a quantified reason "local-first audit store" is a real buyer concern.

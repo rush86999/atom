@@ -100,7 +100,32 @@ Every piece of copy speaks from at least one pillar; every pillar carries proof.
 - Not "prompts + integrations" — that's a copyable wrapper, not a moat
 - Not full autonomy without guardrails (we actively argue against it: human-on-the-loop beats human-out-of-the-loop)
 
-## 8. Proof Points (the "receipts" — each traceable to repo docs)
+## 8. The OWASP ASI Top 10 as proof — map our code to the 2026 security checklist
+
+> The strongest new proof move (Aug 2026): the OWASP "Top 10 for Agentic Applications"
+> (ASI, Dec 2025) is cementing as the de-facto 2026 buyer audit checklist. Atom ships
+> the ASI checklist **in code** — most competitors sell it as a subscription dashboard.
+> Every row maps to a repo path. (See `RESEARCH_NOTES.md` §OWASP.)
+
+| ASI risk (2026) | Atom mechanism (repo) |
+|---|---|
+| **ASI01 Goal Hijack** (indirect prompt injection) | pre-action match-confidence triage (`core/llm/match_confidence_tiebreaker.py`), oracle verification (`core/oracle/`) |
+| **ASI02 Tool Misuse** | tool whitelist + sandbox caps + fs scope (`core/sandbox_policy.py`, `sandbox_fs.py`) |
+| **ASI03 Identity & Privilege Abuse** | per-agent capability bindings (`core/capability_resolver.py`), DIDs/VCs (`core/identity/`) |
+| **ASI04 Agentic Supply Chain** | per-skill Docker + pip-audit/Safety scan (`core/package_governance_service.py`) |
+| **ASI05 Unexpected Code Execution** | sandbox runtime, Firecracker/E2B, `safe_eval` (`core/safe_evaluator.py`) |
+| **ASI06 Memory & Context Poisoning** | verified-episode graduation, data taint on ingest (`core/data_taint_tracker.py`) |
+| **ASI07 Insecure Inter-Agent Comms** | Agent Radio signing + `agent_threads` audit (`core/agent_radio/`) |
+| **ASI08 Cascading Failures** | circuit breakers, kill-run, budget caps (`core/sandbox_caps.py`, `sandbox_killrun.py`) |
+| **ASI09 Human-Agent Trust Exploitation** | proposal/HITL approval surface (`core/proposal_service.py`), self-consistency voter |
+| **ASI10 Rogue Agents** | hard-skip + maturity revoke, kill switch env toggles |
+
+> NIST (Agent Standards Initiative, Feb 2026) echoes the same four asks for production
+> agents — identification, authorization, access delegation, logging — all present in
+> Atom's DIDs/VCs + capability bindings + audit trail. EU AI Act Article 9 (fully in
+> force Aug 2, 2026) requires documented controls against ASI01/03/06 — Atom has them.
+
+## 9. Proof Points (the "receipts" — each traceable to repo docs)
 
 Repo-measured (see `CLAUDE.md` performance table + `docs/operations/performance.md`):
 - 0.027ms P99 cached governance check · 616k ops/s cache throughput · 95% cache hit rate
@@ -120,7 +145,7 @@ Repo-feature claims (verify before reuse, not aspirational):
 - 46+ native integrations (README spectrum diagram)
 - OpenCode Go provider ≈90% cheaper per-token vs pay-per-token (README; `docs/guides/OPENCODE_GO_PROVIDER.md`)
 
-## 9. Tone of Voice
+## 10. Tone of Voice
 
 - **Confident, not hypey.** "Trust" claims need receipts, not adjectives.
 - **Concrete over superlative.** Show the mechanism: "an independent oracle re-derives success against your system of record."

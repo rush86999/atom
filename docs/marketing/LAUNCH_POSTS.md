@@ -32,6 +32,12 @@
 > Anthropic CTF incident is why capability ≠ safety. (External facts sourced in
 > `docs/marketing/RESEARCH_NOTES.md`; HN comments can challenge anything.)
 >
+> If you're vending/auditing agents in 2026, you're working through the OWASP ASI Top 10
+> (Dec 2025). We mapped all 10 risks onto concrete repo mechanisms — match-confidence,
+> oracle verification, capability bindings, sandbox phases, verified-episode graduation,
+> provenance — in `docs/marketing/POSITIONING.md#8`. The soundbite: we don't sell the
+> agent-security checklist as a subscription dashboard; it ships in our code.
+>
 > **Numbers we publish (each repo-measured or externally sourced, see RESEARCH_NOTES.md):**
 > - 0.027ms P99 per-agent governance checks, 616k ops/s cache throughput (repo benchmark table)
 > - 69+ documented TDD hardening rounds; deep security sweep (R18–31) fixed ~1,100 bugs
@@ -90,6 +96,10 @@
 > Plus a deterministic blast-radius layer (5 phases: policy → FS scope → tripwires/caps/
 > kill-run → Firecracker/E2B runtime + egress proxy → provenance + LLM ActionJudge), all
 > default-on since P9 across every dispatch path.
+>
+> Incidentally, this is the same defense surface the OWASP ASI Top 10 (Dec 2025) asks for
+> — we've mapped all 10 risks to repo mechanisms in `POSITIONING.md#8` (goal hijack →
+> match-confidence, memory poisoning → verified graduation, rogue agents → kill-run, …).
 >
 > Questions welcome on failure taxonomy, latency budgets (verification must never eat the
 > p99 budget), and what regressions the oracle catches that evals miss.
