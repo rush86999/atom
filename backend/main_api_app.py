@@ -2727,6 +2727,41 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"ACP bridge not mounted: {e}")
 
+    # 4c. A2A — Agent Card discovery + JSON-RPC message/send so external
+    # agents can discover and delegate to Atom agents (A2A protocol baseline).
+    try:
+        from api.a2a_routes import router as a2a_router
+
+        app.include_router(a2a_router, tags=["A2A"])
+        logger.info("✓ A2A endpoint mounted at /api/a2 (+ /.well-known/agent-card.json)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"A2A endpoint not mounted: {e}")
+
+    # 4d. OIDC SSO — authorization-code login against an enterprise IdP.
+    try:
+        from api.sso_oidc_routes import router as sso_oidc_router
+
+        app.include_router(sso_oidc_router, tags=["SSO"])
+        logger.info("✓ OIDC SSO mounted at /api/auth/sso/oidc")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"OIDC SSO not mounted: {e}")
+
+    # 4e. BambooHR + Twitter/X integrations.
+    try:
+        from integrations.bamboohr_routes import router as bamboohr_router
+
+        app.include_router(bamboohr_router, tags=["BambooHR"])
+        logger.info("✓ BambooHR integration mounted at /api/bamboohr")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"BambooHR integration not mounted: {e}")
+    try:
+        from integrations.twitter_routes import router as twitter_router
+
+        app.include_router(twitter_router, tags=["Twitter"])
+        logger.info("✓ Twitter/X integration mounted at /api/twitter")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Twitter/X integration not mounted: {e}")
+
     # 6. MCP Routes (Web Search & Web Access for Agents)
     try:
         from integrations.mcp_routes import router as mcp_router
