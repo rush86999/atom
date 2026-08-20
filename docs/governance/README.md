@@ -1,5 +1,14 @@
 # Governance System
 
+> **Removed (2026-08-20):** the bespoke three-layer policy engine
+> (`core/governance/` — `policy_engine.py`, `dynamic_governance.py`,
+> `governance_service.py`) has been deleted. It was never wired into the live
+> dispatch path (live governance is `core/agent_governance_service.py`,
+> `core/governance_engine.py`, and the Gatekeeper middleware). Code samples
+> below referencing it are historical. For external policy-as-code, integrate
+> an OPA sidecar (roadmap).
+
+
 Agent maturity levels, permissions, and governance controls with 2026 enhancements.
 
 ## 📚 Quick Navigation
