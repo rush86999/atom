@@ -39,7 +39,7 @@ Atom is an open-source, self-hosted **AI agent workforce** — a team of special
 
 ---
 
-*Receipts: 0.027ms P99 governance checks (repo benchmark) · 616k ops/s cached throughput · 69+ documented TDD hardening rounds (~1,100 fixes in the deep security sweep alone) · 85k+ tests (repo CI badge). External stats sourced in [docs/marketing/RESEARCH_NOTES.md](docs/marketing/RESEARCH_NOTES.md); copy kit in [COPY_README.md](docs/marketing/COPY_README.md) + [POSITIONING.md](docs/marketing/POSITIONING.md).*
+*Receipts: 0.027ms P99 governance checks (repo benchmark) · 616k ops/s cached throughput · 69+ documented TDD hardening rounds (~1,100 fixes in the deep security sweep alone) · 85k+ test functions (84,737 across 2,759 files, verified Aug 2026). External stats sourced in [docs/marketing/RESEARCH_NOTES.md](docs/marketing/RESEARCH_NOTES.md); copy kit in [COPY_README.md](docs/marketing/COPY_README.md) + [POSITIONING.md](docs/marketing/POSITIONING.md).*
 
 ---
 

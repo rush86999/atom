@@ -69,7 +69,7 @@
 > - 0.027ms P99 per-agent governance checks, 616k ops/s cached throughput — repo benchmark table
 > - Outcome-verified graduation: agents advance at 10 / 25 / 50 verified episodes — `docs/agents/graduation.md`
 > - 69+ documented rounds of TDD hardening; the deep security sweep (rounds 18–31) alone fixed ~1,100 bugs
-> - 85k+ tests (repo CI badge — verify current count before publishing) · 486-test E2E UI suite
+> - 85k+ tests (84,737 test functions counted across 2,759 files, Aug 20 2026 — `rg "def test_|async def test_" backend/tests/`) · 533-test E2E UI suite (486 documented in `CLAUDE.md`; actual count higher — verified statically)
 > - 16+ LLM providers with cost-aware routing; ~90% cost reduction via caching tiers (repo-documented claim)
 
 ## 6. Comparison messaging

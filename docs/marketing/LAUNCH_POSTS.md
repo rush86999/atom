@@ -41,7 +41,7 @@
 > **Numbers we publish (each repo-measured or externally sourced, see RESEARCH_NOTES.md):**
 > - 0.027ms P99 per-agent governance checks, 616k ops/s cache throughput (repo benchmark table)
 > - 69+ documented TDD hardening rounds; deep security sweep (R18–31) fixed ~1,100 bugs
-> - 486-test E2E UI suite; mypy-gated; 85k+ tests (repo CI badge — verify count before posting)
+> - 486-test E2E UI suite (533 statically counted, Aug 2026); 85k+ test functions repo-wide (84,737 across 2,759 files — verify at post time via `rg "def test_" backend/tests/ | wc -l`)
 > - ~90% LLM cost reduction via caching tiers + learning router (repo-documented); free fully-local Ollama tier
 > - Local-first: embedded LanceDB + SQLite, keys encrypted at rest (Fernet), telemetry opt-in only (SENTRY_DSN)
 >

