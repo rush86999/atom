@@ -197,7 +197,8 @@ This is an instance of design principle 7 — the contract applies to **every re
 - Ingestion-symmetry coverage table: per integration — comms store (Pipeline A) ✓/✗, graph entities (Pipeline B) ✓/✗, turn-fact extraction on its chat bridge ✓/✗. Any ✗ from the P0.4 audit must have a tracked follow-up before P1 ships.
 - Episode table unification: backfill idempotent; read/write paths assert on a single table.
 - Graph embeddings: `local_search` vector leg returns non-empty on embedded data (SQLite + Postgres); backfill re-run does not duplicate.
-- P2.3 eval harness gates recall@k on the golden set in CI.
+- P2.3 eval harness gates recall@k on the golden set in CI (`backend-tests` job runs `python -m core.memory_eval`, exit-coded — the in-suite pytest gate self-skips under suite AI fakes, so the standalone run is the real gate). **2026-08-20:** full standalone run green — recall 1.0 / keyword 1.0 / paraphrase 1.0, exit 0.
+- Dev-DB drift reconcile (2026-08-20): `scripts/reconcile_dev_db.py` applies the guarded, idempotent `graph_nodes.sensitivity` + `graph_edges.valid_from/invalid_at/invalidation_reason` column adds that the broken alembic chain never ran on hybrid SQLite dev stores (R71-style); `test_memory_p2` now uses uuid-suffixed workspaces AND node ids (the tests hit the session-bound engine, not the isolated DB their env override intended, so fixed global PKs collided on re-runs).
 
 ---
 

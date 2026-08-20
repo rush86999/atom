@@ -74,6 +74,19 @@ jobs:
           PYTEST_CURRENT_TEST: "1"
         run: |
           python -m pytest tests/test_integration_http.py tests/test_local_models.py tests/test_routing_feedback_endpoint.py tests/test_phase_integration.py tests/test_response_quality.py tests/test_routing_trainer_integration.py tests/test_routing_db_persistence.py tests/test_round17b_fixes.py tests/test_learning_routing.py tests/test_learning_llm_router.py tests/test_workbook_runtime.py tests/test_canvas_crud.py tests/test_openrouter_provider.py tests/test_provider_wiring.py -q --tb=line
+      # P2.3 memory eval gate: the in-suite gate (test_memory_eval_gate.py)
+      # skips under pytest when AI fakes break provider resolution, so run the
+      # exit-coded standalone harness for the real recall@k regression gate
+      # (golden set, isolated workspace, exit 1 on recall < 1.0).
+      - name: Run memory eval gate
+        env:
+          DATABASE_URL: "sqlite:///test_ci.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+          EMBEDDING_PROVIDER: "fastembed"
+          FASTEMBED_MODEL: "BAAI/bge-small-en-v1.5"
+        run: |
+          python -m core.memory_eval
 
   # -------------------------------------------------------------------
   # End-to-end user-journey suite: boots full app + frontend, runs

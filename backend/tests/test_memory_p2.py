@@ -31,18 +31,20 @@ class TestBiTemporalEdges:
         assert src.count("invalid_at IS NULL") >= 3  # traversal (pg+sqlite) + edges legs
 
     def test_invalidate_and_as_of(self, tmp_path):
+        import uuid as _uuid
         from core.graphrag_engine import GraphRAGEngine
         from core.database import get_db_session, Base, engine
         from core.models import GraphNode, GraphEdge
 
         Base.metadata.create_all(bind=engine)
-        ws = "p2-bitemporal-test"
+        ws = f"p2-bitemporal-{_uuid.uuid4().hex[:8]}"
+        n1, n2 = f"{ws}-n1", f"{ws}-n2"
         with get_db_session() as s:
-            s.add(GraphNode(id="n1", workspace_id=ws, name="A", type="x"))
-            s.add(GraphNode(id="n2", workspace_id=ws, name="B", type="x"))
+            s.add(GraphNode(id=n1, workspace_id=ws, name="A", type="x"))
+            s.add(GraphNode(id=n2, workspace_id=ws, name="B", type="x"))
             s.commit()
             e = GraphEdge(
-                workspace_id=ws, source_node_id="n1", target_node_id="n2",
+                workspace_id=ws, source_node_id=n1, target_node_id=n2,
                 relationship_type="supplies", valid_from=datetime.utcnow() - timedelta(days=30),
             )
             s.add(e)
@@ -69,21 +71,23 @@ class TestBiTemporalEdges:
 
 class TestConsolidationRules:
     def test_edge_contradiction_newest_wins(self):
+        import uuid as _uuid
         from core.memory_consolidator import consolidate_edges
         from core.database import get_db_session, Base, engine
         from core.models import GraphNode, GraphEdge
 
         Base.metadata.create_all(bind=engine)
-        ws = "p2-consolidation-test"
+        ws = f"p2-consolidation-{_uuid.uuid4().hex[:8]}"
+        n_old, n_new = f"{ws}-old", f"{ws}-new"
         with get_db_session() as s:
-            for i, price in (("old", 100), ("new", 200)):
-                s.add(GraphNode(id=f"n_{i}", workspace_id=ws, name=i, type="x"))
+            s.add(GraphNode(id=n_old, workspace_id=ws, name="old", type="x"))
+            s.add(GraphNode(id=n_new, workspace_id=ws, name="new", type="x"))
             s.commit()
-            old_e = GraphEdge(workspace_id=ws, source_node_id="n_old", target_node_id="n_new",
+            old_e = GraphEdge(workspace_id=ws, source_node_id=n_old, target_node_id=n_new,
                               relationship_type="priced_at",
                               properties={"price": 100},
                               created_at=datetime.utcnow() - timedelta(days=10))
-            new_e = GraphEdge(workspace_id=ws, source_node_id="n_old", target_node_id="n_new",
+            new_e = GraphEdge(workspace_id=ws, source_node_id=n_old, target_node_id=n_new,
                               relationship_type="priced_at",
                               properties={"price": 200},
                               created_at=datetime.utcnow())
