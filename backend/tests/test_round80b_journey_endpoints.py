@@ -81,3 +81,13 @@ class TestJourneyEndpointsResolve:
         for path in ("/api/teams/status", "/api/notion/status", "/api/salesforce/status"):
             resp = self._client().get(path)
             assert resp.status_code != 500, f"{path} returned 500"
+
+    def test_discord_real_surface_on_auto_load(self):
+        """Round 80c: the auto-load middleware must mount own-prefix routers
+        (discord declares /api/discord) UNPREFIXED — previously the real
+        surface only existed at the bogus double prefix
+        /api/v1/integrations/discord/api/discord/*."""
+        c = self._client()
+        assert c.get("/api/discord/status").status_code == 200
+        # the bogus double-prefixed duplicate must be gone
+        assert c.get("/api/v1/integrations/discord/api/discord/status").status_code == 404

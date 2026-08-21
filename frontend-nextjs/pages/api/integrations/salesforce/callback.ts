@@ -6,6 +6,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
+  // Round 80: forward the caller's Authorization header to the backend
+  const fwdAuth = req.headers.authorization
+    ? { Authorization: req.headers.authorization as string }
+    : {};
+
   const session = await getServerSession(req, res, authOptions);
 
   if (!session || !session.user) {
@@ -34,7 +39,7 @@ export default async function handler(
     // Backend expects GET /api/salesforce/callback?code=...
     const response = await fetch(`${backendUrl}/api/salesforce/callback?code=${code}${state ? `&state=${state}` : ''}`, {
       method: 'GET',
-      headers: {
+      headers: { ...fwdAuth,
         'Authorization': `Bearer ${backendToken}`
       }
     });

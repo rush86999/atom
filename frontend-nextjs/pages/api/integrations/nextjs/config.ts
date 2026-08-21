@@ -9,6 +9,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // Round 80: forward the caller's Authorization header to the backend
+  const fwdAuth = req.headers.authorization
+    ? { Authorization: req.headers.authorization as string }
+    : {};
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -25,13 +30,13 @@ export default async function handler(
     }
 
     // Forward request to backend service
-    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5058';
+    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000';
     let response;
 
     if (action === 'save' && config) {
       response = await fetch(`${backendUrl}/api/integrations/nextjs/config`, {
         method: 'POST',
-        headers: {
+        headers: { ...fwdAuth,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -42,7 +47,7 @@ export default async function handler(
     } else if (action === 'load') {
       response = await fetch(`${backendUrl}/api/integrations/nextjs/config`, {
         method: 'GET',
-        headers: {
+        headers: { ...fwdAuth,
           'Content-Type': 'application/json',
           'X-User-ID': user_id
         }

@@ -6,6 +6,11 @@ export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse,
 ) {
+  // Round 80: forward the caller's Authorization header to the backend
+  const fwdAuth = req.headers.authorization
+    ? { Authorization: req.headers.authorization as string }
+    : {};
+
     const session = await getServerSession(req, res, authOptions);
 
     if (!session || !session.user) {
@@ -19,7 +24,7 @@ export default async function handler(
         const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || "";
         const response = await fetch(`${backendUrl}/api/dropbox/callback?code=${req.query.code}&state=${req.query.state || ''}`, {
             method: 'GET',
-            headers: {
+            headers: { ...fwdAuth,
                 'Content-Type': 'application/json',
             }
         });

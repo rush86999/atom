@@ -1,3 +1,4 @@
+import { authHeaders } from "@/lib/auth-headers";
 /**
  * Discord Integration Component
  * Real-time communication and community platform
@@ -69,12 +70,12 @@ const DiscordIntegration = () => {
             const [profileResponse, guildsResponse] = await Promise.all([
                 fetch("/api/integrations/discord/profile", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: authHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify({ user_id: "current" })
                 }),
                 fetch("/api/integrations/discord/guilds", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: authHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify({ user_id: "current" })
                 })
             ]);
@@ -110,7 +111,7 @@ const DiscordIntegration = () => {
         try {
             const response = await fetch("/api/integrations/discord/auth/start", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({ user_id: "current" })
             });
 
@@ -142,7 +143,7 @@ const DiscordIntegration = () => {
         try {
             const response = await fetch("/api/integrations/discord/revoke", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({ user_id: "current" })
             });
 
