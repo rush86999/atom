@@ -543,7 +543,8 @@ Please review and approve or reject this proposal.
                     "proposal_id": proposal.id,
                     "action": action
                 }),
-                triggered_by="proposal"
+                triggered_by="proposal",
+                tenant_id=proposal.tenant_id or "default",
             )
             self.db.add(execution)
             self.db.commit()
@@ -633,7 +634,8 @@ Please review and approve or reject this proposal.
                     "proposal_id": proposal.id,
                     "action": action
                 }),
-                triggered_by="proposal"
+                triggered_by="proposal",
+                tenant_id=proposal.tenant_id or "default",
             )
             self.db.add(execution)
             self.db.commit()
@@ -703,7 +705,8 @@ Please review and approve or reject this proposal.
                     "proposal_id": proposal.id,
                     "action": action
                 }),
-                triggered_by="proposal"
+                triggered_by="proposal",
+                tenant_id=proposal.tenant_id or "default",
             )
             self.db.add(execution)
             self.db.commit()
@@ -775,7 +778,8 @@ Please review and approve or reject this proposal.
                     "proposal_id": proposal.id,
                     "action": action
                 }),
-                triggered_by="proposal"
+                triggered_by="proposal",
+                tenant_id=proposal.tenant_id or "default",
             )
             self.db.add(execution)
             self.db.commit()
@@ -844,7 +848,8 @@ Please review and approve or reject this proposal.
                     "proposal_id": proposal.id,
                     "action": action
                 }),
-                triggered_by="proposal"
+                triggered_by="proposal",
+                tenant_id=proposal.tenant_id or "default",
             )
             self.db.add(execution)
             self.db.commit()
@@ -913,7 +918,8 @@ Please review and approve or reject this proposal.
                     "action": action,
                     "triggered_by": agent_id
                 }),
-                triggered_by="proposal"
+                triggered_by="proposal",
+                tenant_id=proposal.tenant_id or "default",
             )
             self.db.add(execution)
             self.db.commit()

@@ -1370,6 +1370,7 @@ What is your next step?"""
                         id=(context or {}).get("run_id") or str(uuid.uuid4()),
                         agent_id=self.id,
                         workspace_id=getattr(self, "workspace_id", "default"),
+                        tenant_id=getattr(self, "tenant_id", None) or "default",
                         status=result["status"],
                         input_summary=input_text[:200],
                         output_summary=str(result.get("output", ""))[:500],

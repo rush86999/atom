@@ -6042,3 +6042,23 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Journey now closed end-to-end**: every GenericAgent run everywhere yields exactly one episode — chat-linked via segmentation, proposal-owned via executor records, scheduler/direct via this path. Episode-based graduation criteria are reachable from every dispatch surface.
 
 **Verification**: round81b+generic_agent 44 passed; proposal/governance-runtime cluster 101 passed.
+
+## Session 2026-08-21 (autonomy + memory journey, R82 continuation)
+
+**Agent autonomy / maturity / memory end-to-end gaps (found + filled)**:
+- `backend/api/agent_routes.py::get_agent_graduation_progress` returned a PLACEHOLDER `episodes_to_next` (= next_threshold regardless of real progress) — the "X episodes to next tier" claim was always wrong. Now counts successful `AgentEpisode` rows (int-coerced, mock-safe) and returns `episode_count` + `episodes_to_next = threshold - count`. Tests: `tests/unit/api/test_agent_graduation_progress.py` (+1 → 5).
+- `backend/api/episode_routes.py` — NEW `GET /api/episodes/trajectories` (workspace/agent scoped, auth-gated): the memory-recall UI fetched `/api/governance/analytics/trajectories` which NO backend route served → MemoryRecallFeed was permanently empty/erroring. Now backed by real episodic rows, mapped to the Trajectory shape (incl. learnings from metadata_json). Tests: `tests/unit/api/test_episode_trajectories_routes.py` (2).
+- `frontend-nextjs/pages/agents/index.tsx` + `components/Agents/AgentCard.tsx`: dashboard now fetches live `GET /api/agents/:id/graduation-progress` per agent (best-effort) and renders `✓ n/threshold episodes · remaining to next tier` + progress bar, replacing the always-static "X episodes to next tier" text.
+- `frontend-nextjs/pages/approvals.tsx`: added the Training Proposals (STUDENT→INTERN) section wired to the R81 `/api/maturity/training/proposals` + approve/reject endpoints (was backend-only, zero UI).
+- `frontend-nextjs/components/Agents/MemoryRecallFeed.tsx`: repointed to `/api/episodes/trajectories` with Bearer auth; learnings render as array-joined strings. Test suite updated to the live contract (11/11).
+- `frontend-nextjs/next.config.js`: added missing `/api/episodes*` proxy rewrite (feed goes same-origin).
+
+**Verification**: graduation 5/5 · trajectories 2/2 (Red→Green) · round81 journey gaps 20/20 · chat journey cluster 111 passed · frontend agents cluster 101/101 · MemoryRecallFeed 11/11 · full frontend suite re-run after earlier R82 batch = 665 suites green.
+
+**⚠️ Worktree caveat (parallel activity)**: during this session another process edited `backend/api/agent_governance_routes.py` + `backend/tests/api/test_agent_governance_routes.py` (debug prints `[DBG-H]`/`[DBG-H2]`, one left an IndentationError at line 203). I reverted those two files + `backend/chat_sessions.json` to HEAD rather than fight the writer; if that parallel work-in-progress matters, re-apply it (remove the debug prints). `core/generic_agent.py` + `tests/test_round81b_journey_followups.py` remain modified by that parallel session (R81c-f work from the tracker).
+
+## Session 2026-08-21 (backend) — R81h: operator journey smoke script + tenant_id fix
+
+**Files**: `backend/scripts/verify_agent_journey.py` (new — 12-check self-contained walk: STUDENT gating → real training path (create_training_proposal → approve → complete → promotion) → INTERN/memory-tier gating → outcome drip to SUPERVISED → execution-based episode + graduation readiness (AgentGraduationService.calculate_readiness_score, uppercase target) → HITL fail-closed; exits non-zero on failure), `backend/core/generic_agent.py` + `backend/core/proposal_service.py` (**tenant_id bug**: AgentExecution rows from R81f/g lacked tenant_id while AgentEpisode.tenant_id is NOT NULL — scheduler/proposal episodes would have failed at insert; both now stamp it).
+
+**Verification**: script 12/12 PASS; proposal+round81b suites re-green.
