@@ -68,7 +68,7 @@
 23. **Code Quality** — `mypy.ini`, `backend/docs/CODE_QUALITY_STANDARDS.md`: type hints enforced via CI
 24. **E2E Tests** — `backend/tests/e2e_ui/`: 486 test functions, API-first auth, worker isolation, Page Object Model
 25. **Advanced Skills** — marketplace, dynamic loading, DAG composition, supply-chain security
-26. **GraphRAG & Entity Types** — `core/graphrag_engine.py`, `core/graphrag/multi_hop_expansion.py`, `core/graphrag/community_detection.py`, `entity_type_service.py`: PG recursive CTEs, 6 canonical types, multi-hop scored expansion, Leiden community detection
+26. **GraphRAG & Entity Types** — `core/graphrag_engine.py`, `core/graphrag/multi_hop_expansion.py`, `core/graphrag/community_detection.py`, `entity_type_service.py`: PG recursive CTEs, 6 canonical types, multi-hop scored expansion, Leiden community detection. **Temporal Evolution (P0+W1–W7, Aug 2026)**: bi-temporal time travel across the graph — ingestion date anchors (`core/memory/temporal_normalizer.py`, `ATOM_TEMPORALITY_ENABLED`), `as_of` cutoffs on expansion + `local_search`/`global_search`, rolling-window community detection + hierarchy (`parent_community_id` lineage), generation archival into `graph_community_snapshots` for global-search time travel, dialect-aware SQL expander (SQLite portable). See `docs/architecture/TEMPORAL_EVOLUTION.md`
 26c. **Zero-Trust Federation** — `api/routes/federation_routes.py`, `core/identity/did_manager.py`, `core/identity/verifiable_credentials.py`, `core/federation/zero_trust_security.py`: DIDs/VCs at `/api/federation/{dids,credentials,verify,security/health}`; in-memory state (DB persistence pending)
 26d. **Enhanced Orchestration** — `core/orchestration/conductor_agent.py`, `core/orchestration/workflow_state_machine.py`, `core/orchestration/event_bus.py`: 5 strategies at `POST /api/v1/workflows/conductor/execute`; EventBus lifecycle events; validated transitions + rollback
 27. **Frontend XSS Protection** — `frontend-nextjs/lib/sanitize.ts`: DOMPurify `sanitizeHtml()`/`renderMarkdownSafe()` applied to all `dangerouslySetInnerHTML` sites
@@ -262,6 +262,9 @@ EMERGENCY_GOVERNANCE_BYPASS=false
 
 # Monitoring
 PROMETHEUS_ENABLED=true   STRUCTLOG_LEVEL=INFO   HEALTH_CHECK_DISK_THRESHOLD_GB=1
+
+# Temporal Evolution (docs/architecture/TEMPORAL_EVOLUTION.md)
+ATOM_TEMPORALITY_ENABLED=true            # ingestion date anchors + bi-temporal graph reads (default ON)
 
 # Per-turn fact extraction (docs/architecture/CONTEXT_MEMORY.md)
 TURN_FACT_EXTRACTION_ENABLED=true        # 1 fast-model call/turn (R72 D: default ON)
