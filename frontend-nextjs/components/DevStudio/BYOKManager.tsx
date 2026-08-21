@@ -7,6 +7,7 @@ import { Spinner } from '../ui/spinner';
 import { useToast } from '../ui/use-toast';
 import { Modal, ModalFooter } from '../ui/modal';
 import { Label } from '../ui/label';
+import { authHeaders } from "@/lib/auth-headers";
 import {
     Select,
     SelectContent,
@@ -55,7 +56,7 @@ const BYOKManager = () => {
     const fetchProviders = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/api/ai/providers');
+            const response = await fetch('/api/ai/providers', { headers: authHeaders() });
             const data = await response.json();
             if (data.providers) {
                 setProviders(data.providers);
@@ -91,9 +92,9 @@ const BYOKManager = () => {
             // SECURE: Use POST body instead of query params
             const response = await fetch(`/api/ai/providers/${selectedProvider}/keys`, {
                 method: 'POST',
-                headers: {
+                headers: authHeaders({
                     'Content-Type': 'application/json',
-                },
+                }),
                 body: JSON.stringify({
                     api_key: apiKey,
                     key_name: keyName || 'default'
@@ -131,6 +132,7 @@ const BYOKManager = () => {
         try {
             const response = await fetch(`/api/ai/providers/${providerId}/keys/${keyName}`, {
                 method: 'DELETE',
+                headers: authHeaders(),
             });
             const data = await response.json();
             if (data.success) {
