@@ -3191,6 +3191,15 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Document Hub routes not found: {e}")
 
+    # 11c. Experience Marketplace Routes
+    try:
+        from api.experience_marketplace_routes import router as experience_marketplace_router
+
+        app.include_router(experience_marketplace_router)  # Prefix defined in router
+        logger.info("✓ Experience Marketplace Routes Loaded")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Experience Marketplace routes not found: {e}")
+
     # 12. Formula Routes
     # Formulas loaded via ESSENTIAL_INTEGRATIONS
 
