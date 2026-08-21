@@ -13,7 +13,7 @@ export default async function handler(
 
   try {
     // Check health of Microsoft 365 service (Unified Endpoint)
-    const response = await fetch(`${backendUrl}/api/integrations/microsoft365/health`);
+    const response = await fetch(`${backendUrl}/api/integrations/microsoft365/health`, { headers: { ...fwdAuth } });
 
     // Default structure if backend doesn't return detailed breakdown
     // The backend returns { status: "healthy", service: "microsoft365", ... }

@@ -26,7 +26,7 @@ export default async function handler(
     ]);
 
     // Check new Google Workspace services
-    const workspaceResponse = await fetch(`${backendUrl}/api/google-workspace/health`);
+    const workspaceResponse = await fetch(`${backendUrl}/api/google-workspace/health`, { headers: { ...fwdAuth } });
 
     const services = {
       drive: {

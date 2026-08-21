@@ -13,7 +13,7 @@ export default async function handler(
 
     try {
         // Backend endpoint: /api/teams/status
-        const response = await fetch(`${backendUrl}/api/teams/status`);
+        const response = await fetch(`${backendUrl}/api/teams/status`, { headers: { ...fwdAuth } });
 
         if (response.ok) {
             const data = await response.json();

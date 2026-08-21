@@ -10,7 +10,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Stripe routes are mounted at /api/stripe/health based on router setup
-    const response = await fetch(`${backendUrl}/api/stripe/health`);
+    const response = await fetch(`${backendUrl}/api/stripe/health`, { headers: { ...fwdAuth } });
     if (response.ok) {
       const data = await response.json();
       return res.status(200).json({

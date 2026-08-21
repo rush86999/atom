@@ -13,7 +13,7 @@ export default async function handler(
 
   if (req.method === 'GET') {
     try {
-      const response = await fetch(`${backendUrl}/api/integrations/figma/health`);
+      const response = await fetch(`${backendUrl}/api/integrations/figma/health`, { headers: { ...fwdAuth } });
       const data = await response.json();
 
       return res.status(200).json(data);

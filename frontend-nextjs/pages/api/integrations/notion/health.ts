@@ -9,7 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://127.0.0.1:8000';
 
   try {
-    const response = await fetch(`${backendUrl}/api/notion/status`);
+    const response = await fetch(`${backendUrl}/api/notion/status`, { headers: { ...fwdAuth } });
     if (response.ok) {
       const data = await response.json();
       return res.status(200).json({

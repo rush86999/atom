@@ -14,7 +14,7 @@ export default async function handler(
   try {
     // Start OAuth flow
     const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || "";
-    const response = await fetch(`${backendUrl}/api/slack/auth/url`);
+    const response = await fetch(`${backendUrl}/api/slack/auth/url`, { headers: { ...fwdAuth } });
 
     if (response.ok) {
       const data = await response.json();

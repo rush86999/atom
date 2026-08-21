@@ -13,7 +13,7 @@ export default async function handler(
 
   try {
     // Check health of generic backend as proxy for Azure infra (since specific Azure routes might not be loaded)
-    const infraResponse = await fetch(`${backendUrl}/health`);
+    const infraResponse = await fetch(`${backendUrl}/health`, { headers: { ...fwdAuth } });
 
     // Attempt specific auth check if available, otherwise assume disconnected or unknown
     let oauthStatus = "unknown";
