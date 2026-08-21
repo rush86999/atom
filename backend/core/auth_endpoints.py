@@ -383,8 +383,11 @@ async def forgot_password(
     config = get_config()
     reset_link = f"{config.server.app_url}/reset-password?token={token}"
     subject = "Password Reset Request"
-    body = f"Hello {user.first_name or 'User'},\n\nYou requested a password reset. Please use the link below to reset your password:\n\n{reset_link}\n\nThis link will expire in 1 hour."
-    html_body = f"<p>Hello {user.first_name or 'User'},</p><p>You requested a password reset. Please click the link below to reset your password:</p><p><a href='{reset_link}'>{reset_link}</a></p><p>This link will expire in 1 hour.</p>"
+    # Escape user-controlled input to prevent stored XSS (CWE-79)
+    import html as html_module
+    safe_first_name = html_module.escape(user.first_name or 'User')
+    body = f"Hello {safe_first_name},\n\nYou requested a password reset. Please use the link below to reset your password:\n\n{reset_link}\n\nThis link will expire in 1 hour."
+    html_body = f"<p>Hello {safe_first_name},</p><p>You requested a password reset. Please click the link below to reset your password:</p><p><a href='{reset_link}'>{reset_link}</a></p><p>This link will expire in 1 hour.</p>"
 
     logger.info("Password reset link generated for user %s", user.id)
     
