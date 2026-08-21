@@ -5945,3 +5945,15 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Gotchas**: content_hash is text-based — differing texts never collide, so the realistic vector is restating the same fact with escalating confidence (NOT distinct texts); the store persists across runs in the dev DB → tests must use a unique workspace per run or stale same-text rows absorb the ladder (this bit twice).
 
 **Verification**: suite 16/16; turn-fact + eval-gate + symmetry cluster 185 passed.
+
+## Session 2026-08-21 (backend) — Recall-time sensitivity enforcement (rev.2 plan #2 completion)
+
+**Files**: `backend/core/turn_fact_extractor.py` (+`SENSITIVITY_RANK`/`_sensitivity_rank`; `get_active_facts_for_prompt(..., max_sensitivity=…)` and `prefetch_relevant_facts(..., max_sensitivity=…)`), `backend/tests/test_memory_epistemic_provenance_scoping.py` (+6 tests, 22 total), `docs/architecture/CONTEXT_MEMORY.md`.
+
+**Behavior**: ceiling ranks public(0) < internal(1) < confidential(2) < restricted(3); unknown sensitivity values rank RESTRICTED (conservative — excluded under any non-trivial ceiling). Tier-1 composes with `prioritize_stated` (ceiling filter then stated-first sort); Tier-2 hydration applies the same ceiling while preserving LanceDB relevance order. Default `None` = legacy byte-compatible.
+
+**Remaining product decision**: which agent contexts count as external-bound (i.e., what default ceiling prompt assembly should pass) — enforcement plumbing is done, policy wiring is not.
+
+**Gotchas**: patch target for prefetch tests is `core.turn_fact_extractor.SessionLocal` (module-bound import), NOT `core.database.SessionLocal`; MagicMock dunder configuration must use `ctx.__enter__.return_value = db`, not attribute assignment.
+
+**Verification**: suite 22/22; turn-fact cluster + eval gate 182 passed.

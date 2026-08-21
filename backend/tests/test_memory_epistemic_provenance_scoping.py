@@ -392,3 +392,118 @@ class TestPoisoningTripwire:
         )
         assert row is not None and row.status == "active"
         assert not tfe._poison_quarantined
+
+# ============================================================================
+# Recall-time sensitivity enforcement (P4 alignment)
+# ============================================================================
+
+class TestSensitivityCeiling:
+    def _seed_sensitivity_spread(self, db):
+        for text, sens in [
+            ("public roadmap note", "public"),
+            ("internal process note", "internal"),
+            ("confidential salary band", "confidential"),
+            ("restricted payroll export", "restricted"),
+        ]:
+            db.add(TurnFact(workspace_id="ws-1", extraction_source="turn",
+                            fact_text=text, category="exact_value",
+                            confidence=0.9, content_hash=f"h-{sens}",
+                            status="active", sensitivity=sens))
+        db.commit()
+
+    def test_ceiling_excludes_above_rank(self, db):
+        self._seed_sensitivity_spread(db)
+        from core.turn_fact_extractor import get_active_facts_for_prompt
+
+        rows = get_active_facts_for_prompt(db, "ws-1", max_sensitivity="internal")
+        texts = {r.fact_text for r in rows}
+        assert "public roadmap note" in texts
+        assert "internal process note" in texts
+        assert "confidential salary band" not in texts
+        assert "restricted payroll export" not in texts
+
+    def test_confidential_ceiling_keeps_confidential(self, db):
+        self._seed_sensitivity_spread(db)
+        from core.turn_fact_extractor import get_active_facts_for_prompt
+
+        rows = get_active_facts_for_prompt(db, "ws-1", max_sensitivity="confidential")
+        texts = {r.fact_text for r in rows}
+        assert "confidential salary band" in texts
+        assert "restricted payroll export" not in texts
+
+    def test_no_ceiling_is_legacy_all_rows(self, db):
+        self._seed_sensitivity_spread(db)
+        from core.turn_fact_extractor import get_active_facts_for_prompt
+
+        assert len(get_active_facts_for_prompt(db, "ws-1")) == 4
+
+    def test_unknown_sensitivity_treated_as_restricted(self, db):
+        db.add(TurnFact(workspace_id="ws-1", extraction_source="turn",
+                        fact_text="mystery classification", category="exact_value",
+                        confidence=0.9, content_hash="h-mystery",
+                        status="active", sensitivity="banana"))
+        db.commit()
+        from core.turn_fact_extractor import get_active_facts_for_prompt
+
+        rows = get_active_facts_for_prompt(db, "ws-1", max_sensitivity="confidential")
+        assert rows == []  # conservative: unknown excluded under strict ceilings
+        rows_all = get_active_facts_for_prompt(db, "ws-1")
+        assert len(rows_all) == 1  # legacy view keeps it
+
+    def test_ceiling_composes_with_prioritize_stated(self, db):
+        db.add(TurnFact(workspace_id="ws-1", extraction_source="turn",
+                        fact_text="inferred low-sensitivity guess",
+                        category="implicit_pref", confidence=0.95,
+                        content_hash="h-comp-inf", status="active",
+                        epistemic_type="inferred", sensitivity="internal"))
+        db.commit()
+        import time
+        time.sleep(0.02)
+        db.add(TurnFact(workspace_id="ws-1", extraction_source="turn",
+                        fact_text="stated confidential commitment",
+                        category="exact_value", confidence=0.6,
+                        content_hash="h-comp-st", status="active",
+                        epistemic_type="stated", sensitivity="confidential"))
+        db.add(TurnFact(workspace_id="ws-1", extraction_source="turn",
+                        fact_text="stated restricted secret",
+                        category="exact_value", confidence=0.6,
+                        content_hash="h-comp-res", status="active",
+                        epistemic_type="stated", sensitivity="restricted"))
+        db.commit()
+        from core.turn_fact_extractor import get_active_facts_for_prompt
+
+        rows = get_active_facts_for_prompt(
+            db, "ws-1", max_sensitivity="confidential", prioritize_stated=True,
+        )
+        # restricted dropped entirely; stated still ranks before inferred
+        assert [r.fact_text for r in rows] == [
+            "stated confidential commitment",
+            "inferred low-sensitivity guess",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_prefetch_respects_ceiling(self, db):
+        """Tier-2 hydration applies the same ceiling."""
+        self._seed_sensitivity_spread(db)
+        from core import turn_fact_extractor as tfe
+
+        ids = [r.id for r in db.query(TurnFact).filter(
+            TurnFact.workspace_id == "ws-1").all()]
+        fake_search = MagicMock(return_value=ids)
+        sess_ctx = MagicMock()
+        sess_ctx.__enter__.return_value = db
+        sess_ctx.__exit__.return_value = False
+        with patch("core.turn_fact_extractor.SessionLocal",
+                   return_value=sess_ctx), \
+             patch("core.turn_fact_vector_store.search_relevant_fact_ids",
+                   side_effect=fake_search):
+            tfe.TURN_FACT_VECTOR_RECALL_ENABLED = True
+            try:
+                rows = tfe.prefetch_relevant_facts(
+                    "ws-1", "what are the notes?", max_sensitivity="internal",
+                )
+            finally:
+                tfe.TURN_FACT_VECTOR_RECALL_ENABLED = False
+        texts = {r.fact_text for r in rows}
+        assert "restricted payroll export" not in texts
+        assert "internal process note" in texts

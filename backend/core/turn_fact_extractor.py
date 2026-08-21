@@ -893,6 +893,19 @@ def get_turn_fact_extractor(
 
 
 # ---------------------------------------------------------------------------
+# Sensitivity ceiling (P4 alignment): recall-time enforcement so restricted
+# facts never surface into prompts destined for external providers.
+# Unknown values are treated as RESTRICTED (conservative — excluded under
+# any non-trivial ceiling).
+# ---------------------------------------------------------------------------
+SENSITIVITY_RANK = {"public": 0, "internal": 1, "confidential": 2, "restricted": 3}
+
+
+def _sensitivity_rank(value: Optional[str]) -> int:
+    return SENSITIVITY_RANK.get((value or "").strip().lower(), 3)
+
+
+# ---------------------------------------------------------------------------
 # Tier-1 retrieval helper — pure SQL, used in prompt assembly
 # ---------------------------------------------------------------------------
 def get_active_facts_for_prompt(
@@ -902,6 +915,7 @@ def get_active_facts_for_prompt(
     categories: Optional[Tuple[str, ...]] = None,
     epistemic_type: Optional[str] = None,
     prioritize_stated: bool = False,
+    max_sensitivity: Optional[str] = None,
 ) -> List[TurnFact]:
     """
     Pure-SQL Tier-1 recall. Latency ~1-3ms SQLite, sub-ms Postgres.
@@ -912,6 +926,12 @@ def get_active_facts_for_prompt(
 
     Optional ``epistemic_type`` filter ("stated" | "inferred") — restrict to
     one source-attribution class.
+
+    Optional ``max_sensitivity`` — recall-time enforcement (P4 alignment):
+    facts above the ceiling (public < internal < confidential < restricted)
+    are excluded, closing the exfiltration path where a restricted fact
+    surfaces into a prompt headed for an external provider. None (default)
+    keeps legacy behavior.
 
     ``prioritize_stated=True`` applies the source-attribution policy (survey
     §7.3: user-statement attribution outranks confidence): stated facts sort
@@ -928,6 +948,24 @@ def get_active_facts_for_prompt(
             q = q.filter(TurnFact.category.in_(categories))
         if epistemic_type:
             q = q.filter(TurnFact.epistemic_type == epistemic_type)
+        if max_sensitivity:
+            # Sensitivity ranks aren't portable SQL; filter candidates in
+            # Python, preserving whichever ordering was requested.
+            ceiling = _sensitivity_rank(max_sensitivity)
+            rows = [
+                r for r in q.all()
+                if _sensitivity_rank(r.sensitivity) <= ceiling
+            ]
+
+            def _sort_key(r: TurnFact):
+                stated_first = 0 if (r.epistemic_type or "stated") == "stated" else 1
+                ts = r.created_at.timestamp() if r.created_at else 0.0
+                conf = r.confidence or 0.0
+                if prioritize_stated:
+                    return (stated_first, -ts, -conf)
+                return (-ts, -conf)
+
+            return sorted(rows, key=_sort_key)[:limit]
         if prioritize_stated:
             # stated(0) before inferred(1), then recency, then confidence
             q = q.order_by(
@@ -955,6 +993,7 @@ def prefetch_relevant_facts(
     workspace_id: str,
     query: str,
     limit: int = 5,
+    max_sensitivity: Optional[str] = None,
 ) -> List[TurnFact]:
     """
     Tier-2 recall — called ONCE at execute() entry (not per ReAct step, to avoid
@@ -990,6 +1029,12 @@ def prefetch_relevant_facts(
                 )
                 .all()
             )
+            if max_sensitivity:
+                ceiling = _sensitivity_rank(max_sensitivity)
+                rows = [
+                    r for r in rows
+                    if _sensitivity_rank(r.sensitivity) <= ceiling
+                ]
             # Preserve relevance order from LanceDB
             order = {rid: i for i, rid in enumerate(ids)}
             rows.sort(key=lambda r: order.get(r.id, 999))

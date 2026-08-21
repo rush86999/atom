@@ -170,9 +170,12 @@ agent inference) outranks confidence"):
   after recency — an equally-recent inference never displaces a stated fact.
   Default ordering unchanged.
 - **`sensitivity`** — P4 data-taint vocabulary (`public|internal|
-  confidential|restricted`, default `internal`) so downstream consumers can
-  align fact handling with document sensitivity. **Enforcement is a separate,
-  not-yet-built change** — this column enables it.
+  confidential|restricted`, default `internal`). **Recall-time enforcement is
+  live**: `get_active_facts_for_prompt(..., max_sensitivity=…)` and
+  `prefetch_relevant_facts(..., max_sensitivity=…)` exclude facts above the
+  ceiling (unknown values rank as restricted — conservative). Default `None`
+  keeps legacy behavior; wiring a ceiling into agent prompt assembly is the
+  remaining product decision (which contexts count as external-bound).
 
 ## Poisoning Tripwire (write-path governance, 2026-08-21)
 
