@@ -5983,3 +5983,13 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Test-infra gotchas**: patch `core.database.SessionLocal` not `integrations.mcp_service.SessionLocal` (function-local import); chained-filter mocks need `f.filter.return_value = f`.
 
 **Verification**: round81b+round81+governance-routes 50 passed; mcp trio 461 passed (8 pre-existing); generic/meta/bigfour 222 passed (4 pre-existing).
+
+## Session 2026-08-21 (backend) — R81c: GenericAgent dispatch-context stamping (P2/P9 gates engaged)
+
+**Files**: `backend/core/generic_agent.py` (execute() now stamps run_id/execution_id/agent_id/tier_at_issuance into the dispatch context, mirroring atom_meta_agent; caller values authoritative via setdefault; DB lookup failure falls back to tier "student"), `backend/tests/test_round81b_journey_followups.py` (+3 tests → 11).
+
+**Gap (G9)**: both the P2 capability gate and the P9 sandbox gate return None ("no policy in scope") without run_id/tier_at_issuance — every GenericAgent tool call (scheduler, /agents/{id}/execute, proposal execution, fleet specialists) ran ungated despite P9's documented default-on contract. Stamping activates: sandbox policy issuance + Phase A–E checks, KillRun guard targeting, P2 capability scoping, audit trail.
+
+**Behavior note**: agents whose registry status is STUDENT/INTERN are now bounded by their tier floor at call_tool even when governance/HITL approved the action — deterministic blast-radius layer is independent of approval authority (by design). Kill switches unchanged (`ATOM_SANDBOX_ENABLED`, `ATOM_SANDBOX_FORCE_ENFORCE=false` restores shadow).
+
+**Verification**: round81b 11/11; generic-agent/proposal/governance-runtime suites 59 passed.

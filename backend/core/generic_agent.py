@@ -124,6 +124,31 @@ class GenericAgent:
         Accommodates timeouts and streaming callbacks.
         """
         context = context or {}
+
+        # R81c (G9): stamp run identity + tier into the dispatch context so
+        # the shared P2 capability gate and P9 sandbox gate engage on this
+        # surface too. Both gates return None ("no policy in scope") without
+        # run_id/tier_at_issuance, so every specialty-agent tool call
+        # previously ran ungated — contradicting P9's default-on contract.
+        # Mirrors atom_meta_agent.execute(); setdefault keeps caller-supplied
+        # values authoritative.
+        _run_uuid = str(uuid.uuid4())
+        context.setdefault("run_id", _run_uuid)
+        context.setdefault("execution_id", _run_uuid)
+        context.setdefault("agent_id", self.id)
+        try:
+            from core.database import get_db_session as _get_db_session_local
+            with _get_db_session_local() as _tier_db:
+                _tier_row = (
+                    _tier_db.query(AgentRegistry)
+                    .filter(AgentRegistry.id == self.id)
+                    .first()
+                )
+            _tier = str((_tier_row.status if _tier_row else None) or "student").lower()
+        except Exception:
+            _tier = "student"
+        context.setdefault("tier_at_issuance", _tier)
+
         start_time = datetime.now(timezone.utc)
         logger.info(f"Agent {self.name} ({self.id}) starting task: {task_input[:50]}")
         

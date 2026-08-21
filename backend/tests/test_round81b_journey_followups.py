@@ -253,3 +253,102 @@ class TestHitlPolicyFailClosed:
                 "ws-ok", "search_contacts", {}, {}
             )
         assert result is None
+
+
+# ============================================================================
+# G9 — GenericAgent stamps run identity + tier for P2/P9 gates
+# ============================================================================
+
+
+class TestDispatchContextStamping:
+    """Both the P2 capability gate and the P9 sandbox gate return None ("no
+    policy in scope") without run_id/execution_id/tier_at_issuance — so every
+    specialty-agent tool call previously ran ungated."""
+
+    def _run(self, status="intern", db_broken=False):
+        import asyncio as _aio
+
+        from core.generic_agent import GenericAgent
+
+        mw, mr, ml, mmcp = _harness_patches()
+        agent_model = _make_agent_model()
+
+        def _gds(*a, **k):
+            if db_broken:
+                raise RuntimeError("nope")
+            db = MagicMock()
+            row = MagicMock()
+            row.status = status
+            db.query.return_value.filter.return_value.first.return_value = row
+            cm = MagicMock()
+            cm.__enter__.return_value = db
+            cm.__exit__.return_value = False
+            return cm
+
+        budget_patch = patch.object(
+            GenericAgent,
+            "_check_budget_before_react",
+            new=AsyncMock(return_value={"allowed": True, "reason": "ok"}),
+        )
+        ctx = {"session_id": "s-9"}
+        with patch("core.generic_agent.WorldModelService", return_value=mw), \
+             patch("core.generic_agent.ReflectionService", return_value=mr), \
+             patch("core.generic_agent.CanvasSummaryService"), \
+             patch("core.generic_agent.mcp_service", mmcp), \
+             patch("core.generic_agent.LLMService", return_value=ml), \
+             patch("core.generic_agent.get_db_session"), \
+             patch("core.generic_agent.AgentGovernanceService") as gov_cls, \
+             patch("core.generic_agent.trigger_episode_creation"), \
+             patch("core.turn_fact_extractor.TURN_FACT_EXTRACTION_ENABLED", False), \
+             patch("core.database.get_db_session", side_effect=_gds), \
+             budget_patch:
+            gov_cls.return_value.record_outcome = AsyncMock(return_value=None)
+            agent = GenericAgent(agent_model)
+            result = _aio.run(agent.execute("Task", context=ctx))
+        return ctx, result
+
+    def test_stamps_identity_and_tier(self):
+        ctx, result = self._run(status="supervised")
+        assert result["status"] == "success"
+        assert ctx["agent_id"] == "agent-tf-1"
+        assert ctx["run_id"]
+        assert ctx["run_id"] == ctx["execution_id"]
+        assert ctx["tier_at_issuance"] == "supervised"
+
+    def test_tier_falls_back_to_student_on_db_error(self):
+        ctx, result = self._run(db_broken=True)
+        assert result["status"] == "success"
+        assert ctx["tier_at_issuance"] == "student"
+
+    def test_caller_values_authoritative(self):
+        import asyncio as _aio
+
+        from core.generic_agent import GenericAgent
+
+        mw, mr, ml, mmcp = _harness_patches()
+        agent_model = _make_agent_model()
+        budget_patch = patch.object(
+            GenericAgent,
+            "_check_budget_before_react",
+            new=AsyncMock(return_value={"allowed": True, "reason": "ok"}),
+        )
+        ctx = {
+            "session_id": "s-9",
+            "run_id": "caller-run",
+            "tier_at_issuance": "autonomous",
+        }
+        with patch("core.generic_agent.WorldModelService", return_value=mw), \
+             patch("core.generic_agent.ReflectionService", return_value=mr), \
+             patch("core.generic_agent.CanvasSummaryService"), \
+             patch("core.generic_agent.mcp_service", mmcp), \
+             patch("core.generic_agent.LLMService", return_value=ml), \
+             patch("core.generic_agent.get_db_session"), \
+             patch("core.generic_agent.AgentGovernanceService") as gov_cls, \
+             patch("core.generic_agent.trigger_episode_creation"), \
+             patch("core.turn_fact_extractor.TURN_FACT_EXTRACTION_ENABLED", False), \
+             budget_patch:
+            gov_cls.return_value.record_outcome = AsyncMock(return_value=None)
+            agent = GenericAgent(agent_model)
+            _aio.run(agent.execute("Task", context=ctx))
+        assert ctx["run_id"] == "caller-run"
+        assert ctx["tier_at_issuance"] == "autonomous"
