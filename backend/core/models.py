@@ -2852,6 +2852,7 @@ class GraphCommunity(Base):
     level = Column(Integer, default=0) # Hierarchy level
     summary = Column(Text, nullable=False) # LLM-generated summary
     keywords = Column(JSONColumn, default=list) # Top keywords for indexing
+    parent_community_id = Column(String, nullable=True, index=True) # Lineage: parent community at level-1 (W2)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

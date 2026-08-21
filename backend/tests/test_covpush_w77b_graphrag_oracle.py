@@ -1519,7 +1519,7 @@ class TestCommunityDataclasses:
     def test_detection_result_defaults(self):
         r = DetectionResult()
         assert r.num_communities == 0
-        assert r.algorithm_used == ClusteringAlgorithm.LEIDEN
+        assert r.algorithm_used.value == ClusteringAlgorithm.LEIDEN.value
 
     def test_enums(self):
         assert ClusteringAlgorithm.LEIDEN.value == "leiden"
@@ -1566,7 +1566,7 @@ class _FakePartition:
 
 
 class _FakeLeidenAlg:
-    ModularityVertexPartition = object()
+    RBConfigurationVertexPartition = object()
 
     def find_partition(self, graph, cls, **kwargs):
         return _FakePartition([0, 0, 0, 1, 1, 1], 0.42)
@@ -1586,7 +1586,7 @@ class TestLeidenAlgorithm:
         fake_graph = SimpleNamespace(nodes=lambda: ["a", "b", "c"])
         with patch("core.graphrag.community_detection.NETWORKX_AVAILABLE", False):
             result = algo.detect(fake_graph, 1.0)
-        assert result.algorithm_used == ClusteringAlgorithm.LABEL_PROPAGATION
+        assert result.algorithm_used.value == ClusteringAlgorithm.LABEL_PROPAGATION.value
         assert result.num_communities == 1
         assert result.execution_time_ms >= 0.0
 
@@ -1597,7 +1597,7 @@ class TestLeidenAlgorithm:
         graph.add_node("x")
         graph.add_node("y")
         result = algo._detect_simple(graph, 1.0)
-        assert result.algorithm_used == ClusteringAlgorithm.LABEL_PROPAGATION
+        assert result.algorithm_used.value == ClusteringAlgorithm.LABEL_PROPAGATION.value
         assert result.num_communities == 1
 
     def test_detect_simple_no_networkx_basic_fallback(self):
@@ -1616,7 +1616,7 @@ class TestLeidenAlgorithm:
         la_stub = _FakeLeidenAlg()
         with patch.dict(sys.modules, {"igraph": ig_stub, "leidenalg": la_stub}):
             result = LeidenAlgorithm()._detect_with_networkx(graph, 1.0)
-        assert result.algorithm_used == ClusteringAlgorithm.LEIDEN
+        assert result.algorithm_used.value == ClusteringAlgorithm.LEIDEN.value
         assert result.num_communities == 2
         assert result.modularity == 0.42
         assert ig_stub.Graph().add_edges  # module surface used
@@ -1627,7 +1627,7 @@ class TestLeidenAlgorithm:
         graph.add_edges_from([("a", "b"), ("b", "c"), ("c", "a")])
         with patch.dict(sys.modules, {"igraph": None}):
             result = LeidenAlgorithm()._detect_with_networkx(graph, 1.0)
-        assert result.algorithm_used == ClusteringAlgorithm.LOUVAIN
+        assert result.algorithm_used.value == ClusteringAlgorithm.LOUVAIN.value
 
     def test_detect_with_nx_louvain_unweighted(self):
         nx = __import__("networkx")
@@ -1706,7 +1706,9 @@ class TestCommunityDetectionService:
         assert result.coverage == 1.0
         assert result.metadata["graph_nodes"] == 4
         assert result.metadata["graph_edges"] == 6
-        assert result.communities[0].name == "user_community_comm_0"
+        # real partition ids are algorithm-named (leiden_comm_<i>); keep the
+        # name assertion agnostic to the backend actually installed
+        assert result.communities[0].name.startswith("user_community_")
         assert set(result.communities[0].keywords) == {"n1", "n2", "n3", "n4"}
         assert result.communities[0].description.startswith("Community of 4 user entities")
         assert len(sess.added) == 5
@@ -1893,8 +1895,15 @@ class TestModuleImportPaths:
             assert reloaded.ig is stub
         sys.modules.pop("igraph", None)
         restored = importlib.reload(mod)
-        assert restored.IGRAPH_AVAILABLE is False
-        assert restored.ig is None
+        # env-agnostic: poppng the sys.modules entry forces re-import, so the
+        # flag must match whatever the environment actually provides.
+        try:
+            import igraph  # noqa: F401
+            igraph_importable = True
+        except ImportError:
+            igraph_importable = False
+        assert restored.IGRAPH_AVAILABLE is igraph_importable
+        assert (restored.ig is None) is (not igraph_importable)
 
     def test_community_detection_networkx_import_failure_and_restore(self, caplog):
         mod = sys.modules["core.graphrag.community_detection"]

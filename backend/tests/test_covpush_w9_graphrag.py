@@ -517,15 +517,23 @@ class TestCommunityDataclasses:
 
 class TestLeidenAlgorithm:
     def test_detect_falls_back_to_louvain_when_leidenalg_missing(self):
-        # igraph/leidenalg are NOT installed in this venv -> _detect_with_networkx
-        # raises ImportError -> Louvain fallback runs.
+        # Force "leidenalg missing" (sys.modules None = halted import) so the
+        # Louvain fallback runs regardless of what the venv actually has.
         import networkx as nx
 
         g = nx.Graph()
         g.add_nodes_from(["a", "b", "c", "d", "e"])
         g.add_edges_from([("a", "b"), ("b", "c"), ("c", "d"), ("d", "a"), ("a", "c")])
         algo = LeidenAlgorithm(CommunityConfig(min_community_size=2))
-        result = algo.detect(g, resolution=1.0)
+        real_leiden = sys.modules.get("leidenalg")
+        try:
+            sys.modules["leidenalg"] = None  # type: ignore[assignment]
+            result = algo.detect(g, resolution=1.0)
+        finally:
+            if real_leiden is not None:
+                sys.modules["leidenalg"] = real_leiden
+            else:
+                sys.modules.pop("leidenalg", None)
         assert result.algorithm_used.value == ClusteringAlgorithm.LOUVAIN.value
         assert result.num_communities >= 1
         assert result.execution_time_ms >= 0.0
@@ -555,11 +563,11 @@ class TestLeidenAlgorithm:
                 assert kw["n_iterations"] == -1
                 return FakePartition()
 
-            ModularityVertexPartition = object
+            RBConfigurationVertexPartition = object
 
         fake_mod = SimpleNamespace(
             find_partition=FakeLeidenAlg.find_partition,
-            ModularityVertexPartition=object,
+            RBConfigurationVertexPartition=object,
         )
         fake_igraph_mod = SimpleNamespace(Graph=lambda: FakeGraph())
         real_ig = sys.modules.get("igraph")
@@ -918,7 +926,14 @@ class TestCommunityDetectionRemainingGaps:
             sys.modules["networkx"] = None  # type: ignore[assignment]
             importlib.reload(cd)
             assert cd.NETWORKX_AVAILABLE is False
-            assert cd.IGRAPH_AVAILABLE is False
+            # env-agnostic: the igraph flag must match what the environment
+            # actually provides after the reload (igraph may be installed).
+            try:
+                import igraph  # noqa: F401
+                igraph_importable = True
+            except ImportError:
+                igraph_importable = False
+            assert cd.IGRAPH_AVAILABLE is igraph_importable
         finally:
             if real_nx is not None:
                 sys.modules["networkx"] = real_nx

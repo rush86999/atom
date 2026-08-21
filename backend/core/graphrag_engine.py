@@ -1190,7 +1190,8 @@ class GraphRAGEngine:
                      tenant_id: Optional[str] = None,
                      query: str = "", depth: int = 2,
                      exclude_doc_ids: Optional[set] = None,
-                     include_stale: bool = False) -> Dict[str, Any]:
+                     include_stale: bool = False,
+                     as_of: Optional[datetime] = None) -> Dict[str, Any]:
         """Perform Local Search using Recursive CTE (BFS) with Bidirectional Traversal.
 
         Freshness cascade: by default, graph nodes/edges whose origin document
@@ -1199,9 +1200,28 @@ class GraphRAGEngine:
         ``ingested_documents`` table unless the caller supplies
         ``exclude_doc_ids``. Pass ``include_stale=True`` to bypass (admin/
         observability). See core/doc_freshness_service.py.
+
+        W4 time travel: ``as_of`` prunes edges that were not alive at that
+        instant from the CTE traversal and the relationship listing
+        (``valid_from <= as_of`` and ``invalid_at`` null or ``> as_of``).
+        Nodes carry no bi-temporal fields, so they are never time-filtered.
+        ``None`` = legacy behavior (``invalid_at IS NULL`` only, byte-identical
+        SQL). The cutoff is recorded in the result as ``as_of`` (ISO string).
         """
         ws_id = workspace_id or self.workspace_id
         tid = tenant_id or self.tenant_id or "default"
+
+        # W4: edge-alive predicate. When as_of is absent the legacy fragment
+        # ``e.invalid_at IS NULL`` is emitted verbatim (no params injected).
+        as_of_extra: Dict[str, Any] = {}
+        if as_of is not None:
+            as_of_extra["as_of"] = as_of
+        edge_alive = (
+            "(e.invalid_at IS NULL OR e.invalid_at > :as_of)"
+            " AND (e.valid_from IS NULL OR e.valid_from <= :as_of)"
+            if as_of is not None
+            else "e.invalid_at IS NULL"
+        )
 
         def _run_sync(coro):
             import asyncio
@@ -1402,7 +1422,7 @@ class GraphRAGEngine:
                                 t.depth + 1,
                                 t.path || target.id
                             FROM traversal t
-                            JOIN graph_edges e ON ((e.source_node_id = t.id OR e.target_node_id = t.id) AND e.invalid_at IS NULL)
+                            JOIN graph_edges e ON ((e.source_node_id = t.id OR e.target_node_id = t.id) AND {edge_alive})
                             JOIN graph_nodes target ON (
                                 CASE
                                     WHEN e.source_node_id = t.id THEN e.target_node_id = target.id
@@ -1423,17 +1443,18 @@ class GraphRAGEngine:
                         FROM graph_edges e
                         WHERE (e.source_node_id = ANY(:node_ids) OR e.target_node_id = ANY(:node_ids))
                         AND e.workspace_id = :ws_id
-                        AND e.invalid_at IS NULL
+                        AND {edge_alive}
                         LIMIT 50
                     """)
 
                     nodes_result = session.execute(traversal_sql, {
                         "max_depth": depth,
-                        "ws_id": ws_id
+                        "ws_id": ws_id,
+                        **as_of_extra,
                     }).fetchall()
 
                     found_node_ids = [n.id for n in nodes_result]
-                    edges_result = session.execute(edges_sql, {"node_ids": found_node_ids, "ws_id": ws_id}).fetchall()
+                    edges_result = session.execute(edges_sql, {"node_ids": found_node_ids, "ws_id": ws_id, **as_of_extra}).fetchall()
                 else:
                     # SQLite / Fallback CTE with string path cycle detection
                     traversal_sql = text(f"""
@@ -1451,7 +1472,7 @@ class GraphRAGEngine:
                                 t.depth + 1,
                                 t.path || target.id || ','
                             FROM traversal t
-                            JOIN graph_edges e ON ((e.source_node_id = t.id OR e.target_node_id = t.id) AND e.invalid_at IS NULL)
+                            JOIN graph_edges e ON ((e.source_node_id = t.id OR e.target_node_id = t.id) AND {edge_alive})
                             JOIN graph_nodes target ON (
                                 CASE
                                     WHEN e.source_node_id = t.id THEN e.target_node_id = target.id
@@ -1470,7 +1491,8 @@ class GraphRAGEngine:
 
                     nodes_result = session.execute(traversal_sql, {
                         "max_depth": depth,
-                        "ws_id": ws_id
+                        "ws_id": ws_id,
+                        **as_of_extra,
                     }).fetchall()
 
                     found_node_ids = [n.id for n in nodes_result]
@@ -1481,10 +1503,10 @@ class GraphRAGEngine:
                             FROM graph_edges e
                             WHERE (e.source_node_id IN ({found_ids_str}) OR e.target_node_id IN ({found_ids_str}))
                             AND e.workspace_id = :ws_id
-                            AND e.invalid_at IS NULL
+                            AND {edge_alive}
                             LIMIT 50
                         """)
-                        edges_result = session.execute(edges_sql, {"ws_id": ws_id}).fetchall()
+                        edges_result = session.execute(edges_sql, {"ws_id": ws_id, **as_of_extra}).fetchall()
                     else:
                         edges_result = []
 
@@ -1507,6 +1529,7 @@ class GraphRAGEngine:
                         workspace_id=ws_id,
                         max_depth=depth,
                         session=session,
+                        as_of=as_of,
                     )
                     multi_hop_paths = [
                         {"nodes": p.node_ids, "relevance": p.relevance_score, "hops": p.hops}
@@ -1521,7 +1544,8 @@ class GraphRAGEngine:
                     "entities": entities,
                     "relationships": relationships,
                     "multi_hop_paths": multi_hop_paths,
-                    "count": len(entities)
+                    "count": len(entities),
+                    **({"as_of": as_of.isoformat()} if as_of is not None else {}),
                 }
             except Exception as e:
                 logger.error(f"Local search failed: {e}")
@@ -1607,8 +1631,14 @@ class GraphRAGEngine:
 
     async def query(self, workspace_id: Optional[str] = None, 
                     tenant_id: Optional[str] = None,
-                    query: str = "", mode: str = "auto") -> Dict[str, Any]:
-        """Unified query entry point (Async)."""
+                    query: str = "", mode: str = "auto",
+                    as_of: Optional[datetime] = None) -> Dict[str, Any]:
+        """Unified query entry point (Async).
+
+        W4: ``as_of`` threads into local mode only — global mode answers from
+        persisted community summaries, which carry no validity interval to
+        filter on (documented in docs/architecture/TEMPORAL_EVOLUTION.md).
+        """
         ws_id = workspace_id or self.workspace_id
         tid = tenant_id or self.tenant_id
 
@@ -1623,16 +1653,22 @@ class GraphRAGEngine:
             # embed_text, which no-ops in the event-loop thread (async-context
             # guard) — the vector leg silently returned [] from every async
             # caller. A worker thread embeds fine.
-            return await asyncio.to_thread(self.local_search, ws_id, tid, query)
+            return await asyncio.to_thread(
+                self.local_search, ws_id, tid, query, 2, None, False, as_of
+            )
 
     async def get_context_for_ai(self, workspace_id: Optional[str] = None, 
                                tenant_id: Optional[str] = None,
-                               query: str = "") -> str:
-        """Format context for AI prompt (Async)."""
+                               query: str = "",
+                               as_of: Optional[datetime] = None) -> str:
+        """Format context for AI prompt (Async).
+
+        W4: ``as_of`` threads through to ``query`` (local mode only).
+        """
         ws_id = workspace_id or self.workspace_id
         tid = tenant_id or self.tenant_id
         
-        result = await self.query(ws_id, tid, query)
+        result = await self.query(ws_id, tid, query, as_of=as_of)
         if result.get("mode") == "global":
             return f"Global Context: {result.get('answer')}"
         

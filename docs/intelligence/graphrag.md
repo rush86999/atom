@@ -213,6 +213,7 @@ CREATE TABLE graph_communities (
     level INTEGER NOT NULL,
     summary TEXT,
     keywords VARCHAR(255)[],
+    parent_community_id VARCHAR,   -- lineage: parent community at level-1 (W2)
     created_at TIMESTAMP DEFAULT NOW(),
 
     INDEX idx_workspace_level (workspace_id, level)
