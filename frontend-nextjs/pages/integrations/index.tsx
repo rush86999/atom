@@ -46,6 +46,7 @@ import {
   Download,
   Upload,
   Edit,
+  ShoppingCart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -186,6 +187,17 @@ const IntegrationsPage: React.FC = () => {
       color: "text-blue-600",
       documentation:
         "https://docs.microsoft.com/en-us/graph/api/resources/outlook",
+    },
+    {
+      id: "shopify",
+      name: "Shopify",
+      description: "Ecommerce store — agents create product listings and blog posts",
+      category: "ecommerce",
+      status: "complete",
+      connected: false,
+      icon: ShoppingCart,
+      color: "text-green-600",
+      documentation: "https://shopify.dev/docs/api/admin-graphql",
     },
 
     // Productivity & Project Management
