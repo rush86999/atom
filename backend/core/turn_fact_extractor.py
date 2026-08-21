@@ -212,11 +212,17 @@ RULES:
 - Do NOT extract generic paraphrases ("the user said X" → drop).
 - Each fact must fit EXACTLY ONE category. Use the literal category string.
 - State the fact as a self-contained sentence (no pronouns, no "as mentioned").
+- For EACH fact set "epistemic" to how it is known:
+    "stated"  — a source explicitly said/wrote it (user message, document,
+                committed value). Default when unsure.
+    "inferred" — the AGENT concluded it from signals (a pattern across
+                 observations, a guess about preference). Never mark a fact
+                 "inferred" just because it is about the future.
 - Maximum {max_facts} facts, ranked by durability. If none qualify, return [].
 
 Return a JSON array (and NOTHING else):
 [
-  {{"fact": "...", "category": "exact_value", "domain": "finance", "confidence": 0.9}},
+  {{"fact": "...", "category": "exact_value", "domain": "finance", "confidence": 0.9, "epistemic": "stated"}},
   ...
 ]
 
@@ -404,12 +410,18 @@ class TurnFactExtractor:
             category = (item.get("category") or "").strip()
             if not fact_text or category not in ALL_FACT_CATEGORIES:
                 continue
+            # Source attribution (survey §7.3): how we know it. Invalid or
+            # missing → "stated" (conservative: treat as source-said).
+            epistemic = (item.get("epistemic") or "stated").strip().lower()
+            if epistemic not in ("stated", "inferred"):
+                epistemic = "stated"
             facts.append(
                 {
                     "fact_text": fact_text,
                     "category": category,
                     "domain": (item.get("domain") or "general").strip()[:64],
                     "confidence": _coerce_confidence(item.get("confidence", 0.8)),
+                    "epistemic_type": epistemic,
                     "tags": item.get("tags") if isinstance(item.get("tags"), list) else None,
                 }
             )
@@ -427,6 +439,7 @@ class TurnFactExtractor:
                 category=f["category"],
                 domain=f["domain"],
                 confidence=f["confidence"],
+                epistemic_type=f["epistemic_type"],
                 tags=f["tags"],
                 extraction_source=extraction_source,
                 execution_id=execution_id,
@@ -464,6 +477,8 @@ class TurnFactExtractor:
         episode_id: Optional[str],
         session_id: Optional[str],
         user_id: Optional[str],
+        epistemic_type: str = "stated",
+        sensitivity: str = "internal",
         _skip_antithrash: bool = False,
     ) -> Optional[TurnFact]:
         """Insert with dedup. Returns the canonical row (newly inserted or updated existing)."""
@@ -502,6 +517,8 @@ class TurnFactExtractor:
                         domain=domain,
                         tags=tags,
                         confidence=confidence,
+                        epistemic_type=epistemic_type,
+                        sensitivity=sensitivity,
                         content_hash=content_hash,
                         status="active",
                         # P3d: versioning — initial commit on the main branch.
@@ -544,6 +561,8 @@ class TurnFactExtractor:
                         domain=domain,
                         tags=tags,
                         confidence=confidence,
+                        epistemic_type=epistemic_type,
+                        sensitivity=sensitivity,
                         content_hash=content_hash,
                         status="active",
                         # P3d: the new row is a commit whose parent is the
@@ -811,6 +830,8 @@ def get_active_facts_for_prompt(
     workspace_id: str,
     limit: int = 5,
     categories: Optional[Tuple[str, ...]] = None,
+    epistemic_type: Optional[str] = None,
+    prioritize_stated: bool = False,
 ) -> List[TurnFact]:
     """
     Pure-SQL Tier-1 recall. Latency ~1-3ms SQLite, sub-ms Postgres.
@@ -818,6 +839,15 @@ def get_active_facts_for_prompt(
 
     Optional ``categories`` filter — pass a subset of FactCategory values to
     restrict (e.g. hard constraints only).
+
+    Optional ``epistemic_type`` filter ("stated" | "inferred") — restrict to
+    one source-attribution class.
+
+    ``prioritize_stated=True`` applies the source-attribution policy (survey
+    §7.3: user-statement attribution outranks confidence): stated facts sort
+    before inferred facts as a tertiary key after recency, so an equally
+    recent inference never displaces a stated fact. Default False keeps the
+    legacy ordering byte-compatible.
     """
     try:
         q = db.query(TurnFact).filter(
@@ -826,11 +856,20 @@ def get_active_facts_for_prompt(
         )
         if categories:
             q = q.filter(TurnFact.category.in_(categories))
-        return (
-            q.order_by(TurnFact.created_at.desc(), TurnFact.confidence.desc())
-            .limit(limit)
-            .all()
-        )
+        if epistemic_type:
+            q = q.filter(TurnFact.epistemic_type == epistemic_type)
+        if prioritize_stated:
+            # stated(0) before inferred(1), then recency, then confidence
+            q = q.order_by(
+                TurnFact.epistemic_type.desc(),  # "stated" > "inferred" lexically
+                TurnFact.created_at.desc(),
+                TurnFact.confidence.desc(),
+            )
+        else:
+            q = q.order_by(
+                TurnFact.created_at.desc(), TurnFact.confidence.desc()
+            )
+        return q.limit(limit).all()
     except Exception as e:
         logger.warning("get_active_facts_for_prompt failed: %s", e)
         return []

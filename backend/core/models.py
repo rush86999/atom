@@ -1164,6 +1164,17 @@ class TurnFact(Base):
     tags = Column(JSON, nullable=True)              # free-form list
     confidence = Column(Float, default=0.8, nullable=False)
 
+    # Source attribution (2026-08-21): HOW we know this. "stated" = a source
+    # explicitly said it; "inferred" = the agent concluded it. Recall may
+    # prefer stated over inferred (survey §7.3: attribution outranks
+    # confidence). HONESTLY SCOPED: schema/prompt addition only — no SOTA
+    # claim without a conversational-memory eval.
+    epistemic_type = Column(String(16), default="stated", nullable=False)
+
+    # P4-aligned taint vocabulary so downstream consumers can align fact
+    # handling with document sensitivity. Enforcement is a separate change.
+    sensitivity = Column(String(16), default="internal", nullable=False)
+
     # Dedup key — sha256(workspace_id + "::" + normalize(fact_text))
     content_hash = Column(String(64), nullable=False, index=True)
 
@@ -12054,3 +12065,88 @@ class ExperienceImport(Base):
         Index("ix_experience_imports_workspace", "workspace_id"),
     )
 
+
+
+# ============================================================================
+# Fleet Routing Validation — audit + automation actions (2026-08-21)
+# ============================================================================
+
+class FleetRoutingAudit(Base):
+    """One governed fleet-routing decision for a fleet-eligible TASK intent.
+
+    Written by ``core/fleet_orchestration/fleet_routing_stats.py`` from the
+    ``AtomMetaAgent.execute()`` fleet branch (shadow or enforced). Each row
+    records the recruitment outcome (chain, roster, success) and — once the
+    meta-agent execution finalizes — the *incumbent* success of the run via
+    ``record_fleet_execution_outcome``. In shadow mode the response comes from
+    Queen->ReAct, so the joined success measures the baseline the fleet path
+    would be replacing; the fleet arm itself only produces outcomes once
+    force-enforce is on (pilot). Calibration is single-arm and honest about
+    that asymmetry: certification means "baseline is healthy and recruitment
+    machinery works" -> recommend pilot, not "fleet beats incumbent".
+    """
+
+    __tablename__ = "fleet_routing_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, nullable=True, index=True)
+    workspace_id = Column(String, nullable=True, index=True)
+    agent_id = Column(String, nullable=True, index=True)
+    execution_id = Column(String, nullable=True, index=True)
+
+    # Workload signature — sha1(normalized request)[:16]; anonymized grouping
+    # key for per-workload calibration (request_text is stored truncated).
+    workload_key = Column(String(length=32), nullable=False, index=True)
+    request_text = Column(String(length=200), nullable=True)
+
+    # Recruitment snapshot at decision time
+    chain_id = Column(String, nullable=True)
+    specialists_count = Column(Integer, nullable=False, default=0)
+    roster_json = Column(JSONColumn, nullable=True)  # [{agent_id, agent_name, domain}]
+    recruitment_succeeded = Column(Boolean, nullable=True)
+    enforced = Column(Boolean, nullable=False, default=False)  # shadow vs live
+    decision_source = Column(String(length=24), nullable=True)  # fleet_eligible
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Outcome-join columns — populated by record_fleet_execution_outcome when
+    # the meta-agent execution finalizes. Null until then; only rows with
+    # `success` populated are calibration-eligible.
+    success = Column(Boolean, nullable=True)
+    actual_latency_ms = Column(Float, nullable=True)
+    actual_model = Column(String, nullable=True)
+    actual_provider = Column(String, nullable=True)
+
+    __table_args__ = (
+        Index("ix_fleet_audit_ws_created", "workspace_id", "created_at"),
+        Index("ix_fleet_audit_workload_created", "workload_key", "created_at"),
+        Index("ix_fleet_audit_execution", "execution_id"),
+    )
+
+
+class FleetRouterAutomationAction(Base):
+    """One automated fleet-router action (approval queue + audit trail).
+
+    Written by ``core/fleet_orchestration/fleet_router_automation.py``. The
+    row is both the approval queue (state ``approval`` waits for admin
+    approve/reject) and the audit trail (``applied``/``rejected``/``revoked``).
+    Enforcement is global (fleet routing is a process-wide switch), so actions
+    carry ``workload_key="__global__"``; ``resolved_fleet_enforce()`` honors
+    the latest applied/revoked row, and the env kill-switch
+    ``ATOM_FLEET_ROUTING_FORCE_ENFORCE`` always wins over any override.
+    """
+
+    __tablename__ = "fleet_router_automation_actions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workload_key = Column(String(length=32), nullable=False, default="__global__", index=True)
+    verdict = Column(String(length=16), nullable=False)  # enable | revoke
+    mode = Column(String(length=16), nullable=False)  # notify | approve | auto
+    state = Column(String(length=16), nullable=False, default="approval")  # approval|applied|rejected|revoked
+    stats_json = Column(JSONColumn, nullable=True)  # calibration snapshot at decision time
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_fleet_router_auto_created", "workload_key", "created_at"),
+    )

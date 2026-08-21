@@ -376,7 +376,7 @@ class LanceDBMemoryManager:
             logger.error(f"Error generating embedding: {e}")
             return [0.0] * dim
 
-    def search_communications(self, query: str, limit: int = 10, app_type: str = None, tag: str = None) -> List[Dict]:
+    def search_communications(self, query: str, limit: int = 10, app_type: str = None, tag: str = None, direction: str = None) -> List[Dict]:
         """Search communications using hybrid search (vector + FTS)"""
         try:
             if self.connections_table is None:
@@ -415,6 +415,12 @@ class LanceDBMemoryManager:
             if tag:
                 # Use array_has_any for tag filtering in LanceDB
                 search_builder = search_builder.where(f"array_has_any(tags, ['{tag}'])")
+
+            if direction:
+                # Actor-provenance filter on the existing column: "inbound"
+                # -> external actors, "outbound" -> employee side.
+                safe_direction = str(direction).replace("'", "''")
+                search_builder = search_builder.where(f"direction = '{safe_direction}'")
             
             results = search_builder.to_pandas()
             
@@ -485,6 +491,20 @@ class LanceDBMemoryManager:
                 
         except Exception as e:
             logger.error(f"Error updating metadata: {str(e)}")
+
+def derive_actor(message_data: Dict[str, Any]) -> tuple:
+    """
+    Actor provenance for a comm record (P0.4 §7 follow-up): who produced the
+    content. "employee" = our side (agent/human operator, outbound);
+    "external" = the customer/third party (inbound) — conservative default.
+    Returns (actor_type, actor_id).
+    """
+    direction = str((message_data or {}).get("direction") or "inbound").strip().lower()
+    actor_id = (message_data or {}).get("sender") or (message_data or {}).get("from")
+    if direction == "outbound":
+        return ("employee", actor_id)
+    return ("external", actor_id)
+
 
 class CommunicationIngestionPipeline:
     """Main ingestion pipeline for all communication apps"""
@@ -1725,6 +1745,22 @@ class CommunicationIngestionPipeline:
             return []
     
     def _normalize_message(self, app_type: str, message_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize message data from different apps to unified format,
+        stamped with actor provenance (metadata.actor_type / actor_id)."""
+        normalized = self._normalize_message_impl(app_type, message_data)
+        try:
+            actor_type, actor_id = derive_actor(message_data)
+            meta = normalized.get("metadata")
+            if isinstance(meta, dict):
+                meta.setdefault("actor_type", actor_type)
+                meta.setdefault("actor_id", actor_id)
+            else:
+                normalized["metadata"] = {"actor_type": actor_type, "actor_id": actor_id}
+        except Exception as e:
+            logger.debug(f"actor provenance stamping skipped: {e}")
+        return normalized
+
+    def _normalize_message_impl(self, app_type: str, message_data: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize message data from different apps to unified format"""
         
         # WhatsApp normalization

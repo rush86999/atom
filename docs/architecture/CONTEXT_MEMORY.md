@@ -156,6 +156,30 @@ Postgres enforces "at most one active row per (workspace, hash)" via a **partial
 
 ---
 
+## Source Attribution & Sensitivity (2026-08-21)
+
+Two columns on `turn_facts` implementing the re-ranked memory-hardening plan
+(P0.4 §7; survey arXiv:2603.07670 §7.3 — "source attribution (user statement ≫
+agent inference) outranks confidence"):
+
+- **`epistemic_type`** — `"stated"` (a source explicitly said it) vs
+  `"inferred"` (the agent concluded it). The extraction prompt classifies per
+  fact; invalid/missing → `"stated"` (conservative). Recall:
+  `get_active_facts_for_prompt(..., epistemic_type=…)` filters;
+  `prioritize_stated=True` sorts stated before inferred as a tertiary key
+  after recency — an equally-recent inference never displaces a stated fact.
+  Default ordering unchanged.
+- **`sensitivity`** — P4 data-taint vocabulary (`public|internal|
+  confidential|restricted`, default `internal`) so downstream consumers can
+  align fact handling with document sensitivity. **Enforcement is a separate,
+  not-yet-built change** — this column enables it.
+
+Honest scope note: these are schema/prompt additions with one recall behavior
+(prioritize_stated). No conversational-memory benchmark claim is made until a
+LongMemEval-style golden-QA eval runs over Atom's stores (see plan §5).
+
+---
+
 ## Failure Modes → Mitigations
 
 | Failure | Mitigation |
