@@ -1493,7 +1493,7 @@ async def test_hitl_interception_and_autonomy(svc, base_env):
                                   tenant_id="t",
                                   notification_preferences={
                                       "force_agent_approval": True}),
-                              agent=SimpleNamespace(maturity_level=5,
+                              agent=SimpleNamespace(maturity_level=5, status="autonomous",
                                                      name="A")))
     with patch.object(intervention_service, "request_intervention",
                       AsyncMock(return_value={"paused": True})):
@@ -1505,7 +1505,7 @@ async def test_hitl_interception_and_autonomy(svc, base_env):
                      _hitl_db(SimpleNamespace(tenant_id="t"), gov_force,
                               user=SimpleNamespace(tenant_id="t",
                                                    notification_preferences={}),
-                              agent=SimpleNamespace(maturity_level=5,
+                              agent=SimpleNamespace(maturity_level=5, status="autonomous",
                                                      name="A")))
     assert await svc._check_hitl_policy("w", "send_email", {},
                                         {"user_id": "u", "agent_id": "a"}) is None

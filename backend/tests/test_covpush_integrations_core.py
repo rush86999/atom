@@ -377,6 +377,7 @@ class TestHitlPolicy:
         user.notification_preferences = {}
         agent = MagicMock()
         agent.maturity_level = 5
+        agent.status = "autonomous"  # R81e: tier-name comparison
         agent.name = "A"
 
         # Per-model keyed queries — a shared filter/first chain made the
@@ -1524,6 +1525,7 @@ class TestMCPCoverageWave2:
         user.notification_preferences = {"force_agent_approval": False}
         agent = MagicMock()
         agent.maturity_level = 5
+        agent.status = "autonomous"  # R81e: tier-name comparison
         agent.name = "A"
         # tenant-scoped agent query chains a second .filter() — loop the chain
         db.query.return_value.filter.return_value.filter.return_value = db.query.return_value.filter.return_value
@@ -1537,6 +1539,7 @@ class TestMCPCoverageWave2:
         user2.notification_preferences = {"force_agent_approval": True}
         agent2 = MagicMock()
         agent2.maturity_level = 5
+        agent2.status = "autonomous"
         agent2.name = "A"
         agent2.id = "ag1"
         db.query.return_value.filter.return_value.filter.return_value = db.query.return_value.filter.return_value

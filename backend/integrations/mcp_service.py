@@ -1291,8 +1291,18 @@ class MCPService(IntegrationService):
                                  query = query.filter(AgentRegistry.tenant_id == tenant_id)
                              agent = query.first()
                              
-                             # Logic: Allow IF (High Maturity) AND (Tenant Allows) AND (User Doesn't Force)
-                             if agent and agent.maturity_level >= 5:
+                             # Logic: Allow IF (Autonomous maturity) AND (Tenant Allows) AND (User Doesn't Force)
+                             # R81e: AgentRegistry.maturity_level is a property
+                             # returning the status STRING — `>= 5` always
+                             # raised TypeError, which the old swallow-and-
+                             # allow catch turned into "auto-approve never
+                             # worked + policy silently bypassed". Compare
+                             # the tier name instead; auto-approval now
+                             # actually works, and HITL-required sends reach
+                             # intervention instead of a hard block.
+                             if agent and str(
+                                 getattr(agent, "status", "") or ""
+                             ).strip().lower() == "autonomous":
                                  if allow_autonomous and not user_force_hitl:
                                      should_intercept = False
                                      logger.info(f"Auto-approving external action for Autonomous Agent {agent.name} (Maturity 5)")

@@ -2499,6 +2499,7 @@ class TestCheckHITLPolicy:
         workspace.tenant_id = "t1"
         agent = MagicMock()
         agent.maturity_level = 5
+        agent.status = "autonomous"  # R81e: tier-name comparison
         agent.name = "Auto"
         self._patch_db(
             monkeypatch, self._db_with(workspace=workspace, tenant=tenant, agent=agent)
@@ -2523,6 +2524,7 @@ class TestCheckHITLPolicy:
         user.notification_preferences = {"force_agent_approval": True}
         agent = MagicMock()
         agent.maturity_level = 5
+        agent.status = "autonomous"  # R81e: tier-name comparison
         agent.name = "Auto"
         self._patch_db(
             monkeypatch,

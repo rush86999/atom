@@ -412,3 +412,98 @@ class TestReasoningFeedbackConfidence:
                 chain, self._feedback(FT.APPROVE), step
             )
             gds.assert_not_called()
+
+
+# ============================================================================
+# G11 - HITL auto-approve compares the tier NAME, not a numeric property
+# ============================================================================
+
+
+class TestHitlAutoApprove:
+    """AgentRegistry.maturity_level is a property returning the status STRING;
+    `agent.maturity_level >= 5` always raised TypeError -> old code silently
+    allowed (auto-approve dead), R81b fail-closed turned that into a hard
+    block. Autonomous agents in allow-listing tenants must reach the
+    auto-approve path, and non-autonomous ones must reach intervention."""
+
+    def _svc(self):
+        from integrations.mcp_service import MCPService
+
+        return MCPService()
+
+    def _hitl_env(self, agent_status):
+        from core.models import AgentRegistry as _AR, Tenant as _T, \
+            User as _U, Workspace as _W
+
+        tenant = MagicMock()
+        tenant.metadata_json = {"governance": {
+            "require_hitl_external": True,
+            "allow_autonomous_external": True,
+        }}
+        workspace = MagicMock()
+        workspace.tenant_id = "t1"
+        user = MagicMock()
+        user.tenant_id = "t1"
+        user.notification_preferences = {}
+        agent = MagicMock()
+        # Realistic: property returns the STATUS STRING (no numeric attr).
+        agent.status = agent_status
+
+        model_map = {
+            _W: _q_ret_chaining(workspace),
+            _T: _q_ret_chaining(tenant),
+            _U: _q_ret_chaining(user),
+            _AR: _q_ret_chaining(agent),
+        }
+        db = MagicMock()
+        db.__enter__ = MagicMock(return_value=db)
+        db.__exit__ = MagicMock(return_value=False)
+        db.query = MagicMock(side_effect=lambda m, *a, **k: model_map[m])
+        return db
+
+    @pytest.mark.asyncio
+    async def test_autonomous_agent_auto_approved(self):
+        from integrations.mcp_service import MCPService
+        from core.models import AgentRegistry as _AR
+
+        svc = self._svc()
+        db = self._hitl_env("autonomous")
+        with patch("core.database.SessionLocal", return_value=db), \
+             patch(
+                 "core.intervention_service.intervention_service.request_intervention",
+                 new=AsyncMock(side_effect=AssertionError("must not intercept")),
+             ):
+            result = await svc._check_hitl_policy(
+                "ws1", "send_email", {"to": "x@y.z"},
+                {"user_id": "u1", "agent_id": "ag1"},
+            )
+        assert result is None  # auto-approved -> proceed
+
+    @pytest.mark.asyncio
+    async def test_supervised_agent_goes_to_intervention(self):
+        from integrations.mcp_service import MCPService
+
+        svc = self._svc()
+        db = self._hitl_env("supervised")
+        intervention = AsyncMock(return_value={"paused": True})
+        with patch("core.database.SessionLocal", return_value=db), \
+             patch(
+                 "core.intervention_service.intervention_service.request_intervention",
+                 new=intervention,
+             ):
+            result = await svc._check_hitl_policy(
+                "ws1", "send_email", {"to": "x@y.z"},
+                {"user_id": "u1", "agent_id": "ag1"},
+            )
+        assert result == {"paused": True}
+        intervention.assert_awaited_once()
+
+
+def _q_ret_chaining(value):
+    """Query mock surviving the production two-stage filter + first()."""
+    f = MagicMock()
+    f.first.return_value = value
+    f.filter.return_value = f
+    q = MagicMock()
+    q.filter.return_value = f
+    return q

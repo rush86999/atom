@@ -5999,3 +5999,9 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Files**: `backend/core/reasoning_chain.py` (`ReasoningTracker._apply_feedback_to_agent` called `_update_confidence_score(agent_id, feedback.user_id, is_positive=...)` — user_id positionally as `positive`, nonexistent kwarg → TypeError swallowed by the except → APPROVE/REJECT on reasoning steps never moved confidence; now `positive=True/False, impact_level="high"`), `backend/tests/test_round81b_journey_followups.py` (+3 tests → 14), `backend/tests/test_covpush_w105_gaps_b.py` (test pinned the broken signature → corrected contract).
 
 **Verification**: round81b 14/14; w105+w99+meta cluster 181 passed (1 pre-existing meta failure confirmed on HEAD worktree).
+
+## Session 2026-08-21 (backend) — R81e: HITL auto-approve compared a string to 5 (never worked)
+
+**Files**: `backend/integrations/mcp_service.py` (`_check_hitl_policy`: `agent.maturity_level >= 5` — AgentRegistry.maturity_level is a property returning the status STRING, so the comparison always raised TypeError; pre-R81b swallow-and-allow meant auto-approve NEVER worked and tenant policy was silently bypassed for risky sends; post-R81b fail-closed it meant hard-block instead of intervention. Now compares `status == "autonomous"`), `backend/tests/test_round81b_journey_followups.py` (+2 tests → 16: autonomous→auto-approved/None, supervised→intervention), stale numeric mocks updated (`mcp_svc`×2, `integrations_core`×3, `w85` SimpleNamespace).
+
+**Verification**: round81b 16/16; mcp trio 452 passed with failure profile identical to HEAD worktree (9 pre-existing incl. cross-file pollution on marketing_review_request).
