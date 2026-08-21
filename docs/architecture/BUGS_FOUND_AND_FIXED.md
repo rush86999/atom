@@ -228,3 +228,68 @@ so a router that already declares its prefix must be included **bare**.
    The regression guard enforces this.
 7. **Keep CI artifacts debuggable:** absolute upload paths, no glob-special
    chars in filenames, and a text diagnostic when an assertion fails.
+
+## Zoho user journey (2026-08-21) — bugs the dedicated Zoho E2E surfaced
+
+Driven by `tests/e2e_ui/tests/test_journey_zoho_integration.py` (real browser
+consent → real token exchange against a local Zoho mock at the HTTP boundary →
+real sync → real chat recall) plus `tests/test_zoho_user_journey.py`.
+
+### 1. OAuth callback rejected `zoho` with 400 "Unsupported provider"
+- **Symptom:** every consent redirect died with 400 — NO tokens were ever
+  stored, silently breaking the entire pilot connect flow.
+- **Root cause:** `oauth_initiate` had a `zoho` entry but `oauth_callback`'s
+  inline provider-config dict never did (the wiring session only edited one
+  dict).
+- **Fix:** added `"zoho": ZOHO_OAUTH_CONFIG` to the callback configs.
+
+### 2. Workspace resolution vs sync/recall split-brain
+- **Symptom:** synced Zoho data landed in the user's workspace but chat
+  recall always searched `"default"` → "0 relevant entities" and the agent
+  answered "I don't have access...".
+- **Root cause:** `chat_orchestrator._get_qwen_response` hardcoded
+  `workspace_id="default"` while ingestion routes sync into
+  `user.workspace_id`.
+- **Fix:** added `resolve_user_workspace(user_id)` (DB-backed, configurable
+  fallback) and the assembler now receives the user's workspace.
+
+### 3. Sync returned "No sync config for zoho" on every fresh connect
+- **Symptom:** both `POST /api/data-ingestion/sync/{id}` and the
+  connect-time background sync failed with "No sync config" until a manual
+  `enable-sync` call.
+- **Root cause:** per-workspace `sync_configs` empty; no fallback to the
+  shipped `DEFAULT_SYNC_CONFIGS`.
+- **Fix:** `sync_integration_data` now falls back to `DEFAULT_SYNC_CONFIGS`.
+
+### 4. Books/Inventory silently synced 0 records (organization_id gating)
+- **Symptom:** after connect, sync fetched only CRM (2 records) — invoices,
+  items and sales orders never appeared; no error shown.
+- **Root cause:** the Zoho fetch path gates Books/Inventory on
+  `credential_metadata["organization_id"]`, which nothing ever populated.
+- **Fix:** `_fetch_zoho_multi_app_data` auto-discovers the org via
+  `GET .../organizations` (Books + Inventory) and persists it onto the token
+  row; `ZohoAdapter.get_organizations()` added.
+
+### 5. Datacenter (instance_url) + workspace never stamped on token rows
+- **Symptom:** sync hit env-default datacenter (`accounts.zoho.com`), and
+  `ZohoAdapter._load_token` (workspace filter) couldn't see rows with NULL
+  workspace_id → all data calls ran unauthenticated (401/0 records).
+- **Root cause:** callback never stored `api_domain`/`workspace_id`;
+  adapter filtered `workspace_id = <ws>` strictly.
+- **Fix:** callback stamps `instance_url` (+ `workspace_id="default"` when
+  absent) on the canonical `zoho` row; `_load_token` uses an OR fallback for
+  legacy NULL-workspace rows; naive-instance (`tzinfo=None`) expiry from
+  SQLite normalized so `ensure_token()` doesn't crash.
+
+### 6. WorkDrive dead after the documented connect flow
+- **Symptom:** WorkDrive file/team journeys silently returned []/None while
+  Books/Inventory/CRM worked.
+- **Root cause:** `ZohoWorkDriveService.get_access_token` read only
+  `UserConnection` rows; the OAuth callback writes `IntegrationToken`.
+- **Fix:** IntegrationToken fallback (provider `zoho_workdrive` → `zoho`)
+  with expiry check + refresh, wired into `get_access_token`.
+
+### 7. Mock-server detail
+- The consent HTML body was sent as `str` (TypeError in the mock). Fixed
+  `_send` to encode str payloads; the mock also stands in for
+  `FRONTEND_URL/oauth/success` (the real callback 302s the browser there).

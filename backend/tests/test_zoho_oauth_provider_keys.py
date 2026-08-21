@@ -160,3 +160,51 @@ def test_oauth_token_row_updates_with_scope():
     # The OAuthToken add/update path must have run (no exception, commit called)
     db.commit.assert_called()
     assert any(r.provider == "zoho" for r in added)
+
+
+def test_zoho_callback_schedules_background_sync():
+    """Connecting Zoho must kick off the hybrid ingestion sync (Books
+    invoices, Inventory items/sales orders, CRM leads/deals, Projects tasks)
+    — the pilot analog of the Outlook poller that starts on Microsoft
+    connect. Without it, the callback leaves token rows only and the memory
+    stores stay empty until someone manually triggers
+    POST /api/data-ingestion/sync/zoho."""
+    db, added = _make_db()
+
+    handler_cls = MagicMock()
+    handler_cls.return_value.exchange_code_for_tokens = AsyncMock(return_value={
+        "access_token": "at_zoho_" + uuid.uuid4().hex[:8],
+        "refresh_token": "rt_zoho_" + uuid.uuid4().hex[:8],
+        "token_type": "Bearer",
+        "scope": "ZohoBooks.fullaccess.all",
+        "expires_in": 3600,
+    })
+
+    scheduled = []
+    fake_service = MagicMock()
+    fake_service.sync_integration_data = AsyncMock(return_value={"success": True})
+
+    def fake_create_task(coro):
+        scheduled.append(coro)
+        return MagicMock()
+
+    with patch("api.oauth_routes.OAuthHandler", handler_cls), patch(
+        "core.privsec.token_encryption.encrypt_token",
+        side_effect=lambda x: f"enc:{x}",
+    ), patch(
+        "core.hybrid_data_ingestion.get_hybrid_ingestion_service",
+        return_value=fake_service,
+    ), patch("api.oauth_routes.asyncio.create_task", side_effect=fake_create_task):
+        asyncio.run(v1._handle_callback_logic(
+            provider="zoho",
+            code="fake-auth-code",
+            config=MagicMock(),
+            request=MagicMock(),
+            db=db,
+            user=MagicMock(id="u-admin", tenant_id="default", status="active"),
+        ))
+
+    assert scheduled, (
+        "Zoho connect scheduled no background sync — Books/Inventory/CRM "
+        "records never reach the memory stores without a manual sync trigger."
+    )

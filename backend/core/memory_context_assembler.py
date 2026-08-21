@@ -149,43 +149,117 @@ async def _facts_leg(message: str, workspace_id: str) -> List[str]:
     return [str(getattr(f, "fact_text", "")).strip() for f in facts or [] if getattr(f, "fact_text", "")]
 
 
-async def _integration_records_leg(message: str, workspace_id: str) -> List[str]:
+async def _integration_records_leg(
+    message: str, workspace_id: str, agent_role: Optional[str] = None
+) -> List[str]:
     """Vector search over ALL ingested 3rd-party integration data
     (`integration_*` LanceDB tables written by the hybrid sync pipeline —
     Zoho, Shopify, Salesforce, OneDrive, Drive, …). Previously these tables
     were write-only; this leg makes every integration's ingested records
-    retrievable at turn time. Runs in a thread (sync LanceDB I/O)."""
+    retrievable at turn time. Runs in a thread (sync LanceDB I/O).
+
+    Role-aware recall (Round 80, integration-data half): when the operating
+    AI employee's role (AgentRegistry.category, lowercased) is known, records
+    tagged ``metadata.role == <role>`` at sync time are surfaced FIRST and
+    untagged general records top up the remaining slots — mirroring
+    WorldModelService._recall_general_knowledge. Additive, never exclusive:
+    a role with no tagged records still gets the general pool."""
+
+    safe_role = str(agent_role).lower().replace("'", "''") if agent_role else None
 
     def _search() -> List[str]:
         from core.lancedb_handler import get_lancedb_handler
 
         try:
             handler = get_lancedb_handler(workspace_id)
-            if handler is None or handler.db is None or handler.db.db is None:
+            if handler is None:
+                logger.info(f"integration records leg: no handler for ws {workspace_id}")
+                return []
+            handler._ensure_db()  # connection is lazy; the guard below must not
+                                  # fire before search() had a chance to init it
+            if handler.db is None:
+                logger.info(f"integration records leg: lancedb not connected for ws {workspace_id}")
                 return []
             tables = [
-                t for t in handler.db.db.table_names() if str(t).startswith("integration_")
+                t for t in handler.db.table_names() if str(t).startswith("integration_")
             ]
+            logger.info(
+                f"integration records leg: ws={workspace_id} role={safe_role} "
+                f"tables={tables[:6] if len(tables) > 6 else tables} "
+                f"({len(tables)} total)"
+            )
         except Exception as e:
-            logger.debug(f"integration records leg: table list failed: {e}")
+            logger.info(f"integration records leg: table list failed for ws {workspace_id}: {e}")
             return []
         lines: List[str] = []
+        seen_ids: set = set()
         for table_name in tables[:6]:  # bounded: newest common integrations
-            try:
-                results = handler.search(table_name, message[:500], limit=2)
-            except Exception:
-                continue
-            for rec in results or []:
-                text = str(rec.get("text") or rec.get("content") or "").strip()
-                if not text:
+            # Pass 1 (role-scoped): records synced FOR this employee's role.
+            # Pass 2 (general): untagged top-up so a role with few tagged
+            # records never starves — additive, never exclusive.
+            passes = []
+            if safe_role:
+                passes.append(
+                    f"metadata.role == '{safe_role}'"
+                )
+            passes.append(None)
+            per_pass_limit = 2 if not safe_role else 1  # same total per table
+            for filter_str in passes:
+                try:
+                    results = handler.search(
+                        table_name,
+                        message[:500],
+                        limit=per_pass_limit,
+                        filter_str=filter_str,
+                    )
+                    logger.info(
+                        f"integration records leg: {table_name} "
+                        f"filter={filter_str or 'none'} search returned "
+                        f"{len(results or [])} hits"
+                    )
+                except Exception as e:
+                    logger.info(
+                        f"integration records leg: {table_name} search failed "
+                        f"(filter={filter_str or 'none'}): {e}"
+                    )
                     continue
-                source = str(rec.get("source") or table_name.replace("integration_", ""))
-                if len(text) > SNIPPET_CHAR_CAP:
-                    text = text[:SNIPPET_CHAR_CAP] + "…"
-                lines.append(f"[{source}] " + text.replace("\n", " "))
+                for rec in results or []:
+                    if rec.get("id") in seen_ids:
+                        continue
+                    text = str(rec.get("text") or rec.get("content") or "").strip()
+                    if not text:
+                        continue
+                    seen_ids.add(rec.get("id"))
+                    source = str(rec.get("source") or table_name.replace("integration_", ""))
+                    if len(text) > SNIPPET_CHAR_CAP:
+                        text = text[:SNIPPET_CHAR_CAP] + "…"
+                    lines.append(f"[{source}] " + text.replace("\n", " "))
         return lines
 
     return await asyncio.to_thread(_search)
+
+
+def _resolve_agent_role(agent_id: Optional[str]) -> Optional[str]:
+    """Map an agent id to its role (AgentRegistry.category, lowercased) —
+    the SAME tag sync_integration_data(role=...) stamps at ingest, so the
+    two halves of the Round-80 role loop always agree. Best-effort and
+    fault-isolated: None (general knowledge) on any failure."""
+    if not agent_id:
+        return None
+    try:
+        from core.database import SessionLocal
+        from core.models import AgentRegistry
+
+        db = SessionLocal()
+        try:
+            agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+            if agent and getattr(agent, "category", None):
+                return str(agent.category).lower()
+        finally:
+            db.close()
+    except Exception as e:
+        logger.debug(f"agent role resolution failed for {agent_id}: {e}")
+    return None
 
 
 # --------------------------------------------------------------------------- #
@@ -348,10 +422,14 @@ async def assemble_memory_context(
         return None
     try:
         started = time.monotonic()
+        # Round 80 role loop (recall half): the operating AI employee's role
+        # scopes integration-record recall to the work/responsibilities the
+        # data was synced for. Same tag the sync route stamps at ingest.
+        agent_role = await asyncio.to_thread(_resolve_agent_role, agent_id)
         graph_ctx, knowledge_lines, integration_lines, episode_lines, fact_lines = await asyncio.gather(
             _safe(_graph_leg(message, workspace_id, tenant_id), "graph"),
             _safe(_knowledge_leg(message, workspace_id), "knowledge"),
-            _safe(_integration_records_leg(message, workspace_id), "integration_records"),
+            _safe(_integration_records_leg(message, workspace_id, agent_role), "integration_records"),
             _safe(_episodes_leg(message, agent_id), "episodes"),
             _safe(_facts_leg(message, workspace_id), "facts"),
         )

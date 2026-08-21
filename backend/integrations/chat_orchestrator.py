@@ -16,6 +16,28 @@ from services.agent_service import agent_service
 
 logger = logging.getLogger(__name__)
 
+
+def resolve_user_workspace(user_id: Optional[str], fallback: str = "default") -> str:
+    """Map a user id to their workspace — the store integration syncs write
+    into (the ingestion routes use get_workspace_id(user)). Turn-time memory
+    lookup must land in that SAME workspace or ingested data (Zoho, Shopify,
+    Salesforce, …) is invisible to the AI employee's recall."""
+    if not user_id:
+        return fallback
+    try:
+        db = SessionLocal()
+        try:
+            from core.models import User
+
+            user_row = db.query(User).filter(User.id == user_id).first()
+            if user_row and user_row.workspace_id:
+                return user_row.workspace_id
+        finally:
+            db.close()
+    except Exception as e:
+        logger.debug(f"workspace resolution failed for {user_id}: {e}")
+    return fallback
+
 # LLM Service Integration
 try:
     from core.llm_service import LLMService
@@ -400,7 +422,7 @@ class ChatOrchestrator:
                         sticky_hint = (_p, _m)
             except Exception:
                 pass
-            ai_response = await self._get_qwen_response(message, history, routing_overrides, sticky_hint=sticky_hint)
+            ai_response = await self._get_qwen_response(message, history, routing_overrides, sticky_hint=sticky_hint, user_id=user_id)
 
             # Check for cancellation between steps.
             if self._is_cancelled(session_id):
@@ -543,6 +565,7 @@ class ChatOrchestrator:
         history: list,
         routing_overrides: Optional[Dict[str, Any]] = None,
         sticky_hint: Optional[tuple] = None,
+        user_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -589,15 +612,26 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 )
 
                 if assembly_enabled():
+                    # The integral AI-employee contract: memory must be
+                    # retrieved from the USER's workspace, the same workspace
+                    # integration syncs write into (get_workspace_id in the
+                    # ingestion routes). Hardcoding "default" made ingested
+                    # Zoho/Shopify/Salesforce/etc. data invisible to the
+                    # employee at chat time — "0 relevant entities" despite
+                    # synced records (RED→GREEN journey fix).
+                    user_workspace = resolve_user_workspace(user_id)
+
                     memory_block = await assemble_memory_context(
                         message=message,
-                        workspace_id="default",
+                        workspace_id=user_workspace,
                         tenant_id=self.tenant_id,
                     )
                     if memory_block:
                         messages.append({"role": "system", "content": memory_block})
             except Exception as e:
-                logger.debug(f"memory context assembly skipped: {e}")
+                # A silent failure here makes ALL ingested integration data
+                # invisible at chat time (no error, empty memory) — warn, don't debug.
+                logger.warning(f"memory context assembly skipped: {e}")
 
             # Add conversation history
             for h in history:

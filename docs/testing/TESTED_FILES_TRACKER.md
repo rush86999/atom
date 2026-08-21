@@ -6,6 +6,32 @@
 
 ---
 
+## Session 2026-08-21 (Round 80 — integration user-journey audit: every app, every role, UI/UX)
+
+**Context**: walked every app integration end-to-end (discover → connect → status → use → manage) for every role including UI/UX. Findings + fixes below; full matrix in `docs/INTEGRATIONS_JOURNEY_AUDIT.md`. Backend TDD (RED first); frontend jest.
+
+**Files tested/fixed**:
+
+| File | Tests | Result |
+|---|---|---|
+| `integrations/bridge/external_integration_routes.py` | `test_round80_integration_journey_auth.py` G1 (anon-401 ×3 + authed execute) | 401 before, green after |
+| `main_api_app.py` (`/api/integrations/stats` + dead `/api/billing/webhook` block) | G2 + G2b | stats gated; legacy alias removed (was importing nonexistent `api/routes/stripe_webhook_routes.py` inside swallowed `except ImportError` while logging a false "✓ Loaded"); pinned fail-closed 404 |
+| `integrations/twitter_routes.py` | G3 (3 anon-401 + public status/health) | gated |
+| `integrations/bamboohr_routes.py` | G4 (4 anon-401 + public status) | gated |
+| `integrations/discord_routes.py` | G5 (7 anon-401 + public status/auth/health) | gated (aliased `get_current_user as get_authed_user` to avoid clash with local service helper) |
+| `integrations/slack_routes.py` | G6 (5 anon-401 + public status/health) | `/reactions/add` + channels/users gated (send/search were wave-93) |
+| `core/models.py` (`IngestedDocument.role`), `core/hybrid_data_ingestion.py` (`sync_integration_data(role=)` + fetcher threading), `core/auto_document_ingestion.py` (`process_file_bytes(role=)`), `core/agent_world_model.py` (`_recall_general_knowledge`), `api/data_ingestion_routes.py` (`trigger_sync` agent_id→role), `alembic/versions/20260821_add_ingested_docs_role.py` | `test_round80_ingestion_role_relevance.py` (11) | role-relevance: ingested data tagged with AI-employee role (AgentRegistry.category) + role-preferred recall with untagged top-up; first of the 8 dead `agent_id` params wired |
+
+**Stale-test repairs (caused by the fixes)**: `tests/test_covpush_w68a_local_discord_tokens.py` (discord data tests now authed — `make_client(router, authed=True)`), `tests/test_covpush_w71a_adapters2.py` (`TestExternalIntegrationRoutes` override + docstring), `tests/integrations/test_twitter_service.py` + `test_bamboohr_service.py` (route data tests authed), `tests/test_hybrid_ingestion_persistence.py` (`fake_fetch(..., role=None)`), `tests/test_world_model.py` (mock search call-count updated for the role-filtered docs search + general top-up).
+
+**Frontend** (`tests/pages/integrations-journey-gap-fill.test.tsx` + `tests/components/integrations-IntegrationStatusCard.test.tsx`, 10 tests): new real pages for **dropbox / telegram / gitlab / xero** (were 404s / dead stubs) via new shared `components/integrations/IntegrationStatusCard.tsx` (status fetch + OAuth URL resolution); **monday / whatsapp** pages (were orphaned components, no page) + hub cards; hub's dead links eliminated.
+
+**Verification**: `tests/test_round80_integration_journey_auth.py` + `tests/test_round80_ingestion_role_relevance.py` 45 passed; regressions green (`w64/w68a/w71a/w90/w93 slack+discord+twitter+bamboohr+external suites`, `test_hat world/w26 hybrid ingestion persistence, world_model 108 passed`, boot/router mounts 32 passed). mypy: no new error classes on the 9 touched modules (discord arg-type errors pre-exist at HEAD; `api_governance` decorator kwarg drift pre-exists, documented §4.5 of the audit doc).
+
+**Open items (documented, not fixed this round)**: ~120 Next proxy handlers → dead `:5058/5059` + no Authorization forwarding; discord double-prefix mount; registry-on-demand routers still bare when loaded (linear/tableau/freshdesk/intercom/twilio/linkedin/obsidian/okta/workday/webex/deepgram/email/sendgrid); orphan `api/integration_dashboard_routes.py` never mounted; `@require_governance` kwarg drift. `TestZohoMultiAppFetcher` failures belong to the in-flight Zoho org-id WIP lane (verified: pristine code passes).
+
+---
+
 ## Session 2026-08-16 (w110 — Org Ingestion Sharing implementation verified + test suite: ORG_INGESTION_SHARING_PLAN.md Phases 0–2)
 
 **Context**: the plan (`docs/architecture/ORG_INGESTION_SHARING_PLAN.md`) was implemented in-tree (models + migration `20260816_org_ingestion_sharing` + `core/org_sharing_crypto.py` + `core/ingestion_profile_service.py` + `core/org_data_bundle_service.py` + Phase 0 persistence in `core/hybrid_data_ingestion.py` + routes in `api/data_ingestion_routes.py`) with **zero tests**. This wave added the plan-§7 test suite and closed one plan violation.
@@ -5829,3 +5855,23 @@ Registered Zoho in the existing generic OAuth flow (`/initiate` → consent → 
 **Concurrent-session note**: a `TestZohoMultiAppFetcher::test_no_org_id_skips_books` failure + transient IndentationError during this session belong to ANOTHER agent's in-flight Zoho edits (`core/hybrid_data_ingestion.py`, uncommitted) — verified via stash that both clear at their file's HEAD state. Do not attribute to this work.
 
 **Verification**: suite 10/10; ingestion/memory cluster 186 passed.
+
+## Session 2026-08-21 (backend+e2e+frontend) — Zoho journey to AI-employee memory
+
+**TDD + real E2E** (`tests/test_zoho_user_journey.py` 13 tests incl. J6-J9; `tests/e2e_ui/tests/test_journey_zoho_integration.py` 2 tests; `scripts/repro_zoho_journey.py` dev driver; `scripts/zoho_mock_server.py` stdlib mock Zoho at the HTTP boundary).
+
+Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_FIXED.md` § Zoho user journey):
+1. `oauth_callback` 400 "Unsupported provider: zoho" — callback config dict lacked zoho (J1 guard).
+2. Chat memory hardcoded `workspace_id="default"` while sync writes the user's workspace → ingested Zoho data invisible at recall. `resolve_user_workspace()` in `integrations/chat_orchestrator.py`; assembler now uses it (J9).
+3. `sync_integration_data` "No sync config for zoho" until manual enable-sync → `DEFAULT_SYNC_CONFIGS` fallback (J3 rewrite — the real path has NO generic fetch_records; exercises `_fetch_zoho_multi_app_data`).
+4. Books/Inventory silently 0 records — org_id gating with nothing populating it → auto-discovery via `get_organizations` (Books+Inventory) persisted to token metadata (J3).
+5. `api_domain` never stamped → wrong datacenter default (J6); `workspace_id` never stamped + `_load_token` strict workspace filter + naive SQLite expiry crash (J8 ×3).
+6. WorkDrive token fallback (J1) — from `tests/test_zoho_user_journey.py` (earlier session; re-verified).
+
+**E2E journey (green)**: dedicated backend (fresh sqlite temp + LANCEDB_URI temp + mock env, PYTEST_* stripped so create_all runs, `EMBEDDING_PROVIDER=fastembed`) → real browser register/login → `initiate` → mock consent Approve → callback exchange → tokens page zoho active → sync 5 records (org auto-discovered) → chat recall: `RELATED INTEGRATION RECORDS: [zoho] Invoice …499.99 / Widget Pro` + LLM answer surfaced from them. Includes role fan-out (member rows), instance_url assertion, integration_tokens DB checks. Also fixed: mock `_send` str→bytes; e2e register email TLD (`.test` reserved).
+
+**Frontend (jest)**: all 6 Zoho app UIs now exist — hub cards (zoho-books/inventory/crm/projects/mail + workdrive) + per-app detail pages via shared `components/integrations/ZohoIntegrationDetail.tsx` (Connect → `/api/v1/auth/oauth/zoho/initiate`); `tests/components/integrations-zoho-suite.test.tsx` 6 tests. Hub health map + `ecommerce` category added.
+
+**Verification**: 240 backend tests passed (Zoho units + w38/w97/w101 + oauth cluster); e2e 2/2 (browser consent). Frontend jest 6/6; tsc clean for all new zoho files (pre-existing errors elsewhere unchanged). mypy 0 new errors on changed files.
+
+**Note**: `core/hybrid_data_ingestion.py` also carries the concurrent workstream's role-aware sync plumbing (agent_id → role tag on LanceDB metadata) — left intact; repaired a mid-edit indentation wedge in `_fetch_integration_data` so the file imports.

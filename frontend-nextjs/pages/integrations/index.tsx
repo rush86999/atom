@@ -130,6 +130,66 @@ const IntegrationsPage: React.FC = () => {
       documentation: "https://www.zoho.com/workdrive/api.html",
     },
 
+    // Zoho suite — one Server-based app grant connects all of them (the
+    // unified /api/v1/auth/oauth/zoho/initiate flow writes tokens for every
+    // service). Cards exist for each app; the Connect button on each detail
+    // page runs the same single consent.
+    {
+      id: "zoho-books",
+      name: "Zoho Books",
+      description: "Accounting — invoices, expenses and chart of accounts",
+      category: "finance",
+      status: "complete",
+      connected: false,
+      icon: Activity,
+      color: "text-blue-600",
+      documentation: "https://www.zoho.com/books/api/v3/",
+    },
+    {
+      id: "zoho-inventory",
+      name: "Zoho Inventory",
+      description: "Inventory — items, stock levels and sales orders",
+      category: "ecommerce",
+      status: "complete",
+      connected: false,
+      icon: Activity,
+      color: "text-blue-600",
+      documentation: "https://www.zoho.com/inventory/api/v1/",
+    },
+    {
+      id: "zoho-crm",
+      name: "Zoho CRM",
+      description: "Customer relationship management — leads and deals",
+      category: "crm",
+      status: "complete",
+      connected: false,
+      icon: User,
+      color: "text-blue-600",
+      documentation: "https://www.zoho.com/crm/developer/docs/api/v7/",
+    },
+    {
+      id: "zoho-projects",
+      name: "Zoho Projects",
+      description: "Project management — portals, projects and tasks",
+      category: "productivity",
+      status: "complete",
+      connected: false,
+      icon: List,
+      color: "text-blue-600",
+      documentation: "https://www.zoho.com/projects/api/",
+    },
+    {
+      id: "zoho-mail",
+      name: "Zoho Mail",
+      description: "Business email and communication",
+      category: "communication",
+      status: "complete",
+      connected: false,
+      icon: Mail,
+      color: "text-blue-600",
+      documentation: "https://www.zoho.com/mail/help/api/",
+    },
+
     // Communication & Collaboration
     {
       id: "telegram",
@@ -164,6 +224,17 @@ const IntegrationsPage: React.FC = () => {
       color: "text-purple-600",
       documentation:
         "https://docs.microsoft.com/en-us/microsoftteams/platform/overview",
+    },
+    {
+      id: "whatsapp",
+      name: "WhatsApp Business",
+      description: "WhatsApp Business messaging — send, receive and search conversations",
+      category: "communication",
+      status: "complete",
+      connected: false,
+      icon: MessageSquare,
+      color: "text-green-600",
+      documentation: "https://developers.facebook.com/docs/whatsapp",
     },
     {
       id: "gmail",
@@ -211,6 +282,17 @@ const IntegrationsPage: React.FC = () => {
       icon: Edit,
       color: "text-gray-600 dark:text-gray-400",
       documentation: "https://developers.notion.com/",
+    },
+    {
+      id: "monday",
+      name: "Monday.com",
+      description: "Work OS — automate boards, items and analytics",
+      category: "productivity",
+      status: "complete",
+      connected: false,
+      icon: CheckSquare,
+      color: "text-red-500",
+      documentation: "https://developer.monday.com/",
     },
     {
       id: "jira",
@@ -483,6 +565,11 @@ const IntegrationsPage: React.FC = () => {
       count: integrationList.filter((i) => i.category === "finance").length,
     },
     {
+      id: "ecommerce",
+      name: "E-Commerce",
+      count: integrationList.filter((i) => i.category === "ecommerce").length,
+    },
+    {
       id: "crm",
       name: "CRM",
       count: integrationList.filter((i) => i.category === "crm").length,
@@ -540,6 +627,13 @@ const IntegrationsPage: React.FC = () => {
         teams: "/api/integrations/teams/health",
         "zoho-workdrive": "/api/zoho-workdrive/health",
         zoho: "/api/zoho-workdrive/health",
+        // Zoho suite cards share the WorkDrive health proxy (same backend
+        // process; reflects the suite's connectivity on the hub).
+        "zoho-books": "/api/zoho-workdrive/health",
+        "zoho-inventory": "/api/zoho-workdrive/health",
+        "zoho-crm": "/api/zoho-workdrive/health",
+        "zoho-projects": "/api/zoho-workdrive/health",
+        "zoho-mail": "/api/zoho-workdrive/health",
         // BUG-072: 8 integrations were missing from this map, causing them
         // to always show "error" / unconnected even when healthy.
         onedrive: "/api/integrations/onedrive/health",

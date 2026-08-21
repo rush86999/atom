@@ -70,9 +70,19 @@ class ZohoAdapter:
             return
             
         from core.models import IntegrationToken
+        from sqlalchemy import or_
+
+        # workspace_id on stored rows may be NULL (rows written before
+        # workspace stamping / the unified OAuth callback) — treat them as
+        # belonging to every workspace so already-connected pilots keep
+        # working after upgrade (RED→GREEN journey fix: NULL rows made
+        # ensure_token() miss and every data call ran unauthenticated).
         token = self.db.query(IntegrationToken).filter(
-            IntegrationToken.workspace_id == self.workspace_id,
-            IntegrationToken.provider == "zoho"
+            IntegrationToken.provider == "zoho",
+            or_(
+                IntegrationToken.workspace_id == self.workspace_id,
+                IntegrationToken.workspace_id.is_(None),
+            ),
         ).first()
         
         if token:
@@ -80,6 +90,12 @@ class ZohoAdapter:
             self._access_token = decrypt_token(token.access_token, allow_plaintext=True)
             self._refresh_token = decrypt_token(token.refresh_token, allow_plaintext=True) if token.refresh_token else None
             self._token_expires_at = token.expires_at
+            # SQLite returns naive datetimes even for timezone-aware columns —
+            # normalize or ensure_token() crashes comparing against aware now
+            # (RED→GREEN journey fix: "can't compare offset-naive and
+            # offset-aware datetimes" → every fresh-connect sync fetched 0).
+            if self._token_expires_at and self._token_expires_at.tzinfo is None:
+                self._token_expires_at = self._token_expires_at.replace(tzinfo=timezone.utc)
 
             if token.instance_url:
                 self.instance_url = token.instance_url
@@ -287,6 +303,33 @@ class ZohoAdapter:
                 return [self._map_sales_order(s) for s in data]
         except Exception as e:
             logger.error(f"Zoho Inventory sales order fetch failed: {e}")
+            return []
+
+    async def get_organizations(self, module: str = "books") -> List[Dict[str, Any]]:
+        """Fetch the orgs (workspaces) a Zoho Books/Inventory account owns.
+
+        The Books/Inventory sync paths are gated on an organization_id; this
+        endpoint is how the sync discovers it automatically after connect
+        (the OAuth callback has no org context)."""
+        try:
+            base_url = self._get_base_url(module)
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{base_url}/organizations",
+                    headers={"Authorization": f"Zoho-oauthtoken {self._access_token}"},
+                )
+                response.raise_for_status()
+                data = response.json().get("organizations", [])
+                return [
+                    {
+                        "organization_id": o.get("organization_id"),
+                        "name": o.get("name"),
+                    }
+                    for o in data
+                    if o.get("organization_id")
+                ]
+        except Exception as e:
+            logger.error(f"Zoho {module} organizations fetch failed: {e}")
             return []
 
     def _map_lead(self, raw: Dict[str, Any]) -> Dict[str, Any]:

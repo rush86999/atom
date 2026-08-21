@@ -51,7 +51,10 @@ class ZohoWorkDriveService(IntegrationService):
                 connections = connection_service.get_connections(user_id, "zoho")
 
             if not connections:
-                return None
+                # The unified OAuth connect flow writes IntegrationToken rows,
+                # not UserConnection rows — fall back to those (see
+                # _integration_token_access_token).
+                return await self._integration_token_access_token(user_id)
 
             # Use the first active connection
             conn_id = connections[0]["id"]
@@ -62,6 +65,95 @@ class ZohoWorkDriveService(IntegrationService):
             return None
         except Exception as e:
             logger.error(f"Error getting Zoho access token: {e}")
+            return None
+
+    async def _integration_token_access_token(self, user_id: str) -> Optional[str]:
+        """Fallback token source for the unified OAuth connect flow.
+
+        The v1 OAuth callback writes IntegrationToken rows (provider
+        ``zoho_workdrive``, then generic ``zoho``) — it does NOT create
+        UserConnection rows. Without this fallback, WorkDrive's file/team
+        journeys silently return []/None after the documented connect flow
+        while the other three Zoho services work. Mirrors the expiry check +
+        refresh used elsewhere so the same auto-refresh behaviour holds."""
+        try:
+            from core.models import IntegrationToken
+
+            db = SessionLocal()
+            try:
+                token_record = None
+                for provider in ("zoho_workdrive", "zoho"):
+                    token_record = (
+                        db.query(IntegrationToken)
+                        .filter(
+                            IntegrationToken.user_id == user_id,
+                            IntegrationToken.provider == provider,
+                            IntegrationToken.status == "active",
+                        )
+                        .first()
+                    )
+                    if token_record:
+                        break
+
+                if not token_record:
+                    return None
+
+                from datetime import datetime, timezone, timedelta
+
+                now = datetime.now(timezone.utc)
+                expires_at = token_record.expires_at
+                if expires_at and expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+                if not expires_at or expires_at < (now + timedelta(minutes=2)):
+                    if token_record.refresh_token:
+                        from core.privsec.token_encryption import (
+                            decrypt_token,
+                            encrypt_token,
+                        )
+
+                        refresh_plain = (
+                            decrypt_token(token_record.refresh_token, allow_plaintext=True)
+                            if token_record.refresh_token
+                            else None
+                        )
+                        new_tokens = await self._refresh(refresh_plain)
+                        if new_tokens:
+                            token_record.access_token = encrypt_token(new_tokens["access_token"])
+                            token_record.expires_at = datetime.now(timezone.utc) + timedelta(
+                                seconds=new_tokens.get("expires_in", 3600)
+                            )
+                            db.commit()
+                            return decrypt_token(token_record.access_token, allow_plaintext=True)
+                    return None
+
+                from core.privsec.token_encryption import decrypt_token
+
+                return decrypt_token(token_record.access_token, allow_plaintext=True)
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Error getting Zoho WorkDrive integration token: {e}")
+            return None
+
+    async def _refresh(self, refresh_token: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Exchange a refresh token for a fresh access token (Zoho OAuth2)."""
+        if not refresh_token:
+            return None
+        try:
+            data = {
+                "grant_type": "refresh_token",
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+                "refresh_token": refresh_token,
+            }
+            response = await self.client.post(
+                f"{self.accounts_url}/token", data=data
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"Failed to refresh Zoho WorkDrive token: {e}")
             return None
 
     async def get_teams(self, user_id: str) -> List[Dict[str, Any]]:

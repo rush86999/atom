@@ -402,16 +402,35 @@ class HybridDataIngestionService:
         self, 
         integration_id: str,
         force: bool = False,
-        discovery_mode: bool = False
+        discovery_mode: bool = False,
+        role: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Sync data from an integration into Atom Memory.
-        
+
+        Args:
+            integration_id: Id of the integration to sync.
+            force: Bypass the recently-synced guard.
+            discovery_mode: Whether new entity types may be discovered.
+            role: Optional AI-employee role (AgentRegistry.category, lowercased)
+                the synced records are relevant to. Tagged in the integration_
+                LanceDB metadata so role-aware recall surfaces them to the right
+                employee's memory. None/empty = general knowledge.
+
         Returns:
             Dict with sync results: records_synced, entities_extracted, etc.
         """
+        _role = str(role).lower() if role else None
         stats = self.usage_stats.get(integration_id)
         config = self.sync_configs.get(integration_id)
+        if not config:
+            # Default-registry fallback: per-workspace config is optional —
+            # the plain trigger path (POST /api/data-ingestion/sync/{id} and
+            # the connect-time background sync) must work out of the box for
+            # integrations with shipped defaults (e.g. zoho) without the user
+            # first hitting enable-sync. RED→GREEN journey fix: was
+            # "No sync config for zoho" for every fresh connect.
+            config = DEFAULT_SYNC_CONFIGS.get(integration_id)
         
         if not config:
             return {"error": f"No sync config for {integration_id}"}
@@ -437,7 +456,7 @@ class HybridDataIngestionService:
         
         try:
             # Fetch data from integration
-            records = await self._fetch_integration_data(integration_id, config, discovery_mode=discovery_mode)
+            records = await self._fetch_integration_data(integration_id, config, discovery_mode=discovery_mode, role=_role)
             results["records_fetched"] = len(records)
             
             # Ingest each record into Atom Memory
@@ -485,17 +504,21 @@ class HybridDataIngestionService:
                     # Ingest into LanceDB (to_thread: sync add_document from
                     # the loop thread can never embed — same-thread guard)
                     if self.memory_handler:
+                        _meta = {
+                            "integration_id": integration_id,
+                            "record_id": record.get("id", "unknown"),
+                            "record_type": record.get("type", "unknown"),
+                            "synced_at": datetime.now(timezone.utc).isoformat()
+                        }
+                        # AI-employee relevance tag (Round 80)
+                        if _role:
+                            _meta["role"] = _role
                         success = await asyncio.to_thread(
                             self.memory_handler.add_document,
                             table_name=f"integration_{integration_id}",
                             text=text,
                             source=integration_id,
-                            metadata={
-                                "integration_id": integration_id,
-                                "record_id": record.get("id", "unknown"),
-                                "record_type": record.get("type", "unknown"),
-                                "synced_at": datetime.now(timezone.utc).isoformat()
-                            },
+                            metadata=_meta,
                             user_id=record.get("user_id", "system"),
                             extract_knowledge=True
                         )
@@ -585,12 +608,13 @@ class HybridDataIngestionService:
         self, 
         integration_id: str, 
         config: SyncConfiguration,
-        discovery_mode: bool = False
+        discovery_mode: bool = False,
+        role: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         """
         records = []
-        
+
         try:
             if integration_id == "salesforce":
                 records = await self._fetch_salesforce_data(config)
@@ -606,17 +630,17 @@ class HybridDataIngestionService:
             elif integration_id == "shopify":
                 records = await self._fetch_shopify_data(config)
             elif integration_id == "onedrive":
-                records = await self._fetch_onedrive_data(config)
+                records = await self._fetch_onedrive_data(config, role=role)
             elif integration_id == "google_drive":
-                records = await self._fetch_google_drive_data(config)
+                records = await self._fetch_google_drive_data(config, role=role)
             elif integration_id == "telegram":
                 records = await self._fetch_telegram_data(config)
             else:
                 logger.warning(f"No fetcher implemented for {integration_id}")
-        
+
         except Exception as e:
             logger.error(f"Failed to fetch data from {integration_id}: {e}")
-        
+
         return records[:config.max_records_per_sync]
 
     async def _fetch_universal_adapter_data(self, integration_id: str, config: SyncConfiguration, discovery_mode: bool = False) -> List[Dict[str, Any]]:
@@ -1028,25 +1052,50 @@ class HybridDataIngestionService:
                 
                 # Ensure we have a valid access token
                 await adapter.ensure_token()
-                
+
+                # Books/Inventory sync is gated on organization_id, which the
+                # OAuth callback never sees. Discover it from the Zoho org
+                # endpoint on first sync and persist it back onto the token so
+                # every later sync fetches invoices/items/sales orders without
+                # a manual step (RED→GREEN journey fix: only CRM ever synced).
+                _resolved_org_id: Optional[str] = None
+
+                async def _resolve_org_id() -> Optional[str]:
+                    nonlocal _resolved_org_id
+                    if _resolved_org_id:
+                        return _resolved_org_id
+                    meta = token.credential_metadata if token and token.credential_metadata else {}
+                    _resolved_org_id = meta.get("organization_id")
+                    if _resolved_org_id:
+                        return _resolved_org_id
+                    for module in ("books", "inventory"):
+                        orgs = await adapter.get_organizations(module=module)
+                        if orgs and orgs[0].get("organization_id"):
+                            _resolved_org_id = orgs[0]["organization_id"]
+                            if token:
+                                if not token.credential_metadata:
+                                    token.credential_metadata = {}
+                                token.credential_metadata["organization_id"] = _resolved_org_id
+                                db.commit()
+                            break
+                    return _resolved_org_id
+
                 for entity_type in config.entity_types:
                     if entity_type == "crm_leads":
                         records.extend(await adapter.get_leads(limit=100))
                     elif entity_type == "crm_deals":
                         records.extend(await adapter.get_deals(limit=100))
-                    elif entity_type == "books_invoices":
-                        # Note: Books requires organization_id which should be in connection metadata
-                        org_id = token.credential_metadata.get("organization_id") if token and token.credential_metadata else None
+                    elif entity_type in ("books_invoices", "inventory_items", "inventory_sales_orders"):
+                        # Books/Inventory require organization_id — discovered
+                        # and persisted on first sync if absent.
+                        org_id = await _resolve_org_id()
                         if org_id:
-                            records.extend(await adapter.get_invoices(organization_id=org_id, limit=100))
-                    elif entity_type == "inventory_items":
-                        org_id = token.credential_metadata.get("organization_id") if token and token.credential_metadata else None
-                        if org_id:
-                            records.extend(await adapter.get_items(organization_id=org_id, limit=100))
-                    elif entity_type == "inventory_sales_orders":
-                        org_id = token.credential_metadata.get("organization_id") if token and token.credential_metadata else None
-                        if org_id:
-                            records.extend(await adapter.get_sales_orders(organization_id=org_id, limit=100))
+                            if entity_type == "books_invoices":
+                                records.extend(await adapter.get_invoices(organization_id=org_id, limit=100))
+                            elif entity_type == "inventory_items":
+                                records.extend(await adapter.get_items(organization_id=org_id, limit=100))
+                            else:
+                                records.extend(await adapter.get_sales_orders(organization_id=org_id, limit=100))
                     elif entity_type == "projects_tasks":
                         # Discovery mode gates expensive portal/project traversal
                         portal_id = token.credential_metadata.get("portal_id") if token and token.credential_metadata else None
@@ -1126,7 +1175,7 @@ class HybridDataIngestionService:
     # =========================================================================
     # OneDrive ingestion fetcher
     # =========================================================================
-    async def _fetch_onedrive_data(self, config: SyncConfiguration) -> List[Dict[str, Any]]:
+    async def _fetch_onedrive_data(self, config: SyncConfiguration, role: Optional[str] = None) -> List[Dict[str, Any]]:
         """List OneDrive files, download document content, and ingest into memory.
 
         Downloads file content for parseable document types (.docx/.xlsx/.pdf/.csv/.txt)
@@ -1195,6 +1244,7 @@ class HybridDataIngestionService:
                                 content=content_bytes,
                                 source="onedrive",
                                 workspace_id=self.workspace_id,
+                                role=role,
                             )
                     except Exception as content_err:
                         logger.debug(f"OneDrive content ingestion skipped for {name}: {content_err}")
@@ -1208,7 +1258,7 @@ class HybridDataIngestionService:
     # =========================================================================
     # Google Drive ingestion fetcher
     # =========================================================================
-    async def _fetch_google_drive_data(self, config: SyncConfiguration) -> List[Dict[str, Any]]:
+    async def _fetch_google_drive_data(self, config: SyncConfiguration, role: Optional[str] = None) -> List[Dict[str, Any]]:
         """List Google Drive files, download document content, and ingest into memory.
 
         Mirrors the OneDrive fetcher: lists files, downloads parseable document
@@ -1276,6 +1326,7 @@ class HybridDataIngestionService:
                                 content=content_bytes,
                                 source="google_drive",
                                 workspace_id=self.workspace_id,
+                                role=role,
                             )
                     except Exception as content_err:
                         logger.debug(f"Google Drive content ingestion skipped for {name}: {content_err}")

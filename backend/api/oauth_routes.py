@@ -5,6 +5,7 @@ Provides unified OAuth callback endpoints for all third-party integrations.
 Handles OAuth flows for Google, LinkedIn, Microsoft, Salesforce, Slack, GitHub, Asana, Notion, Trello, and Dropbox.
 """
 
+import asyncio
 import hashlib
 import hmac
 import logging
@@ -243,6 +244,11 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
             for u in active_users:
                 user_ids_to_sync.add(u.id)
 
+            # Zoho token responses carry the datacenter API domain (e.g.
+            # https://www.zohoapis.com / .in / .eu). Stored on the canonical
+            # "zoho" row so the sync adapter (ZohoAdapter) targets the right
+            # datacenter instead of env defaults.
+            zoho_api_domain = token_data.get("api_domain")
             for target_uid in user_ids_to_sync:
                 for p_key in provider_keys:
                     existing_integration = db.query(IntegrationToken).filter(
@@ -257,18 +263,22 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
                         existing_integration.expires_at = expires_at
                         existing_integration.status = "active"
                         existing_integration.scope = " ".join(scopes) if scopes else ""
+                        if p_key == "zoho" and zoho_api_domain:
+                            existing_integration.instance_url = zoho_api_domain
                         logger.info(f"Updated IntegrationToken for provider={p_key}, user={target_uid}")
                     else:
                         new_integration = IntegrationToken(
                             id=str(uuid.uuid4()),
                             tenant_id=current_user.tenant_id or "default",
                             user_id=target_uid,
+                            workspace_id=getattr(current_user, "workspace_id", None) or "default",
                             provider=p_key,
                             access_token=encrypt_token(access_token),
                             refresh_token=encrypt_token(refresh_token) if refresh_token else None,
                             expires_at=expires_at,
                             status="active",
                             scope=" ".join(scopes) if scopes else "",
+                            instance_url=zoho_api_domain if p_key == "zoho" else None,
                         )
                         db.add(new_integration)
                         logger.info(f"Created IntegrationToken for provider={p_key}, user={target_uid}")
@@ -290,6 +300,24 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
                     logger.info("Outlook polling stream started after Microsoft OAuth connect")
             except Exception as poller_err:
                 logger.error(f"Failed to start Outlook poller after OAuth connect: {poller_err}")
+
+        # Start the hybrid ingestion sync on Zoho connect (Personal Edition /
+        # pilot analog of the Outlook poller). Pulls Books invoices, Inventory
+        # items + sales orders, CRM leads/deals, Projects tasks into LanceDB
+        # (`integration_zoho`) + GraphRAG so the memory assembler's
+        # integration-records leg can recall them. Background task — the
+        # callback must not block on a full sync; never raises.
+        if provider == "zoho":
+            try:
+                from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+
+                service = get_hybrid_ingestion_service(
+                    getattr(current_user, "tenant_id", None) or "default"
+                )
+                asyncio.create_task(service.sync_integration_data("zoho"))
+                logger.info("Zoho background sync scheduled after OAuth connect")
+            except Exception as sync_err:
+                logger.error(f"Failed to schedule Zoho sync after OAuth connect: {sync_err}")
 
         return token_data
         
@@ -351,6 +379,7 @@ async def oauth_callback(
         "trello": TRELLO_OAUTH_CONFIG,
         "dropbox": DROPBOX_OAUTH_CONFIG,
         "whatsapp": WHATSAPP_OAUTH_CONFIG,
+        "zoho": ZOHO_OAUTH_CONFIG,
     }
     
     if provider not in configs:
