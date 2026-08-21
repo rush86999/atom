@@ -295,30 +295,46 @@ class TestPoisoningTripwire:
     @pytest.mark.asyncio
     async def test_repeated_supersessions_quarantine_the_source(self, db):
         """5 supersessions within the window -> subsequent writes quarantined."""
+        import uuid as _uuid
+
+        from core.turn_fact_extractor import TurnFactExtractor
         from core import turn_fact_extractor as tfe
 
-        svc = self._svc()
+        # Unique workspace per run: the store persists across runs (real dev
+        # DB) and stale same-text rows would absorb the escalation chain.
+        svc = TurnFactExtractor(
+            workspace_id=f"ws-poison-{_uuid.uuid4().hex[:8]}", tenant_id="default"
+        )
+        # Poisoning vector: the SAME fact restated with escalating
+        # confidence — each write clears the >+0.1 supersede margin against
+        # the current active row (0.2 -> 0.35 -> ... -> 0.95, five
+        # supersessions = the tripwire limit).
         kwargs = dict(
-            category="exact_value", domain="general", confidence=0.99,
+            category="exact_value", domain="general",
             tags=None, extraction_source="turn", execution_id=None,
             reasoning_step_id=None, episode_id=None, session_id=None,
             user_id="suspicious-user",
         )
-        # seed an established fact, then supersede it 5 times (limit=5)
         base = "the agreed SLA is seven days"
-        svc._persist_one(fact_text=base, **kwargs)
-        for i in range(tfe._POISON_SUPERSEDE_LIMIT):
+        ladder = [0.2, 0.35, 0.5, 0.65, 0.8, 0.95]
+        svc._persist_one(fact_text=base, confidence=ladder[0], **{
+            k: v for k, v in kwargs.items() if k != "confidence"
+        })
+        for i, conf in enumerate(ladder[1:]):
             row = svc._persist_one(
-                fact_text=f"{base} v{i + 2}", **kwargs, _skip_antithrash=True,
+                fact_text=base, confidence=conf,
+                **{k: v for k, v in kwargs.items() if k != "confidence"},
+                _skip_antithrash=True,
             )
-            assert row is not None
+            assert row is not None, f"revision {i} did not persist"
 
         assert "suspicious-user:noexec:nosess" in tfe._poison_quarantined
 
         # next NEW write from this source lands quarantined, not active
         q = svc._persist_one(
-            fact_text="totally new fact from a shady source",
-            **kwargs, _skip_antithrash=True,
+            fact_text="totally new fact from a shady source", confidence=0.9,
+            **{k: v for k, v in kwargs.items() if k != "confidence"},
+            _skip_antithrash=True,
         )
         assert q is not None and q.status == "quarantined"
 

@@ -174,6 +174,18 @@ agent inference) outranks confidence"):
   align fact handling with document sensitivity. **Enforcement is a separate,
   not-yet-built change** — this column enables it.
 
+## Poisoning Tripwire (write-path governance, 2026-08-21)
+
+A source (user_id+execution_id+session) that supersedes **5 facts within
+10 minutes** is treated as a memory-injection vector — one bad write
+pollutes recall for every downstream step. Its subsequent writes land as
+`status="quarantined"` (kept for audit, excluded from active recall) for
+**30 minutes**, and conflicting writes against established facts are
+dropped outright while quarantined. Self-heals after the window; kill
+switch `ATOM_MEMORY_POISON_TRIPWIRE=false`. State is in-process
+(module-level TTL maps) — per-worker, not shared.
+
+---
 Eval: `core/memory_eval_conversation.py` — golden-QA over the turn-fact store
 (synthetic multi-session conversation → 5 questions pinning single-hop recall,
 update/supersession, stated-over-inferred ordering, epistemic filtering), CI

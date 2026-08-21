@@ -263,6 +263,8 @@ EMERGENCY_GOVERNANCE_BYPASS=false
 # Monitoring
 PROMETHEUS_ENABLED=true   STRUCTLOG_LEVEL=INFO   HEALTH_CHECK_DISK_THRESHOLD_GB=1
 
+ATOM_MEMORY_POISON_TRIPWIRE=true         # quarantines sources that supersede >=5 facts/10min (memory-injection defense)
+
 # Temporal Evolution (docs/architecture/TEMPORAL_EVOLUTION.md)
 ATOM_TEMPORALITY_ENABLED=true            # ingestion date anchors + bi-temporal graph reads (default ON)
 

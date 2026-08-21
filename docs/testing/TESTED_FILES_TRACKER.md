@@ -5931,3 +5931,15 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Gotchas**: differing fact texts never collide by content_hash — update chains need explicit consolidator-style supersession in the seeder (mirrors the nightly sweep); supersede-by-confidence-margin requires beating by >0.1 (capped facts can't).
 
 **Verification**: standalone run 5/5 accuracy=1.0; gate + provenance suite + P2.3 retrieval gate 14 passed / 1 skipped (env-dependent skip).
+
+## Session 2026-08-21 (backend) — Poisoning tripwire: write-path governance for turn facts (rev.2 plan #2)
+
+**Files**: `backend/core/turn_fact_extractor.py` (module-level `_poison_*` state + helpers; `_persist_one` wires quarantine at entry — new inserts land `status="quarantined"`, conflicting writes against established facts are DROPPED while quarantined; supersession events recorded on the supersede branch), `backend/tests/test_memory_epistemic_provenance_scoping.py` (+4 tests, 16 total), `docs/architecture/CONTEXT_MEMORY.md` (+tripwire section), `docs/reference/ENVIRONMENT_VARIABLES.md` + `CLAUDE.md` (+`ATOM_MEMORY_POISON_TRIPWIRE`, default true).
+
+**Threat model**: one poisoned write pollutes recall for every downstream step (survey §4.3 "trustworthy reflection") — the memory equivalent of prompt injection. Signal: the SAME fact restated with escalating confidence from one source (user_id+execution_id+session) — each write clears the >+0.1 supersede margin. ≥5 supersessions within 10 min → that source's writes land `status="quarantined"` (kept for audit, excluded from active recall) for **30 min**; while quarantined, conflicting writes against established facts are dropped outright (no overwrite path). Self-heals after the window; state is in-process per worker; kill switch `ATOM_MEMORY_POISON_TRIPWIRE=false`.
+
+**TDD red→green** (4 tests): escalation ladder trips quarantine → subsequent NEW writes land quarantined; quarantined rows excluded from `get_active_facts_for_prompt`; kill switch disables entirely (supersessions recorded but never quarantine); a single normal supersession does not trigger.
+
+**Gotchas**: content_hash is text-based — differing texts never collide, so the realistic vector is restating the same fact with escalating confidence (NOT distinct texts); the store persists across runs in the dev DB → tests must use a unique workspace per run or stale same-text rows absorb the ladder (this bit twice).
+
+**Verification**: suite 16/16; turn-fact + eval-gate + symmetry cluster 185 passed.
