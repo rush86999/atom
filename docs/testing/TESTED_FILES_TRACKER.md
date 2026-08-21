@@ -6013,3 +6013,32 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Also noted**: episode lifecycle decay/consolidation is opt-in (`POST /lifecycle/{decay,consolidate}` routes + experiments-flag-gated consolidation worker); episodes grow unbounded unless operators invoke them.
 
 **Verification**: round81b 20/20; proposal-service cluster 165 passed.
+
+## Session 2026-08-21 (full journey audit) — R82: chat API ghosts, 404/5059 proxy dead-ports, history-error swallow, README claims
+
+**Backend `backend/integrations/chat_routes.py` (TDD — pinned by existing suites)**:
+- Hard audit of the user→agent journey at the API layer found the module held a THROWAWAY first copy of `rename_session`/`get_session_details`/`send_chat_message` that FastAPI matched BEFORE the real handlers — anonymous unauthenticated chat, phantom `chat_orchestrator.rename_session` (never existed → rename returned 500 = rename feature dead), `user_id` query param privilege control. Ghost trio deleted; `/memory`, `/history`, `/sessions` restored with mandatory `get_current_user` + `_ensure_session_access`; health + root stay public.
+- `_ensure_session_access` was missing its final `return True` (lost in a memory rewrite, re-restored incomplete 2026-08-21) → OWNING users were 403'd on rename/history/memory of own sessions. Restored `return True` ×2 + reclaim log (matches pre-rewrite a1fca66f0 contract; `test_chat_session_ownership_regression`, round-92 suites).
+- Missing import `parse_routing_overrides` silently broke x-atom-* header overrides (NameError swallowed) → imported. `datetime` import missing → added. `/harness-evolution` route entirely absent (documented in main_api_app §7, pinned by TestHarnessEvolution, consumed by settings harness-evolution page) → restored with proper db close.
+- `ChatMessageResponse` missing `memory_context/model/provider/error_code/recovery_url` fields (rewrite dropped them; frontend displays model/provider + memory transparency) → restored.
+
+**Frontend `frontend-nextjs`**:
+- 28 API handlers still defaulted to dead `localhost:5059/5058` (2019-era docker ports) while 130+ used `127.0.0.1:8000` → normalized all to `PYTHON_API_SERVICE_BASE_URL || NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'`.
+- `pages/api/preferences*`: `user_id: (user_id as string) || undefined` produced `user_id=undefined` strings in every preference URL → defaults to `default_user`.
+- `pages/api/v1/tasks/[id]`: PUT allowlist omitted `title` → task renames silently dropped (CWE-915 allowlist over-shrunk) → added.
+- `hooks/chat/useChatInterface.ts` + `components/chat/ChatHistorySidebar.tsx`: fetch `.catch(() => ({status:200,...}))` swallowed ALL errors making the 403 stale-session recovery and failure logging dead code → error path restored (403 clears stale localStorage pointer + fresh session; errors logged + graceful empty state).
+- `components/GlobalChatWidget.tsx`: silent pending-approvals catch → logs per established pattern.
+- ~100 stale tests aligned to current behavior: MSW host-agnostic patterns (`*/…`), relative WS/API URLs (NEXT_PUBLIC_API_URL unset convention), `{headers:{}}` arity, desktop-bridge hardened contract (path-scope + execFile allowlist), xero live status-card page, dynamic task due dates, account tab enabled, oauth error → `/`, a11y testid.
+
+**Frontend full suite**: 665 suites / 10,991 tests green (was 96 failing suites / 289 failing tests at audit start).
+**Backend journey clusters**: covpush w92 + ownership + round81 + IDOR + round80b = 111 passed.
+
+**README claims verification (root README.md)**: all verifiable claims TRUE — agpl v3 LICENSE; 50 integration hub cards ≥ “46+”; 35 BYOK providers ≥ “16+”; model list DeepSeek V4/Kimi K3/GLM 5.2/MiniMax M3/Qwen 3.7/Nemotron 3 Ultra/Grok 4.5 all present (grok-4.5 in live `data/ai_pricing_cache.json`); OIDC (`api/sso_oidc_routes.py`) + SCIM v2 (`api/scim_routes.py`) + 8 Role enum values; ACP bridge (`api/acp_routes.py`), A2A (`/.well-known/agent-card.json` + `message/send`), MCP client, Langfuse export (`core/observability/tracing.py`), RTK compression; 0.027ms P99 + 616k ops/s repo benchmarks; ~93k `def test_` + ~7k jest across 2,7xx files ≥ “85k+ (84,737/2,759)”; Makefile `make setup/backend/frontend` (:8001/:3001); `backend/logs/bootstrap_admin_password.txt` + `admin@example.com` bootstrap; every docs/ link resolves.
+
+## Session 2026-08-21 (backend) — R81g: scheduler/direct runs persist execution + episode
+
+**Files**: `backend/core/generic_agent.py` (`_record_execution(..., context)` now persists an AgentExecution row keyed by the stamped run_id and creates an execution-based episode for NON-session, non-proposal-owned runs — exactly-once semantics: session-linked runs keep trigger_episode_creation (G5), proposal-owned executors record their own (G12)), `backend/tests/test_round81b_journey_followups.py` (+2 tests → 22).
+
+**Journey now closed end-to-end**: every GenericAgent run everywhere yields exactly one episode — chat-linked via segmentation, proposal-owned via executor records, scheduler/direct via this path. Episode-based graduation criteria are reachable from every dispatch surface.
+
+**Verification**: round81b+generic_agent 44 passed; proposal/governance-runtime cluster 101 passed.

@@ -565,3 +565,74 @@ class TestProposalExecutionEpisodes:
 
         src = inspect.getsource(ProposalService)
         assert src.count("_record_execution_episode(") >= 7  # 6 sites + helper def
+
+
+# ============================================================================
+# G13 - non-session GenericAgent runs persist execution + episode
+# ============================================================================
+
+
+class TestNonSessionExecutionPersistence:
+    """Scheduler / direct-execute runs left no AgentExecution row and no
+    episode — only chat-linked runs were remembered. Proposal-owned runs must
+    NOT double-record (their executors persist their own)."""
+
+    def _run(self, ctx_extra=None):
+        import asyncio as _aio
+
+        from core.generic_agent import GenericAgent
+
+        mw, mr, ml, mmcp = _harness_patches()
+        agent_model = _make_agent_model()
+        budget_patch = patch.object(
+            GenericAgent,
+            "_check_budget_before_react",
+            new=AsyncMock(return_value={"allowed": True, "reason": "ok"}),
+        )
+        db = MagicMock()
+
+        def _gds(*a, **k):
+            cm = MagicMock()
+            cm.__enter__.return_value = db
+            cm.__exit__.return_value = False
+            return cm
+
+        added = []
+        db.add.side_effect = added.append
+        ctx = dict(ctx_extra or {})
+        with patch("core.generic_agent.WorldModelService", return_value=mw), \
+             patch("core.generic_agent.ReflectionService", return_value=mr), \
+             patch("core.generic_agent.CanvasSummaryService"), \
+             patch("core.generic_agent.mcp_service", mmcp), \
+             patch("core.generic_agent.LLMService", return_value=ml), \
+             patch("core.generic_agent.get_db_session", side_effect=_gds), \
+             patch("core.generic_agent.AgentGovernanceService") as gov_cls, \
+             patch("core.generic_agent.trigger_episode_creation") as trig, \
+             patch("core.episode_service.EpisodeService") as es_cls, \
+             budget_patch:
+            gov_cls.return_value.record_outcome = AsyncMock(return_value=None)
+            agent = GenericAgent(agent_model)
+            result = _aio.run(agent.execute("Scheduled task", context=ctx))
+        return {
+            "result": result,
+            "added": added,
+            "episode_calls": es_cls.return_value.create_episode_from_execution,
+            "trigger": trig,
+        }
+
+    def test_non_session_run_persists_execution_and_episode(self):
+        out = self._run()
+        assert out["result"]["status"] == "success"
+        exec_rows = [a for a in out["added"] if type(a).__name__ == "AgentExecution"]
+        assert len(exec_rows) == 1
+        assert exec_rows[0].status == "success"
+        assert exec_rows[0].id  # run_id-based id present
+        out["episode_calls"].assert_called_once()
+        assert out["episode_calls"].call_args.kwargs["success"] is True
+
+    def test_proposal_owned_run_skips_double_record(self):
+        out = self._run({"proposal_id": "pr-9", "execution_id": "exec-9"})
+        assert out["result"]["status"] == "success"
+        exec_rows = [a for a in out["added"] if type(a).__name__ == "AgentExecution"]
+        assert exec_rows == []
+        out["episode_calls"].assert_not_called()

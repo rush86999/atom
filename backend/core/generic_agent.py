@@ -8,6 +8,7 @@ import uuid
 
 from core.agent_governance_service import AgentGovernanceService
 from core.episode_integration import trigger_episode_creation
+from core.models import AgentExecution
 
 # In-flight fire-and-forget turn-fact extraction tasks (R81b G7 parity with
 # atom_meta_agent) — kept referenced so they are not garbage-collected mid-run.
@@ -593,7 +594,7 @@ class GenericAgent:
             "timestamp": start_time.isoformat()
         }
         
-        await self._record_execution(task_input, execution_result)
+        await self._record_execution(task_input, execution_result, context)
 
         # R81 (G5): persist an episode for session-linked runs so workflow/
         # scheduler-driven specialty agents accumulate episodic memory too —
@@ -1321,7 +1322,7 @@ What is your next step?"""
             
             return f"Tool Execution Failed: {error_msg}. You can try to correct parameters or move to next step."
 
-    async def _record_execution(self, input_text: str, result: Dict):
+    async def _record_execution(self, input_text: str, result: Dict, context: Dict = None):
         """Save result to World Model and update Governance maturity"""
         # 1. Save to World Model
         success = result["status"] == "success"
@@ -1355,6 +1356,37 @@ What is your next step?"""
             timestamp=datetime.now(timezone.utc)
         )
         await self.world_model.record_experience(experience)
+
+        # 2b. Persist the execution + episode for NON-session runs (R81g).
+        # Scheduler / direct-execute runs previously left no AgentExecution
+        # row and no episode — only chat-linked runs were remembered. Exactly
+        # once: proposal-owned runs record their own execution+episode, and
+        # session-linked runs use trigger_episode_creation above.
+        _proposal_owned = bool((context or {}).get("proposal_id"))
+        if not _proposal_owned and not (context or {}).get("session_id"):
+            try:
+                with get_db_session() as db:
+                    _exec = AgentExecution(
+                        id=(context or {}).get("run_id") or str(uuid.uuid4()),
+                        agent_id=self.id,
+                        workspace_id=getattr(self, "workspace_id", "default"),
+                        status=result["status"],
+                        input_summary=input_text[:200],
+                        output_summary=str(result.get("output", ""))[:500],
+                        triggered_by=(context or {}).get("trigger", "agent_loop"),
+                    )
+                    db.add(_exec)
+                    db.commit()
+                    from core.episode_service import EpisodeService
+
+                    EpisodeService(db).create_episode_from_execution(
+                        execution_id=_exec.id,
+                        task_description=input_text[:200],
+                        outcome=result["status"],
+                        success=success,
+                    )
+            except Exception as exec_err:
+                logger.debug(f"execution persistence skipped: {exec_err}")
 
         # 2. Update Governance Maturity
         success = result["status"] == "success"
