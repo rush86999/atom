@@ -134,12 +134,15 @@ class DocumentParser:
                     logger.warning(f"Docling error for {file_name}: {e}, using fallback")
             
             # Fallback to legacy parsers
-            if file_type in ["txt", "md"]:
+            if file_type in ["txt", "md", "toml", "yaml", "yml", "xml", "html", "ini", "cfg", "conf", "log", "sql", "py", "ts", "js", "sh", "bat", "env"]:
                 return file_content.decode("utf-8", errors="ignore")
             
             elif file_type == "json":
-                data = json.loads(file_content.decode("utf-8"))
-                return json.dumps(data, indent=2)
+                try:
+                    data = json.loads(file_content.decode("utf-8", errors="ignore"))
+                    return json.dumps(data, indent=2)
+                except Exception:
+                    return file_content.decode("utf-8", errors="ignore")
             
             elif file_type == "csv":
                 return DocumentParser._parse_csv(file_content)

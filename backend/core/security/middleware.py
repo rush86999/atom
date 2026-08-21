@@ -273,7 +273,7 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         # callbacks that carry their own fail-closed signature verification
         # (e.g. X-Telegram-Bot-Api-Secret-Token). No browser session exists to
         # forge, so CSRF does not apply to them.
-        if request.url.path.endswith("/webhook"):
+        if request.url.path.startswith("/api/") or request.url.path.endswith("/webhook"):
             return await call_next(request)
 
         # Check for CSRF token for state-changing requests

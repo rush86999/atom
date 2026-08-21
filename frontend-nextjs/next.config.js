@@ -128,6 +128,22 @@ const nextConfig = {
         destination: "http://127.0.0.1:8000/api/xero/:path*",
       },
       {
+        source: "/api/chat/:path*",
+        destination: "http://127.0.0.1:8000/api/chat/:path*",
+      },
+      {
+        source: "/api/zoho-workdrive/:path*",
+        destination: "http://127.0.0.1:8000/api/zoho-workdrive/:path*",
+      },
+      {
+        source: "/api/v1/:path*",
+        destination: "http://127.0.0.1:8000/api/v1/:path*",
+      },
+      {
+        source: "/api/auth/:path*",
+        destination: "http://127.0.0.1:8000/api/v1/auth/:path*",
+      },
+      {
         source: "/api/shopify/:path*",
         destination: "http://127.0.0.1:8000/api/shopify/:path*",
       },

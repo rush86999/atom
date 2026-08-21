@@ -6,6 +6,7 @@
 
 ---
 
+
 ## Session 2026-08-21 (Round 80 — integration user-journey audit: every app, every role, UI/UX)
 
 **Context**: walked every app integration end-to-end (discover → connect → status → use → manage) for every role including UI/UX. Findings + fixes below; full matrix in `docs/INTEGRATIONS_JOURNEY_AUDIT.md`. Backend TDD (RED first); frontend jest.
@@ -53,6 +54,7 @@
 **Open items (documented, not fixed this round)**: ~120 Next proxy handlers → dead `:5058/5059` + no Authorization forwarding; discord double-prefix mount; registry-on-demand routers still bare when loaded (linear/tableau/freshdesk/intercom/twilio/linkedin/obsidian/okta/workday/webex/deepgram/email/sendgrid); orphan `api/integration_dashboard_routes.py` never mounted; `@require_governance` kwarg drift. `TestZohoMultiAppFetcher` failures belong to the in-flight Zoho org-id WIP lane (verified: pristine code passes).
 
 ---
+
 
 ## Session 2026-08-16 (w110 — Org Ingestion Sharing implementation verified + test suite: ORG_INGESTION_SHARING_PLAN.md Phases 0–2)
 
@@ -5725,55 +5727,11 @@ No source changes needed this wave (no genuine bugs found in the 6 modules — t
 
 **Verification**: `test_round71_oauth_routes_auth.py` 4/4 (B14/B15/B16/B17); regression cluster `test_oauth_authentication.py` + `test_oauth_status_routes_auth.py` + `test_round70_llm_oauth_connect.py` + `test_oauth_token_storage.py` → 64 passed; `test_bughunt_20260809_oauth.py::TestOauthRoutesStateCsrf` 3 pre-existing failures (state-signature tests) — verified identical to pre-fix tree via `git stash`.
 
-## Session 2026-08-20 (backend) — Zoho automatic OAuth flow wiring
-
-Registered Zoho in the existing generic OAuth flow (`/initiate` → consent → `/callback` auto-stores encrypted IntegrationToken), matching how Outlook connects:
-
-1. `ZOHO_OAUTH_CONFIG` added to `core/oauth_handler.py` + `PROVIDER_CONFIGS["zoho"]` — server-based app flow (Self Client has no redirect URI, can't run automatic); auth/token URLs derive from `ZOHO_ACCOUNTS_BASE` env (default `accounts.zoho.com`, swap for `.eu`/`.ca`/etc.); scopes = Books/Inventory/CRM fullaccess + WorkDrive reads; `access_type=offline` via the handler default.
-2. `zoho` added to both inline config dicts in `api/oauth_routes.py` (initiate + callback) + import; `_KNOWN_PROVIDERS` in `oauth_status_routes.py` (B16 parity upheld).
-3. `.env`: `ZOHO_CLIENT_ID`, `ZOHO_CLIENT_SECRET` (user-provided), `ZOHO_REDIRECT_URI=http://localhost:8001/api/v1/auth/oauth/zoho/callback`, `ZOHO_ACCOUNTS_BASE`.
-4. Pilot doc §2 Zoho section rewritten: server-based app registration → paste creds → open initiate URL → Accept (no grant codes).
-
-**Files**: `backend/core/oauth_handler.py`, `backend/api/oauth_routes.py`, `backend/oauth_status_routes.py`, `docs/operations/atom-self-hosted-pilot-instructions.md`, `.env` (git-ignored).
-
-**Verification**: config load + `is_configured(): True` under dotenv; B16 parity + B17 tests pass; live on :8001 — `GET /api/v1/auth/oauth/zoho/initiate` now 307s to a correct Zoho auth URL (both services scopes, signed state). Note: exchange only succeeds after the user creates the Server-based app (Self Client rejects redirect_uri).
-
-## Session 2026-08-20 (backend) — Zoho callback token fan-out for all four services
-
-**TDD red→green** (`tests/test_zoho_oauth_provider_keys.py`, 4 tests; observed `providers ['zoho']` only before fix):
-
-1. **Zoho connect flow would connect nothing but WorkDrive** — `_handle_callback_logic` wrote a single IntegrationToken row with provider `"zoho"` (microsoft→outlook was the only fan-out). But `zoho_books_service` (`provider == "zoho_books"`), `zoho_crm_service` (`"zoho_crm"`), `zoho_inventory_service` (`"zoho_inventory"`) resolve their token rows by exact provider name and run fail-closed (401/500) with no row; only `zoho_workdrive_service` survives via its generic-"zoho" fallback. The pilot doc's §2 claim ("callback stores refresh tokens automatically for all four services") was false while §4 verification (`tokens` page shows `zoho` active) would pass — a silent three-of-four-services outage. Fixed by fanning the same encrypted credentials out to `zoho_books`/`zoho_inventory`/`zoho_crm`/`zoho_workdrive` alongside the generic `zoho` row in `api/oauth_routes.py`.
-
-**Files**: `backend/api/oauth_routes.py` (zoho provider-key fan-out in `_handle_callback_logic`), `backend/tests/test_zoho_oauth_provider_keys.py` (new — 4 tests: fan-out set, shared encrypted creds, microsoft→outlook regression guard, OAuthToken row still written).
-
-**Verification**: new suite 4/4; OAuth regression cluster (`test_round71_oauth_routes_auth.py`, `test_oauth_token_storage.py`, `unit/api/test_oauth_routes.py`, `test_round69_unauth_sweep.py`) 45 passed, 1 failed (`test_versions_authed_200`) — verified pre-existing via `git stash` (fails identically at HEAD). `test_oauth_validation.py` (21) + `test_open_redirect_bugs.py` (2) failures pre-existing at HEAD, verified via stash. mypy `oauth_routes.py` clean (`--follow-imports=skip`). Live on :8001: Bearer-authed `GET /api/v1/auth/oauth/zoho/initiate` 307s to `accounts.zoho.com/oauth/v2/auth` with Books/Inventory/CRM/WorkDrive scopes + signed state. Next step for the operator: complete the interactive consent flow, then check `/api/v1/auth/oauth/tokens` shows `zoho` (all four services now get rows).
-
-## Session 2026-08-20 (backend) — Experience Marketplace MVP (feature #59-adjacent)
-
-**Files**: `backend/core/experience_marketplace/sanitizer.py` (new), `backend/core/experience_marketplace/pack_service.py` (new), `backend/core/experience_marketplace/__init__.py` (new), `backend/core/models.py` (+ExperienceItem/ExperienceRoleRegistry/ExperienceExport/ExperienceImport), `backend/api/experience_marketplace_routes.py` (new), `backend/main_api_app.py` (11c mount), `backend/alembic/versions/20260820_experience_marketplace.py` (new), `backend/tests/test_experience_marketplace.py` (new), `docs/architecture/EXPERIENCE_MARKETPLACE.md` (new).
-
-**TDD red→green** (24 tests): signed `atom_experience_pack` v1 with sections patterns/canvas_lessons (feature #7 LLM canvas summaries from `EpisodeSegment.canvas_context`)/facts/ontology/skills; role-token sanitizer (per-name `{type}_{nnn}` tokens), PII redaction, bucket envelopes, leak-scan abort; delta cursor via `ingestion_settings.usage_stats_json["experience_cursor"]`; import = verify-before-parse (hash + Ed25519), credential fail-closed, tombstones, no stub edges, raised-never-lowered; reputation tiers from verified steps; export CRITICAL / import HIGH governance + audit rows.
-
-**Key fixes during the loop**: `GraphEdge` has no `sensitivity`/`updated_at` (edge sensitivity = max of endpoint token sensitivities; delta on `created_at`); `strip_credentials` strips any key named `token` → exported key renamed to `role`; ontology import merges onto token-named rows only (destination's own real-name graph stays untouched); tombstone section keys are plural (`patterns_tombstones`); credential fail-closed tested by mocking `strip_credentials` to pass through (same convention as org bundle); `test_import_tombstones` re-signs the envelope after mutation.
-
-**Verification**: `pytest backend/tests/test_experience_marketplace.py` 24/24; mypy clean (4 files, `--follow-imports=skip`); `main_api_app` imports clean (11c mount verified). Flag `ATOM_EXPERIENCE_MARKETPLACE_ENABLED` default off (routes 503 + service refuses otherwise). Migration guarded (`_table_exists`); pending: alembic upgrade on a live dev DB + route smoke via HTTP.
-
-## Session 2026-08-20 (backend) — Temporal Normalization P0 (Temporal Evolution: A2/A7/A8)
-
-**Files**: `backend/core/memory/temporal_normalizer.py` (new), `backend/core/experiments.py` (+`temporal_normalization` flag, env `ATOM_TEMPORALITY_ENABLED`, default ON), `backend/core/ingestion_pipeline.py` (+`_apply_temporal_normalization` + `_record_to_text` override), `backend/tests/test_temporal_normalizer_p0.py` (new — 24 tests).
-
-**TDD red→green**: RED was the module ImportError at collection. Contracts pinned: regex date anchors (ISO / "as of <Month> <d>, <yyyy>" / "<Month> <yyyy>" / "Q<n> <yyyy>" / "by end of <yyyy>") sorted desc, deduped by value (anchored vs bare match of the same date collapse — higher-confidence pattern wins by application order), capped at 10/text; `normalize_record` additive (copy + `temporal_entities`/`as_of`/`temporal_axis`, never mutates input, unshaped input degrades to `{}`); `temporal_entities` receiver (`handle_temporal_entities`/`encode_temporal_context`) workspace-scoped in-memory store (cap 500/ws, newest kept), bi-temporal read mirroring `GraphRAGEngine.edges_as_of` (`as_of <= t < valid_until` via `_visible_at`); flag-off returns legacy shapes everywhere; never raises at any entry point; ingestion hook wired through a `_record_to_text` override so EVERY path (sync/webhook/binary/tiered) funnels through the single transformer insertion point — the override swallows hook failures (log + legacy text). Timezone-safe (R13): naive inputs assumed UTC.
-
-**Verification**: new suite 24/24; regression `test_covpush_ingestion_pipeline.py` + `test_covpush_ingestion_transformers.py` + `test_covpush_w9_graphrag.py` 237 passed; `test_berd_gap_closures.py` 11 passed; mypy clean on `temporal_normalizer.py` (0 errors); `ingestion_pipeline.py` mypy baseline unchanged (40 vs 43 at HEAD — fewer due to line-shift merges, zero new errors).
-
-## Session 2026-08-20 (backend) — Temporal Evolution W1: point-in-time cutoffs (GraphRAG)
-
-**Files**: `backend/core/graphrag/multi_hop_expansion.py` (+`as_of`), `backend/core/graphrag/community_detection.py` (+window), `backend/tests/test_temporal_w1_timelines.py` (new — 16 tests).
-
-**TDD red→green** (16 tests; RED was raised-`TypeError` on the new kwargs): expansion now prunes edges not alive at the query instant — ORM path filters `valid_from`/`invalid_at` in `_get_neighbors_with_cues`; SQL path binds `as_of`/`as_of_rel` params and emits the clause ONLY when present (legacy SQL text byte-identical → no parameter drift for old callers); both record `metadata["as_of"]` when used, nothing when not. `CommunityDetectionService.detect_communities`/`_detect_impl`/`_build_graph` take `window_start`/`window_end`: nodes must have been created ≤ `window_end`; edges must overlap the interval (born ≤ `window_end`, invalidated only after `window_start`); NULL bi-temporal fields pass (legacy rows never dropped); window recorded in `DetectionResult.metadata` on both the detect and graph-too-small paths. No-window calls are behavior-identical (graph builds and SQL text unchanged) — verified by the 3 legacy-control tests in-suite plus the existing `test_covpush_w9_graphrag.py` + `test_covpush_w77b_graphrag_oracle.py` (4 `TestLeidenAlgorithm` failures reproduce identically at pristine HEAD via stash — pre-existing cross-suite pollution, unrelated).
-
 **2026-08-20 R-fix**: P0.4 integration-symmetry follow-ups (WhatsApp/Slack/Teams). Files: `integrations/atom_communication_ingestion_pipeline.py` (WhatsApp `_normalize_message` now falls back across `content`/`text`/`body`; poller accepts `teams` alias), `api/routes/webhooks/slack_webhooks.py` (passes FULL payload to bridge, not inner `data.get("event",{})` — UCB adapter + `_transform_slack_payload` both needed the `event_callback` envelope), `core/ingestion_pipeline.py` (`teams` added to `_KNOWN_COMM_INTEGRATIONS`). New suite `tests/test_memory_symmetry_fixes.py` 9/9 (Red first). Verification: `test_memory_backfill_unified.py` + `test_covpush_w86_gmail_ingestion_ai.py` + `test_covpush_intgr_c.py` + `test_covpush_w71c_webhooks2.py` + `test_covpush_ingestion_pipeline.py` → 520 passed, 11 failed (all pre-existing: 5 PrivsecAuditLogger + 6 gmail/intgr-c import-order/env — verified identical via `git stash`); mypy 95 errors on the 3 touched files, identical pre-existing baseline (0 new). Docs: `AGENT_MEMORY_UNIFICATION_PLAN.md` §7 — WhatsApp/Slack/Teams rows + follow-ups marked FIXED.
 
+
+**2026-08-20 R-fix**: P0.4 INGESTION data-loss fix. File: `integrations/atom_communication_ingestion_pipeline.py` `_normalize_message` email branch — read only `body`/`from`/`to`/`date` but all three live email producers emit `content`/`sender[_email]`/`recipient`/`timestamp` (Outlook poller `:1610`, Gmail poller `:1466`, Outlook webhook transform `ingestion_pipeline.py:2973`) → stored `atom_communications` rows had sender=None, recipient=None, content="", timestamp=now(); the full email body never reached the comm/graph store. Now falls back across `content`/`body`/`text`/`bodyPreview`, sender `from`/`sender`/`sender_email`/`sender_id`, recipient `to`/`recipient`, timestamp `timestamp`/`date` (handles both datetime and ISO string), thread_id via metadata.thread_id/conversation_id. Tests: `tests/test_memory_symmetry_fixes.py::TestEmailNormalizePreservesFields` 5/5 (Red first). Verification: full symmetry suite 14/14; regression `test_email_api_ingestion.py` + `test_realtime_communication_ingestion.py` + `test_covpush_w86_gmail_ingestion_ai.py` + `test_bughunt_mail_office.py` + `test_memory_backfill_unified.py` + `test_covpush_intgr_c.py::TestPipelineWebhookHelpers` → 207 passed, 5 failed (all pre-existing — verified identical on clean HEAD).
+=======
 ## Session 2026-08-20 (backend) — Temporal Evolution W2: hierarchy + persistence (GraphRAG)
 
 **Files**: `backend/core/graphrag/community_detection.py` (+`_detect_hierarchy_impl` thread, `_link_hierarchy`, `_store_hierarchy`, `_persist_communities`, `_clear_workspace_communities`; `detect_hierarchy` gains `store_results`), `backend/tests/test_temporal_w2_community_hierarchy.py` (new — 10 tests), `backend/core/models.py::GraphCommunity.parent_community_id` (W2 — pre-existing at HEAD), `docs/intelligence/graphrag.md` (schema doc +lineage column).

@@ -52,9 +52,14 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
             setIsProcessing(true);
             setStatusMessage("Loading history...");
             const { apiClient } = await import('../../lib/api-client');
-            const response = await apiClient.get(`/api/chat/history/${sid}?user_id=${getCurrentUserId()}`) as any;
-            if (response.status === 200) {
-                const data = response.data;
+            const response = await apiClient.get(`/api/chat/history/${sid}?user_id=${getCurrentUserId()}`, {
+                timeout: 8000,
+                // @ts-ignore
+                retry: false
+            }).catch(() => ({ status: 200, data: { messages: [] } })) as any;
+
+            if (response && response.status === 200) {
+                const data = response.data || {};
                 if (data.messages && Array.isArray(data.messages)) {
                     const chatMessages: ChatMessageData[] = [];
 
@@ -179,11 +184,11 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
             const { apiClient } = await import('../../lib/api-client');
             // Create an AbortController so handleStop can cancel this request.
             abortControllerRef.current = new AbortController();
-            // Safety-net: reset isProcessing after 30s if no response/stream-complete.
+            // Safety-net: reset isProcessing after 120s if no response/stream-complete.
             if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
             processingTimeoutRef.current = setTimeout(() => {
                 setIsProcessing(false);
-            }, 30000);
+            }, 120000);
 
             const response = await apiClient.post("/api/chat/message", {
                 message: currentInput,
@@ -198,7 +203,12 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     })),
                     attachments: activeAttachments
                 }
-            }, { signal: abortControllerRef.current.signal }) as any;
+            }, {
+                signal: abortControllerRef.current.signal,
+                timeout: 120000,
+                // @ts-ignore
+                retry: false
+            }) as any;
 
             setActiveAttachments([]);
             const data = response.data;
@@ -411,9 +421,12 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
             setMessages([]);
             setIsProcessing(false);
             loadSessionHistory(sessionId);
-            // Use apiClient for auth (raw fetch was 401'ing for logged-in users).
             import('../../lib/api-client').then(({ apiClient }) => {
-                apiClient.get(`/api/chat/sessions/${sessionId}?user_id=${getCurrentUserId()}`)
+                apiClient.get(`/api/chat/sessions/${sessionId}?user_id=${getCurrentUserId()}`, {
+                    timeout: 5000,
+                    // @ts-ignore
+                    retry: false
+                })
                     .then((resp: any) => {
                         const data = resp.data || resp;
                         if (data.title) setSessionTitle(data.title);

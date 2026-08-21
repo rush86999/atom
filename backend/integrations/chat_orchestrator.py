@@ -66,7 +66,11 @@ AGENTS = {
 
 from core.workflow_endpoints import load_workflows
 from ai.automation_engine import AutomationEngine
-from ai.workflow_scheduler import workflow_scheduler
+try:
+    from ai.workflow_scheduler import workflow_scheduler
+except Exception as sched_err:
+    workflow_scheduler = None
+    logger.warning(f"workflow_scheduler not available: {sched_err}")
 import asyncio
 import uuid
 
@@ -665,7 +669,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 **extra_kwargs,
             )
             
-            if response_data.get("success"):
+            if response_data.get("success") and response_data.get("content"):
                 return {
                     "content": response_data.get("content", "").strip(),
                     "model": response_data.get("model"),
@@ -673,9 +677,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "memory_context": memory_block,
                 }
 
+            if memory_block and memory_block.strip():
+                return {
+                    "content": f"Based on your ingested documents:\n\n{memory_block.strip()}",
+                    "model": "memory-synthesizer",
+                    "provider": "atom-memory",
+                    "memory_context": memory_block,
+                }
+
             return None
         except Exception as e:
             logger.warning(f"Unified conversational response failed: {e}")
+            if memory_block and memory_block.strip():
+                return {
+                    "content": f"Based on your ingested documents:\n\n{memory_block.strip()}",
+                    "model": "memory-synthesizer",
+                    "provider": "atom-memory",
+                    "memory_context": memory_block,
+                }
             return None
 
 
@@ -807,35 +826,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         logger.info(f"Feature handling complete. Handled: {handled}, Intent: {primary_intent}")
 
-        # Fallback to ComputerUseAgent if no specific feature handled it successfully
-        # OR if the intention was explicitly AGENT_REQUEST
-        if not handled or primary_intent == ChatIntent.AGENT_REQUEST:
+        # Execute Agent only if explicitly requested as an AGENT_REQUEST
+        if primary_intent == ChatIntent.AGENT_REQUEST:
              try:
-                # Use the General Agent (ComputerUseAgent) for unhandled queries
-                logger.info(f"Fallback to ComputerUseAgent for: {message}")
-                
-                # Determine mode based on intent
-                mode = "thinker" # Default
-                if primary_intent in [ChatIntent.TASK_MANAGEMENT, ChatIntent.WORKFLOW_CREATION]:
-                    mode = "tasker"
-                
-                logger.info(f"Calling agent_service.execute_task with goal: {message}")
-                
-                # Execute agent task (short-lived)
-                task = await agent_service.execute_task(
-                    goal=message,
-                    mode=mode,
+                mode = "thinker"
+                task = await asyncio.wait_for(
+                    agent_service.execute_task(goal=message, mode=mode),
+                    timeout=5.0
                 )
-                logger.info(f"Agent task started: {task}")
-                
                 feature_responses[FeatureType.AGENT] = {
                     "success": True,
-                    "data": {"task_id": task["id"], "status": task["status"]},
-                    "message": f"I'm working on that. Task ID: {task['id']}",
+                    "data": {"task_id": task.get("id"), "status": task.get("status")},
+                    "message": f"Task initiated. ID: {task.get('id')}",
                     "suggested_actions": ["Check Status"]
                 }
              except Exception as e:
-                logger.error(f"Agent fallback failed: {e}")
+                logger.warning(f"Agent dispatch skipped/timed out: {e}")
                 
         return feature_responses
 

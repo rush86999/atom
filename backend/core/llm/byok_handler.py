@@ -931,6 +931,11 @@ class BYOKHandler:
                     credential_source = "env"
                     self.env_key_providers.add(provider_id)
 
+            # Filter out known dummy/invalid placeholder keys
+            if api_key and (api_key.startswith("60a9596d") or api_key.startswith("dummy") or len(api_key) < 12):
+                logger.debug(f"Ignoring placeholder/invalid API key for {provider_id}")
+                api_key = None
+
             # Initialize client if we have an API key
             if api_key:
                 try:
@@ -1942,13 +1947,19 @@ class BYOKHandler:
 
             last_error = None
             primary_provider = options[0][0] if options else None
+            failed_providers = set()
             for provider_id, model in options:
+                if provider_id in failed_providers:
+                    continue
                 # Per-provider flag: each provider gets at most one self-heal retry.
                 heal_attempted_for_current = False
                 try:
                     import time
                     request_start = time.time()
-                    client = self.clients[provider_id]
+                    client = self.clients.get(provider_id)
+                    if not client:
+                        failed_providers.add(provider_id)
+                        continue
                     
                     # Construct Messages (Phase 14: Multimodal)
                     messages = []
@@ -2110,6 +2121,11 @@ class BYOKHandler:
                 except Exception as attempt_err:
                     logger.warning(f"Attempt failed for {provider_id}/{model}: {attempt_err}")
                     last_error = attempt_err
+
+                    err_str = str(attempt_err)
+                    if "401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str:
+                        failed_providers.add(provider_id)
+                        continue
 
                     # Phase 226.4-04: Record failed API call for health monitoring
                     try:
@@ -3041,13 +3057,19 @@ class BYOKHandler:
             cascade_options: list = list(options)
             cascade_idx = 0
             primary_provider = cascade_options[0][0] if cascade_options else None
+            failed_providers = set()
 
             while cascade_idx < len(cascade_options):
                 provider_id, model = cascade_options[cascade_idx]
                 cascade_idx += 1
+                if provider_id in failed_providers:
+                    continue
                 try:
                     # Get the client and wrap with instructor
-                    client = self.clients[provider_id]
+                    client = self.clients.get(provider_id)
+                    if not client:
+                        failed_providers.add(provider_id)
+                        continue
                     instructor_client = instructor.from_openai(client)
                     
                     # Truncate prompts to fit context window
@@ -3184,6 +3206,11 @@ class BYOKHandler:
                 except Exception as attempt_err:
                     logger.warning(f"Structured attempt failed for {provider_id}/{model}: {attempt_err}")
                     last_error = attempt_err
+
+                    err_str = str(attempt_err)
+                    if "401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str:
+                        failed_providers.add(provider_id)
+                        continue
                     # Phase 2 cascade classification. Instructor wraps the
                     # underlying model output validation in pydantic; JSON
                     # decode failures come back as json.JSONDecodeError. Both

@@ -1411,7 +1411,7 @@ elif is_test_mode:
                 elif name == "zoho_projects":
                     prefix = "/api/v1/integrations/zoho-projects"
                 elif name == "zoho_workdrive":
-                    prefix = "/api/v1/integrations/zoho-workdrive"
+                    prefix = ""
 
                 if isinstance(router, APIRouter):
                     app.include_router(router, prefix=prefix, tags=[name])
@@ -2643,8 +2643,7 @@ try:
 
         # Zoho Suite (Standardized)
         from api.zoho_workdrive_routes import router as zoho_router
-
-        app.include_router(zoho_router, prefix="/api/v1/integrations/zoho-workdrive")
+        app.include_router(zoho_router)
 
         from integrations.zoho_crm_routes import router as zoho_crm_router
 
