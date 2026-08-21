@@ -161,3 +161,93 @@ class TestOutlookSlackUnchanged:
                 await svc.process_webhook_payload("slack", {})
                 pipe.ingest_message.assert_not_awaited()
         raw_lancedb.return_value.add_document.assert_called()
+
+class TestTeamsDiscordQueueBridge:
+    """Same contract as Gmail, for the other queue-routed comm apps whose
+    `/webhooks/communication/*` paths were B-only (P0.4 audit: Teams/Discord
+    rows). Outlook/slack stay excluded."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("integration_id,record", [
+        ("teams", {
+            "type": "teams_message",
+            "id": "tm_1",
+            "text": "standup notes in channel",
+            "from": "Ops Bot",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event_type": "message_created",
+        }),
+        ("discord", {
+            "type": "discord_message",
+            "id": "dc_1",
+            "content": "deploy is green",
+            "author": "devops",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event_type": "message_created",
+        }),
+    ])
+    async def test_queue_records_bridge_to_ingest_message(
+        self, comm_bridge, raw_lancedb, integration_id, record,
+    ):
+        svc = _service()
+        with patch.object(svc, "_transform_webhook_payload",
+                          side_effect=(await _fake_transform([record]))):
+            result = await svc.process_webhook_payload(integration_id, {})
+        assert comm_bridge.ingest_message.await_count == 1
+        args = comm_bridge.ingest_message.await_args.args
+        assert args[0] == integration_id
+        assert args[1]["id"] == record["id"]
+        assert result["records_processed"] >= 1
+        raw_lancedb.return_value.add_document.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("integration_id,record", [
+        ("teams", {
+            "type": "teams_message", "id": "tm_2",
+            "text": "standup moved to ten-thirty today",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }),
+        ("discord", {
+            "type": "discord_message", "id": "dc_2",
+            "content": "deploy window shifted to friday evening",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }),
+    ])
+    async def test_bridge_failure_falls_back_per_record(
+        self, comm_bridge, raw_lancedb, integration_id, record,
+    ):
+        comm_bridge.ingest_message = AsyncMock(
+            side_effect=RuntimeError("comm store down")
+        )
+        svc = _service()
+        with patch.object(svc, "_transform_webhook_payload",
+                          side_effect=(await _fake_transform([record]))):
+            result = await svc.process_webhook_payload(integration_id, {})
+        assert raw_lancedb.return_value.add_document.called
+        assert result["records_processed"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_mixed_bridge_outcome_writes_only_failures_raw(self, comm_bridge, raw_lancedb):
+        """Two records: first bridges fine, second fails -> only the second
+        continues to the legacy raw write (no double-writes). NOTE: the
+        per-record prep loop rewrites record["content"] into a formatted
+        summary before both paths, so identity is asserted via doc_id."""
+        record_ok = {"type": "discord_message", "id": "ok_1",
+                     "content": "release checklist is all green",
+                     "timestamp": datetime.now(timezone.utc).isoformat()}
+        record_bad = {"type": "discord_message", "id": "bad_1",
+                      "content": "rollback triggered boom scenario",
+                      "timestamp": datetime.now(timezone.utc).isoformat()}
+        comm_bridge.ingest_message = AsyncMock(
+            side_effect=[{"success": True}, RuntimeError("down")]
+        )
+        svc = _service()
+        with patch.object(svc, "_transform_webhook_payload",
+                          side_effect=(await _fake_transform([record_ok, record_bad]))):
+            await svc.process_webhook_payload("discord", {})
+        assert comm_bridge.ingest_message.await_count == 2
+        assert raw_lancedb.return_value.add_document.call_count == 1
+        doc_id = raw_lancedb.return_value.add_document.call_args.kwargs.get(
+            "doc_id"
+        ) or raw_lancedb.return_value.add_document.call_args.args[0]
+        assert doc_id == "bad_1"

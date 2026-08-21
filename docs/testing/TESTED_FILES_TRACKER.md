@@ -5819,3 +5819,13 @@ Registered Zoho in the existing generic OAuth flow (`/initiate` → consent → 
 **Test-infra notes**: the comm block constructs its own `LanceDBHandler` in-function → tests must patch `core.lancedb_handler.LanceDBHandler`, not the service attribute; `_transform_gmail_payload` fetches real messages via historyId (or emits a content-less stub) → tests mock `_transform_webhook_payload` to focus on the bridge. A `test_covpush_w26_hybrid_ingestion.py::TestZohoMultiAppFetcher::test_no_org_id_skips_books` failure in the same run is NOT this change — verified via stash that it passes at HEAD of `core/hybrid_data_ingestion.py` and fails only with the OTHER concurrent session's uncommitted Zoho diff (`MagicMock can't be used in 'await' expression` at :1107).
 
 **Verification**: new suite 5/5; ingestion/memory cluster (`test_memory_symmetry_fixes` + `test_covpush_ingestion_pipeline` + `test_covpush_w34_ingestion` + `test_memory_backfill_unified`) 191 passed.
+
+## Session 2026-08-21 (backend) — Teams/Discord queue A-path: ingest_message bridge (memory-plan §7)
+
+**Files**: `backend/core/ingestion_pipeline.py` (`process_webhook_payload` comm-block gate widened to `teams`/`discord`; bridge passes the runtime `integration_id`, not a literal), `backend/tests/test_gmail_webhook_ingest_message.py` (+5 tests — parametrized teams/discord bridge, per-record fallback, mixed-outcome no-double-write), `docs/architecture/AGENT_MEMORY_UNIFICATION_PLAN.md` (§7 Teams/Discord rows).
+
+**TDD red→green** (RED = teams/discord queue records hit only the raw write): the `/webhooks/communication/{teams,discord}` queue routes were B-only — the comm block's gate didn't even include them. Now all three queue-routed comm apps (gmail/teams/discord) bridge to `ingest_message(integration_id, record)` with per-record raw-write fallback; outlook/slack stay legacy (control-pinned). Gotchas: the per-record prep loop (`_prepare_record_text_async`) rewrites `record["content"]` into a formatted summary BEFORE both paths → identity assertions must use `doc_id`, not content text; the legacy writer's >10-char threshold drops short fallback records (pre-existing).
+
+**Concurrent-session note**: a `TestZohoMultiAppFetcher::test_no_org_id_skips_books` failure + transient IndentationError during this session belong to ANOTHER agent's in-flight Zoho edits (`core/hybrid_data_ingestion.py`, uncommitted) — verified via stash that both clear at their file's HEAD state. Do not attribute to this work.
+
+**Verification**: suite 10/10; ingestion/memory cluster 186 passed.

@@ -1168,14 +1168,15 @@ class IngestionPipelineService(HybridDataIngestionService):
 
             # LanceDB indexing for webhook records (communication memory)
             # This enables semantic search for email/chat content
-            if integration_id in ["outlook", "gmail", "slack"]:
-                # Gmail routes through the SAME normalized comm pipeline as
-                # its poller (and Outlook's poller/backfill): raw vector
-                # dumps are not structured memory — ingest_message gives
-                # normalization, FTS-hybrid store, and the graph trigger
-                # (P0.4 audit follow-up #4). Falls back to the legacy raw
-                # write if the bridge fails so records are never lost.
-                if integration_id == "gmail":
+            if integration_id in ["outlook", "gmail", "slack", "teams", "discord"]:
+                # Gmail/Teams/Discord route through the SAME normalized comm
+                # pipeline as the tiered path and their pollers/bridges: raw
+                # vector dumps are not structured memory — ingest_message
+                # gives normalization, FTS-hybrid store, and the graph
+                # trigger. Teams/Discord queue routes were B-only (P0.4
+                # audit); per-record fallback to the legacy raw write keeps
+                # records from being lost.
+                if integration_id in ("gmail", "teams", "discord"):
                     try:
                         from integrations.atom_communication_ingestion_pipeline import (
                             get_ingestion_pipeline,
@@ -1185,11 +1186,13 @@ class IngestionPipelineService(HybridDataIngestionService):
                         failed_records: list = []
                         for record in records:
                             try:
-                                await comm_pipeline.ingest_message("gmail", record)
+                                await comm_pipeline.ingest_message(
+                                    integration_id, record
+                                )
                                 results["records_processed"] += 1
                             except Exception as gm_bridge_err:
                                 logger.warning(
-                                    f"Gmail ingest_message bridge failed for "
+                                    f"{integration_id} ingest_message bridge failed for "
                                     f"{record.get('id')}: {gm_bridge_err} — "
                                     f"falling back to raw write"
                                 )
@@ -1198,7 +1201,7 @@ class IngestionPipelineService(HybridDataIngestionService):
                         records = failed_records
                     except Exception as bridge_setup_err:
                         logger.warning(
-                            f"Gmail comm-pipeline bridge unavailable "
+                            f"{integration_id} comm-pipeline bridge unavailable "
                             f"({bridge_setup_err}) — falling back to raw write"
                         )
                 try:
