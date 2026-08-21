@@ -5766,3 +5766,13 @@ Registered Zoho in the existing generic OAuth flow (`/initiate` → consent → 
 **Content**: program record for P0 (ingestion temporal normalizer) + W1–W4 (cutoffs, hierarchy+persistence, hierarchy windows, query-side as_of), contract details (window edge-overlap semantics; as_of alive-predicate with exclusive invalidation boundary; lineage max-overlap heuristic; persisted-id `(id, level)` keying; uuid minting only for `comm_`-prefixed counters), explicit boundaries (global_search has no as_of; SQL expander is PG-only on SQLite — graceful degradation; nodes carry no validity fields), file map, verification commands. Resolves the dangling reference from migration `20260820_add_graph_community_parent` (which cited the doc since before it existed).
 
 **Verification**: doc-only (no code); linked from migration docstring + W4 docstrings.
+
+## Session 2026-08-20 (backend) — Migration + boot-smoke verification (closes W2/marketplace "pending" notes)
+
+**Scope**: no source changes — verification only.
+
+1. **Alembic migrations verified in isolation** (`20260820_add_graph_community_parent`, `20260820_experience_marketplace`; both branch from `20260816_org_ingestion_sharing`): Test A — create_all-shaped DB (hybrid dev-DB reality): guards no-op cleanly, both heads stamp. Test B — pre-W2 schema (`graph_communities` without the column, no experience tables): column `parent_community_id` + index `ix_graph_communities_parent` added, all four experience tables created, `downgrade` drops the column cleanly. Method: scratch SQLite DBs stamped at the shared down_revision, `alembic upgrade <rev>` per branch (this alembic rejects multi-revision targets), subprocess env must STRIP `PYTHONPATH=.` or `venv/bin/alembic` imports the local `backend/alembic/` migrations dir instead of the package.
+2. **Full-chain `alembic upgrade heads` on a fresh DB still fails** at an early unrelated revision (`ALTER TABLE agent_registry ADD COLUMN configuration ...` — no such table; the known R71 broken-chain issue). Pre-existing, unchanged; hybrid create_all remains the dev-DB authority. `data/atom.db` restored byte-identical from backup after the attempt.
+3. **Boot smoke** (throwaway DB): uvicorn boots clean — 0 tracebacks, `/health/live` 200, `✓ Experience Marketplace Routes Loaded`, `GET /api/experience-marketplace/status` → 401 (auth-gated before flag check; flag-off 503 applies post-auth). Smoke-test gotcha: SQLite URL needs 4 slashes for absolute paths — 3-slash relative paths surface as worker `unable to open database file` noise, not app defects.
+
+**Verification**: both migration paths green (A + B incl. downgrade); boot smoke clean; closes the "pending: alembic upgrade + route smoke" notes on the W2 temporal and Experience Marketplace sessions.
