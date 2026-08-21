@@ -61,6 +61,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
+  // Round 80: forward the caller's Authorization header to the backend
+  const fwdAuth = req.headers.authorization
+    ? { Authorization: req.headers.authorization as string }
+    : {};
+
   const session = await getServerSession(req, res, authOptions);
 
   if (!session || !session.user) {

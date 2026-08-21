@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface Microsoft365User {
     id: string;
@@ -320,7 +321,7 @@ const Microsoft365Integration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/microsoft365/health");
+            const response = await fetch("/api/integrations/microsoft365/health", { headers: authHeaders() });
             if (response.ok) {
                 setConnected(true);
                 setHealthStatus("healthy");
@@ -347,7 +348,7 @@ const Microsoft365Integration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/microsoft365/user?access_token=fake_token", {
                 method: "GET",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
             });
 
             if (response.ok) {
@@ -374,7 +375,7 @@ const Microsoft365Integration: React.FC = () => {
             const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
             const response = await fetch(`/api/integrations/microsoft365/calendar/events?access_token=fake_token&start_date=${startDate}&end_date=${endDate}`, {
                 method: "GET",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
             });
 
             if (response.ok) {
@@ -393,7 +394,7 @@ const Microsoft365Integration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/microsoft365/outlook/messages?access_token=fake_token&folder_id=inbox&top=50", {
                 method: "GET",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
             });
 
             if (response.ok) {
@@ -422,7 +423,7 @@ const Microsoft365Integration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/microsoft365/teams?access_token=fake_token", {
                 method: "GET",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
             });
 
             if (response.ok) {
@@ -444,7 +445,7 @@ const Microsoft365Integration: React.FC = () => {
                 "/api/integrations/microsoft365/emails/send",
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: authHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify({
                         user_id: "current",
                         to: newEmail.to
@@ -498,7 +499,7 @@ const Microsoft365Integration: React.FC = () => {
                 "/api/integrations/microsoft365/calendars/create",
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: authHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify({
                         user_id: "current",
                         subject: newEvent.subject,
@@ -558,7 +559,7 @@ const Microsoft365Integration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/microsoft365/subscriptions", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     resource: webhookResource,
                     changeType: "created",
@@ -1248,7 +1249,7 @@ const Microsoft365Integration: React.FC = () => {
                                                         if (!name) return toast({ title: "Error", description: "Name required", variant: "error" });
                                                         fetch("/api/integrations/microsoft365/excel/execute?access_token=mock", {
                                                             method: "POST",
-                                                            headers: { "Content-Type": "application/json" },
+                                                            headers: authHeaders({ "Content-Type": "application/json" }),
                                                             body: JSON.stringify({ action: "create_worksheet", params: { item_id: "mock_id", name } })
                                                         }).then(() => toast({ title: "Success", description: `Sheet '${name}' created via API` }));
                                                     }}>
@@ -1262,7 +1263,7 @@ const Microsoft365Integration: React.FC = () => {
                                                 <Button className="w-full" variant="secondary" onClick={() => {
                                                     fetch("/api/integrations/microsoft365/excel/execute?access_token=mock", {
                                                         method: "POST",
-                                                        headers: { "Content-Type": "application/json" },
+                                                        headers: authHeaders({ "Content-Type": "application/json" }),
                                                         body: JSON.stringify({
                                                             action: "append_row",
                                                             params: {
@@ -1296,7 +1297,7 @@ const Microsoft365Integration: React.FC = () => {
                                                     if (!name) return;
                                                     fetch("/api/integrations/microsoft365/teams/execute?access_token=mock", {
                                                         method: "POST",
-                                                        headers: { "Content-Type": "application/json" },
+                                                        headers: authHeaders({ "Content-Type": "application/json" }),
                                                         body: JSON.stringify({ action: "create_team", params: { display_name: name, description: "Auto-generated" } })
                                                     }).then(() => toast({ title: "Success", description: `Team '${name}' provisioning started` }));
                                                 }}>
@@ -1308,7 +1309,7 @@ const Microsoft365Integration: React.FC = () => {
                                                 <Button variant="outline" className="w-full" onClick={() => {
                                                     fetch("/api/integrations/microsoft365/teams/execute?access_token=mock", {
                                                         method: "POST",
-                                                        headers: { "Content-Type": "application/json" },
+                                                        headers: authHeaders({ "Content-Type": "application/json" }),
                                                         body: JSON.stringify({
                                                             action: "reply_to_message",
                                                             params: { team_id: "t1", channel_id: "c1", message_id: "m1", message: "Auto-reply: I am looking into this." }
@@ -1334,7 +1335,7 @@ const Microsoft365Integration: React.FC = () => {
                                                 <Button variant="outline" className="h-20 flex flex-col" onClick={() => {
                                                     fetch("/api/integrations/microsoft365/outlook/execute?access_token=mock", {
                                                         method: "POST",
-                                                        headers: { "Content-Type": "application/json" },
+                                                        headers: authHeaders({ "Content-Type": "application/json" }),
                                                         body: JSON.stringify({ action: "move_email", params: { message_id: "1", destination_id: "archive" } })
                                                     }).then(() => toast({ title: "Success", description: "Email moved to Archive" }));
                                                 }}>
@@ -1344,7 +1345,7 @@ const Microsoft365Integration: React.FC = () => {
                                                 <Button variant="outline" className="h-20 flex flex-col" onClick={() => {
                                                     fetch("/api/integrations/microsoft365/outlook/execute?access_token=mock", {
                                                         method: "POST",
-                                                        headers: { "Content-Type": "application/json" },
+                                                        headers: authHeaders({ "Content-Type": "application/json" }),
                                                         body: JSON.stringify({ action: "reply_email", params: { message_id: "1", comment: "Acknowledged." } })
                                                     }).then(() => toast({ title: "Success", description: "Sent quick acknowledgment" }));
                                                 }}>
@@ -1371,7 +1372,7 @@ const Microsoft365Integration: React.FC = () => {
                                                     toast({ title: "Workflow Started", description: "Creating folders..." });
                                                     fetch("/api/integrations/microsoft365/onedrive/execute?access_token=mock", {
                                                         method: "POST",
-                                                        headers: { "Content-Type": "application/json" },
+                                                        headers: authHeaders({ "Content-Type": "application/json" }),
                                                         body: JSON.stringify({ action: "create_folder", params: { name: "Project_Z_Assets" } })
                                                     }).then(() => toast({ title: "Success", description: "Folder structure created" }));
                                                 }}>

@@ -6,10 +6,12 @@ Uses the real freshdesk_service.py for all operations
 from datetime import datetime
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from .freshdesk_service import get_freshdesk_service
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +75,8 @@ async def freshdesk_health():
 async def get_tickets(
     page: int = Query(1, ge=1),
     per_page: int = Query(30, ge=1, le=100),
-    status: Optional[int] = None
+    status: Optional[int] = None,
+    current_user: User = Depends(get_current_user)
 ):
     """Get Freshdesk tickets"""
     try:
@@ -90,7 +93,7 @@ async def get_tickets(
 
 
 @router.post("/tickets")
-async def create_ticket(request: TicketCreateRequest):
+async def create_ticket(request: TicketCreateRequest, current_user: User = Depends(get_current_user)):
     """Create a Freshdesk ticket"""
     try:
         service = get_freshdesk_service()
@@ -112,7 +115,7 @@ async def create_ticket(request: TicketCreateRequest):
 
 
 @router.get("/tickets/{ticket_id}")
-async def get_ticket(ticket_id: int):
+async def get_ticket(ticket_id: int, current_user: User = Depends(get_current_user)):
     """Get a specific ticket"""
     try:
         service = get_freshdesk_service()
@@ -128,7 +131,7 @@ async def get_ticket(ticket_id: int):
 
 
 @router.put("/tickets/{ticket_id}")
-async def update_ticket(ticket_id: int, request: TicketUpdateRequest):
+async def update_ticket(ticket_id: int, request: TicketUpdateRequest, current_user: User = Depends(get_current_user)):
     """Update a ticket"""
     try:
         service = get_freshdesk_service()
@@ -145,7 +148,7 @@ async def update_ticket(ticket_id: int, request: TicketUpdateRequest):
 
 
 @router.get("/contacts")
-async def get_contacts(page: int = Query(1, ge=1), per_page: int = Query(30, ge=1, le=100)):
+async def get_contacts(page: int = Query(1, ge=1), per_page: int = Query(30, ge=1, le=100), current_user: User = Depends(get_current_user)):
     """Get Freshdesk contacts"""
     try:
         service = get_freshdesk_service()
@@ -161,7 +164,7 @@ async def get_contacts(page: int = Query(1, ge=1), per_page: int = Query(30, ge=
 
 
 @router.get("/agents")
-async def get_agents():
+async def get_agents(current_user: User = Depends(get_current_user)):
     """Get Freshdesk agents"""
     try:
         service = get_freshdesk_service()
@@ -177,7 +180,7 @@ async def get_agents():
 
 
 @router.post("/search/tickets")
-async def search_tickets(request: SearchRequest):
+async def search_tickets(request: SearchRequest, current_user: User = Depends(get_current_user)):
     """Search Freshdesk tickets"""
     try:
         service = get_freshdesk_service()

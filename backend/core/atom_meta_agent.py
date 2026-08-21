@@ -43,6 +43,7 @@ from core.turn_fact_extractor import (
     get_active_facts_for_prompt as _get_active_facts_for_prompt,
     get_turn_fact_extractor,
     prefetch_relevant_facts as _prefetch_relevant_facts,
+    prompt_sensitivity_ceiling as _prompt_ceiling,
 )
 _pending_extraction_tasks: set = set()  # module-level — prevents GC of in-flight tasks
 
@@ -436,7 +437,8 @@ class AtomMetaAgent:
         if _TURN_FACT_VECTOR_RECALL_ENABLED:
             try:
                 prefetched = _prefetch_relevant_facts(
-                    workspace_id=self.workspace_id, query=request, limit=5
+                    workspace_id=self.workspace_id, query=request, limit=5,
+                    max_sensitivity=_prompt_ceiling(),
                 )
                 if prefetched:
                     context.setdefault("prefetched_facts", []).extend(prefetched)
@@ -659,13 +661,13 @@ class AtomMetaAgent:
             # Flag on + force-enforce off (shadow) -> recruitment is computed for
             # telemetry but the request falls through to Queen→ReAct below.
             try:
-                from core.fleet_routing_config import (
-                    fleet_routing_enabled,
-                    fleet_routing_force_enforce,
+                from core.fleet_routing_config import fleet_routing_enabled
+                from core.fleet_orchestration.fleet_router_automation import (
+                    resolved_fleet_enforce,
                 )
             except Exception:
                 fleet_routing_enabled = lambda: False  # noqa: E731
-                fleet_routing_force_enforce = lambda: False  # noqa: E731
+                resolved_fleet_enforce = lambda: False  # noqa: E731
 
             _fleet_eligible = (
                 fleet_routing_enabled()
@@ -707,6 +709,52 @@ class AtomMetaAgent:
                     logger.warning(f"Fleet routing failed, falling back to Queen→ReAct: {fleet_err}")
                     _fleet_result = None
 
+                # Fleet routing validation (2026-08-21): audit EVERY fleet-eligible
+                # decision (shadow or enforced, success or failure) so the
+                # calibration pass has data. Never raises. The outcome join
+                # happens at the finalize points via record_fleet_execution_outcome.
+                try:
+                    from core.fleet_orchestration.fleet_routing_stats import (
+                        record_fleet_decision,
+                    )
+
+                    _fleet_roster = []
+                    if _fleet_result:
+                        _fleet_roster = (
+                            _fleet_result.get("specialists")
+                            or (_fleet_result.get("result") or {}).get("recruitment_roster")
+                            or []
+                        )
+                    _fleet_recruit_ok = bool(
+                        _fleet_result
+                        and (_fleet_result.get("specialists_count") or 0) > 0
+                        and _fleet_result.get("fleet_status") != "failed"
+                    )
+                    _fleet_error = None
+                    if _fleet_result is None:
+                        _fleet_error = (
+                            str(fleet_err) if "fleet_err" in dir() else "recruitment returned empty"
+                        )
+                    record_fleet_decision(
+                        execution_id=execution_id,
+                        workspace_id=getattr(self, "workspace_id", None) or (context or {}).get("workspace_id"),
+                        tenant_id=tenant_id,
+                        agent_id="atom_main",
+                        request=request,
+                        chain_id=_fleet_result.get("chain_id") if _fleet_result else None,
+                        specialists_count=(
+                            _fleet_result.get("specialists_count") or 0
+                        ) if _fleet_result else 0,
+                        roster=_fleet_roster,
+                        recruitment_succeeded=_fleet_recruit_ok,
+                        enforced=resolved_fleet_enforce(),
+                        error=_fleet_error,
+                    )
+                except Exception as _fleet_audit_err:
+                    # Telemetry must never break the hot path.
+                    logger.warning(f"Fleet audit write failed (non-fatal): {_fleet_audit_err}")
+                    pass
+
                 if _fleet_result is not None:
                     # Emit a synthetic recruitment-progress step (net-new: the
                     # FleetAdmiral path has no step_callback of its own) so the
@@ -724,7 +772,7 @@ class AtomMetaAgent:
                             "timestamp": datetime.now(timezone.utc).isoformat(),
                         })
 
-                    if fleet_routing_force_enforce():
+                    if resolved_fleet_enforce():
                         # Return the recruitment summary directly (no auto-execute;
                         # execution stays a separate explicit step — see plan P1a).
                         return {
@@ -1149,6 +1197,21 @@ class AtomMetaAgent:
                 if db is not None:
                     try: db.close()
                     except Exception: pass
+
+            # Fleet routing validation: join the failed outcome onto any fleet
+            # audit rows for this execution. Never raises.
+            try:
+                from core.fleet_orchestration.fleet_routing_stats import (
+                    record_fleet_execution_outcome,
+                )
+
+                record_fleet_execution_outcome(
+                    execution_id=execution_id,
+                    success=False,
+                    error_message=str(_body_err)[:400],
+                )
+            except Exception:
+                pass
             raise
 
         # 4. Record Execution
@@ -1196,6 +1259,23 @@ class AtomMetaAgent:
             db.rollback()
         finally:
             db.close()
+
+        # Fleet routing validation: join the execution outcome onto any fleet
+        # audit rows for this execution (single-arm calibration data). Never raises.
+        try:
+            from core.fleet_orchestration.fleet_routing_stats import (
+                record_fleet_execution_outcome,
+            )
+
+            record_fleet_execution_outcome(
+                execution_id=execution_id,
+                success=(status == "success"),
+                actual_latency_ms=duration * 1000.0,
+                actual_model="meta_agent",
+                actual_provider="internal",
+            )
+        except Exception:
+            pass
 
         return result_payload
 
@@ -1450,7 +1530,8 @@ You are the Admiral of the Atom Fleet. For complex, multi-domain tasks, do NOT a
         try:
             with SessionLocal() as facts_db:
                 durable = _get_active_facts_for_prompt(
-                    facts_db, self.workspace_id, limit=5
+                    facts_db, self.workspace_id, limit=5,
+                    max_sensitivity=_prompt_ceiling(),
                 )
             if durable:
                 memory_sections.append(

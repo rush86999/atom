@@ -2,9 +2,14 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../auth/[...nextauth]";
 
-const PYTHON_API_BASE_URL = process.env.PYTHON_API_SERVICE_BASE_URL || "";
+const PYTHON_API_BASE_URL = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://127.0.0.1:8000';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Round 80: forward the caller's Authorization header to the backend
+  const fwdAuth = req.headers.authorization
+    ? { Authorization: req.headers.authorization as string }
+    : {};
+
     if (req.method === 'GET') {
         const session = await getServerSession(req, res, authOptions);
         // During development, we might skip session check if needed, but safer to keep it

@@ -1,6 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Round 80: forward the caller's Authorization header to the backend
+  const fwdAuth = req.headers.authorization
+    ? { Authorization: req.headers.authorization as string }
+    : {};
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -13,14 +18,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Forward request to backend LanceDB memory service
-    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://127.0.0.1:8000';
     const limitParam = limit || 10;
 
     const response = await fetch(
       `${backendUrl}/api/memory/ingestion/search?query=${encodeURIComponent(query)}&app_id=gmail&limit=${limitParam}`,
       {
         method: 'GET',
-        headers: {
+        headers: { ...fwdAuth,
           'Content-Type': 'application/json',
         },
       }

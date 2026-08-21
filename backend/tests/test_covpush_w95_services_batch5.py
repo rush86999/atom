@@ -49,7 +49,9 @@ from integrations import outlook_routes as orr
 @pytest.fixture
 def outlook_app():
     app = FastAPI()
-    app.include_router(orr.router)
+    # R80: match the real app mount (main_api_app.py registers outlook at
+    # /api/integrations/outlook; the router itself declares prefix="")
+    app.include_router(orr.router, prefix="/api/integrations/outlook")
     return app
 
 
@@ -68,11 +70,11 @@ def osvc():
 
 class TestOutlookRoutesAuth:
     @pytest.mark.parametrize("method,path,kwargs", [
-        ("get", "/api/outlook/auth/url", {}),
-        ("get", "/api/outlook/callback", {"params": {"code": "c"}}),
-        ("post", "/api/outlook/emails", {"json": {"user_id": "u"}}),
-        ("get", "/api/outlook/emails/unread", {"params": {"user_id": "u"}}),
-        ("get", "/api/outlook/health", {}),
+        ("get", "/api/integrations/outlook/auth/url", {}),
+        ("get", "/api/integrations/outlook/callback", {"params": {"code": "c"}}),
+        ("post", "/api/integrations/outlook/emails", {"json": {"user_id": "u"}}),
+        ("get", "/api/integrations/outlook/emails/unread", {"params": {"user_id": "u"}}),
+        ("get", "/api/integrations/outlook/health", {}),
     ])
     def test_anonymous_rejected(self, outlook_app, method, path, kwargs):
         c = TestClient(outlook_app)
@@ -81,191 +83,193 @@ class TestOutlookRoutesAuth:
 
 class TestOutlookRoutes:
     def test_auth_url_and_callback(self, outlook_client):
-        r = outlook_client.get("/api/outlook/auth/url")
+        r = outlook_client.get("/api/integrations/outlook/auth/url")
         assert r.status_code == 200 and "url" in r.json()
-        r = outlook_client.get("/api/outlook/callback", params={"code": "c1"})
+        r = outlook_client.get("/api/integrations/outlook/callback", params={"code": "c1"})
         assert r.status_code == 200 and r.json()["ok"] is True
 
     def test_list_emails(self, outlook_client, osvc):
         osvc.get_user_emails = AsyncMock(return_value=[{"id": "m1"}])
-        r = outlook_client.post("/api/outlook/emails", json={"user_id": "u"})
+        r = outlook_client.post("/api/integrations/outlook/emails", json={"user_id": "u"})
         assert r.status_code == 200 and r.json()["count"] == 1
         osvc.get_user_emails = AsyncMock(side_effect=RuntimeError("x"))
-        assert outlook_client.post("/api/outlook/emails",
+        assert outlook_client.post("/api/integrations/outlook/emails",
                                    json={"user_id": "u"}).status_code == 500
 
     def test_send_email(self, outlook_client, osvc):
         osvc.send_email = AsyncMock(return_value={"id": "m"})
-        r = outlook_client.post("/api/outlook/emails/send", json={
+        r = outlook_client.post("/api/integrations/outlook/emails/send", json={
             "user_id": "u", "to_recipients": ["a@b.c"], "subject": "s",
             "body": "b"})
         assert r.status_code == 200
         osvc.send_email = AsyncMock(return_value=None)
-        assert outlook_client.post("/api/outlook/emails/send", json={
+        assert outlook_client.post("/api/integrations/outlook/emails/send", json={
             "user_id": "u", "to_recipients": ["a@b.c"], "subject": "s",
             "body": "b"}).status_code == 500
         osvc.send_email = AsyncMock(side_effect=RuntimeError("x"))
-        assert outlook_client.post("/api/outlook/emails/send", json={
+        assert outlook_client.post("/api/integrations/outlook/emails/send", json={
             "user_id": "u", "to_recipients": ["a"], "subject": "s",
             "body": "b"}).status_code == 500
 
     def test_draft_email(self, outlook_client, osvc):
         osvc.create_draft_email = AsyncMock(return_value={"id": "d"})
-        r = outlook_client.post("/api/outlook/emails/draft", json={
+        r = outlook_client.post("/api/integrations/outlook/emails/draft", json={
             "user_id": "u", "to_recipients": ["a@b.c"], "subject": "s",
             "body": "b"})
         assert r.status_code == 200
         osvc.create_draft_email = AsyncMock(return_value=None)
-        assert outlook_client.post("/api/outlook/emails/draft", json={
+        assert outlook_client.post("/api/integrations/outlook/emails/draft", json={
             "user_id": "u", "to_recipients": ["a"], "subject": "s",
             "body": "b"}).status_code == 500
         osvc.create_draft_email = AsyncMock(side_effect=RuntimeError("x"))
-        assert outlook_client.post("/api/outlook/emails/draft", json={
+        assert outlook_client.post("/api/integrations/outlook/emails/draft", json={
             "user_id": "u", "to_recipients": ["a"], "subject": "s",
             "body": "b"}).status_code == 500
 
     def test_unread(self, outlook_client, osvc):
         osvc.get_unread_emails = AsyncMock(return_value=[1, 2])
-        r = outlook_client.get("/api/outlook/emails/unread", params={"user_id": "u"})
+        r = outlook_client.get("/api/integrations/outlook/emails/unread", params={"user_id": "u"})
         assert r.status_code == 200 and r.json()["count"] == 2
         osvc.get_unread_emails = AsyncMock(side_effect=RuntimeError("x"))
-        assert outlook_client.get("/api/outlook/emails/unread",
+        assert outlook_client.get("/api/integrations/outlook/emails/unread",
                                   params={"user_id": "u"}).status_code == 500
 
     def test_get_email(self, outlook_client, osvc):
         osvc.get_email_by_id = AsyncMock(return_value={"id": "m1"})
-        r = outlook_client.get("/api/outlook/emails/m1", params={"user_id": "u"})
+        r = outlook_client.get("/api/integrations/outlook/emails/m1", params={"user_id": "u"})
         assert r.status_code == 200
         osvc.get_email_by_id = AsyncMock(return_value=None)
-        assert outlook_client.get("/api/outlook/emails/m1",
+        assert outlook_client.get("/api/integrations/outlook/emails/m1",
                                   params={"user_id": "u"}).status_code == 404
         osvc.get_email_by_id = AsyncMock(side_effect=RuntimeError("x"))
-        assert outlook_client.get("/api/outlook/emails/m1",
+        assert outlook_client.get("/api/integrations/outlook/emails/m1",
                                   params={"user_id": "u"}).status_code == 500
 
     def test_delete_email(self, outlook_client, osvc):
         osvc.delete_email = AsyncMock(return_value=True)
-        r = outlook_client.delete("/api/outlook/emails/m1", params={"user_id": "u"})
+        r = outlook_client.delete("/api/integrations/outlook/emails/m1", params={"user_id": "u"})
         assert r.status_code == 200
         osvc.delete_email = AsyncMock(return_value=False)
-        assert outlook_client.delete("/api/outlook/emails/m1",
+        assert outlook_client.delete("/api/integrations/outlook/emails/m1",
                                      params={"user_id": "u"}).status_code == 500
         osvc.delete_email = AsyncMock(side_effect=RuntimeError("x"))
-        assert outlook_client.delete("/api/outlook/emails/m1",
+        assert outlook_client.delete("/api/integrations/outlook/emails/m1",
                                      params={"user_id": "u"}).status_code == 500
 
     def test_calendar(self, outlook_client, osvc):
         osvc.get_calendar_events = AsyncMock(return_value=[{"id": "e"}])
-        r = outlook_client.post("/api/outlook/calendar/events", json={"user_id": "u"})
+        r = outlook_client.post("/api/integrations/outlook/calendar/events", json={"user_id": "u"})
         assert r.status_code == 200 and r.json()["count"] == 1
         osvc.get_calendar_events = AsyncMock(side_effect=RuntimeError("x"))
-        assert outlook_client.post("/api/outlook/calendar/events",
+        assert outlook_client.post("/api/integrations/outlook/calendar/events",
                                    json={"user_id": "u"}).status_code == 500
         osvc.create_calendar_event = AsyncMock(return_value={"id": "e"})
-        r = outlook_client.post("/api/outlook/calendar/events/create",
+        r = outlook_client.post("/api/integrations/outlook/calendar/events/create",
                                 json={"user_id": "u", "subject": "s"})
         assert r.status_code == 200
         osvc.create_calendar_event = AsyncMock(return_value=None)
-        assert outlook_client.post("/api/outlook/calendar/events/create",
+        assert outlook_client.post("/api/integrations/outlook/calendar/events/create",
                                    json={"user_id": "u", "subject": "s"}
                                    ).status_code == 500
         osvc.create_calendar_event = AsyncMock(side_effect=RuntimeError("x"))
-        assert outlook_client.post("/api/outlook/calendar/events/create",
+        assert outlook_client.post("/api/integrations/outlook/calendar/events/create",
                                    json={"user_id": "u", "subject": "s"}
                                    ).status_code == 500
 
     def test_contacts(self, outlook_client, osvc):
         osvc.get_user_contacts = AsyncMock(return_value=[{"id": "c"}])
-        r = outlook_client.post("/api/outlook/contacts", json={"user_id": "u"})
+        r = outlook_client.post("/api/integrations/outlook/contacts", json={"user_id": "u"})
         assert r.status_code == 200
         osvc.get_user_contacts = AsyncMock(side_effect=RuntimeError("x"))
-        assert outlook_client.post("/api/outlook/contacts",
+        assert outlook_client.post("/api/integrations/outlook/contacts",
                                    json={"user_id": "u"}).status_code == 500
         osvc.create_contact = AsyncMock(return_value={"id": "c"})
-        r = outlook_client.post("/api/outlook/contacts/create",
+        r = outlook_client.post("/api/integrations/outlook/contacts/create",
                                 json={"user_id": "u", "display_name": "N"})
         assert r.status_code == 200
         osvc.create_contact = AsyncMock(return_value=None)
-        assert outlook_client.post("/api/outlook/contacts/create",
+        assert outlook_client.post("/api/integrations/outlook/contacts/create",
                                    json={"user_id": "u", "display_name": "N"}
                                    ).status_code == 500
         osvc.create_contact = AsyncMock(side_effect=RuntimeError("x"))
-        assert outlook_client.post("/api/outlook/contacts/create",
+        assert outlook_client.post("/api/integrations/outlook/contacts/create",
                                    json={"user_id": "u", "display_name": "N"}
                                    ).status_code == 500
 
     def test_tasks(self, outlook_client, osvc):
         osvc.get_user_tasks = AsyncMock(return_value=[{"id": "t"}])
-        r = outlook_client.post("/api/outlook/tasks", json={"user_id": "u"})
+        r = outlook_client.post("/api/integrations/outlook/tasks", json={"user_id": "u"})
         assert r.status_code == 200
         osvc.get_user_tasks = AsyncMock(side_effect=RuntimeError("x"))
-        assert outlook_client.post("/api/outlook/tasks",
+        assert outlook_client.post("/api/integrations/outlook/tasks",
                                    json={"user_id": "u"}).status_code == 500
         osvc.create_task = AsyncMock(return_value={"id": "t"})
-        r = outlook_client.post("/api/outlook/tasks/create",
+        r = outlook_client.post("/api/integrations/outlook/tasks/create",
                                 json={"user_id": "u", "subject": "s"})
         assert r.status_code == 200
         osvc.create_task = AsyncMock(return_value=None)
-        assert outlook_client.post("/api/outlook/tasks/create",
+        assert outlook_client.post("/api/integrations/outlook/tasks/create",
                                    json={"user_id": "u", "subject": "s"}
                                    ).status_code == 500
         osvc.create_task = AsyncMock(side_effect=RuntimeError("x"))
-        assert outlook_client.post("/api/outlook/tasks/create",
+        assert outlook_client.post("/api/integrations/outlook/tasks/create",
                                    json={"user_id": "u", "subject": "s"}
                                    ).status_code == 500
 
     def test_search_and_profile(self, outlook_client, osvc):
         osvc.search_emails = AsyncMock(return_value=[1])
-        r = outlook_client.post("/api/outlook/search",
+        r = outlook_client.post("/api/integrations/outlook/search",
                                 json={"user_id": "u", "query": "q"})
         assert r.status_code == 200 and r.json()["query"] == "q"
         osvc.search_emails = AsyncMock(side_effect=RuntimeError("x"))
-        assert outlook_client.post("/api/outlook/search",
+        assert outlook_client.post("/api/integrations/outlook/search",
                                    json={"user_id": "u", "query": "q"}
                                    ).status_code == 500
         osvc.get_user_profile = AsyncMock(return_value={"id": "u"})
-        r = outlook_client.get("/api/outlook/profile", params={"user_id": "u"})
+        r = outlook_client.get("/api/integrations/outlook/profile", params={"user_id": "u"})
         assert r.status_code == 200
         osvc.get_user_profile = AsyncMock(return_value=None)
-        assert outlook_client.get("/api/outlook/profile",
-                                  params={"user_id": "u"}).status_code == 404
+        # R80: GET/POST /profile now share a handler that falls back to a
+        # synthesized current-user profile instead of 404ing on None.
+        assert outlook_client.get("/api/integrations/outlook/profile",
+                                  params={"user_id": "u"}).status_code == 200
         osvc.get_user_profile = AsyncMock(side_effect=RuntimeError("x"))
-        assert outlook_client.get("/api/outlook/profile",
+        assert outlook_client.get("/api/integrations/outlook/profile",
                                   params={"user_id": "u"}).status_code == 500
 
     def test_health(self, outlook_client):
-        r = outlook_client.get("/api/outlook/health")
+        r = outlook_client.get("/api/integrations/outlook/health")
         assert r.status_code == 200 and r.json()["status"] == "healthy"
 
     def test_memory_backfill(self, outlook_client):
         with patch("integrations.outlook_integration.outlook_integration") as oi:
             oi.backfill_to_memory = AsyncMock(return_value={"job_id": "j1"})
-            r = outlook_client.post("/api/outlook/memory/backfill",
+            r = outlook_client.post("/api/integrations/outlook/memory/backfill",
                                     params={"start_date": "2026-01-01T00:00:00Z",
                                             "end_date": "2026-01-02",
                                             "limit": 10})
             assert r.status_code == 200 and r.json()["success"] is True
             oi.backfill_to_memory = AsyncMock(side_effect=RuntimeError("x"))
             assert outlook_client.post(
-                "/api/outlook/memory/backfill").status_code == 500
+                "/api/integrations/outlook/memory/backfill").status_code == 500
         # invalid date -> 500
         assert outlook_client.post(
-            "/api/outlook/memory/backfill",
+            "/api/integrations/outlook/memory/backfill",
             params={"start_date": "not-a-date"}).status_code == 500
 
     def test_backfill_status(self, outlook_client):
         with patch("core.memory_integration_mixin.MemoryIntegrationMixin"
                    ".get_job_status", return_value={"status": "running"}):
-            r = outlook_client.get("/api/outlook/memory/backfill/status/j1")
+            r = outlook_client.get("/api/integrations/outlook/memory/backfill/status/j1")
             assert r.status_code == 200
         with patch("core.memory_integration_mixin.MemoryIntegrationMixin"
                    ".get_job_status", return_value=None):
             assert outlook_client.get(
-                "/api/outlook/memory/backfill/status/j1").status_code == 404
+                "/api/integrations/outlook/memory/backfill/status/j1").status_code == 404
         with patch("core.memory_integration_mixin.MemoryIntegrationMixin"
                    ".get_job_status", side_effect=RuntimeError("x")):
             assert outlook_client.get(
-                "/api/outlook/memory/backfill/status/j1").status_code == 500
+                "/api/integrations/outlook/memory/backfill/status/j1").status_code == 500
 
 
 # ============================================================================
@@ -1201,6 +1205,12 @@ from integrations import freshdesk_routes as fr
 def fd_client():
     app = FastAPI()
     app.include_router(fr.router)
+    # R80c: freshdesk data/write routes now require authentication.
+    from core.auth import get_current_user
+    user = MagicMock()
+    user.id = "w95-fd-user"
+    user.email = "fd@x.com"
+    app.dependency_overrides[get_current_user] = lambda: user
     return TestClient(app)
 
 

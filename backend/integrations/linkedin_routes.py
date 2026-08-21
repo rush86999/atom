@@ -1,7 +1,7 @@
 from datetime import datetime
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 try:
@@ -10,6 +10,9 @@ try:
     LINKEDIN_AVAILABLE = True
 except ImportError:  # pragma: no cover - service is always present
     LINKEDIN_AVAILABLE = False
+
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +72,7 @@ async def handle_oauth_callback(auth_request: LinkedInAuthRequest):
         raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/profile")
-async def get_profile(access_token: str):
+async def get_profile(access_token: str, current_user: User = Depends(get_current_user)):
     """Get LinkedIn user profile"""
     if not LINKEDIN_AVAILABLE:
         raise HTTPException(
@@ -104,7 +107,7 @@ async def get_profile(access_token: str):
         raise HTTPException(status_code=400, detail="Internal error")
 
 @router.post("/share")
-async def share_update(access_token: str, text: str, visibility: str = "PUBLIC"):
+async def share_update(access_token: str, text: str, visibility: str = "PUBLIC", current_user: User = Depends(get_current_user)):
     """Share an update on LinkedIn"""
     if not LINKEDIN_AVAILABLE:
         raise HTTPException(

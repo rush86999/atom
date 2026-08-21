@@ -51,6 +51,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface AsanaTask {
     id: string;
@@ -175,7 +176,7 @@ const AsanaIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/asana/health");
+            const response = await fetch("/api/integrations/asana/health", { headers: authHeaders() });
             if (response.ok) {
                 setConnected(true);
                 setHealthStatus("healthy");
@@ -197,7 +198,7 @@ const AsanaIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/asana/workspaces", {
                 method: "GET",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
             });
 
             if (response.ok) {
@@ -216,7 +217,7 @@ const AsanaIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/asana/projects", {
                 method: "GET",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
             });
 
             if (response.ok) {
@@ -235,7 +236,7 @@ const AsanaIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/asana/tasks", {
                 method: "GET",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
             });
 
             if (response.ok) {
@@ -259,7 +260,7 @@ const AsanaIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/asana/teams", {
                 method: "GET",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
             });
 
             if (response.ok) {
@@ -278,7 +279,7 @@ const AsanaIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/asana/users", {
                 method: "GET",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
             });
 
             if (response.ok) {
@@ -297,7 +298,7 @@ const AsanaIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/asana/tasks", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     name: newTask.name,
                     description: newTask.description,

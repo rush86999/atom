@@ -88,3 +88,7 @@ class WorkdayService(IntegrationService):
             "message": "Configured" if has_creds else "Missing credentials",
             "last_check": datetime.now(timezone.utc).isoformat()
         }
+
+
+# Round 80c: route module imports this module-level singleton (same phantom-singleton fix as okta/zoom/plaid).
+workday_service = WorkdayService()

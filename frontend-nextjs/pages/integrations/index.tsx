@@ -603,15 +603,13 @@ const IntegrationsPage: React.FC = () => {
       const healthUrls: Record<string, string> = {
         box: "/api/integrations/box/health",
         dropbox: "/api/integrations/dropbox/health",
-        "google-drive": "/api/integrations/gdrive/health",
-        gdrive: "/api/integrations/gdrive/health",
+        "gdrive": "/api/integrations/gdrive/health",
         slack: "/api/integrations/slack/health",
         gmail: "/api/integrations/gmail/health",
         notion: "/api/integrations/notion/health",
         jira: "/api/integrations/jira/health",
         github: "/api/integrations/github/health",
         nextjs: "/api/nextjs/health",
-        vercel: "/api/nextjs/health",
         stripe: "/api/integrations/stripe/health",
         linear: "/api/integrations/linear/health",
         outlook: "/api/integrations/outlook/health",
@@ -621,13 +619,11 @@ const IntegrationsPage: React.FC = () => {
         zendesk: "/api/integrations/zendesk/health",
         xero: "/api/integrations/xero/health",
         salesforce: "/api/integrations/salesforce/health",
-        "microsoft-365": "/api/integrations/microsoft365/health",
-        microsoft365: "/api/integrations/microsoft365/health",
+        "microsoft365": "/api/integrations/microsoft365/health",
         azure: "/api/integrations/azure/health",
         teams: "/api/integrations/teams/health",
         "zoho-workdrive": "/api/zoho-workdrive/health",
-        zoho: "/api/zoho-workdrive/health",
-        // Zoho suite cards share the WorkDrive health proxy (same backend
+                // Zoho suite cards share the WorkDrive health proxy (same backend
         // process; reflects the suite's connectivity on the hub).
         "zoho-books": "/api/zoho-workdrive/health",
         "zoho-inventory": "/api/zoho-workdrive/health",
@@ -644,6 +640,11 @@ const IntegrationsPage: React.FC = () => {
         freshdesk: "/api/integrations/freshdesk/health",
         mailchimp: "/api/integrations/mailchimp/health",
         tableau: "/api/integrations/tableau/health",
+        // Round 80: probe the newer cards too (public endpoints)
+        telegram: "/api/telegram/health",
+        whatsapp: "/api/whatsapp/health",
+        shopify: "/api/integrations/shopify/health",
+        monday: "/api/monday/status",
       };
 
       const healthResults: Record<string, boolean> = {};

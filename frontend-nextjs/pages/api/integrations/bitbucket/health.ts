@@ -1,6 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Round 80: forward the caller's Authorization header to the backend
+  const fwdAuth = req.headers.authorization
+    ? { Authorization: req.headers.authorization as string }
+    : {};
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -18,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Forward health check to backend
     const backendResponse = await fetch('http://localhost:8000/api/bitbucket/health', {
       method: 'GET',
-      headers: {
+      headers: { ...fwdAuth,
         'Authorization': `Bearer ${access_token}`,
         'Content-Type': 'application/json'
       }

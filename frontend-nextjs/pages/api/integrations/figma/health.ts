@@ -4,11 +4,16 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5059';
+  // Round 80: forward the caller's Authorization header to the backend
+  const fwdAuth = req.headers.authorization
+    ? { Authorization: req.headers.authorization as string }
+    : {};
+
+  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://127.0.0.1:8000';
 
   if (req.method === 'GET') {
     try {
-      const response = await fetch(`${backendUrl}/api/integrations/figma/health`);
+      const response = await fetch(`${backendUrl}/api/integrations/figma/health`, { headers: { ...fwdAuth } });
       const data = await response.json();
 
       return res.status(200).json(data);

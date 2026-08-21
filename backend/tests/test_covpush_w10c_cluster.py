@@ -403,8 +403,16 @@ class TestEnvFlags:
 
         monkeypatch.delenv("ATOM_FLEET_ROUTING_ENABLED", raising=False)
         monkeypatch.delenv("ATOM_FLEET_ROUTING_FORCE_ENFORCE", raising=False)
-        assert fleet_routing_enabled() is False
+        # Default flipped to ON-shadow on 2026-08-21 (recruitment+audit run;
+        # responses still come from Queen→ReAct unless FORCE_ENFORCE).
+        assert fleet_routing_enabled() is True
         assert fleet_routing_force_enforce() is False
+
+    def test_fleet_routing_kill_switch(self, monkeypatch):
+        from core.fleet_routing_config import fleet_routing_enabled
+
+        monkeypatch.setenv("ATOM_FLEET_ROUTING_ENABLED", "false")
+        assert fleet_routing_enabled() is False
 
     def test_fleet_routing_env_matrix(self, monkeypatch):
         from core.fleet_routing_config import (

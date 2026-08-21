@@ -250,8 +250,8 @@ ActionJudge stays opt-in (`ATOM_SANDBOX_JUDGE_ENABLED`). Flags live in
 | `ATOM_TEMPORALITY_ENABLED` | `true` | — | Temporal Evolution: ingestion-side date-anchor extraction (`temporal_entities`/`as_of`/`temporal_axis` on ingested records) feeding the bi-temporal graph reads (`edges_as_of`, expansion cutoffs, community windows, `local_search`/`global_search` `as_of`). See docs/architecture/TEMPORAL_EVOLUTION.md. |
 | `ATOM_REVIEWER_LOOP_ENABLED` | `false` | — | Reviewer re-delegation loop (W3/P4c): a REVIEW rejection re-delegates the step to the originating specialist with feedback (parking the workflow RUNNING→WAITING) instead of folding into the voting fallback. |
 | `ATOM_MOA_DIVERSITY_ENABLED` | `false` | — | Diversity-aware MoA init (W3/P4a): rotate per-sample perspective overlays and modulate the aggregator instruction by cross-sample agreement. Off = legacy byte-identical aggregator prompt. |
-| `ATOM_FLEET_ROUTING_ENABLED` | `false` | — | Route TASK intents through the governed fleet path (`route_with_governance` → `FleetAdmiral`). Default OFF — live-traffic behavior change; flip on after validation. |
-| `ATOM_FLEET_ROUTING_FORCE_ENFORCE` | `false` | — | Shadow mode for fleet routing: when on, return the recruitment summary; when off (default), compute telemetry but fall through to Queen→ReAct. |
+| `ATOM_FLEET_ROUTING_ENABLED` | `true` | — | Route TASK intents through the governed fleet path (`route_with_governance` → `FleetAdmiral`). Default ON since 2026-08-21 in **shadow** mode: recruitment + audit run on every eligible TASK, responses still come from Queen→ReAct. Set `false` for full kill-switch parity with pre-fleet behavior. |
+| `ATOM_FLEET_ROUTING_FORCE_ENFORCE` | `false` | — | Live-mode for fleet routing: when true, return the recruitment summary directly instead of falling through to Queen→ReAct. When false (default), telemetry-only. |
 | `ATOM_MOA_ENABLED` | `true` | — | Mixture-of-Agents on hard structured tasks (Workstream F). |
 | `ATOM_MOA_SAMPLES` | `3` | — | Samples drawn per MoA vote (min 2). |
 | `ATOM_PARALLEL_TOOLS` | `true` | — | In-loop parallel tool execution (Workstream G). |
@@ -379,6 +379,11 @@ in [`backend/.env.example`](../../backend/.env.example) §10–§20.
 | `TELEGRAM_POLLING_ENABLED` | `false` | — | Long-poll `getUpdates` instead of a webhook. **No public URL/domain/tunnel needed** — NAT-friendly, recommended for Personal Edition. Mutually exclusive with webhook mode; the worker deletes any registered webhook on startup. See [IM Adapter Setup](../integrations/IM_ADAPTER_SETUP.md). |
 | `TELEGRAM_WEBHOOK_URL` | unset | webhook mode | Public HTTPS URL Telegram pushes updates to. |
 | `ATOM_TELEGRAM_WEBHOOK_SECRET` | unset | webhook mode | Fail-closed shared secret; Telegram sends it as `X-Telegram-Bot-Api-Secret-Token`. Requests without a match are rejected. |
+| `ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING` | `confidential` | — | Recall ceiling for prompt assembly: facts above it (public < internal < confidential < restricted) never surface into prompts sent to LLM providers. `none` disables; invalid values fall back to the safe default. |
+| `ATOM_MEMORY_POISON_TRIPWIRE` | `true` | — | Write-path governance for turn facts: a source superseding ≥5 facts within 10 min gets its writes quarantined (`status="quarantined"`, excluded from recall) for 30 min — memory-injection defense. `false` disables. |
+| `DISCORD_GATEWAY_ENABLED` | `false` | worker mode | Real-time Discord ingestion: connects the gateway WebSocket (bot token required) and routes MESSAGE_CREATE through `ingest_message("discord", …)` — closes the interactions-only bridge gap. |
+| `DISCORD_BOT_TOKEN` | unset | — | Discord bot token; also used by the gateway client (required when the gateway is enabled). |
+| `ZENDESK_WEBHOOK_SECRET` | unset | webhook mode | Fail-closed HMAC key for `POST /webhooks/zendesk/events`: requests carry `X-Zendesk-Webhook-Signature` (base64 HMAC-SHA256 over the raw body). Unset → 503; mismatch → 401. Ticket comments flow to both memory pipelines via `ingest_message("zendesk", …)`. |
 | `TELEGRAM_BOT_USERNAME` | unset | — | Bot @username, informational. |
 
 ### Turn-time memory retrieval (Memory Context Assembler)

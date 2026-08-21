@@ -297,7 +297,8 @@ def safe_import_router(module_path: str, router_name: str = "router"):
 
 analytics_router = safe_import_router("core.analytics_endpoints")
 workspace_router = safe_import_router("api.workspace_routes")
-risk_router = safe_import_router("api.risk_routes")
+# risk_routes was never included (dead import removed, round 80f) — the
+# orphaned router stays unmounted by design; see docs/INTEGRATIONS_JOURNEY_AUDIT.md §4.4
 template_router = safe_import_router("api.workflow_template_routes")
 entity_type_router = safe_import_router("api.entity_type_routes")
 multi_entity_extraction_router = safe_import_router("core.multi_entity_extraction_routes")
@@ -714,6 +715,18 @@ async def lifespan(app: FastAPI):
                     logger.info("✓ Memory assembler warmed")
 
                 _spawn_background_task(_warm_assembler())
+
+            # 8c-bis. Discord Gateway client — real-time MESSAGE_CREATE
+            # ingestion (P0.4 §7 follow-up). Gated: requires
+            # DISCORD_GATEWAY_ENABLED=true AND DISCORD_BOT_TOKEN; messages
+            # flow through ingest_message like every other comm source.
+            try:
+                from integrations.discord_gateway import maybe_start_from_env
+
+                if maybe_start_from_env():
+                    logger.info("✓ Discord Gateway client running (real-time message ingestion)")
+            except Exception as dg_err:
+                logger.warning(f"Discord Gateway start skipped: {dg_err}")
 
             # 8d. Memory consolidation worker (P2.1): nightly rule-based
             # consolidation — contradiction sweeps + supersede — always off
@@ -1432,6 +1445,30 @@ if not is_test_mode:
         except Exception as e:
             logger.error(f"  ✗ Forced registration failed for {mod}: {e}")
 
+# --- FORCED JOURNEY ROUTER REGISTRATION (Round 80b) ---
+# dropbox/gitlab/monday/telegram/whatsapp/xero ship hub pages + OAuth flows
+# (docs/INTEGRATIONS_JOURNEY_AUDIT.md §3 F1/F2) but were registry-LAZY, so
+# their real /api/{app}/* routes were shadowed by the legacy health stub
+# (api_legacy_health.py, mounted last) with fake data — and a missing logger
+# in that stub's broadcast path turned EVERY /api/{app}/status into a 500.
+# Mount them at their DECLARED root prefixes so real endpoints resolve and
+# precede the stub (FastAPI matches routes in registration order). The real
+# routers win; the legacy stub stays for apps that remain stub-only.
+if not is_test_mode:
+    journey_modules = ("dropbox", "gitlab", "monday", "telegram", "whatsapp", "xero")
+    for mod in journey_modules:
+        try:
+            if mod not in _loaded_integrations:
+                router = load_integration(mod, registry="api_routers")
+                if router and isinstance(router, APIRouter):
+                    # Router declares its own root prefix (/api/xero, ...): no
+                    # additional prefix — mirrors slack's root handling (line 1272).
+                    app.include_router(router, tags=[mod])
+                    _loaded_integrations.add(mod)
+                    logger.info(f"  ✓ {mod} (journey root mount)")
+        except Exception as e:
+            logger.error(f"  ✗ Journey registration failed for {mod}: {e}")
+
 
 @app.get("/api/debug/integrations")
 async def debug_integrations(current_user: User = Depends(get_current_user)):
@@ -1931,6 +1968,15 @@ async def auto_load_integration_middleware(request, call_next):
                             if integration_name == "outlook":
                                 prefix = "/api/integrations/outlook"
                             elif integration_name in CORE_API_MODULES:
+                                prefix = ""
+                            elif str(getattr(router, "prefix", "")).startswith("/api/"):
+                                # Round 80c: routers that declare their own root
+                                # prefix (discord /api/discord, telegram
+                                # /api/telegram, …) must mount UNPREFIXED — the
+                                # unified v1 prefix double-prefixed every route
+                                # (/api/v1/integrations/discord/api/discord/…)
+                                # and 404'd the real surface. Mirrors slack's
+                                # root handling (line ~1272).
                                 prefix = ""
                             else:
                                 prefix = f"/api/v1/integrations/{integration_name.replace('_', '-')}"
@@ -2559,9 +2605,10 @@ try:
 
         app.include_router(teams_router, prefix="/api/v1/integrations/teams")
 
-        from integrations.telegram_routes import router as telegram_router
-
-        app.include_router(telegram_router, prefix="/api/v1/integrations/telegram")
+        # telegram_routes declares its own /api/telegram prefix — the unified
+        # v1 prefix here double-prefixed every route and shadowed nothing but
+        # confusion. Root-mounted by the journey block (round 80b); the bogus
+        # duplicate was removed in round 80i (mirrors discord, round 80d).
 
         # Legacy WhatsApp router removed - Consolidated into hardened router below
 
@@ -2581,10 +2628,10 @@ try:
 
         app.include_router(salesforce_router, prefix="/api/v1/integrations/salesforce")
 
-
-        from integrations.discord_routes import router as discord_router
-
-        app.include_router(discord_router, prefix="/api/v1/integrations/discord")
+        # discord_routes declares its own /api/discord prefix — the unified v1
+        # prefix here double-prefixed every route
+        # (/api/v1/integrations/discord/api/discord/...) and 404'd the real
+        # surface. It now auto-loads unprefixed via the middleware (round 80c).
 
         from integrations.trello_routes import router as trello_router
 
@@ -3021,6 +3068,18 @@ try:
         logger.info("✓ Canvas Recording Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas recording routes not found: {e}")
+
+    try:
+        # Round 80f: meeting attendance had a real frontend consumer
+        # (pages/api/meeting_attendance_status/[taskId].ts proxies
+        # /api/meetings/attendance/{taskId}) but the router was never
+        # mounted — the journey 404'd end-to-end. Fully auth-gated.
+        from api.meeting_routes import router as meeting_router
+
+        app.include_router(meeting_router)
+        logger.info("✓ Meeting Routes Loaded (attendance tracking)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Meeting routes not found: {e}")
 
     # --- PORTED FEATURES ---
     try:
@@ -3684,6 +3743,15 @@ try:
         logger.info("✓ Stage Router Management Routes Loaded")
     except (ImportError, NameError) as e:
         logger.warning(f"Stage router management routes failed to load: {e}")
+
+    # 40. Fleet Router Management Routes (validation + approval queue)
+    try:
+        from api.fleet_router_routes import router as fleet_router_mgmt_router
+
+        app.include_router(fleet_router_mgmt_router)
+        logger.info("✓ Fleet Router Management Routes Loaded")
+    except (ImportError, NameError) as e:
+        logger.warning(f"Fleet router management routes failed to load: {e}")
 
     logger.info("✓ Core Routes Loaded Successfully")
 

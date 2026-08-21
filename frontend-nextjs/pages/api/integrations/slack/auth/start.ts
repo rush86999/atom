@@ -4,12 +4,17 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
+  // Round 80: forward the caller's Authorization header to the backend
+  const fwdAuth = req.headers.authorization
+    ? { Authorization: req.headers.authorization as string }
+    : {};
+
   const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || "";
 
   try {
     // Start OAuth flow
     const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || "";
-    const response = await fetch(`${backendUrl}/api/slack/auth/url`);
+    const response = await fetch(`${backendUrl}/api/slack/auth/url`, { headers: { ...fwdAuth } });
 
     if (response.ok) {
       const data = await response.json();

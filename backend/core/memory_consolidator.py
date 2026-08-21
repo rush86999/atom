@@ -30,7 +30,7 @@ import logging
 import os
 import re
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from core.turn_fact_categories import ALL_FACT_CATEGORIES as _FACT_CATEGORIES
@@ -138,15 +138,114 @@ def consolidate_turn_facts(workspace_id: str) -> Dict[str, int]:
     return {"superseded": superseded}
 
 
+_ERASED_TEXT = "[erased per retention policy]"
+
+
+def _retention_days(retention_days: Optional[int] = None) -> int:
+    """Explicit param wins; else env TURN_FACT_RETENTION_DAYS (0 = disabled)."""
+    if retention_days is not None:
+        return int(retention_days)
+    return int(os.getenv("TURN_FACT_RETENTION_DAYS", "0") or 0)
+
+
+def apply_retention_policy(
+    workspace_id: str,
+    retention_days: Optional[int] = None,
+    db: Optional[Any] = None,
+    now: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """
+    Retention sweep (rev.2 #2): invalidate ACTIVE facts older than the
+    cutoff, anonymizing their text (right-to-erasure compatible while
+    preserving audit rows). Disabled when cutoff <= 0 (default). Never raises.
+    """
+    invalidated = 0
+    days = _retention_days(retention_days)
+    if days <= 0:
+        return {"workspace": workspace_id, "invalidated": 0, "disabled": True}
+    cutoff = (now or datetime.now(timezone.utc)) - timedelta(days=days)
+    try:
+        from core.database import get_db_session
+        from core.models import TurnFact
+
+        with (db if db is not None else get_db_session()) as session:
+            stale = session.query(TurnFact).filter(
+                TurnFact.workspace_id == workspace_id,
+                TurnFact.status == "active",
+                TurnFact.created_at < cutoff,
+            ).all()
+            for r in stale:
+                r.fact_text = _ERASED_TEXT
+                r.tags = None
+                r.status = "invalidated"
+                invalidated += 1
+            if db is None:
+                session.commit()
+            else:
+                session.commit()
+    except Exception as e:
+        logger.error(f"apply_retention_policy failed: {e}")
+        return {"workspace": workspace_id, "invalidated": 0, "error": str(e)}
+    return {"workspace": workspace_id, "invalidated": invalidated}
+
+
+def purge_user_facts(
+    workspace_id: str,
+    user_id: str,
+    hard: bool = False,
+    db: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """
+    Right-to-erasure for one user's facts (GDPR Art. 17 style).
+    soft (default): anonymize text + invalidate — row preserved for audit.
+    hard=True: DELETE rows entirely (legal hold is the caller's judgment).
+    Never raises.
+    """
+    purged = deleted = 0
+    try:
+        from core.database import get_db_session
+        from core.models import TurnFact
+
+        with (db if db is not None else get_db_session()) as session:
+            rows = session.query(TurnFact).filter(
+                TurnFact.workspace_id == workspace_id,
+                TurnFact.user_id == user_id,
+            ).all()
+            if hard:
+                for r in rows:
+                    session.delete(r)
+                    deleted += 1
+            else:
+                now = datetime.now(timezone.utc)
+                for r in rows:
+                    r.fact_text = _ERASED_TEXT
+                    r.tags = None
+                    r.status = "invalidated"
+                    r.superseded_at = now
+                    purged += 1
+            if db is None:
+                session.commit()
+            else:
+                session.commit()
+    except Exception as e:
+        logger.error(f"purge_user_facts failed: {e}")
+        return {"workspace": workspace_id, "user_id": user_id,
+                "purged": 0, "deleted": 0, "error": str(e)}
+    return {"workspace": workspace_id, "user_id": user_id,
+            "purged": purged, "deleted": deleted}
+
+
 def consolidate_workspace(workspace_id: str = "default") -> Dict[str, Any]:
     """Run all consolidation rules for a workspace. Never raises."""
     started = datetime.utcnow()
     edge_report = consolidate_edges(workspace_id)
     fact_report = consolidate_turn_facts(workspace_id)
+    retention_report = apply_retention_policy(workspace_id)
     return {
         "workspace": workspace_id,
         "edges_invalidated": edge_report["invalidated"],
         "facts_superseded": fact_report["superseded"],
+        "facts_expired": retention_report.get("invalidated", 0),
         "ran_at": started.isoformat(),
     }
 

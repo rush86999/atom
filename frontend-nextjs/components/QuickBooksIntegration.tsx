@@ -57,6 +57,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface QuickBooksCustomer {
     Id: string;
@@ -369,7 +370,7 @@ const QuickBooksIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/quickbooks/health");
+            const response = await fetch("/api/integrations/quickbooks/health", { headers: authHeaders() });
             if (response.ok) {
                 setConnected(true);
                 setHealthStatus("healthy");
@@ -397,7 +398,7 @@ const QuickBooksIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/quickbooks/company", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                 }),
@@ -419,7 +420,7 @@ const QuickBooksIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/quickbooks/customers", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -447,7 +448,7 @@ const QuickBooksIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/quickbooks/invoices", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -470,7 +471,7 @@ const QuickBooksIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/quickbooks/bills", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -493,7 +494,7 @@ const QuickBooksIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/quickbooks/accounts", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -516,7 +517,7 @@ const QuickBooksIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/quickbooks/employees", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -539,7 +540,7 @@ const QuickBooksIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/quickbooks/vendors", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -564,7 +565,7 @@ const QuickBooksIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/quickbooks/customers/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     ...customerForm,
@@ -618,7 +619,7 @@ const QuickBooksIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/quickbooks/invoices/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     ...invoiceForm,
@@ -664,7 +665,7 @@ const QuickBooksIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/quickbooks/bills/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     ...billForm,

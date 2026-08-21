@@ -58,6 +58,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface MSTeams {
     id: string;
@@ -308,7 +309,7 @@ const TeamsIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/teams/health");
+            const response = await fetch("/api/integrations/teams/health", { headers: authHeaders() });
             if (response.ok) {
                 setConnected(true);
                 setHealthStatus("healthy");
@@ -333,7 +334,7 @@ const TeamsIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/teams/profile", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                 }),
@@ -355,7 +356,7 @@ const TeamsIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/teams/teams", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -385,7 +386,7 @@ const TeamsIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/teams/channels", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     team_id: teamId || currentTeam?.id,
@@ -411,7 +412,7 @@ const TeamsIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/teams/messages", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     team_id: currentTeam?.id,
@@ -436,7 +437,7 @@ const TeamsIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/teams/meetings", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     start_date: new Date().toISOString(),
@@ -463,7 +464,7 @@ const TeamsIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/teams/users", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -488,7 +489,7 @@ const TeamsIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/teams/teams/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     displayName: teamForm.name,
@@ -530,7 +531,7 @@ const TeamsIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/teams/channels/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     team_id: currentTeam.id,
@@ -571,7 +572,7 @@ const TeamsIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/teams/messages/send", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     team_id: currentTeam?.id,
@@ -627,7 +628,7 @@ const TeamsIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/teams/meetings/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     subject: meetingForm.subject,

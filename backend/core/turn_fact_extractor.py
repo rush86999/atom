@@ -188,6 +188,61 @@ class _TTLSet:
 
 
 # ---------------------------------------------------------------------------
+# Poisoning tripwire (write-path governance): a source that repeatedly
+# SUPERSEDES established facts is treated as a memory-injection vector —
+# one bad write pollutes recall for every downstream step. After
+# ``_POISON_SUPERSEDE_LIMIT`` supersessions within the window, subsequent
+# writes from that source land as status="quarantined" (kept for audit,
+# excluded from active-recall). Self-heals after the quarantine window.
+# Kill switch: ATOM_MEMORY_POISON_TRIPWIRE=false.
+_POISON_SUPERSEDE_LIMIT = 5
+_POISON_WINDOW_S = 600.0        # supersession counting window (10 min)
+_POISON_QUARANTINE_S = 1800.0   # quarantine duration (30 min)
+
+_poison_state: Dict[str, List[float]] = {}      # source_key -> supersede timestamps
+_poison_quarantined: Dict[str, float] = {}      # source_key -> quarantined-at
+
+
+def _poison_enabled() -> bool:
+    import os
+
+    return os.getenv("ATOM_MEMORY_POISON_TRIPWIRE", "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _poison_source_key(user_id, execution_id, session_id) -> str:
+    return f"{user_id or 'anon'}:{execution_id or 'noexec'}:{session_id or 'nosess'}"
+
+
+def _poison_check_supersession(source_key: str, now: float) -> None:
+    """Record a supersession; trip the quarantine when over the limit."""
+    stamps = [t for t in _poison_state.get(source_key, []) if now - t < _POISON_WINDOW_S]
+    stamps.append(now)
+    _poison_state[source_key] = stamps
+    if len(stamps) >= _POISON_SUPERSEDE_LIMIT:
+        _poison_quarantined[source_key] = now
+        logger.warning(
+            "POISON TRIPWIRE: source %s superseded %d facts within %.0fs — "
+            "quarantining its writes for %.0fs",
+            source_key, len(stamps), _POISON_WINDOW_S, _POISON_QUARANTINE_S,
+        )
+
+
+def _poison_is_quarantined(source_key: str, now: float) -> bool:
+    """True while inside the quarantine window. Self-heals + prunes."""
+    q_at = _poison_quarantined.get(source_key)
+    if q_at is None:
+        return False
+    if now - q_at >= _POISON_QUARANTINE_S:
+        _poison_quarantined.pop(source_key, None)
+        _poison_state.pop(source_key, None)
+        logger.info("Poison quarantine expired for %s — writes resume", source_key)
+        return False
+    return True
+
+
+# ---------------------------------------------------------------------------
 # Extraction prompt — Mem0's 5 categories verbatim, strict output contract
 # ---------------------------------------------------------------------------
 _EXTRACTION_PROMPT = """You extract DURABLE facts from a single agent turn. A durable fact is something that is:
@@ -212,11 +267,17 @@ RULES:
 - Do NOT extract generic paraphrases ("the user said X" → drop).
 - Each fact must fit EXACTLY ONE category. Use the literal category string.
 - State the fact as a self-contained sentence (no pronouns, no "as mentioned").
+- For EACH fact set "epistemic" to how it is known:
+    "stated"  — a source explicitly said/wrote it (user message, document,
+                committed value). Default when unsure.
+    "inferred" — the AGENT concluded it from signals (a pattern across
+                 observations, a guess about preference). Never mark a fact
+                 "inferred" just because it is about the future.
 - Maximum {max_facts} facts, ranked by durability. If none qualify, return [].
 
 Return a JSON array (and NOTHING else):
 [
-  {{"fact": "...", "category": "exact_value", "domain": "finance", "confidence": 0.9}},
+  {{"fact": "...", "category": "exact_value", "domain": "finance", "confidence": 0.9, "epistemic": "stated"}},
   ...
 ]
 
@@ -404,12 +465,18 @@ class TurnFactExtractor:
             category = (item.get("category") or "").strip()
             if not fact_text or category not in ALL_FACT_CATEGORIES:
                 continue
+            # Source attribution (survey §7.3): how we know it. Invalid or
+            # missing → "stated" (conservative: treat as source-said).
+            epistemic = (item.get("epistemic") or "stated").strip().lower()
+            if epistemic not in ("stated", "inferred"):
+                epistemic = "stated"
             facts.append(
                 {
                     "fact_text": fact_text,
                     "category": category,
                     "domain": (item.get("domain") or "general").strip()[:64],
                     "confidence": _coerce_confidence(item.get("confidence", 0.8)),
+                    "epistemic_type": epistemic,
                     "tags": item.get("tags") if isinstance(item.get("tags"), list) else None,
                 }
             )
@@ -427,6 +494,7 @@ class TurnFactExtractor:
                 category=f["category"],
                 domain=f["domain"],
                 confidence=f["confidence"],
+                epistemic_type=f["epistemic_type"],
                 tags=f["tags"],
                 extraction_source=extraction_source,
                 execution_id=execution_id,
@@ -464,10 +532,18 @@ class TurnFactExtractor:
         episode_id: Optional[str],
         session_id: Optional[str],
         user_id: Optional[str],
+        epistemic_type: str = "stated",
+        sensitivity: str = "internal",
         _skip_antithrash: bool = False,
     ) -> Optional[TurnFact]:
         """Insert with dedup. Returns the canonical row (newly inserted or updated existing)."""
         content_hash = compute_content_hash(self.workspace_id, fact_text)
+
+        # Poisoning tripwire — a quarantined source may not add facts or
+        # overwrite established ones (kept for audit as status="quarantined").
+        now_ts = time.time()
+        source_key = _poison_source_key(user_id, execution_id, session_id)
+        quarantined = _poison_enabled() and _poison_is_quarantined(source_key, now_ts)
 
         # Anti-thrashing — a recent write is already in flight for this hash.
         # Skipped for explicit agent-initiated writes (memory_remember tool),
@@ -502,8 +578,10 @@ class TurnFactExtractor:
                         domain=domain,
                         tags=tags,
                         confidence=confidence,
+                        epistemic_type=epistemic_type,
+                        sensitivity=sensitivity,
                         content_hash=content_hash,
-                        status="active",
+                        status="quarantined" if quarantined else "active",
                         # P3d: versioning — initial commit on the main branch.
                         parent_id=None,
                         commit_message="created",
@@ -522,7 +600,14 @@ class TurnFactExtractor:
                     self._recent_hashes.add(content_hash)
                     return row
 
-                # Collision — supersede or EWMA bump
+                # Collision — supersede or EWMA bump.
+                # Quarantined sources must not overwrite established facts.
+                if quarantined:
+                    logger.warning(
+                        "Poison quarantine: dropping conflicting write from %s",
+                        source_key,
+                    )
+                    return None
                 if confidence > (existing.confidence or 0.0) + _CONFIDENCE_BEAT_MARGIN:
                     # New fact meaningfully stronger — supersede + insert
                     existing.status = "superseded"
@@ -544,6 +629,8 @@ class TurnFactExtractor:
                         domain=domain,
                         tags=tags,
                         confidence=confidence,
+                        epistemic_type=epistemic_type,
+                        sensitivity=sensitivity,
                         content_hash=content_hash,
                         status="active",
                         # P3d: the new row is a commit whose parent is the
@@ -558,6 +645,8 @@ class TurnFactExtractor:
                     db.commit()
                     db.refresh(row)
                     self._recent_hashes.add(content_hash)
+                    if _poison_enabled():
+                        _poison_check_supersession(source_key, now_ts)
                     return row
 
                 # Else: confidence close — EWMA bump + touch created_at
@@ -804,6 +893,38 @@ def get_turn_fact_extractor(
 
 
 # ---------------------------------------------------------------------------
+# Sensitivity ceiling (P4 alignment): recall-time enforcement so restricted
+# facts never surface into prompts destined for external providers.
+# Unknown values are treated as RESTRICTED (conservative — excluded under
+# any non-trivial ceiling).
+# ---------------------------------------------------------------------------
+SENSITIVITY_RANK = {"public": 0, "internal": 1, "confidential": 2, "restricted": 3}
+
+
+def _sensitivity_rank(value: Optional[str]) -> int:
+    return SENSITIVITY_RANK.get((value or "").strip().lower(), 3)
+
+
+def prompt_sensitivity_ceiling() -> Optional[str]:
+    """
+    Default sensitivity ceiling for prompt-assembly recall. Aligned with the
+    P4 external-outbound posture (restricted data never heads outbound), so
+    the default is "confidential" — excluding restricted facts from prompts.
+    Env override ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING:
+      public | internal | confidential | restricted | none
+    Invalid values fall back to the safe default.
+    """
+    import os
+
+    raw = os.getenv(
+        "ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING", "confidential"
+    ).strip().lower()
+    if raw in ("", "none", "off"):
+        return None
+    return raw if raw in SENSITIVITY_RANK else "confidential"
+
+
+# ---------------------------------------------------------------------------
 # Tier-1 retrieval helper — pure SQL, used in prompt assembly
 # ---------------------------------------------------------------------------
 def get_active_facts_for_prompt(
@@ -811,6 +932,9 @@ def get_active_facts_for_prompt(
     workspace_id: str,
     limit: int = 5,
     categories: Optional[Tuple[str, ...]] = None,
+    epistemic_type: Optional[str] = None,
+    prioritize_stated: bool = False,
+    max_sensitivity: Optional[str] = None,
 ) -> List[TurnFact]:
     """
     Pure-SQL Tier-1 recall. Latency ~1-3ms SQLite, sub-ms Postgres.
@@ -818,6 +942,21 @@ def get_active_facts_for_prompt(
 
     Optional ``categories`` filter — pass a subset of FactCategory values to
     restrict (e.g. hard constraints only).
+
+    Optional ``epistemic_type`` filter ("stated" | "inferred") — restrict to
+    one source-attribution class.
+
+    Optional ``max_sensitivity`` — recall-time enforcement (P4 alignment):
+    facts above the ceiling (public < internal < confidential < restricted)
+    are excluded, closing the exfiltration path where a restricted fact
+    surfaces into a prompt headed for an external provider. None (default)
+    keeps legacy behavior.
+
+    ``prioritize_stated=True`` applies the source-attribution policy (survey
+    §7.3: user-statement attribution outranks confidence): stated facts sort
+    before inferred facts as a tertiary key after recency, so an equally
+    recent inference never displaces a stated fact. Default False keeps the
+    legacy ordering byte-compatible.
     """
     try:
         q = db.query(TurnFact).filter(
@@ -826,11 +965,38 @@ def get_active_facts_for_prompt(
         )
         if categories:
             q = q.filter(TurnFact.category.in_(categories))
-        return (
-            q.order_by(TurnFact.created_at.desc(), TurnFact.confidence.desc())
-            .limit(limit)
-            .all()
-        )
+        if epistemic_type:
+            q = q.filter(TurnFact.epistemic_type == epistemic_type)
+        if max_sensitivity:
+            # Sensitivity ranks aren't portable SQL; filter candidates in
+            # Python, preserving whichever ordering was requested.
+            ceiling = _sensitivity_rank(max_sensitivity)
+            rows = [
+                r for r in q.all()
+                if _sensitivity_rank(r.sensitivity) <= ceiling
+            ]
+
+            def _sort_key(r: TurnFact):
+                stated_first = 0 if (r.epistemic_type or "stated") == "stated" else 1
+                ts = r.created_at.timestamp() if r.created_at else 0.0
+                conf = r.confidence or 0.0
+                if prioritize_stated:
+                    return (stated_first, -ts, -conf)
+                return (-ts, -conf)
+
+            return sorted(rows, key=_sort_key)[:limit]
+        if prioritize_stated:
+            # stated(0) before inferred(1), then recency, then confidence
+            q = q.order_by(
+                TurnFact.epistemic_type.desc(),  # "stated" > "inferred" lexically
+                TurnFact.created_at.desc(),
+                TurnFact.confidence.desc(),
+            )
+        else:
+            q = q.order_by(
+                TurnFact.created_at.desc(), TurnFact.confidence.desc()
+            )
+        return q.limit(limit).all()
     except Exception as e:
         logger.warning("get_active_facts_for_prompt failed: %s", e)
         return []
@@ -846,6 +1012,7 @@ def prefetch_relevant_facts(
     workspace_id: str,
     query: str,
     limit: int = 5,
+    max_sensitivity: Optional[str] = None,
 ) -> List[TurnFact]:
     """
     Tier-2 recall — called ONCE at execute() entry (not per ReAct step, to avoid
@@ -881,6 +1048,12 @@ def prefetch_relevant_facts(
                 )
                 .all()
             )
+            if max_sensitivity:
+                ceiling = _sensitivity_rank(max_sensitivity)
+                rows = [
+                    r for r in rows
+                    if _sensitivity_rank(r.sensitivity) <= ceiling
+                ]
             # Preserve relevance order from LanceDB
             order = {rid: i for i, rid in enumerate(ids)}
             rows.sort(key=lambda r: order.get(r.id, 999))

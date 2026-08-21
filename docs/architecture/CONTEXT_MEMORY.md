@@ -156,6 +156,65 @@ Postgres enforces "at most one active row per (workspace, hash)" via a **partial
 
 ---
 
+## Source Attribution & Sensitivity (2026-08-21)
+
+Two columns on `turn_facts` implementing the re-ranked memory-hardening plan
+(P0.4 §7; survey arXiv:2603.07670 §7.3 — "source attribution (user statement ≫
+agent inference) outranks confidence"):
+
+- **`epistemic_type`** — `"stated"` (a source explicitly said it) vs
+  `"inferred"` (the agent concluded it). The extraction prompt classifies per
+  fact; invalid/missing → `"stated"` (conservative). Recall:
+  `get_active_facts_for_prompt(..., epistemic_type=…)` filters;
+  `prioritize_stated=True` sorts stated before inferred as a tertiary key
+  after recency — an equally-recent inference never displaces a stated fact.
+  Default ordering unchanged.
+- **`sensitivity`** — P4 data-taint vocabulary (`public|internal|
+  confidential|restricted`, default `internal`). **Recall-time enforcement is
+  live**: `get_active_facts_for_prompt(..., max_sensitivity=…)` and
+  `prefetch_relevant_facts(..., max_sensitivity=…)` exclude facts above the
+  ceiling (unknown values rank as restricted — conservative). Default: the
+  `prompt_sensitivity_ceiling()` policy — env
+  `ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING` (default `confidential`, aligned
+  with P4's restricted-never-outbound posture; `none` disables; invalid
+  falls back to safe default). Wired into both meta-agent recall sites
+  (vector prefetch + Tier-1 durable facts).
+
+## Retention & Erasure (write-path governance, 2026-08-21)
+
+- **Retention sweep** — `apply_retention_policy(workspace_id)`: invalidates
+  ACTIVE facts older than `TURN_FACT_RETENTION_DAYS` (env, default 0 =
+  disabled), anonymizing text to `[erased per retention policy]` — rows
+  preserved for the audit trail, excluded from recall. Wired into
+  `consolidate_workspace` (the 6-hourly worker) as `facts_expired`.
+- **Right-to-erasure** — `purge_user_facts(workspace_id, user_id)`:
+  soft (default) anonymizes + invalidates that user's facts; `hard=True`
+  DELETEs rows entirely (legal-hold judgment is the caller's).
+
+Both never raise; both live in `core/memory_consolidator.py`.
+
+---
+## Poisoning Tripwire (write-path governance, 2026-08-21)
+
+A source (user_id+execution_id+session) that supersedes **5 facts within
+10 minutes** is treated as a memory-injection vector — one bad write
+pollutes recall for every downstream step. Its subsequent writes land as
+`status="quarantined"` (kept for audit, excluded from active recall) for
+**30 minutes**, and conflicting writes against established facts are
+dropped outright while quarantined. Self-heals after the window; kill
+switch `ATOM_MEMORY_POISON_TRIPWIRE=false`. State is in-process
+(module-level TTL maps) — per-worker, not shared.
+
+---
+Eval: `core/memory_eval_conversation.py` — golden-QA over the turn-fact store
+(synthetic multi-session conversation → 5 questions pinning single-hop recall,
+update/supersession, stated-over-inferred ordering, epistemic filtering), CI
+gate `tests/test_memory_eval_conversation_gate.py` (baseline 5/5). It measures
+STORE + RECALL correctness; ingestion bypasses the LLM extractor, so extraction
+quality remains unmeasured (live-LLM runs required for that).
+
+---
+
 ## Failure Modes → Mitigations
 
 | Failure | Mitigation |

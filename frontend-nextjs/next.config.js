@@ -100,6 +100,33 @@ const nextConfig = {
         source: "/api/integrations/:path*",
         destination: "http://127.0.0.1:8000/api/integrations/:path*",
       },
+      // Round 80b: journey pages (dropbox/telegram/gitlab/xero/monday/whatsapp)
+      // call these bare prefixes; the backend boot-mounts the real routers at
+      // these exact paths (main_api_app.py "FORCED JOURNEY ROUTER REGISTRATION").
+      {
+        source: "/api/dropbox/:path*",
+        destination: "http://127.0.0.1:8000/api/dropbox/:path*",
+      },
+      {
+        source: "/api/gitlab/:path*",
+        destination: "http://127.0.0.1:8000/api/gitlab/:path*",
+      },
+      {
+        source: "/api/monday/:path*",
+        destination: "http://127.0.0.1:8000/api/monday/:path*",
+      },
+      {
+        source: "/api/telegram/:path*",
+        destination: "http://127.0.0.1:8000/api/telegram/:path*",
+      },
+      {
+        source: "/api/whatsapp/:path*",
+        destination: "http://127.0.0.1:8000/api/whatsapp/:path*",
+      },
+      {
+        source: "/api/xero/:path*",
+        destination: "http://127.0.0.1:8000/api/xero/:path*",
+      },
       {
         source: "/api/chat/:path*",
         destination: "http://127.0.0.1:8000/api/chat/:path*",

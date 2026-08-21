@@ -2,11 +2,43 @@
 import os
 import logging
 import asyncio
+import sys
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
 import base64
-import dropbox
-from dropbox.exceptions import ApiError, AuthError
+
+# The dropbox SDK is OPTIONAL (requirements.txt has it commented out) — the
+# OAuth handler (auth_handler_dropbox.py) is SDK-free and always works, so the
+# connect/status journey must not crash just because the SDK is absent.
+# Guarded like integrations/twitter_routes.py (TWITTER_AVAILABLE): module-level
+# import never fails; SDK-dependent methods raise/return a clear error at call
+# time. Round 80b: without this guard the registry reported dropbox "not
+# available" and /api/dropbox/* 404'd even for SDK-free endpoints.
+#
+# NOTE: the module-level binding is re-resolved lazily at call time via
+# _current_dropbox() — the wave-93 suites inject a fake dropbox SDK into
+# sys.modules BEFORE importing this module, and some sessions boot the real
+# app first (module cached with dropbox=None), so a static flag would leave
+# the fakes inert. sys.modules.get("dropbox") picks up either the real SDK,
+# a test fake, or nothing (fallback to the guarded module binding).
+try:
+    import dropbox
+    from dropbox.exceptions import ApiError, AuthError
+    _DROPBOX_SDK_AVAILABLE = True
+except ImportError:
+    dropbox = None  # type: ignore[assignment]
+    ApiError = None  # type: ignore[assignment,misc]
+    AuthError = None  # type: ignore[assignment,misc]
+    _DROPBOX_SDK_AVAILABLE = False
+
+
+def _current_dropbox() -> Any:
+    """Re-resolve the dropbox SDK module (real, test-fake, or None)."""
+    return sys.modules.get("dropbox") or dropbox
+
+
+def _sdk_available() -> bool:
+    return _current_dropbox() is not None
 
 from core.integration_service import IntegrationService
 
@@ -51,13 +83,16 @@ class DropboxService(IntegrationService):
             token = parameters.get("access_token") or self.access_token
             if not token:
                 return {"success": False, "error": "Missing Dropbox access token"}
-                
-            dbx = dropbox.Dropbox(token)
+            if not _sdk_available():
+                return {"success": False, "error": "Dropbox SDK not installed (pip install dropbox)"}
+            _dbx_mod = _current_dropbox()
+
+            dbx = _dbx_mod.Dropbox(token)
             
             if operation == "list_files":
                 path = parameters.get("path", "")
                 res = dbx.files_list_folder(path)
-                entries = [{"id": e.id if hasattr(e, "id") else None, "name": e.name, "path": e.path_display, "type": "folder" if isinstance(e, dropbox.files.FolderMetadata) else "file"} for e in res.entries]
+                entries = [{"id": e.id if hasattr(e, "id") else None, "name": e.name, "path": e.path_display, "type": "folder" if isinstance(e, _dbx_mod.files.FolderMetadata) else "file"} for e in res.entries]
                 return {"success": True, "result": {"entries": entries, "cursor": res.cursor, "has_more": res.has_more}}
                 
             elif operation == "search_files":
@@ -100,9 +135,12 @@ class DropboxService(IntegrationService):
 
     def _get_dropbox_client(self, access_token: Optional[str]) -> Any:
         """Build a dropbox SDK client for the given access token."""
+        _dbx_mod = _current_dropbox()
+        if _dbx_mod is None:
+            raise RuntimeError("Dropbox SDK not installed (pip install dropbox)")
         if not access_token:
             raise ValueError("No Dropbox access token available")
-        return dropbox.Dropbox(access_token)
+        return _dbx_mod.Dropbox(access_token)
 
     def _metadata_to_dict(self, entry: Any) -> Dict[str, Any]:
         """Convert a FileMetadata/FolderMetadata entry to a plain dict."""
@@ -112,7 +150,8 @@ class DropboxService(IntegrationService):
             "path": entry.path_display,
             "path_lower": entry.path_lower,
         }
-        if isinstance(entry, dropbox.files.FolderMetadata):
+        _dbx_mod = _current_dropbox()
+        if _dbx_mod and isinstance(entry, _dbx_mod.files.FolderMetadata):
             data[".tag"] = "folder"
             data["shared_folder_id"] = getattr(entry, "shared_folder_id", None)
         else:
@@ -146,7 +185,7 @@ class DropboxService(IntegrationService):
         dbx = self._get_dropbox_client(access_token)
         result = dbx.files_upload(
             file_content, path,
-            mode=dropbox.files.WriteMode.overwrite, autorename=autorename,
+            mode=_current_dropbox().files.WriteMode.overwrite, autorename=autorename,
         )
         return self._metadata_to_dict(result)
 
@@ -169,7 +208,7 @@ class DropboxService(IntegrationService):
     ) -> List[Dict[str, Any]]:
         """Search files in Dropbox (wave 93)."""
         dbx = self._get_dropbox_client(access_token)
-        options = dropbox.files.SearchOptions(
+        options = _current_dropbox().files.SearchOptions(
             path=path, max_results=max_results,
             file_extensions=file_extensions)
         result = dbx.files_search_v2(query, options=options)
@@ -238,7 +277,7 @@ class DropboxService(IntegrationService):
         dbx = self._get_dropbox_client(access_token)
         link_settings = None
         if settings:
-            link_settings = dropbox.sharing.SharedLinkSettings(**settings)
+            link_settings = _current_dropbox().sharing.SharedLinkSettings(**settings)
         result = dbx.sharing_create_shared_link_with_settings(
             path, link_settings)
         return {

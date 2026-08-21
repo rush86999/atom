@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface SlackChannel {
     id: string;
@@ -179,7 +180,7 @@ const SlackIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/slack/workspace", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                 }),
@@ -201,7 +202,7 @@ const SlackIntegration: React.FC = () => {
         try {
             const response = await fetch(`/api/integrations/slack/channels?user_id=current&limit=100`, {
                 method: "GET",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
             });
 
             if (response.ok) {
@@ -227,7 +228,7 @@ const SlackIntegration: React.FC = () => {
         try {
             const response = await fetch(`/api/integrations/slack/messages?user_id=current&channel=${channelId}&limit=50`, {
                 method: "GET",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
             });
 
             if (response.ok) {
@@ -246,7 +247,7 @@ const SlackIntegration: React.FC = () => {
         try {
             const response = await fetch(`/api/integrations/slack/users?user_id=current&limit=100`, {
                 method: "GET",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
             });
 
             if (response.ok) {
@@ -287,7 +288,7 @@ const SlackIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/slack/messages", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     channel: newMessage.channel,
@@ -322,7 +323,7 @@ const SlackIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/slack/channels/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     name: newChannel.name,

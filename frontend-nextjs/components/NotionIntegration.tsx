@@ -35,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface NotionPage {
     id: string;
@@ -169,7 +170,7 @@ const NotionIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/notion/health");
+            const response = await fetch("/api/integrations/notion/health", { headers: authHeaders() });
             if (response.ok) {
                 setConnected(true);
                 setHealthStatus("healthy");
@@ -192,7 +193,7 @@ const NotionIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/notion/pages", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     database_id: databaseId,
@@ -228,7 +229,7 @@ const NotionIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/notion/databases", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 50,
@@ -254,7 +255,7 @@ const NotionIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/notion/users", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 50,
@@ -279,7 +280,7 @@ const NotionIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/notion/search", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     query: searchQuery,
@@ -306,7 +307,7 @@ const NotionIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/notion/pages/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     parent: {
@@ -362,7 +363,7 @@ const NotionIntegration: React.FC = () => {
                 "/api/integrations/notion/databases/create",
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: authHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify({
                         user_id: "current",
                         parent: {

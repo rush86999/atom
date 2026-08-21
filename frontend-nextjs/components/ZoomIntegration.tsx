@@ -59,6 +59,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface ZoomMeeting {
     uuid: string;
@@ -381,7 +382,7 @@ const ZoomIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/zoom/health");
+            const response = await fetch("/api/integrations/zoom/health", { headers: authHeaders() });
             if (response.ok) {
                 setConnected(true);
                 setHealthStatus("healthy");
@@ -406,7 +407,7 @@ const ZoomIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zoom/profile", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                 }),
@@ -428,7 +429,7 @@ const ZoomIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zoom/meetings", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     type: "scheduled",
@@ -457,7 +458,7 @@ const ZoomIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zoom/users", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     page_size: 100,
@@ -480,7 +481,7 @@ const ZoomIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zoom/recordings", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     page_size: 100,
@@ -509,7 +510,7 @@ const ZoomIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zoom/meetings/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     ...meetingForm,
@@ -557,7 +558,7 @@ const ZoomIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zoom/users/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     ...userForm,

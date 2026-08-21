@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface TrelloBoard {
     id: string;
@@ -335,7 +336,7 @@ const TrelloIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/trello/health");
+            const response = await fetch("/api/integrations/trello/health", { headers: authHeaders() });
             if (response.ok) {
                 setConnected(true);
                 setHealthStatus("healthy");
@@ -359,7 +360,7 @@ const TrelloIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/trello/profile", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                 }),
@@ -381,7 +382,7 @@ const TrelloIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/trello/boards", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     filter: "open",
@@ -411,7 +412,7 @@ const TrelloIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/trello/lists", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     board_id: boardId || selectedBoard,
@@ -437,7 +438,7 @@ const TrelloIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/trello/cards", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     board_id: selectedBoard,
@@ -463,7 +464,7 @@ const TrelloIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/trello/members", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -487,7 +488,7 @@ const TrelloIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/trello/cards/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     name: cardForm.name,
@@ -532,7 +533,7 @@ const TrelloIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/trello/boards/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     name: boardForm.name,

@@ -24,6 +24,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { authHeaders } from "@/lib/auth-headers";
 
 // Discord brand color
 const DISCORD_COLOR = '#5865F2';
@@ -69,12 +70,12 @@ const DiscordIntegration = () => {
             const [profileResponse, guildsResponse] = await Promise.all([
                 fetch("/api/integrations/discord/profile", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: authHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify({ user_id: "current" })
                 }),
                 fetch("/api/integrations/discord/guilds", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: authHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify({ user_id: "current" })
                 })
             ]);
@@ -110,7 +111,7 @@ const DiscordIntegration = () => {
         try {
             const response = await fetch("/api/integrations/discord/auth/start", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({ user_id: "current" })
             });
 
@@ -142,7 +143,7 @@ const DiscordIntegration = () => {
         try {
             const response = await fetch("/api/integrations/discord/revoke", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({ user_id: "current" })
             });
 

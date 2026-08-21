@@ -401,9 +401,11 @@ describe('TeamsIntegration', () => {
       );
 
       // The click must trigger a fresh health check fetch
+      // (round 80: the fetch now carries authHeaders options)
       await waitFor(() => {
         expect(fetchSpy).toHaveBeenCalledWith(
-          expect.stringContaining('/api/integrations/teams/health')
+          expect.stringContaining('/api/integrations/teams/health'),
+          expect.objectContaining({ headers: expect.objectContaining({}) })
         );
       });
     });

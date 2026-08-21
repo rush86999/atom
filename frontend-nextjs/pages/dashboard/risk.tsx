@@ -4,28 +4,29 @@ import Head from 'next/head';
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, Users, TrendingUp, AlertOctagon, Activity } from "lucide-react";
+import { ShieldAlert, Users, AlertOctagon } from "lucide-react";
 import { DesktopSecurityAudit } from "@/components/desktop/DesktopSecurityAudit";
+import { authHeaders } from "@/lib/auth-headers";
 
 export default function RiskDashboard() {
-    const [churn, setChurn] = useState([]);
-    const [financial, setFinancial] = useState<any>(null);
-    const [growth, setGrowth] = useState<any>(null);
+    const [churn, setChurn] = useState<any[]>([]);
+    const [fraudAlerts, setFraudAlerts] = useState<any[]>([]);
+    const [arAlerts, setArAlerts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function fetchData() {
             try {
-                const [c, f, g] = await Promise.all([
-                    fetch("/api/risk/churn").then(r => r.json()),
-                    fetch("/api/risk/financial").then(r => r.json()),
-                    fetch("/api/risk/growth").then(r => r.json())
+                const headers = authHeaders({ "Content-Type": "application/json" });
+                const [c, fraud, early] = await Promise.all([
+                    fetch("/api/risk/customer-protection", { headers }).then(r => r.json()),
+                    fetch("/api/risk/fraud", { headers }).then(r => r.json()),
+                    fetch("/api/risk/early-warning", { headers }).then(r => r.json())
                 ]);
-                setChurn(c.data || []);
-                setFinancial(f.data || {});
-                setGrowth(g.data || {});
+                setChurn(c.churn_risk || []);
+                setFraudAlerts(fraud.anomalies || []);
+                setArAlerts(early.ar_alerts || []);
             } catch (e) {
                 console.error("Failed to load risk data", e);
             } finally {
@@ -35,10 +36,10 @@ export default function RiskDashboard() {
         fetchData();
     }, []);
 
-    const getRiskColor = (prob: number) => {
-        if (prob > 0.7) return "bg-red-500";
-        if (prob > 0.4) return "bg-yellow-500";
-        return "bg-green-500";
+    const getRiskBadge = (level: string) => {
+        if (level === "HIGH") return "destructive";
+        if (level === "MEDIUM") return "secondary";
+        return "outline";
     };
 
     return (
@@ -63,18 +64,10 @@ export default function RiskDashboard() {
                             <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{churn.filter((c: any) => c.churn_probability > 0.5).length} Customers</div>
-                            <p className="text-xs text-muted-foreground">High risk of leaving</p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Growth Readiness</CardTitle>
-                            <Activity className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{growth?.readiness_score || 0}/100</div>
-                            <p className="text-xs text-muted-foreground">Scaling health score</p>
+                            <div className="text-2xl font-bold">
+                                {churn.filter((c: any) => c.risk_level === "HIGH").length} Accounts
+                            </div>
+                            <p className="text-xs text-muted-foreground">High risk of going silent</p>
                         </CardContent>
                     </Card>
                     <Card>
@@ -83,10 +76,20 @@ export default function RiskDashboard() {
                             <ShieldAlert className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">
-                                {(financial?.fraud_alerts?.length || 0) + (financial?.ar_delays?.length || 0)}
-                            </div>
+                            <div className="text-2xl font-bold">{fraudAlerts.length + arAlerts.length}</div>
                             <p className="text-xs text-muted-foreground">Fraud & AR Flags</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Value at Risk</CardTitle>
+                            <AlertOctagon className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">
+                                ${churn.reduce((sum: number, c: any) => sum + (c.value || 0), 0).toLocaleString()}
+                            </div>
+                            <p className="text-xs text-muted-foreground">Across monitored deals</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -97,25 +100,24 @@ export default function RiskDashboard() {
                     <Card className="col-span-1">
                         <CardHeader>
                             <CardTitle>Churn Predictions</CardTitle>
-                            <CardDescription>Customers showing signs of disengagement.</CardDescription>
+                            <CardDescription>Accounts showing signs of disengagement.</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-6">
+                        <CardContent className="space-y-4">
                             {churn.map((c: any) => (
-                                <div key={c.customer_id} className="space-y-2">
+                                <div key={c.deal_id} className="p-3 rounded-lg border bg-white dark:bg-gray-900 shadow-sm">
                                     <div className="flex items-center justify-between">
-                                        <span className="font-semibold">{c.customer_name}</span>
-                                        <span className="text-sm text-muted-foreground">{Math.round(c.churn_probability * 100)}% Risk</span>
+                                        <span className="font-semibold">{c.client_name}</span>
+                                        <Badge variant={getRiskBadge(c.risk_level)}>{c.risk_level}</Badge>
                                     </div>
-                                    <Progress value={c.churn_probability * 100} className={`h-2 ${getRiskColor(c.churn_probability)}`} />
-                                    <div className="flex justify-between items-center text-xs text-muted-foreground">
-                                        <span>Risk: {c.risk_factors.join(", ")}</span>
-                                        <span className="text-red-600 font-medium">${c.mrr_at_risk} MRR</span>
+                                    <div className="flex justify-between items-center text-xs text-muted-foreground mt-2">
+                                        <span>Silent for {c.days_silent} days</span>
+                                        <span className="text-red-600 font-medium">${(c.value || 0).toLocaleString()}</span>
                                     </div>
-                                    <Button variant="outline" size="sm" className="w-full mt-2">
-                                        Action: {c.recommended_action}
-                                    </Button>
                                 </div>
                             ))}
+                            {!loading && churn.length === 0 && (
+                                <p className="text-sm text-muted-foreground">No churn signals detected.</p>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -129,62 +131,43 @@ export default function RiskDashboard() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                {financial?.fraud_alerts?.map((f: any) => (
-                                    <div key={f.transaction_id} className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-red-100 shadow-sm">
+                                {fraudAlerts.map((f: any) => (
+                                    <div key={f.id} className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-red-100 shadow-sm">
                                         <div className="flex justify-between font-medium text-sm">
-                                            <span>#{f.transaction_id}</span>
+                                            <span>#{f.id}</span>
                                             <span className="text-red-600">${f.amount}</span>
                                         </div>
-                                        <p className="text-xs text-muted-foreground mt-1">{f.flag_reason}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{f.description}</p>
+                                        <Badge variant="destructive" className="mt-2">{f.severity}</Badge>
                                     </div>
                                 ))}
+                                {fraudAlerts.length === 0 && (
+                                    <p className="text-sm text-muted-foreground">No anomalies detected.</p>
+                                )}
                             </CardContent>
                         </Card>
 
                         {/* AR Delays */}
                         <Card>
                             <CardHeader>
-                                <CardTitle>Predicted AR Delays</CardTitle>
-                                <CardDescription>Invoices likely to be paid late.</CardDescription>
+                                <CardTitle>Early Warning — AR Alerts</CardTitle>
+                                <CardDescription>Invoices showing delay signals.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                {financial?.ar_delays?.map((ar: any) => (
-                                    <div key={ar.invoice_id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                                {arAlerts.map((ar: any) => (
+                                    <div key={ar.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
                                         <div>
-                                            <div className="font-semibold text-sm">{ar.client_name}</div>
-                                            <div className="text-xs text-muted-foreground">Due: {new Date(ar.due_date).toLocaleDateString()}</div>
+                                            <div className="font-semibold text-sm">{ar.description}</div>
+                                            <div className="text-xs text-muted-foreground">{ar.days_overdue} days overdue</div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="font-bold text-sm text-orange-600">${ar.amount.toLocaleString()}</div>
-                                            <div className="text-xs text-muted-foreground">{Math.round(ar.likelihood_late * 100)}% Late Chance</div>
+                                            <div className="font-bold text-sm text-orange-600">${(ar.amount || 0).toLocaleString()}</div>
                                         </div>
                                     </div>
                                 ))}
-                            </CardContent>
-                        </Card>
-
-                        {/* Growth Readiness */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Scaling Constraints</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex items-center justify-center py-4">
-                                    <div className="relative flex flex-col items-center">
-                                        <div className="text-4xl font-bold text-blue-600">{growth?.readiness_score}</div>
-                                        <div className="text-xs text-muted-foreground uppercase tracking-wider">Readiness Score</div>
-                                    </div>
-                                </div>
-                                <div className="space-y-2 mt-4">
-                                    {growth?.bottlenecks?.map((b: any, i: number) => (
-                                        <div key={i} className="flex justify-between text-sm p-2 bg-slate-50 dark:bg-slate-900 rounded">
-                                            <span className="font-medium">{b.area}</span>
-                                            <span className={b.status === "strained" ? "text-red-500" : "text-green-500"}>
-                                                {b.status === "strained" ? "Strained ⚠️" : "Healthy ✅"}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
+                                {arAlerts.length === 0 && (
+                                    <p className="text-sm text-muted-foreground">No AR delay signals.</p>
+                                )}
                             </CardContent>
                         </Card>
 

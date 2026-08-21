@@ -6,6 +6,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
+  // Round 80: forward the caller's Authorization header to the backend
+  const fwdAuth = req.headers.authorization
+    ? { Authorization: req.headers.authorization as string }
+    : {};
+
   const session = await getServerSession(req, res, authOptions);
 
   if (!session || !session.user) {
@@ -20,9 +25,9 @@ export default async function handler(
 
   try {
     // Start OAuth flow
-    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || "";
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://127.0.0.1:8000';
     const response = await fetch(`${backendUrl}/api/salesforce/auth/url`, {
-      headers: {
+      headers: { ...fwdAuth,
         'Authorization': `Bearer ${backendToken}`
       }
     });

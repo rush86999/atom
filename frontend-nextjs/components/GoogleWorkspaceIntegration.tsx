@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { authHeaders } from "@/lib/auth-headers";
 
 // Types
 interface GoogleDoc {
@@ -206,7 +207,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/google-workspace/health");
+            const response = await fetch("/api/integrations/google-workspace/health", { headers: authHeaders() });
             if (response.ok) {
                 setConnected(true);
                 setHealthStatus("healthy");
@@ -231,7 +232,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/google-workspace/docs", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 50,
@@ -260,7 +261,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/google-workspace/sheets", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 50,
@@ -283,7 +284,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/google-workspace/events", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 50,
@@ -310,7 +311,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/google-workspace/emails", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 50,
@@ -335,7 +336,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/google-workspace/docs/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     title: newDoc.title,
@@ -369,7 +370,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/google-workspace/events/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     summary: newEvent.summary,

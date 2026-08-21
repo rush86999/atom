@@ -4,13 +4,18 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+  // Round 80: forward the caller's Authorization header to the backend
+  const fwdAuth = req.headers.authorization
+    ? { Authorization: req.headers.authorization as string }
+    : {};
+
+  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://127.0.0.1:8000';
 
   if (req.method === 'POST') {
     try {
       const response = await fetch(`${backendUrl}/api/figma/analytics`, {
         method: 'POST',
-        headers: { "Content-Type": "application/json" },
+        headers: { ...fwdAuth, "Content-Type": "application/json" },
         body: JSON.stringify(req.body)
       });
       

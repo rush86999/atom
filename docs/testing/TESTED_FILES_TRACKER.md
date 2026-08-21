@@ -6,6 +6,56 @@
 
 ---
 
+
+## Session 2026-08-21 (Round 80 — integration user-journey audit: every app, every role, UI/UX)
+
+**Context**: walked every app integration end-to-end (discover → connect → status → use → manage) for every role including UI/UX. Findings + fixes below; full matrix in `docs/INTEGRATIONS_JOURNEY_AUDIT.md`. Backend TDD (RED first); frontend jest.
+
+**Files tested/fixed**:
+
+| File | Tests | Result |
+|---|---|---|
+| `integrations/bridge/external_integration_routes.py` | `test_round80_integration_journey_auth.py` G1 (anon-401 ×3 + authed execute) | 401 before, green after |
+| `main_api_app.py` (`/api/integrations/stats` + dead `/api/billing/webhook` block) | G2 + G2b | stats gated; legacy alias removed (was importing nonexistent `api/routes/stripe_webhook_routes.py` inside swallowed `except ImportError` while logging a false "✓ Loaded"); pinned fail-closed 404 |
+| `integrations/twitter_routes.py` | G3 (3 anon-401 + public status/health) | gated |
+| `integrations/bamboohr_routes.py` | G4 (4 anon-401 + public status) | gated |
+| `integrations/discord_routes.py` | G5 (7 anon-401 + public status/auth/health) | gated (aliased `get_current_user as get_authed_user` to avoid clash with local service helper) |
+| `integrations/slack_routes.py` | G6 (5 anon-401 + public status/health) | `/reactions/add` + channels/users gated (send/search were wave-93) |
+| `core/models.py` (`IngestedDocument.role`), `core/hybrid_data_ingestion.py` (`sync_integration_data(role=)` + fetcher threading), `core/auto_document_ingestion.py` (`process_file_bytes(role=)`), `core/agent_world_model.py` (`_recall_general_knowledge`), `api/data_ingestion_routes.py` (`trigger_sync` agent_id→role), `alembic/versions/20260821_add_ingested_docs_role.py` | `test_round80_ingestion_role_relevance.py` (11) | role-relevance: ingested data tagged with AI-employee role (AgentRegistry.category) + role-preferred recall with untagged top-up; first of the 8 dead `agent_id` params wired |
+
+**Stale-test repairs (caused by the fixes)**: `tests/test_covpush_w68a_local_discord_tokens.py` (discord data tests now authed — `make_client(router, authed=True)`), `tests/test_covpush_w71a_adapters2.py` (`TestExternalIntegrationRoutes` override + docstring), `tests/integrations/test_twitter_service.py` + `test_bamboohr_service.py` (route data tests authed), `tests/test_hybrid_ingestion_persistence.py` (`fake_fetch(..., role=None)`), `tests/test_world_model.py` (mock search call-count updated for the role-filtered docs search + general top-up).
+
+**Frontend** (`tests/pages/integrations-journey-gap-fill.test.tsx` + `tests/components/integrations-IntegrationStatusCard.test.tsx`, 10 tests): new real pages for **dropbox / telegram / gitlab / xero** (were 404s / dead stubs) via new shared `components/integrations/IntegrationStatusCard.tsx` (status fetch + OAuth URL resolution); **monday / whatsapp** pages (were orphaned components, no page) + hub cards; hub's dead links eliminated.
+
+**Verification**: `tests/test_round80_integration_journey_auth.py` + `tests/test_round80_ingestion_role_relevance.py` 45 passed; regressions green (`w64/w68a/w71a/w90/w93 slack+discord+twitter+bamboohr+external suites`, `test_hat world/w26 hybrid ingestion persistence, world_model 108 passed`, boot/router mounts 32 passed). mypy: no new error classes on the 9 touched modules (discord arg-type errors pre-exist at HEAD; `api_governance` decorator kwarg drift pre-exists, documented §4.5 of the audit doc).
+
+**Round 80b follow-on (same session — endpoints behind the new pages were 404/500 in the real app; `tests/test_round80b_journey_endpoints.py`, 8 tests)**: (1) `integration_health_endpoints.py` used `logger.debug` with no `logger` → every `/api/{app}/status` via the legacy health stub 500'd → logger added; (2) dropbox/gitlab/monday/telegram/whatsapp/xero were registry-lazy so their real routes 404'd under the legacy stub → "FORCED JOURNEY ROUTER REGISTRATION" boot block (`main_api_app.py`) mounts them at their declared root prefixes; (3) `dropbox_service.py` unconditionally `import dropbox` (SDK optional) → registry "not available" → SDK-free dropbox endpoints 404'd → guarded import + `_current_dropbox()` lazy re-resolution (boot works without SDK, wave-93 fake stays compatible); (4) `next.config.js` — bare-prefix rewrites for the 6 journeys. Regression battery incl. boot mounts + wave-93/98 dropbox suites together: **87 passed, 0 failed**.
+
+**Round 80i follow-on (same session — w95 Outlook stale-suite repair, the last pre-existing failure)**: `TestOutlookRoutes*` (15 tests) had been red since `9f0b8c0c2` removed the router's `/api/outlook` prefix — the fixture mounted bare and paths 404'd. Fixed to production reality: fixture mounts with `prefix="/api/integrations/outlook"` (matching main_api_app's dual registration), all 50 test paths moved to `/api/integrations/outlook/*`, and the None-profile expectation updated to 200 (GET/POST /profile now share a handler that synthesizes a current-user profile fallback). **w95 batch5: 136 passed / 0 failed.**
+
+**Round 80k follow-on (same session — OAuth redirect handlers' empty-base defaults)**: 6 connect-journey proxy handlers (`google-workspace/auth/{start,callback}`, `zoom/auth/start`, `dropbox/callback`, `salesforce/auth/{start,callback}`) defaulted `PYTHON_API_SERVICE_BASE_URL` to `""` → server-side relative fetches (invalid URL) → the Slack/Zoom/Salesforce/Google-Workspace/Dropbox **connect buttons were dead** unless the env var was set. All six now default to `127.0.0.1:8000` like the 80d handlers. Also verified B15 (oauth tokens endpoints referencing nonexistent OAuthToken columns, flagged in round 71) is already fixed — round-71 suite passes 4/4.
+
+**Round 80j follow-on (same session — mobile integrations v1)**: the audit found `mobile/` had ZERO integration journeys → shipped v1 read-only visibility: `mobile/src/services/integrationService.ts` (GET `/api/v1/integrations/health` + GET `/api/integrations` via the existing authed api client), expandable `IntegrationsSection` component (healthy X of Y summary + per-service status badges + loading/error states) embedded in SettingsScreen, wired through local expanded state. Tests: `src/__tests__/components/settings/IntegrationsSection.test.tsx` (4 — summary line, expanded rows, error state, toggle callback). Full mobile suite: **128 suites / 4280 passed**; tsc clean on touched paths.
+
+**Round 80i follow-on (same session — telegram double-mount removed + w96 stale env test)**: telegram's CORE-ROUTES v1 include (double-prefixed `/api/v1/integrations/telegram/api/telegram/*`) removed, mirroring discord 80d — root mount via the 80b journey block is the real surface (`test_round80b_journey_endpoints.py::test_telegram_real_surface_no_double_prefix`). Also fixed `TestWebhookSecret::test_legacy_env_name_fallback` (red in isolation on any machine whose .env defines ATOM_TELEGRAM_WEBHOOK_SECRET): the legacy-fallback test assumed the primary var was absent, but patch.dict cannot delete keys — now overrides it to "" so the route's or-chain falls through to `TELEGRAM_WEBHOOK_SECRET_TOKEN`. w96 telegram: 51 passed. Mobile surface audited and documented (audit doc §5): no integration journeys exist in mobile/ — nothing broken; integrations visibility there would be new feature work.
+
+**Round 80h follow-on (same session — risk dashboard + hub health-map drift)**: `pages/dashboard/risk.tsx` called `/api/risk/{churn,financial,growth}` — paths that exist NOWHERE in the backend (the real router serves `/customer-protection`, `/fraud`, `/early-warning` with different shapes, and growth-readiness has no data source at all) → page retargeted to the three real auth-gated endpoints with their actual response shapes (`churn_risk`/`anomalies`/`ar_alerts`), `authHeaders()` attached, unsourced Growth panel removed; new `tests/pages/dashboard-risk.test.tsx` (renders from real shapes + asserts JWT on every call + asserts phantom paths gone). Hub `healthUrls` map drift fixed: renamed stale keys (`google-drive`→existing `gdrive`, `microsoft-365`→existing `microsoft365`, `vercel`→existing `nextjs`, dropped dup `zoho`) and added probes for the unmapped round-80 cards (telegram/whatsapp/shopify/monday) — map keys now exactly match the 39 card ids. 36 frontend tests green in battery.
+
+**Round 80g follow-on (same session — authHeaders adoption across integration components)**: the 80d proxy fix made proxied calls reach the live backend, but only Slack/Discord sent the JWT — gated router-level backends (github/teams/microsoft365/…) would 401. Extended `authHeaders()` to the remaining 14 integration components (Asana, Azure, Box, GitHub, GoogleWorkspace, Jira, Linear, Microsoft365, Notion, QuickBooks, Teams, Trello, Zendesk, Zoom): wrapped all `headers: {Content-Type}` fetches and added options to headerless GETs; import inserted after the import block (first pass landed inside multi-line imports — repaired). One stale test assertion updated (`TeamsIntegration` refresh-status now expects an options object). tsc clean on touched paths; 269 frontend tests green across 14 suites.
+
+**Round 80f follow-on (same session — orphaned API surface, audit §4 item 4)**: `api/meeting_routes.py` had a real frontend consumer but was never mounted (attendance journey 404'd end-to-end) → mounted at `/api/meetings` in main_api_app (already fully auth-gated; `test_round80b_journey_endpoints.py::TestMeetingRoutesWired`, red→green). Dead `risk_router = safe_import_router(...)` import removed (never included). Dispositions documented in the audit doc §4.4: integration_dashboard/recording_review/learning_plan/memory_backfill/risk stay intentionally unmounted (no consumers, several unauth endpoints); note `dashboard/risk.tsx` calls `/api/risk/{churn,financial,growth}` which exist nowhere — separate frontend fix.
+
+**Round 80e follow-on (same session — governance decorator kwarg drift, audit §4 item 5; `tests/test_round80e_governance_decorator.py`, 5 tests)**: `perform_governance_check` called `can_perform_action(action_complexity=…, action_name=…)` — kwargs the service never accepted → TypeError on EVERY governed request, swallowed into a 500 "Internal error"; routes only worked when their feature flag disabled governance entirely (i.e. governance was silently OFF for all wrapped routes: data-ingestion sync/enable, canvas, financial, browser, social…). Fixed to the service's own guidance: `await can_perform_action_async(agent_id=…, action_type=action_name)` (async variant actually enforces spend budgets in the event loop); maturity enforcement vs `required_maturity` unchanged (STUDENT 403 / INTERN 202-proposal branches covered by tests). 27 governance-suite tests green.
+
+**Round 80d follow-on (same session — the dead-port proxy plumbing, audit §4 item 1)**: all 121 `frontend-nextjs/pages/api/integrations/*.ts` handlers defaulted to `localhost:5058/5059` (nothing listens there) and none forwarded auth → **168 handlers fixed**: fallback → `127.0.0.1:8000` + `fwdAuth` injection (forwards the caller's `Authorization` to the backend; files that already forward were skipped). `lib/auth-headers.ts` added (`authHeaders()`); SlackIntegration (7 fetch sites) + DiscordIntegration (4) now send the stored JWT — asserted in new `tests/components/integrations-auth-headers.test.tsx`. Also: auto-load middleware now mounts own-prefix routers UNPREFIXED (`router.prefix.startswith("/api/")`) and the bogus discord v1 double-mount removed — `/api/discord/*` is the real surface after first hit (`test_round80b_journey_endpoints.py::test_discord_real_surface_on_auto_load`). Hub test de-brittled: dynamic "X of Y Connected" assertions (catalog grew to 39 cards across lanes; health-map keys ⊄ catalog ids is pre-existing drift). tsc clean on all touched paths; 68 frontend tests green.
+
+**Round 80c follow-on (same session — registry-on-demand routers carried zero auth once loaded; `tests/test_round80c_registry_on_demand_auth.py`, 27 tests)**: gated data/write endpoints of linear, tableau, intercom, freshdesk, twilio, linkedin, obsidian, okta, workday, webex, deepgram, email with `get_current_user` (auth/url, callback, status, health, webhook stay public per the wave-93..105 convention). Bonus real bugs found while wiring: okta/workday/webex routers imported **phantom module singletons** (`okta_service`/`workday_service`/`webex_service` never existed → routers silently unimportable → `load_integration` returned None → 404s) — added the singletons per the wave-109 zoom/plaid precedent; workday/webex health routes called a nonexistent `check_health()` → repointed to the existing sync `health_check()`; obsidian `/status` crashed 500 when the plugin host is unreachable → graceful `{"status": "unreachable"}`. Test-infra updates (auth override): `test_covpush_w95_services_batch5.py` (fd_client), `test_covpush_w101_freshdesk.py`, `test_covpush_w67a_tableau_linkedin_e2b.py` (make_client authed=True for linkedin/tableau). Full battery 597 passed; the 15 `TestOutlookRoutes*` failures in w95 batch5 were **pre-existing** (verified via stash) and were subsequently repaired in Round 80i.
+
+**Open items (documented, not fixed this round)**: ~120 Next proxy handlers → dead `:5058/5059` + no Authorization forwarding; discord double-prefix mount; registry-on-demand routers still bare when loaded (linear/tableau/freshdesk/intercom/twilio/linkedin/obsidian/okta/workday/webex/deepgram/email/sendgrid); orphan `api/integration_dashboard_routes.py` never mounted; `@require_governance` kwarg drift. `TestZohoMultiAppFetcher` failures belong to the in-flight Zoho org-id WIP lane (verified: pristine code passes).
+
+---
+
+
 ## Session 2026-08-16 (w110 — Org Ingestion Sharing implementation verified + test suite: ORG_INGESTION_SHARING_PLAN.md Phases 0–2)
 
 **Context**: the plan (`docs/architecture/ORG_INGESTION_SHARING_PLAN.md`) was implemented in-tree (models + migration `20260816_org_ingestion_sharing` + `core/org_sharing_crypto.py` + `core/ingestion_profile_service.py` + `core/org_data_bundle_service.py` + Phase 0 persistence in `core/hybrid_data_ingestion.py` + routes in `api/data_ingestion_routes.py`) with **zero tests**. This wave added the plan-§7 test suite and closed one plan violation.
@@ -5679,4 +5729,227 @@ No source changes needed this wave (no genuine bugs found in the 6 modules — t
 
 **2026-08-20 R-fix**: P0.4 integration-symmetry follow-ups (WhatsApp/Slack/Teams). Files: `integrations/atom_communication_ingestion_pipeline.py` (WhatsApp `_normalize_message` now falls back across `content`/`text`/`body`; poller accepts `teams` alias), `api/routes/webhooks/slack_webhooks.py` (passes FULL payload to bridge, not inner `data.get("event",{})` — UCB adapter + `_transform_slack_payload` both needed the `event_callback` envelope), `core/ingestion_pipeline.py` (`teams` added to `_KNOWN_COMM_INTEGRATIONS`). New suite `tests/test_memory_symmetry_fixes.py` 9/9 (Red first). Verification: `test_memory_backfill_unified.py` + `test_covpush_w86_gmail_ingestion_ai.py` + `test_covpush_intgr_c.py` + `test_covpush_w71c_webhooks2.py` + `test_covpush_ingestion_pipeline.py` → 520 passed, 11 failed (all pre-existing: 5 PrivsecAuditLogger + 6 gmail/intgr-c import-order/env — verified identical via `git stash`); mypy 95 errors on the 3 touched files, identical pre-existing baseline (0 new). Docs: `AGENT_MEMORY_UNIFICATION_PLAN.md` §7 — WhatsApp/Slack/Teams rows + follow-ups marked FIXED.
 
+
 **2026-08-20 R-fix**: P0.4 INGESTION data-loss fix. File: `integrations/atom_communication_ingestion_pipeline.py` `_normalize_message` email branch — read only `body`/`from`/`to`/`date` but all three live email producers emit `content`/`sender[_email]`/`recipient`/`timestamp` (Outlook poller `:1610`, Gmail poller `:1466`, Outlook webhook transform `ingestion_pipeline.py:2973`) → stored `atom_communications` rows had sender=None, recipient=None, content="", timestamp=now(); the full email body never reached the comm/graph store. Now falls back across `content`/`body`/`text`/`bodyPreview`, sender `from`/`sender`/`sender_email`/`sender_id`, recipient `to`/`recipient`, timestamp `timestamp`/`date` (handles both datetime and ISO string), thread_id via metadata.thread_id/conversation_id. Tests: `tests/test_memory_symmetry_fixes.py::TestEmailNormalizePreservesFields` 5/5 (Red first). Verification: full symmetry suite 14/14; regression `test_email_api_ingestion.py` + `test_realtime_communication_ingestion.py` + `test_covpush_w86_gmail_ingestion_ai.py` + `test_bughunt_mail_office.py` + `test_memory_backfill_unified.py` + `test_covpush_intgr_c.py::TestPipelineWebhookHelpers` → 207 passed, 5 failed (all pre-existing — verified identical on clean HEAD).
+=======
+## Session 2026-08-20 (backend) — Temporal Evolution W2: hierarchy + persistence (GraphRAG)
+
+**Files**: `backend/core/graphrag/community_detection.py` (+`_detect_hierarchy_impl` thread, `_link_hierarchy`, `_store_hierarchy`, `_persist_communities`, `_clear_workspace_communities`; `detect_hierarchy` gains `store_results`), `backend/tests/test_temporal_w2_community_hierarchy.py` (new — 10 tests), `backend/core/models.py::GraphCommunity.parent_community_id` (W2 — pre-existing at HEAD), `docs/intelligence/graphrag.md` (schema doc +lineage column).
+
+**TDD red→green** (10 tests; RED was raised-`TypeError` on new kwargs): hierarchy now persists ALL levels with lineage: `detect_hierarchy`/`_detect_hierarchy_impl` thread `store_results` (default True) through to store; `_link_hierarchy` links each child to the previous-level community with MAXIMAL node overlap (containment heuristic — multi-resolution partitions not guaranteed nested; ties → first parent; zero-overlap children stay unparented; populates `parent_community_id` in-memory); `_store_hierarchy` flattens levels→`_persist_communities`; `_persist_communities` extracts the wipe + insert core so both single-level and hierarchy stores share one path — generated ids (`comm_<i>`/`leiden_comm_<i>`) mint fresh UUIDs (per-run counters are NOT unique across workspaces vs global `GraphCommunity.id` PK), persisted-id map keyed `(id, level)` (bare id would self-parent — counters recur at every level), parents resolve level-1 or NULL (never dangling), `parent_community_id` is stored on the row + shown in the wrangler view.
+
+**Key fixes during the loop**: `detect_hierarchy`'s store path collided with the single-level `_store_communities` wipe → hierarchy now shares `_clear_workspace_communities` (delete memberships BEFORE communities; backtrace-verified); `store_results=False` kept the in-memory shape (just lineage) with zero DB rows; test-side only: `sess.added` includes membership rows too → `_community_rows` filtered count for the replace-wipe assertions.
+
+**Verification**: new suite 10/10; regression cluster (`test_bughunt_graphrag.py`, `test_covpush_graphrag.py`, `test_graphrag_enhancements.py`, `test_graphrag_sql_injection.py`, `test_covpush_w9_graphrag.py`, `test_covpush_graphrag_engine.py`, `test_graphrag_engine.py`, `test_graphrag_hybrid_search.py`, `test_graphrag_patterns.py`, `test_covpush_w32_learning_graphrag_routes.py`, `test_covpush_w66b_graphrag_sandbox.py`, `test_covpush_w77b_graphrag_oracle.py`) 567 passed; mypy clean on both touched files (repo-root invocation); 0 new warnings.
+
+## Session 2026-08-20 (backend) — Temporal Evolution W3: hierarchy rolling-window parity (GraphRAG)
+
+**Files**: `backend/core/graphrag/community_detection.py` (+`CommunityHierarchy.metadata`, `detect_hierarchy`/`_detect_hierarchy_impl` gain `window_start`/`window_end`), `backend/tests/test_temporal_w3_hierarchy_windows.py` (new — 8 tests).
+
+**TDD red→green** (8 tests; RED was raised-`TypeError` on the new kwargs): `detect_hierarchy` now threads W1's rolling window into `_build_graph` BEFORE every resolution level runs — nodes created ≤ `window_end`, edges whose validity interval overlaps `[window_start, window_end]` (NULL bi-temporal fields pass; same semantics as `detect_communities`). The window is recorded in `CommunityHierarchy.metadata` (`window_start`/`window_end` ISO + `graph_nodes`/`graph_edges` counts; absent when no window). `store_results=True` persists the windowed lineage (parent ids still resolve level-1), `False` writes zero DB rows. Legacy control: same DB with no window vs full-range window → identical captured graph node/edge counts per level, no metadata keys.
+
+**Key fixes during the loop** (test-side): the two-level detection mock reused unprefixed ids (`c_a`) across levels — collides with the W2 uuid-minting contract (memberships `UNIQUE(community_id, node_id)` blew up) → mock now emits `comm_`-prefixed per-level ids; a mistaken early test window `[Apr, Aug]` legitimately included the Jul-created node → narrowed to `[Apr, Jun]`.
+
+**Verification**: W3 suite 8/8; W1+W2 suites 26 passed; graphrag cluster (16 files incl. W1–W4) 599 passed; mypy clean (`community_detection.py` 0 errors, both new test files clean).
+
+## Session 2026-08-20 (backend) — Temporal Evolution W4: query-side time travel — local_search as_of (GraphRAG)
+
+**Files**: `backend/core/graphrag_engine.py` (`local_search` gains `as_of` — CTE traversal join + relationship listing + in-loop `expand_sql`; `query`/`get_context_for_ai` thread it), `backend/tests/test_temporal_w4_query_asof.py` (new — 8 tests), `docs/architecture/TEMPORAL_EVOLUTION.md` (W5 doc — program record).
+
+**TDD red→green** (8 tests; RED was raised-`TypeError` on the new kwargs): with `as_of` the engine replaces `e.invalid_at IS NULL` with the edge-alive predicate `(invalid_at IS NULL OR invalid_at > :as_of) AND (valid_from IS NULL OR valid_from <= :as_of)` in the recursive-CTE join AND the relationship listing (SQLite + Postgres variants), injects `:as_of` params only when the clause is present (legacy SQL byte-identical), passes the cutoff to `SQLMultiHopExpander.expand_sql`, and records `result["as_of"]` (ISO). `query()` threads it into local mode via `to_thread`; global mode ignores it (community summaries carry no validity interval — documented boundary). Control test proves a future-`valid_from` edge is reachable WITHOUT `as_of` but pruned WITH it; `as_of` before invalidation keeps the invalidated-at-May edge alive in March.
+
+**Notes/findings**:
+- `SQLMultiHopExpander` body is Postgres-only (`ARRAY[]`, `::varchar`, `ANY()`) — on SQLite it raises and the engine's expansion degrades non-fatally (pre-existing, unchanged; documented in TEMPORAL_EVOLUTION.md).
+- Async query tests mock the search legs: `query()` runs local_search in a worker thread and SQLite sessions are not thread-safe (cross-thread ProgrammingError otherwise).
+- mypy: engine at 9 baseline errors — byte-identical to the HEAD baseline (verified via stash within this session); 0 new errors introduced.
+
+**Verification**: W4 suite 8/8; graphrag cluster (16 files incl. W1–W4) 599 passed; mypy: community_detection + both new test files clean.
+
+## Session 2026-08-20 (backend) — Temporal Evolution W5: program architecture doc
+
+**Files**: `docs/architecture/TEMPORAL_EVOLUTION.md` (new), `docs/intelligence/graphrag.md` (schema `graph_communities.parent_community_id` — lineage column was in the model + migration but absent from the SQL contract docs).
+
+**Content**: program record for P0 (ingestion temporal normalizer) + W1–W4 (cutoffs, hierarchy+persistence, hierarchy windows, query-side as_of), contract details (window edge-overlap semantics; as_of alive-predicate with exclusive invalidation boundary; lineage max-overlap heuristic; persisted-id `(id, level)` keying; uuid minting only for `comm_`-prefixed counters), explicit boundaries (global_search has no as_of; SQL expander is PG-only on SQLite — graceful degradation; nodes carry no validity fields), file map, verification commands. Resolves the dangling reference from migration `20260820_add_graph_community_parent` (which cited the doc since before it existed).
+
+**Verification**: doc-only (no code); linked from migration docstring + W4 docstrings.
+
+## Session 2026-08-20 (backend) — Migration + boot-smoke verification (closes W2/marketplace "pending" notes)
+
+**Scope**: no source changes — verification only.
+
+1. **Alembic migrations verified in isolation** (`20260820_add_graph_community_parent`, `20260820_experience_marketplace`; both branch from `20260816_org_ingestion_sharing`): Test A — create_all-shaped DB (hybrid dev-DB reality): guards no-op cleanly, both heads stamp. Test B — pre-W2 schema (`graph_communities` without the column, no experience tables): column `parent_community_id` + index `ix_graph_communities_parent` added, all four experience tables created, `downgrade` drops the column cleanly. Method: scratch SQLite DBs stamped at the shared down_revision, `alembic upgrade <rev>` per branch (this alembic rejects multi-revision targets), subprocess env must STRIP `PYTHONPATH=.` or `venv/bin/alembic` imports the local `backend/alembic/` migrations dir instead of the package.
+2. **Full-chain `alembic upgrade heads` on a fresh DB still fails** at an early unrelated revision (`ALTER TABLE agent_registry ADD COLUMN configuration ...` — no such table; the known R71 broken-chain issue). Pre-existing, unchanged; hybrid create_all remains the dev-DB authority. `data/atom.db` restored byte-identical from backup after the attempt.
+3. **Boot smoke** (throwaway DB): uvicorn boots clean — 0 tracebacks, `/health/live` 200, `✓ Experience Marketplace Routes Loaded`, `GET /api/experience-marketplace/status` → 401 (auth-gated before flag check; flag-off 503 applies post-auth). Smoke-test gotcha: SQLite URL needs 4 slashes for absolute paths — 3-slash relative paths surface as worker `unable to open database file` noise, not app defects.
+
+**Verification**: both migration paths green (A + B incl. downgrade); boot smoke clean; closes the "pending: alembic upgrade + route smoke" notes on the W2 temporal and Experience Marketplace sessions.
+
+## Session 2026-08-21 (backend) — Temporal Evolution W6: SQL expander SQLite portability (GraphRAG)
+
+**Files**: `backend/core/graphrag/multi_hop_expansion.py` (`_expand_sql_impl` dialect-aware CTE + relationship listing), `backend/tests/test_temporal_w6_sqlite_expander.py` (new — 6 tests), `tests/test_bughunt_graphrag.py` (stale-contract repair: error-hygiene test now forces failure via raising execute), `docs/architecture/TEMPORAL_EVOLUTION.md` (W6 row; PG-only boundary note removed).
+
+**TDD red→green** (6 tests; RED = sqlite runs ended in `metadata["error"] == "expansion_failed"` from the documented `near "as"` OperationalError): `_expand_sql_impl` now branches on `session.bind.dialect.name` — sqlite gets a portable recursive CTE (string-CSV path `',' || id || ','`, `NOT LIKE` cycle detection, plain NULLs, IN-list relationship query with quote-doubled ids); Postgres AND bind-less sessions keep the byte-identical legacy text (`ARRAY[]`/`::varchar`/`ANY()` — W1's recording-session contract holds, pinned by a postgres-bind spy test). The W1 as_of cutoff works identically on the sqlite variant (future-born pruned, invalidated-before-cutoff pruned, boundary exclusive, metadata recorded); no-as_of on sqlite stays unfiltered (legacy).
+
+**Stale-suite repair**: `TestSQLExpanderErrorHygiene::test_expansion_failure_does_not_leak_exception_text` relied on the PG-only CTE failing on sqlite as its implicit trigger — W6 removed that failure, so the test now forces the driver error via `patch.object(db, "execute", side_effect=_boom)` and still pins the hygiene contract (code-literal error, no SQL/params leak).
+
+**Verification**: W6 suite 6/6; full graphrag cluster (17 files incl. W1–W4+W6) 605 passed; mypy clean on `multi_hop_expansion.py` + new test file. Personal Edition (SQLite) multi-hop augmentation now actually executes instead of silently degrading.
+
+## Session 2026-08-21 (backend) — Zoho user-journey verification: all apps x all roles
+
+**TDD red→green** (`tests/test_zoho_user_journey.py`, 7 tests — J1..J5; observed WorkDrive returned None after connect, `records_fetched 0` in the mixed-suite run before the ServiceFactory call-site patch):
+
+1. **WorkDrive journey was dead after the documented OAuth connect (RED→GREEN)** — `ZohoWorkDriveService.get_access_token` read only `UserConnection` rows (connection_service), but the unified OAuth callback writes `IntegrationToken` rows (never `UserConnection`), so file/team list & download journeys silently returned []/None while Books/Inventory/CRM worked. Added `_integration_token_access_token` fallback (provider `zoho_workdrive` → generic `zoho`; expiry check + refresh via `accounts_url/token`, encrypted persist) wired into `get_access_token` when no UserConnection exists.
+2. **Journey suite hardening** — J3 (ingest) had to patch the `ServiceFactory.get_zoho_adapter` classmethod directly (not the `ZohoAdapter` module attr): ServiceFactory binds the name at import + caches a thread-local instance, so a prior suite in the same process served a cached/unpatched adapter and the sync returned 0 records. After the call-site patch, the 8-file Zoho cluster (w38/w97/w101 + both new suites) runs clean.
+
+**Verification (all green)**: new suite 7/7 covering — J1 connect → 5 provider rows + each service resolves its own token (books/inventory/crm via `_get_active_token`, workdrive via fallback); J2 role fan-out to all 8 ACTIVE roles (super_admin→guest) with 5 providers each, suspended/pending excluded (+ static `UserStatus.ACTIVE` filter check); J3 `sync_integration_data("zoho")` pulls all 6 entity types → LanceDB `integration_zoho` + GraphRAG (6/6 ingested, entities+relationships counted); J4 memory-assembler integration leg surfaces the records at turn time; J5 `/sync` governance-armed (MODERATE) + behavioral check (agent-triggered runs `perform_governance_check`, user-initiated skips by design). Zoho cluster 210 passed; OAuth cluster (`test_round71_oauth_routes_auth`, `test_oauth_token_storage`, `unit/api/test_oauth_routes`) 24 passed. mypy `zoho_workdrive_service.py`: same 3 pre-existing errors before/after (0 new, lines shifted).
+
+**Files**: `backend/integrations/zoho_workdrive_service.py` (IntegrationToken fallback + `_refresh`), `backend/tests/test_zoho_user_journey.py` (new), plus prior `oauth_routes.py` fan-out + `test_zoho_oauth_provider_keys.py` (this session).
+
+**Unrelated in-progress tree (not touched)**: `graphrag/community_detection.py`, `core/models.py`, `chat_sessions.json`, `tests/test_temporal_w7_global_asof.py`.
+
+## Session 2026-08-21 (backend) — Temporal Evolution W7: global-search time travel (GraphRAG)
+
+**Files**: `backend/core/models.py` (+`GraphCommunitySnapshot`), `backend/core/graphrag/community_detection.py` (`_clear_workspace_communities` archives the outgoing generation before the wipe; one generation instant per persist — archived `invalid_at` == incoming explicit `created_at`, exact interval chaining despite SQLite's 1-second `CURRENT_TIMESTAMP`), `backend/core/graphrag_engine.py` (`global_search(as_of=…)`), `backend/alembic/versions/20260821_graph_community_snapshots.py` (new, guarded, verified up+down), `backend/tests/test_temporal_w7_global_asof.py` (new — 8 tests), `docs/architecture/TEMPORAL_EVOLUTION.md` (W7 row; global_search boundary note removed).
+
+**TDD red→green** (8 tests; RED = ImportError on the missing model + TypeError on the new kwarg): every replace-wipe now archives the outgoing community generation into `graph_community_snapshots` — summary/keywords/level verbatim, memberships flattened to a JSON `node_ids` array, interval `[created_at, replacement_instant)`. `global_search(as_of=T)` synthesizes from snapshots whose interval contains T (`valid_from <= T < invalid_at`, latest first); when no snapshot covers T it falls back to LIVE rows iff `T >= MAX(invalid_at)` (or `>= MIN(created_at)` when nothing was ever archived); earlier instants degrade to the empty answer. `as_of=None` is byte-identical legacy over live rows.
+
+**Gotchas hit**: raw `text()` on SQLite returns `MAX(invalid_at)` as a STRING and naive datetimes → parse with `fromisoformat` + attach UTC before comparing to aware `as_of`; duck-typed fake Rows in w9/w77b predate archive fields → all archived attributes read via `getattr` with column-appropriate defaults; `_enrich_communities` rewrites keywords pre-persist so archival tests must capture the OUTGOING row's enriched values, not the detection result's.
+
+**Verification**: W7 suite 8/8; full graphrag cluster (18 files incl. W1–W4+W6+W7) 613 passed; mypy: community_detection + test file clean, engine at its 9-error HEAD baseline; migration verified up+down on a scratch DB.
+
+## Session 2026-08-21 (backend) — Gmail webhook A-path: ingest_message bridge (memory-plan follow-up #4)
+
+**Files**: `backend/core/ingestion_pipeline.py` (`process_webhook_payload` comm block gains a gmail branch), `backend/tests/test_gmail_webhook_ingest_message.py` (new — 5 tests), `docs/architecture/AGENT_MEMORY_UNIFICATION_PLAN.md` (§7 Gmail row + follow-up #4 marked FIXED).
+
+**TDD red→green** (5 tests; RED = gmail records hit the raw `LanceDBHandler.add_document` write with zero `ingest_message` calls): gmail webhook records now bridge to `CommunicationIngestionPipeline.ingest_message("gmail", record)` — the same normalized comm-store path as Gmail's own poller and Outlook's poller/backfill, so emails land as structured, searchable memory (normalization + FTS hybrid + graph trigger) instead of an unsearchable raw vector dump. Per-record resilience: bridge failures fall back to the legacy raw write (only failed records continue to it — no double-writes); outlook/slack stay on the legacy write (audit marks them working; pinned by control tests).
+
+**Test-infra notes**: the comm block constructs its own `LanceDBHandler` in-function → tests must patch `core.lancedb_handler.LanceDBHandler`, not the service attribute; `_transform_gmail_payload` fetches real messages via historyId (or emits a content-less stub) → tests mock `_transform_webhook_payload` to focus on the bridge. A `test_covpush_w26_hybrid_ingestion.py::TestZohoMultiAppFetcher::test_no_org_id_skips_books` failure in the same run is NOT this change — verified via stash that it passes at HEAD of `core/hybrid_data_ingestion.py` and fails only with the OTHER concurrent session's uncommitted Zoho diff (`MagicMock can't be used in 'await' expression` at :1107).
+
+**Verification**: new suite 5/5; ingestion/memory cluster (`test_memory_symmetry_fixes` + `test_covpush_ingestion_pipeline` + `test_covpush_w34_ingestion` + `test_memory_backfill_unified`) 191 passed.
+
+## Session 2026-08-21 (backend) — Teams/Discord queue A-path: ingest_message bridge (memory-plan §7)
+
+**Files**: `backend/core/ingestion_pipeline.py` (`process_webhook_payload` comm-block gate widened to `teams`/`discord`; bridge passes the runtime `integration_id`, not a literal), `backend/tests/test_gmail_webhook_ingest_message.py` (+5 tests — parametrized teams/discord bridge, per-record fallback, mixed-outcome no-double-write), `docs/architecture/AGENT_MEMORY_UNIFICATION_PLAN.md` (§7 Teams/Discord rows).
+
+**TDD red→green** (RED = teams/discord queue records hit only the raw write): the `/webhooks/communication/{teams,discord}` queue routes were B-only — the comm block's gate didn't even include them. Now all three queue-routed comm apps (gmail/teams/discord) bridge to `ingest_message(integration_id, record)` with per-record raw-write fallback; outlook/slack stay legacy (control-pinned). Gotchas: the per-record prep loop (`_prepare_record_text_async`) rewrites `record["content"]` into a formatted summary BEFORE both paths → identity assertions must use `doc_id`, not content text; the legacy writer's >10-char threshold drops short fallback records (pre-existing).
+
+**Concurrent-session note**: a `TestZohoMultiAppFetcher::test_no_org_id_skips_books` failure + transient IndentationError during this session belong to ANOTHER agent's in-flight Zoho edits (`core/hybrid_data_ingestion.py`, uncommitted) — verified via stash that both clear at their file's HEAD state. Do not attribute to this work.
+
+**Verification**: suite 10/10; ingestion/memory cluster 186 passed.
+
+## Session 2026-08-21 (backend+e2e+frontend) — Zoho journey to AI-employee memory
+
+**TDD + real E2E** (`tests/test_zoho_user_journey.py` 13 tests incl. J6-J9; `tests/e2e_ui/tests/test_journey_zoho_integration.py` 2 tests; `scripts/repro_zoho_journey.py` dev driver; `scripts/zoho_mock_server.py` stdlib mock Zoho at the HTTP boundary).
+
+Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_FIXED.md` § Zoho user journey):
+1. `oauth_callback` 400 "Unsupported provider: zoho" — callback config dict lacked zoho (J1 guard).
+2. Chat memory hardcoded `workspace_id="default"` while sync writes the user's workspace → ingested Zoho data invisible at recall. `resolve_user_workspace()` in `integrations/chat_orchestrator.py`; assembler now uses it (J9).
+3. `sync_integration_data` "No sync config for zoho" until manual enable-sync → `DEFAULT_SYNC_CONFIGS` fallback (J3 rewrite — the real path has NO generic fetch_records; exercises `_fetch_zoho_multi_app_data`).
+4. Books/Inventory silently 0 records — org_id gating with nothing populating it → auto-discovery via `get_organizations` (Books+Inventory) persisted to token metadata (J3).
+5. `api_domain` never stamped → wrong datacenter default (J6); `workspace_id` never stamped + `_load_token` strict workspace filter + naive SQLite expiry crash (J8 ×3).
+6. WorkDrive token fallback (J1) — from `tests/test_zoho_user_journey.py` (earlier session; re-verified).
+
+**E2E journey (green)**: dedicated backend (fresh sqlite temp + LANCEDB_URI temp + mock env, PYTEST_* stripped so create_all runs, `EMBEDDING_PROVIDER=fastembed`) → real browser register/login → `initiate` → mock consent Approve → callback exchange → tokens page zoho active → sync 5 records (org auto-discovered) → chat recall: `RELATED INTEGRATION RECORDS: [zoho] Invoice …499.99 / Widget Pro` + LLM answer surfaced from them. Includes role fan-out (member rows), instance_url assertion, integration_tokens DB checks. Also fixed: mock `_send` str→bytes; e2e register email TLD (`.test` reserved).
+
+**Frontend (jest)**: all 6 Zoho app UIs now exist — hub cards (zoho-books/inventory/crm/projects/mail + workdrive) + per-app detail pages via shared `components/integrations/ZohoIntegrationDetail.tsx` (Connect → `/api/v1/auth/oauth/zoho/initiate`); `tests/components/integrations-zoho-suite.test.tsx` 6 tests. Hub health map + `ecommerce` category added.
+
+**Verification**: 240 backend tests passed (Zoho units + w38/w97/w101 + oauth cluster); e2e 2/2 (browser consent). Frontend jest 6/6; tsc clean for all new zoho files (pre-existing errors elsewhere unchanged). mypy 0 new errors on changed files.
+
+**Note**: `core/hybrid_data_ingestion.py` also carries the concurrent workstream's role-aware sync plumbing (agent_id → role tag on LanceDB metadata) — left intact; repaired a mid-edit indentation wedge in `_fetch_integration_data` so the file imports.
+
+## Session 2026-08-21 (backend) — Discord ingestion parity: poller branch + multi-entity (memory-plan §7)
+
+**Files**: `backend/integrations/atom_communication_ingestion_pipeline.py` (+`_fetch_discord_messages`, dispatch branch in `_fetch_new_messages`), `backend/core/integration_constants.py` (+`discord` ∈ `COMMUNICATION_INTEGRATIONS` → flows into `MULTI_ENTITY_INTEGRATIONS`), `backend/tests/test_discord_ingestion_parity.py` (new — 7 tests), `docs/architecture/AGENT_MEMORY_UNIFICATION_PLAN.md` (§7 Discord row).
+
+**TDD red→green** (7 tests; RED = `_fetch_new_messages("discord")` hit the else branch and discord ∉ multi-entity sets): the poller now walks bot guilds → text channels (type 0) → channel messages via the existing `DiscordService` (bot-token auth), normalizes to comm records (`id/content/author/channel_id/channel_name/guild_id/timestamp/direction/source_app`) filtered to messages newer than `last_fetch`. Fail-closed without `DISCORD_BOT_TOKEN`; API errors degrade to [] so the polling loop survives. Multi-entity parity: discord queue records now get the same extraction treatment as slack/teams/whatsapp. Still tracked: bridge drops non-interaction Discord messages (needs a gateway client — out of scope here).
+
+**Verification**: suite 7/7; regression (`test_memory_symmetry_fixes` + `test_covpush_w83b_reflection` + webhook-bridge suite) 225 passed.
+
+## Session 2026-08-21 (backend) — Zendesk inbound ingestion: webhook + transformer + comm bridge (memory-plan §7, closes the largest gap)
+
+**Files**: `backend/api/routes/webhooks/ingestion_webhooks.py` (+`POST /webhooks/zendesk/events` — fail-closed HMAC over the RAW body via `ZENDESK_WEBHOOK_SECRET`; missing secret → 503, bad/missing signature → 401; tenant = first active zendesk UserConnection), `backend/core/ingestion_pipeline.py` (+`_transform_zendesk_payload` registered in the transformer map; `zendesk` ∈ `_KNOWN_COMM_INTEGRATIONS` + queue-bridge set), `backend/tests/test_zendesk_inbound_ingestion.py` (new — 8 tests), `docs/architecture/AGENT_MEMORY_UNIFICATION_PLAN.md` (§7 Zendesk row + follow-up #6 FIXED).
+
+**TDD red→green** (8 tests; RED = 404 route, no transformer, no membership): comment-shaped payloads (ticket + current_comment) become message records (`type/content/from/ticket_id/subject/direction/public/event_type`) so support conversations land as structured customer memory for the AI employee; degenerate payloads degrade to a notification stub. Queue path bridges to `ingest_message("zendesk", record)` with the standard per-record raw-write fallback. Route tests override `get_db` with a mock session (real DB lacks tables) and sign the exact raw bytes TestClient sends.
+
+**Verification**: suite 8/8; combined regression (memory-symmetry + ingestion-pipeline + w34 + backfill-unified + bughunt-graphrag) 193 passed.
+
+## Session 2026-08-21 (backend) — Fleet routing validation subsystem (shadow→pilot automation)
+
+**Files**: `core/fleet_orchestration/fleet_routing_stats.py` (NEW — audit write `record_fleet_decision`, outcome join `record_fleet_execution_outcome`, `fleet_calibration_status` with stage-router gap math reused), `core/fleet_orchestration/fleet_router_automation.py` (NEW — consent-gated automation, `resolved_fleet_enforce` override, `off|notify|approve|auto`), `api/fleet_router_routes.py` (NEW — admin-gated `/api/v1/fleet/automation/{status,config,run-now,approve,reject}`), `api/health_routes.py` (+public `/health/fleet-router`), `main_api_app.py` (+mount), `core/models.py` (+`FleetRoutingAudit`, `FleetRouterAutomationAction`), `alembic/versions/20260821_add_fleet_routing_audit.py` (NEW, chained `20260821_ingested_docs_role`, SQLite-safe guarded + additive outcome columns), `core/atom_meta_agent.py` (fleet branch audits EVERY decision incl. recruitment-failure fallback; enforce resolved via `resolved_fleet_enforce()`; execution outcome joined at BOTH finalize points). Tests: `tests/unit/test_fleet_routing_stats.py` (15), `tests/unit/test_fleet_router_automation.py` (22), `tests/unit/test_fleet_routing_audit_wire.py` (4), `tests/test_covpush_w92f_fleet_router_routes.py` (14). **Honest single-arm semantics**: shadow mode measures the incumbent baseline on fleet-eligible tasks (fleet is NOT auto-executed in shadow); certification = healthy baseline + healthy recruitment → recommend pilot; revocation always automatic. 3 bugs found+fixed during RED: `record_fleet_decision` required non-optional args + `row.id` None pre-flush (uuid at construction), `workspace_id` not in `execute()` scope (self attr), outcome-join `error` assignment wrote `""` instead of the message.
+
+**Verification**: 4 new suites 55 passed; regression: existing fleet wire (4) + stage-router automation (unit/core/test_stage_router_automation.py) + w10c/w45 fleet clusters + test_fleet_scaler_service (89) all green; `main_api_app` imports clean; migration validated on scratch SQLite (fresh-create + hybrid additive paths). mypy: pre-existing env dup-path error affects ALL files incl. baseline (unchanged).
+
+## Session 2026-08-21 (backend) — Memory source-attribution hardening (rev.2 re-ranked plan: P1 provenance + P2 governance slice)
+
+**Files**: `backend/core/models.py` (TurnFact +`epistemic_type`/`sensitivity`), `backend/core/turn_fact_extractor.py` (prompt classifies epistemic origin; parser validates → stated default; `_persist_one` carries both; `get_active_facts_for_prompt` gains `epistemic_type` filter + `prioritize_stated` tertiary ordering), `backend/integrations/atom_communication_ingestion_pipeline.py` (+module-level `derive_actor`; `_normalize_message` wraps impl stamping `metadata.actor_type/actor_id`; `search_communications(direction=…)` filter on the existing column), `backend/alembic/versions/20260821_turn_facts_source_attribution.py` (guarded, verified up+down), `backend/tests/test_memory_epistemic_provenance_scoping.py` (new — 12 tests), `docs/architecture/CONTEXT_MEMORY.md` (new section).
+
+**Design per external critique (rev.2)**: re-ranked to provenance-first; epistemic axis shipped HONESTLY SCOPED as schema/prompt + one recall behavior (`prioritize_stated` = survey §7.3 "user statement ≫ agent inference" as tertiary sort after recency; default ordering byte-compatible) — explicitly NO SOTA claim until a LongMemEval-style golden-QA eval exists (documented in CONTEXT_MEMORY.md). Sensitivity column is P4-vocabulary enablement, enforcement deferred. Role-scoped tiers DEFERRED until fleet routing is live (now enabled — shadow).
+
+**TDD red→green** (12 tests): prompt carries the epistemic contract; parser honors "inferred", coerces invalid ("banana") → stated; recall filter + stated-priority ordering verified against a newer/higher-confidence inferred fact; sensitivity defaults internal and persists through `_persist_one`; comm records get `metadata.actor_type` (inbound→external, outbound→employee, explicit direction overrides) via `derive_actor`; `search_communications` emits a quote-escaped `direction` WHERE clause.
+
+**Gotchas**: `search_communications` lives on `LanceDBMemoryManager`, not `CommunicationIngestionPipeline` (test targets the right class); concurrent-session edits caused transient exact-match failures in patch scripts — resolved by regex anchors + idempotent guards.
+
+**Verification**: suite 12/12; turn-fact suites (`test_covpush_w23/w37/w64l_turn_fact*`, `test_turn_fact_extraction`) + memory-symmetry 89 passed; migration up+down verified on scratch DB.
+
+## Session 2026-08-21 (backend) — Conversational-memory eval gate (rev.2 plan §5)
+
+**Files**: `backend/core/memory_eval_conversation.py` (new), `backend/tests/test_memory_eval_conversation_gate.py` (new — CI gate, baseline 5/5), `docs/architecture/CONTEXT_MEMORY.md` (eval section replaces the no-eval caveat).
+
+**What it measures**: golden multi-session conversation ingested into the turn-fact store → 5 QAs through the same Tier-1 recall the prompt assembly uses: single-hop hit ("which plan?"), update/supersession (stale plan fact absent), invoice-routing hit, epistemic filter (`epistemic_type="stated"` excludes inferences), and source-attribution ordering (stated ranks at/above equally-recent inferred under `prioritize_stated`).
+
+**Honest scope**: ingestion bypasses the LLM extractor (`_persist_one` direct) — measures STORE + RECALL correctness only; extraction quality needs live-LLM runs. Isolated workspace per invocation; seeder applies guarded DDL so pre-migration databases self-heal (create_all does not add columns to existing tables).
+
+**Gotchas**: differing fact texts never collide by content_hash — update chains need explicit consolidator-style supersession in the seeder (mirrors the nightly sweep); supersede-by-confidence-margin requires beating by >0.1 (capped facts can't).
+
+**Verification**: standalone run 5/5 accuracy=1.0; gate + provenance suite + P2.3 retrieval gate 14 passed / 1 skipped (env-dependent skip).
+
+## Session 2026-08-21 (backend) — Poisoning tripwire: write-path governance for turn facts (rev.2 plan #2)
+
+**Files**: `backend/core/turn_fact_extractor.py` (module-level `_poison_*` state + helpers; `_persist_one` wires quarantine at entry — new inserts land `status="quarantined"`, conflicting writes against established facts are DROPPED while quarantined; supersession events recorded on the supersede branch), `backend/tests/test_memory_epistemic_provenance_scoping.py` (+4 tests, 16 total), `docs/architecture/CONTEXT_MEMORY.md` (+tripwire section), `docs/reference/ENVIRONMENT_VARIABLES.md` + `CLAUDE.md` (+`ATOM_MEMORY_POISON_TRIPWIRE`, default true).
+
+**Threat model**: one poisoned write pollutes recall for every downstream step (survey §4.3 "trustworthy reflection") — the memory equivalent of prompt injection. Signal: the SAME fact restated with escalating confidence from one source (user_id+execution_id+session) — each write clears the >+0.1 supersede margin. ≥5 supersessions within 10 min → that source's writes land `status="quarantined"` (kept for audit, excluded from active recall) for **30 min**; while quarantined, conflicting writes against established facts are dropped outright (no overwrite path). Self-heals after the window; state is in-process per worker; kill switch `ATOM_MEMORY_POISON_TRIPWIRE=false`.
+
+**TDD red→green** (4 tests): escalation ladder trips quarantine → subsequent NEW writes land quarantined; quarantined rows excluded from `get_active_facts_for_prompt`; kill switch disables entirely (supersessions recorded but never quarantine); a single normal supersession does not trigger.
+
+**Gotchas**: content_hash is text-based — differing texts never collide, so the realistic vector is restating the same fact with escalating confidence (NOT distinct texts); the store persists across runs in the dev DB → tests must use a unique workspace per run or stale same-text rows absorb the ladder (this bit twice).
+
+**Verification**: suite 16/16; turn-fact + eval-gate + symmetry cluster 185 passed.
+
+## Session 2026-08-21 (backend) — Recall-time sensitivity enforcement (rev.2 plan #2 completion)
+
+**Files**: `backend/core/turn_fact_extractor.py` (+`SENSITIVITY_RANK`/`_sensitivity_rank`; `get_active_facts_for_prompt(..., max_sensitivity=…)` and `prefetch_relevant_facts(..., max_sensitivity=…)`), `backend/tests/test_memory_epistemic_provenance_scoping.py` (+6 tests, 22 total), `docs/architecture/CONTEXT_MEMORY.md`.
+
+**Behavior**: ceiling ranks public(0) < internal(1) < confidential(2) < restricted(3); unknown sensitivity values rank RESTRICTED (conservative — excluded under any non-trivial ceiling). Tier-1 composes with `prioritize_stated` (ceiling filter then stated-first sort); Tier-2 hydration applies the same ceiling while preserving LanceDB relevance order. Default `None` = legacy byte-compatible.
+
+**Remaining product decision**: which agent contexts count as external-bound (i.e., what default ceiling prompt assembly should pass) — enforcement plumbing is done, policy wiring is not.
+
+**Gotchas**: patch target for prefetch tests is `core.turn_fact_extractor.SessionLocal` (module-bound import), NOT `core.database.SessionLocal`; MagicMock dunder configuration must use `ctx.__enter__.return_value = db`, not attribute assignment.
+
+**Verification**: suite 22/22; turn-fact cluster + eval gate 182 passed.
+
+## Session 2026-08-21 (backend) — Fact retention + right-to-erasure (rev.2 plan #2 completion)
+
+**Files**: `backend/core/memory_consolidator.py` (+`apply_retention_policy`, `purge_user_facts`, `_ERASED_TEXT`; `consolidate_workspace` wires retention as `facts_expired`), `backend/tests/test_fact_retention.py` (new — 8 tests), `docs/architecture/CONTEXT_MEMORY.md` (+retention/erasure section).
+
+**Contracts**: retention sweep invalidates ACTIVE facts older than `TURN_FACT_RETENTION_DAYS` (env; param overrides; default 0 = disabled) — text anonymized to `[erased per retention policy]`, tags cleared, status `invalidated` (excluded from recall, row preserved for audit). `purge_user_facts`: soft = anonymize+invalidate one user's facts; hard=True = DELETE (GDPR Art. 17; legal hold is caller's judgment). Both accept an optional session (`db=`) for testability and never raise.
+
+**Wiring**: `consolidate_workspace` now reports `facts_expired` so the 6-hourly worker enforces retention automatically when the env is set.
+
+**Verification**: suite 8/8; turn-fact + hardening cluster 205 passed.
+
+## Session 2026-08-21 (backend) — Sensitivity ceiling wired into prompt assembly (rev.2 #2 final plumbing)
+
+**Files**: `backend/core/turn_fact_extractor.py` (+`prompt_sensitivity_ceiling()` policy), `backend/core/atom_meta_agent.py` (both recall sites pass `max_sensitivity=_prompt_ceiling()`), `backend/tests/test_memory_epistemic_provenance_scoping.py` (+3 tests, 25 total), `docs/reference/ENVIRONMENT_VARIABLES.md` + `docs/architecture/CONTEXT_MEMORY.md` (+`ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING`, default `confidential`).
+
+**Policy**: restricted facts never surface into prompts sent to LLM providers (P4 external-outbound alignment). Env override: public|internal|confidential|restricted|none; invalid → safe default. Wiring pinned by a source-inspection test (both call sites), behavior tests cover the helper's env matrix.
+
+**Verification**: suite 25/25; turn-fact + meta-agent + retention + eval-gate cluster 204 passed.
+
+## Session 2026-08-21 (backend) — Discord Gateway client: real-time message ingestion (closes the §7 Discord gap)
+
+**Files**: `backend/integrations/discord_gateway.py` (new), `main_api_app.py` (worker-block start hook, gated), `backend/tests/test_discord_gateway.py` (new — 6 tests, fake WebSocket injected — zero network), `docs/reference/ENVIRONMENT_VARIABLES.md` + `docs/architecture/AGENT_MEMORY_UNIFICATION_PLAN.md` (§7 Discord row: gateway FIXED).
+
+**Contracts** (all against an injected ws double): HELLO(op10) → IDENTIFY(op2) with bot token + GUILD_MESSAGES|MESSAGE_CONTENT intents; heartbeat(op1) fires when the interval elapses via recv-timeout (op11 = ACK); MESSAGE_CREATE dispatches to the callback as normalized comm records (same shape as poller/bridge → `ingest_message("discord", …)` downstream); non-dispatch events ignored; socket death ends the lifetime cleanly and `start()` reconnects with capped exponential backoff. Gating: `maybe_start_from_env()` requires `DISCORD_GATEWAY_ENABLED=true` AND `DISCORD_BOT_TOKEN`, plus a RUNNING event loop (returns False honestly otherwise); wired into main_api_app's worker block.
+
+**Test-infra gotchas**: MagicMock dunder configuration must use `ctx.__enter__.return_value = db` (instance attribute assignment doesn't intercept the context protocol); fake `start()` must be `async def` (`create_task` rejects None returns); FakeWS `fail_after=N` delivers N frames then drops; pre-loop HELLO parse needs a None-guard when fakes return blocking Nones.
+
+**Verification**: suite 6/6; discord parity + symmetry cluster 22 passed.

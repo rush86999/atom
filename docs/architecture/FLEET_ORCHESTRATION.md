@@ -120,3 +120,67 @@ Recruited specialists execute via `GenericAgent.execute()`, which enforces:
 - `test_fleet_scaler_service.py` (+2) — expansion recruits registered
   AgentRegistry rows (no fake ids / no `"system"` parent), prefers real pool
   agents before placeholder fallback.
+
+## Fleet Routing Validation & Automation (2026-08-21)
+
+The master switch flipped to **ON (shadow)** on 2026-08-21 — fleet-eligible TASK
+intents get governed recruitment computed + audited on every `execute()`, while
+responses still come from Queen→ReAct. This section is the data-driven,
+consent-gated path from shadow to force-enforce (pilot).
+
+**Honest single-arm semantics.** In shadow mode the fleet is recruited but NOT
+auto-executed, so `fleet_routing_audit` rows measure the *incumbent* baseline
+on fleet-eligible tasks (joined from the `AgentExecution` finalize points).
+There is no fleet-arm outcome until force-enforce is on. Certification
+therefore means "baseline healthy + recruitment machinery works" → recommend
+the pilot; it does NOT claim "fleet beats incumbent".
+
+**Pipeline:**
+
+1. **Audit** — `core/fleet_orchestration/fleet_routing_stats.py`:
+   `record_fleet_decision` (every fleet-eligible decision incl. recruitment
+   failure, never raises) + `record_fleet_execution_outcome` (joined at both
+   finalize points in `execute()`; only `success IS NOT NULL` rows are
+   calibration-eligible). `workload_key` = sha1 of the normalized request.
+2. **Calibration** — `fleet_calibration_status()`: per-workload phase
+   (off / blocked / collecting / ready / enforced), incumbent success rate,
+   min detectable gap (reuses `min_turns_per_arm` / `min_detectable_gap` from
+   `core.llm.stage_router`). Public at `GET /health/fleet-router`.
+3. **Automation** — `core/fleet_orchestration/fleet_router_automation.py`:
+   consent-gated verdicts (`enable` = pilot-ready, `blocked`, `revoke`).
+   Modes: `off | notify | approve | auto` (env `ATOM_FLEET_ROUTER_AUTO_ENFORCE`,
+   default `approve`). Escalation requires consent (approval action row →
+   `POST /api/v1/fleet/automation/approve`); **revocation is always automatic**
+   in all non-off modes (baseline success < 0.5 over ≥20 rows, or recruitment
+   success < 0.8 over ≥10 attempts).
+4. **Enforcement resolution** — `resolved_fleet_enforce()`: the env kill-switch
+   `ATOM_FLEET_ROUTING_FORCE_ENFORCE=true` ALWAYS wins; otherwise the latest
+   applied/revoked automation action `fleet_router_automation_actions`
+   (workload `__global__`) drives the switch. Failures degrade to shadow.
+   In `auto` mode the automation applies the override itself; in `approve`
+   mode an admin approves it via the management API. The automation loop
+   lazy-starts from the hot path (mirrors the stage-router pattern).
+
+**Action flow example (approve mode):** shadow data collects → calibration
+pass (every `ATOM_FLEET_ROUTER_AUTO_INTERVAL_MIN` min, default 60, or
+`POST /api/v1/fleet/automation/run-now`) sees ≥30 outcome-joined rows + healthy
+baseline + healthy recruitment → action row `state=approval` + in-app
+notification `approval_needed` → admin approves → `state=applied` →
+`resolved_fleet_enforce()` returns True → eligible tasks return the fleet
+recruitment summary (`status: fleet_recruited`). Baseline regression after
+that point → auto-revoke → override cleared → shadow again.
+
+**Env knobs:**
+
+| Env | Default | Meaning |
+|---|---|---|
+| `ATOM_FLEET_ROUTER_AUTO_ENFORCE` | `approve` | off\|notify\|approve\|auto |
+| `ATOM_FLEET_ROUTER_AUTO_INTERVAL_MIN` | `60` | certification cadence (min) |
+| `ATOM_FLEET_ROUTER_AUTO_MIN_ROWS` | `30` | outcome-joined rows floor per verdict (hardcoded in stats module today) |
+| `ATOM_FLEET_ROUTER_AUTO_SUCCESS_GAP` | `0.70` | incumbent baseline floor to pilot |
+| `ATOM_FLEET_ROUTER_AUTO_NOTIFY_COOLDOWN_HOURS` | `24` | notify-mode dedupe |
+
+**Admin surface**: `GET /api/v1/fleet/automation` (status), `POST .../config`,
+`POST .../run-now`, `POST .../approve`, `POST .../reject` (all admin-gated,
+403 otherwise); `GET /api/v1/fleet/automation/status` + `/health/fleet-router`
+are public read-only.
