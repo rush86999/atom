@@ -92,6 +92,15 @@ class TestJourneyEndpointsResolve:
         # the bogus double-prefixed duplicate must be gone
         assert c.get("/api/v1/integrations/discord/api/discord/status").status_code == 404
 
+    def test_telegram_real_surface_no_double_prefix(self):
+        """Round 80i: telegram is root-mounted by the journey block; the
+        bogus /api/v1/integrations/telegram/api/telegram/* double prefix from
+        the CORE-ROUTES include must be gone."""
+        c = self._client()
+        resp = c.get("/api/telegram/health")
+        assert resp.status_code == 200
+        assert c.get("/api/v1/integrations/telegram/api/telegram/status").status_code == 404
+
 class TestMeetingRoutesWired:
     """Round 80f: api/meeting_routes.py had a real frontend consumer
     (pages/api/meeting_attendance_status/[taskId].ts proxies

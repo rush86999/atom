@@ -120,6 +120,11 @@ Legend: ✅ wired · 🟡 partial (reachable, data surface limited) · ⚠️ kn
 
 ## 5. Role model (what "every role" means here)
 
+### Mobile surface (audited Round 80i)
+The mobile app (`mobile/`, Expo) has **no integration journeys at all** — screens are agent/analytics/auth/canvas/chat/debugging/device/settings/workflows, and `src/services/*` never calls any `/api/integrations|/api/{app}` endpoint. So there is nothing to break — but also **no mobile visibility into integration status or management**. Building an integrations screen (read-only connection list → `GET /api/integrations` + per-app health) would be new feature work, not gap-fill.
+
+
+
 - `get_current_user` (JWT, ACTIVE-only, jti revocation) gates every integration data/write endpoint — anonymous is rejected; any authenticated role (MEMBER..SUPER_ADMIN) can connect/use integrations.
 - Integration endpoints do not use `require_admin` by design: connecting a service is a normal member action. Admin-only surfaces (gatekeeper, stage-router automation, workspace context) keep their own `require_super_admin`/`_require_admin` gates.
 - Governance (agent maturity) applies at agent-execution time, not at the integration HTTP surface.

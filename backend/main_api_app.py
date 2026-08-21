@@ -2593,9 +2593,10 @@ try:
 
         app.include_router(teams_router, prefix="/api/v1/integrations/teams")
 
-        from integrations.telegram_routes import router as telegram_router
-
-        app.include_router(telegram_router, prefix="/api/v1/integrations/telegram")
+        # telegram_routes declares its own /api/telegram prefix — the unified
+        # v1 prefix here double-prefixed every route and shadowed nothing but
+        # confusion. Root-mounted by the journey block (round 80b); the bogus
+        # duplicate was removed in round 80i (mirrors discord, round 80d).
 
         # Legacy WhatsApp router removed - Consolidated into hardened router below
 

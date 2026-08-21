@@ -116,8 +116,13 @@ class TestWebhookSecret:
         assert response.json()["status"] == "ok"
 
     def test_legacy_env_name_fallback(self, client):
+        # The primary var must be FALSY for the legacy fallback to trigger.
+        # patch.dict cannot delete keys, and a developer .env may define
+        # ATOM_TELEGRAM_WEBHOOK_SECRET (dotenv-loaded) — so override it "".
         with patch.dict(os.environ, {
-            "TELEGRAM_WEBHOOK_SECRET_TOKEN": "legacy-secret"}, clear=False):
+            "ATOM_TELEGRAM_WEBHOOK_SECRET": "",
+            "TELEGRAM_WEBHOOK_SECRET_TOKEN": "legacy-secret",
+        }, clear=False):
             response = client.post(
                 "/api/telegram/webhook", json={"update_id": 1},
                 headers={"X-Telegram-Bot-Api-Secret-Token": "legacy-secret"})
