@@ -37,6 +37,96 @@ webhook_queue = WebhookIngestionQueue()
 
 
 # ============================================================================
+# Zendesk Webhook Handler
+# ============================================================================
+
+
+@router.post("/webhooks/zendesk/events")
+async def zendesk_webhook_handler(request: Request, db: Session = Depends(get_db)):
+    """
+    Handle Zendesk Support webhook (ticket comments) and trigger ingestion.
+
+    Verification (fail-closed, R69 pattern): ZENDESK_WEBHOOK_SECRET must be
+    set; the request must carry X-Zendesk-Webhook-Signature — a base64
+    HMAC-SHA256 over the RAW request body. Missing secret -> 503; invalid
+    or missing signature -> 401.
+
+    Tenant resolution: the first active zendesk UserConnection (Zendesk
+    accounts are 1:1 with an Atom tenant in this deployment shape).
+    """
+    import base64 as _base64
+    import hashlib
+
+    from sqlalchemy import text as _sa_text
+
+    expected_secret = os.getenv("ZENDESK_WEBHOOK_SECRET", "")
+    if not expected_secret:
+        logger.error("Zendesk webhook received but ZENDESK_WEBHOOK_SECRET not set — rejecting")
+        raise HTTPException(status_code=503, detail="Webhook verification not configured")
+
+    raw_body = await request.body()
+    supplied_sig = request.headers.get("X-Zendesk-Webhook-Signature", "")
+    if not supplied_sig:
+        logger.error("Zendesk webhook missing signature header — rejecting")
+        raise HTTPException(status_code=401, detail="Missing signature")
+    computed_sig = _base64.b64encode(
+        hmac.new(expected_secret.encode(), raw_body, hashlib.sha256).digest()
+    ).decode()
+    if not hmac.compare_digest(computed_sig, supplied_sig):
+        logger.error("Zendesk webhook signature mismatch — rejecting")
+        raise HTTPException(status_code=401, detail="Invalid signature")
+
+    try:
+        event_data = await request.json()
+
+        # Tenant resolution: first active zendesk connection
+        from core.models import UserConnection
+
+        if db.bind and db.bind.dialect.name == "postgresql":
+            db.execute(_sa_text("SET LOCAL row_security = off"))
+
+        connection = (
+            db.query(UserConnection)
+            .filter(
+                UserConnection.integration_id == "zendesk",
+                UserConnection.status == "active",
+            )
+            .first()
+        )
+
+        if db.bind and db.bind.dialect.name == "postgresql":
+            db.execute(_sa_text("SET LOCAL row_security = on"))
+
+        if not connection:
+            logger.warning("No active Zendesk connection found for webhook")
+            return {"status": "ignored", "reason": "no_active_connection"}
+
+        tenant_id = str(connection.tenant_id)
+        source_connection_id = str(connection.id)
+
+        job_id = await webhook_queue.enqueue_ingestion_job(
+            tenant_id=tenant_id,
+            integration_id="zendesk",
+            trigger_type="webhook",
+            payload=event_data,
+            source_connection_id=source_connection_id,
+        )
+
+        logger.info(
+            "Zendesk webhook enqueued for ingestion",
+            tenant_id=tenant_id,
+            job_id=job_id,
+        )
+        return {"status": "enqueued", "job_id": job_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Zendesk webhook handler error: {e}")
+        return {"status": "error", "message": "Webhook processing failed"}
+
+
+# ============================================================================
 # Slack Webhook Handler
 # ============================================================================
 

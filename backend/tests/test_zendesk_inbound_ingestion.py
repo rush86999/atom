@@ -23,6 +23,7 @@ Contracts pinned here:
 import hashlib
 import hmac
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -35,11 +36,7 @@ from core.ingestion_pipeline import IngestionPipelineService
 SECRET = "zendesk-shared-secret"
 
 
-def _signature(body: bytes, secret: str = SECRET) -> str:
-    return base64_hmac(body, secret)
-
-
-def base64_hmac(body: bytes, secret: str) -> str:
+def base64_hmac(body: bytes, secret: str = SECRET) -> str:
     import base64
 
     return base64.b64encode(
@@ -66,9 +63,19 @@ def _comment_payload():
 @pytest.fixture()
 def client():
     from api.routes.webhooks.ingestion_webhooks import router
+    from core.database import get_db
 
     app = FastAPI()
     app.include_router(router)
+
+    def _mock_db():
+        db = MagicMock()
+        db.bind = None  # skip pg row_security branch
+        conn = SimpleNamespace(id="conn-1", tenant_id="t-1", status="active")
+        db.query.return_value.filter.return_value.first.return_value = conn
+        return db
+
+    app.dependency_overrides[get_db] = _mock_db
     return TestClient(app, raise_server_exceptions=False)
 
 
@@ -105,7 +112,6 @@ class TestZendeskWebhookRoute:
 
     def test_valid_signature_enqueues(self, client, secret_env):
         body = _comment_payload()
-        raw = str(body).replace("'", '"').encode()  # TestClient re-serializes; sign loosely
         with patch("api.routes.webhooks.ingestion_webhooks.webhook_queue") as q:
             q.enqueue_ingestion_job = AsyncMock(return_value="job-zd-1")
             # sign the exact bytes the server will read: build request manually

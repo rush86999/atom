@@ -67,7 +67,7 @@ class IngestionPipelineService(HybridDataIngestionService):
     _KNOWN_COMM_INTEGRATIONS = frozenset({
         "outlook", "gmail", "slack", "microsoft_teams", "teams", "telegram",
         "whatsapp", "discord", "sms", "calls", "zoom", "line", "signal",
-        "messenger", "google_chat",
+        "messenger", "google_chat", "zendesk",
     })
 
     # Fields that mark a record as message-like when the integration itself
@@ -1168,15 +1168,15 @@ class IngestionPipelineService(HybridDataIngestionService):
 
             # LanceDB indexing for webhook records (communication memory)
             # This enables semantic search for email/chat content
-            if integration_id in ["outlook", "gmail", "slack", "teams", "discord"]:
-                # Gmail/Teams/Discord route through the SAME normalized comm
+            if integration_id in ["outlook", "gmail", "slack", "teams", "discord", "zendesk"]:
+                # Gmail/Teams/Discord/Zendesk route through the SAME normalized comm
                 # pipeline as the tiered path and their pollers/bridges: raw
                 # vector dumps are not structured memory — ingest_message
                 # gives normalization, FTS-hybrid store, and the graph
                 # trigger. Teams/Discord queue routes were B-only (P0.4
                 # audit); per-record fallback to the legacy raw write keeps
                 # records from being lost.
-                if integration_id in ("gmail", "teams", "discord"):
+                if integration_id in ("gmail", "teams", "discord", "zendesk"):
                     try:
                         from integrations.atom_communication_ingestion_pipeline import (
                             get_ingestion_pipeline,
@@ -1597,6 +1597,7 @@ class IngestionPipelineService(HybridDataIngestionService):
             # CRM & Sales (5 integrations)
             "pipedrive": self._transform_pipedrive_payload,
             "zendesk_sell": self._transform_zendesk_sell_payload,
+            "zendesk": self._transform_zendesk_payload,
             "insightly": self._transform_insightly_payload,
             "freshsales": self._transform_freshsales_payload,
             "salesloft": self._transform_salesloft_payload,
@@ -2355,6 +2356,63 @@ class IngestionPipelineService(HybridDataIngestionService):
             "event_type": webhook_data.get("trigger", ""),
         }
         records.append(record)
+        return records
+
+    async def _transform_zendesk_payload(
+        self, webhook_data: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """Transform Zendesk Support webhook payload to message records.
+
+        Handles comment-shaped payloads (ticket + current_comment): support
+        conversations ARE the AI employee's customer memory. Degenerate
+        payloads degrade to a notification stub so the audit trail keeps
+        flowing (mirrors _transform_gmail_payload).
+        """
+        records: list[dict[str, Any]] = []
+
+        ticket = webhook_data.get("ticket") or {}
+        comment = (
+            webhook_data.get("current_comment")
+            or webhook_data.get("comment")
+            or {}
+        )
+        content = (comment.get("body") or "").strip()
+        requester = ticket.get("requester") or {}
+        sender = (
+            requester.get("name")
+            or requester.get("email")
+            or str(comment.get("author_id") or "unknown")
+        )
+
+        if content:
+            records.append({
+                "type": "zendesk_message",
+                "id": f"zd_ticket_{ticket.get('id', 'unknown')}_"
+                      f"{comment.get('id', datetime.now(timezone.utc).timestamp())}",
+                "ticket_id": ticket.get("id"),
+                "subject": ticket.get("subject", ""),
+                "content": content,
+                "from": sender,
+                "direction": "inbound",
+                "public": comment.get("public", True),
+                "event_type": webhook_data.get("event_type", "ticket_comment_added"),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+
+        # Fallback if the payload carried no usable comment
+        if not records:
+            records.append({
+                "type": "zendesk_message",
+                "id": f"zd_event_{webhook_data.get('event_type', 'unknown')}",
+                "ticket_id": ticket.get("id"),
+                "subject": ticket.get("subject", "Zendesk notification"),
+                "content": "",
+                "from": sender,
+                "direction": "inbound",
+                "event_type": webhook_data.get("event_type", "notification"),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+
         return records
 
     async def _transform_insightly_payload(
