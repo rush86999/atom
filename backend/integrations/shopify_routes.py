@@ -17,12 +17,54 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/shopify", tags=["shopify"])
 
 @router.get("/auth/url")
-async def get_auth_url():
-    """Get Shopify OAuth URL"""
+async def get_auth_url(
+    shop: str = Query(..., description="Shop name (e.g. my-great-store)"),
+    current_user: User = Depends(get_current_user),
+):
+    """Get Shopify OAuth URL for a shop.
+
+    Requires SHOPIFY_API_KEY / SHOPIFY_API_SECRET env vars (Azure-level app
+    credentials). Redirects back to /api/shopify/auth/callback after approval.
+    """
+    import os
+    client_id = os.getenv("SHOPIFY_API_KEY", "")
+    if not client_id:
+        raise HTTPException(
+            status_code=500,
+            detail="Shopify OAuth not configured. Please set SHOPIFY_API_KEY and SHOPIFY_API_SECRET environment variables."
+        )
+    shop_url = shop if shop.endswith(".myshopify.com") else f"{shop}.myshopify.com"
+    scopes = "read_products,write_products,read_content,write_content,read_orders,read_customers,write_orders,write_draft_orders"
+    redirect_uri = "http://localhost:8000/api/shopify/auth/callback"
+    params = {
+        "client_id": client_id,
+        "scope": scopes,
+        "redirect_uri": redirect_uri,
+        "state": str(current_user.id),
+    }
+    from urllib.parse import urlencode
+    url = f"https://{shop_url}/admin/oauth/authorize?{urlencode(params)}"
     return {
-        "url": "https://{shop}.myshopify.com/admin/oauth/authorize?client_id=INSERT_CLIENT_ID&scope=read_products,read_orders,write_webhooks&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fshopify%2Fcallback",
+        "url": url,
+        "shop": shop_url,
+        "configured": True,
         "timestamp": datetime.now().isoformat()
     }
+
+@router.get("/connection")
+async def shopify_connection(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Whether a Shopify store is connected for the caller's workspace."""
+    from ecommerce.models import EcommerceStore as EcommerceStoreModel
+    ws_id = getattr(current_user, "workspace_id", None) or "default"
+    store = db.query(EcommerceStoreModel).filter(
+        EcommerceStoreModel.tenant_id == ws_id
+    ).first()
+    if not store or not store.access_token:
+        return {"ok": True, "connected": False, "shop": None}
+    return {"ok": True, "connected": True, "shop": store.shop_domain}
 
 # Initialize service
 shopify_service = ShopifyService()
@@ -61,21 +103,26 @@ async def shopify_auth_callback(auth_request: ShopifyAuthRequest, db: Session = 
         token_data = await shopify_service.exchange_token(auth_request.code, auth_request.shop)
         access_token = token_data["access_token"]
         
-        # Save or update EcommerceStore
+        # Save or update EcommerceStore. tenant_id must equal the workspace id
+        # so the agent's shopify_* tools / action resolver (which scope by
+        # tenant_id == workspace_id) can find the connected store.
         store = db.query(EcommerceStore).filter(
             EcommerceStore.shop_domain == auth_request.shop
         ).first()
+        tenant_id = auth_request.workspace_id or "default"
         
         if not store:
             store = EcommerceStore(
                 shop_domain=auth_request.shop,
                 access_token=access_token,
                 platform="shopify",
+                tenant_id=tenant_id,
                 metadata_json={"workspace_id": auth_request.workspace_id}
             )
             db.add(store)
         else:
             store.access_token = access_token
+            store.tenant_id = tenant_id
             store_meta = dict(store.metadata_json or {})
             store_meta["workspace_id"] = auth_request.workspace_id
             store.metadata_json = store_meta

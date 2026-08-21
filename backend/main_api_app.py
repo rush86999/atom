@@ -2436,6 +2436,17 @@ try:
 
         app.include_router(shopify_wh_router)
 
+        # Shopify REST API (products/blogs/articles/status + OAuth connect).
+        # Mounted here (unconditional) so the connect flow and agent tools work
+        # even when the webhook batch block below is skipped by a bad import.
+        try:
+            from integrations.shopify_routes import router as shopify_router
+
+            app.include_router(shopify_router, tags=["Shopify"])
+            logger.info("✓ Shopify REST routes loaded")
+        except (ImportError, TypeError) as e:
+            logger.warning(f"Shopify REST routes not found, skipping: {e}")
+
         from integrations.atom_communication_memory_webhooks import (
             atom_memory_webhooks_router,
         )

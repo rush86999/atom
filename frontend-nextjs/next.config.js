@@ -80,6 +80,10 @@ const nextConfig = {
         destination: "http://127.0.0.1:8000/api/integrations/:path*",
       },
       {
+        source: "/api/shopify/:path*",
+        destination: "http://127.0.0.1:8000/api/shopify/:path*",
+      },
+      {
         source: "/api/workflows/:path*",
         destination: "http://127.0.0.1:8000/api/v1/workflow-ui/:path*",
       },
