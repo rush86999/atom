@@ -6,10 +6,12 @@ Uses the real linear_service.py for all GraphQL operations
 from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from .linear_service import LinearService
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +55,7 @@ async def handle_oauth_callback(code: str, redirect_uri: str = "http://localhost
 
 
 @router.get("/viewer")
-async def get_viewer(access_token: Optional[str] = None):
+async def get_viewer(access_token: Optional[str] = None, current_user: User = Depends(get_current_user)):
     """Get current user information"""
     try:
         viewer = await linear_service.get_viewer(access_token)
@@ -66,7 +68,8 @@ async def get_viewer(access_token: Optional[str] = None):
 async def get_issues(
     access_token: Optional[str] = None,
     first: int = 50,
-    team_id: Optional[str] = None
+    team_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
 ):
     """Get Linear issues"""
     try:
@@ -77,7 +80,7 @@ async def get_issues(
 
 
 @router.post("/issues")
-async def create_issue(request: CreateIssueRequest, access_token: Optional[str] = None):
+async def create_issue(request: CreateIssueRequest, access_token: Optional[str] = None, current_user: User = Depends(get_current_user)):
     """Create a new Linear issue"""
     try:
         issue = await linear_service.create_issue(
@@ -94,7 +97,7 @@ async def create_issue(request: CreateIssueRequest, access_token: Optional[str] 
 
 
 @router.get("/teams")
-async def get_teams(access_token: Optional[str] = None, first: int = 50):
+async def get_teams(access_token: Optional[str] = None, first: int = 50, current_user: User = Depends(get_current_user)):
     """Get Linear teams"""
     try:
         teams = await linear_service.get_teams(access_token, first)
@@ -104,7 +107,7 @@ async def get_teams(access_token: Optional[str] = None, first: int = 50):
 
 
 @router.get("/projects")
-async def get_projects(access_token: Optional[str] = None, first: int = 50):
+async def get_projects(access_token: Optional[str] = None, first: int = 50, current_user: User = Depends(get_current_user)):
     """Get Linear projects"""
     try:
         projects = await linear_service.get_projects(access_token, first)
@@ -114,7 +117,7 @@ async def get_projects(access_token: Optional[str] = None, first: int = 50):
 
 
 @router.post("/search")
-async def search_issues(request: SearchRequest, access_token: Optional[str] = None):
+async def search_issues(request: SearchRequest, access_token: Optional[str] = None, current_user: User = Depends(get_current_user)):
     """Search Linear issues"""
     try:
         issues = await linear_service.get_issues(access_token, team_id=request.team_id)

@@ -1,7 +1,10 @@
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
+
+from core.auth import get_current_user
+from core.models import User
 
 try:
     from .deepgram_service import get_deepgram_service
@@ -20,7 +23,7 @@ class TranscribeURLRequest(BaseModel):
     diarize: bool = False
 
 @router.post("/transcribe/url")
-async def transcribe_url(request: TranscribeURLRequest):
+async def transcribe_url(request: TranscribeURLRequest, current_user: User = Depends(get_current_user)):
     """Transcribe audio from URL"""
     if not DEEPGRAM_AVAILABLE:
         return {
@@ -47,7 +50,8 @@ async def transcribe_file(
     model: str = "nova-2",
     language: str = "en",
     punctuate: bool = True,
-    diarize: bool = False
+    diarize: bool = False,
+    current_user: User = Depends(get_current_user)
 ):
     """Transcribe audio from uploaded file"""
     if not DEEPGRAM_AVAILABLE:
@@ -74,7 +78,7 @@ async def transcribe_file(
         raise HTTPException(status_code=400, detail="Internal error")
 
 @router.get("/projects")
-async def get_projects():
+async def get_projects(current_user: User = Depends(get_current_user)):
     """Get Deepgram projects"""
     if not DEEPGRAM_AVAILABLE:
         return {"projects": []}
@@ -90,7 +94,8 @@ async def get_projects():
 async def get_usage(
     project_id: str,
     start_date: Optional[str] = None,
-    end_date: Optional[str] = None
+    end_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
 ):
     """Get usage statistics for a project"""
     if not DEEPGRAM_AVAILABLE:

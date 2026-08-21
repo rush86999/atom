@@ -49,9 +49,18 @@ from core.sandbox_runtime.base import SandboxExecResult
 from core.sandbox_runtime import e2b_runner
 
 
-def make_client(router):
+def make_client(router, authed=False):
+    from core.auth import get_current_user
+    from unittest.mock import MagicMock
+
     app = FastAPI()
     app.include_router(router)
+    if authed:
+        # R80c: linkedin/tableau data routes now require authentication.
+        user = MagicMock()
+        user.id = "w67a-user"
+        user.email = "w67a@x.com"
+        app.dependency_overrides[get_current_user] = lambda: user
     return TestClient(app, raise_server_exceptions=False)
 
 
@@ -91,13 +100,13 @@ class TestTableauRoutes:
         from integrations.tableau_routes import router
 
         with patch("integrations.tableau_routes.get_tableau_service", return_value=svc):
-            resp = getattr(make_client(router), method)(path, **kw)
+            resp = getattr(make_client(router, authed=True), method)(path, **kw)
         return resp
 
     def _plain(self, method, path, **kw):
         from integrations.tableau_routes import router
 
-        return getattr(make_client(router), method)(path, **kw)
+        return getattr(make_client(router, authed=True), method)(path, **kw)
 
     def test_tableau_router_mounts(self):
         """REGRESSION: phantom get_tableau_service factory -> ImportError -> 404."""
@@ -255,20 +264,20 @@ class TestLinkedInRoutes:
         with patch(
             "integrations.linkedin_routes.get_linkedin_service", return_value=svc
         ):
-            resp = getattr(make_client(router), method)(path, **kw)
+            resp = getattr(make_client(router, authed=True), method)(path, **kw)
         return resp
 
     def _call_unavailable(self, method, path, **kw):
         from integrations.linkedin_routes import router
 
         with patch("integrations.linkedin_routes.LINKEDIN_AVAILABLE", False):
-            resp = getattr(make_client(router), method)(path, **kw)
+            resp = getattr(make_client(router, authed=True), method)(path, **kw)
         return resp
 
     def _plain(self, method, path, **kw):
         from integrations.linkedin_routes import router
 
-        return getattr(make_client(router), method)(path, **kw)
+        return getattr(make_client(router, authed=True), method)(path, **kw)
 
     def test_linkedin_router_mounts(self):
         """REGRESSION: phantom get_linkedin_service factory -> LINKEDIN_AVAILABLE

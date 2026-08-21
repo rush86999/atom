@@ -5,7 +5,10 @@ Simple email integration for Gmail/Outlook
 
 from datetime import datetime
 import logging
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +57,7 @@ async def email_health(provider: str = "gmail"):
 
 
 @router.post("/send")
-async def send_email(request: dict):
+async def send_email(request: dict, current_user: User = Depends(get_current_user)):
     """Send an email"""
     to = request.get("to", "")
     subject = request.get("subject", "")
@@ -74,7 +77,7 @@ async def send_email(request: dict):
 
 
 @router.get("/messages")
-async def list_emails(limit: int = 10):
+async def list_emails(limit: int = 10, current_user: User = Depends(get_current_user)):
     """List emails"""
     return {
         "ok": True,

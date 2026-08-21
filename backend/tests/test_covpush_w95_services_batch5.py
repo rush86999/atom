@@ -1201,6 +1201,12 @@ from integrations import freshdesk_routes as fr
 def fd_client():
     app = FastAPI()
     app.include_router(fr.router)
+    # R80c: freshdesk data/write routes now require authentication.
+    from core.auth import get_current_user
+    user = MagicMock()
+    user.id = "w95-fd-user"
+    user.email = "fd@x.com"
+    app.dependency_overrides[get_current_user] = lambda: user
     return TestClient(app)
 
 

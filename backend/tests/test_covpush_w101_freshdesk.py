@@ -20,7 +20,7 @@ Bugs fixed (TDD RED -> GREEN):
 - /health leaked str(e) in the error branch; now generic with server-side log.
 """
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -32,6 +32,12 @@ from integrations.freshdesk_routes import router, TicketCreateRequest, TicketUpd
 def client():
     app = FastAPI()
     app.include_router(router)
+    # R80c: freshdesk data/write routes now require authentication.
+    from core.auth import get_current_user
+    from core.models import User
+    user = MagicMock(spec=User)
+    user.id = "w101-user"
+    app.dependency_overrides[get_current_user] = lambda: user
     return TestClient(app)
 
 

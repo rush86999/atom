@@ -128,3 +128,9 @@ class OktaService(IntegrationService):
 
 # Global instance removed - use IntegrationRegistry instead
 # okta_service = OktaService()
+
+# Round 80c: okta_routes.py imports this module-level singleton; without it the
+# whole router is unimportable and the lazy registry silently drops okta
+# (load_integration('okta') -> None -> /api/okta/* 404s). Re-added following
+# the wave-109 zoom/plaid fix (module-level singleton for route modules).
+okta_service = OktaService()

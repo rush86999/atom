@@ -10,7 +10,7 @@ _bg_tasks: set = set()
 from datetime import datetime
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
 try:
@@ -18,6 +18,9 @@ try:
     TWILIO_AVAILABLE = True
 except ImportError:
     TWILIO_AVAILABLE = False
+
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +50,7 @@ async def get_auth_url():
 
 
 @router.post("/sms/send")
-async def send_sms(request: SendSMSRequest):
+async def send_sms(request: SendSMSRequest, current_user: User = Depends(get_current_user)):
     """Send an SMS message"""
     if not TWILIO_AVAILABLE:
         return {"ok": True, "message": "SMS sent (mock)", "timestamp": datetime.now().isoformat()}
@@ -64,7 +67,8 @@ async def send_sms(request: SendSMSRequest):
 async def get_messages(
     to: Optional[str] = None,
     from_number: Optional[str] = None,
-    page_size: int = Query(50, ge=1, le=100)
+    page_size: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user)
 ):
     """Get message history"""
     if not TWILIO_AVAILABLE:
@@ -79,7 +83,7 @@ async def get_messages(
 
 
 @router.post("/calls/make")
-async def make_call(request: MakeCallRequest):
+async def make_call(request: MakeCallRequest, current_user: User = Depends(get_current_user)):
     """Make a voice call"""
     if not TWILIO_AVAILABLE:
         return {"ok": True, "call": {"call_sid": "mock"}, "timestamp": datetime.now().isoformat()}
@@ -96,7 +100,8 @@ async def make_call(request: MakeCallRequest):
 async def get_calls(
     to: Optional[str] = None,
     from_number: Optional[str] = None,
-    page_size: int = Query(50, ge=1, le=100)
+    page_size: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user)
 ):
     """Get call history"""
     if not TWILIO_AVAILABLE:
@@ -111,7 +116,7 @@ async def get_calls(
 
 
 @router.get("/account")
-async def get_account_info():
+async def get_account_info(current_user: User = Depends(get_current_user)):
     """Get Twilio account information"""
     if not TWILIO_AVAILABLE:
         return {"ok": True, "account": {"account_sid": "mock"}, "timestamp": datetime.now().isoformat()}

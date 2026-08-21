@@ -121,3 +121,7 @@ class WebexService(IntegrationService):
                 "error": "Webex operation failed",
                 "details": {"operation": operation, "tenant_id": self.tenant_id}
             }
+
+
+# Round 80c: route module imports this module-level singleton (same phantom-singleton fix as okta/zoom/plaid).
+webex_service = WebexService()

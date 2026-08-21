@@ -6,7 +6,7 @@ Uses the real tableau_service.py for all operations
 from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 try:
@@ -15,6 +15,9 @@ try:
     TABLEAU_AVAILABLE = True
 except ImportError:  # pragma: no cover - service is always present
     TABLEAU_AVAILABLE = False
+
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +52,7 @@ async def get_auth_url():
 
 
 @router.post("/auth/signin")
-async def sign_in(request: TableauSignInRequest):
+async def sign_in(request: TableauSignInRequest, current_user: User = Depends(get_current_user)):
     """Sign in to Tableau Server"""
     try:
         service = get_tableau_service()
@@ -65,7 +68,7 @@ async def sign_in(request: TableauSignInRequest):
 
 
 @router.get("/workbooks")
-async def get_workbooks(auth_token: Optional[str] = None):
+async def get_workbooks(auth_token: Optional[str] = None, current_user: User = Depends(get_current_user)):
     """Get Tableau workbooks"""
     try:
         service = get_tableau_service()
@@ -82,7 +85,7 @@ async def get_workbooks(auth_token: Optional[str] = None):
 
 
 @router.get("/views")
-async def get_views(auth_token: Optional[str] = None):
+async def get_views(auth_token: Optional[str] = None, current_user: User = Depends(get_current_user)):
     """Get Tableau views"""
     try:
         service = get_tableau_service()
@@ -99,7 +102,7 @@ async def get_views(auth_token: Optional[str] = None):
 
 
 @router.get("/datasources")
-async def get_datasources(auth_token: Optional[str] = None):
+async def get_datasources(auth_token: Optional[str] = None, current_user: User = Depends(get_current_user)):
     """Get Tableau datasources"""
     try:
         service = get_tableau_service()

@@ -6,10 +6,12 @@ Uses the real intercom_service.py for all operations
 from datetime import datetime
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from .intercom_service import get_intercom_service
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +57,8 @@ async def auth_callback(request: IntercomAuthRequest):
 @router.get("/contacts")
 async def get_contacts(
     access_token: str = Query(..., description="Access token"),
-    limit: int = Query(20, ge=1, le=100)
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user)
 ):
     """Get Intercom contacts"""
     try:
@@ -75,7 +78,8 @@ async def get_contacts(
 @router.get("/conversations")
 async def get_conversations(
     access_token: str = Query(..., description="Access token"),
-    limit: int = Query(20, ge=1, le=100)
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user)
 ):
     """Get Intercom conversations"""
     try:
@@ -93,7 +97,7 @@ async def get_conversations(
 
 
 @router.get("/admins")
-async def get_admins(access_token: str = Query(..., description="Access token")):
+async def get_admins(access_token: str = Query(..., description="Access token"), current_user: User = Depends(get_current_user)):
     """Get Intercom admins"""
     try:
         service = get_intercom_service()
@@ -112,7 +116,8 @@ async def get_admins(access_token: str = Query(..., description="Access token"))
 @router.post("/search")
 async def search_contacts(
     request: IntercomSearchRequest,
-    access_token: str = Query(..., description="Access token")
+    access_token: str = Query(..., description="Access token"),
+    current_user: User = Depends(get_current_user)
 ):
     """Search Intercom contacts"""
     try:
