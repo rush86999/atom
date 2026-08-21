@@ -51,6 +51,12 @@ _EXPERIMENTS: Dict[str, Dict[str, object]] = {
         "default": True,
         "dev": True,
     },
+    # ---- Temporal evolution (P0) ----
+    "temporal_normalization": {
+        "env": "ATOM_TEMPORALITY_ENABLED",
+        "default": True,       # P0 shipped — temporal anchors on ingested records
+        "dev": True,
+    },
 }
 
 

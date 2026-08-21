@@ -32,6 +32,7 @@ from core.graphrag_engine import GraphRAGEngine
 from core.hybrid_data_ingestion import DEFAULT_SYNC_CONFIGS, HybridDataIngestionService
 from core.integration_constants import MULTI_ENTITY_INTEGRATIONS
 from core.lancedb_handler import LanceDBHandler
+from core.memory.temporal_normalizer import extract_temporal, handle_temporal_entities
 from core.models import DiscoveredEntity, DocumentIngestion, Tenant, UserConnection
 from core.multi_entity_llm_extractor import MultiEntityLLMExtractor
 from core.openie_schema_discovery import CORE_ENTITY_SCHEMAS
@@ -149,6 +150,45 @@ class IngestionPipelineService(HybridDataIngestionService):
             self.graphrag.close()
         if self.usage_tracker:
             self.usage_tracker.close()
+
+    # ---- P0 temporal normalization (A2): every ingestion path funnels
+    # through _record_to_text, so the override below is the single transformer
+    # insertion point. Flag-gated (ATOM_TEMPORALITY_ENABLED) and fail-safe:
+    # any normalizer failure degrades to legacy text with no side effects.
+    def _apply_temporal_normalization(self, record: Dict[str, Any], text: Optional[str] = None) -> Dict[str, Any]:
+        """Extract + store temporal anchors for a record; never raises."""
+        try:
+            source_text = text if text is not None else str(record)
+            entities = extract_temporal(source_text)
+            if not entities:
+                return record
+            payload = [
+                {
+                    "name": e.name,
+                    "entity_type": e.entity_type,
+                    "as_of": e.as_of.isoformat() if e.as_of else None,
+                    "valid_until": e.valid_until.isoformat() if e.valid_until else None,
+                    "confidence": e.confidence,
+                    "source_text": e.source_text,
+                }
+                for e in entities
+            ]
+            handle_temporal_entities(payload, self.workspace_id, source=record.get("id"))
+            record["temporal_entities"] = payload
+            record["as_of"] = payload[0]["as_of"]
+            record["temporal_axis"] = payload[0].get("source_text") or payload[0]["name"]
+        except Exception as e:
+            logger.error(f"Temporal normalization failed: {e}")
+        return record
+
+    def _record_to_text(self, record: Dict[str, Any], integration_id: str) -> str:
+        """Base record-to-text with the temporal normalization hook attached."""
+        text = super()._record_to_text(record, integration_id)
+        try:
+            self._apply_temporal_normalization(record, text)
+        except Exception as e:
+            logger.error(f"Temporal normalization hook failed: {e}")
+        return text
 
     async def sync_and_ingest(
         self,
