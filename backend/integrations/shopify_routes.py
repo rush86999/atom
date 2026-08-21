@@ -3,6 +3,8 @@ import hashlib
 import hmac
 import logging
 import os
+import secrets
+import time
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -22,6 +24,10 @@ logger = logging.getLogger(__name__)
 
 # Auth Type: OAuth2
 router = APIRouter(prefix="/api/shopify", tags=["shopify"])
+
+# OAuth state validity window (seconds). Short so a leaked state token can't be
+# replayed for long; long enough for the Shopify authorize round-trip.
+_STATE_TTL_SECONDS = 600
 
 
 def _env_or_die(name: str) -> str:
@@ -45,36 +51,68 @@ def _shopify_state_secret() -> str:
     return secret
 
 
-def _sign_state(user_id: str, workspace_id: str) -> str:
-    """Return a signed state token binding an authorize request to a user + workspace."""
-    message = f"{user_id}|{workspace_id}"
-    sig = hmac.new(_shopify_state_secret().encode(), message.encode(), hashlib.sha256).hexdigest()
-    return f"{sig}.{user_id}.{workspace_id}"
+def _sign_state(user_id: str, workspace_id: str, shop: str) -> str:
+    """Return a signed, single-use OAuth state token.
+
+    Binds the authorize request to the user, workspace, AND the target shop,
+    with a random nonce and an expiry. The nonce makes each state one-time-only
+    (a previously-issued state cannot be replayed with a fresh code against
+    another shop), and the expiry bounds reuse."""
+    nonce = secrets.token_hex(16)
+    exp = str(int(time.time()) + _STATE_TTL_SECONDS)
+    # '|'-separated payload; shop may contain dots so we never split state on '.'.
+    payload = f"{user_id}|{workspace_id}|{shop}|{nonce}|{exp}"
+    sig = hmac.new(_shopify_state_secret().encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return f"{sig}.{payload}"
 
 
-def _verify_state(state: str) -> tuple:
-    """Verify a signed state token; returns (user_id, workspace_id) or raises 400."""
+def _verify_state(state: str, expected_shop: Optional[str] = None) -> tuple:
+    """Verify a signed OAuth state token.
+
+    Returns ``(user_id, workspace_id)`` or raises 400. Rejects expired states,
+    tampered signatures, and states bound to a different shop than the one the
+    callback received (cross-shop replay)."""
     if not state:
         raise HTTPException(status_code=400, detail="Missing OAuth state")
-    try:
-        sig, user_id, workspace_id = state.split(".", 2)
-    except ValueError:
+    if "." not in state:
         raise HTTPException(status_code=400, detail="Invalid OAuth state")
-    expected = hmac.new(_shopify_state_secret().encode(), f"{user_id}|{workspace_id}".encode(), hashlib.sha256).hexdigest()
+    sig, payload = state.split(".", 1)
+    parts = payload.split("|")
+    if len(parts) != 5:
+        raise HTTPException(status_code=400, detail="Invalid OAuth state")
+    user_id, workspace_id, shop, nonce, exp = parts
+    expected = hmac.new(_shopify_state_secret().encode(), payload.encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(sig, expected):
         raise HTTPException(status_code=400, detail="Invalid OAuth state")
+    try:
+        if int(exp) < int(time.time()):
+            raise HTTPException(status_code=400, detail="OAuth state expired")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid OAuth state")
+    if expected_shop is not None:
+        norm_expected = expected_shop if expected_shop.endswith(".myshopify.com") else f"{expected_shop}.myshopify.com"
+        if shop != norm_expected:
+            raise HTTPException(status_code=400, detail="OAuth state shop mismatch")
     return user_id, workspace_id
 
 
 def _redirect_base_url() -> str:
     """Public base URL for Shopify's browser redirect (NOT the user's machine).
+
     Resolved from deployment config: ATOM_PUBLIC_URL -> ATOM_BASE_URL ->
-    PYTHON_BACKEND_URL -> NEXT_PUBLIC_API_URL -> localhost dev fallback."""
+    PYTHON_BACKEND_URL -> NEXT_PUBLIC_API_URL. Fails closed (no loopback
+    fallback) unless SHOPIFY_DEV_LOOPBACK=1 is explicitly set for local dev."""
+    if os.getenv("SHOPIFY_DEV_LOOPBACK", "").lower() in ("1", "true", "yes", "on"):
+        return os.getenv("SHOPIFY_DEV_BASE_URL", "http://localhost:8000").rstrip("/")
     for name in ("ATOM_PUBLIC_URL", "ATOM_BASE_URL", "PYTHON_BACKEND_URL", "NEXT_PUBLIC_API_URL"):
         val = os.getenv(name, "").strip()
         if val:
             return val.rstrip("/")
-    return "http://localhost:8000"
+    raise HTTPException(
+        status_code=500,
+        detail="Shopify OAuth not configured: no public ATOM URL set. "
+               "Set ATOM_PUBLIC_URL (or SHOPIFY_DEV_LOOPBACK=1 for local dev)."
+    )
 
 
 def _callback_url() -> str:
@@ -101,7 +139,7 @@ async def get_auth_url(
         "client_id": client_id,
         "scope": scopes,
         "redirect_uri": _callback_url(),
-        "state": _sign_state(str(current_user.id), workspace_id),
+        "state": _sign_state(str(current_user.id), workspace_id, shop_url),
     }
     url = f"https://{shop_url}/admin/oauth/authorize?{urlencode(params)}"
     return {
@@ -171,15 +209,23 @@ async def shopify_auth_callback_get(
     persists the store under that verified workspace. Redirects the merchant's
     browser back to the frontend connect page on success/failure.
     """
-    # 1. Verify OAuth state -> recover the owning user + workspace (no client-
-    #    supplied workspace is trusted; it comes from the signed state).
-    user_id, workspace_id = _verify_state(state)
-
     # 2. Exchange the code for an access token.
     if not shop:
         # Shopify sends the shop domain in the state-verified authorize flow via
         # the shop query param; require it.
         raise HTTPException(status_code=400, detail="Missing shop parameter")
+
+    # 3. Verify OAuth state -> recover the owning user + workspace, AND enforce
+    #    that the state was issued for THIS shop (blocks cross-shop replay:
+    #    reusing an old state token with a fresh code for a different store).
+    #    No client-supplied workspace is trusted — it comes from the signed state.
+    try:
+        user_id, workspace_id = _verify_state(state, expected_shop=shop)
+    except HTTPException:
+        logger.warning(f"Shopify callback: state verification failed for shop {shop}")
+        return _redirect_connect(connected=False, shop=shop)
+
+    # 4. Exchange the code for an access token.
     try:
         token_data = await shopify_service.exchange_token(code, shop)
     except Exception:
@@ -191,7 +237,7 @@ async def shopify_auth_callback_get(
         logger.error("Shopify callback: no access_token returned")
         return _redirect_connect(connected=False, shop=shop)
 
-    # 3. Persist the store, scoped to the verified workspace. Refuse to
+    # 5. Persist the store, scoped to the verified workspace. Refuse to
     #    reassign a store already owned by a DIFFERENT workspace.
     store = db.query(EcommerceStore).filter(
         EcommerceStore.shop_domain == shop
