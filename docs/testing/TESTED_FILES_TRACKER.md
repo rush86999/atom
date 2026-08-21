@@ -5993,3 +5993,9 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Behavior note**: agents whose registry status is STUDENT/INTERN are now bounded by their tier floor at call_tool even when governance/HITL approved the action — deterministic blast-radius layer is independent of approval authority (by design). Kill switches unchanged (`ATOM_SANDBOX_ENABLED`, `ATOM_SANDBOX_FORCE_ENFORCE=false` restores shadow).
 
 **Verification**: round81b 11/11; generic-agent/proposal/governance-runtime suites 59 passed.
+
+## Session 2026-08-21 (backend) — R81d: step-level user feedback actually updates confidence
+
+**Files**: `backend/core/reasoning_chain.py` (`ReasoningTracker._apply_feedback_to_agent` called `_update_confidence_score(agent_id, feedback.user_id, is_positive=...)` — user_id positionally as `positive`, nonexistent kwarg → TypeError swallowed by the except → APPROVE/REJECT on reasoning steps never moved confidence; now `positive=True/False, impact_level="high"`), `backend/tests/test_round81b_journey_followups.py` (+3 tests → 14), `backend/tests/test_covpush_w105_gaps_b.py` (test pinned the broken signature → corrected contract).
+
+**Verification**: round81b 14/14; w105+w99+meta cluster 181 passed (1 pre-existing meta failure confirmed on HEAD worktree).

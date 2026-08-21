@@ -352,3 +352,63 @@ class TestDispatchContextStamping:
             _aio.run(agent.execute("Task", context=ctx))
         assert ctx["run_id"] == "caller-run"
         assert ctx["tier_at_issuance"] == "autonomous"
+
+
+# ============================================================================
+# G10 - reasoning-step feedback actually reaches the confidence update
+# ============================================================================
+
+
+class TestReasoningFeedbackConfidence:
+    """_apply_feedback_to_agent called _update_confidence_score with a
+    nonexistent `is_positive` kwarg (and user_id positionally as `positive`)
+    - every approve/reject raised TypeError that the except swallowed, so
+    step-level user feedback never moved agent confidence."""
+
+    def _feedback(self, fb_type):
+        fb = MagicMock()
+        fb.feedback_type = fb_type
+        fb.user_id = "user-1"
+        return fb
+
+    def _step(self):
+        step = MagicMock()
+        step.agent_id = "agent-1"
+        return step
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("fb_type,expected_positive", [
+        ("APPROVE", True),
+        ("REJECT", False),
+    ])
+    async def test_approve_and_reject_update_confidence(self, fb_type, expected_positive):
+        from core.reasoning_chain import FeedbackType as FT, ReasoningTracker
+
+        chain = ReasoningTracker.__new__(ReasoningTracker)
+        db_cm = MagicMock()
+        db = MagicMock()
+        db_cm.__enter__.return_value = db
+        db_cm.__exit__.return_value = False
+
+        with patch("core.database.get_db_session", return_value=db_cm), \
+             patch("core.agent_governance_service.AgentGovernanceService") as gov_cls:
+            gov_cls.return_value._update_confidence_score = Mock()
+            await ReasoningTracker._apply_feedback_to_agent(
+                chain, self._feedback(getattr(FT, fb_type)), self._step()
+            )
+            gov_cls.return_value._update_confidence_score.assert_called_once_with(
+                "agent-1", positive=expected_positive, impact_level="high"
+            )
+
+    @pytest.mark.asyncio
+    async def test_no_agent_id_is_noop(self):
+        from core.reasoning_chain import FeedbackType as FT, ReasoningTracker
+
+        chain = ReasoningTracker.__new__(ReasoningTracker)
+        step = MagicMock()
+        step.agent_id = None
+        with patch("core.database.get_db_session") as gds:
+            await ReasoningTracker._apply_feedback_to_agent(
+                chain, self._feedback(FT.APPROVE), step
+            )
+            gds.assert_not_called()

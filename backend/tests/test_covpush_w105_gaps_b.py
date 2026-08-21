@@ -838,7 +838,10 @@ class TestReasoningChainModule:
         with patch.dict(sys.modules, {"core.agent_governance_service": gov_mod}), \
              patch("core.database.get_db_session", return_value=_ctx(MagicMock())):
             await t._apply_feedback_to_agent(_fb(FeedbackType.APPROVE), step_pos)
-        gov._update_confidence_score.assert_called_once_with("ag", "u", is_positive=True)
+        # R81d: fixed signature (user_id was passed positionally as `positive`,
+        # plus a nonexistent is_positive kwarg -> TypeError -> swallowed).
+        gov._update_confidence_score.assert_called_once_with(
+            "ag", positive=True, impact_level="high")
 
         gov2 = MagicMock()
         gov_mod2 = types.SimpleNamespace(AgentGovernanceService=MagicMock(return_value=gov2))
@@ -846,7 +849,8 @@ class TestReasoningChainModule:
         with patch.dict(sys.modules, {"core.agent_governance_service": gov_mod2}), \
              patch("core.database.get_db_session", return_value=_ctx(MagicMock())):
             await t._apply_feedback_to_agent(_fb(FeedbackType.REJECT), step_neg)
-        gov2._update_confidence_score.assert_called_once_with("ag2", "u", is_positive=False)
+        gov2._update_confidence_score.assert_called_once_with(
+            "ag2", positive=False, impact_level="high")
 
         # suggest/explain types: no confidence update
         gov3 = MagicMock()
